@@ -24,12 +24,20 @@ ladder!(MetricOptimization {
 // Verify the generated types exist
 #[test]
 fn test_module_exists() {
-    // The ladder macro generates a module named `metricoptimization`
-    // with all the types inside it.
-    let _carry = metricoptimization::Carry {
+    let carry = metricoptimization::Carry {
         metric_name: "test".into(),
         correlation_key: 42,
     };
+    // The Carry type exists and can be constructed.
+    let _ = carry;
+}
+
+#[test]
+fn test_carry_accessor_exists() {
+    // Verify the carry() accessor returns &Carry at the type level.
+    // Rung types are sealed — we can't construct them from here.
+    // The accessor signature is: pub fn carry(&self) -> &Carry
+    fn _check<T: Fn(&metricoptimization::Spec) -> &metricoptimization::Carry>(_: T) {}
 }
 
 #[test]

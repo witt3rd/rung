@@ -421,20 +421,29 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         }
     };
 
-    // ── Rung structs (sealed) ───────────────────────────────────────────
+    // ── Rung structs (sealed) + carry accessor ───────────────────────────
     let rung_structs: Vec<_> = ladder
         .rungs
         .iter()
         .map(|r| {
             let name = &r.name;
             let payload = &r.payload_type;
-            let carry_field = if carry_fields.is_empty() {
-                quote! {}
+            let (carry_field, carry_impl) = if carry_fields.is_empty() {
+                (quote! {}, quote! {})
             } else {
-                quote! { pub carry: Carry, }
+                (
+                    quote! { carry: Carry, },
+                    quote! {
+                        impl #name {
+                            /// Immutable witness data. Never consumed; read via shared reference.
+                            pub fn carry(&self) -> &Carry { &self.carry }
+                        }
+                    },
+                )
             };
             quote! {
                 pub struct #name { _seal: (), #carry_field pub payload: #payload }
+                #carry_impl
             }
         })
         .collect();
@@ -478,11 +487,6 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     };
 
     // ── Transition trait ────────────────────────────────────────────────
-    let _carry_param = if carry_fields.is_empty() {
-        quote! {}
-    } else {
-        quote! { carry: &Carry, }
-    };
 
     let transition_methods: Vec<_> = ladder
         .transitions
