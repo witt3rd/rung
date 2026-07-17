@@ -49,6 +49,42 @@ fn test_carry_accessor_exists() {
 }
 
 #[test]
+fn test_rungs_are_not_send_or_sync() {
+    // Proof of the linear-token contract (RUNG-RUST.md §4.6): rung tokens must not
+    // cross thread boundaries, or two threads could drive a transition on the same
+    // logical token via a shared `Arc`/`&`. The `PhantomData<*const ()>` marker in
+    // each generated rung makes it `!Send + !Sync`.
+    //
+    // Autoref specialization: `IsSend<T>` has an inherent `.check()` returning true
+    // (selected only when `T: Send`); the blanket `&IsSend<T>` fallback returns
+    // false. `(&IsSend::<T>(..)).check()` resolves to the inherent method iff T is
+    // Send, else the fallback. If the marker were ever dropped, these asserts flip.
+    use core::marker::PhantomData;
+    struct IsSend<T>(PhantomData<T>);
+    impl<T: Send> IsSend<T> {
+        #[allow(dead_code)]
+        fn check(&self) -> bool {
+            true
+        }
+    }
+    trait Fallback {
+        fn check(&self) -> bool {
+            false
+        }
+    }
+    impl<T> Fallback for &IsSend<T> {}
+
+    assert!(
+        !(&IsSend::<metricoptimization::Spec>(PhantomData)).check(),
+        "Spec must be !Send"
+    );
+    assert!(
+        !(&IsSend::<metricoptimization::Active>(PhantomData)).check(),
+        "Active must be !Send"
+    );
+}
+
+#[test]
 fn test_failed_type() {
     // Failed<Prev> is generic over the previous rung type
     type _FailedActive = metricoptimization::Failed<metricoptimization::Active>;

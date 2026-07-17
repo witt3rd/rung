@@ -442,7 +442,18 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 )
             };
             quote! {
-                pub struct #name { _seal: (), #carry_field pub payload: #payload }
+                // `_not_send: PhantomData<*const ()>` makes every rung `!Send + !Sync`.
+                // This enforces the linear-token contract across threads: an `Arc<#name>`
+                // or `&#name` cannot cross a thread boundary, so two threads can never
+                // drive a transition on the same logical token. Rust's move semantics
+                // enforce one-consumer for owned values; this closes the shared-reference
+                // hole (RUNG-RUST.md §4.6). Constructed inside the module alongside `_seal`.
+                pub struct #name {
+                    _seal: (),
+                    _not_send: ::core::marker::PhantomData<*const ()>,
+                    #carry_field
+                    pub payload: #payload,
+                }
                 #carry_impl
             }
         })

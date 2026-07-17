@@ -219,13 +219,17 @@ If crate A defines `ladder Work`, crate B can receive `Work::Active` and call `D
 
 **Path to close:** If the gap matters for a specific architecture, emit the sealed types into a dedicated sub-crate that *only* the macro controls. No other code in the defining crate can access the seal field. This is the same fix as §4.1, and carries the same build-complexity cost.
 
-### 4.6 Concurrent access
+### 4.6 Concurrent access — CLOSED (default `!Send + !Sync`)
 
 Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `&Active` reference circumvents ownership. Two threads could call `step(active)` on the same logical token if they share a reference.
 
-**Why this gap exists:** Rust's ownership system prevents data races, not logical races. `Arc<Active>` is memory-safe — two threads can read the same `Active` — but the ladder contract (one token, one consumer) is violated.
+**Why the gap existed:** Rust's ownership system prevents data races, not logical races. `Arc<Active>` is memory-safe — two threads can read the same `Active` — but the ladder contract (one token, one consumer) is violated.
 
-**Path to close:** The macro could generate `Active` without `Clone` and without `Sync`, making sharing difficult by default. More aggressively: emit `Active` as `!Send + !Sync` (via `PhantomData<*const ()>`) so it can only exist on one thread. This is appropriate for single-threaded pipelines. For multi-threaded: the macro could emit a runtime check — `Active` carries an `AtomicBool consumed` flag that panics on double-consume.
+**Status:** Closed 2026-07-17. Every generated rung struct now carries a private `_not_send: PhantomData<*const ()>` field, making it `!Send + !Sync`. An `Arc<Active>` or `&Active` can no longer cross a thread boundary, so the one-token-one-consumer contract holds even under shared references. Zero build cost — one field per rung struct. Proven by `rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync` (autoref specialization; the assert flips if the marker is ever removed).
+
+**⚠️ Known remnant:** Verdict structs (`Stalled`, `Converged`, etc.) are emitted as bare `pub struct Stalled;` — no `_seal`, no `PhantomData`. A `Stalled` token (which gets fed into `recover_stalled`) can cross a thread boundary, and unit verdicts are publicly constructible. Lower stakes than live rung tokens, but an inconsistency worth flagging. Graded alongside the other open gaps — close when the value justifies the cost.
+
+**Future extension:** a ladder-level `parallel` annotation would drop the marker for genuinely multi-threaded pipelines and instead emit an `AtomicBool consumed` runtime double-consume guard. Not yet built — the safe default is free; the dangerous case should be explicit and pay for its own check.
 
 ---
 
@@ -244,7 +248,7 @@ Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `
 | Carry read-only | — | — | ✓ Private field + `&Carry` getter |
 | Recovery progress | — | — | ✗ Liveness property |
 | Cross-crate provenance | — | — | ✗ Crate boundary trust |
-| Concurrent access | — | — | ✗ `!Send + !Sync` opt-in |
+| Concurrent access | — | — | ✓ `!Send + !Sync` by default (`PhantomData<*const ()>`) |
 | Transition body correctness | — | — | ✗ Formal verification gap |
 
 ---
@@ -255,7 +259,7 @@ Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `
 
 - **Carry: split `carry` and `carry_mut`.** Fields in `carry` generate immutable accessors. Fields in an optional `carry_mut` block allow mutation. The common case (witness data) is read-only by default.
 - **Recovery progress: `#[must_progress]`.** A runtime assertion that the recovered token differs from the stalled token in at least one field. Panics on no-progress. Catches 90% of infinite-stall bugs.
-- **Concurrent access: `!Send + !Sync`.** All rung types carry `PhantomData<*const ()>` by default. Opt-in to `Send` with a ladder-level annotation `parallel` for use cases that genuinely need multi-threaded access.
+- **Concurrent access: `!Send + !Sync`.** ✅ Done. All rung types carry `PhantomData<*const ()>` by default. Opt-in to `Send` with a ladder-level annotation `parallel` (future) for use cases that genuinely need multi-threaded access.
 
 ### Medium-term (proc macro v2)
 
@@ -277,7 +281,7 @@ Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `
 | `rung/checker.py` | Done — 8 static checks, single-pass, 11 tests |
 | `rung/interpreter.py` | Done — linear token tracking, provenance trace |
 | `rust-example/` | Done — hand-written MetricOptimization, sealed constructors, move semantics |
-| `ladder!` proc macro | Not yet built — the Rust example proves the pattern; the macro is the next strike |
+| `ladder!` proc macro | Done — `rung-macro/src/lib.rs`: parse + 8 static checks + emit (sealed structs, `!Send` rungs, carry accessor, `Failed<Prev>`, verdict enum, transition/recover trait signatures) |
 
 ---
 
