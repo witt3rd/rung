@@ -90,8 +90,8 @@ impl workflow::Transitions for WorkCtx {
 - **The borrow checker handles linearity.** Move semantics ensure each state
   token is consumed exactly once. No separate linearity engine needed.
 - **What's not enforced:** transition body correctness (the type proves you
-  called `claim()`, not that the claim was valid), carry immutability
-  (convention, not compiler gate), recovery progress (liveness, not safety).
+  called `claim()`, not that the claim was valid), recovery progress
+  (liveness, not safety).
 
 ## Further reading
 

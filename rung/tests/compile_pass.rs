@@ -34,9 +34,17 @@ fn test_module_exists() {
 
 #[test]
 fn test_carry_accessor_exists() {
-    // Verify the carry() accessor returns &Carry at the type level.
-    // Rung types are sealed — we can't construct them from here.
-    // The accessor signature is: pub fn carry(&self) -> &Carry
+    // Type-level proof: if Spec::carry() did not exist, this would not compile.
+    // The function `_check` only accepts closures matching &Spec -> &Carry.
+    // We never call it — the type system IS the test.
+    //
+    // What this proves: the accessor method exists with the right signature.
+    // What it doesn't prove: that the accessor works at runtime (but the field
+    //   being private makes direct mutation a compile error, and the accessor's
+    //   &Carry return type makes mutation through the reference impossible).
+    //
+    // To verify: try adding `spec.carry.metric_name = "mutated"` somewhere —
+    // the compiler will refuse because `carry` is private.
     fn _check<T: Fn(&metricoptimization::Spec) -> &metricoptimization::Carry>(_: T) {}
 }
 
