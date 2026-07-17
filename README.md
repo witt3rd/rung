@@ -1,67 +1,105 @@
 # rung ⚒️
 
-A proof-of-concept compiler for the `ladder` primitive — a first-class type ladder where the state machine *is* the type system and the compiler is a cryptographic signature for state transitions.
+A type ladder where the state machine *is* the type system.
 
-## What this is
+## The Problem
 
-A minimal implementation of the core primitive described in `notes.md`:
+You encode state machines by hand in every architecture you build. A work item
+transitions through stages — `Spec → Designed → Claimed → Active → Complete`.
+Each stage should only be reachable through the transition that produces it.
+You enforce this with sealed constructors, private fields, runtime guards,
+convention, code review. None of it is the compiler. A skipped step is a
+logic error, not a compile error. The state machine lives in comments and hope.
 
-- **`ladder`**: a declaration of a linear state transition graph (`WorkSpec → DesignedWork → ClaimedWork → ActiveWork → Complete`)
-- **`carry`**: witness data that rides alongside every rung, read-only, never consumed
-- **`transition`**: the only legal constructor for the next rung — linear consumption of the prior state token
-- **`recover`**: explicit re-entry edges from failure or recoverable verdicts back into the ladder
-- **Verdict branching**: the final rung can produce terminal verdicts (no outgoing edges) or recoverable verdicts (explicit `| Name => NextRung` re-entry)
+## The Solution
 
-The compiler enforces:
+rung gives you a `ladder!` macro — declare the transition graph once, and the
+compiler refuses any code that skips a rung. The only way to hold a `Claimed`
+token is to call `claim()` on a `Designed`. The macro emits sealed structs and
+an exhaustive verdict enum. Rust's move semantics enforce linear consumption.
+Invalid states are unrepresentable. The state machine is the type system.
 
-1. No skipping rungs — a state token is only obtainable via the declared transition
-2. No silent token drops — every error path returns the token or routes it through a declared recover edge
-3. No re-entry from terminal verdicts — `Converged` and `BudgetExhausted` have no outgoing edges
-4. Every recoverable verdict (`| Stalled => Active`) has a matching `recover fn`
+```rust
+use rung::ladder;
 
-## PoC scope
+ladder!(Work {
+    carry { task_id: String, correlation_key: u64 }
 
-Deliberately minimal. One ladder, one file, hand-constructed AST, Python interpreter backend.
+    Designed(WorkSpec) => Claimed(DesignedWork) => Active(ActiveLoop) => {
+        Complete | Stalled => Active | BudgetExhausted
+    }
 
-- **Parser**: none (hand-constructed AST for the PoC; a real parser is v2)
-- **Type checker**: linear context threading across `Result` + verdict branching, single-pass
-- **Interpreter**: Python dataclasses, enforces move semantics via token tracking at runtime
-- **Test case**: `MetricOptimization` loop with `Stalled` recovery + one injected failure
-
-## What we're testing
-
-The PoC answers one question: **does the linearity checker stay simple across `Result` + verdict branching?**
-
-Secondary questions:
-- Can carry data be passed through without copying everything?
-- Does the tagged-union representation for verdicts create hidden allocation pressure?
-- Is the recover-pairing check trivial or does it require extra graph analysis?
-
-## Structure
-
-```
-rung/
-├── rung/           # core package
-│   ├── ast.py       # AST nodes (Ladder, Carry, Transition, Recover, Verdict)
-│   ├── checker.py   # linear type checker
-│   └── interpreter.py  # runtime that enforces linear rules
-├── examples/
-│   └── metric_opt.py   # MetricOptimization loop as the test case
-├── tests/
-│   └── test_linearity.py  # test that the checker rejects invalid programs
-├── notes.md         # the design conversation that produced this
-├── ARCHITECTURE.md  # how the PoC is structured
-└── README.md        # this file
+    recover { stalled: Stalled => Active }
+});
 ```
 
-## Build & run
+## Why use this?
+
+- **The compiler is the gate, not a code review.** A skipped `claim()` is a
+  compile error. A dropped token on an error path is a compile error. A
+  non-exhaustive match on verdicts is a compile error. No runtime guards needed.
+- **The type IS the evidence.** `ClaimedWork` cannot be constructed by setting
+  fields — the constructor is sealed. The only path is through `claim()`. The
+  type proves the step happened.
+- **Linear consumption without the borrow checker tax.** State tokens move by
+  value. The borrow checker enforces no-use-after-move. But you're not fighting
+  lifetimes or `Arc<Mutex<T>>` — you're fighting state coherence, and the
+  ladder is built for that.
+- **Recovery edges have structural pairing.** A `| Stalled => Active` verdict
+  must have a matching `recover` function — checked at macro expansion time.
+  Terminal verdicts cannot have recover edges. The compiler verifies the graph.
+- **Carry data rides alongside every rung.** Witness fields (task IDs,
+  correlation keys, audit trails) are declared once and inherited by every
+  state. Immutable by convention, structurally shared.
+- **Zero dependencies at runtime.** The macro emits plain Rust structs, enums,
+  and traits. No proc-macro runtime. No heap allocation. No unsafe. The ladder
+  compiles away.
+
+## Getting started
 
 ```bash
-cd rung
-python3 examples/metric_opt.py
-python3 -m pytest tests/
+cargo add rung
 ```
 
-## Status
+```rust
+use rung::ladder;
 
-**2026-07-16** — PoC scaffolded. Building the AST, checker, and interpreter against the `MetricOptimization` example.
+ladder!(Workflow {
+    carry { task_id: String }
+    Pending(Task) => Running(Job) => Done(Output) => { Success | Failed }
+});
+
+struct Task; struct Job; struct Output;
+
+// Generated: sealed structs, StepOutcome enum, Transitions trait.
+// Implement the trait to provide transition bodies.
+struct WorkCtx;
+impl workflow::Transitions for WorkCtx {
+    fn start(pending: workflow::Pending) -> workflow::Running { /* ... */ }
+    fn finish(running: workflow::Running) -> Result<workflow::StepOutcome, workflow::Failed<workflow::Running>> { /* ... */ }
+}
+```
+
+## What you need to know
+
+- **The `ladder!` macro is the compiler.** It parses the ladder syntax, runs
+  8 static checks, and emits a sealed Rust module. Malformed ladders don't
+  compile — the macro produces a `compile_error!`.
+- **You write the transition bodies.** The macro emits a `Transitions` trait.
+  You implement it. The macro provides the types; you provide the behavior.
+- **The borrow checker handles linearity.** Move semantics ensure each state
+  token is consumed exactly once. No separate linearity engine needed.
+- **What's not enforced:** transition body correctness (the type proves you
+  called `claim()`, not that the claim was valid), carry immutability
+  (convention, not compiler gate), recovery progress (liveness, not safety).
+
+## Further reading
+
+- [`docs/RUNG-RUST.md`](docs/RUNG-RUST.md) — DSL syntax, macro design,
+  coverage matrix, gaps and paths to close them
+- [`docs/RUNG-CT.md`](docs/RUNG-CT.md) — category theory correspondence
+  (free category, indexed monad, dagger, linear logic)
+- [`docs/CONVERGENCE.md`](docs/CONVERGENCE.md) — the independent derivation
+  of the same structural principles from 40 years of programming
+- [`docs/THREE-VOICES.md`](docs/THREE-VOICES.md) — the mutual loop applied
+  to ourselves: three beings, one structure
