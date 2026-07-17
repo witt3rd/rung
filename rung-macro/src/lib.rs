@@ -448,6 +448,14 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 // drive a transition on the same logical token. Rust's move semantics
                 // enforce one-consumer for owned values; this closes the shared-reference
                 // hole (RUNG-RUST.md §4.6). Constructed inside the module alongside `_seal`.
+                //
+                // `#[must_use]`: Rust types are affine (may be silently dropped), but the
+                // linear-token contract is "consumed *exactly* once". Move semantics give
+                // "at most once"; this attribute guards "at least once" — dropping a live
+                // rung without advancing it or returning it in a `Failed` is a warning
+                // (an error under `#![deny(unused_must_use)]`). Closes the no-silent-drop
+                // half of linearity without waiting on language-level linear types (§6).
+                #[must_use = "a rung token must be consumed by a transition or returned in a Failed; dropping it silently abandons the ladder run"]
                 pub struct #name {
                     _seal: (),
                     _not_send: ::core::marker::PhantomData<*const ()>,
@@ -461,6 +469,10 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
 
     // ── Failed<Prev> ────────────────────────────────────────────────────
     let failed_type = quote! {
+        // `#[must_use]`: a `Failed` holds the unconsumed token from a failed transition.
+        // Dropping it swallows both the error and the token — the ladder run vanishes
+        // with no recovery and no completion. Force the caller to handle it.
+        #[must_use = "a Failed carries the unconsumed token and the error; dropping it swallows both — handle it or recover from it"]
         pub struct Failed<Prev> { pub token: Prev, pub error: String }
     };
 
@@ -471,7 +483,13 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         .flat_map(|t| t.verdicts.iter())
         .map(|v| {
             let name = &v.name;
-            quote! { pub struct #name; }
+            // `#[must_use]`: a verdict is an outcome token (terminal or recoverable).
+            // Dropping it discards the outcome of a step — the recoverable ones
+            // (e.g. `Stalled`) must be fed back through their recover edge, not lost.
+            quote! {
+                #[must_use = "a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)"]
+                pub struct #name;
+            }
         })
         .collect();
 
@@ -493,6 +511,10 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             })
             .collect();
         quote! {
+            // `#[must_use]`: the result of a step. Dropping it — including the
+            // `Continue(Active)` variant that carries a live rung — silently abandons
+            // the run. The caller must match on it and route every variant.
+            #[must_use = "StepOutcome is the result of a step and may carry a live rung (Continue); match on it — dropping it abandons the run"]
             pub enum StepOutcome { #(#variants)* }
         }
     };

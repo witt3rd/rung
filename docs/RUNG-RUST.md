@@ -231,6 +231,16 @@ Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `
 
 **Future extension:** a ladder-level `parallel` annotation would drop the marker for genuinely multi-threaded pipelines and instead emit an `AtomicBool consumed` runtime double-consume guard. Not yet built — the safe default is free; the dangerous case should be explicit and pay for its own check.
 
+### 4.7 Silent drop — CLOSED (default `#[must_use]`)
+
+Rust types are **affine**, not linear: any value may be silently dropped. Move semantics enforce the "at most once" half of the linear-token contract (§4.6 closes the shared-reference escape). But "at least once" — no silent abandonment — was completely unguarded. A live `Active` that falls out of scope without being advanced or returned in a `Failed` is a ladder run that vanishes: no verdict, no completion, no error. Arguably worse than double-consume, because it is invisible.
+
+**Why the gap existed:** affine types permit silent `Drop`. True no-silent-drop needs language-level linear types, which Rust does not have.
+
+**Status:** Closed 2026-07-17. Every generated token — rung structs, verdict structs, `StepOutcome`, and `Failed<Prev>` — now carries `#[must_use]` with a contract-specific message. Dropping a token is a warning, and a hard error under `#![deny(unused_must_use)]`. Zero build cost — one attribute per emitted type. Proven by the `compile_fail` doctest in `rung/src/lib.rs` (drops a verdict under `deny(unused_must_use)`; verified via probe to fail *specifically* on `unused_must_use`, not an incidental error — if the attribute is ever removed from emit, the example compiles and the `compile_fail` test fails).
+
+This is the pragmatic ~80% of no-silent-drop available today. It does not stop `std::mem::forget` or an explicit `let _ = active;`, and `#[must_use]` on a type only fires when the value is dropped in statement position — but it catches the dominant accidental-abandonment case at compile time without waiting on linear types (§6 long-term).
+
 ---
 
 ## 5. Coverage matrix
@@ -249,6 +259,7 @@ Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `
 | Recovery progress | — | — | ✗ Liveness property |
 | Cross-crate provenance | — | — | ✗ Crate boundary trust |
 | Concurrent access | — | — | ✓ `!Send + !Sync` by default (`PhantomData<*const ()>`) |
+| No silent drop | — affine, drop allowed | — | ✓ `#[must_use]` on every token (warn; error under `deny`) |
 | Transition body correctness | — | — | ✗ Formal verification gap |
 
 ---
@@ -260,6 +271,7 @@ Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `
 - **Carry: split `carry` and `carry_mut`.** Fields in `carry` generate immutable accessors. Fields in an optional `carry_mut` block allow mutation. The common case (witness data) is read-only by default.
 - **Recovery progress: `#[must_progress]`.** A runtime assertion that the recovered token differs from the stalled token in at least one field. Panics on no-progress. Catches 90% of infinite-stall bugs.
 - **Concurrent access: `!Send + !Sync`.** ✅ Done. All rung types carry `PhantomData<*const ()>` by default. Opt-in to `Send` with a ladder-level annotation `parallel` (future) for use cases that genuinely need multi-threaded access.
+- **No silent drop: `#[must_use]`.** ✅ Done. Every emitted token (rungs, verdicts, `StepOutcome`, `Failed`) is `#[must_use]`. Dropping a token warns, and errors under `#![deny(unused_must_use)]`. The pragmatic partial close of the no-silent-drop gap — no linear types required.
 
 ### Medium-term (proc macro v2)
 
@@ -268,7 +280,7 @@ Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `
 
 ### Long-term (language-level)
 
-- **Linear types in Rust.** If Rust ever gains linear types (not just affine), the `ladder!` macro could leverage them directly. A linear `Active` cannot be dropped silently — it must be consumed by a transition or returned in a `Failed`. This would close the no-silent-drop gap at the language level rather than at the macro level.
+- **Linear types in Rust.** `#[must_use]` (§4.7) closes the *common* case of the no-silent-drop gap — it warns (or errors under `deny`) on an abandoned token. But it is escapable: `std::mem::forget`, an explicit `let _ = active;`, or storing the token in a dropped container all bypass it. If Rust ever gains true linear types (not just affine), the `ladder!` macro could leverage them directly: a linear `Active` *cannot* be dropped at all — it must be consumed by a transition or returned in a `Failed`. That would close the gap at the language level with no escape hatch.
 - **Dependent types for transition contracts.** A dependently typed systems language (Idris, Lean, a future Rust extension) could encode: "`claim()` returns `Ok(Claimed)` only if the resource was available." The return type depends on the runtime value. This closes the transition-body-correctness gap. But the ceremony cost must fall below the value for this to be practical outside proof-carrying code.
 
 ---
