@@ -1,6 +1,13 @@
-# RUNG-RUST — The `ladder!` proc macro
+# RUNG-RS — Design record for the `ladder!` proc macro
 
 **2026-07-16 · Donald Thompson & Forge ⚒️**
+
+> **Historical / non-normative.** This began as the design document for the
+> `ladder!` macro (when it was not yet built) and grew into the running record of
+> how it was built and how each gap was closed — the rationale, the coverage
+> archaeology, and the roadmap. The **normative** description of the language now
+> lives in [`SPEC.md`](../SPEC.md); read that for the rules. This document is kept
+> for the *why* behind them.
 
 A Rust proc macro that compiles the rung `ladder` primitive to the borrow-checker-enforced typestate pattern. The ladder syntax is the DSL. The macro is the compiler. Rust is the substrate.
 

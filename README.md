@@ -157,13 +157,14 @@ module-private, so no outside code can fabricate a mid-ladder token. Omit the
   ran the transition, not that its logic was valid — the boundary between
   typestate and formal verification), and cross-crate provenance (a token
   crossing a crate boundary is trusted, like any Rust API). See
-  [`docs/RUNG-RUST.md`](docs/RUNG-RUST.md) §4 for the full coverage matrix and
-  which gaps are closed.
+  [`SPEC.md`](SPEC.md) §5 for the full list of non-guarantees.
 
 ## Further reading
 
-- [`docs/RUNG-RUST.md`](docs/RUNG-RUST.md) — DSL syntax, macro design,
-  coverage matrix, gaps and paths to close them
+- [`SPEC.md`](SPEC.md) — the normative specification: grammar, static
+  semantics, emitted artifacts, and test-backed guarantees
+- [`docs/RUNG-RS.md`](docs/RUNG-RS.md) — the design record: rationale and how
+  each gap was closed (historical, non-normative)
 - [`docs/RUNG-CT.md`](docs/RUNG-CT.md) — category theory correspondence
   (free category, indexed monad, dagger, linear logic)
 - [`docs/CONVERGENCE.md`](docs/CONVERGENCE.md) — the independent derivation

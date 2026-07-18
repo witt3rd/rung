@@ -1,9 +1,10 @@
 //! The `ladder!` proc macro — a compiler for type-state ladders.
 //!
-//! Parses the ladder syntax, runs 8 static checks, emits sealed Rust types
-//! with transition traits. The borrow checker enforces linear consumption.
-//! The macro enforces structural correctness (rung existence, recover pairing,
-//! terminal vs recoverable distinction).
+//! Parses the ladder syntax, runs 10 static checks, and emits a sealed Rust
+//! module (rung/verdict structs, the `StepOutcome` enum, and — with an inline
+//! `impl { .. }` block — the transition/recover functions). The borrow checker
+//! enforces linear consumption; the macro enforces structural correctness.
+//! See `SPEC.md` for the normative rules.
 
 use proc_macro::TokenStream;
 use quote::{ToTokens, format_ident, quote};
@@ -337,7 +338,7 @@ impl Parse for CarryField {
     }
 }
 
-// ── checker (8 static rules, same as rung/checker.py) ────────────────────────
+// ── checker (10 rules: 1–8 structural, mirror rung/checker.py; 9–10 impl-block) ─
 
 fn check(ladder: &Ladder) -> Result<(), String> {
     let rung_names: Vec<String> = ladder.rungs.iter().map(|r| r.name.to_string()).collect();
@@ -567,11 +568,11 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             let name = &r.name;
             let payload = &r.payload_type;
             let is_entry = entry_name.as_deref() == Some(&name.to_string());
-            // Constructor visibility (RUNG-RUST.md §4.1):
+            // Constructor visibility (SPEC.md G2):
             //   - With an inline `impl { .. }` block, transition bodies live INSIDE
             //     the module, so only the *entry* rung needs a public constructor
             //     (to start a run). Every downstream rung's `new` is module-private —
-            //     no external code can fabricate a mid-ladder token. §4.1 CLOSED.
+            //     no external code can fabricate a mid-ladder token (this is G2).
             //   - Without bodies (a type-only declaration), all constructors are
             //     `pub` so external code (e.g. a hand-written driver) can build them.
             let ctor_vis = if has_bodies && !is_entry {
@@ -598,14 +599,14 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 // or `&#name` cannot cross a thread boundary, so two threads can never
                 // drive a transition on the same logical token. Rust's move semantics
                 // enforce one-consumer for owned values; this closes the shared-reference
-                // hole (RUNG-RUST.md §4.6). Constructed inside the module alongside `_seal`.
+                // hole (SPEC.md G3). Constructed inside the module alongside `_seal`.
                 //
                 // `#[must_use]`: Rust types are affine (may be silently dropped), but the
                 // linear-token contract is "consumed *exactly* once". Move semantics give
                 // "at most once"; this attribute guards "at least once" — dropping a live
                 // rung without advancing it or returning it in a `Failed` is a warning
                 // (an error under `#![deny(unused_must_use)]`). Closes the no-silent-drop
-                // half of linearity without waiting on language-level linear types (§6).
+                // half of linearity without waiting on language-level linear types (SPEC.md §5).
                 #[must_use = "a rung token must be consumed by a transition or returned in a Failed; dropping it silently abandons the ladder run"]
                 pub struct #name {
                     _seal: (),
@@ -640,8 +641,8 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     };
 
     // ── Verdict structs (sealed, !Send, constructible) ───────────────────
-    // Verdicts are outcome tokens, held to the same seal as rungs (RUNG-RUST.md
-    // §4.6 remnant, closed): private `_seal` + `_not_send: PhantomData<*const ()>`.
+    // Verdicts are outcome tokens, held to the same seal as rungs (SPEC.md G3):
+    // private `_seal` + `_not_send: PhantomData<*const ()>`.
     // A *recoverable* verdict additionally carries the rung it was produced from
     // (`source`), so its recover edge has the full prior context to re-enter with —
     // without this, recovery would have to fabricate the next rung from nothing.
@@ -650,7 +651,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         .iter()
         .flat_map(|t| {
             let from_rung = t.from_rung.clone();
-            // Verdict constructors follow the same §4.1 visibility rule as rungs:
+            // Verdict constructors follow the same SPEC.md G2 visibility rule as rungs:
             // module-private when transition bodies are inline (they build verdicts
             // in-module), `pub` for a type-only declaration.
             let vctor_vis = if has_bodies { quote! {} } else { quote! { pub } };
@@ -768,8 +769,8 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     // ── Transition + recover bodies (inline `impl { .. }` form) ──────────
     // When an `impl { .. }` block is present, the transition/recover bodies expand
     // as `pub fn`s INSIDE the module. Because they live inside the seal boundary,
-    // they use the now-private constructors (no external fabrication, §4.1) and the
-    // macro wraps each recover body with the progress guard (§4.4 enforced, not by
+    // they use the now-private constructors (no external fabrication, SPEC.md G2) and the
+    // macro wraps each recover body with the progress guard (SPEC.md G8 enforced, not by
     // convention). There is no `Transitions` trait — one API surface.
     let body_for =
         |n: &str| -> Option<&TransitionBody> { ladder.bodies.iter().find(|b| b.name == n) };
@@ -834,7 +835,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                         pub fn #name(#pat: #param) -> #ret #body
                     }
                 } else {
-                    // Verdict recovery: auto-inject the progress guard (§4.4). The body
+                    // Verdict recovery: auto-inject the progress guard (SPEC.md G8). The body
                     // is used as the initializer of `__after`, so a `{ .. }` body isn't
                     // double-wrapped. `#pat` is the parameter; the snapshot borrows it
                     // before the body consumes it.
@@ -856,7 +857,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         quote! {}
     };
 
-    // ── recovery-progress guard (RUNG-RUST.md §4.4) ──────────────────────
+    // ── recovery-progress guard (SPEC.md G8) ──────────────────────
     let progress_helper = quote! {
         /// Recovery-progress guard. A recover edge must make forward progress; a
         /// recover that returns a token identical to the one it received is an
@@ -872,7 +873,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             assert!(
                 before != after,
                 "recovery made no progress: the recovered value equals its source \
-                 (RUNG-RUST.md §4.4 — infinite-stall guard)"
+                 (SPEC.md G8 — infinite-stall guard)"
             );
         }
     };
