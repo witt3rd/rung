@@ -76,5 +76,21 @@
 //!     let _ = demo::Active::new(LoopData);
 //! }
 //! ```
+//!
+//! ## Terminal verdict payloads
+//!
+//! A terminal verdict may carry a result: `Converged(Report)` generates
+//! `Converged { payload: Report }` with `.payload()` / `.into_payload()`, so a run
+//! returns a value through the verdict. A *recoverable* verdict may not — it
+//! carries its source rung instead — so the following must fail to compile:
+//!
+//! ```compile_fail
+//! use rung::ladder;
+//! struct S; struct L; struct Info;
+//! ladder!(Bad {
+//!     Spec(S) => Active(L) => { Done | Stalled(Info) => Active }
+//!     recover { unstall: Stalled => Active }
+//! });
+//! ```
 
 pub use rung_macro::ladder;

@@ -57,6 +57,35 @@ struct Verdict {
     name: Ident,
     is_terminal: bool,
     recover_target: Option<Ident>,
+    /// Optional result payload, e.g. `Converged(Report)`. Terminal verdicts only —
+    /// a recoverable verdict carries its source rung instead (checked).
+    payload_type: Option<Type>,
+}
+
+/// Parse one verdict inside a `{ .. }` branching block:
+/// `Name`, `Name(Payload)`, `Name => Rung`, or `Name(Payload) => Rung`.
+fn parse_verdict(block: ParseStream) -> syn::Result<Verdict> {
+    let name: Ident = block.parse()?;
+    let payload_type = if block.peek(syn::token::Paren) {
+        let inner;
+        syn::parenthesized!(inner in block);
+        Some(inner.parse::<Type>()?)
+    } else {
+        None
+    };
+    let mut is_terminal = true;
+    let mut recover_target = None;
+    if block.peek(Token![=>]) {
+        block.parse::<Token![=>]>()?;
+        is_terminal = false;
+        recover_target = Some(block.parse()?);
+    }
+    Ok(Verdict {
+        name,
+        is_terminal,
+        recover_target,
+        payload_type,
+    })
 }
 
 struct RecoverEdge {
@@ -169,20 +198,7 @@ impl Parse for Ladder {
                                 block.parse::<Token![|]>()?;
                             }
                             first = false;
-                            let verdict_name: Ident = block.parse()?;
-                            let mut is_terminal = true;
-                            let mut recover_target = None;
-                            if block.peek(Token![=>]) {
-                                block.parse::<Token![=>]>()?;
-                                is_terminal = false;
-                                let target: Ident = block.parse()?;
-                                recover_target = Some(target);
-                            }
-                            verdicts.push(Verdict {
-                                name: verdict_name,
-                                is_terminal,
-                                recover_target,
-                            });
+                            verdicts.push(parse_verdict(&block)?);
                         }
                         transitions.push(Transition {
                             name: format_ident!("step"),
@@ -220,19 +236,7 @@ impl Parse for Ladder {
                                         block.parse::<Token![|]>()?;
                                     }
                                     first = false;
-                                    let vn: Ident = block.parse()?;
-                                    let mut it = true;
-                                    let mut rt = None;
-                                    if block.peek(Token![=>]) {
-                                        block.parse::<Token![=>]>()?;
-                                        it = false;
-                                        rt = Some(block.parse()?);
-                                    }
-                                    verdicts.push(Verdict {
-                                        name: vn,
-                                        is_terminal: it,
-                                        recover_target: rt,
-                                    });
+                                    verdicts.push(parse_verdict(&block)?);
                                 }
                                 transitions.push(Transition {
                                     name: format_ident!("step"),
@@ -347,6 +351,13 @@ fn check(ladder: &Ladder) -> Result<(), String> {
                             v.name, target
                         ));
                     }
+                }
+                // A recoverable verdict carries its source rung, not a payload.
+                if v.payload_type.is_some() {
+                    return Err(format!(
+                        "recoverable verdict `{}` cannot declare a payload; it carries its source rung (use `{}(..)` only on terminal verdicts)",
+                        v.name, v.name
+                    ));
                 }
             }
         }
@@ -586,17 +597,44 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 let vis = &vctor_vis;
                 let common_must_use = "a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)";
                 if v.is_terminal {
-                    quote! {
-                        #[must_use = #common_must_use]
-                        pub struct #name {
-                            _seal: (),
-                            _not_send: ::core::marker::PhantomData<*const ()>,
+                    // A terminal verdict may carry a result payload, e.g.
+                    // `Converged(Report)` — how a run returns a value through the
+                    // verdict instead of a contentless marker.
+                    if let Some(payload) = &v.payload_type {
+                        quote! {
+                            #[must_use = #common_must_use]
+                            pub struct #name {
+                                _seal: (),
+                                _not_send: ::core::marker::PhantomData<*const ()>,
+                                payload: #payload,
+                            }
+                            impl #name {
+                                /// Sealed constructor for a terminal verdict with a result payload.
+                                #[allow(dead_code)]
+                                #vis fn new(payload: #payload) -> Self {
+                                    Self { _seal: (), _not_send: ::core::marker::PhantomData, payload }
+                                }
+                                /// Borrow the result payload.
+                                #[allow(dead_code)]
+                                pub fn payload(&self) -> &#payload { &self.payload }
+                                /// Consume the verdict, taking the result payload.
+                                #[allow(dead_code)]
+                                pub fn into_payload(self) -> #payload { self.payload }
+                            }
                         }
-                        impl #name {
-                            /// Sealed constructor for a terminal verdict.
-                            #[allow(dead_code)]
-                            #vis fn new() -> Self {
-                                Self { _seal: (), _not_send: ::core::marker::PhantomData }
+                    } else {
+                        quote! {
+                            #[must_use = #common_must_use]
+                            pub struct #name {
+                                _seal: (),
+                                _not_send: ::core::marker::PhantomData<*const ()>,
+                            }
+                            impl #name {
+                                /// Sealed constructor for a terminal verdict.
+                                #[allow(dead_code)]
+                                #vis fn new() -> Self {
+                                    Self { _seal: (), _not_send: ::core::marker::PhantomData }
+                                }
                             }
                         }
                     }

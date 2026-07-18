@@ -40,7 +40,7 @@ ladder Work {
 | `carry { field: Type, ... }` | Witness data inherited by every rung. Immutable by convention, read-only in transitions. |
 | `RungName(PayloadType)` | A rung. The payload type is the data the rung carries. |
 | `=> NextRung(Payload)` | A forward transition. Consumes the left rung, produces the right. |
-| `=> { V1 \| V2 => Target \| V3 }` | Verdict branching. Bare name = terminal. `\| Name => Rung` = recoverable. |
+| `=> { V1 \| V2 => Target \| V3 }` | Verdict branching. Bare name = terminal. `Name(Payload)` = terminal carrying a result. `\| Name => Rung` = recoverable (carries its source rung; no payload). |
 | `recover { name: FromType => ToRung(ToPayload) }` | Recovery edges. Declared separately because they have different semantics (re-entry, not advance). |
 
 ### What the macro generates
@@ -265,6 +265,7 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | Rung existence | — | ✓ | ✓ At expansion time |
 | Recover pairing | — | ✓ | ✓ At expansion time |
 | Terminal vs recoverable | — | ✓ | ✓ At expansion time |
+| Terminal verdict result payload | — | — | ✓ `Converged(Report)` → `.payload()` |
 | Carry syntax | — | — | ✓ Emitted as struct field |
 | Carry read-only | — | — | ✓ Private field + `&Carry` getter |
 | Drivable end-to-end | — | — | ✓ Inline `impl { .. }` bodies + entry `::new` + module `pub fn`s |
@@ -310,12 +311,12 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | `ladder!` proc macro | Done — `rung-macro/src/lib.rs`: parse (+ optional inline `impl` block) + 10 checks (8 structural + 2 impl-block) + emit (sealed `!Send` rungs & verdicts, sealed constructors, carry accessor, `Failed<Prev>`, verdict enum, auto-injected `must_progress` guard, inline transition/recover `pub fn`s) |
 | End-to-end drivability | Done — `rung/tests/end_to_end.rs`: starts a run via the public entry `::new`, steps it, takes the recover edge, reaches a terminal verdict; plus load-bearing proofs that §4.1 fabrication fails to compile (E0624) and §4.4's guard is auto-injected (panics with no explicit call) |
 
-**Findings surfaced by the `rust-example` port (graded, not yet built):**
-- **No `Continue` variant.** `StepOutcome` carries only verdicts; "keep iterating" must be modelled as a recoverable verdict (`Continue => Active`). A first-class continue edge would be more ergonomic.
-- **Terminal verdicts carry no payload.** `Converged`/`BudgetExhausted` are sealed markers — a run can't return a result *through* the verdict. A `Converged(Report)` payload syntax is the extension.
-- **No recovery from the `Failed` (error) path.** `recover { .. }` edges recover from verdicts only; there is no `recover { x: Failed(Active) => Active }`. The hand-written example's failure-injection demo was dropped for this reason.
+**Findings surfaced by the `rust-example` port:**
+- **Terminal verdict payloads — CLOSED (2026-07-17).** A terminal verdict may now carry a result: `Converged(Report)` generates `Converged { payload: Report }` with `.payload()` / `.into_payload()`, so a run returns a value *through* the verdict. A recoverable verdict may not (it carries its source rung) — enforced by a new check, proven by a `compile_fail` doctest. `rung/tests/end_to_end.rs::drives_to_convergence` asserts the returned `Report`.
+- **No `Continue` variant** (open). `StepOutcome` carries only verdicts; "keep iterating" must be modelled as a recoverable verdict (`Continue => Active`). A first-class continue edge would be more ergonomic.
+- **No recovery from the `Failed` (error) path** (open). `recover { .. }` edges recover from verdicts only; there is no `recover { x: Failed(Active) => Active }`. The hand-written example's failure-injection demo was dropped for this reason.
 
-**Open (graded):** the three findings above; §4.2 transition-body correctness (proptest/verification); §4.5 cross-crate provenance (sub-crate). §4.1, §4.3, §4.4, §4.6, §4.7 closed.
+**Open (graded):** the two remaining findings above; §4.2 transition-body correctness (proptest/verification); §4.5 cross-crate provenance (sub-crate). §4.1, §4.3, §4.4, §4.6, §4.7 + terminal-payloads closed.
 
 ---
 

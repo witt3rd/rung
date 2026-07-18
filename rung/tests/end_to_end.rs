@@ -20,6 +20,11 @@ struct LoopState {
     value: i32,
     target: i32,
 }
+// A result the run returns *through* the terminal `Converged` verdict.
+#[derive(Debug, PartialEq)]
+struct Report {
+    iterations: i32,
+}
 
 ladder!(Opt {
     carry { budget: u32 }
@@ -28,7 +33,7 @@ ladder!(Opt {
       => Active(LoopState)
       => {
           Iterating => Active   // recoverable: loop back for another step
-          | Converged           // terminal success
+          | Converged(Report)   // terminal success, carrying a result payload
           | Exhausted           // terminal failure
       }
 
@@ -47,7 +52,9 @@ ladder!(Opt {
     // Active -> { Iterating | Converged | Exhausted }: one step of the loop.
     step = |active| {
         if active.payload.value >= active.payload.target {
-            return Ok(StepOutcome::Converged(Converged::new()));
+            return Ok(StepOutcome::Converged(Converged::new(Report {
+                iterations: active.payload.value,
+            })));
         }
         if active.carry().budget == 0 {
             return Ok(StepOutcome::Exhausted(Exhausted::new()));
@@ -87,9 +94,18 @@ fn drive(spec: opt::Spec) -> Result<opt::Converged, opt::Exhausted> {
 
 #[test]
 fn drives_to_convergence() {
-    // start 0, target 3, ample budget → converges through recover cycles.
+    // start 0, target 3, ample budget → converges through recover cycles,
+    // and the terminal verdict carries the result payload back out.
     let spec = opt::Spec::new(SpecData { start: 0, target: 3 }, opt::Carry { budget: 10 });
-    assert!(drive(spec).is_ok(), "run should converge within budget");
+    let converged = match drive(spec) {
+        Ok(c) => c,
+        Err(_) => panic!("run should converge within budget"),
+    };
+    assert_eq!(
+        converged.payload(),
+        &Report { iterations: 3 },
+        "Converged verdict should carry the result through to the caller"
+    );
 }
 
 #[test]

@@ -10,12 +10,12 @@
 //! RUNG-RUST.md):
 //!   * `StepOutcome` has no `Continue(Active)` variant — "keep iterating" is a
 //!     recoverable verdict (`Continue => Active`) whose recover fn advances state.
-//!   * Terminal verdicts (`Converged`, `BudgetExhausted`) are sealed markers and
-//!     carry no payload, so the summary reads iteration state from the loop, not
-//!     from the verdict.
 //!   * Recovery from the `Failed` (error) path is not expressible as a `recover`
 //!     edge — the macro recovers from verdicts only — so the failure-injection
 //!     demo from the hand-written version is dropped.
+//!
+//! `Converged(ConvergedReport)` shows a terminal verdict carrying a result payload
+//! back out to the driver (added 2026-07-17).
 
 use rung::ladder;
 
@@ -37,16 +37,23 @@ pub struct LoopState {
     pub params: Params,
 }
 
+/// Result carried out *through* the terminal `Converged` verdict.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConvergedReport {
+    pub iteration: usize,
+    pub best: f64,
+}
+
 ladder!(MetricOpt {
     carry { metric_name: String, correlation_key: String }
 
     Spec(SpecData)
       => Active(LoopState)
       => {
-          Continue => Active       // keep iterating (recoverable "advance")
-          | Converged              // terminal success
-          | Stalled => Active      // recoverable stall
-          | BudgetExhausted        // terminal failure
+          Continue => Active            // keep iterating (recoverable "advance")
+          | Converged(ConvergedReport)  // terminal success, carries the result
+          | Stalled => Active           // recoverable stall
+          | BudgetExhausted             // terminal failure
       }
 
     recover {
@@ -68,7 +75,10 @@ ladder!(MetricOpt {
         let it = active.payload.iteration;
         let budget_remaining: i32 = 1000 - (it as i32 * 100);
         if it >= 8 {
-            return Ok(StepOutcome::Converged(Converged::new()));
+            return Ok(StepOutcome::Converged(Converged::new(ConvergedReport {
+                iteration: it,
+                best: active.payload.best,
+            })));
         }
         if it == 3 {
             return Ok(StepOutcome::Stalled(Stalled::new(active)));
@@ -159,9 +169,14 @@ fn run_optimization(label: &str) {
                 token = metricopt::unstall(s);
                 trace.record(step_no, "step → Stalled", &format!("iter {it}, recovered"));
             }
-            Ok(metricopt::StepOutcome::Converged(_)) => {
-                println!("\n  ✓ Converged");
-                trace.record(step_no, "step → Converged", "terminal");
+            Ok(metricopt::StepOutcome::Converged(c)) => {
+                let r = c.payload();
+                println!("\n  ✓ Converged at iteration {} (best={:.4})", r.iteration, r.best);
+                trace.record(
+                    step_no,
+                    "step → Converged",
+                    &format!("iter={}, best={:.4}", r.iteration, r.best),
+                );
                 break;
             }
             Ok(metricopt::StepOutcome::BudgetExhausted(_)) => {
