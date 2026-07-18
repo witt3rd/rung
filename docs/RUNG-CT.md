@@ -217,7 +217,9 @@ where `M i j` is the indexed monad and `Trace` is the writer's output. The grade
 
 ---
 
-## 6. The dagger category — recovery edges
+## 6. The dagger — recovery as a Prism's backward pass
+
+> **Frame (Q7, resolved 2026-07-18).** The dagger below is the *operative* presentation — what the compiler enforces. Two independent expert reviews established the deeper structure it sits inside: **a rung transition is a Prism** (a dependent optic), and the recover edges are that Prism's *backward pass*. The dagger is not replaced — it is situated. See §6.1 and `questions/resolved/q7-effectful-bodies-which-monad.md`.
 
 The `recover` block declares **reverse morphisms** — adjoints, not necessarily inverses — for verdicts and failures:
 
@@ -255,6 +257,26 @@ f†:   Failed<A> → A                  (recovery from the error path)
 An error dagger `Failed(A) => A` (SPEC.md G9) is the recover function for the failure branch. Unlike verdict daggers it is **optional** — a transition may return `Err(Failed { .. })` with no declared recovery, leaving the caller to handle it — and it is **unguarded**, because a retry after a transient error may legitimately reuse the same token (no progress required). The compiler does **not** require an error dagger for every `Failed` variant; error recovery is opt-in.
 
 The involution `f†† = f` and contravariant `(g ∘ f)† = f† ∘ g†` laws are not verified (§9) — and for verdict daggers the involution is *intentionally violated* by the progress guard.
+
+### 6.1 The frame the dagger sits in: transitions are Prisms
+
+The dagger above is what the compiler enforces (recover-pairing, G7/G9). The "which monad?" question (Q7) asked whether a fallible transition body was instead a Kleisli arrow for an effect monad — and if so, whether async recovery was "half-written in the recover edges." Two independent expert reviews resolved it: **it is not a monad; a transition is a Prism** (a dependent optic — Capucci–Hedges).
+
+A Prism from a whole `A` to a part `Σᵢ Bᵢ` is a forward/backward pair:
+
+```
+Match (forward):  A → Σᵢ Bᵢ + A     — exactly the transition signature; the residual is the input token
+Build (backward): the successors route back via the §6 dagger,  Bᵢ → A
+```
+
+So **the recover edges *are* the Prism's Build pass**, and the failure-returns-input design — which reads as an oddity — is exactly the optic's *residual*. This is also why it is not a monad: composing `f: A → B + A` with `g: B → C + B`, a failing `g` hands back `B`, but the composite's domain is `A`; no monadic `bind` can route `B → A` — only an explicit backward edge can. (That is the falsifier the handoff proposed, triggering cleanly.)
+
+Two things the frame makes precise:
+
+- **G8 is the contraction.** A Prism's Build pass need not be involutive. The progress guard (G8) makes the verdict backward pass *contractive* (`f† ∘ f ≠ id`, strictly decreasing) rather than a symmetric involution — which is *why* `f†† = f` was deliberately broken above. Well-foundedness is the optic's contraction, not a defect.
+- **Effects layer on the forward pass, not on recovery.** An effectful transition is a strong monad `M` on the Match pass: `A → M(Σᵢ Bᵢ + A)`. Async is `M = Future` (a strong commutative monad; tensorial strength `A ⊗ T(B) → T(A ⊗ B)` is exactly what proves linearity survives `.await`); a generative body is a **Markov kernel** — a probability/Giry monad in Fritz's sense, affine. Error recovery and effects are therefore *orthogonal gadgets*: error is the optic's backward pass; effects are monads on its forward pass. The Kleisli "unification" is **false** — async is a free-standing feature (tracked as Q8), needing no distributive law with the error structure.
+
+Full resolution and both reviews: `questions/resolved/q7-effectful-bodies-which-monad.md` and its `_evidence/`.
 
 ---
 
