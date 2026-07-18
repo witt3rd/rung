@@ -1,3 +1,12 @@
+---
+id: q3
+status: blocked
+depends_on:
+  - {on: rust-linear-types, kind: gate}
+affects:
+  - {target: RUNG-CT§7, kind: citation}
+---
+
 # Q3 — True no-drop / linearity *(blocked)*
 
 **Status:** BLOCKED

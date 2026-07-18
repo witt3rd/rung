@@ -45,7 +45,50 @@ Moving a file between folders is the lifecycle. Git history records every transi
 | Q6 | Genericity (ladders parameterized over payload/carry types) | **open** |
 | Q7 | Effectful transition bodies: which monad? | **resolved** — transitions are **Prisms**, not Kleisli arrows |
 | Q8 | The async driver (a free-standing feature, per Q7's resolution) | **open** |
+| Q9 | The dependency superstructure — what overlays the ladder level? | **open** (theory, tee'd for review) |
 
 **The growth tower** (`morphisms → functors in Cat → natural transformations in Fun`) and the CT-map-as-question-generator live in `_map.md` — the category theory is the principled source of the growth questions, not an ad-hoc list.
 
 **Verify before building** was the standing gate on Q7. It has now been walked: two independent expert reviews resolved it (see `resolved/q7-effectful-bodies-which-monad.md`). The lesson generalizes — a sharp, falsifiable question, checked against the real literature, is exactly what this registry is for.
+
+---
+
+## Dependencies — the registry is a typed graph
+
+Questions are not independent. When Q7 resolved, three things rested on it and had to be re-examined: RUNG-CT §6 (which used its framing), the blocking-client decision (justified by it being unresolved), and Q8 (spawned by the resolution). Today those edges live only in prose — legible to a human re-reading every file, invisible to any traversal. That is a **tears-in-rain** gap one level up: the cascade is caught only if a hot-context reader happens to remember it.
+
+So each file carries **typed dependency edges** in frontmatter:
+
+```yaml
+---
+id: q7
+status: resolved
+depends_on:                              # what THIS rests on
+  - {on: kleisli-reviews, kind: evidence}
+affects:                                 # what a change to this ripples to
+  - {target: RUNG-CT§6, kind: premise}
+  - {target: blocking-client-decision, kind: justification}
+---
+```
+
+The **kind is load-bearing** — it decides how a change propagates, and no single rule fits all:
+
+| kind | when the source changes… |
+|---|---|
+| `premise` | **MUST re-examine** — the dependent rests on this as a premise |
+| `justification` | **REVIEW** — the premise moved, but the decision may still hold |
+| `spawn` | **REVISIT** — exists only because of this resolution |
+| `gate` | **UNBLOCK?** — this gate may have lifted |
+| `citation` | mechanical — update the reference |
+| `evidence` | inbound support — informational |
+
+`_reach.py` walks it and prints the blast radius **for review — it never mutates.** The graph surfaces what to look at; the human judges each edge. (A changed premise does not auto-invalidate its dependents — same produce-first / gate-second discipline as the rest of the system.)
+
+```
+python _reach.py q7          # what must be reviewed if q7 changed?
+python _reach.py --graph     # the whole typed edge list
+```
+
+The implementation is deliberately minimal — frontmatter + a stdlib script, preserving "clone and read, no service to run." It is honest at this scale (SQLite next, a real graph store eventually, if the registry ever outgrows the filesystem). **The model is what matters, not the store:** the registry is a *graph of typed relationships between items*, and propagation is *typed reachability*. That model outlives whatever holds it.
+
+> **This is a Level-1 structure.** The growth tower in `_map.md` names it: Level 0 is arrows *within* a category (a transition); Level 1 is arrows in **Cat** (functors — maps between whole structures). A dependency is an arrow between *items*, not within one — the registry itself is a Level-1 object. The tower predicted it. There is a deeper open question here about what superstructure the dependency graph really is (presheaf? fibration? transitive closure of a typed relation?) — see `open/q9-the-dependency-superstructure.md`.

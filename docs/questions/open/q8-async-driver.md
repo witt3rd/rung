@@ -1,3 +1,10 @@
+---
+id: q8
+status: open
+depends_on:
+  - {on: q7, kind: spawn}
+---
+
 # Q8 — The async driver
 
 **Status:** OPEN · **Spawned by:** Q7's resolution (2026-07-18). Async is a genuine free-standing feature, not a missing piece of the error structure.
