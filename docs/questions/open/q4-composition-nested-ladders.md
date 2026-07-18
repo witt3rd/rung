@@ -1,3 +1,10 @@
+---
+id: q4
+status: open
+depends_on:
+  - {on: _map:growth-tower, kind: premise}
+---
+
 # Q4 — Composition / nested ladders *(open)*
 
 **Status:** OPEN

@@ -1,3 +1,8 @@
+---
+id: q5
+status: open
+---
+
 # Q5 — Fork-join / concurrency *(open)*
 
 **Status:** OPEN

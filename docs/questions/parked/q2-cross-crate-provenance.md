@@ -1,3 +1,8 @@
+---
+id: q2
+status: parked
+---
+
 # Q2 — Cross-crate provenance *(parked)*
 
 **Status:** PARKED

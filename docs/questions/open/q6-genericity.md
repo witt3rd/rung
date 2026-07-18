@@ -1,3 +1,11 @@
+---
+id: q6
+status: open
+depends_on:
+  - {on: SPEC:G2, kind: premise}
+  - {on: SPEC:G8, kind: premise}
+---
+
 # Q6 — Genericity *(open)*
 
 **Status:** OPEN

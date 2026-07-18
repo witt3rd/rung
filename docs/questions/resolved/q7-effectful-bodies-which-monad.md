@@ -1,3 +1,13 @@
+---
+id: q7
+status: resolved
+depends_on:
+  - {on: kleisli-reviews, kind: evidence}
+affects:
+  - {target: RUNG-CT§6, kind: premise}
+  - {target: blocking-client-decision, kind: justification}
+---
+
 # Q7 — Effectful transition bodies: which monad?
 
 **Status:** RESOLVED (2026-07-18) · **Verdict:** transitions are **Prisms (optics)**, not Kleisli arrows. The error/async unification is false; recovery is the Prism's backward pass; async is a genuine free-standing feature.
