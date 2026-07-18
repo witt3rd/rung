@@ -37,7 +37,7 @@ ladder Work {
 | Construct | Semantics |
 |---|---|
 | `ladder Name { ... }` | Declares a sealed type ladder. Emits a module `name`. |
-| `carry { field: Type, ... }` | Witness data inherited by every rung. Immutable by convention, read-only in transitions. |
+| `carry { field: Type, ... }` | Witness data inherited by every rung. Immutability is enforced: a private field exposed only through a `&Carry` accessor (§4.3). |
 | `RungName(PayloadType)` | A rung. The payload type is the data the rung carries. |
 | `=> NextRung(Payload)` | A forward transition. Consumes the left rung, produces the right. |
 | `=> { V1 \| V2 => Target \| V3 }` | Verdict branching. Bare name = terminal. `Name(Payload)` = terminal carrying a result. `Name => Rung` = recoverable (carries its source rung; guarded). `Name -> Rung` = continue arm (step builds the next rung inline; variant carries it; no recover fn/guard). |
@@ -95,7 +95,7 @@ pub fn step(t: Active) -> Result<StepOutcome, Failed<Active>> { /* your body */ 
 pub fn retry(t: Stalled) -> Active { /* your body, wrapped with must_progress */ }
 ```
 
-> All `#[must_use]` / `PhantomData` markers are elided above for readability — see §4.6, §4.7. `StepOutcome` has no `Continue` variant: staying on a rung is modelled as a recoverable verdict routing back to it (e.g. `Stalled => Active`).
+> All `#[must_use]` / `PhantomData` markers are elided above for readability — see §4.6, §4.7. To *stay on* a rung, use a continue arm (`Iterate -> Active`): `step` builds the next rung inline and the `StepOutcome` variant carries it directly (no recover fn, no guard) — distinct from a recoverable verdict `Stalled => Active`, which hands off to a guarded recover fn.
 
 ### Transition bodies — the inline `impl { .. }` form
 
@@ -142,14 +142,16 @@ The proc macro performs the same 8 structural checks as the Python rung checker 
 |---|---|---|
 | 1 | Carry fields are distinct | Duplicate field name |
 | 2 | Transitions reference declared rungs | `from_rung` or `to_rung` not in `rungs` list |
-| 3 | Verdicts are valid | Non-terminal verdict with no `recover_target`, or `recover_target` not a declared rung |
-| 4 | Every recoverable verdict has a RecoverEdge | `\| Stalled => Active` but no `recover { ... }` entry for `Stalled` |
+| 3 | Verdicts are valid | Non-terminal verdict with no target; `recover_target`/`continue_target` not a declared rung; a recoverable verdict or a continue arm declaring a payload |
+| 4 | Every recoverable verdict has a RecoverEdge | `\| Stalled => Active` but no `recover { ... }` entry for `Stalled` (continue arms excluded) |
 | 5 | Every RecoverEdge has a matching function | `recover { x: ... }` declared but no `recover x` impl |
 | 6 | Terminal verdicts have no recover edges | `Complete` is terminal but `recover { complete: ... }` exists |
 | 7 | RecoverEdge references a known verdict | `recover { phantom: ... }` but `phantom` not in any verdict list |
-| 8 | Recover function return_rung is declared | `recover fn ... -> Missing` but `Missing` not a rung |
+| 8 | Recover targets are declared | `recover ... -> Missing`, or `Failed(Missing)`, where `Missing` is not a rung |
+| 9 | Inline bodies name real fns | An `impl { .. }` body that matches no transition/recover fn (or is defined twice) |
+| 10 | Inline bodies are complete | A transition/recover fn with no body in the `impl { .. }` block |
 
-These are the same 8 checks the Python PoC verifies. The macro fails with a compiler error pointing at the specific violation — same "compiler as cryptographic signature" property.
+Checks 1–8 mirror the Python PoC (extended in-place for payloads, continue arms, and error-path recovery); 9–10 apply when an inline `impl { .. }` block is present. The macro fails with a compiler error pointing at the specific violation — same "compiler as cryptographic signature" property. The payload, error-path, and continue-arm extensions each have a `compile_fail` doctest in `rung/src/lib.rs`.
 
 ---
 
@@ -163,13 +165,13 @@ These are the same 8 checks the Python PoC verifies. The macro fails with a comp
 | Error path returns token | `fn step(active: Active) -> Result<..., Failed<Active>>` — `Err(Failed { token: active, ... })` returns the unconsumed token. |
 | Exhaustive match | `StepOutcome` enum. Every match site must handle all variants. Adding a variant breaks all callers. |
 | No shared mutable state | `Active` is not `Clone`. Cannot duplicate the token. |
-| Carry as ordinary data | `carry: Carry` is just a struct field. Rust's ownership rules handle whether it's shared or copied. |
+| Carry as ordinary data | `carry: Carry` is a private struct field (read via `.carry()`). Rust's ownership rules handle whether it's shared or copied. |
 
 ### By the proc macro (compile-time structural checks)
 
 | Constraint | Mechanism |
 |---|---|
-| Sealed constructors | `_seal: ()` private field. External construction impossible. Only the generated `fn design()` etc. can create rung types. |
+| Sealed constructors | `_seal: ()` + `_not_send` private fields. External struct literals impossible. Rungs are minted only through `Rung::new` — public for the entry rung, module-private for every other (so only in-module transition bodies build them; §4.1). |
 | Rung existence | All transitions reference declared rungs — checked at expansion time. |
 | Recover pairing | Every `\| Stalled => Active` has a matching `recover { stalled: Stalled => Active }` — checked at expansion time. |
 | Terminal vs recoverable | `Complete` (terminal) cannot have a recover edge — checked at expansion time. |
