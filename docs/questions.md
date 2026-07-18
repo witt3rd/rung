@@ -113,6 +113,51 @@ ladder instantiated per use)?
 the emitted module), but the interaction with the sealed-constructor visibility
 rule (G2) and the progress-guard bounds (G8) needs design.
 
+### Q7 — Async transition bodies *(open)*
+
+**Question.** A transition body is a synchronous `fn` — `fn step(active: Active)
+-> Result<StepOutcome, Failed>`. But the generative membrane (an LLM call, a
+tool-using agent, any inference-endpoint round-trip inside a body) is naturally
+*async*. How does rung host an `async` transition body without breaking the
+linear-token guarantees?
+
+**Why it's open.** The whole type machinery — sealed tokens, `!Send`, move
+semantics, the auto-injected progress guard — is built around sync `fn`s that
+consume a token by value and return the next rung. An `async` body changes the
+emitted signature (it returns a `Future`) and raises two coupled unknowns:
+1. **Does the guarantee survive `.await`?** A token moved into an async body is
+   still moved *once* — linearity should hold. And `!Send` is arguably
+   *consistent* with async: a `!Send` token held across an await point pins the
+   future to one thread, which is exactly the one-token-one-thread contract (G3).
+   But that pinning means the future is itself `!Send` — it cannot run on a
+   multi-threaded executor. Whether that composes with a real driver, or forces a
+   single-threaded runtime, is the load-bearing question.
+2. **What drives an async ladder?** Today the driver is a plain sync loop
+   (`match step(token) { .. }`). An async transition needs an async drive — and a
+   ladder mixing sync and async transitions needs both.
+
+**Relationship to Q5.** Adjacent but orthogonal. Q5 (fork-join) splits one token
+into N concurrent sub-tokens; this is a *single* transition that awaits. You can
+have async bodies with no fork-join, or fork-join with sync bodies — they are two
+different concurrency questions.
+
+**Most promising angle.** The surfacing case is real and immediate: the first
+LLM-in-a-transition fold (outer-loop question resolution, cut #2) deliberately
+chose a *blocking* client (`reqwest` blocking / `ureq`) precisely to sidestep
+this — a batch resolver has no latency pressure, so a sync body over a blocking
+call is honest and correct *for now*. That sidestep is what parks the question
+rather than closing it. Two experiments when it ripens:
+1. A per-transition `async` marker in the DSL (`async active = |spec| { .. }`),
+   emitting `async fn` for that transition and an async `StepOutcome` drive;
+   sync and async transitions coexist in one ladder.
+2. Verify the `!Send` / await interaction against a real executor — does the
+   pinned-future consequence force a single-threaded runtime, or does it compose?
+
+**Provenance.** Surfaced 2026-07-18, choosing the client for the first
+deterministic→generative fold. The blocking-client decision is the deliberate
+YAGNI park: build the smallest real thing, let it tell us when async earns its
+place.
+
 ---
 
 ## The category-theory map as a question generator
@@ -135,7 +180,8 @@ rather than ad hoc:
 - **Blocked externally:** Q3 (true linearity ← the language).
 - **Known but costly — park:** Q2 (cross-crate provenance ← sub-crate).
 - **Open and ours to push:** Q1 (verifier spike), Q4 (composition), Q5 (fork-join),
-  Q6 (genericity).
+  Q6 (genericity), Q7 (async transition bodies — parked pragmatically behind the
+  blocking-client choice, but real).
 
 **Highest-information next experiments.**
 - To *deepen*: the Q1 Kani/Creusot spike on a single ladder — does a generated
