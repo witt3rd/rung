@@ -163,7 +163,7 @@ module-private, so no outside code can fabricate a mid-ladder token. Omit the
 
 - [`SPEC.md`](SPEC.md) — the normative specification: grammar, static
   semantics, emitted artifacts, and test-backed guarantees
-- [`docs/questions.md`](docs/questions.md) — open research questions: the
+- [`docs/questions/`](docs/questions/) — the open-question registry: the frontier for advancing the language
   frontier for advancing the language (deepen vs grow)
 - [`docs/RUNG-RS.md`](docs/RUNG-RS.md) — the design record: rationale and how
   each gap was closed (historical, non-normative)

@@ -281,7 +281,7 @@ The borrow checker verifies that every resource is used at most once. The "at mo
 
 ### What linear logic would add
 
-Full linear logic requires **exactly once** use — you cannot drop a token silently. If Rust had linear types, the compiler would refuse to compile code that drops an `Active` without consuming it through a transition or returning it in a `Failed`, closing the "silent drop" gap at the language level. The macro's `#[must_use]` (SPEC.md G4) is the affine approximation — but it is escapable (`mem::forget`, `let _ = token;`), so it is a *partial* close. A truly linear substrate would make it exact; see [`questions.md`](questions.md) Q3.
+Full linear logic requires **exactly once** use — you cannot drop a token silently. If Rust had linear types, the compiler would refuse to compile code that drops an `Active` without consuming it through a transition or returning it in a `Failed`, closing the "silent drop" gap at the language level. The macro's `#[must_use]` (SPEC.md G4) is the affine approximation — but it is escapable (`mem::forget`, `let _ = token;`), so it is a *partial* close. A truly linear substrate would make it exact; see [Q3](questions/blocked/q3-true-no-drop-linearity.md).
 
 ---
 
