@@ -41,7 +41,8 @@ ladder Work {
 | `RungName(PayloadType)` | A rung. The payload type is the data the rung carries. |
 | `=> NextRung(Payload)` | A forward transition. Consumes the left rung, produces the right. |
 | `=> { V1 \| V2 => Target \| V3 }` | Verdict branching. Bare name = terminal. `Name(Payload)` = terminal carrying a result. `\| Name => Rung` = recoverable (carries its source rung; no payload). |
-| `recover { name: FromType => ToRung(ToPayload) }` | Recovery edges. Declared separately because they have different semantics (re-entry, not advance). |
+| `recover { name: Verdict => Rung }` | Verdict recovery: re-enter from a recoverable verdict (progress guard auto-injected). |
+| `recover { name: Failed(Rung) => Rung }` | Error-path recovery: take the token back from `Failed` and retry (no progress guard). |
 
 ### What the macro generates
 
@@ -270,7 +271,8 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | Carry read-only | — | — | ✓ Private field + `&Carry` getter |
 | Drivable end-to-end | — | — | ✓ Inline `impl { .. }` bodies + entry `::new` + module `pub fn`s |
 | In-module fabrication | — | — | ✓ Non-entry `::new` module-private (bodies inside module) |
-| Recovery progress | — | — | ✓ `must_progress` **auto-injected** into recover bodies |
+| Recovery progress | — | — | ✓ `must_progress` **auto-injected** into verdict-recover bodies |
+| Error-path recovery | — | — | ✓ `recover { .. : Failed(rung) => rung }` (no guard) |
 | Cross-crate provenance | — | — | ✗ Crate boundary trust |
 | Concurrent access | — | — | ✓ `!Send + !Sync` by default (`PhantomData<*const ()>`) |
 | No silent drop | — affine, drop allowed | — | ✓ `#[must_use]` on every token (warn; error under `deny`) |
@@ -312,11 +314,13 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | End-to-end drivability | Done — `rung/tests/end_to_end.rs`: starts a run via the public entry `::new`, steps it, takes the recover edge, reaches a terminal verdict; plus load-bearing proofs that §4.1 fabrication fails to compile (E0624) and §4.4's guard is auto-injected (panics with no explicit call) |
 
 **Findings surfaced by the `rust-example` port:**
-- **Terminal verdict payloads — CLOSED (2026-07-17).** A terminal verdict may now carry a result: `Converged(Report)` generates `Converged { payload: Report }` with `.payload()` / `.into_payload()`, so a run returns a value *through* the verdict. A recoverable verdict may not (it carries its source rung) — enforced by a new check, proven by a `compile_fail` doctest. `rung/tests/end_to_end.rs::drives_to_convergence` asserts the returned `Report`.
-- **No `Continue` variant** (open). `StepOutcome` carries only verdicts; "keep iterating" must be modelled as a recoverable verdict (`Continue => Active`). A first-class continue edge would be more ergonomic.
-- **No recovery from the `Failed` (error) path** (open). `recover { .. }` edges recover from verdicts only; there is no `recover { x: Failed(Active) => Active }`. The hand-written example's failure-injection demo was dropped for this reason.
+- **Terminal verdict payloads — CLOSED (2026-07-17).** A terminal verdict may carry a result: `Converged(Report)` generates `Converged { payload: Report }` with `.payload()` / `.into_payload()`, so a run returns a value *through* the verdict. A recoverable verdict may not (it carries its source rung) — enforced by a check, proven by a `compile_fail` doctest. `drives_to_convergence` asserts the returned `Report`.
+- **Error-path recovery — CLOSED (2026-07-17).** `recover { name: Failed(Active) => Active }` recovers from the `Err(Failed { .. })` path: it takes the unconsumed token back and produces the next rung, with no progress guard (a transient-error retry may reuse the token). Proven by `end_to_end.rs::recovers_from_the_failed_error_path`; the `rust-example` failure-injection demo (dropped in the port) is **restored** on top of it. `Failed(rung)` must name a declared rung — checked, `compile_fail` doctest.
+- **No `Continue` variant** (open). `StepOutcome` carries only verdicts; "keep iterating" must be modelled as a recoverable verdict (`Continue => Active`). A first-class continue edge would be more ergonomic — the last open finding.
 
-**Open (graded):** the two remaining findings above; §4.2 transition-body correctness (proptest/verification); §4.5 cross-crate provenance (sub-crate). §4.1, §4.3, §4.4, §4.6, §4.7 + terminal-payloads closed.
+**Bonus fix (2026-07-17):** generated transition/recover fns no longer emit `unused_braces` warnings — the closure body is used as the fn body directly (or as an initializer), and the closure's argument pattern becomes the fn parameter. Zero warnings workspace-wide.
+
+**Open (graded):** the `Continue`-variant ergonomics finding; §4.2 transition-body correctness (proptest/verification); §4.5 cross-crate provenance (sub-crate). §4.1, §4.3, §4.4, §4.6, §4.7 + terminal-payloads + error-path-recovery closed.
 
 ---
 

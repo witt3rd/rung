@@ -92,5 +92,22 @@
 //!     recover { unstall: Stalled => Active }
 //! });
 //! ```
+//!
+//! ## Error-path recovery (`Failed(rung) => rung`)
+//!
+//! `recover { name: Failed(Active) => Active }` recovers from the error path: when
+//! a branching transition returns `Err(Failed { token, error })`, this edge takes
+//! the unconsumed `token` back and produces the next rung. No progress guard is
+//! injected (a retry after a transient error may legitimately reuse the token).
+//! The named rung must exist — this must fail to compile:
+//!
+//! ```compile_fail
+//! use rung::ladder;
+//! struct S; struct L;
+//! ladder!(Bad {
+//!     Start(S) => Working(L) => { Done }
+//!     recover { clear: Failed(Nonexistent) => Working }
+//! });
+//! ```
 
 pub use rung_macro::ladder;

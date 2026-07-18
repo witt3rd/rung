@@ -148,6 +148,58 @@ ladder!(Stuck {
     },
 });
 
+// Error-path recovery: `step` fails transiently and returns the token inside
+// `Failed`; a `recover { .. : Failed(Working) => Working }` edge recovers it.
+// No progress guard is injected on the error path.
+struct StartData;
+struct WorkState {
+    attempts: u32,
+}
+#[derive(Debug, PartialEq)]
+struct Summary {
+    attempts: u32,
+}
+
+ladder!(Net {
+    Start(StartData) => Working(WorkState) => { Done(Summary) }
+    recover { clear: Failed(Working) => Working }
+} impl {
+    working = |_s| { Working::new(WorkState { attempts: 0 }) },
+    step = |w| {
+        if w.payload.attempts < 2 {
+            // transient failure — hand the (advanced) token back in `Failed`
+            let next = Working::new(WorkState { attempts: w.payload.attempts + 1 });
+            return Err(Failed {
+                token: next,
+                error: format!("transient failure (attempt {})", w.payload.attempts),
+            });
+        }
+        Ok(StepOutcome::Done(Done::new(Summary { attempts: w.payload.attempts })))
+    },
+    // recover from the error path: take the unconsumed token back and retry.
+    clear = |f| { f.token },
+});
+
+fn drive_net(start: net::Start) -> net::Done {
+    let mut cur = net::working(start);
+    loop {
+        match net::step(cur) {
+            Ok(net::StepOutcome::Done(d)) => return d,
+            Err(f) => cur = net::clear(f), // error-path recovery
+        }
+    }
+}
+
+#[test]
+fn recovers_from_the_failed_error_path() {
+    let done = drive_net(net::Start::new(StartData));
+    assert_eq!(
+        done.payload(),
+        &Summary { attempts: 2 },
+        "should complete after recovering from 2 transient failures"
+    );
+}
+
 #[test]
 #[should_panic(expected = "recovery made no progress")]
 fn recover_guard_is_auto_injected() {

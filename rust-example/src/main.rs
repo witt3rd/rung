@@ -10,12 +10,12 @@
 //! RUNG-RUST.md):
 //!   * `StepOutcome` has no `Continue(Active)` variant — "keep iterating" is a
 //!     recoverable verdict (`Continue => Active`) whose recover fn advances state.
-//!   * Recovery from the `Failed` (error) path is not expressible as a `recover`
-//!     edge — the macro recovers from verdicts only — so the failure-injection
-//!     demo from the hand-written version is dropped.
 //!
-//! `Converged(ConvergedReport)` shows a terminal verdict carrying a result payload
-//! back out to the driver (added 2026-07-17).
+//! This example exercises the full macro surface:
+//!   * `Converged(ConvergedReport)` — a terminal verdict carrying a result payload.
+//!   * `clear_transient: Failed(Active) => Active` — error-path recovery: `step`
+//!     injects one transient failure, returns the token in `Failed`, and the driver
+//!     recovers from it (no progress guard on the error path).
 
 use rung::ladder;
 
@@ -35,6 +35,7 @@ pub struct LoopState {
     pub iteration: usize,
     pub best: f64,
     pub params: Params,
+    pub failed_once: bool,
 }
 
 /// Result carried out *through* the terminal `Converged` verdict.
@@ -59,13 +60,19 @@ ladder!(MetricOpt {
     recover {
         advance: Continue => Active
         unstall: Stalled => Active
+        clear_transient: Failed(Active) => Active
     }
 } impl {
     // Spec -> Active: seed the loop.
     active = |spec| {
         let carry = spec.carry().clone();
         Active::new(
-            LoopState { iteration: 0, best: f64::NEG_INFINITY, params: spec.payload.params },
+            LoopState {
+                iteration: 0,
+                best: f64::NEG_INFINITY,
+                params: spec.payload.params,
+                failed_once: false,
+            },
             carry,
         )
     },
@@ -74,6 +81,14 @@ ladder!(MetricOpt {
     step = |active| {
         let it = active.payload.iteration;
         let budget_remaining: i32 = 1000 - (it as i32 * 100);
+        // inject one transient failure at iteration 2 — return the token in `Failed`
+        if it == 2 && !active.payload.failed_once {
+            let token = Active::new(
+                LoopState { failed_once: true, ..active.payload.clone() },
+                active.carry().clone(),
+            );
+            return Err(Failed { token, error: "transient network error".into() });
+        }
         if it >= 8 {
             return Ok(StepOutcome::Converged(Converged::new(ConvergedReport {
                 iteration: it,
@@ -96,7 +111,12 @@ ladder!(MetricOpt {
         let metric = 1.0 - (it as f64 * 0.15) + (it as f64 * it as f64 * 0.005);
         let best = prev.payload.best.max(metric);
         Active::new(
-            LoopState { iteration: it, best, params: prev.payload.params.clone() },
+            LoopState {
+                iteration: it,
+                best,
+                params: prev.payload.params.clone(),
+                failed_once: prev.payload.failed_once,
+            },
             prev.carry().clone(),
         )
     },
@@ -109,10 +129,15 @@ ladder!(MetricOpt {
                 iteration: prev.payload.iteration + 1,
                 best: prev.payload.best,
                 params: prev.payload.params.clone(),
+                failed_once: prev.payload.failed_once,
             },
             prev.carry().clone(),
         )
     },
+
+    // recover from the error path: take the (already-marked) token back and retry.
+    // No progress guard here — a transient-error retry may reuse the same state.
+    clear_transient = |f| { f.token },
 });
 
 // ── demo harness (hand-written) ──────────────────────────────────────────────
@@ -185,8 +210,9 @@ fn run_optimization(label: &str) {
                 break;
             }
             Err(f) => {
-                println!("\n  ✗ error: {}", f.error);
-                break;
+                println!("  ⚠ transient error: {} — recovering", f.error);
+                token = metricopt::clear_transient(f);
+                trace.record(step_no, "step → Failed", "recovered (error path)");
             }
         }
     }

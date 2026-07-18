@@ -98,6 +98,10 @@ struct RecoverFn {
     name: Ident,
     param_type: Type,
     return_rung: Ident,
+    /// `Some(rung)` when this recovers from the error path (`Failed(rung) => ..`),
+    /// rather than from a verdict. Failed-recovery has no verdict edge and no
+    /// auto-injected progress guard (a retry may legitimately reuse the token).
+    from_failed: Option<Ident>,
 }
 
 // ── parser ──────────────────────────────────────────────────────────────────
@@ -140,6 +144,34 @@ impl Parse for Ladder {
                     while !block.is_empty() {
                         let edge_name: Ident = block.parse()?;
                         block.parse::<Token![:]>()?;
+
+                        // Detect the error-path form: `name: Failed(Rung) => Rung`.
+                        let fork = block.fork();
+                        let is_failed = fork
+                            .parse::<Ident>()
+                            .map(|i| i == "Failed")
+                            .unwrap_or(false)
+                            && fork.peek(syn::token::Paren);
+
+                        if is_failed {
+                            let _failed_kw: Ident = block.parse()?;
+                            let inner;
+                            syn::parenthesized!(inner in block);
+                            let from_rung: Ident = inner.parse()?;
+                            block.parse::<Token![=>]>()?;
+                            let return_rung: Ident = block.parse()?;
+                            let param_type: Type = syn::parse_quote!(Failed<#from_rung>);
+                            recover_fns.push(RecoverFn {
+                                name: edge_name,
+                                param_type,
+                                return_rung,
+                                from_failed: Some(from_rung),
+                            });
+                            let _ = block.parse::<Token![;]>();
+                            continue;
+                        }
+
+                        // Verdict-recovery form: `name: Verdict => Rung[(payload)]`.
                         let param_type: Type = block.parse()?;
                         block.parse::<Token![=>]>()?;
                         let return_rung: Ident = block.parse()?;
@@ -164,6 +196,7 @@ impl Parse for Ladder {
                             name: edge_name,
                             param_type,
                             return_rung,
+                            from_failed: None,
                         });
                         let _ = block.parse::<Token![;]>();
                     }
@@ -424,12 +457,20 @@ fn check(ladder: &Ladder) -> Result<(), String> {
         }
     }
 
-    // 8. RecoverFn return_rung is declared
+    // 8. RecoverFn return_rung is declared; a Failed-recovery's source rung too.
     for rf in &ladder.recover_fns {
         if !rung_names.contains(&rf.return_rung.to_string()) {
             return Err(format!(
                 "RecoverFn `{}`: return_rung `{}` not declared",
                 rf.name, rf.return_rung
+            ));
+        }
+        if let Some(ref from) = rf.from_failed
+            && !rung_names.contains(&from.to_string())
+        {
+            return Err(format!(
+                "recover `{}`: `Failed({})` names an undeclared rung",
+                rf.name, from
             ));
         }
     }
@@ -703,12 +744,22 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     let body_for = |n: &str| -> Option<&TransitionBody> {
         ladder.bodies.iter().find(|b| b.name == n)
     };
-    // Pull the (single) argument pattern and body expr out of a `|arg| { .. }`.
+    // Pull the (single) argument pattern out of a `|arg| { .. }` closure — it
+    // becomes the generated function's parameter directly (so the closure body
+    // needs no rebinding, and a `{ .. }` body isn't double-wrapped).
     let arg_pat = |c: &syn::ExprClosure| -> proc_macro2::TokenStream {
         c.inputs
             .first()
             .map(|p| quote! { #p })
             .unwrap_or(quote! { __arg })
+    };
+    // The closure body as a function body: use its block directly if it is one,
+    // else wrap the single expression in braces. Avoids `unused_braces`.
+    let fn_body = |c: &syn::ExprClosure| -> proc_macro2::TokenStream {
+        match &*c.body {
+            syn::Expr::Block(eb) => quote! { #eb },
+            other => quote! { { #other } },
+        }
     };
 
     let logic = if has_bodies {
@@ -720,20 +771,14 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 let from = &t.from_rung;
                 let b = body_for(&name.to_string())?;
                 let pat = arg_pat(&b.closure);
-                let body = &b.closure.body;
+                let body = fn_body(&b.closure);
                 if let Some(ref to) = t.to_rung {
                     Some(quote! {
-                        pub fn #name(__arg: #from) -> #to {
-                            let #pat = __arg;
-                            #body
-                        }
+                        pub fn #name(#pat: #from) -> #to #body
                     })
                 } else if !t.verdicts.is_empty() {
                     Some(quote! {
-                        pub fn #name(__arg: #from) -> Result<StepOutcome, Failed<#from>> {
-                            let #pat = __arg;
-                            #body
-                        }
+                        pub fn #name(#pat: #from) -> Result<StepOutcome, Failed<#from>> #body
                     })
                 } else {
                     None
@@ -751,16 +796,27 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 // `check()` guarantees a body exists for every recover fn.
                 let b = body_for(&name.to_string()).expect("recover body checked");
                 let pat = arg_pat(&b.closure);
-                let body = &b.closure.body;
-                quote! {
-                    pub fn #name(__arg: #param) -> #ret {
-                        // §4.4 (enforced): snapshot the source rung's payload before
-                        // recovery runs, then assert the recovered rung advanced. The
-                        // recover body cannot skip this — the macro injects it.
-                        let __before = ::core::clone::Clone::clone(&__arg.source().payload);
-                        let __after: #ret = { let #pat = __arg; #body };
-                        must_progress(&__before, &__after.payload);
-                        __after
+                if rf.from_failed.is_some() {
+                    // Error-path recovery (`Failed(rung) => rung`): no progress guard.
+                    // A retry after a transient error may legitimately reuse the token
+                    // (the `Failed`'s `.token` field), so progress is the body's call.
+                    let body = fn_body(&b.closure);
+                    quote! {
+                        pub fn #name(#pat: #param) -> #ret #body
+                    }
+                } else {
+                    // Verdict recovery: auto-inject the progress guard (§4.4). The body
+                    // is used as the initializer of `__after`, so a `{ .. }` body isn't
+                    // double-wrapped. `#pat` is the parameter; the snapshot borrows it
+                    // before the body consumes it.
+                    let body = &b.closure.body;
+                    quote! {
+                        pub fn #name(#pat: #param) -> #ret {
+                            let __before = ::core::clone::Clone::clone(&#pat.source().payload);
+                            let __after: #ret = #body;
+                            must_progress(&__before, &__after.payload);
+                            __after
+                        }
                     }
                 }
             })
