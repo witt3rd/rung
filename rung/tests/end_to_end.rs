@@ -254,3 +254,36 @@ fn recover_guard_is_auto_injected() {
         _ => unreachable!(),
     }
 }
+
+// Regression (spec-says-N, parser-did-1): a spine longer than two rungs. SPEC.md
+// §1 grammar is `rung (=> rung)* => { verdicts }`, but the parser once hardcoded
+// exactly two forward hops and silently dropped the rest — so a body for the
+// third-hop transition matched nothing. This 5-rung / 4-hop spine is the shape
+// that surfaced it; if any hop fails to register, its body fails check 9 and this
+// stops compiling.
+struct Doc;
+
+ladder!(Resolve {
+    Raised(Doc) => Gathered(Doc) => Evaluated(Doc) => Synthesized(Doc) => Folded(Doc) => {
+        Resolved(i32)
+    }
+} impl {
+    gathered = |_r| { Gathered::new(Doc) },
+    evaluated = |_g| { Evaluated::new(Doc) },
+    synthesized = |_e| { Synthesized::new(Doc) },
+    folded = |_s| { Folded::new(Doc) },
+    step = |_f| { Ok(StepOutcome::Resolved(Resolved::new(42))) },
+});
+
+#[test]
+fn long_spine_registers_every_hop() {
+    let r = resolve::Raised::new(Doc);
+    let g = resolve::gathered(r);
+    let e = resolve::evaluated(g);
+    let s = resolve::synthesized(e);
+    let f = resolve::folded(s);
+    match resolve::step(f) {
+        Ok(resolve::StepOutcome::Resolved(v)) => assert_eq!(*v.payload(), 42),
+        Err(_) => unreachable!("this ladder never fails"),
+    }
+}

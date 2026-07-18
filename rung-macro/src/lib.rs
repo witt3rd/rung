@@ -100,6 +100,22 @@ fn parse_verdict(block: ParseStream) -> syn::Result<Verdict> {
     })
 }
 
+/// Parse a verdict branching block `{ verdict ( "|" verdict )* }`.
+fn parse_verdict_block(content: ParseStream) -> syn::Result<Vec<Verdict>> {
+    let block;
+    braced!(block in content);
+    let mut verdicts = Vec::new();
+    let mut first = true;
+    while !block.is_empty() {
+        if !first {
+            block.parse::<Token![|]>()?;
+        }
+        first = false;
+        verdicts.push(parse_verdict(&block)?);
+    }
+    Ok(verdicts)
+}
+
 struct RecoverEdge {
     name: Ident,
     from_verdict: Ident,
@@ -219,79 +235,51 @@ impl Parse for Ladder {
                     ));
                 }
             } else {
-                // Rung: Xxx(Type) => ...
-                let rung_name: Ident = content.parse()?;
+                // Spine: `rung ( "=>" rung )* "=>" "{" verdicts "}"` (SPEC.md §1).
+                // Parse the first rung, then loop over forward hops until a verdict
+                // block terminates the spine. Each hop `=> Next` adds a rung and a
+                // forward transition named after its target (lowercased); a `=> { .. }`
+                // adds the branching `step` transition and ends the spine.
+                let mut cur_name: Ident = content.parse()?;
                 let payload;
                 syn::parenthesized!(payload in content);
                 let payload_type: Type = payload.parse()?;
                 rungs.push(Rung {
-                    name: rung_name.clone(),
-                    payload_type: payload_type.clone(),
+                    name: cur_name.clone(),
+                    payload_type,
                 });
 
-                if content.peek(Token![=>]) {
+                while content.peek(Token![=>]) {
                     content.parse::<Token![=>]>()?;
 
                     if content.peek(syn::token::Brace) {
-                        // Verdict branching
-                        let block;
-                        braced!(block in content);
-                        let mut verdicts = Vec::new();
-                        let mut first = true;
-                        while !block.is_empty() {
-                            if !first {
-                                block.parse::<Token![|]>()?;
-                            }
-                            first = false;
-                            verdicts.push(parse_verdict(&block)?);
-                        }
+                        // Verdict branching terminates the spine.
+                        let verdicts = parse_verdict_block(&content)?;
                         transitions.push(Transition {
                             name: format_ident!("step"),
-                            from_rung: rung_name,
+                            from_rung: cur_name.clone(),
                             to_rung: None,
                             verdicts,
                         });
-                    } else {
-                        // Simple next rung — but may chain: => Next => { verdicts }
-                        let next_name: Ident = content.parse()?;
-                        let next_payload;
-                        syn::parenthesized!(next_payload in content);
-                        let next_type: Type = next_payload.parse()?;
-                        rungs.push(Rung {
-                            name: next_name.clone(),
-                            payload_type: next_type,
-                        });
-                        transitions.push(Transition {
-                            name: format_ident!("{}", next_name.to_string().to_lowercase()),
-                            from_rung: rung_name.clone(),
-                            to_rung: Some(next_name.clone()),
-                            verdicts: vec![],
-                        });
-
-                        // Chain: check for another => (verdict branching from this rung)
-                        if content.peek(Token![=>]) {
-                            content.parse::<Token![=>]>()?;
-                            if content.peek(syn::token::Brace) {
-                                let block;
-                                braced!(block in content);
-                                let mut verdicts = Vec::new();
-                                let mut first = true;
-                                while !block.is_empty() {
-                                    if !first {
-                                        block.parse::<Token![|]>()?;
-                                    }
-                                    first = false;
-                                    verdicts.push(parse_verdict(&block)?);
-                                }
-                                transitions.push(Transition {
-                                    name: format_ident!("step"),
-                                    from_rung: next_name,
-                                    to_rung: None,
-                                    verdicts,
-                                });
-                            }
-                        }
+                        break;
                     }
+
+                    // Another forward hop: `=> Next(Type)`.
+                    let next_name: Ident = content.parse()?;
+                    let next_payload;
+                    syn::parenthesized!(next_payload in content);
+                    let next_type: Type = next_payload.parse()?;
+                    rungs.push(Rung {
+                        name: next_name.clone(),
+                        payload_type: next_type,
+                    });
+                    transitions.push(Transition {
+                        name: format_ident!("{}", next_name.to_string().to_lowercase()),
+                        from_rung: cur_name.clone(),
+                        to_rung: Some(next_name.clone()),
+                        verdicts: vec![],
+                    });
+                    cur_name = next_name;
                 }
                 let _ = content.parse::<Token![;]>();
             }
