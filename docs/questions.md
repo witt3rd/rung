@@ -113,65 +113,94 @@ ladder instantiated per use)?
 the emitted module), but the interaction with the sealed-constructor visibility
 rule (G2) and the progress-guard bounds (G8) needs design.
 
-### Q7 — Async transition bodies *(open)*
+### Q7 — Effectful transition bodies: which monad? *(open — the Kleisli framing is a conjecture, verify first)*
 
-**Question.** A transition body is a synchronous `fn` — `fn step(active: Active)
--> Result<StepOutcome, Failed>`. But the generative membrane (an LLM call, a
-tool-using agent, any inference-endpoint round-trip inside a body) is naturally
-*async*. How does rung host an `async` transition body without breaking the
-linear-token guarantees?
+**Question (reframed 2026-07-18).** A transition body returning
+`Result<StepOutcome, Failed>` is already an *effectful* arrow — plausibly a
+**Kleisli morphism**, an arrow `A → M B` that carries an effect `M`. If that
+reading is rigorous:
 
-**Why it's open.** The whole type machinery — sealed tokens, `!Send`, move
-semantics, the auto-injected progress guard — is built around sync `fn`s that
-consume a token by value and return the next rung. An `async` body changes the
-emitted signature (it returns a `Future`) and raises two coupled unknowns:
+- the **error path** is a Kleisli arrow in the `Result` monad — *shipped, via the
+  recover edges*;
+- an **async** body is a Kleisli arrow in the `Future` monad — *the async case*.
+
+Kleisli composition is one law regardless of the monad, so an async body would
+compose *the same way the error path already does*. Under this framing the
+question is not "how do we bolt async onto rung" but **"rung's arrows are Kleisli
+arrows — which monad?"** — and Q7 shrinks from a hard new feature into an
+extension of structure already owned. Its answer may be half-written in the
+recover edges.
+
+**⚠️ The framing is unverified — this is the load-bearing conjecture.** Whether
+`Result`/`Future` bodies are Kleisli arrows in the *precise technical sense*, or
+only a loose analogy, has not been checked against the real math. Two references
+to ground it against: **Fritz** (Markov categories — note that a *generative* body,
+an LLM call, is a **stochastic map / Markov kernel**, which is not obviously the
+`Result` or `Future` monad; the membrane's monad may be a *probability* monad, and
+Kleisli-over-a-Markov-category is where that composition is defined) and
+**Capucci/Hedges** (categorical cybernetics, optics). **Verify the monad framing
+before building on it.** If it holds, most of the async work is free; if it's
+loose, async is a genuine new feature and the async unknowns below stand alone.
+
+**The async unknowns (independent of the framing).**
 1. **Does the guarantee survive `.await`?** A token moved into an async body is
-   still moved *once* — linearity should hold. And `!Send` is arguably
-   *consistent* with async: a `!Send` token held across an await point pins the
-   future to one thread, which is exactly the one-token-one-thread contract (G3).
-   But that pinning means the future is itself `!Send` — it cannot run on a
-   multi-threaded executor. Whether that composes with a real driver, or forces a
-   single-threaded runtime, is the load-bearing question.
-2. **What drives an async ladder?** Today the driver is a plain sync loop
-   (`match step(token) { .. }`). An async transition needs an async drive — and a
+   still moved *once* — linearity holds. `!Send` is arguably *consistent* with
+   async: a `!Send` token held across an await pins the future to one thread —
+   exactly the one-token-one-thread contract (G3) — but that makes the future
+   itself `!Send`, so it cannot run on a multi-threaded executor. Whether that
+   composes with a real driver or forces a single-threaded runtime is the
+   load-bearing async question.
+2. **What drives an async ladder?** Today the driver is a sync loop
+   (`match step(token) { .. }`); an async transition needs an async drive, and a
    ladder mixing sync and async transitions needs both.
 
-**Relationship to Q5.** Adjacent but orthogonal. Q5 (fork-join) splits one token
-into N concurrent sub-tokens; this is a *single* transition that awaits. You can
-have async bodies with no fork-join, or fork-join with sync bodies — they are two
-different concurrency questions.
+**Relationship to Q5.** Adjacent but orthogonal — Q5 (fork-join) splits one token
+into N concurrent sub-tokens; this is a *single* transition that awaits.
 
-**Most promising angle.** The surfacing case is real and immediate: the first
-LLM-in-a-transition fold (outer-loop question resolution, cut #2) deliberately
-chose a *blocking* client (`reqwest` blocking / `ureq`) precisely to sidestep
-this — a batch resolver has no latency pressure, so a sync body over a blocking
-call is honest and correct *for now*. That sidestep is what parks the question
-rather than closing it. Two experiments when it ripens:
+**Experiments when it ripens.**
 1. A per-transition `async` marker in the DSL (`async active = |spec| { .. }`),
-   emitting `async fn` for that transition and an async `StepOutcome` drive;
-   sync and async transitions coexist in one ladder.
-2. Verify the `!Send` / await interaction against a real executor — does the
-   pinned-future consequence force a single-threaded runtime, or does it compose?
+   emitting `async fn` and an async drive; sync and async transitions coexist.
+2. Verify the `!Send` / await interaction against a real executor.
 
-**Provenance.** Surfaced 2026-07-18, choosing the client for the first
-deterministic→generative fold. The blocking-client decision is the deliberate
-YAGNI park: build the smallest real thing, let it tell us when async earns its
-place.
+**Provenance.** Surfaced 2026-07-18 choosing the client for the first
+deterministic→generative fold; the blocking-client (`ureq` / `reqwest` blocking)
+decision is the deliberate YAGNI park — build the smallest real thing, let it tell
+us when async earns its place. Kleisli reframe from the 2026-07-18 handoff
+(`2026-07-18_HANDOFF_verbs-are-arrows.md`).
 
 ---
 
 ## The category-theory map as a question generator
 
-[`RUNG-CT.md`](RUNG-CT.md) is not decoration — each structure it identifies
-predicts a feature. This is where the growth questions come from, principled
-rather than ad hoc:
+[`RUNG-CT.md`](RUNG-CT.md) is not decoration — its structure predicts features.
+The **growth** questions (Axis 2) all come from one place: the standard
+categorical **ascent**, where each level is "the arrows of the category one level
+up." That tower, not an ad-hoc feature list, is the principled generator.
+
+### The growth tower
+
+| Level | Arrows *of* | Are | In rung |
+|---|---|---|---|
+| 0 | a category | **morphisms** | a transition (`Gathered => Evaluated`) — **have it** |
+| 1 | **Cat** (the category of categories) | **functors** | ladder-to-ladder maps — **Q4** (nesting / composition) |
+| 2 | **Fun** (the functor category) | **natural transformations** | *present, unused* — a reserved slot |
+
+**Level 1 is already instantiated.** A registry composing per-item ladders is a
+functor situation: the outer arrow (`open → resolved`) is *witnessed by* the inner
+ladder reaching its terminal. That witnessing relationship is what Q4 formalizes.
+
+**Level 2, hold lightly.** "The same transformation applied uniformly across every
+state" is where a natural transformation would live — real structure with no
+earned use in rung yet. **Do not invent a use to fill it;** wait for a ladder to
+need it (third-instance rule). This is the honest `…` at the top of the tower.
+
+### The non-ascent structures (feed other questions)
 
 | CT structure | Predicts | Question |
 |---|---|---|
-| Free category | Composition of ladder segments | Q4 |
-| Indexed monad | Sequencing / do-notation for driving runs | (new) combinators over `StepOutcome` |
-| Dagger | Reversibility | Recovery is already a *partial* dagger — what is a principled reverse transition? |
-| Linear logic | A linear substrate | Q3 adjacent |
+| Kleisli — *which monad?* | Effectful transition bodies | **Q7** — `Result` shipped (recover), `Future` async open. *Kleisli rigor is a conjecture; see Q7.* |
+| Dagger | Reversibility | Recovery is a *partial, well-founded* dagger (RUNG-CT §6) — the progress guard breaks involution |
+| Linear logic | A linear substrate | **Q3** |
 
 ---
 
@@ -179,9 +208,14 @@ rather than ad hoc:
 
 - **Blocked externally:** Q3 (true linearity ← the language).
 - **Known but costly — park:** Q2 (cross-crate provenance ← sub-crate).
-- **Open and ours to push:** Q1 (verifier spike), Q4 (composition), Q5 (fork-join),
-  Q6 (genericity), Q7 (async transition bodies — parked pragmatically behind the
-  blocking-client choice, but real).
+- **Open and ours to push:** Q1 (verifier spike), Q4 (composition — Level 1 of the
+  tower), Q5 (fork-join), Q6 (genericity), Q7 (effectful bodies / *which monad?* —
+  Kleisli framing pending verification; async parked behind the blocking-client
+  choice).
+
+**Verify before building.** One item gates real work: the **Kleisli framing** (Q7)
+is a conjecture, not a result — check it against Fritz / Capucci before any async
+or effect work leans on it (2026-07-18 handoff).
 
 **Highest-information next experiments.**
 - To *deepen*: the Q1 Kani/Creusot spike on a single ladder — does a generated

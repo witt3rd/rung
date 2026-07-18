@@ -129,6 +129,9 @@ Each guarantee is normative and names its conformance test.
   outside its module (`_seal` is private). When an `impl` block is present, only
   the **entry** rung's `new` is public; every other rung's `new` is
   module-private, so no code outside the module can mint a mid-ladder rung.
+  Categorically this is not merely a fabrication guard: it enforces that a *verb
+  cannot occupy object-position* — a state is reached only by traversing an arrow,
+  never fabricated to hold an arrow's result (see `docs/RUNG-CT.md`, "The law").
   *Conformance: `rung/src/lib.rs` compile_fail doctest — external `Active::new`
   fails with E0624.*
 - **G3 — One token, one thread.** Every rung and verdict MUST be `!Send + !Sync`
