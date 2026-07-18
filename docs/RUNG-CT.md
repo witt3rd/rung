@@ -1,8 +1,18 @@
-# RUNG-CT — Category Theory Correspondence
+# RUNG-CT — The category rung declares
 
-**2026-07-16 · Donald Thompson & Forge ⚒️**
+**2026-07-16 · Donald Thompson & Forge ⚒️** · *stance revised 2026-07-18*
 
-The `ladder` primitive is not *like* category theory. It **is** a free category on a declared directed graph, with additional structure (coproducts, indexed monads, daggers) — expressed in syntax that hides the mathematics behind the programmer's mental model. This document traces the correspondence.
+rung is a **category-declaration language.** A ladder declares the objects and the legal arrows of a category, and the type system enforces that you may travel only declared arrows. This is not an analogy the way "it's *like* a state machine" is an analogy — it is what the primitive **is**, and the compiler enforces the category's axioms directly.
+
+## The law
+
+- **States are objects.** A state is inert — data at rest, a point. It has no verbs.
+- **Transitions are arrows (morphisms).** Every *doing* lives on an arrow.
+- **Therefore a verb can only live on a morphism, never inside an object.** Compute, judge, call an LLM, hit the network — each is a verb, and each belongs in a transition *body*, never in the construction of a *state*.
+
+This was not read from theory and implemented — it was found from the inside. An attempt to fold a live LLM verdict into a ladder tried to *construct the next state to hold the verdict*, and the sealed constructor (SPEC.md **G2**) refused: `Evaluated::new` cannot be called from outside the arrow. That refusal **is** the free-category axiom being enforced — a morphism was being asked for in object-position, and no such thing exists. The fix was forced and correct: the verb moved into the transition body, the only place a verb can be. The sealed constructor is not merely a fabrication guard; **it is the enforcement of what a category *is*.**
+
+The rest of this document traces the correspondence in detail — coproducts (verdict branching), products (carry), the indexed monad, the dagger (recovery), linear logic, Curry-Howard. The syntax hides the mathematics behind the programmer's mental model; the compiler does not.
 
 ---
 
@@ -22,7 +32,7 @@ is a **presentation of a free category** W:
 
 - **Objects**: the rungs — `Designed`, `Claimed`, `Active`. Each object is a state in the transition graph.
 - **Generating morphisms**: the `=>` arrows — `design: Designed → Claimed`, `claim: Claimed → Active`. Each arrow is a declared transition.
-- **No other morphisms exist.** The sealed-constructor rule enforces that the category is *freely generated* by the declared arrows. There is no morphism `Designed → Active` except the composition `claim ∘ design`. The compiler refuses any attempt to construct a morphism not in the free category.
+- **No other morphisms exist.** The sealed constructor (SPEC.md G2) enforces that the category is *freely generated* by the declared arrows — this is "the law" above, read locally. There is no morphism `Designed → Active` except the composition `claim ∘ design`. The compiler refuses any attempt to construct a morphism not in the free category (equivalently: to put a verb in object-position).
 
 A well-typed program is a **functor**
 
