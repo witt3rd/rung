@@ -50,7 +50,7 @@ fn test_carry_accessor_exists() {
 
 #[test]
 fn test_rungs_are_not_send_or_sync() {
-    // Proof of the linear-token contract (RUNG-RUST.md §4.6): rung tokens must not
+    // Proof of the linear-token contract (SPEC.md G3): rung tokens must not
     // cross thread boundaries, or two threads could drive a transition on the same
     // logical token via a shared `Arc`/`&`. The `PhantomData<*const ()>` marker in
     // each generated rung makes it `!Send + !Sync`.
@@ -82,7 +82,7 @@ fn test_rungs_are_not_send_or_sync() {
         !(&IsSend::<metricoptimization::Active>(PhantomData)).check(),
         "Active must be !Send"
     );
-    // Verdicts are held to the same seal (RUNG-RUST.md §4.6 remnant, closed):
+    // Verdicts are held to the same seal (SPEC.md G3, verdict seal):
     // terminal (`Converged`) and recoverable (`Stalled`, which carries a source
     // rung) are both `!Send`.
     assert!(

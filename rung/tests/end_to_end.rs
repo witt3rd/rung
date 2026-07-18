@@ -2,7 +2,7 @@
 //! actually *drivable*: start a run, step it, take the recover edge, reach a
 //! terminal verdict — with real transition bodies written inline.
 //!
-//! This exercises the inline-closure form (RUNG-RUST.md §1): bodies expand
+//! This exercises the inline-closure form (SPEC.md §3): bodies expand
 //! *inside* the module, so they use the sealed (private) constructors, and the
 //! macro auto-injects the `must_progress` guard around the recover body.
 
@@ -64,7 +64,7 @@ ladder!(Opt {
     },
 
     // Recover edge Iterating -> Active. No must_progress call here: the macro
-    // wraps this body with the guard automatically (§4.4 enforced).
+    // wraps this body with the guard automatically (SPEC.md G8 enforced).
     iterate = |it| {
         let prev = it.into_source();
         Active::new(
@@ -172,7 +172,7 @@ fn must_progress_guard_panics_on_no_progress() {
     opt::must_progress(&before, &after);
 }
 
-// A ladder whose recover body makes NO progress — proves §4.4 is *auto-injected*:
+// A ladder whose recover body makes NO progress — proves SPEC.md G8 is *auto-injected*:
 // `again` never calls `must_progress`, yet driving one recover cycle panics.
 struct AState(i32);
 #[derive(Clone, PartialEq)]

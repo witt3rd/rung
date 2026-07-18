@@ -52,7 +52,7 @@
 //! }
 //! ```
 //!
-//! ## No external fabrication (§4.1)
+//! ## No external fabrication (SPEC.md G2)
 //!
 //! With an inline `impl { .. }` block, only the *entry* rung has a public
 //! constructor — every downstream rung's `new` is module-private, so no outside
