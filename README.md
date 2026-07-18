@@ -20,7 +20,7 @@ emits sealed, `!Send` structs, an exhaustive verdict enum, and the transition
 functions. Rust's move semantics enforce linear consumption. Invalid states are
 unrepresentable. The state machine is the type system.
 
-```rust
+```rust,ignore
 use rung::ladder;
 
 ladder!(Work {
@@ -92,8 +92,9 @@ cargo add rung
 ```rust
 use rung::ladder;
 
-struct Task; struct Job;
-#[derive(Clone, PartialEq)] struct Output;
+struct Task;
+struct Job { step: u32 }
+struct Output { steps: u32 }
 
 ladder!(Workflow {
     carry { task_id: String }
@@ -105,30 +106,40 @@ ladder!(Workflow {
 } impl {
     // Bodies expand INSIDE the generated `workflow` module, so they use the
     // sealed constructors and refer to types unqualified (Running, StepOutcome…).
-    running = |pending| { Running::new(Job) },
+    // With a `carry` block, every `::new` also takes the carry; read it with
+    // `.carry()` and thread it forward.
+    running = |pending| { Running::new(Job { step: 0 }, pending.carry().clone()) },
     step = |running| {
-        // ...decide: keep going or finish...
-        Ok(StepOutcome::Done(Done::new(Output)))
+        let n = running.payload.step;
+        if n >= 3 {
+            return Ok(StepOutcome::Done(Done::new(Output { steps: n })));
+        }
+        Ok(StepOutcome::Step(Running::new(Job { step: n + 1 }, running.carry().clone())))
     },
 });
 
-// Start a run with the public entry constructor, then drive by matching on
-// StepOutcome — every function is a plain `pub fn`, no trait to import:
-//
-//   let p = workflow::Pending::new(Task, workflow::Carry { task_id: "t1".into() });
-//   let mut r = workflow::running(p);
-//   loop {
-//       match workflow::step(r) {
-//           Ok(workflow::StepOutcome::Step(next)) => r = next,
-//           Ok(workflow::StepOutcome::Done(d)) => break d.into_payload(),
-//           Err(f) => panic!("{}", f.error),
-//       }
-//   }
+fn main() {
+    // Start with the public entry constructor (only the entry rung's `new` is
+    // public), then drive by matching on StepOutcome — plain `pub fn`s, no trait.
+    let p = workflow::Pending::new(Task, workflow::Carry { task_id: "t1".into() });
+    let mut r = workflow::running(p);
+    let out = loop {
+        match workflow::step(r) {
+            Ok(workflow::StepOutcome::Step(next)) => r = next,   // continue arm
+            Ok(workflow::StepOutcome::Done(d)) => break d.into_payload(),
+            Err(f) => panic!("{}", f.error),
+        }
+    };
+    assert_eq!(out.steps, 3);
+}
 ```
 
 Only the *entry* rung's constructor is public — every downstream rung's `new` is
 module-private, so no outside code can fabricate a mid-ladder token. Omit the
 `impl { .. }` block for a type-only declaration (structs and enum, no logic).
+
+> This example is compile-checked and run as a doctest (via `include_str!` in the
+> crate root), so it can't silently drift from the macro.
 
 ## What you need to know
 

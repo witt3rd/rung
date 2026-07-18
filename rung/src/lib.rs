@@ -127,3 +127,12 @@
 //! ```
 
 pub use rung_macro::ladder;
+
+// Compile-check and run the README's code blocks as doctests, so the README
+// cannot silently drift from the macro. `#[cfg(doctest)]` means this item exists
+// only during doctest builds — it never appears in the public API or on docs.rs.
+// Illustrative README blocks are fenced ```rust,ignore; the Getting Started
+// example is a complete ```rust program that is compiled and run.
+#[cfg(doctest)]
+#[doc = include_str!("../../README.md")]
+struct ReadmeDoctests;
