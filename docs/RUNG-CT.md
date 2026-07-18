@@ -166,6 +166,12 @@ These hold trivially because the only valid compositions are those declared in t
 
 ## 5. The writer monad — the provenance trace
 
+> **Scope.** This section describes the *structure* of provenance, not the current
+> Rust macro. The `ladder!` macro does **not** emit a trace; provenance tracing is
+> realized in the Python reference interpreter (`python-poc/rung/interpreter.py`)
+> and can be layered on by the caller. The writer-monad correspondence holds
+> wherever a trace is accumulated.
+
 Every transition appends to the provenance trace. This is a **writer monad**:
 
 ```
@@ -203,47 +209,42 @@ where `M i j` is the indexed monad and `Trace` is the writer's output. The grade
 
 ## 6. The dagger category — recovery edges
 
-The `recover` block:
+The `recover` block declares **reverse morphisms** — adjoints, not necessarily inverses — for verdicts and failures:
 
 ```
 recover {
-    claim_failed: Failed(Designed) => Designed(WorkSpec)
-    stalled:      Stalled          => Active(Active)
+    stalled: Stalled       => Active    // verdict dagger
+    cleared: Failed(Active) => Active    // error dagger
 }
 ```
 
-declares **reverse morphisms** for transitions that can fail or stall. A category is **dagger** (†-category) if every morphism has a declared adjoint (not necessarily an inverse):
+A category is **dagger** (†-category) if every morphism has a declared adjoint:
 
 ```
 f:   A → B       (forward transition)
 f†:  B → A       (declared recovery, IF it exists)
 ```
 
-Not all morphisms have daggers:
-- `design: Spec → Designed` — usually infallible, no dagger
-- `claim: Designed → Claimed` — has a dagger `claim_failed` (from `Failed<Designed>`)
-- `step: Active → Converged | Stalled | BudgetExhausted` — `Stalled` has a dagger `stalled`; `Converged` and `BudgetExhausted` do not (terminal)
+The ladder's dagger is **partial** — adjoints exist only where declared — and it comes in **two distinct flavors**, which the implementation keeps separate.
 
-The dagger laws:
+### Verdict daggers — required, guarded, *not* involutive
 
-```
-f†† = f        — involution (the recovery of a recovery is the forward transition)
-id† = id       — identity is self-adjoint
-(g ∘ f)† = f† ∘ g†   — contravariant composition
-```
+A recoverable verdict `Stalled => Active` is a dagger on a *coproduct injection*: `step` lands in the `Stalled` summand and `stalled: Stalled → Active` sends it back. These daggers are **mandatory** — every recoverable verdict MUST have a matching recover function (the recover-pairing check, SPEC.md G7). Terminal verdicts (`Converged`, `BudgetExhausted`) have no dagger; they are absorbing states.
 
-The ladder enforces a weaker form: daggers exist ONLY for declared recoverable edges. Terminal verdicts have no daggers — they are absorbing states. The dagger structure is partial.
+But the verdict dagger is **not an involution.** A clean dagger obeys `f†† = f` and permits `f† ∘ f` to return to the same value; the ladder deliberately forbids the latter. The macro auto-injects a progress guard (SPEC.md G8) requiring the recovered `Active` to *differ* from the one that stalled — the round-trip step→stall→recover MUST decrease, or it panics (`f† ∘ f ≠ id`). This trades the dagger's **symmetry** for **well-foundedness**: recovery is a decreasing step, not a reversal, which is exactly what makes a stall loop terminate. The verdict dagger is a *well-founded recovery*, not a categorical inverse.
 
-### Failure as a separate dagger
+### Error daggers — optional, unguarded
 
-A `Result<T, Failed<Prev>>` return type is a **coproduct** `T + Failed<Prev>` where the `Failed` variant carries the unconsumed token. The dagger `f†` operates on the `Failed` branch:
+A branching transition returns a **coproduct** `StepOutcome + Failed<A>`; the `Failed<A>` summand carries the unconsumed token. The error dagger operates on that branch:
 
 ```
-f:    A → T + Failed<A>    (forward, may fail)
-f†:   Failed<A> → A        (recovery, from failure back to A)
+f:    A → StepOutcome + Failed<A>    (forward, may fail)
+f†:   Failed<A> → A                  (recovery from the error path)
 ```
 
-The dagger of a fallible transition is the recover function for its error case. The compiler enforces that `f†` exists for every `Failed<A>` variant that appears in a `Result` return type of a transition. This is the recover-pairing check.
+An error dagger `Failed(A) => A` (SPEC.md G9) is the recover function for the failure branch. Unlike verdict daggers it is **optional** — a transition may return `Err(Failed { .. })` with no declared recovery, leaving the caller to handle it — and it is **unguarded**, because a retry after a transient error may legitimately reuse the same token (no progress required). The compiler does **not** require an error dagger for every `Failed` variant; error recovery is opt-in.
+
+The involution `f†† = f` and contravariant `(g ∘ f)† = f† ∘ g†` laws are not verified (§9) — and for verdict daggers the involution is *intentionally violated* by the progress guard.
 
 ---
 
@@ -266,11 +267,11 @@ activate: Designed ⊸ Active     — consumes Designed, produces Active
 step:     Active  ⊸ Active ⊕ Converged ⊕ Stalled ⊕ BudgetExhausted
 ```
 
-The borrow checker verifies that every resource is used at most once. The "at most once" is affine, not linear — you CAN drop a token (Rust drops it at end of scope), but you cannot use it twice. The `ladder!` macro could add a `#[must_use]` on every rung type to make dropping a token a warning.
+The borrow checker verifies that every resource is used at most once. The "at most once" is affine, not linear — you CAN drop a token (Rust drops it at end of scope), but you cannot use it twice. The `ladder!` macro adds `#[must_use]` to every rung and verdict type (SPEC.md G4), so a dropped token is a warning — an error under `#![deny(unused_must_use)]`.
 
 ### What linear logic would add
 
-Full linear logic requires **exactly once** use — you cannot drop a token silently. If Rust had linear types, the compiler would refuse to compile code that drops an `Active` without consuming it through a transition or returning it in a `Failed`. This would close the "silent drop" gap at the language level. The `ladder!` macro can approximate this with `#[must_use]` + a `Drop` impl that panics, but a compiler-enforced linearity check is cleaner.
+Full linear logic requires **exactly once** use — you cannot drop a token silently. If Rust had linear types, the compiler would refuse to compile code that drops an `Active` without consuming it through a transition or returning it in a `Failed`, closing the "silent drop" gap at the language level. The macro's `#[must_use]` (SPEC.md G4) is the affine approximation — but it is escapable (`mem::forget`, `let _ = token;`), so it is a *partial* close. A truly linear substrate would make it exact; see [`questions.md`](questions.md) Q3.
 
 ---
 
@@ -301,18 +302,19 @@ The compiler (rung checker + Rust borrow checker) verifies:
 | The category is freely generated by declared arrows | Sealed constructors |
 | Composition is linear (intermediate states consumed) | Rust move semantics |
 | Coproduct elimination is exhaustive | Rust `match` exhaustiveness |
-| Carry is a product factor | Struct field, structurally shared |
-| Recovery edges form a partial dagger | Recover-pairing check |
-| Provenance is a writer monad | Trace accumulation |
+| Carry is a product factor | Private struct field + `&Carry` projection (immutability enforced, SPEC.md G5) |
+| Verdict daggers exist (partial) | Recover-pairing check (§6) |
 
 The compiler does NOT verify:
 
 | Property | Why |
 |---|---|
 | Functoriality of the program | Transition body correctness — what the function does, not just its type |
-| Dagger laws (f†† = f) | No language support for equational reasoning |
+| Dagger laws (f†† = f) | No language support for equational reasoning — and verdict daggers *intentionally* break involution (§6, the progress guard) |
 | Monad laws (associativity) | Holds by construction of the free category — no separate proof needed |
 | Carry coassociativity | Carried data is explicitly threaded — no separate proof needed |
+| Provenance (writer monad) | The Rust macro emits no trace — §5 is structural only |
+| Recovery progress (well-foundedness) | Runtime guard (G8), not a compile-time check — panics on no progress |
 
 ---
 
