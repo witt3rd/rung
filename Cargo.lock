@@ -28,6 +28,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rung-example"
+version = "0.1.0"
+dependencies = [
+ "rung",
+]
+
+[[package]]
 name = "rung-macro"
 version = "0.1.0"
 dependencies = [

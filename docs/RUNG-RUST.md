@@ -83,57 +83,56 @@ pub enum StepOutcome { Complete(Complete), Stalled(Stalled), BudgetExhausted(Bud
 // error payload — carries the unconsumed token
 pub struct Failed<Prev> { pub token: Prev, pub error: String }
 
-// recovery-progress guard (§4.4) — call from a recover body
+// recovery-progress guard (§4.4) — auto-injected around recover bodies
 pub fn must_progress<T: PartialEq>(before: &T, after: &T) { /* panics if equal */ }
 
-// the transition logic contract — user implements this
-pub trait Transitions {
-    fn active(token: Designed) -> Active;                              // simple edge
-    fn step(token: Active) -> Result<StepOutcome, Failed<Active>>;     // branching edge
-    fn retry(token: Stalled) -> Active;                               // recover edge
-}
+// transition + recover LOGIC — emitted as module `pub fn`s from the inline
+// `impl { .. }` block (see below). `Designed::new` (entry) is `pub`; every other
+// `::new` is module-private, so only these in-module bodies can build rungs (§4.1).
+pub fn active(t: Designed) -> Active { /* your body */ }
+pub fn step(t: Active) -> Result<StepOutcome, Failed<Active>> { /* your body */ }
+pub fn retry(t: Stalled) -> Active { /* your body, wrapped with must_progress */ }
 ```
-
-The macro generates the **types, sealed constructors, the exhaustive enum, the error payload, the progress guard, and the `Transitions` trait signatures**. The transition/recover **bodies are user-provided** — the user writes `impl work::Transitions for MyCtx`. A run is started with `Designed::new(payload, carry)` and driven by matching on `StepOutcome`.
 
 > All `#[must_use]` / `PhantomData` markers are elided above for readability — see §4.6, §4.7. `StepOutcome` has no `Continue` variant: staying on a rung is modelled as a recoverable verdict routing back to it (e.g. `Stalled => Active`).
 
-### User-written transition bodies
+### Transition bodies — the inline `impl { .. }` form
 
-The macro emits the `Transitions` trait signatures; the user writes the bodies as a trait impl. This is the **implemented** mechanism (`rung/tests/end_to_end.rs` drives a full run this way):
+Bodies are written inline and expand **inside** the module, so they use the sealed (private) constructors directly and the macro auto-injects the recovery guard. This is the **only** body mechanism (`rung/tests/end_to_end.rs` and `rust-example/` both drive full runs this way):
 
 ```rust
-struct Optimizer;
-impl work::Transitions for Optimizer {
-    fn active(token: work::Designed) -> work::Active {
-        let carry = token.carry().clone();          // §4.3 read-only witness
-        work::Active::new(/* next payload */, carry) // sealed constructor bridge
-    }
-    fn step(token: work::Active) -> Result<work::StepOutcome, work::Failed<work::Active>> {
-        // ...decide the verdict...
-        Ok(work::StepOutcome::Stalled(work::Stalled::new(token))) // carry source rung
-    }
-    fn retry(token: work::Stalled) -> work::Active {
-        let prev = token.into_source();
-        let next = work::Active::new(/* advanced */, prev.carry().clone());
-        work::must_progress(&prev.payload, &next.payload);          // §4.4 guard
-        next
-    }
-}
+ladder!(Work {
+    carry { task_id: String }
+    Designed(WorkSpec) => Active(ActiveWork) => { Complete | Stalled => Active | BudgetExhausted }
+    recover { retry: Stalled => Active }
+} impl {
+    active = |designed| { Active::new(/* next payload */, designed.carry().clone()) },
+    step   = |active|   {
+        // ...decide the verdict; refer to types unqualified (Active, Stalled, ...)...
+        Ok(StepOutcome::Stalled(Stalled::new(active)))   // carry source rung
+    },
+    retry  = |stalled|  {
+        let prev = stalled.into_source();
+        Active::new(/* advanced */, prev.carry().clone())
+        // no must_progress call — the macro wraps this body with it (§4.4)
+    },
+});
+// start:  let d = work::Designed::new(spec, carry);   // entry ctor is public
+// drive:  match work::step(work::active(d)) { StepOutcome::Stalled(s) => work::retry(s), .. }
 ```
 
-Because the bodies live *outside* `mod work`, they cannot write rung struct literals (the seal fields are private) — they build rungs through the sealed `::new` constructors. Driving the run is a `loop { match Optimizer::step(active) { .. } }` over `StepOutcome` (bring the trait into scope with `use work::Transitions as _;`).
+Inside the block, refer to rungs/verdicts unqualified (`Active`, `Stalled`, `StepOutcome`); payload types resolve from the surrounding scope (`use super::*`). Omit the `impl { .. }` block entirely for a **type-only** declaration (structs, enum, and guards — no logic; all constructors are `pub` so a hand-written driver can build them).
 
-**Not implemented:** an inline-closure form (`ladder!(..) { transition claim = |..| { .. } }`) that would expand bodies *inside* the module. It is the natural way to close §4.1 (bodies inside the seal boundary), and remains a graded future extension.
+There is no `Transitions` trait: one API surface. A separate-compilation trait form could be re-added as an opt-in if a real workload needs it.
 
 ---
 
 ## 2. The macro — expansion logic
 
-The proc macro performs the same checks as the Python rung checker (8 static rules) at compile time, then expands to Rust code:
+The proc macro performs the same 8 structural checks as the Python rung checker at compile time (plus 2 more when an inline `impl { .. }` block is present: every body names a real transition/recover fn, and every transition/recover fn has a body), then expands to Rust code:
 
-1. **Parse** the `ladder!` token stream into an AST (identical to `rung/ast.py`)
-2. **Check** the AST (identical to `rung/checker.py` — 8 rules, single pass)
+1. **Parse** the `ladder!` token stream into an AST (identical to `rung/ast.py`), plus the optional trailing `impl { .. }` bodies
+2. **Check** the AST (8 rules mirroring `rung/checker.py`, + 2 impl-block rules, single pass)
 3. **Emit** the Rust module
 
 ### Checks performed by the macro (compile-time refusals)
@@ -186,13 +185,15 @@ These are the same 8 checks the Python PoC verifies. The macro fails with a comp
 
 ## 4. What is NOT covered
 
-### 4.1 Fabrication via the sealed constructor
+### 4.1 In-module fabrication — CLOSED (inline-closure form)
 
-The seal fields (`_seal`, `_not_send`) are private to the generated module, so no *outside* code can write a rung struct literal. But the transition bodies need to build the rungs they return, so the macro emits a **`pub fn Rung::new(payload, carry)`** constructor per rung (and `Verdict::new`). Those constructors are the bridge that makes the macro usable — and, being `pub`, they are callable by any code in the defining crate. So fabrication is a one-liner: `Active::new(payload, carry)` mints an `Active` without going through the ladder.
+The seal fields (`_seal`, `_not_send`) are private to the generated module, so no outside code can write a rung struct literal. The open question was construction: transition bodies must build the rungs they return, so *somewhere* a constructor has to exist.
 
-**Why this gap exists:** Rust's visibility is per-module (per-crate), not per-function. There is no way to say "only `impl Transitions` bodies may call `::new`." The constructor must be `pub` for external trait impls to reach it, which also exposes it to everything else in the crate. Before constructors were emitted the seal was tighter *but the macro was un-drivable* (no external code could ever construct the entry rung — see §7); making it usable necessarily widened this surface.
+**Why the gap existed:** the trait form put transition bodies in a user `impl Transitions` **outside** the module, forcing `Rung::new` to be `pub` so the bodies could reach it — which also let any code in the crate fabricate a mid-ladder `Active::new(..)`.
 
-**Path to close:** Two options. (a) The **inline-closure form** (§1, "Not implemented") expands transition bodies *inside* the module, so `::new` need not be `pub` at all — construction stays sealed to macro-provided bodies. This is the cheap, in-macro fix. (b) A **sub-crate per ladder** whose boundary the defining crate cannot cross — the heavyweight fix, shared with §4.5. Option (a) is the recommended next strike.
+**Status:** Closed 2026-07-17 by the **inline-closure form** (§1). Bodies now expand *inside* the module, so the macro makes every constructor **module-private except the entry rung's** (the entry `::new` stays `pub` so a run can start). External code cannot construct a mid-ladder rung — it can only obtain one by calling the public transition functions. Proven by the `compile_fail` doctest in `rung/src/lib.rs` (`demo::Active::new(..)` from outside fails with **E0624: associated function `new` is private**; verified via probe to fail for that reason and no other). The trait form was removed — one API surface, no `pub` constructor to widen the hole.
+
+**Residual:** the entry constructor is public by necessity (you must be able to start a run), and code *inside* the module can still fabricate — the module-boundary limit Rust always has. Fully sealing even the entry (cross-crate provenance) is §4.5's sub-crate fix.
 
 ### 4.2 Transition body correctness
 
@@ -212,13 +213,14 @@ The carry is supposed to be read-only witness data. The `carry { ... }` declarat
 
 `retry(stalled: Stalled) -> Active` produces a new `Active`. Nothing in the *type* verifies that the new `Active` is *different* from the one that stalled. An infinite stall loop — where `step` returns `Stalled`, `retry` returns an identical `Active`, and `step` stalls again — compiles and (without a guard) runs forever.
 
-**Status:** Closed 2026-07-17. Two macro-emitted pieces make progress checkable:
-1. A **recoverable verdict carries its source rung** (`Stalled { source: Active }`, with `.source()` / `.into_source()`), so a recover body has the `before` state to compare against — previously the unit verdict discarded it, leaving nothing to check.
-2. The macro emits **`pub fn must_progress<T: PartialEq>(before, after)`**, which panics if the recovered value equals its source. A recover body calls `must_progress(&prev.payload, &next.payload)`.
+**Status:** Closed 2026-07-17, and **enforced** (not by convention). Three macro-emitted pieces:
+1. A **recoverable verdict carries its source rung** (`Stalled { source: Active }`, with `.source()` / `.into_source()`), so there is a `before` state to compare against — the earlier unit verdict discarded it.
+2. The macro emits **`must_progress<T: PartialEq>(before, after)`**, which panics if the recovered value equals its source.
+3. With the inline-closure form (§1), the macro **wraps every recover body** with the guard automatically: it snapshots `source().payload` before the body runs and asserts against the produced rung's payload afterward. The recover body cannot skip it.
 
-Proven by `rung/tests/end_to_end.rs::must_progress_catches_infinite_stall` (asserts the guard panics on a no-progress recovery) and `drives_to_convergence` (a full run through recover cycles that passes the guard every time).
+Proven by `rung/tests/end_to_end.rs::recover_guard_is_auto_injected` — a recover body with **no** `must_progress` call still panics on a no-progress recovery, because the macro injected the check.
 
-**Honest limit:** it is a *runtime* guard invoked *by convention* — recover bodies live outside the module, so the macro emits the guard but cannot force the call (same body-location constraint as §4.2). It catches the dominant infinite-stall failure; it is not compile-time liveness proof. Proving forward progress reasons about the *values* inside the types (a liveness property), not just the types (safety); full enforcement needs the inline-closure form (§1, so the macro injects the call) or a `StallCount` ceiling threaded through the carry.
+**Requirement / limit:** the guard compares the source rung's payload to the produced rung's payload, so recover-target payloads must be `Clone + PartialEq`, and the source and target rungs must share a payload type (true for retry loops `A => .. => A`). It is a *runtime* guard (a liveness property; typestate proves safety, not liveness) — it catches the dominant infinite-stall bug, not all of them.
 
 ### 4.5 Cross-crate provenance
 
@@ -265,8 +267,9 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | Terminal vs recoverable | — | ✓ | ✓ At expansion time |
 | Carry syntax | — | — | ✓ Emitted as struct field |
 | Carry read-only | — | — | ✓ Private field + `&Carry` getter |
-| Sealed entry + transition bridge | — | — | ✓ `Rung::new` constructors + `Transitions` trait |
-| Recovery progress | — | — | ✓ `must_progress` guard + verdict carries source (runtime, by convention) |
+| Drivable end-to-end | — | — | ✓ Inline `impl { .. }` bodies + entry `::new` + module `pub fn`s |
+| In-module fabrication | — | — | ✓ Non-entry `::new` module-private (bodies inside module) |
+| Recovery progress | — | — | ✓ `must_progress` **auto-injected** into recover bodies |
 | Cross-crate provenance | — | — | ✗ Crate boundary trust |
 | Concurrent access | — | — | ✓ `!Send + !Sync` by default (`PhantomData<*const ()>`) |
 | No silent drop | — affine, drop allowed | — | ✓ `#[must_use]` on every token (warn; error under `deny`) |
@@ -279,7 +282,8 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 ### Short-term (proc macro v1)
 
 - **Carry: split `carry` and `carry_mut`.** Fields in `carry` generate immutable accessors. Fields in an optional `carry_mut` block allow mutation. The common case (witness data) is read-only by default.
-- **Recovery progress: `must_progress`.** ✅ Done. A runtime assertion that the recovered token differs from its source. Recoverable verdicts carry their source rung so there is a `before` to compare. Panics on no-progress; catches the common infinite-stall bug. (Auto-injection awaits the inline-closure form.)
+- **Recovery progress: `must_progress`.** ✅ Done and **auto-injected**. The macro wraps every recover body with the guard (inline-closure form), so it cannot be skipped. Recoverable verdicts carry their source rung to supply the `before`. Panics on no-progress; catches the common infinite-stall bug.
+- **Inline-closure form + `Transitions` trait removal.** ✅ Done. Bodies live inside the module (closing §4.1), one API surface. A separate-compilation trait form can be re-added as opt-in if a real workload needs it.
 - **Concurrent access: `!Send + !Sync`.** ✅ Done. All rung types carry `PhantomData<*const ()>` by default. Opt-in to `Send` with a ladder-level annotation `parallel` (future) for use cases that genuinely need multi-threaded access.
 - **No silent drop: `#[must_use]`.** ✅ Done. Every emitted token (rungs, verdicts, `StepOutcome`, `Failed`) is `#[must_use]`. Dropping a token warns, and errors under `#![deny(unused_must_use)]`. The pragmatic partial close of the no-silent-drop gap — no linear types required.
 
@@ -300,13 +304,18 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | Artifact | Status |
 |---|---|
 | `rung/ast.py` | Done — AST nodes for ladder, carry, transition, recover, verdict |
-| `rung/checker.py` | Done — 8 static checks, single-pass, 11 tests |
+| `rung/checker.py` | Done — 8 static checks, single-pass, 11 tests. **Verified in sync** with the Rust `check()` (audited 2026-07-17; all 8 rules map 1:1). Docstring mentions a "reachability" check that was never implemented in either — stale comment only. |
 | `rung/interpreter.py` | Done — linear token tracking, provenance trace |
-| `rust-example/` | Done — hand-written MetricOptimization, sealed constructors, move semantics |
-| `ladder!` proc macro | Done — `rung-macro/src/lib.rs`: parse + 8 static checks + emit (sealed `!Send` rungs & verdicts, `Rung::new` constructors, carry accessor, `Failed<Prev>`, verdict enum, `must_progress` guard, `Transitions` trait) |
-| End-to-end drivability | Done — `rung/tests/end_to_end.rs` starts a run via `Spec::new`, steps it, takes the recover edge, and reaches a terminal verdict with real transition bodies (converge + budget-exhaust + no-progress-panic) |
+| `rust-example/` | Done — **ported to the macro** (2026-07-17). The hand-written `mod metric_opt` is deleted; the crate now drives a `ladder!`-generated MetricOptimization via the inline `impl { .. }` form. Workspace member. |
+| `ladder!` proc macro | Done — `rung-macro/src/lib.rs`: parse (+ optional inline `impl` block) + 10 checks (8 structural + 2 impl-block) + emit (sealed `!Send` rungs & verdicts, sealed constructors, carry accessor, `Failed<Prev>`, verdict enum, auto-injected `must_progress` guard, inline transition/recover `pub fn`s) |
+| End-to-end drivability | Done — `rung/tests/end_to_end.rs`: starts a run via the public entry `::new`, steps it, takes the recover edge, reaches a terminal verdict; plus load-bearing proofs that §4.1 fabrication fails to compile (E0624) and §4.4's guard is auto-injected (panics with no explicit call) |
 
-**Open (graded):** §4.1 constructor fabrication (inline-closure form is the fix), §4.2 transition-body correctness (proptest/verification), §4.5 cross-crate provenance (sub-crate). §4.3, §4.4, §4.6, §4.7 closed.
+**Findings surfaced by the `rust-example` port (graded, not yet built):**
+- **No `Continue` variant.** `StepOutcome` carries only verdicts; "keep iterating" must be modelled as a recoverable verdict (`Continue => Active`). A first-class continue edge would be more ergonomic.
+- **Terminal verdicts carry no payload.** `Converged`/`BudgetExhausted` are sealed markers — a run can't return a result *through* the verdict. A `Converged(Report)` payload syntax is the extension.
+- **No recovery from the `Failed` (error) path.** `recover { .. }` edges recover from verdicts only; there is no `recover { x: Failed(Active) => Active }`. The hand-written example's failure-injection demo was dropped for this reason.
+
+**Open (graded):** the three findings above; §4.2 transition-body correctness (proptest/verification); §4.5 cross-crate provenance (sub-crate). §4.1, §4.3, §4.4, §4.6, §4.7 closed.
 
 ---
 

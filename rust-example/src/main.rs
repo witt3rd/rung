@@ -1,333 +1,177 @@
-#![allow(dead_code, unused_assignments)]
+//! MetricOptimization ladder — driven through the `ladder!` proc macro.
+//!
+//! This used to be ~230 lines of hand-written sealed structs, constructors, and
+//! transition functions ("what the macro would generate"). It now *is* generated:
+//! the `ladder!` invocation below is the single source of truth, and the transition
+//! logic lives in the inline `impl { .. }` block. Only the demo harness (a Trace
+//! and `main`) is hand-written.
+//!
+//! Modelling notes surfaced by this port (macro limitations, graded in
+//! RUNG-RUST.md):
+//!   * `StepOutcome` has no `Continue(Active)` variant — "keep iterating" is a
+//!     recoverable verdict (`Continue => Active`) whose recover fn advances state.
+//!   * Terminal verdicts (`Converged`, `BudgetExhausted`) are sealed markers and
+//!     carry no payload, so the summary reads iteration state from the loop, not
+//!     from the verdict.
+//!   * Recovery from the `Failed` (error) path is not expressible as a `recover`
+//!     edge — the macro recovers from verdicts only — so the failure-injection
+//!     demo from the hand-written version is dropped.
 
-// MetricOptimization ladder — hand-written Rust demonstration.
-//
-// This is what the `ladder!` proc macro would generate. The pattern:
-// - Every rung type has a private seal field — external construction is impossible.
-// - Transition functions take the previous rung BY VALUE — the borrow checker
-//   enforces linear consumption. No `Arc`, no `Mutex`, no lifetimes.
-// - The error path returns the unconsumed token inside `Failed<Prev>`.
-// - Verdict branching uses an enum — exhaustive match enforced at compile time.
+use rung::ladder;
 
-mod metric_opt {
-    use std::fmt;
+#[derive(Clone, Debug, PartialEq)]
+pub struct Params {
+    pub lr: f64,
+    pub epochs: usize,
+}
 
-    // ── carry (witness) data ─────────────────────────────────────────────────
+#[derive(Clone, Debug, PartialEq)]
+pub struct SpecData {
+    pub params: Params,
+}
 
-    #[derive(Clone, Debug)]
-    pub struct Carry {
-        pub metric_name: String,
-        pub correlation_key: String,
+#[derive(Clone, Debug, PartialEq)]
+pub struct LoopState {
+    pub iteration: usize,
+    pub best: f64,
+    pub params: Params,
+}
+
+ladder!(MetricOpt {
+    carry { metric_name: String, correlation_key: String }
+
+    Spec(SpecData)
+      => Active(LoopState)
+      => {
+          Continue => Active       // keep iterating (recoverable "advance")
+          | Converged              // terminal success
+          | Stalled => Active      // recoverable stall
+          | BudgetExhausted        // terminal failure
+      }
+
+    recover {
+        advance: Continue => Active
+        unstall: Stalled => Active
     }
-
-    // ── params ───────────────────────────────────────────────────────────────
-
-    #[derive(Clone, Debug)]
-    pub struct Params {
-        pub lr: f64,
-        pub epochs: usize,
-    }
-
-    // ── state tokens (private seal — external construction impossible) ───────
-
-    pub struct Spec {
-        _seal: (),
-        pub params: Params,
-        inject_failure: bool,
-        pub carry: Carry,
-    }
-
-    pub struct Active {
-        _seal: (),
-        pub iteration: usize,
-        pub best_metric: Option<f64>,
-        pub params: Params,
-        inject_failure: bool,
-        pub carry: Carry,
-    }
-
-    pub struct Converged {
-        pub iteration: usize,
-        pub metric: f64,
-        pub carry: Carry,
-    }
-
-    pub struct Stalled {
-        pub iteration: usize,
-        pub metric: f64,
-        pub stagnation: usize,
-        pub params: Params,
-        inject_failure: bool,
-        pub carry: Carry,
-    }
-
-    pub struct BudgetExhausted {
-        pub iteration: usize,
-        pub budget_remaining: i32,
-        pub carry: Carry,
-    }
-
-    // ── error payload — carries the unconsumed token ─────────────────────────
-
-    pub struct Failed<Prev> {
-        pub token: Prev,
-        pub error: String,
-    }
-
-    // ── step outcome enum (exhaustive match enforced by compiler) ─────────────
-
-    pub enum StepOutcome {
-        Continue(Active),
-        Converged(Converged),
-        Stalled(Stalled),
-        BudgetExhausted(BudgetExhausted),
-    }
-
-    // ── provenance trace ─────────────────────────────────────────────────────
-
-    #[derive(Clone)]
-    pub struct TraceEntry {
-        pub step: usize,
-        pub transition: String,
-        pub rung: String,
-        pub outcome: String,
-        pub detail: String,
-    }
-
-    impl fmt::Display for TraceEntry {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(
-                f,
-                "  [{:02}] {:>12}  {:>6}  {}",
-                self.step, self.transition, self.rung, self.outcome
-            )?;
-            if !self.detail.is_empty() {
-                write!(f, " — {}", self.detail)?;
-            }
-            Ok(())
-        }
-    }
-
-    pub struct Trace(Vec<TraceEntry>);
-
-    impl Trace {
-        pub fn new() -> Self {
-            Trace(Vec::new())
-        }
-
-        pub fn record(
-            &mut self,
-            step: usize,
-            transition: &str,
-            rung: &str,
-            outcome: &str,
-            detail: &str,
-        ) {
-            self.0.push(TraceEntry {
-                step,
-                transition: transition.into(),
-                rung: rung.into(),
-                outcome: outcome.into(),
-                detail: detail.into(),
-            });
-        }
-
-        pub fn print(&self) {
-            println!("\n── provenance trace ──");
-            for entry in &self.0 {
-                println!("{entry}");
-            }
-            println!("── end trace ──\n");
-        }
-    }
-
-    // ── sealed constructors ──────────────────────────────────────────────────
-
-    pub fn design(params: Params, inject_failure: bool, carry: Carry) -> Spec {
-        Spec {
-            _seal: (),
-            params,
-            inject_failure,
+} impl {
+    // Spec -> Active: seed the loop.
+    active = |spec| {
+        let carry = spec.carry().clone();
+        Active::new(
+            LoopState { iteration: 0, best: f64::NEG_INFINITY, params: spec.payload.params },
             carry,
-        }
-    }
+        )
+    },
 
-    pub fn activate(spec: Spec) -> Active {
-        // spec is MOVED — consumed. Cannot be used after this call.
-        Active {
-            _seal: (),
-            iteration: 0,
-            best_metric: None,
-            params: spec.params,
-            inject_failure: spec.inject_failure,
-            carry: spec.carry,
-        }
-    }
-
-    pub fn step(active: Active) -> Result<StepOutcome, Failed<Active>> {
-        let it = active.iteration + 1;
-
-        // failure injection
-        if it == 2 && active.inject_failure {
-            return Err(Failed {
-                token: active, // returned unconsumed
-                error: "transient network error".into(),
-            });
-        }
-
-        let metric = 1.0 - (it as f64 * 0.15) + (it as f64 * it as f64 * 0.005);
-        let improved = active.best_metric.map_or(true, |prev| metric > prev);
-        let best = active.best_metric.map_or(metric, |prev| prev.max(metric));
-        let converged = it >= 8;
+    // Active -> verdict: decide the outcome of the current iteration.
+    step = |active| {
+        let it = active.payload.iteration;
         let budget_remaining: i32 = 1000 - (it as i32 * 100);
-
-        if converged {
-            Ok(StepOutcome::Converged(Converged {
-                iteration: it,
-                metric,
-                carry: active.carry,
-            }))
-        } else if it >= 3 && !improved {
-            Ok(StepOutcome::Stalled(Stalled {
-                iteration: it,
-                metric,
-                stagnation: it - 2,
-                params: active.params,
-                inject_failure: active.inject_failure,
-                carry: active.carry,
-            }))
-        } else if budget_remaining <= 0 {
-            Ok(StepOutcome::BudgetExhausted(BudgetExhausted {
-                iteration: it,
-                budget_remaining,
-                carry: active.carry,
-            }))
-        } else {
-            Ok(StepOutcome::Continue(Active {
-                _seal: (),
-                iteration: it,
-                best_metric: Some(best),
-                params: active.params,
-                inject_failure: active.inject_failure,
-                carry: active.carry,
-            }))
+        if it >= 8 {
+            return Ok(StepOutcome::Converged(Converged::new()));
         }
-    }
-
-    // ── recovery functions ───────────────────────────────────────────────────
-
-    pub fn recover_step_failed(failed: Failed<Active>) -> Active {
-        let mut active = failed.token;
-        active.inject_failure = false; // one-shot
-        active
-    }
-
-    pub fn recover_stalled(stalled: Stalled) -> Active {
-        Active {
-            _seal: (),
-            iteration: stalled.iteration,
-            best_metric: Some(stalled.metric),
-            params: stalled.params,
-            inject_failure: stalled.inject_failure,
-            carry: stalled.carry,
+        if it == 3 {
+            return Ok(StepOutcome::Stalled(Stalled::new(active)));
         }
+        if budget_remaining <= 0 {
+            return Ok(StepOutcome::BudgetExhausted(BudgetExhausted::new()));
+        }
+        Ok(StepOutcome::Continue(Continue::new(active)))
+    },
+
+    // recover Continue -> Active: advance the iteration (must_progress auto-injected).
+    advance = |c| {
+        let prev = c.into_source();
+        let it = prev.payload.iteration + 1;
+        let metric = 1.0 - (it as f64 * 0.15) + (it as f64 * it as f64 * 0.005);
+        let best = prev.payload.best.max(metric);
+        Active::new(
+            LoopState { iteration: it, best, params: prev.payload.params.clone() },
+            prev.carry().clone(),
+        )
+    },
+
+    // recover Stalled -> Active: step past the stall point so we don't re-stall.
+    unstall = |s| {
+        let prev = s.into_source();
+        Active::new(
+            LoopState {
+                iteration: prev.payload.iteration + 1,
+                best: prev.payload.best,
+                params: prev.payload.params.clone(),
+            },
+            prev.carry().clone(),
+        )
+    },
+});
+
+// ── demo harness (hand-written) ──────────────────────────────────────────────
+
+struct Trace(Vec<String>);
+impl Trace {
+    fn new() -> Self {
+        Trace(Vec::new())
+    }
+    fn record(&mut self, step: usize, what: &str, detail: &str) {
+        self.0.push(format!("  [{step:02}] {what:>18}  {detail}"));
+    }
+    fn print(&self) {
+        println!("\n── provenance trace ──");
+        for e in &self.0 {
+            println!("{e}");
+        }
+        println!("── end trace ──\n");
     }
 }
 
-// ── run the loop ─────────────────────────────────────────────────────────────
-
-use metric_opt::*;
-
-fn run_optimization(label: &str, inject_failure: bool) {
+fn run_optimization(label: &str) {
     println!("══════════════════════════════════════════════════");
     println!("  rung — MetricOptimization ({label})");
     println!("══════════════════════════════════════════════════");
 
-    let carry = Carry {
+    let carry = metricopt::Carry {
         metric_name: "convergence_score".into(),
         correlation_key: "550e8400-e29b".into(),
     };
-    let mut trace = Trace::new();
-    let mut step_no = 0;
-
-    let params = Params {
-        lr: 0.01,
-        epochs: 20,
-    };
-
-    // design
-    let spec = design(params, inject_failure, carry);
-    trace.record(
-        1,
-        "design",
-        "→",
-        "ok",
-        &format!("Spec(trace_id={:p})", &spec),
+    let spec = metricopt::Spec::new(
+        SpecData {
+            params: Params { lr: 0.01, epochs: 20 },
+        },
+        carry,
     );
 
-    // activate
-    let mut token = activate(spec);
-    step_no = 2;
-    trace.record(step_no, "activate", "Spec", "→ ok", "Active");
+    let mut trace = Trace::new();
+    trace.record(1, "design→activate", "Spec → Active");
+    let mut token = metricopt::active(spec);
+    let mut step_no = 1;
 
-    // loop
-    let max_iter = 20;
-    for _ in 0..max_iter {
+    for _ in 0..40 {
         step_no += 1;
-        match step(token) {
-            Ok(StepOutcome::Continue(active)) => {
-                trace.record(
-                    step_no,
-                    "step",
-                    "Active",
-                    "→ ok",
-                    &format!("iter={}", active.iteration),
-                );
-                token = active;
+        match metricopt::step(token) {
+            Ok(metricopt::StepOutcome::Continue(c)) => {
+                let it = c.source().payload.iteration;
+                token = metricopt::advance(c);
+                trace.record(step_no, "step → Continue", &format!("iter {it} → {}", it + 1));
             }
-            Ok(StepOutcome::Converged(c)) => {
-                trace.record(
-                    step_no,
-                    "step",
-                    "Active",
-                    "→ Converged",
-                    &format!("iter={}, metric={:.4}", c.iteration, c.metric),
-                );
-                println!(
-                    "\n  ✓ Converged after {} iterations (metric={:.4})",
-                    c.iteration, c.metric
-                );
+            Ok(metricopt::StepOutcome::Stalled(s)) => {
+                let it = s.source().payload.iteration;
+                println!("  ⚡ Stalled at iteration {it} — recovering");
+                token = metricopt::unstall(s);
+                trace.record(step_no, "step → Stalled", &format!("iter {it}, recovered"));
+            }
+            Ok(metricopt::StepOutcome::Converged(_)) => {
+                println!("\n  ✓ Converged");
+                trace.record(step_no, "step → Converged", "terminal");
                 break;
             }
-            Ok(StepOutcome::Stalled(s)) => {
-                trace.record(
-                    step_no,
-                    "step",
-                    "Active",
-                    "→ Stalled",
-                    &format!("iter={}", s.iteration),
-                );
-                println!("  ⚡ Stalled at iteration {} — recovering", s.iteration);
-                token = recover_stalled(s);
-                step_no += 1;
-                trace.record(step_no, "recover:stalled", "→", "Active", "");
-            }
-            Ok(StepOutcome::BudgetExhausted(b)) => {
-                trace.record(
-                    step_no,
-                    "step",
-                    "Active",
-                    "→ BudgetExhausted",
-                    &format!("iter={}", b.iteration),
-                );
-                println!("\n  ✗ Budget exhausted at iteration {}", b.iteration);
+            Ok(metricopt::StepOutcome::BudgetExhausted(_)) => {
+                println!("\n  ✗ Budget exhausted");
+                trace.record(step_no, "step → BudgetExhausted", "terminal");
                 break;
             }
-            Err(failed) => {
-                trace.record(step_no, "step", "Active", "→ err", &failed.error);
-                token = recover_step_failed(failed);
-                step_no += 1;
-                trace.record(step_no, "recover:failed", "→", "Active", "");
+            Err(f) => {
+                println!("\n  ✗ error: {}", f.error);
+                break;
             }
         }
     }
@@ -336,7 +180,5 @@ fn run_optimization(label: &str, inject_failure: bool) {
 }
 
 fn main() {
-    run_optimization("happy path", false);
-    println!();
-    run_optimization("with failure", true);
+    run_optimization("happy path");
 }

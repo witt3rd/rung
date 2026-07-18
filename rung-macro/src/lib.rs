@@ -24,6 +24,15 @@ struct Ladder {
     transitions: Vec<Transition>,
     recover_edges: Vec<RecoverEdge>,
     recover_fns: Vec<RecoverFn>,
+    /// Inline transition/recover bodies from a trailing `impl { .. }` block.
+    /// Empty ⇒ type-only declaration (structs, enum, guards — no logic).
+    bodies: Vec<TransitionBody>,
+}
+
+/// One `name = |arg| { .. }` entry in the trailing `impl { .. }` block.
+struct TransitionBody {
+    name: Ident,
+    closure: syn::ExprClosure,
 }
 
 struct CarryField {
@@ -239,6 +248,26 @@ impl Parse for Ladder {
             }
         }
 
+        // Optional trailing `impl { name = |arg| { body } ... }` block: inline
+        // transition/recover bodies. When present, the macro expands them *inside*
+        // the module (so construction stays sealed) and auto-injects the recovery
+        // guard. When absent, only the types are emitted (a structural declaration).
+        let mut bodies = Vec::new();
+        if input.peek(Token![impl]) {
+            input.parse::<Token![impl]>()?;
+            let block;
+            braced!(block in input);
+            while !block.is_empty() {
+                let name: Ident = block.parse()?;
+                block.parse::<Token![=]>()?;
+                let closure: syn::ExprClosure = block.parse()?;
+                bodies.push(TransitionBody { name, closure });
+                // entries separated by `,` or `;` (trailing optional)
+                let _ = block.parse::<Token![,]>();
+                let _ = block.parse::<Token![;]>();
+            }
+        }
+
         Ok(Ladder {
             name,
             carry_fields,
@@ -246,6 +275,7 @@ impl Parse for Ladder {
             transitions,
             recover_edges,
             recover_fns,
+            bodies,
         })
     }
 }
@@ -393,6 +423,38 @@ fn check(ladder: &Ladder) -> Result<(), String> {
         }
     }
 
+    // 9 & 10. If an inline `impl { .. }` block is present, its bodies must
+    // correspond exactly to the ladder's transition + recover functions.
+    if !ladder.bodies.is_empty() {
+        let expected: Vec<String> = ladder
+            .transitions
+            .iter()
+            .filter(|t| t.to_rung.is_some() || !t.verdicts.is_empty())
+            .map(|t| t.name.to_string())
+            .chain(ladder.recover_fns.iter().map(|rf| rf.name.to_string()))
+            .collect();
+
+        // 9. every body names a real transition/recover fn (no phantom bodies)
+        let mut seen = std::collections::HashSet::new();
+        for b in &ladder.bodies {
+            let n = b.name.to_string();
+            if !expected.contains(&n) {
+                return Err(format!(
+                    "impl body `{n}` does not match any transition or recover function"
+                ));
+            }
+            if !seen.insert(n.clone()) {
+                return Err(format!("impl body `{n}` is defined more than once"));
+            }
+        }
+        // 10. every transition/recover fn has a body (no gaps)
+        for e in &expected {
+            if !ladder.bodies.iter().any(|b| b.name == *e) {
+                return Err(format!("impl block is missing a body for `{e}`"));
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -423,20 +485,27 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
 
     // ── Rung structs (sealed) + sealed constructor + carry accessor ──────
     let has_carry = !carry_fields.is_empty();
+    let has_bodies = !ladder.bodies.is_empty();
+    let entry_name = ladder.rungs.first().map(|r| r.name.to_string());
     let rung_structs: Vec<_> = ladder
         .rungs
         .iter()
         .map(|r| {
             let name = &r.name;
             let payload = &r.payload_type;
-            // The sealed constructor `#name::new` is the ONLY way to mint a rung:
-            // the `_seal`/`_not_send` fields are private, so no external code can
-            // write the struct literal. This is the bootstrap bridge — transition
-            // bodies (which live outside the module) call `Next::new(payload, carry)`
-            // to build the rung they return, and a run is started with
-            // `Entry::new(payload, carry)`. Being `pub`, the constructor is callable
-            // by any code in the defining crate: that is the in-module fabrication
-            // boundary (RUNG-RUST.md §4.1), closable only with a sub-crate.
+            let is_entry = entry_name.as_deref() == Some(&name.to_string());
+            // Constructor visibility (RUNG-RUST.md §4.1):
+            //   - With an inline `impl { .. }` block, transition bodies live INSIDE
+            //     the module, so only the *entry* rung needs a public constructor
+            //     (to start a run). Every downstream rung's `new` is module-private —
+            //     no external code can fabricate a mid-ladder token. §4.1 CLOSED.
+            //   - Without bodies (a type-only declaration), all constructors are
+            //     `pub` so external code (e.g. a hand-written driver) can build them.
+            let ctor_vis = if has_bodies && !is_entry {
+                quote! {}
+            } else {
+                quote! { pub }
+            };
             let (carry_field, carry_ctor_param, carry_ctor_init, carry_accessor) = if has_carry {
                 (
                     quote! { carry: Carry, },
@@ -473,7 +542,8 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 }
                 impl #name {
                     /// Sealed constructor — the only way to mint this rung.
-                    pub fn new(payload: #payload #carry_ctor_param) -> Self {
+                    #[allow(dead_code)]
+                    #ctor_vis fn new(payload: #payload #carry_ctor_param) -> Self {
                         Self {
                             _seal: (),
                             _not_send: ::core::marker::PhantomData,
@@ -507,8 +577,13 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         .iter()
         .flat_map(|t| {
             let from_rung = t.from_rung.clone();
+            // Verdict constructors follow the same §4.1 visibility rule as rungs:
+            // module-private when transition bodies are inline (they build verdicts
+            // in-module), `pub` for a type-only declaration.
+            let vctor_vis = if has_bodies { quote! {} } else { quote! { pub } };
             t.verdicts.iter().map(move |v| {
                 let name = &v.name;
+                let vis = &vctor_vis;
                 let common_must_use = "a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)";
                 if v.is_terminal {
                     quote! {
@@ -519,7 +594,8 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                         }
                         impl #name {
                             /// Sealed constructor for a terminal verdict.
-                            pub fn new() -> Self {
+                            #[allow(dead_code)]
+                            #vis fn new() -> Self {
                                 Self { _seal: (), _not_send: ::core::marker::PhantomData }
                             }
                         }
@@ -537,12 +613,15 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                         impl #name {
                             /// Sealed constructor. `source` is the rung this verdict
                             /// was produced from; recovery re-enters from it.
-                            pub fn new(source: #from) -> Self {
+                            #[allow(dead_code)]
+                            #vis fn new(source: #from) -> Self {
                                 Self { _seal: (), _not_send: ::core::marker::PhantomData, source }
                             }
                             /// Borrow the rung this verdict was produced from.
+                            #[allow(dead_code)]
                             pub fn source(&self) -> &#from { &self.source }
                             /// Consume the verdict, recovering the source rung.
+                            #[allow(dead_code)]
                             pub fn into_source(self) -> #from { self.source }
                         }
                     }
@@ -577,62 +656,81 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         }
     };
 
-    // ── Transition trait ────────────────────────────────────────────────
+    // ── Transition + recover bodies (inline `impl { .. }` form) ──────────
+    // When an `impl { .. }` block is present, the transition/recover bodies expand
+    // as `pub fn`s INSIDE the module. Because they live inside the seal boundary,
+    // they use the now-private constructors (no external fabrication, §4.1) and the
+    // macro wraps each recover body with the progress guard (§4.4 enforced, not by
+    // convention). There is no `Transitions` trait — one API surface.
+    let body_for = |n: &str| -> Option<&TransitionBody> {
+        ladder.bodies.iter().find(|b| b.name == n)
+    };
+    // Pull the (single) argument pattern and body expr out of a `|arg| { .. }`.
+    let arg_pat = |c: &syn::ExprClosure| -> proc_macro2::TokenStream {
+        c.inputs
+            .first()
+            .map(|p| quote! { #p })
+            .unwrap_or(quote! { __arg })
+    };
 
-    let transition_methods: Vec<_> = ladder
-        .transitions
-        .iter()
-        .map(|t| {
-            let name = &t.name;
-            let from_rung = &t.from_rung;
-            let _from_payload = ladder
-                .rungs
-                .iter()
-                .find(|r| r.name == *from_rung)
-                .map(|r| &r.payload_type)
-                .unwrap();
-
-            if let Some(ref to_rung) = t.to_rung {
-                // Simple transition: from_rung -> to_rung
-                let _to_payload = ladder
-                    .rungs
-                    .iter()
-                    .find(|r| r.name == *to_rung)
-                    .map(|r| &r.payload_type)
-                    .unwrap();
-                quote! {
-                    fn #name(_token: #from_rung) -> #to_rung;
+    let logic = if has_bodies {
+        let transition_fns: Vec<_> = ladder
+            .transitions
+            .iter()
+            .filter_map(|t| {
+                let name = &t.name;
+                let from = &t.from_rung;
+                let b = body_for(&name.to_string())?;
+                let pat = arg_pat(&b.closure);
+                let body = &b.closure.body;
+                if let Some(ref to) = t.to_rung {
+                    Some(quote! {
+                        pub fn #name(__arg: #from) -> #to {
+                            let #pat = __arg;
+                            #body
+                        }
+                    })
+                } else if !t.verdicts.is_empty() {
+                    Some(quote! {
+                        pub fn #name(__arg: #from) -> Result<StepOutcome, Failed<#from>> {
+                            let #pat = __arg;
+                            #body
+                        }
+                    })
+                } else {
+                    None
                 }
-            } else if !t.verdicts.is_empty() {
-                // Branching transition
-                let error_type = quote! { Failed<#from_rung> };
+            })
+            .collect();
+
+        let recover_fns: Vec<_> = ladder
+            .recover_fns
+            .iter()
+            .map(|rf| {
+                let name = &rf.name;
+                let param = &rf.param_type;
+                let ret = &rf.return_rung;
+                // `check()` guarantees a body exists for every recover fn.
+                let b = body_for(&name.to_string()).expect("recover body checked");
+                let pat = arg_pat(&b.closure);
+                let body = &b.closure.body;
                 quote! {
-                    fn #name(_token: #from_rung) -> Result<StepOutcome, #error_type>;
+                    pub fn #name(__arg: #param) -> #ret {
+                        // §4.4 (enforced): snapshot the source rung's payload before
+                        // recovery runs, then assert the recovered rung advanced. The
+                        // recover body cannot skip this — the macro injects it.
+                        let __before = ::core::clone::Clone::clone(&__arg.source().payload);
+                        let __after: #ret = { let #pat = __arg; #body };
+                        must_progress(&__before, &__after.payload);
+                        __after
+                    }
                 }
-            } else {
-                quote! {}
-            }
-        })
-        .collect();
+            })
+            .collect();
 
-    let recover_methods: Vec<_> = ladder
-        .recover_fns
-        .iter()
-        .map(|rf| {
-            let name = &rf.name;
-            let param_type = &rf.param_type;
-            let return_type = &rf.return_rung;
-            quote! {
-                fn #name(_token: #param_type) -> #return_type;
-            }
-        })
-        .collect();
-
-    let trait_def = quote! {
-        pub trait Transitions {
-            #(#transition_methods)*
-            #(#recover_methods)*
-        }
+        quote! { #(#transition_fns)* #(#recover_fns)* }
+    } else {
+        quote! {}
     };
 
     // ── recovery-progress guard (RUNG-RUST.md §4.4) ──────────────────────
@@ -640,14 +738,13 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         /// Recovery-progress guard. A recover edge must make forward progress; a
         /// recover that returns a token identical to the one it received is an
         /// infinite-stall bug — a *liveness* failure that typestate (a safety
-        /// discipline) cannot catch. Call this from a recover body to assert the
-        /// recovered value differs from the source; it panics on no-progress.
+        /// discipline) cannot catch. Asserts the recovered value differs from the
+        /// source; panics on no-progress.
         ///
-        /// This is a runtime guard invoked by convention, not a macro-injected
-        /// check: recover bodies live outside this module, so the macro emits the
-        /// guard but cannot force the call. It catches the dominant failure mode.
-        /// The recoverable verdict carries its `source` rung precisely so a recover
-        /// body has a `before` to compare against.
+        /// With the inline `impl { .. }` form the macro injects the call around
+        /// every recover body, so it cannot be skipped. The recoverable verdict
+        /// carries its `source` rung precisely so there is a `before` to compare.
+        #[allow(dead_code)]
         pub fn must_progress<T: ::core::cmp::PartialEq>(before: &T, after: &T) {
             assert!(
                 before != after,
@@ -667,7 +764,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             #failed_type
             #verdict_enum
             #progress_helper
-            #trait_def
+            #logic
         }
     }
 }

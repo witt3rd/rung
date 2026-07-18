@@ -1,5 +1,5 @@
 [workspace]
-members = ["rung", "rung-macro"]
+members = ["rung", "rung-macro", "rust-example"]
 resolver = "2"
 
 [workspace.package]

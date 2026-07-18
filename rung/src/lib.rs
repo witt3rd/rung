@@ -1,18 +1,29 @@
 //! rung — a type ladder where the state machine IS the type system.
 //!
+//! Declare the ladder and its transition logic together. Bodies in the trailing
+//! `impl { .. }` block expand *inside* the generated module, so they use the
+//! sealed constructors and the macro auto-injects the recovery guard:
+//!
 //! ```rust,ignore
 //! use rung::ladder;
 //!
 //! ladder!(Work {
-//!     carry { task_id: String, correlation_key: u64 }
-//!     Designed(WorkSpec) => Claimed(Designed) => Active(ActiveLoop) => {
+//!     carry { task_id: String }
+//!     Designed(WorkSpec) => Active(ActiveLoop) => {
 //!         Complete | Stalled => Active | BudgetExhausted
 //!     }
-//!     recover {
-//!         claim_failed: Failed(Designed) => Designed(WorkSpec)
-//!     }
+//!     recover { retry: Stalled => Active }
+//! } impl {
+//!     active = |designed| { Active::new(/* .. */, designed.carry().clone()) },
+//!     step   = |active|   { Ok(StepOutcome::Complete(Complete::new())) },
+//!     retry  = |stalled|  { let a = stalled.into_source(); Active::new(/* .. */, a.carry().clone()) },
 //! });
+//! // start:  let d = work::Designed::new(spec, carry);   // entry ctor is public
+//! // drive:  match work::step(work::active(d)) { .. }     // module `pub fn`s
 //! ```
+//!
+//! Omit the `impl { .. }` block for a type-only declaration (structs, verdict
+//! enum, and guards, but no transition logic).
 //!
 //! ## No-silent-drop (`#[must_use]`)
 //!
@@ -38,6 +49,31 @@
 //! });
 //! fn abandons_the_outcome() {
 //!     demo::Converged::new(); // dropping a #[must_use] verdict — denied
+//! }
+//! ```
+//!
+//! ## No external fabrication (§4.1)
+//!
+//! With an inline `impl { .. }` block, only the *entry* rung has a public
+//! constructor — every downstream rung's `new` is module-private, so no outside
+//! code can mint a mid-ladder token. The following must fail to compile:
+//!
+//! ```compile_fail
+//! use rung::ladder;
+//! struct SpecData;
+//! #[derive(Clone, PartialEq)]
+//! struct LoopData;
+//! ladder!(Demo {
+//!     Spec(SpecData) => Active(LoopData) => { Done | Retry => Active }
+//!     recover { retry: Retry => Active }
+//! } impl {
+//!     active = |s| { Active::new(LoopData) },
+//!     step   = |a| { Ok(StepOutcome::Done(Done::new())) },
+//!     retry  = |r| { r.into_source() },
+//! });
+//! fn fabricate() {
+//!     // `Active::new` is private to `demo` — cannot fabricate a mid-ladder rung.
+//!     let _ = demo::Active::new(LoopData);
 //! }
 //! ```
 
