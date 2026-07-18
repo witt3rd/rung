@@ -96,7 +96,13 @@ fn drive(spec: opt::Spec) -> Result<opt::Converged, opt::Exhausted> {
 fn drives_to_convergence() {
     // start 0, target 3, ample budget → converges through recover cycles,
     // and the terminal verdict carries the result payload back out.
-    let spec = opt::Spec::new(SpecData { start: 0, target: 3 }, opt::Carry { budget: 10 });
+    let spec = opt::Spec::new(
+        SpecData {
+            start: 0,
+            target: 3,
+        },
+        opt::Carry { budget: 10 },
+    );
     let converged = match drive(spec) {
         Ok(c) => c,
         Err(_) => panic!("run should converge within budget"),
@@ -119,6 +125,42 @@ fn exhausts_budget_when_target_unreachable() {
         opt::Carry { budget: 2 },
     );
     assert!(drive(spec).is_err(), "run should exhaust budget and stop");
+}
+
+// Continue arm (`Tick -> Counting`): `step` produces the next rung directly, with
+// no recover fn, no guard, no source-carrying. The driver just reassigns.
+struct CData;
+#[derive(Debug, PartialEq)]
+struct CReport {
+    n: i32,
+}
+
+ladder!(Count {
+    Begin(CData) => Counting(i32) => {
+        Tick -> Counting      // continue: step builds the next Counting inline
+        | Done(CReport)       // terminal, carries the count
+    }
+} impl {
+    counting = |_b| { Counting::new(0) },
+    step = |c| {
+        if c.payload >= 3 {
+            return Ok(StepOutcome::Done(Done::new(CReport { n: c.payload })));
+        }
+        Ok(StepOutcome::Tick(Counting::new(c.payload + 1))) // next rung, directly
+    },
+});
+
+#[test]
+fn continue_arm_loops_without_a_recover_fn() {
+    let mut cur = count::counting(count::Begin::new(CData));
+    let done = loop {
+        match count::step(cur) {
+            Ok(count::StepOutcome::Tick(next)) => cur = next, // no recover call
+            Ok(count::StepOutcome::Done(d)) => break d,
+            Err(_) => unreachable!("this ladder never fails"),
+        }
+    };
+    assert_eq!(done.payload(), &CReport { n: 3 });
 }
 
 #[test]

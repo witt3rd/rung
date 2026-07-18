@@ -109,5 +109,21 @@
 //!     recover { clear: Failed(Nonexistent) => Working }
 //! });
 //! ```
+//!
+//! ## Continue arms (`Name -> Rung`)
+//!
+//! A branching arm written with `->` (produces) instead of `=>` (recover) is a
+//! *continue* arm: `step` builds the next rung itself and the `StepOutcome` variant
+//! carries it directly — no recover fn, no progress guard, no source-carrying.
+//! `Tick -> Counting` gives `StepOutcome::Tick(Counting)`; the driver just
+//! reassigns. The target rung must exist — this must fail to compile:
+//!
+//! ```compile_fail
+//! use rung::ladder;
+//! struct S;
+//! ladder!(Bad {
+//!     Begin(S) => Counting(i32) => { Tick -> Nonexistent | Done }
+//! });
+//! ```
 
 pub use rung_macro::ladder;

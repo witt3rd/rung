@@ -40,7 +40,7 @@ ladder Work {
 | `carry { field: Type, ... }` | Witness data inherited by every rung. Immutable by convention, read-only in transitions. |
 | `RungName(PayloadType)` | A rung. The payload type is the data the rung carries. |
 | `=> NextRung(Payload)` | A forward transition. Consumes the left rung, produces the right. |
-| `=> { V1 \| V2 => Target \| V3 }` | Verdict branching. Bare name = terminal. `Name(Payload)` = terminal carrying a result. `\| Name => Rung` = recoverable (carries its source rung; no payload). |
+| `=> { V1 \| V2 => Target \| V3 }` | Verdict branching. Bare name = terminal. `Name(Payload)` = terminal carrying a result. `Name => Rung` = recoverable (carries its source rung; guarded). `Name -> Rung` = continue arm (step builds the next rung inline; variant carries it; no recover fn/guard). |
 | `recover { name: Verdict => Rung }` | Verdict recovery: re-enter from a recoverable verdict (progress guard auto-injected). |
 | `recover { name: Failed(Rung) => Rung }` | Error-path recovery: take the token back from `Failed` and retry (no progress guard). |
 
@@ -273,6 +273,7 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | In-module fabrication | — | — | ✓ Non-entry `::new` module-private (bodies inside module) |
 | Recovery progress | — | — | ✓ `must_progress` **auto-injected** into verdict-recover bodies |
 | Error-path recovery | — | — | ✓ `recover { .. : Failed(rung) => rung }` (no guard) |
+| Continue / self-loop arm | — | — | ✓ `Name -> Rung` (step builds next rung inline) |
 | Cross-crate provenance | — | — | ✗ Crate boundary trust |
 | Concurrent access | — | — | ✓ `!Send + !Sync` by default (`PhantomData<*const ()>`) |
 | No silent drop | — affine, drop allowed | — | ✓ `#[must_use]` on every token (warn; error under `deny`) |
@@ -316,11 +317,11 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 **Findings surfaced by the `rust-example` port:**
 - **Terminal verdict payloads — CLOSED (2026-07-17).** A terminal verdict may carry a result: `Converged(Report)` generates `Converged { payload: Report }` with `.payload()` / `.into_payload()`, so a run returns a value *through* the verdict. A recoverable verdict may not (it carries its source rung) — enforced by a check, proven by a `compile_fail` doctest. `drives_to_convergence` asserts the returned `Report`.
 - **Error-path recovery — CLOSED (2026-07-17).** `recover { name: Failed(Active) => Active }` recovers from the `Err(Failed { .. })` path: it takes the unconsumed token back and produces the next rung, with no progress guard (a transient-error retry may reuse the token). Proven by `end_to_end.rs::recovers_from_the_failed_error_path`; the `rust-example` failure-injection demo (dropped in the port) is **restored** on top of it. `Failed(rung)` must name a declared rung — checked, `compile_fail` doctest.
-- **No `Continue` variant** (open). `StepOutcome` carries only verdicts; "keep iterating" must be modelled as a recoverable verdict (`Continue => Active`). A first-class continue edge would be more ergonomic — the last open finding.
+- **Continue arm — CLOSED (2026-07-18).** A branching arm `Name -> Rung` (`->` = produces, vs `=>` = recover) is a first-class continue: `step` builds the next rung inline and the `StepOutcome` variant carries it directly — no recover fn, no guard, no source. `end_to_end.rs::continue_arm_loops_without_a_recover_fn` proves the driver just reassigns; `rust-example` was simplified onto it, **deleting the `advance` recover fn entirely**. Undeclared target rung is a compile error (`compile_fail` doctest).
 
 **Bonus fix (2026-07-17):** generated transition/recover fns no longer emit `unused_braces` warnings — the closure body is used as the fn body directly (or as an initializer), and the closure's argument pattern becomes the fn parameter. Zero warnings workspace-wide.
 
-**Open (graded):** the `Continue`-variant ergonomics finding; §4.2 transition-body correctness (proptest/verification); §4.5 cross-crate provenance (sub-crate). §4.1, §4.3, §4.4, §4.6, §4.7 + terminal-payloads + error-path-recovery closed.
+**All three port findings are now closed.** Open (graded): §4.2 transition-body correctness (proptest/verification); §4.5 cross-crate provenance (sub-crate) — the two hard research gaps. §4.1, §4.3, §4.4, §4.6, §4.7 + terminal-payloads + error-path-recovery + continue-arm closed.
 
 ---
 

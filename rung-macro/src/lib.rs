@@ -60,10 +60,15 @@ struct Verdict {
     /// Optional result payload, e.g. `Converged(Report)`. Terminal verdicts only —
     /// a recoverable verdict carries its source rung instead (checked).
     payload_type: Option<Type>,
+    /// `Some(rung)` for a *continue* arm, `Name -> Rung`: `step` produces the next
+    /// rung directly (no recover fn, no guard). The `StepOutcome` variant carries
+    /// that rung as a live token rather than a verdict marker.
+    continue_target: Option<Ident>,
 }
 
 /// Parse one verdict inside a `{ .. }` branching block:
-/// `Name`, `Name(Payload)`, `Name => Rung`, or `Name(Payload) => Rung`.
+/// `Name` / `Name(Payload)` (terminal), `Name => Rung` (recoverable, guarded),
+/// or `Name -> Rung` (continue: step produces the rung directly).
 fn parse_verdict(block: ParseStream) -> syn::Result<Verdict> {
     let name: Ident = block.parse()?;
     let payload_type = if block.peek(syn::token::Paren) {
@@ -75,16 +80,22 @@ fn parse_verdict(block: ParseStream) -> syn::Result<Verdict> {
     };
     let mut is_terminal = true;
     let mut recover_target = None;
+    let mut continue_target = None;
     if block.peek(Token![=>]) {
         block.parse::<Token![=>]>()?;
         is_terminal = false;
         recover_target = Some(block.parse()?);
+    } else if block.peek(Token![->]) {
+        block.parse::<Token![->]>()?;
+        is_terminal = false;
+        continue_target = Some(block.parse()?);
     }
     Ok(Verdict {
         name,
         is_terminal,
         recover_target,
         payload_type,
+        continue_target,
     })
 }
 
@@ -357,33 +368,43 @@ fn check(ladder: &Ladder) -> Result<(), String> {
                 t.name, t.from_rung
             ));
         }
-        if let Some(ref to) = t.to_rung {
-            if !rung_names.contains(&to.to_string()) {
-                return Err(format!(
-                    "transition `{}`: to_rung `{}` not declared",
-                    t.name, to
-                ));
-            }
+        if let Some(ref to) = t.to_rung
+            && !rung_names.contains(&to.to_string())
+        {
+            return Err(format!(
+                "transition `{}`: to_rung `{}` not declared",
+                t.name, to
+            ));
         }
     }
 
     // 3. verdicts are valid
     for t in &ladder.transitions {
         for v in &t.verdicts {
-            if !v.is_terminal {
-                if v.recover_target.is_none() {
+            if let Some(ref cont) = v.continue_target {
+                // Continue arm `Name -> Rung`: target must be a declared rung, and
+                // it carries that rung — not a payload.
+                if !rung_names.contains(&cont.to_string()) {
                     return Err(format!(
-                        "verdict `{}` on transition `{}`: non-terminal verdict must have a recover_target",
-                        v.name, t.name
+                        "continue arm `{}`: target rung `{}` not declared",
+                        v.name, cont
                     ));
                 }
-                if let Some(ref target) = v.recover_target {
-                    if !rung_names.contains(&target.to_string()) {
-                        return Err(format!(
-                            "verdict `{}`: recover_target `{}` not declared",
-                            v.name, target
-                        ));
-                    }
+                if v.payload_type.is_some() {
+                    return Err(format!(
+                        "continue arm `{}` cannot declare a payload; it carries its target rung",
+                        v.name
+                    ));
+                }
+            } else if !v.is_terminal {
+                // Recoverable verdict `Name => Rung`.
+                if let Some(ref target) = v.recover_target
+                    && !rung_names.contains(&target.to_string())
+                {
+                    return Err(format!(
+                        "verdict `{}`: recover_target `{}` not declared",
+                        v.name, target
+                    ));
                 }
                 // A recoverable verdict carries its source rung, not a payload.
                 if v.payload_type.is_some() {
@@ -396,10 +417,10 @@ fn check(ladder: &Ladder) -> Result<(), String> {
         }
     }
 
-    // 4. every recoverable verdict has a matching RecoverEdge
+    // 4. every recoverable verdict has a matching RecoverEdge (continue arms don't)
     for t in &ladder.transitions {
         for v in &t.verdicts {
-            if !v.is_terminal {
+            if !v.is_terminal && v.continue_target.is_none() {
                 let found = ladder
                     .recover_edges
                     .iter()
@@ -637,7 +658,11 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 let name = &v.name;
                 let vis = &vctor_vis;
                 let common_must_use = "a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)";
-                if v.is_terminal {
+                // Continue arms carry a live target rung, not a verdict marker — no
+                // struct is emitted for them (the StepOutcome variant holds the rung).
+                if v.continue_target.is_some() {
+                    quote! {}
+                } else if v.is_terminal {
                     // A terminal verdict may carry a result payload, e.g.
                     // `Converged(Report)` — how a run returns a value through the
                     // verdict instead of a contentless marker.
@@ -723,7 +748,12 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             .iter()
             .map(|v| {
                 let name = &v.name;
-                quote! { #name(#name), }
+                // A continue arm's variant carries the live target rung directly;
+                // every other variant carries its verdict struct.
+                match &v.continue_target {
+                    Some(rung) => quote! { #name(#rung), },
+                    None => quote! { #name(#name), },
+                }
             })
             .collect();
         quote! {
@@ -741,9 +771,8 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     // they use the now-private constructors (no external fabrication, §4.1) and the
     // macro wraps each recover body with the progress guard (§4.4 enforced, not by
     // convention). There is no `Transitions` trait — one API surface.
-    let body_for = |n: &str| -> Option<&TransitionBody> {
-        ladder.bodies.iter().find(|b| b.name == n)
-    };
+    let body_for =
+        |n: &str| -> Option<&TransitionBody> { ladder.bodies.iter().find(|b| b.name == n) };
     // Pull the (single) argument pattern out of a `|arg| { .. }` closure — it
     // becomes the generated function's parameter directly (so the closure body
     // needs no rebinding, and a `{ .. }` body isn't double-wrapped).

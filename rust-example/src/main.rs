@@ -6,13 +6,11 @@
 //! logic lives in the inline `impl { .. }` block. Only the demo harness (a Trace
 //! and `main`) is hand-written.
 //!
-//! Modelling notes surfaced by this port (macro limitations, graded in
-//! RUNG-RUST.md):
-//!   * `StepOutcome` has no `Continue(Active)` variant — "keep iterating" is a
-//!     recoverable verdict (`Continue => Active`) whose recover fn advances state.
-//!
 //! This example exercises the full macro surface:
+//!   * `Iterate -> Active` — a continue arm: `step` advances the loop inline and
+//!     hands back the next rung; no recover fn, no guard.
 //!   * `Converged(ConvergedReport)` — a terminal verdict carrying a result payload.
+//!   * `Stalled => Active` — recoverable verdict (progress guard auto-injected).
 //!   * `clear_transient: Failed(Active) => Active` — error-path recovery: `step`
 //!     injects one transient failure, returns the token in `Failed`, and the driver
 //!     recovers from it (no progress guard on the error path).
@@ -51,14 +49,13 @@ ladder!(MetricOpt {
     Spec(SpecData)
       => Active(LoopState)
       => {
-          Continue => Active            // keep iterating (recoverable "advance")
+          Iterate -> Active             // continue: step advances inline (no recover fn)
           | Converged(ConvergedReport)  // terminal success, carries the result
           | Stalled => Active           // recoverable stall
           | BudgetExhausted             // terminal failure
       }
 
     recover {
-        advance: Continue => Active
         unstall: Stalled => Active
         clear_transient: Failed(Active) => Active
     }
@@ -101,24 +98,19 @@ ladder!(MetricOpt {
         if budget_remaining <= 0 {
             return Ok(StepOutcome::BudgetExhausted(BudgetExhausted::new()));
         }
-        Ok(StepOutcome::Continue(Continue::new(active)))
-    },
-
-    // recover Continue -> Active: advance the iteration (must_progress auto-injected).
-    advance = |c| {
-        let prev = c.into_source();
-        let it = prev.payload.iteration + 1;
-        let metric = 1.0 - (it as f64 * 0.15) + (it as f64 * it as f64 * 0.005);
-        let best = prev.payload.best.max(metric);
-        Active::new(
+        // keep iterating: advance the loop inline and hand back the next rung.
+        let next_it = it + 1;
+        let metric = 1.0 - (next_it as f64 * 0.15) + (next_it as f64 * next_it as f64 * 0.005);
+        let best = active.payload.best.max(metric);
+        Ok(StepOutcome::Iterate(Active::new(
             LoopState {
-                iteration: it,
+                iteration: next_it,
                 best,
-                params: prev.payload.params.clone(),
-                failed_once: prev.payload.failed_once,
+                params: active.payload.params.clone(),
+                failed_once: active.payload.failed_once,
             },
-            prev.carry().clone(),
-        )
+            active.carry().clone(),
+        )))
     },
 
     // recover Stalled -> Active: step past the stall point so we don't re-stall.
@@ -170,7 +162,10 @@ fn run_optimization(label: &str) {
     };
     let spec = metricopt::Spec::new(
         SpecData {
-            params: Params { lr: 0.01, epochs: 20 },
+            params: Params {
+                lr: 0.01,
+                epochs: 20,
+            },
         },
         carry,
     );
@@ -183,10 +178,10 @@ fn run_optimization(label: &str) {
     for _ in 0..40 {
         step_no += 1;
         match metricopt::step(token) {
-            Ok(metricopt::StepOutcome::Continue(c)) => {
-                let it = c.source().payload.iteration;
-                token = metricopt::advance(c);
-                trace.record(step_no, "step → Continue", &format!("iter {it} → {}", it + 1));
+            Ok(metricopt::StepOutcome::Iterate(next)) => {
+                let it = next.payload.iteration;
+                token = next; // continue arm hands back the next rung directly
+                trace.record(step_no, "step → Iterate", &format!("→ iter {it}"));
             }
             Ok(metricopt::StepOutcome::Stalled(s)) => {
                 let it = s.source().payload.iteration;
@@ -196,7 +191,10 @@ fn run_optimization(label: &str) {
             }
             Ok(metricopt::StepOutcome::Converged(c)) => {
                 let r = c.payload();
-                println!("\n  ✓ Converged at iteration {} (best={:.4})", r.iteration, r.best);
+                println!(
+                    "\n  ✓ Converged at iteration {} (best={:.4})",
+                    r.iteration, r.best
+                );
                 trace.record(
                     step_no,
                     "step → Converged",
