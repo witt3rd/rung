@@ -421,25 +421,34 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         }
     };
 
-    // ── Rung structs (sealed) + carry accessor ───────────────────────────
+    // ── Rung structs (sealed) + sealed constructor + carry accessor ──────
+    let has_carry = !carry_fields.is_empty();
     let rung_structs: Vec<_> = ladder
         .rungs
         .iter()
         .map(|r| {
             let name = &r.name;
             let payload = &r.payload_type;
-            let (carry_field, carry_impl) = if carry_fields.is_empty() {
-                (quote! {}, quote! {})
-            } else {
+            // The sealed constructor `#name::new` is the ONLY way to mint a rung:
+            // the `_seal`/`_not_send` fields are private, so no external code can
+            // write the struct literal. This is the bootstrap bridge — transition
+            // bodies (which live outside the module) call `Next::new(payload, carry)`
+            // to build the rung they return, and a run is started with
+            // `Entry::new(payload, carry)`. Being `pub`, the constructor is callable
+            // by any code in the defining crate: that is the in-module fabrication
+            // boundary (RUNG-RUST.md §4.1), closable only with a sub-crate.
+            let (carry_field, carry_ctor_param, carry_ctor_init, carry_accessor) = if has_carry {
                 (
                     quote! { carry: Carry, },
+                    quote! { , carry: Carry },
+                    quote! { carry, },
                     quote! {
-                        impl #name {
-                            /// Immutable witness data. Never consumed; read via shared reference.
-                            pub fn carry(&self) -> &Carry { &self.carry }
-                        }
+                        /// Immutable witness data. Never consumed; read via shared reference.
+                        pub fn carry(&self) -> &Carry { &self.carry }
                     },
                 )
+            } else {
+                (quote! {}, quote! {}, quote! {}, quote! {})
             };
             quote! {
                 // `_not_send: PhantomData<*const ()>` makes every rung `!Send + !Sync`.
@@ -462,7 +471,18 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                     #carry_field
                     pub payload: #payload,
                 }
-                #carry_impl
+                impl #name {
+                    /// Sealed constructor — the only way to mint this rung.
+                    pub fn new(payload: #payload #carry_ctor_param) -> Self {
+                        Self {
+                            _seal: (),
+                            _not_send: ::core::marker::PhantomData,
+                            #carry_ctor_init
+                            payload,
+                        }
+                    }
+                    #carry_accessor
+                }
             }
         })
         .collect();
@@ -476,20 +496,58 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         pub struct Failed<Prev> { pub token: Prev, pub error: String }
     };
 
-    // ── Verdict structs ──────────────────────────────────────────────────
+    // ── Verdict structs (sealed, !Send, constructible) ───────────────────
+    // Verdicts are outcome tokens, held to the same seal as rungs (RUNG-RUST.md
+    // §4.6 remnant, closed): private `_seal` + `_not_send: PhantomData<*const ()>`.
+    // A *recoverable* verdict additionally carries the rung it was produced from
+    // (`source`), so its recover edge has the full prior context to re-enter with —
+    // without this, recovery would have to fabricate the next rung from nothing.
     let verdict_structs: Vec<_> = ladder
         .transitions
         .iter()
-        .flat_map(|t| t.verdicts.iter())
-        .map(|v| {
-            let name = &v.name;
-            // `#[must_use]`: a verdict is an outcome token (terminal or recoverable).
-            // Dropping it discards the outcome of a step — the recoverable ones
-            // (e.g. `Stalled`) must be fed back through their recover edge, not lost.
-            quote! {
-                #[must_use = "a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)"]
-                pub struct #name;
-            }
+        .flat_map(|t| {
+            let from_rung = t.from_rung.clone();
+            t.verdicts.iter().map(move |v| {
+                let name = &v.name;
+                let common_must_use = "a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)";
+                if v.is_terminal {
+                    quote! {
+                        #[must_use = #common_must_use]
+                        pub struct #name {
+                            _seal: (),
+                            _not_send: ::core::marker::PhantomData<*const ()>,
+                        }
+                        impl #name {
+                            /// Sealed constructor for a terminal verdict.
+                            pub fn new() -> Self {
+                                Self { _seal: (), _not_send: ::core::marker::PhantomData }
+                            }
+                        }
+                    }
+                } else {
+                    // Recoverable: carries the source rung for re-entry.
+                    let from = &from_rung;
+                    quote! {
+                        #[must_use = #common_must_use]
+                        pub struct #name {
+                            _seal: (),
+                            _not_send: ::core::marker::PhantomData<*const ()>,
+                            source: #from,
+                        }
+                        impl #name {
+                            /// Sealed constructor. `source` is the rung this verdict
+                            /// was produced from; recovery re-enters from it.
+                            pub fn new(source: #from) -> Self {
+                                Self { _seal: (), _not_send: ::core::marker::PhantomData, source }
+                            }
+                            /// Borrow the rung this verdict was produced from.
+                            pub fn source(&self) -> &#from { &self.source }
+                            /// Consume the verdict, recovering the source rung.
+                            pub fn into_source(self) -> #from { self.source }
+                        }
+                    }
+                }
+            })
         })
         .collect();
 
@@ -577,6 +635,28 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         }
     };
 
+    // ── recovery-progress guard (RUNG-RUST.md §4.4) ──────────────────────
+    let progress_helper = quote! {
+        /// Recovery-progress guard. A recover edge must make forward progress; a
+        /// recover that returns a token identical to the one it received is an
+        /// infinite-stall bug — a *liveness* failure that typestate (a safety
+        /// discipline) cannot catch. Call this from a recover body to assert the
+        /// recovered value differs from the source; it panics on no-progress.
+        ///
+        /// This is a runtime guard invoked by convention, not a macro-injected
+        /// check: recover bodies live outside this module, so the macro emits the
+        /// guard but cannot force the call. It catches the dominant failure mode.
+        /// The recoverable verdict carries its `source` rung precisely so a recover
+        /// body has a `before` to compare against.
+        pub fn must_progress<T: ::core::cmp::PartialEq>(before: &T, after: &T) {
+            assert!(
+                before != after,
+                "recovery made no progress: the recovered value equals its source \
+                 (RUNG-RUST.md §4.4 — infinite-stall guard)"
+            );
+        }
+    };
+
     // ── assemble module ─────────────────────────────────────────────────
     quote! {
         #mod_vis mod #mod_name {
@@ -586,6 +666,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             #(#verdict_structs)*
             #failed_type
             #verdict_enum
+            #progress_helper
             #trait_def
         }
     }

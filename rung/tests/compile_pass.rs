@@ -82,6 +82,17 @@ fn test_rungs_are_not_send_or_sync() {
         !(&IsSend::<metricoptimization::Active>(PhantomData)).check(),
         "Active must be !Send"
     );
+    // Verdicts are held to the same seal (RUNG-RUST.md §4.6 remnant, closed):
+    // terminal (`Converged`) and recoverable (`Stalled`, which carries a source
+    // rung) are both `!Send`.
+    assert!(
+        !(&IsSend::<metricoptimization::Converged>(PhantomData)).check(),
+        "Converged verdict must be !Send"
+    );
+    assert!(
+        !(&IsSend::<metricoptimization::Stalled>(PhantomData)).check(),
+        "Stalled verdict must be !Send"
+    );
 }
 
 #[test]

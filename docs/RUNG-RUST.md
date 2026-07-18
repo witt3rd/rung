@@ -45,73 +45,86 @@ ladder Work {
 
 ### What the macro generates
 
-For `ladder Work { Designed(WorkSpec) => Claimed(DesignedWork) => Active(ActiveWork) }`:
-
-**A sealed module** — `pub mod work` containing:
+For `ladder Work { carry { .. } Designed(WorkSpec) => Active(ActiveWork) => { Complete | Stalled => Active | BudgetExhausted } recover { retry: Stalled => Active } }` the macro emits **a sealed module** `pub mod work` containing (this is what the code actually generates — verified by `rung/tests/end_to_end.rs`):
 
 ```rust
-// sealed structs — _seal field prevents external construction
-pub struct Designed { _seal: (), pub carry: Carry, pub payload: WorkSpec }
-pub struct Claimed  { _seal: (), pub carry: Carry, pub payload: DesignedWork }
-pub struct Active   { _seal: (), pub carry: Carry, pub payload: ActiveWork }
+// witness data, cloned onto each rung
+#[derive(Clone, Debug)]
+pub struct Carry { pub task_id: String, /* ... */ }
 
-// verdicts as an enum — exhaustive match enforced
-pub enum StepOutcome {
-    Continue(Active),
-    Complete(Complete),
-    Stalled(Stalled),
-    BudgetExhausted(BudgetExhausted),
+// sealed, !Send + !Sync rung structs, each with a sealed constructor `::new`
+pub struct Designed {
+    _seal: (),
+    _not_send: PhantomData<*const ()>,   // §4.6 — one token, one thread
+    carry: Carry,                        // §4.3 — private, read via .carry()
+    pub payload: WorkSpec,
+}
+impl Designed {
+    pub fn new(payload: WorkSpec, carry: Carry) -> Self { /* seals the fields */ }
+    pub fn carry(&self) -> &Carry { &self.carry }
+}
+// ...Active likewise. `::new` is the ONLY way to mint a rung (the seal fields are
+// private) and the bridge transition bodies use to build the rung they return.
+
+// verdict structs — sealed & !Send like rungs. A *recoverable* verdict carries
+// the rung it came from, so its recover edge has full context to re-enter.
+pub struct Complete { _seal: (), _not_send: PhantomData<*const ()> }          // terminal
+impl Complete { pub fn new() -> Self { /* ... */ } }
+pub struct Stalled { _seal: (), _not_send: PhantomData<*const ()>, source: Active } // recoverable
+impl Stalled {
+    pub fn new(source: Active) -> Self { /* ... */ }
+    pub fn source(&self) -> &Active { &self.source }
+    pub fn into_source(self) -> Active { self.source }
 }
 
-// error payload — carries unconsumed token
+// verdicts as an enum — exhaustive match enforced
+pub enum StepOutcome { Complete(Complete), Stalled(Stalled), BudgetExhausted(BudgetExhausted) }
+
+// error payload — carries the unconsumed token
 pub struct Failed<Prev> { pub token: Prev, pub error: String }
 
-// sealed constructors — the only way to create these types
-pub fn design(spec: WorkSpec, carry: Carry) -> Designed { ... }
-pub fn claim(designed: Designed) -> Result<Claimed, Failed<Designed>> { ... }
-pub fn activate(claimed: Claimed) -> Result<StepOutcome, Failed<Claimed>> { ... }
+// recovery-progress guard (§4.4) — call from a recover body
+pub fn must_progress<T: PartialEq>(before: &T, after: &T) { /* panics if equal */ }
 
-// recovery — declared edges, paired with recover functions
-pub fn recover_claim_failed(failed: Failed<Designed>) -> Designed { ... }
-pub fn recover_stalled(stalled: Stalled) -> Active { ... }
+// the transition logic contract — user implements this
+pub trait Transitions {
+    fn active(token: Designed) -> Active;                              // simple edge
+    fn step(token: Active) -> Result<StepOutcome, Failed<Active>>;     // branching edge
+    fn retry(token: Stalled) -> Active;                               // recover edge
+}
 ```
 
-The transition bodies are **user-provided**. The macro generates the types, the sealed constructors, the exhaustive enum, the error payload, and the recover function signatures. The user writes `impl_block!` or equivalent to provide the transition logic.
+The macro generates the **types, sealed constructors, the exhaustive enum, the error payload, the progress guard, and the `Transitions` trait signatures**. The transition/recover **bodies are user-provided** — the user writes `impl work::Transitions for MyCtx`. A run is started with `Designed::new(payload, carry)` and driven by matching on `StepOutcome`.
+
+> All `#[must_use]` / `PhantomData` markers are elided above for readability — see §4.6, §4.7. `StepOutcome` has no `Continue` variant: staying on a rung is modelled as a recoverable verdict routing back to it (e.g. `Stalled => Active`).
 
 ### User-written transition bodies
 
-The macro emits the signatures; the user writes the bodies. Two plausible approaches:
-
-**A. Trait implementation:**
+The macro emits the `Transitions` trait signatures; the user writes the bodies as a trait impl. This is the **implemented** mechanism (`rung/tests/end_to_end.rs` drives a full run this way):
 
 ```rust
-impl work::Transitions for WorkCtx {
-    fn claim(designed: Designed) -> Result<Claimed, Failed<Designed>> {
-        // user writes this
+struct Optimizer;
+impl work::Transitions for Optimizer {
+    fn active(token: work::Designed) -> work::Active {
+        let carry = token.carry().clone();          // §4.3 read-only witness
+        work::Active::new(/* next payload */, carry) // sealed constructor bridge
     }
-    fn activate(claimed: Claimed) -> Result<StepOutcome, Failed<Claimed>> {
-        // user writes this
+    fn step(token: work::Active) -> Result<work::StepOutcome, work::Failed<work::Active>> {
+        // ...decide the verdict...
+        Ok(work::StepOutcome::Stalled(work::Stalled::new(token))) // carry source rung
     }
-    fn recover_claim_failed(failed: Failed<Designed>) -> Designed {
-        // user writes this
+    fn retry(token: work::Stalled) -> work::Active {
+        let prev = token.into_source();
+        let next = work::Active::new(/* advanced */, prev.carry().clone());
+        work::must_progress(&prev.payload, &next.payload);          // §4.4 guard
+        next
     }
 }
 ```
 
-**B. Inline closures at the ladder declaration site:**
+Because the bodies live *outside* `mod work`, they cannot write rung struct literals (the seal fields are private) — they build rungs through the sealed `::new` constructors. Driving the run is a `loop { match Optimizer::step(active) { .. } }` over `StepOutcome` (bring the trait into scope with `use work::Transitions as _;`).
 
-```rust
-ladder!(Work {
-    carry { task_id: String }
-    Designed(WorkSpec) => Claimed(Designed) => Active => { Complete | Stalled => Active }
-}) {
-    transition claim = |designed| -> Result<Claimed, Failed<Designed>> { ... };
-    transition activate = |claimed| -> Result<StepOutcome, Failed<Claimed>> { ... };
-    recover stalled = |stalled| -> Active { ... };
-}
-```
-
-Approach A is cleaner for separate compilation; approach B is cleaner for single-file use. The macro supports both.
+**Not implemented:** an inline-closure form (`ladder!(..) { transition claim = |..| { .. } }`) that would expand bodies *inside* the module. It is the natural way to close §4.1 (bodies inside the seal boundary), and remains a graded future extension.
 
 ---
 
@@ -167,27 +180,19 @@ These are the same 8 checks the Python PoC verifies. The macro fails with a comp
 
 | Constraint | Status |
 |---|---|
-| Carry is read-only | Convention. The `carry` field is `pub` on each rung — transitions could mutate it. |
 | Transition body correctness | The type proves the function was *called*, not that it *did the right thing*. |
 
 ---
 
 ## 4. What is NOT covered
 
-### 4.1 In-module fabrication
+### 4.1 Fabrication via the sealed constructor
 
-The `_seal` pattern works across module boundaries. Inside the generated module, the seal field is accessible. A transition body could fabricate a rung:
+The seal fields (`_seal`, `_not_send`) are private to the generated module, so no *outside* code can write a rung struct literal. But the transition bodies need to build the rungs they return, so the macro emits a **`pub fn Rung::new(payload, carry)`** constructor per rung (and `Verdict::new`). Those constructors are the bridge that makes the macro usable — and, being `pub`, they are callable by any code in the defining crate. So fabrication is a one-liner: `Active::new(payload, carry)` mints an `Active` without going through the ladder.
 
-```rust
-fn claim(designed: Designed) -> Result<Claimed, Failed<Designed>> {
-    // Could write: Claimed { _seal: (), carry: designed.carry, payload: designed }
-    // instead of actually performing a claim.
-}
-```
+**Why this gap exists:** Rust's visibility is per-module (per-crate), not per-function. There is no way to say "only `impl Transitions` bodies may call `::new`." The constructor must be `pub` for external trait impls to reach it, which also exposes it to everything else in the crate. Before constructors were emitted the seal was tighter *but the macro was un-drivable* (no external code could ever construct the entry rung — see §7); making it usable necessarily widened this surface.
 
-**Why this gap exists:** Rust's visibility is per-module, not per-function. The sealed constructor pattern relies on module boundaries for enforcement. Inside the module, all bets are off.
-
-**Path to close:** Nothing short of a separate crate per ladder. The macro could emit a sub-crate with the sealed types and a public trait for transition bodies. The sub-crate boundary would seal the constructors. But this adds build complexity (one crate per ladder) and may not be worth the cost for most use cases.
+**Path to close:** Two options. (a) The **inline-closure form** (§1, "Not implemented") expands transition bodies *inside* the module, so `::new` need not be `pub` at all — construction stays sealed to macro-provided bodies. This is the cheap, in-macro fix. (b) A **sub-crate per ladder** whose boundary the defining crate cannot cross — the heavyweight fix, shared with §4.5. Option (a) is the recommended next strike.
 
 ### 4.2 Transition body correctness
 
@@ -203,13 +208,17 @@ The carry is supposed to be read-only witness data. The `carry { ... }` declarat
 
 **Status:** Closed 2026-07-17. Private field + `&Carry` accessor, generated by the macro, zero build cost.
 
-### 4.4 Recovery progress
+### 4.4 Recovery progress — CLOSED (guard provided)
 
-`recover_stalled(stalled: Stalled) -> Active` produces a new `Active`. Nothing verifies that the new `Active` is *different* from the stalled one. An infinite stall loop — where `step` returns `Stalled`, `recover_stalled` returns an identical `Active`, and `step` returns `Stalled` again — compiles and runs forever.
+`retry(stalled: Stalled) -> Active` produces a new `Active`. Nothing in the *type* verifies that the new `Active` is *different* from the one that stalled. An infinite stall loop — where `step` returns `Stalled`, `retry` returns an identical `Active`, and `step` stalls again — compiles and (without a guard) runs forever.
 
-**Why this gap exists:** Proving forward progress requires reasoning about the *values* inside the types, not just the types themselves. This is a liveness property, not a safety property. Typestate handles safety (you can't skip a rung). Liveness (you can't stall forever) requires temporal logic.
+**Status:** Closed 2026-07-17. Two macro-emitted pieces make progress checkable:
+1. A **recoverable verdict carries its source rung** (`Stalled { source: Active }`, with `.source()` / `.into_source()`), so a recover body has the `before` state to compare against — previously the unit verdict discarded it, leaving nothing to check.
+2. The macro emits **`pub fn must_progress<T: PartialEq>(before, after)`**, which panics if the recovered value equals its source. A recover body calls `must_progress(&prev.payload, &next.payload)`.
 
-**Path to close:** A `#[must_progress]` attribute on recover functions. The macro instruments the recover function to require that at least one field of the produced `Active` differs from the stalled `Active` — a runtime check that panics on no-progress. For compile-time enforcement: a `StallCount(u32)` in the carry that increments on each stall, with a compile-time or runtime ceiling. Neither is a full solution; both catch the common failure mode.
+Proven by `rung/tests/end_to_end.rs::must_progress_catches_infinite_stall` (asserts the guard panics on a no-progress recovery) and `drives_to_convergence` (a full run through recover cycles that passes the guard every time).
+
+**Honest limit:** it is a *runtime* guard invoked *by convention* — recover bodies live outside the module, so the macro emits the guard but cannot force the call (same body-location constraint as §4.2). It catches the dominant infinite-stall failure; it is not compile-time liveness proof. Proving forward progress reasons about the *values* inside the types (a liveness property), not just the types (safety); full enforcement needs the inline-closure form (§1, so the macro injects the call) or a `StallCount` ceiling threaded through the carry.
 
 ### 4.5 Cross-crate provenance
 
@@ -227,7 +236,7 @@ Move semantics prevent use-after-move for owned values. But `Arc<Active>` or a `
 
 **Status:** Closed 2026-07-17. Every generated rung struct now carries a private `_not_send: PhantomData<*const ()>` field, making it `!Send + !Sync`. An `Arc<Active>` or `&Active` can no longer cross a thread boundary, so the one-token-one-consumer contract holds even under shared references. Zero build cost — one field per rung struct. Proven by `rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync` (autoref specialization; the assert flips if the marker is ever removed).
 
-**⚠️ Known remnant:** Verdict structs (`Stalled`, `Converged`, etc.) are emitted as bare `pub struct Stalled;` — no `_seal`, no `PhantomData`. A `Stalled` token (which gets fed into `recover_stalled`) can cross a thread boundary, and unit verdicts are publicly constructible. Lower stakes than live rung tokens, but an inconsistency worth flagging. Graded alongside the other open gaps — close when the value justifies the cost.
+**Verdict remnant — now closed:** verdict structs were previously emitted as bare `pub struct Stalled;` (no `_seal`, no `PhantomData`, publicly constructible, `Send`). As of 2026-07-17 they carry the same seal + `_not_send` marker as rungs and are built through a sealed `::new`, so verdicts are `!Send + !Sync` too. Proven by the two verdict assertions in `test_rungs_are_not_send_or_sync`.
 
 **Future extension:** a ladder-level `parallel` annotation would drop the marker for genuinely multi-threaded pipelines and instead emit an `AtomicBool consumed` runtime double-consume guard. Not yet built — the safe default is free; the dangerous case should be explicit and pay for its own check.
 
@@ -256,7 +265,8 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | Terminal vs recoverable | — | ✓ | ✓ At expansion time |
 | Carry syntax | — | — | ✓ Emitted as struct field |
 | Carry read-only | — | — | ✓ Private field + `&Carry` getter |
-| Recovery progress | — | — | ✗ Liveness property |
+| Sealed entry + transition bridge | — | — | ✓ `Rung::new` constructors + `Transitions` trait |
+| Recovery progress | — | — | ✓ `must_progress` guard + verdict carries source (runtime, by convention) |
 | Cross-crate provenance | — | — | ✗ Crate boundary trust |
 | Concurrent access | — | — | ✓ `!Send + !Sync` by default (`PhantomData<*const ()>`) |
 | No silent drop | — affine, drop allowed | — | ✓ `#[must_use]` on every token (warn; error under `deny`) |
@@ -269,7 +279,7 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 ### Short-term (proc macro v1)
 
 - **Carry: split `carry` and `carry_mut`.** Fields in `carry` generate immutable accessors. Fields in an optional `carry_mut` block allow mutation. The common case (witness data) is read-only by default.
-- **Recovery progress: `#[must_progress]`.** A runtime assertion that the recovered token differs from the stalled token in at least one field. Panics on no-progress. Catches 90% of infinite-stall bugs.
+- **Recovery progress: `must_progress`.** ✅ Done. A runtime assertion that the recovered token differs from its source. Recoverable verdicts carry their source rung so there is a `before` to compare. Panics on no-progress; catches the common infinite-stall bug. (Auto-injection awaits the inline-closure form.)
 - **Concurrent access: `!Send + !Sync`.** ✅ Done. All rung types carry `PhantomData<*const ()>` by default. Opt-in to `Send` with a ladder-level annotation `parallel` (future) for use cases that genuinely need multi-threaded access.
 - **No silent drop: `#[must_use]`.** ✅ Done. Every emitted token (rungs, verdicts, `StepOutcome`, `Failed`) is `#[must_use]`. Dropping a token warns, and errors under `#![deny(unused_must_use)]`. The pragmatic partial close of the no-silent-drop gap — no linear types required.
 
@@ -293,7 +303,10 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 | `rung/checker.py` | Done — 8 static checks, single-pass, 11 tests |
 | `rung/interpreter.py` | Done — linear token tracking, provenance trace |
 | `rust-example/` | Done — hand-written MetricOptimization, sealed constructors, move semantics |
-| `ladder!` proc macro | Done — `rung-macro/src/lib.rs`: parse + 8 static checks + emit (sealed structs, `!Send` rungs, carry accessor, `Failed<Prev>`, verdict enum, transition/recover trait signatures) |
+| `ladder!` proc macro | Done — `rung-macro/src/lib.rs`: parse + 8 static checks + emit (sealed `!Send` rungs & verdicts, `Rung::new` constructors, carry accessor, `Failed<Prev>`, verdict enum, `must_progress` guard, `Transitions` trait) |
+| End-to-end drivability | Done — `rung/tests/end_to_end.rs` starts a run via `Spec::new`, steps it, takes the recover edge, and reaches a terminal verdict with real transition bodies (converge + budget-exhaust + no-progress-panic) |
+
+**Open (graded):** §4.1 constructor fabrication (inline-closure form is the fix), §4.2 transition-body correctness (proptest/verification), §4.5 cross-crate provenance (sub-crate). §4.3, §4.4, §4.6, §4.7 closed.
 
 ---
 

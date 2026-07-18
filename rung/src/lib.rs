@@ -37,7 +37,7 @@
 //!     recover { stalled: Stalled => Active }
 //! });
 //! fn abandons_the_outcome() {
-//!     demo::Converged; // dropping a #[must_use] verdict — denied
+//!     demo::Converged::new(); // dropping a #[must_use] verdict — denied
 //! }
 //! ```
 
