@@ -57,7 +57,7 @@ Moving a file between folders is the lifecycle. Git history records every transi
 
 Questions are not independent. When Q7 resolved, three things rested on it and had to be re-examined: RUNG-CT §6 (which used its framing), the blocking-client decision (justified by it being unresolved), and Q8 (spawned by the resolution). Today those edges live only in prose — legible to a human re-reading every file, invisible to any traversal. That is a **tears-in-rain** gap one level up: the cascade is caught only if a hot-context reader happens to remember it.
 
-So each file carries **typed dependency edges** in frontmatter:
+The full vocabulary and its rationale are in [`../EDGES.md`](../EDGES.md); the quickstart follows. Each file carries **typed dependency edges** in frontmatter:
 
 ```yaml
 ---
