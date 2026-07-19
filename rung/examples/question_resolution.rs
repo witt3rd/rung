@@ -64,8 +64,7 @@ mod judge {
     /// Returns an error rather than a silent default on failure — a fabricated
     /// verdict is exactly the kind of phantom transition rung exists to forbid.
     pub fn evaluate(question: &str, evidence: &[String]) -> Result<Judgment, JudgeError> {
-        let api_key =
-            std::env::var("ROGER_OMNIROUTE_API_KEY").map_err(|_| JudgeError::NoKey)?;
+        let api_key = std::env::var("ROGER_OMNIROUTE_API_KEY").map_err(|_| JudgeError::NoKey)?;
 
         let evidence_block = if evidence.is_empty() {
             "(no evidence found)".to_string()
@@ -364,7 +363,11 @@ fn main() {
     let evaluated = questionresolution::evaluated(gathered);
     println!(
         "{}",
-        if evaluated.payload.answerable { "ANSWERABLE" } else { "MALFORMED" }
+        if evaluated.payload.answerable {
+            "ANSWERABLE"
+        } else {
+            "MALFORMED"
+        }
     );
     println!("              {}", evaluated.payload.reasoning);
 
