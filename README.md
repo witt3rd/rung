@@ -166,7 +166,8 @@ module-private, so no outside code can fabricate a mid-ladder token. Omit the
 - [`docs/EDGES.md`](docs/EDGES.md) — the typed dependency vocabulary across the
   registries (normative reference)
 - [`docs/questions/`](docs/questions/) — the open-question registry: the
-  frontier for advancing the language (deepen vs grow)
+  frontier for advancing the language (deepen vs grow). See
+  [`INTAKE.md`](docs/questions/INTAKE.md) for how a question enters it.
 - [`docs/RUNG-CT.md`](docs/RUNG-CT.md) — category theory correspondence
   (free category, indexed monad, dagger, linear logic)
 
