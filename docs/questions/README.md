@@ -23,6 +23,8 @@ docs/questions/
 
 Moving a file between folders is the lifecycle. Git history records every transition for free. Each question keeps its stable **Q-number** as an ID (referenced from `RUNG-CT.md`, `SPEC.md`, and the handoff) — the number is the anchor; the folder is the status.
 
+**How a question gets *in* is [`INTAKE.md`](INTAKE.md)** — the capture door (the *front half* of the lifecycle this README specifies). It names the three-part "worth filing" test, the filing procedure, and rung's two doors: *captured* (a question surfaces in lived work) and *generated* (`_map.md`'s growth tower predicts the next one). This README is the back half; INTAKE is the front.
+
 ## The three laws
 
 1. **A question is not resolved until its answer has changed something normative.** Moving a file to `resolved/` requires that the resolution actually landed in `SPEC.md`, `RUNG-CT.md`, or the macro — wherever it belongs. The resolution document records *what changed and where*. A question doc that says "answered" but points nowhere is not resolved; it is just a doc that stopped being maintained.
