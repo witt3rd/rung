@@ -178,7 +178,7 @@ These hold trivially because the only valid compositions are those declared in t
 
 > **Scope.** This section describes the *structure* of provenance, not the current
 > Rust macro. The `ladder!` macro does **not** emit a trace; provenance tracing is
-> realized in the Python reference interpreter (`python-poc/rung/interpreter.py`)
+> realized in the Python reference interpreter (`.archive/python-poc/rung/interpreter.py`)
 > and can be layered on by the caller. The writer-monad correspondence holds
 > wherever a trace is accumulated.
 
