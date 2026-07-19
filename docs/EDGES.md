@@ -117,11 +117,21 @@ filesystem. What is load-bearing is the **model** — a graph of *typed* relatio
 between items, where propagation is *typed reachability* — and it outlives whatever
 holds it.
 
-The typing is also the evidence for **Q9**. If a single edge type sufficed, the
-dependency structure would be plain reachability and there would be no superstructure
-to name. The fact that propagation semantics depend on edge *kind* — and that
-advisory (`justification`) edges may break the composition an obligatory chain
-assumes — is exactly what suggests the structure is richer than a graph (a presheaf,
-a fibration, or a dependency-edge-as-optic mirroring the Q7 Prism result one level
-up). Adding an edge type is cheap; but each new type should point at a *lived*
-instance, never a speculative one. The seven above each have one.
+The typing is also the evidence for **Q9** — now resolved. If a single edge type sufficed,
+the dependency structure would be plain reachability and there would be no superstructure
+to name. The fact that propagation semantics depend on edge *kind* — and that advisory
+(`justification`) edges may break the composition an obligatory chain assumes — is exactly
+what forces the richer structure. Two independent CT reviews named it: **the dependency
+superstructure is a Grothendieck opfibration over the free category on the typed edge
+graph, and its typed edges are dependent optics** — the Q7 Prism result mirrored one level
+up (`docs/questions/resolved/q9-the-dependency-superstructure.md`, folded into
+`RUNG-CT.md` §10).
+
+That resolution names the growth path for the tooling. `_reach.py` currently computes the
+*deflationary boolean shadow* — reachability — of that opfibration. The principled thing
+it grows into is **transport of typed obligations**: not a count of reachable files, but
+the backward pass of the composite dependent optic — an *exposure vector* (*"3 mechanical
+updates, cheap; 2 obligatory reviews, expensive"*) computed from each dependent's current
+state. The model is now named; the store is still inconsequential — frontmatter now,
+SQLite or a graph store later. Adding an edge type stays cheap; each new type should still
+point at a *lived* instance, never a speculative one. The seven above each have one.

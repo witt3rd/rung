@@ -278,6 +278,8 @@ Two things the frame makes precise:
 
 Full resolution and both reviews: `questions/resolved/q7-effectful-bodies-which-monad.md` and its `_evidence/`.
 
+> **One level up (Q9).** This Prism is Level 0 — an optic *within* a ladder. The same gadget reappears one level up: the *dependency* structure between whole items is a **dependent optic** too, and the coproduct that keeps *this* section honest is what keeps *that* level functorial. See §10.
+
 ---
 
 ## 7. Linear logic — Rust's affine type system as substrate
@@ -350,7 +352,48 @@ The compiler does NOT verify:
 
 ---
 
-## 10. Summary — why hide the category theory?
+## 10. The Level-1 superstructure — the dependency opfibration
+
+> **Frame (Q9, resolved 2026-07-18).** §§1–9 describe *one ladder* — a category, its coproducts, its Prism transitions. But ladders (and questions, claims, decisions) do not sit in isolation; they *depend on each other*. That dependency structure is a genuine **Level 1** object — arrows between whole items, not within one — and the growth tower (`questions/_map.md`) predicted a superstructure would live here. Two independent expert reviews named it precisely. See `questions/resolved/q9-the-dependency-superstructure.md` and its `_evidence/`.
+
+A dependency is an **arrow between items** — `X → Y` reads "Y depends on X." Collect the items as objects and the typed dependency edges as generating morphisms, and you have the **free category `B`** on the dependency graph. The superstructure over it is a **Grothendieck opfibration** `p : E → B`:
+
+- **The fibre `E_X`** over an item `X` is **exactly its Level-0 ladder** — the local category of §1. The tower is self-similar: each object of the Level-1 base *contains* a Level-0 category.
+- **The total space `E`** is items-in-specific-states.
+- **A typed edge is an opcartesian lift.** When `X` changes state (a morphism in the fibre `E_X`), that change transports *forward* along `f : X → Y` via a **pushforward functor** `f_! : E_X → E_Y`. Forward transport along the direction of information flow is **opcartesian**, not cartesian — the orientation is load-bearing, and it is what distinguishes the opfibration from a plain fibration.
+
+Each edge type is a distinct pushforward:
+
+| edge type | pushforward `f_!` maps a change at X to… |
+|---|---|
+| `premise` | a **strict** lift → `Y`'s `MustReexamine` rung (obligatory) |
+| `justification` | a **coproduct** lift → `ReviewRequired(Y) + Survives(Y)` (advisory) |
+| `spawn` | `Y` exists only as `X`'s child — revisit |
+| `citation` | a mechanical state-update, no human in the loop |
+
+### Advisory edges do not break functoriality — the Q7 coproduct recovers it
+
+The sharp falsifier: a `premise` edge maps `X → Y` deterministically, but a `justification` edge relies on a human judging "no change needed." A rigid state-assignment functor `B → Set` cannot map `X`'s recovery into a state `Y` is *already* in without violating the free-category laws — so advisory propagation appears to break strict functoriality.
+
+**It does not, and the reason is §2 and §6.1.** An advisory pushforward does not land in `Y`'s base category of rungs — it lands in the **Kleisli category** of `Y`, delivering the **coproduct** `ReviewRequired(Y) + Survives(Y)`. The Level-1 superstructure rigidly and functorially *delivers that coproduct*; it is then `Y`'s own Level-0 machinery — the effectful transition body of §6.1, the progress guard of §6 — that **collapses the uncertainty.** And because every fibre is a **free category** (§1), `Y` retains agency to run a *vertical* morphism (a manual `Review → Resolved`) entirely inside its own fibre; the opcartesian lifts evaluate against `Y`'s *current* state, preserving functoriality over the total space.
+
+So the coproduct that keeps §6 honest at Level 0 is *exactly* the structure that keeps the dependency level functorial at Level 1. The two levels are load-bearing on each other — the self-similarity is not analogy but shared machinery.
+
+### Edges are dependent optics — the tower, self-similar
+
+If a Level-0 transition is a **Prism** (§6.1 — an optic for *sum* types: forward Match + backward Build), a Level-1 dependency is a **Lens** (an optic for *product/context*: bidirectional transport across a boundary). And because the type of the backward pass — the blast radius — depends on the exact state transported forward, it is a **dependent optic**:
+
+```
+Forward (play):    covariant   — pushforward of a state-change to dependents (f_!)
+Backward (coplay): contravariant — query exposure before you build; each Y answers
+                                   from its CURRENT state, returning a typed cost
+```
+
+**Blast radius is the backward pass, not a file count.** Before modifying `X`, you send a query backward along the composite optic; the answer is an *exposure vector* — *"3 mechanical updates (cheap), 2 obligatory coproduct reviews (expensive)"* — the support of the composite dependent optic. This is what `questions/_reach.py` computes the *deflationary boolean shadow* of today: it walks reachability and prints a review checklist. The model it approximates is transport of typed obligations through an opfibration of optics; the store (frontmatter now, a graph store eventually) is inconsequential, but the model is named. See `EDGES.md` for the operative registry consequence.
+
+---
+
+## 11. Summary — why hide the category theory?
 
 The ladder syntax deliberately hides the categorical machinery. The programmer writes:
 
