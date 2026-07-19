@@ -9,6 +9,13 @@ checklist. It NEVER mutates anything — the graph surfaces the blast radius; th
 human judges each edge. (Same produce-first / gate-second discipline as the rest
 of the system: a changed premise does not auto-invalidate its dependents.)
 
+This typed reachability is the deflationary boolean *shadow* of the Q9
+opfibration (a Grothendieck opfibration of dependent optics — see ../EDGES.md and
+../RUNG-CT.md §10). Surfacing the full potential cascade and deferring each node
+to the human IS its faithful operational form — the human is the fibre-collapse
+that resolves each advisory ReviewRequired+Survives coproduct — not a stopgap
+awaiting a "real" transport engine.
+
 Stdlib only. Nodes are files under this directory; external targets (doc
 sections, decisions) are leaves we surface but cannot recurse into.
 

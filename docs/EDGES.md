@@ -135,3 +135,61 @@ updates, cheap; 2 obligatory reviews, expensive"*) computed from each dependent'
 state. The model is now named; the store is still inconsequential — frontmatter now,
 SQLite or a graph store later. Adding an edge type stays cheap; each new type should still
 point at a *lived* instance, never a speculative one. The seven above each have one.
+
+---
+
+## What Q9 changes in practice — two boundaries it holds with a reason
+
+Resolving the superstructure did **not** change either working surface — the item layer
+(what the registries are *made of*) or the tooling (`_reach.py`). That is the finding, not
+an omission: Q9 tells you *why* each boundary is correct, and names *what* would move it.
+
+### The item layer stays sealed — dependency is not the item's own structure
+
+A dependency edge is Level-1 structure *over* items; the items themselves are Level 0. The
+opfibration's fibres **are** the items' own categories — in rung, each fibre is a ladder, a
+free category the `ladder!` macro declares. The temptation is to fold cross-item dependency
+*into* the item: to let a ladder declare "this transition depends on ladder L reaching
+terminal." Q9 refuses it. Such an edge has its domain in *another* fibre, so it is not a
+morphism in *this* free category — it is a morphism in the total space `E`, crossing fibres.
+It is a categorically *different object* (an opfibration, not a free category), and it
+belongs in the registry, not the item. **This is why the edge vocabulary lives as
+frontmatter-over-items rather than as a field inside each item** — in any of the three
+registries, a bet or a question does not encode its dependencies in its own body; the edge
+is external, Level-1, by nature.
+
+For rung the boundary is concrete: the base `ladder!` macro stays a single free category —
+Level-0-pure. Cross-fibre structure enters the *language* only through the composition
+operators (nested ladders — Q4; fork-join — Q5), and when it does, Q9 gives it its type: a
+section/functor of the opfibration. The base declaration never grows cross-item edges;
+those are the superstructure's, not the DSL's.
+
+### The tooling stays surface-and-defer — the boolean shadow is the *correct* shadow
+
+`_reach.py` computes the deflationary boolean shadow: it surfaces the full *potential*
+cascade and defers every judgment to the human. Q9 vindicates this rather than demanding
+more. The Level-1 structure *functorially delivers* the coproduct
+`ReviewRequired(Y) + Survives(Y)`; the target's own Level-0 machinery collapses it. In the
+registry, **the human reviewer is that fibre-collapse.** So the tool delivering the full
+potential cascade + the human collapsing each advisory node is a faithful shadow — and
+over-approximation is the *safe* direction for a tears-in-rain tool (under-reporting is the
+dangerous failure; over-reporting is correct). Surface-never-mutate is not a stopgap
+awaiting a "real" transport engine; it is the operational shadow of the opfibration,
+already right.
+
+The growth path Q9 names — a typed **exposure vector** instead of a count
+(`3 mechanical, 2 review`), edge-type composition along paths (`premise ∘ justification`),
+a cascade that extinguishes at an unchanged advisory node — is real and **deferred** under
+the same lived-instance discipline as the vocabulary itself: build it when a real multi-hop
+cascade exercises it, never before. As of this resolution every internal path is one hop —
+path-type composition is named, not yet lived.
+
+### The triggers
+
+- **The item layer moves** when composition ships (Q4 nesting, Q5 fork-join). Cross-fibre
+  structure becomes a real language construct, typed as a section of the opfibration. Until
+  then the base declaration stays Level-0-pure — Q9 is the reason it should.
+- **The tooling moves** the first time a *lived multi-hop cascade* appears — a real change
+  rippling `premise → justification` through an intermediate that actually changes vs.
+  doesn't. That is when boolean reachability visibly under-describes, the exposure vector
+  earns its build, and the shadow grows into transport.
