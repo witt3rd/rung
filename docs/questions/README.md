@@ -45,7 +45,7 @@ Moving a file between folders is the lifecycle. Git history records every transi
 | Q6 | Genericity (ladders parameterized over payload/carry types) | **open** |
 | Q7 | Effectful transition bodies: which monad? | **resolved** — transitions are **Prisms**, not Kleisli arrows |
 | Q8 | The async driver (a free-standing feature, per Q7's resolution) | **open** |
-| Q9 | The dependency superstructure — what overlays the ladder level? | **open** (theory, tee'd for review) |
+| Q9 | The dependency superstructure — what overlays the ladder level? | **resolved** — a **Grothendieck opfibration** of dependent optics |
 
 **The growth tower** (`morphisms → functors in Cat → natural transformations in Fun`) and the CT-map-as-question-generator live in `_map.md` — the category theory is the principled source of the growth questions, not an ad-hoc list.
 
@@ -91,4 +91,4 @@ python _reach.py --graph     # the whole typed edge list
 
 The implementation is deliberately minimal — frontmatter + a stdlib script, preserving "clone and read, no service to run." It is honest at this scale (SQLite next, a real graph store eventually, if the registry ever outgrows the filesystem). **The model is what matters, not the store:** the registry is a *graph of typed relationships between items*, and propagation is *typed reachability*. That model outlives whatever holds it.
 
-> **This is a Level-1 structure.** The growth tower in `_map.md` names it: Level 0 is arrows *within* a category (a transition); Level 1 is arrows in **Cat** (functors — maps between whole structures). A dependency is an arrow between *items*, not within one — the registry itself is a Level-1 object. The tower predicted it. There is a deeper open question here about what superstructure the dependency graph really is (presheaf? fibration? transitive closure of a typed relation?) — see `open/q9-the-dependency-superstructure.md`.
+> **This is a Level-1 structure.** The growth tower in `_map.md` names it: Level 0 is arrows *within* a category (a transition); Level 1 is arrows in **Cat** (functors — maps between whole structures). A dependency is an arrow between *items*, not within one — the registry itself is a Level-1 object. The tower predicted it. **What that superstructure *is* precisely is now resolved (Q9): a Grothendieck opfibration whose fibres are the per-item ladders and whose typed edges are dependent optics** — the Q7 Prism result, one level up. See `resolved/q9-the-dependency-superstructure.md` (folded into `../RUNG-CT.md` §10 and `../EDGES.md`); `_reach.py` computes its deflationary boolean shadow.
