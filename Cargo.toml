@@ -1,5 +1,11 @@
 [workspace]
-members = ["rung", "rung-macro", "rust-example"]
+# Two crates by necessity, not disorganization: a `proc-macro = true` crate can
+# export *only* macros, never the runtime types the generated code needs. So
+# `rung-macro` holds the `ladder!` macro and `rung` holds the runtime types +
+# re-exports the macro. Consumers depend on `rung` alone. (Same split as
+# serde/serde_derive, tokio/tokio-macros.) The example lives in `rung/examples/`
+# (Cargo-native: `cargo run -p rung --example metric_opt`).
+members = ["rung", "rung-macro"]
 resolver = "2"
 
 [workspace.package]

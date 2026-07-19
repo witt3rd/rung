@@ -74,7 +74,7 @@ ladder in which:
 | 10 | *(inline bodies present)* a transition/recover function has no body |
 
 Rules 1–8 are structural and mirror the Python reference checker
-(`python-poc/rung/checker.py`, verified in sync). Rules 9–10 apply only when an
+(`.archive/python-poc/rung/checker.py`, verified in sync). Rules 9–10 apply only when an
 `impl` block is present.
 
 Conformance: the payload (rule 3), continue-target (rule 3), and `Failed(Rung)`
