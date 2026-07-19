@@ -391,6 +391,24 @@ Backward (coplay): contravariant — query exposure before you build; each Y ans
 
 **Blast radius is the backward pass, not a file count.** Before modifying `X`, you send a query backward along the composite optic; the answer is an *exposure vector* — *"3 mechanical updates (cheap), 2 obligatory coproduct reviews (expensive)"* — the support of the composite dependent optic. This is what `questions/_reach.py` computes the *deflationary boolean shadow* of today: it walks reachability and prints a review checklist. The model it approximates is transport of typed obligations through an opfibration of optics; the store (frontmatter now, a graph store eventually) is inconsequential, but the model is named. See `EDGES.md` for the operative registry consequence.
 
+### The tower iterates — the registry is fractal (Q10, resolved 2026-07-19)
+
+§10 so far describes the opfibration over *one* base — the item graph of a single registry. **Q10** asked whether that structure iterates *up a domain hierarchy* (`relational-being ⊐ {memory, actions, …}`, each domain carrying its own registry), and two independent CT reviews converged: it does, exactly, with no new machinery. See `questions/resolved/q10-fractal-registry-hierarchy.md` and its `_evidence/`.
+
+Let `q : B → B′` map items to their parent domains (its fibres are the local registries) and `p : E → B` be the opfibration above. **Opfibrations are closed under composition** (Bénabou; Jacobs, *Categorical Logic and Type Theory*, Lemma 1.1.4), so the composite
+
+```
+E  ─p→  B  ─q→  B′          (state ⊐ item ⊐ sub-domain ⊐ domain)
+```
+
+is a **single composite Grothendieck opfibration**. "An opfibration whose fibres are opfibrations" collapses into one unified opcartesian structure. Three consequences, all confirmed by review:
+
+- **It is an iteration of Level 1, not Level 2.** Opfibrations are 1-cells in **Cat** and compose by ordinary functor composition; stacking domains stacks 1-categorical bricks. The reserved Level-2 slot (`_map.md` — natural transformations) stays **vacant** — filling it needs a genuine 2-cell *between* fibrations (a schema migration of the registry, a topology remap), which mere nesting does not introduce.
+- **Obligation-transport is scale-invariant.** Optics compose (Capucci–Hedges; Spivak's *Poly*): the composite forward pass is `g_! ∘ f_!`, the backward pass is successive query-and-cost up the composite lens. So `_reach.py` (and its typed-exposure successor) crosses domain boundaries with **zero modification** — it need not know whether an edge is sibling-to-sibling or child-domain-to-parent; the same functorial backward pass runs at every scale.
+- **Horizontal ≅ vertical.** Under the Grothendieck construction (`∫`), the indexed hierarchy of dependency graphs flattens into a single total graph: a "horizontal" edge (sibling composition) and a "vertical" edge (domain implication) are both generating morphisms in the composite base, lifting identically. Each fibre of a vertical opfibration *is* a horizontal opfibration of the layer below — **self-similar by construction.** The formal content of "the registry pattern is fractal" is precisely this scale-invariance.
+
+The categorical claim is a *theorem* (composition of the structures §10 already names) and resolves on the reviews. **Building** an actual domain-registry hierarchy is a separate matter, gated by the third-instance rule (`_map.md`) on lived need, not on the proof.
+
 ---
 
 ## 11. Summary — why hide the category theory?
