@@ -1,8 +1,8 @@
 # The Ladder Specification
 
 Normative specification of the `ladder!` macro. For an introduction and a
-runnable example, see the [README](README.md). For design history, rationale,
-and the record of how each gap was closed, see [docs/RUNG-RS.md](docs/RUNG-RS.md).
+runnable example, see the [README](../README.md). For design history, rationale,
+and the record of how each gap was closed, see [RUNG-RS.md](.archive/RUNG-RS.md).
 
 This document states the rules. **MUST** / **MUST NOT** are normative. Each
 guarantee names the conformance test that fails if the implementation stops

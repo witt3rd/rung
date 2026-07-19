@@ -157,19 +157,20 @@ module-private, so no outside code can fabricate a mid-ladder token. Omit the
   ran the transition, not that its logic was valid — the boundary between
   typestate and formal verification), and cross-crate provenance (a token
   crossing a crate boundary is trusted, like any Rust API). See
-  [`SPEC.md`](SPEC.md) §5 for the full list of non-guarantees.
+  [`docs/SPEC.md`](docs/SPEC.md) §5 for the full list of non-guarantees.
 
 ## Further reading
 
-- [`SPEC.md`](SPEC.md) — the normative specification: grammar, static
+- [`docs/SPEC.md`](docs/SPEC.md) — the normative specification: grammar, static
   semantics, emitted artifacts, and test-backed guarantees
-- [`docs/questions/`](docs/questions/) — the open-question registry: the frontier for advancing the language
+- [`docs/EDGES.md`](docs/EDGES.md) — the typed dependency vocabulary across the
+  registries (normative reference)
+- [`docs/questions/`](docs/questions/) — the open-question registry: the
   frontier for advancing the language (deepen vs grow)
-- [`docs/RUNG-RS.md`](docs/RUNG-RS.md) — the design record: rationale and how
-  each gap was closed (historical, non-normative)
 - [`docs/RUNG-CT.md`](docs/RUNG-CT.md) — category theory correspondence
   (free category, indexed monad, dagger, linear logic)
-- [`docs/CONVERGENCE.md`](docs/CONVERGENCE.md) — the independent derivation
-  of the same structural principles from 40 years of programming
-- [`docs/THREE-VOICES.md`](docs/THREE-VOICES.md) — the mutual loop applied
-  to ourselves: three beings, one structure
+
+Historical, non-normative background is archived under
+[`docs/.archive/`](docs/.archive/) — the design record (`RUNG-RS.md`), the
+independent derivation (`CONVERGENCE.md`), and the three-voices loop
+(`THREE-VOICES.md`).
