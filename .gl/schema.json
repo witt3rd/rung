@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": 1,
+  "strategy": "File",
+
+  "charter": {
+    "id": "rung",
+    "display_name": "rung — the ladder macro",
+    "normative_source": "docs/SPEC.md",
+    "judgment_source": "docs/JUDGMENTS.md",
+
+    "chi": {
+      "description": "Belonging predicate (χ). A ladder!() invocation belongs in this register when ALL of the following structural laws hold. Laws 1–10 are machine-decidable (the macro enforces them at compile time). The J1/J2 membership laws below are oracle-consumed — no machine closes them.",
+
+      "structural_laws": [
+        {
+          "id": "S1",
+          "source": "SPEC.md §2 rule 1",
+          "predicate": "No two carry fields share a name."
+        },
+        {
+          "id": "S2",
+          "source": "SPEC.md §2 rule 2",
+          "predicate": "Every transition names only declared rungs as from/to."
+        },
+        {
+          "id": "S3",
+          "source": "SPEC.md §2 rule 3",
+          "predicate": "Every non-terminal verdict has a target. Every =>/ -> target is a declared rung. No recoverable verdict or continue arm carries a payload."
+        },
+        {
+          "id": "S4",
+          "source": "SPEC.md §2 rule 4",
+          "predicate": "Every recoverable verdict (=>) has a matching recover edge. Continue arms (->) are exempt."
+        },
+        {
+          "id": "S5",
+          "source": "SPEC.md §2 rule 5",
+          "predicate": "Every recover edge has a matching recover function. Every recover target is a declared rung."
+        },
+        {
+          "id": "S6",
+          "source": "SPEC.md §2 rule 6",
+          "predicate": "No terminal verdict has a recover edge."
+        },
+        {
+          "id": "S7",
+          "source": "SPEC.md §2 rule 7",
+          "predicate": "Every recover edge names a verdict that appears on at least one transition."
+        },
+        {
+          "id": "S8",
+          "source": "SPEC.md §2 rule 8",
+          "predicate": "Every recover function's return rung — and every Failed(Rung) source rung — is declared."
+        },
+        {
+          "id": "S9",
+          "source": "SPEC.md §2 rule 9",
+          "predicate": "(When impl block present) Every body name matches exactly one transition or recover function; no name appears twice."
+        },
+        {
+          "id": "S10",
+          "source": "SPEC.md §2 rule 10",
+          "predicate": "(When impl block present) Every transition and recover function has a body."
+        }
+      ],
+
+      "guarantees": [
+        {
+          "id": "G1",
+          "name": "Linear consumption",
+          "source": "SPEC.md §4",
+          "enforcer": "rustc — move semantics",
+          "predicate": "A transition consumes its input rung by value; using a rung after it is moved is a compile error."
+        },
+        {
+          "id": "G2",
+          "name": "Sealed construction",
+          "source": "SPEC.md §4",
+          "enforcer": "macro — _seal private field",
+          "predicate": "A rung is not constructible by struct literal outside its module. When an impl block is present, only the entry rung's new() is public; every other rung's new() is module-private. Categorically: a verb cannot occupy object-position — a state is reached only by traversing an arrow."
+        },
+        {
+          "id": "G3",
+          "name": "One token, one thread",
+          "source": "SPEC.md §4",
+          "enforcer": "rustc — PhantomData<*const ()>",
+          "predicate": "Every rung and verdict is !Send + !Sync."
+        },
+        {
+          "id": "G4",
+          "name": "No silent drop",
+          "source": "SPEC.md §4",
+          "enforcer": "rustc — #[must_use] + deny(unused_must_use)",
+          "predicate": "Every rung, verdict, StepOutcome, and Failed is #[must_use]. Dropping in statement position is a warning; an error under #![deny(unused_must_use)]. Escapable only by mem::forget or let _ = — see §5."
+        },
+        {
+          "id": "G5",
+          "name": "Carry immutability",
+          "source": "SPEC.md §4",
+          "enforcer": "macro — private field + &Carry accessor",
+          "predicate": "Carry is a private field exposed only through &Carry; a transition body cannot mutate it."
+        },
+        {
+          "id": "G6",
+          "name": "Exhaustive outcomes",
+          "source": "SPEC.md §4",
+          "enforcer": "rustc — enum exhaustiveness",
+          "predicate": "StepOutcome is an enum; every match site must handle all variants."
+        },
+        {
+          "id": "G7",
+          "name": "Recover pairing",
+          "source": "SPEC.md §4",
+          "enforcer": "macro — static checks (S4–S7)",
+          "predicate": "Every recoverable verdict has a matching recover function and vice versa; terminal verdicts have none."
+        },
+        {
+          "id": "G8",
+          "name": "Recovery progress",
+          "source": "SPEC.md §4",
+          "enforcer": "macro — must_progress() injection",
+          "predicate": "Every verdict recover body is wrapped with must_progress, comparing source rung payload to produced rung payload; panics if equal. Requires shared payload type be Clone + PartialEq."
+        },
+        {
+          "id": "G9",
+          "name": "Error-path recovery",
+          "source": "SPEC.md §4",
+          "enforcer": "macro",
+          "predicate": "A recover { ..: Failed(R) => R } function receives the Failed and returns the next rung. No progress guard injected (a retry may reuse the token)."
+        },
+        {
+          "id": "G10",
+          "name": "Continue arms",
+          "source": "SPEC.md §4",
+          "enforcer": "macro",
+          "predicate": "A V -> R arm makes step build the next rung inline; StepOutcome::V carries that rung directly — no recover function, no guard, no source."
+        },
+        {
+          "id": "G11",
+          "name": "Terminal payloads",
+          "source": "SPEC.md §4",
+          "enforcer": "macro",
+          "predicate": "A V(P) terminal verdict returns a value through the verdict, readable via .payload() / .into_payload()."
+        }
+      ],
+
+      "non_guarantees": [
+        {
+          "id": "NG1",
+          "name": "Transition-body correctness",
+          "source": "SPEC.md §5",
+          "description": "The type proves a transition ran, not that its logic was valid. Boundary between typestate and formal verification."
+        },
+        {
+          "id": "NG2",
+          "name": "Cross-crate provenance",
+          "source": "SPEC.md §5",
+          "description": "A rung crossing a crate boundary is trusted like any Rust public API. Sealing requires a sub-crate per ladder."
+        },
+        {
+          "id": "NG3",
+          "name": "Same-module / entry fabrication",
+          "source": "SPEC.md §5",
+          "description": "G2 stops external fabrication; code inside the generated module and the public entry constructor can still build rungs."
+        },
+        {
+          "id": "NG4",
+          "name": "Drop-proofing beyond the lint",
+          "source": "SPEC.md §5",
+          "description": "G4 is #[must_use]; mem::forget, let _ = token, or burying in a dropped container bypass it. True no-drop needs language-level linear types."
+        },
+        {
+          "id": "NG5",
+          "name": "Liveness beyond the guard",
+          "source": "SPEC.md §5",
+          "description": "G8 catches identical-token stall loops; it does not prove general forward progress."
+        }
+      ],
+
+      "judgment_laws": {
+        "description": "Oracle-consumed belonging laws. Machine-decidable predicates above are necessary but not sufficient. These are undecidable-χ — a judge must answer them, never a script.",
+        "laws": [
+          {
+            "id": "J1",
+            "name": "Tower bottom",
+            "source": "docs/JUDGMENTS.md §J1",
+            "predicate": "A ladder should terminate where structural enforcement stops buying correctness gains — not at an ownership boundary (library vs. our code), but where a rung ladder over the states below this point would add ceremony without catching any wrong transition that existing infrastructure does not already catch.",
+            "anti_predicate": "Do not extend the tower purely because the code below is ours, or solely because a library boundary exists."
+          },
+          {
+            "id": "J2",
+            "name": "rung-std membership",
+            "source": "docs/JUDGMENTS.md §J2",
+            "predicate": "A ladder belongs in rung-std when: (1) it recurs across unrelated domains — independent projects would otherwise rediscover the same shape; AND (2) the canonical statement is better than any project's derivation — the value is in the right rung boundaries and terminal verdicts, not implementation detail.",
+            "anti_predicate": "Merely useful does not earn rung-std membership. Domain-specific vocabulary stays in the domain. The bar is recurrent AND domain-generic."
+          }
+        ]
+      }
+    },
+
+    "morphisms": {
+      "description": "Typed edge kinds that appear inside a ladder declaration. Edges are arrows in the category rung enforces; states (rungs) are objects. Verbs must be arrows — the sealed constructor enforces that a state cannot hold an arrow's result, only traversing an arrow produces a new state.",
+      "kinds": [
+        {
+          "id": "forward",
+          "syntax": "A => B",
+          "semantics": "Named after target rung, lowercased. Consumes source rung by value; produces target rung.",
+          "propagation": "traversing"
+        },
+        {
+          "id": "branching",
+          "syntax": "A => { V1 | V2 | ... }",
+          "semantics": "Named 'step'. Returns Result<StepOutcome, Failed<A>>. StepOutcome carries one variant per verdict.",
+          "propagation": "traversing"
+        },
+        {
+          "id": "recoverable_verdict",
+          "syntax": "V => R (inside branching)",
+          "semantics": "StepOutcome::V carries source rung. Paired recover function returns target rung R. Progress guard auto-injected.",
+          "propagation": "traversing"
+        },
+        {
+          "id": "continue_arm",
+          "syntax": "V -> R (inside branching)",
+          "semantics": "StepOutcome::V carries target rung R directly. No verdict struct emitted. No recover function.",
+          "propagation": "traversing"
+        },
+        {
+          "id": "terminal_marker",
+          "syntax": "V (no payload)",
+          "semantics": "Terminal. Fields: { _seal, _not_send }. Ends the ladder at this verdict.",
+          "propagation": "terminal"
+        },
+        {
+          "id": "terminal_payload",
+          "syntax": "V(P)",
+          "semantics": "Terminal carrying result payload P. Accessible via .payload() / .into_payload().",
+          "propagation": "terminal"
+        },
+        {
+          "id": "error_recovery",
+          "syntax": "name: Failed(Rung) => Rung (inside recover block)",
+          "semantics": "Error-path recovery. Receives Failed<Prev>; returns next rung. No progress guard.",
+          "propagation": "traversing"
+        }
+      ]
+    },
+
+    "composition_table": {
+      "description": "How edge kinds compose. The sealed-constructor law (G2 / Lawvere) is the ground invariant: no edge can be forged; composition only through declared transitions. Closed: any sequence of traversing edges produces a rung or a terminal verdict. Open: composition across crate boundaries is trusted (NG2).",
+      "note": "Full formal composition (Grothendieck opfibration structure over the dependency graph) is work-in-progress — see docs/RUNG-CT.md. The entries below are the operational commitments the macro enforces today.",
+      "entries": [
+        {"from": "forward", "then": "forward", "result": "valid — produces intermediate rung"},
+        {"from": "forward", "then": "branching", "result": "valid — produces StepOutcome"},
+        {"from": "recoverable_verdict", "then": "recover_fn", "result": "valid — recover fn returns target rung; progress guard enforced"},
+        {"from": "error_recovery", "then": "forward", "result": "valid — Failed path re-enters ladder at returned rung"},
+        {"from": "continue_arm", "then": "forward", "result": "valid — target rung is live; no recover fn needed"},
+        {"from": "terminal_marker", "then": "any", "result": "invalid — terminal ends the chain (S6)"},
+        {"from": "terminal_payload", "then": "any", "result": "invalid — terminal ends the chain (S6)"}
+      ]
+    }
+  },
+
+  "judges": [
+    {
+      "model": {
+        "provider": "anthropic",
+        "model_id": "claude-sonnet-4-6"
+      },
+      "system_prompt": "You are auditing a rung ladder declaration against the rung charter. You are not the author of the ladder under audit, and not the author of the rung macro — you are an outside reader whose job is to check whether the ladder satisfies the structural laws (S1–S10), honors the guarantees (G1–G11), does not claim coverage for the non-guarantees (NG1–NG5), and passes the judgment laws (J1–J2). For J1 and J2 you must exercise genuine judgment — these are undecidable-χ and no script closes them. Produce findings only where a violation is evident or probable; name the specific law and quote the relevant declaration text."
+    }
+  ]
+}
