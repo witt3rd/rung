@@ -438,16 +438,10 @@ fn classify_status(status: u16, url: &str) -> Result<(), RawCallError> {
 
 // ─── LlmCall ladder ──────────────────────────────────────────────────────────
 
-/// Canonical rung ladder for a blocking LLM call with retry.
-///
-/// # Carry
-/// `call_id` — opaque identifier threaded through for tracing.
-///
-/// # Rungs
-/// `Pending(LlmRequest)` → `Success(String)` | `LlmError(LlmFailure)`
-///
-/// # Recover
-/// `retry: Failed(Pending) => Pending` — exponential backoff, decrement counter.
+// Canonical rung ladder for a blocking LLM call with retry.
+// Carry: call_id — opaque identifier threaded through for tracing.
+// Pending(LlmRequest) → Success(String) | LlmError(LlmFailure)
+// recover: retry: Failed(Pending) => Pending — exponential backoff, decrement counter.
 ladder!(LlmCall {
     carry { call_id: String }
 
