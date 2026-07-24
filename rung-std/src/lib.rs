@@ -405,6 +405,7 @@ fn parse_sse_lines(lines: &[String]) -> Result<String, RawCallError> {
         if payload == "[DONE]" {
             break;
         }
+        #[allow(clippy::collapsible_if)]
         if let Ok(chunk) = serde_json::from_str::<serde_json::Value>(payload) {
             if let Some(s) = chunk
                 .get("choices")
