@@ -99,13 +99,22 @@ pub struct ChatMessage {
 
 impl ChatMessage {
     pub fn system(content: impl Into<String>) -> Self {
-        Self { role: "system".into(), content: content.into() }
+        Self {
+            role: "system".into(),
+            content: content.into(),
+        }
     }
     pub fn user(content: impl Into<String>) -> Self {
-        Self { role: "user".into(), content: content.into() }
+        Self {
+            role: "user".into(),
+            content: content.into(),
+        }
     }
     pub fn assistant(content: impl Into<String>) -> Self {
-        Self { role: "assistant".into(), content: content.into() }
+        Self {
+            role: "assistant".into(),
+            content: content.into(),
+        }
     }
 }
 
@@ -125,7 +134,11 @@ pub struct LlmRequest {
 impl LlmRequest {
     /// Convenience constructor — uses [`DEFAULT_MAX_ATTEMPTS`].
     pub fn new(config: LlmConfig, messages: Vec<ChatMessage>) -> Self {
-        Self { config, messages, attempts_remaining: DEFAULT_MAX_ATTEMPTS }
+        Self {
+            config,
+            messages,
+            attempts_remaining: DEFAULT_MAX_ATTEMPTS,
+        }
     }
 }
 
@@ -206,10 +219,17 @@ pub fn raw_call(config: &LlmConfig, messages: &[ChatMessage]) -> Result<String, 
 /// Sends `temperature` when set.  When `reasoning_level` is set, enables
 /// extended thinking via `thinking.budget_tokens` and forces `temperature: 1`
 /// per Anthropic's requirement.
-fn raw_call_anthropic(config: &LlmConfig, messages: &[ChatMessage]) -> Result<String, RawCallError> {
-    let system = messages.iter().find(|m| m.role == "system")
-        .map(|m| m.content.as_str()).unwrap_or("");
-    let user_msgs: Vec<_> = messages.iter()
+fn raw_call_anthropic(
+    config: &LlmConfig,
+    messages: &[ChatMessage],
+) -> Result<String, RawCallError> {
+    let system = messages
+        .iter()
+        .find(|m| m.role == "system")
+        .map(|m| m.content.as_str())
+        .unwrap_or("");
+    let user_msgs: Vec<_> = messages
+        .iter()
         .filter(|m| m.role != "system")
         .map(|m| serde_json::json!({"role": m.role, "content": m.content}))
         .collect();
@@ -226,9 +246,9 @@ fn raw_call_anthropic(config: &LlmConfig, messages: &[ChatMessage]) -> Result<St
     // Extended thinking: temperature must be 1; budget_tokens from level name.
     if let Some(level) = &config.reasoning_level {
         let budget_tokens: u32 = match level.to_lowercase().as_str() {
-            "low"    => 1_024,
+            "low" => 1_024,
             "medium" => 8_192,
-            "high"   => 32_768,
+            "high" => 32_768,
             other => {
                 // Treat unknown strings as raw token counts if numeric, else medium.
                 other.parse::<u32>().unwrap_or(8_192)
@@ -260,16 +280,23 @@ fn raw_call_anthropic(config: &LlmConfig, messages: &[ChatMessage]) -> Result<St
     classify_status(response.status().as_u16(), &url)?;
 
     #[derive(serde::Deserialize)]
-    struct Resp { content: Vec<Block> }
+    struct Resp {
+        content: Vec<Block>,
+    }
     #[derive(serde::Deserialize)]
     struct Block {
-        #[serde(rename = "type")] kind: String,
+        #[serde(rename = "type")]
+        kind: String,
         text: Option<String>,
     }
 
-    let parsed: Resp = response.json().map_err(|e| RawCallError::Http(e.to_string()))?;
+    let parsed: Resp = response
+        .json()
+        .map_err(|e| RawCallError::Http(e.to_string()))?;
     // Skip `thinking` blocks; take first `text` block.
-    parsed.content.into_iter()
+    parsed
+        .content
+        .into_iter()
         .find(|b| b.kind == "text")
         .and_then(|b| b.text)
         .ok_or(RawCallError::NoContent)
@@ -343,15 +370,24 @@ fn raw_call_openai(config: &LlmConfig, messages: &[ChatMessage]) -> Result<Strin
 
 fn parse_openai_json(text: &str) -> Result<String, RawCallError> {
     #[derive(serde::Deserialize)]
-    struct Resp { choices: Vec<Choice> }
+    struct Resp {
+        choices: Vec<Choice>,
+    }
     #[derive(serde::Deserialize)]
-    struct Choice { message: Msg }
+    struct Choice {
+        message: Msg,
+    }
     #[derive(serde::Deserialize)]
-    struct Msg { content: Option<String> }
+    struct Msg {
+        content: Option<String>,
+    }
 
     let parsed: Resp = serde_json::from_str(text)
         .map_err(|e| RawCallError::Http(format!("JSON parse error: {e}")))?;
-    parsed.choices.into_iter().next()
+    parsed
+        .choices
+        .into_iter()
+        .next()
         .and_then(|c| c.message.content)
         .ok_or(RawCallError::NoContent)
 }
@@ -362,12 +398,17 @@ fn parse_sse_lines(lines: &[String]) -> Result<String, RawCallError> {
     let mut content = String::new();
     for line in lines {
         let line = line.trim();
-        let Some(payload) = line.strip_prefix("data:") else { continue };
+        let Some(payload) = line.strip_prefix("data:") else {
+            continue;
+        };
         let payload = payload.trim();
-        if payload == "[DONE]" { break; }
+        if payload == "[DONE]" {
+            break;
+        }
         if let Ok(chunk) = serde_json::from_str::<serde_json::Value>(payload) {
             if let Some(s) = chunk
-                .get("choices").and_then(|c| c.get(0))
+                .get("choices")
+                .and_then(|c| c.get(0))
                 .and_then(|c| c.get("delta"))
                 .and_then(|d| d.get("content"))
                 .and_then(|v| v.as_str())
@@ -376,7 +417,11 @@ fn parse_sse_lines(lines: &[String]) -> Result<String, RawCallError> {
             }
         }
     }
-    if content.is_empty() { Err(RawCallError::NoContent) } else { Ok(content) }
+    if content.is_empty() {
+        Err(RawCallError::NoContent)
+    } else {
+        Ok(content)
+    }
 }
 
 fn classify_status(status: u16, url: &str) -> Result<(), RawCallError> {
@@ -384,7 +429,10 @@ fn classify_status(status: u16, url: &str) -> Result<(), RawCallError> {
         200..=299 => Ok(()),
         401 => Err(RawCallError::Auth(format!("401 Unauthorized from {url}"))),
         429 => Err(RawCallError::RateLimit),
-        s => Err(RawCallError::Server { status: s, body: String::new() }),
+        s => Err(RawCallError::Server {
+            status: s,
+            body: String::new(),
+        }),
     }
 }
 
