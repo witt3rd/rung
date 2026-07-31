@@ -82,10 +82,7 @@ pub enum ContentBlock {
     },
     /// Extended-thinking reasoning text (with a cryptographically-signed
     /// signature that must be re-submitted in multi-turn conversations).
-    Thinking {
-        thinking: String,
-        signature: String,
-    },
+    Thinking { thinking: String, signature: String },
 }
 
 /// The full structured response from one LLM call.
@@ -211,8 +208,8 @@ pub enum MessageContentBlock {
 pub struct ImageSource {
     #[serde(rename = "type")]
     pub source_type: String, // "base64"
-    pub media_type: String,  // "image/png", "image/jpeg", ...
-    pub data: String,        // base64-encoded image bytes
+    pub media_type: String, // "image/png", "image/jpeg", ...
+    pub data: String,       // base64-encoded image bytes
 }
 
 /// The content of a chat message — either simple text or a list of content blocks.
@@ -515,9 +512,7 @@ fn raw_call_anthropic(
             "low" => 1_024,
             "medium" => 8_192,
             "high" => 32_768,
-            other => {
-                other.parse::<u32>().unwrap_or(8_192)
-            }
+            other => other.parse::<u32>().unwrap_or(8_192),
         };
         body["thinking"] = serde_json::json!({
             "type": "enabled",
@@ -619,14 +614,8 @@ fn raw_call_anthropic(
         usage: Usage {
             input_tokens: parsed.usage.input_tokens.unwrap_or(0),
             output_tokens: parsed.usage.output_tokens.unwrap_or(0),
-            cache_read_input_tokens: parsed
-                .usage
-                .cache_read_input_tokens
-                .unwrap_or(0),
-            cache_creation_input_tokens: parsed
-                .usage
-                .cache_creation_input_tokens
-                .unwrap_or(0),
+            cache_read_input_tokens: parsed.usage.cache_read_input_tokens.unwrap_or(0),
+            cache_creation_input_tokens: parsed.usage.cache_creation_input_tokens.unwrap_or(0),
             thinking_tokens: parsed
                 .usage
                 .output_tokens_details
@@ -817,9 +806,10 @@ fn parse_anthropic_stream(
 
                 "message_delta" => {
                     if let Some(delta) = payload.get("delta")
-                        && let Some(sr) = delta.get("stop_reason").and_then(|v| v.as_str()) {
-                            stop_reason = map_stop_reason(Some(sr));
-                        }
+                        && let Some(sr) = delta.get("stop_reason").and_then(|v| v.as_str())
+                    {
+                        stop_reason = map_stop_reason(Some(sr));
+                    }
                     if let Some(u) = payload.get("usage") {
                         usage.output_tokens = u["output_tokens"].as_u64().unwrap_or(0) as u32;
                     }
@@ -878,16 +868,21 @@ fn raw_call_openai(
     });
 
     if !tools.is_empty() {
-        body["tools"] = serde_json::json!(tools.iter().map(|t| {
-            serde_json::json!({
-                "type": "function",
-                "function": {
-                    "name": t.name,
-                    "description": t.description,
-                    "parameters": t.input_schema,
-                }
-            })
-        }).collect::<Vec<_>>());
+        body["tools"] = serde_json::json!(
+            tools
+                .iter()
+                .map(|t| {
+                    serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": t.name,
+                            "description": t.description,
+                            "parameters": t.input_schema,
+                        }
+                    })
+                })
+                .collect::<Vec<_>>()
+        );
     }
 
     if let Some(t) = config.temperature {
@@ -997,29 +992,29 @@ fn parse_openai_json(text: &str) -> Result<LlmResponse, RawCallError> {
     // Text content
     if let Some(c) = &choice
         && let Some(ref text) = c.message.content
-            && !text.is_empty() {
-                content_blocks.push(ContentBlock::Text {
-                    text: text.clone(),
-                });
-            }
+        && !text.is_empty()
+    {
+        content_blocks.push(ContentBlock::Text { text: text.clone() });
+    }
 
     // Tool calls
     if let Some(c) = &choice
-        && let Some(tool_calls) = &c.message.tool_calls {
-            for tc in tool_calls {
-                let input: serde_json::Value = tc
-                    .function
-                    .arguments
-                    .as_ref()
-                    .and_then(|args| serde_json::from_str(args).ok())
-                    .unwrap_or(serde_json::Value::Null);
-                content_blocks.push(ContentBlock::ToolUse {
-                    id: tc.id.clone().unwrap_or_default(),
-                    name: tc.function.name.clone().unwrap_or_default(),
-                    input,
-                });
-            }
+        && let Some(tool_calls) = &c.message.tool_calls
+    {
+        for tc in tool_calls {
+            let input: serde_json::Value = tc
+                .function
+                .arguments
+                .as_ref()
+                .and_then(|args| serde_json::from_str(args).ok())
+                .unwrap_or(serde_json::Value::Null);
+            content_blocks.push(ContentBlock::ToolUse {
+                id: tc.id.clone().unwrap_or_default(),
+                name: tc.function.name.clone().unwrap_or_default(),
+                input,
+            });
         }
+    }
 
     if content_blocks.is_empty() {
         return Err(RawCallError::NoContent);
