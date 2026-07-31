@@ -675,10 +675,15 @@ fn parse_anthropic_stream(
             event_type.clear();
             event_type.push_str(rest.trim());
         } else if let Some(rest) = trimmed.strip_prefix("data: ") {
-            data = rest.to_owned();
+            // Append successive data: lines (some events span multiple).
+            if !data.is_empty() {
+                data.push('\n');
+            }
+            data.push_str(rest.trim());
         } else if trimmed.is_empty() {
             // Blank line = end of event. Process the accumulated event_type + data.
             if event_type.is_empty() || data.is_empty() {
+                data.clear();
                 continue;
             }
 
@@ -705,9 +710,15 @@ fn parse_anthropic_stream(
                     let block = &payload["content_block"];
                     let kind = block["type"].as_str().unwrap_or("");
                     current_block_kind = kind.to_owned();
-                    current_text.clear();
+                    // Capture tool_use id/name BEFORE clearing (they are needed
+                    // by the committed ContentBlock on content_block_stop).
                     current_tool_id.clear();
                     current_tool_name.clear();
+                    if kind == "tool_use" {
+                        current_tool_id = block["id"].as_str().unwrap_or("").into();
+                        current_tool_name = block["name"].as_str().unwrap_or("").into();
+                    }
+                    current_text.clear();
                     current_input_json.clear();
                     current_thinking.clear();
                     current_signature.clear();
@@ -715,8 +726,8 @@ fn parse_anthropic_stream(
                     let cb_start = match kind {
                         "text" => ContentBlockStart::Text,
                         "tool_use" => ContentBlockStart::ToolUse {
-                            id: block["id"].as_str().unwrap_or("").into(),
-                            name: block["name"].as_str().unwrap_or("").into(),
+                            id: current_tool_id.clone(),
+                            name: current_tool_name.clone(),
                         },
                         "thinking" => ContentBlockStart::Thinking,
                         _ => ContentBlockStart::Text, // fallback
@@ -825,6 +836,7 @@ fn parse_anthropic_stream(
 
                 _ => {}
             }
+            data.clear();
         }
     }
 
