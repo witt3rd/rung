@@ -239,6 +239,12 @@ pub enum MessageContentBlock {
     Text { text: String },
     #[serde(rename = "image")]
     Image { source: ImageSource },
+    #[serde(rename = "tool_use")]
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
     #[serde(rename = "tool_result")]
     ToolResult {
         tool_use_id: String,
