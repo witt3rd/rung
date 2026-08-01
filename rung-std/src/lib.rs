@@ -23,6 +23,43 @@
 //! | `temperature` | `temperature` in request body (both providers) |
 //! | `reasoning_level` | `thinking.budget_tokens` (Anthropic) / `reasoning_effort` (OpenAI o-series) |
 //!
+//! ## How this ladder uses rung's guarantees
+//!
+//! A reader new to rung should see the distinctive features in play here.
+//!
+//! - **G2 (sealed construction).** Only the entry rung `Pending::new` is public.
+//!   The `Success` / `LlmError` verdicts are built by `step` *inside* the module
+//!   — no caller can fabricate a terminal outcome. The sealed constructor is not
+//!   merely a fabrication guard; it is the free-category axiom: a verb (the HTTP
+//!   call) lives on the arrow (`step`'s body), never in object-position
+//!   (constructing a verdict from outside) — see `docs/RUNG-CT.md` §1.
+//!
+//! - **G7/G9 (recover pairing — error-path semantics).** The single recover edge
+//!   `retry: Failed(Pending) => Pending` is an **error-path** recovery (SPEC.md G9):
+//!   it re-enters with the *unconsumed token* handed back in `Failed`, and it is
+//!   deliberately **unguarded** — a retry after a transient network failure may
+//!   legitimately re-send the *identical* request. This is the mirror of Lesson 2's
+//!   verdict recover (`Stalled => Active`), which *is* guarded (G8) because a stall
+//!   loop must make progress. The two recover forms exist for different intents.
+//!
+//! - **G5 (carry immutability).** `call_id` is carried on every rung as a private
+//!   field, readable only through `&Carry`. The recover edge threads it forward
+//!   unchanged — witness data is structurally shared, never mutated in flight.
+//!
+//! - **G4 (no silent drop).** Every generated token — `Pending`, `Success`,
+//!   `LlmError`, `Failed`, `StepOutcome` — is `#[must_use]`. Dropping any of them
+//!   without consuming or recovering it is a warning, and an error under
+//!   `#![deny(unused_must_use)]`. The non-token `LlmResponse` below carries the
+//!   same attribute as a style exemplar.
+//!
+//! - **G11 (terminal payloads).** `Success(LlmResponse)` carries the structured
+//!   result out through the verdict; the caller reads it via `.payload()`.
+//!
+//! - **Streaming is a side-channel, not a rung.** The `StreamListener` receives
+//!   incremental SSE events as a read-only notification. The ladder still blocks
+//!   until the stream ends and then resolves to a verdict — streaming does not
+//!   introduce a new transition. The verb (HTTP I/O) remains on the arrow.
+//!
 //! ## Membership criteria (rung-std)
 //!
 //! This ladder is rung-std because:
@@ -86,6 +123,12 @@ pub enum ContentBlock {
 }
 
 /// The full structured response from one LLM call.
+///
+/// `#[must_use]` follows the same no-silent-drop idiom rung emits on every
+/// verdict token (SPEC.md G4): a response dropped silently loses both the
+/// model's output and the token-usage accounting. Carrying the attribute here
+/// on a non-token result type makes the pattern visible to readers.
+#[must_use = "LlmResponse carries the model's output and usage; dropping it silently loses both — handle it"]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmResponse {
     /// All content blocks in the order the model produced them.
@@ -1133,6 +1176,12 @@ ladder!(LlmCall {
           | LlmError(LlmFailure)
       }
 
+    // Error-path recovery (SPEC.md G9): `Failed(Pending)` hands the *unconsumed*
+    // token back, so `retry` re-enters with the live request. Unlike a verdict
+    // recover (`Stalled => Active`, SPEC.md G8), this edge is **unguarded** —
+    // a retry after a transient error may legitimately re-send the identical
+    // request. The external bound is `attempts_remaining`, which the recover
+    // edge decrements so the ladder cannot retry forever.
     recover {
         retry: Failed(Pending) => Pending
     }
@@ -1145,10 +1194,16 @@ ladder!(LlmCall {
                 },
             )));
         }
+        // The verb lives HERE, on the arrow (RUNG-CT §1 law): a single blocking
+        // HTTP POST. A state cannot call an endpoint — only a transition can.
         match raw_call(&pending.payload.config, &pending.payload.messages, &pending.payload.tools) {
             Ok(response) => Ok(StepOutcome::Success(Success::new(response))),
             Err(e) if e.is_retryable() => {
                 let msg = e.to_string();
+                // Hand the unspent token back in `Failed { token, error }` so the
+                // recover edge can re-enter. (This is also why a transition is a
+                // Prism, not a monad — Q7: a failing `g` hands back `B`, but the
+                // composite domain is `A`.)
                 Err(Failed { token: pending, error: msg })
             }
             Err(RawCallError::Auth(msg)) => Ok(StepOutcome::LlmError(LlmError::new(
@@ -1162,14 +1217,18 @@ ladder!(LlmCall {
 
     // Exponential backoff: 1 s, 2 s, 4 s … capped at 30 s.
     // attempt_index = DEFAULT_MAX_ATTEMPTS - attempts_remaining (0-indexed).
+    // `call_id` (G5 carry) threads forward unchanged — witness data is
+    // structurally shared, never mutated in flight.
     retry = |f| {
         let carry = f.token.carry().clone();
+        let call_id = carry.call_id.clone(); // witness data, read through &Carry
         let mut req = f.token.payload;
         let attempt_index =
             DEFAULT_MAX_ATTEMPTS.saturating_sub(req.attempts_remaining) as u32;
         req.attempts_remaining = req.attempts_remaining.saturating_sub(1);
         if req.attempts_remaining > 0 {
             let delay_ms = (1000u64.saturating_mul(1u64 << attempt_index)).min(30_000);
+            eprintln!("[rung-std] {call_id}: retrying after {delay_ms}ms (attempt {attempt_index})");
             std::thread::sleep(std::time::Duration::from_millis(delay_ms));
         }
         Pending::new(req, carry)
