@@ -119,6 +119,7 @@
 //!     // `settle` requires a Qualified<ChordReader>; none can be constructed here.
 //!     let _ = t::is_constitutive::settle(m, Verdict::Conforming);
 //! }
+//! # fn main() {}
 //! ```
 //!
 //! ### A `Qualified` token cannot be fabricated
@@ -128,13 +129,15 @@
 //!
 //! ```compile_fail
 //! use rung_het::{Qualified, Role};
-//! # #[derive(Clone, Copy)] struct R;
-//! # impl Role for R { const NAME: &'static str = "r"; }
+//! #[derive(Clone, Copy)]
+//! pub struct R;
+//! impl Role for R { const NAME: &'static str = "r"; }
 //! fn forge_a_licence() -> Qualified<R> {
 //!     Qualified { _seal: (), _not_send: std::marker::PhantomData,
 //!                 principal_id: "me".into(), principal_prov: Default::default(),
 //!                 _role: std::marker::PhantomData }
 //! }
+//! fn main() { let _ = forge_a_licence(); }
 //! ```
 //!
 //! ### A licence is spent on one sentence
@@ -161,6 +164,7 @@
 //!     let _ = t::first::settle(m, q, Verdict::Conforming);
 //!     let _ = t::second::settle(m, q, Verdict::Conforming); // q was moved
 //! }
+//! # fn main() {}
 //! ```
 //!
 //! ### A judgmental sentence must declare its role
@@ -176,6 +180,7 @@
 //! theory!(t for Doc {
 //!     judgmental is_constitutive;   // no role — refused
 //! });
+//! # fn main() {}
 //! ```
 //!
 //! ### A judgmental sentence cannot carry a body
@@ -191,6 +196,7 @@
 //! theory!(t for Doc {
 //!     judgmental is_constitutive = |m: &Doc| m.n > 0;   // refused
 //! });
+//! # fn main() {}
 //! ```
 //!
 //! Deliberately partial. Implemented: the `decidable` and `judgmental` gates,
