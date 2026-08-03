@@ -324,6 +324,13 @@ impl ChatMessage {
             content: MessageContent::Blocks(blocks),
         }
     }
+    /// Assistant message with structured content blocks (tool_use, thinking, etc.).
+    pub fn assistant_with_blocks(blocks: Vec<MessageContentBlock>) -> Self {
+        Self {
+            role: "assistant".into(),
+            content: MessageContent::Blocks(blocks),
+        }
+    }
     /// Convenience: a user-role tool-result message (Anthropic wire format).
     pub fn tool_result(tool_use_id: &str, result: &str) -> Self {
         Self {
