@@ -34,7 +34,20 @@
 //!
 //! Invented, so nothing reads as a special case of a real artifact. Two
 //! containers, each governed by its own theory — the second exists so that
-//! relocation writes into governed territory (N32h).
+//! relocation writes into governed territory (7.52).
+//!
+//! # The edits are the DOMAIN's (§11.12)
+//!
+//! `CabinetEdit` is declared **here**, in the theory, not in `rung-het`. Het
+//! requires that a remedy carry an edit (7.33) and that `enact` apply one
+//! (7.5); it does not enumerate them. A GitHub-issue theory would declare
+//! `Fix | WontFix | Duplicate`; this one declares amend, remove, relocate.
+//! Those are the same operation to Het and different acts to their domains.
+//!
+//! Consequently `enact` is generic over this type (11.2): the library cannot
+//! apply an edit it did not name, so the domain supplies the application. Het
+//! governs only *who may perform it* (3.4) and *whether the result is
+//! admitted* (7.52).
 
 use rung_het::*;
 
@@ -87,6 +100,22 @@ impl Role for Taxonomist {
     const NAME: &'static str = "taxonomist";
 }
 
+/// The cabinet's edit vocabulary — **declared by this theory, not by Het**.
+///
+/// §11.12: Het requires a remedy name an edit and does not say what edits are.
+/// A triage theory would name `WontFix { reason }`; a portfolio theory would
+/// name `Defund`. Neither is more or less Het-shaped than these three.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CabinetEdit {
+    /// The specimen stays, changed.
+    Amend { note: &'static str },
+    /// The specimen leaves the cabinet.
+    Remove,
+    /// The specimen belongs elsewhere — and elsewhere is governed too, so the
+    /// write runs the target's law (7.52).
+    Relocate { to: &'static str },
+}
+
 theory!(cabinet for Cabinet {
     decidable  all_mounted = |c: &Cabinet| c.specimens.iter().all(|s| s.mounted);
     judgmental all_in_scope: Taxonomist;
@@ -97,45 +126,76 @@ theory!(fieldbook for Fieldbook {
     judgmental all_observed: Taxonomist;
 });
 
-// The two containers, as movable populations. `admits` is each one's own law
-// run at the boundary — the write-guard (N32h), which is the pass composed
-// with itself, not new machinery.
+// ─────────────────────────────────────────────────────────────────────────
+// The domain applies its OWN edits (§11.2)
+// ─────────────────────────────────────────────────────────────────────────
 
-impl Container for Cabinet {
-    type Item = Specimen;
-    fn name(&self) -> &'static str {
-        "cabinet"
-    }
-    fn take(&mut self, id: &str) -> Option<Specimen> {
-        let i = self.specimens.iter().position(|s| s.id == id)?;
-        Some(self.specimens.remove(i))
-    }
-    fn admits(&self, _item: &Specimen) -> Option<String> {
-        None // the cabinet admits anything; its law is checked by audit
-    }
-    fn put(&mut self, item: Specimen) {
-        self.specimens.push(item);
-    }
+/// Both containers together — what an edit of this domain acts on.
+///
+/// The library cannot apply `CabinetEdit`, because it does not know what a
+/// cabinet or a fieldbook is. This impl is the theory saying what its own
+/// edits do.
+pub struct Collection {
+    pub cabinet: Cabinet,
+    pub fieldbook: Fieldbook,
 }
 
-impl Container for Fieldbook {
-    type Item = Specimen;
-    fn name(&self) -> &'static str {
-        "fieldbook"
+impl Applies<CabinetEdit> for Collection {
+    fn territory(&self) -> &'static str {
+        "cabinet"
     }
-    fn take(&mut self, id: &str) -> Option<Specimen> {
-        let i = self.notes.iter().position(|s| s.id == id)?;
-        Some(self.notes.remove(i))
-    }
-    fn admits(&self, item: &Specimen) -> Option<String> {
-        // The fieldbook's own law: a note without a locality is not a note.
-        // An edit the cabinet's judge ACCEPTED is still refused here.
-        item.locality
-            .is_none()
-            .then(|| format!("`{}` has no locality; the fieldbook requires one", item.id))
-    }
-    fn put(&mut self, item: Specimen) {
-        self.notes.push(item);
+
+    fn apply(&mut self, object: &'static str, edit: &CabinetEdit) -> Result<(), EnactError> {
+        match edit {
+            CabinetEdit::Amend { note } => {
+                let s = self
+                    .cabinet
+                    .specimens
+                    .iter_mut()
+                    .find(|s| s.id == object)
+                    .ok_or(EnactError::ObjectNotFound { object })?;
+                if *note == "mount it" {
+                    s.mounted = true;
+                }
+                Ok(())
+            }
+            CabinetEdit::Remove => {
+                let i = self
+                    .cabinet
+                    .specimens
+                    .iter()
+                    .position(|s| s.id == object)
+                    .ok_or(EnactError::ObjectNotFound { object })?;
+                self.cabinet.specimens.remove(i);
+                Ok(())
+            }
+            CabinetEdit::Relocate { to } => {
+                let i = self
+                    .cabinet
+                    .specimens
+                    .iter()
+                    .position(|s| s.id == object)
+                    .ok_or(EnactError::ObjectNotFound { object })?;
+
+                // THE WRITE-GUARD (7.52). The destination is governed too, so
+                // its own law runs before the write lands — and may refuse an
+                // edit the cabinet's judge already accepted.
+                let item = &self.cabinet.specimens[i];
+                if item.locality.is_none() {
+                    return Err(EnactError::TargetRefused {
+                        target: (*to).to_string(),
+                        reason: format!(
+                            "`{}` has no locality; the fieldbook requires one",
+                            item.id
+                        ),
+                    });
+                }
+
+                let item = self.cabinet.specimens.remove(i);
+                self.fieldbook.notes.push(item);
+                Ok(())
+            }
+        }
     }
 }
 
@@ -224,25 +284,27 @@ fn outside_pool() -> Pool<Person> {
 
 #[test]
 fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
-    let mut cab = cabinet_of(vec![
-        specimen("s1", true, Some("north ridge")),
-        specimen("s2", false, Some("south fen")), // fails decidably
-        specimen("s3", true, None),               // out of scope — belongs in the fieldbook
-    ]);
-    let mut book = Fieldbook {
-        notes: vec![],
-        keeper: "keeper",
+    let mut world = Collection {
+        cabinet: cabinet_of(vec![
+            specimen("s1", true, Some("north ridge")),
+            specimen("s2", false, Some("south fen")), // fails decidably
+            specimen("s3", true, None),               // out of scope — belongs in the fieldbook
+        ]),
+        fieldbook: Fieldbook {
+            notes: vec![],
+            keeper: "keeper",
+        },
     };
     let pool = outside_pool();
 
     // ── audit, decidable: no principal, no outside ──────────────────────
-    let mounted = cabinet::all_mounted::holds(&cab);
+    let mounted = cabinet::all_mounted::holds(&world.cabinet);
     assert!(!mounted.verdict().is_conforming());
     assert!(!mounted.consulted_outside());
 
     // ── audit, judgmental: a judge disjoint from THE OBJECT ─────────────
     let q = pool
-        .qualify::<Taxonomist>(&cab)
+        .qualify::<Taxonomist>(&world.cabinet)
         .expect("a disjoint taxonomist qualifies");
     assert_eq!(
         q.principal_id(),
@@ -250,7 +312,7 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
         "the collector authored the specimens and must be refused"
     );
     let scope = cabinet::all_in_scope::settle(
-        &cab,
+        &world.cabinet,
         q,
         Verdict::NonConforming {
             reason: "s3 is an observation, not a specimen".into(),
@@ -258,42 +320,46 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
     );
     assert!(scope.consulted_outside());
 
-    // ── propose: AUTHORIAL (N32a) — standing, not disjointness ──────────
+    // ── propose: AUTHORIAL (7.2) — standing, not disjointness ───────────
     let pen = pool
         .authorize(&CURATOR, "cabinet")
         .expect("the curator holds standing over the cabinet");
-    let relocation = Proposal::remedy(&pen, "s3", Edit::Relocate { to: "fieldbook" });
+    let relocation = Proposal::remedy(&pen, "s3", CabinetEdit::Relocate { to: "fieldbook" });
 
-    // N32b: the Proposal's provenance is its AUTHOR's, not the model's.
+    // 7.24: the Proposal's provenance is its AUTHOR's, not the model's.
     assert!(
         relocation.provenance().overlaps(&Prov::of(["curator"])),
         "a Proposal carries its author's provenance"
     );
 
-    // ── dispose: a judge disjoint from THE PROPOSAL (N6d) ───────────────
+    // ── dispose: a judge disjoint from THE PROPOSAL (3.51) ──────────────
     let qd = pool
         .qualify_for::<Taxonomist>(&relocation)
         .expect("the academy did not author this proposal");
     let ruling = dispose(&relocation, qd, Disposition::Accept);
     assert!(ruling.is_terminal() && ruling.is_affirming());
 
-    // ── enact: standing again, and the TARGET's law guards the write ────
-    let ok = enact(&mut cab, &mut book, &ruling, &pen);
+    // ── enact: standing, and the DOMAIN applies its own edit (11.2) ─────
+    let refused = enact(&mut world, &ruling, &pen);
     assert!(
-        matches!(ok, Err(EnactError::TargetRefused { .. })),
-        "s3 has no locality; the fieldbook's own law must refuse it (N32h)"
+        matches!(refused, Err(EnactError::TargetRefused { .. })),
+        "s3 has no locality; the fieldbook's own law must refuse it (7.52)"
     );
-    assert_eq!(cab.specimens.len(), 3, "a refused write changes nothing");
-    assert!(book.notes.is_empty());
+    assert_eq!(
+        world.cabinet.specimens.len(),
+        3,
+        "a refused write changes nothing"
+    );
+    assert!(world.fieldbook.notes.is_empty());
 
     // Satisfy the target's law, and the same authorized edit lands.
-    cab.specimens[2].locality = Some("east wood");
-    let landed = enact(&mut cab, &mut book, &ruling, &pen).expect("the target now admits it");
+    world.cabinet.specimens[2].locality = Some("east wood");
+    let landed = enact(&mut world, &ruling, &pen).expect("the target now admits it");
     assert_eq!(landed.moved(), "s3");
-    assert_eq!(cab.specimens.len(), 2);
-    assert_eq!(book.notes.len(), 1);
+    assert_eq!(world.cabinet.specimens.len(), 2);
+    assert_eq!(world.fieldbook.notes.len(), 1);
     assert!(
-        fieldbook::all_located::holds(&book)
+        fieldbook::all_located::holds(&world.fieldbook)
             .verdict()
             .is_conforming()
     );
@@ -321,7 +387,7 @@ fn a_judge_may_not_dispose_on_a_proposal_it_authored() {
     let pool = Pool::new(vec![INSIDER]);
 
     let pen = pool.authorize(&INSIDER, "cabinet").unwrap();
-    let p = Proposal::remedy(&pen, "s1", Edit::Amend { note: "mount it" });
+    let p = Proposal::remedy(&pen, "s1", CabinetEdit::Amend { note: "mount it" });
 
     // Disjoint from the cabinet — would have passed the old check.
     assert!(
@@ -351,7 +417,10 @@ fn an_author_may_dispute_a_verdict_without_first_authoring_a_remedy() {
     let pool = outside_pool();
     let pen = pool.authorize(&CURATOR, "cabinet").unwrap();
 
-    let d = Proposal::dispute(&pen, "s1", "the scope law does not reach this item");
+    // The edit type must still be named: a dispute proposes no edit, but it is
+    // a Proposal of THIS theory, and the theory has one edit vocabulary (11.12).
+    let d: Proposal<CabinetEdit> =
+        Proposal::dispute(&pen, "s1", "the scope law does not reach this item");
     assert!(d.is_dispute());
     assert!(
         d.edit().is_none(),
@@ -379,7 +448,7 @@ fn reject_remedy_is_non_terminal_and_the_reason_reaches_the_author() {
     let pool = outside_pool();
     let pen = pool.authorize(&CURATOR, "cabinet").unwrap();
 
-    let first = Proposal::remedy(&pen, "s2", Edit::Remove);
+    let first = Proposal::remedy(&pen, "s2", CabinetEdit::Remove);
     let q = pool.qualify_for::<Taxonomist>(&first).unwrap();
     let ruling = dispose(
         &first,
@@ -398,7 +467,7 @@ fn reject_remedy_is_non_terminal_and_the_reason_reaches_the_author() {
 
     // N32f: the re-proposal carries the chain. Without it an author can cycle
     // forever on the same objection and nothing downstream could detect it.
-    let second = first.reproposed(&pen, &ruling, Edit::Amend { note: "mount it" });
+    let second = first.reproposed(&pen, &ruling, CabinetEdit::Amend { note: "mount it" });
     assert_eq!(second.attempt(), 2);
     assert_eq!(
         second.prior_reasons(),

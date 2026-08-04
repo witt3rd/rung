@@ -707,30 +707,26 @@ impl std::fmt::Debug for Authorized<'_> {
 // Proposals — the Proponent's answer (N32a-c)
 // ─────────────────────────────────────────────────────────────────────────
 
-/// What a remedy would do to the object.
+/// **Het declares no edits.**
 ///
-/// **Het does not define this.** `propose` yields "what should be done about a
-/// non-conforming object" and the formalism never says what an edit *is*. This
-/// enum is therefore an invention of the encoding, and the first place the DSL
-/// asks Het a question rather than transcribing an answer.
+/// §11.12: Het requires that a `remedy` carry an edit (7.33) and that `enact`
+/// apply one (7.5). It does not enumerate them. `Amend | Remove | Relocate`,
+/// `Fix | WontFix | Duplicate`, `Defund` — these are their theories' and are
+/// equally Het-shaped.
 ///
-/// The three cases are what the acceptance domain needs, not what Het licenses:
+/// An earlier draft of this crate declared an `Edit` enum here. That was a
+/// domain vocabulary sitting in the library: it made the cabinet's three cases
+/// into Het's three cases, and a triage theory would have had to pretend
+/// "won't fix" was an `Amend`.
 ///
-/// - `Amend` — the object stays, changed
-/// - `Remove` — the object leaves the container
-/// - `Relocate` — the object belongs somewhere else, and *somewhere else is
-///   also governed*, so the write runs the target's law (N32h)
+/// The consequence is 11.2 — [`enact`] is **generic over the theory's edit
+/// type**, and the library cannot apply an edit it did not name. The domain
+/// supplies the application through [`Applies`]. Het governs only who may
+/// perform it (3.4) and whether the result is admitted (7.52).
 ///
-/// `Relocate` is the interesting one: it is the case that makes `enact` a
-/// two-container operation and forces the write-guard. A vocabulary without it
-/// would let the pass pretend edits are local.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Edit {
-    Amend { note: &'static str },
-    Remove,
-    Relocate { to: &'static str },
-}
-
+/// This is not a limitation worked around. A formalism that enumerated edits
+/// would be legislating domains it does not know.
+///
 /// What the Proponent says in answer to a non-conforming verdict.
 ///
 /// **N32c** — a Proposal is a *remedy* or a *dispute*. Before the dispute case
@@ -749,11 +745,11 @@ pub enum Edit {
 /// there is no term for proposing without standing.
 #[derive(Debug, Clone)]
 #[must_use = "a Proposal is the Proponent's move; dropping it forfeits the turn"]
-pub struct Proposal {
+pub struct Proposal<E> {
     object: &'static str,
     author: String,
     provenance: Prov,
-    kind: ProposalKind,
+    kind: ProposalKind<E>,
     /// Which attempt this is. 1 for a first proposal (N32f).
     attempt: usize,
     /// Reasons from prior rejections, oldest first (N32e/f).
@@ -761,12 +757,12 @@ pub struct Proposal {
 }
 
 #[derive(Debug, Clone)]
-enum ProposalKind {
-    Remedy(Edit),
+enum ProposalKind<E> {
+    Remedy(E),
     Dispute { grounds: &'static str },
 }
 
-impl Provenanced for Proposal {
+impl<E> Provenanced for Proposal<E> {
     /// N32b. A judge disposing on this must be disjoint from *this*, not from
     /// the model — which is why the provenance has to be the author's.
     fn provenance(&self) -> Prov {
@@ -774,9 +770,9 @@ impl Provenanced for Proposal {
     }
 }
 
-impl Proposal {
+impl<E: Clone> Proposal<E> {
     /// *"The verdict stands; here is the fix."*
-    pub fn remedy(pen: &Authorized<'_>, object: &'static str, edit: Edit) -> Self {
+    pub fn remedy(pen: &Authorized<'_>, object: &'static str, edit: E) -> Self {
         Self {
             object,
             author: pen.principal_id().to_string(),
@@ -811,7 +807,7 @@ impl Proposal {
     ///
     /// Takes the pen again because standing must still hold: an author who lost
     /// stewardship between attempts may not continue.
-    pub fn reproposed(&self, pen: &Authorized<'_>, ruling: &Ruling, edit: Edit) -> Self {
+    pub fn reproposed(&self, pen: &Authorized<'_>, ruling: &Ruling<E>, edit: E) -> Self {
         let mut reasons = self.prior_reasons.clone();
         if let Some(r) = ruling.reason() {
             reasons.push(r.to_string());
@@ -840,7 +836,7 @@ impl Proposal {
 
     /// The edit this proposes, if any. A dispute proposes none — there is
     /// nothing to enact.
-    pub fn edit(&self) -> Option<&Edit> {
+    pub fn edit(&self) -> Option<&E> {
         match &self.kind {
             ProposalKind::Remedy(e) => Some(e),
             ProposalKind::Dispute { .. } => None,
@@ -1066,15 +1062,15 @@ impl Disposition {
 /// someone will later want to check.
 #[derive(Debug, Clone)]
 #[must_use = "a Ruling decides what happens next; dropping it strands the object"]
-pub struct Ruling {
+pub struct Ruling<E> {
     object: &'static str,
     disposition: Disposition,
     judge: String,
     /// The edit the ruling affirms, if it affirms one.
-    edit: Option<Edit>,
+    edit: Option<E>,
 }
 
-impl Ruling {
+impl<E> Ruling<E> {
     pub fn object(&self) -> &'static str {
         self.object
     }
@@ -1094,7 +1090,7 @@ impl Ruling {
         self.disposition.reason()
     }
     /// The edit this ruling licenses, if any.
-    pub fn edit(&self) -> Option<&Edit> {
+    pub fn edit(&self) -> Option<&E> {
         self.edit.as_ref()
     }
 }
@@ -1109,11 +1105,11 @@ impl Ruling {
 ///
 /// The disposition comes from the judge. This function records it; nothing
 /// here decides.
-pub fn dispose<R: Role>(
-    proposal: &Proposal,
+pub fn dispose<R: Role, E: Clone>(
+    proposal: &Proposal<E>,
     _judge: Qualified<R>,
     disposition: Disposition,
-) -> Ruling {
+) -> Ruling<E> {
     let edit = if disposition.is_affirming() {
         proposal.edit().cloned()
     } else {
@@ -1173,10 +1169,15 @@ impl std::fmt::Display for EnactError {
 
 impl std::error::Error for EnactError {}
 
-/// A container that objects can be moved between, governed by its own law.
+/// A container governed by its own law, with a boundary that can refuse.
 ///
-/// The two methods are what a write-guard needs: take an object out, and offer
-/// one in. `admits` is the target's `⊨` — the guard itself.
+/// **Not part of Het's contract with `enact`** — a convenience for domains
+/// whose edits move objects between governed containers. `admits` is the
+/// target's `⊨` run at the boundary: the write-guard (7.52), which is the pass
+/// composed with itself (6.3), not new machinery.
+///
+/// A domain whose edits do not move anything (issue triage closing a ticket)
+/// needs none of this.
 pub trait Container {
     /// The object type this container holds.
     type Item;
@@ -1197,30 +1198,60 @@ pub trait Container {
     fn put(&mut self, item: Self::Item);
 }
 
+/// How a domain's edit is applied — **supplied by the theory, not by Het**.
+///
+/// §11.2. Het requires that `enact` apply an edit (7.5) and does not enumerate
+/// edits (11.12), so the library has nothing to dispatch on: it cannot know
+/// that `Relocate` moves and `WontFix` closes. The theory that named the edits
+/// says what they do.
+///
+/// What Het keeps is the part that is Het's: the author must hold standing
+/// (3.4), and where the result lands in governed territory that territory's
+/// law runs (7.52). Those are enforced by [`enact`] around this call, not
+/// inside it.
+///
+/// Returning [`EnactError::TargetRefused`] from `apply` is how a domain reports
+/// that its own destination declined the write. [`enact`] does not second-guess
+/// it.
+pub trait Applies<E> {
+    /// The territory this world is, as named in a standing predicate (3.4).
+    ///
+    /// `enact` checks the pen against it. Without this the pen is decorative:
+    /// an author with standing over one container could enact on another.
+    fn territory(&self) -> &'static str;
+
+    /// Apply `edit` to the object named by `object`.
+    ///
+    /// Called only after [`enact`] has confirmed the ruling affirms and the pen
+    /// authorizes. Provenance and standing are already settled; what remains is
+    /// the domain's own law and its own mechanics.
+    fn apply(&mut self, object: &'static str, edit: &E) -> Result<(), EnactError>;
+}
+
 /// The author applies a ruling — **authorial**.
 ///
 /// Requires an [`Authorized`] pen: `enact` transforms the object, and
-/// transformation demands standing over it (§2.4), never disjointness.
+/// transformation demands standing over it (3.4), never disjointness.
 ///
-/// Three refusals, in order:
+/// Het's two checks, in order:
 ///
-/// 1. the Disposition does not affirm ([`EnactError::NotAffirmed`]);
-/// 2. the pen does not cover the destination
-///    ([`EnactError::NoStandingOverTarget`]);
-/// 3. **the destination's own law refuses the object**
-///    ([`EnactError::TargetRefused`] — N32h).
+/// 1. the Disposition affirms ([`EnactError::NotAffirmed`]);
+/// 2. the pen authorizes this territory
+///    ([`EnactError::NoStandingOverTarget`]).
 ///
-/// The third is the one worth noticing. A ruling can be terminal *and*
-/// affirming and the edit still not land, because the target is governed too.
-pub fn enact<S, T>(
-    source: &mut S,
-    target: &mut T,
-    ruling: &Ruling,
+/// Then the domain applies its own edit. Whatever the domain's law refuses —
+/// including a destination that declines an already-authorized write (7.52) —
+/// comes back as [`EnactError::TargetRefused`].
+///
+/// **The library performs no edit.** It cannot: it does not know what the
+/// theory's edits are. That is 11.2, and it is the whole shape of the split.
+pub fn enact<E, W>(
+    world: &mut W,
+    ruling: &Ruling<E>,
     pen: &Authorized<'_>,
 ) -> Result<Enacted, EnactError>
 where
-    S: Container,
-    T: Container<Item = S::Item>,
+    W: Applies<E>,
 {
     if !ruling.is_affirming() {
         return Err(EnactError::NotAffirmed {
@@ -1228,47 +1259,24 @@ where
         });
     }
 
-    match ruling.edit() {
-        Some(Edit::Relocate { to }) => {
-            if pen.over() != *to && pen.over() != source.name() {
-                return Err(EnactError::NoStandingOverTarget {
-                    author: pen.principal_id().to_string(),
-                    target: (*to).to_string(),
-                });
-            }
-            // Take, test against the TARGET's law, and put it back if refused.
-            let item = source
-                .take(ruling.object())
-                .ok_or(EnactError::ObjectNotFound {
-                    object: ruling.object(),
-                })?;
-
-            if let Some(reason) = target.admits(&item) {
-                source.put(item); // a refused write changes nothing
-                return Err(EnactError::TargetRefused {
-                    target: (*to).to_string(),
-                    reason,
-                });
-            }
-            target.put(item);
-            Ok(Enacted {
-                object: ruling.object(),
-            })
-        }
-        Some(Edit::Remove) => {
-            source
-                .take(ruling.object())
-                .ok_or(EnactError::ObjectNotFound {
-                    object: ruling.object(),
-                })?;
-            Ok(Enacted {
-                object: ruling.object(),
-            })
-        }
-        Some(Edit::Amend { .. }) | None => Ok(Enacted {
-            object: ruling.object(),
-        }),
+    if pen.over() != world.territory() {
+        return Err(EnactError::NoStandingOverTarget {
+            author: pen.principal_id().to_string(),
+            target: world.territory().to_string(),
+        });
     }
+
+    let Some(edit) = ruling.edit() else {
+        // A dispute affirms nothing to enact (7.3).
+        return Ok(Enacted {
+            object: ruling.object(),
+        });
+    };
+
+    world.apply(ruling.object(), edit)?;
+    Ok(Enacted {
+        object: ruling.object(),
+    })
 }
 
 /// Evidence that an edit landed.
