@@ -401,3 +401,109 @@ fn empty_provenance_overlaps_nothing() {
     assert!(!Prov::empty().overlaps(&Prov::of(["augur"])));
     assert!(!Prov::of(["augur"]).overlaps(&Prov::empty()));
 }
+
+// ═════════════════════════════════════════════════════════════════════════
+// R2 — the outside supplies the verdict (judgment-provenance-is-the-judges)
+// ═════════════════════════════════════════════════════════════════════════
+//
+// Until R2, `settle(model, q, v: Verdict)` took the verdict as a **parameter**
+// and no method of `Principal` returned one. So a caller could compute a
+// verdict from the model's own carrier and hand it in, and the receipt would
+// name a judge that was never asked — `constant-arrow-hazard`, live, on the
+// path that carries the shape of a disposition end to end.
+//
+// Three things are asserted below, and they are the three joints of the chain:
+// the oracle is what speaks, the seal is what carries who spoke, and `settle`
+// is where the two are required to be the same principal.
+
+/// A principal that always rules against. The point is that *it* decides — the
+/// caller of `settle` has no parameter through which to say otherwise.
+pub struct Contrarian;
+
+impl Principal for Contrarian {
+    fn capable(&self, role_name: &str) -> bool {
+        role_name == ChordReader::NAME
+    }
+    fn id(&self) -> &str {
+        "contrarian"
+    }
+    fn authored(&self) -> Prov {
+        Prov::empty()
+    }
+    fn rule(&self, matter: &str) -> Verdict {
+        Verdict::NonConforming {
+            reason: format!("`{matter}` does not hold, and I am the one asked"),
+        }
+    }
+}
+
+#[test]
+fn the_verdict_comes_from_the_oracle_and_not_from_the_caller() {
+    let m = doc_by(&["augur"]);
+    let pool = Pool::new(vec![Contrarian]);
+    let (q, judgment) = pool
+        .consult::<ChordReader>(&m, "is_constitutive")
+        .expect("the contrarian is capable and disjoint from augur");
+
+    // Nothing in this test states a verdict. There is no parameter for one.
+    let settled = soul::is_constitutive::settle(&m, q, judgment)
+        .expect("licence and judgment are the same principal's");
+
+    assert!(
+        !settled.verdict().is_conforming(),
+        "the settled verdict is the one `Principal::rule` returned; the caller \
+         never supplied it and cannot"
+    );
+}
+
+#[test]
+fn a_judgment_rendered_by_another_principal_is_refused() {
+    // Both principals are real, both are capable, both are disjoint from the
+    // document. Nothing here is forged: the licence was honestly minted for
+    // `forge`, and the judgment was honestly rendered by `bellows`. What is
+    // wrong is the *pairing* — the receipt would name a judge that did not
+    // rule on this, which is the constant arrow wearing a second disguise.
+    let m = doc_by(&["augur"]);
+    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
+    let (q, _forges_own) = pool
+        .consult::<ChordReader>(&m, "is_constitutive")
+        .expect("forge qualifies");
+
+    let bellows = judge("bellows", &["bellows"], &[ChordReader::NAME]);
+    let borrowed = bellows.judgment("is_constitutive");
+
+    match soul::is_constitutive::settle(&m, q, borrowed) {
+        Err(rung_het::SettleError::OutcomeNotFromJudge(e)) => {
+            assert_eq!(e.licensed, "forge");
+            assert_eq!(e.ruled, "bellows");
+        }
+        other => panic!(
+            "π(f(a)) ⊆ π(p) is asserted where the judgment is spent; got {other:?}"
+        ),
+    }
+}
+
+#[test]
+fn a_settled_receipt_carries_the_judges_provenance() {
+    // The payoff, and the reason no disjointness epilogue is needed:
+    //   π(f(a)) ⊆ π(p)  ∧  π(p) ∩ π(a) = ∅  ⟹  π(f(a)) ∩ π(a) = ∅
+    // The first conjunct is what `settle` asserts; the second is what G13's
+    // mint already guaranteed. Output admissibility is the conclusion.
+    let m = doc_by(&["augur"]);
+    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
+    let (q, judgment) = pool
+        .consult::<ChordReader>(&m, "is_constitutive")
+        .expect("forge qualifies");
+
+    let judged = judgment.provenance();
+    assert!(judged.contains("forge"));
+    assert!(
+        !judged.overlaps(&m.provenance()),
+        "admissibility-subcategories: π(f(a)) ∩ π(a) = ∅, derived rather than \
+         checked — the outcome carries π(p), and π(p) ∩ π(a) = ∅ was the \
+         condition the licence was minted under"
+    );
+
+    let settled = soul::is_constitutive::settle(&m, q, judgment).expect("same principal");
+    assert!(settled.consulted_outside());
+}

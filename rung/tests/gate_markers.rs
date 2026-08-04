@@ -624,12 +624,6 @@ fn two_markers_on_one_transition_are_refused() {
 /// attribute and be told. Until then a green suite must not read as a claim
 /// that gate-faithfulness holds.
 #[test]
-#[ignore = "GAP, not a bug: rung constrains a judgmental arrow's ARGUMENT (G12 \
-            + G13) and never its RETURN. Closing this needs a guarantee that \
-            checks π(f(a)) ∩ π(a) = ∅ on the way out — `Prov::contained_in` \
-            exists and nothing calls it. This is Q11's load-bearing blocker; \
-            see docs/questions/open/q11-gate-faithfulness.md. Unpark by \
-            deleting this attribute once such a guarantee exists."]
 fn a_judgmental_arrow_may_not_return_the_provenance_it_judged() {
     let pool = pool();
     let spec = SpecData("drafter");
@@ -647,4 +641,49 @@ fn a_judgmental_arrow_may_not_return_the_provenance_it_judged() {
          Kl_judg(P) = {{ f : π(f(a)) ∩ π(a) = ∅ }}. This one returned a value \
          carrying π(a) itself, and every gate rung has passed it"
     );
+}
+
+// ── the epilogue (R2) — a body cannot choose the outcome's provenance ───────
+//
+// `Launder` is `constant-arrow-hazard` written as a ladder: a judgmental
+// transition whose body returns the argument it was handed, unchanged. Under
+// G12 + G13 alone this arrow is well-marked, well-signed, and holds an honest
+// licence bound to the very argument it is applied to — and it launders π(a)
+// straight back out. It is the `settle(model, q, v)` hazard on the arrow
+// surface: the value is drawn from `M`'s own carrier.
+//
+// The injected epilogue asserts `π(f(a)) ⊆ π(p)` on the way out, the mirror of
+// the prologue's binding check on the way in. `{drafter}` is not contained in
+// `{rita}`, so the arrow does not complete.
+
+#[derive(Clone, PartialEq)]
+struct Whisper(&'static str);
+
+impl Provenanced for Whisper {
+    fn provenance(&self) -> Prov {
+        Prov::of([self.0])
+    }
+}
+
+ladder!(Launder {
+    Heard(Whisper)
+        => #[judgmental(Reviewer)] Repeated(Whisper)
+        => { Filed }
+} impl {
+    // c_j : a ↦ η(j), with j drawn from the argument itself.
+    repeated = |heard, _q| { Repeated::new(heard.payload) },
+    step     = |_repeated| { Ok(StepOutcome::Filed(Filed::new())) },
+});
+
+#[test]
+#[should_panic(expected = "π(f(a)) ⊄ π(p)")]
+fn the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render() {
+    let pool = pool();
+    let heard = Whisper("drafter");
+    let licence: Qualified<Reviewer> = pool
+        .qualify_for(&heard)
+        .expect("rita is disjoint from the drafter");
+
+    // Every gate on the way in is satisfied. The way out is where this fails.
+    let _ = launder::repeated(launder::Heard::new(heard), licence);
 }
