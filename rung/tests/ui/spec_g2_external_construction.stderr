@@ -1,0 +1,14 @@
+error[E0624]: associated function `new` is private
+  --> tests/ui/spec_g2_external_construction.rs:33:27
+   |
+21 | / ladder!(Demo {
+22 | |     Spec(SpecData) => Active(LoopData) => { Done | Retry => Active }
+23 | |     recover { retry: Retry => Active }
+24 | | } impl {
+...  |
+27 | |     retry  = |retry| { retry.into_source() },
+28 | | });
+   | |__- private associated function defined here
+...
+33 |       let _ = demo::Active::new(LoopData);
+   |                             ^^^ private associated function

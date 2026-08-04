@@ -2,7 +2,7 @@
 
 *A question is a bet that some resolution will hold. This is where each one lives until it does.*
 
-Every open question about advancing the ladder language gets its own document here, so it can **receive an answer over time** rather than living as a bullet buried in a design doc where it is easy to lose and impossible to track. When a question resolves, its answer **folds upward** into the normative surfaces — `SPEC.md` (the guarantees), `RUNG-CT.md` (the theory), the macro itself — and the question document records *that it happened, and where.*
+Every open question about advancing the ladder language gets its own document here, so it can **receive an answer over time** rather than living as a bullet buried in a design doc where it is easy to lose and impossible to track. When a question resolves, its answer **folds upward** into the normative surfaces — `rung-props.md` (the guarantees), `RUNG-CT.md` (the theory), the macro itself — and the question document records *that it happened, and where.*
 
 This is the `outer-loop/bets/` and `augur/genesis/meta/questions/` pattern, applied to rung itself. The same laws that keep those registries from decaying into a bitbucket apply here. rung is a language for declaring the objects and legal arrows of a category; this registry is the same discipline pointed at rung's own frontier — and, fittingly, its own lifecycle (`open → resolved`) is itself a ladder.
 
@@ -21,13 +21,13 @@ docs/questions/
                 the file stays out of resolved/.
 ```
 
-Moving a file between folders is the lifecycle. Git history records every transition for free. Each question keeps its stable **Q-number** as an ID (referenced from `RUNG-CT.md`, `SPEC.md`, and the handoff) — the number is the anchor; the folder is the status.
+Moving a file between folders is the lifecycle. Git history records every transition for free. Each question keeps its stable **Q-number** as an ID (referenced from `RUNG-CT.md`, `rung-props.md`, and the handoff) — the number is the anchor; the folder is the status.
 
 **How a question gets *in* is [`INTAKE.md`](INTAKE.md)** — the capture door (the *front half* of the lifecycle this README specifies). It names the three-part "worth filing" test, the filing procedure, and rung's two doors: *captured* (a question surfaces in lived work) and *generated* (`_map.md`'s growth tower predicts the next one). This README is the back half; INTAKE is the front.
 
 ## The three laws
 
-1. **A question is not resolved until its answer has changed something normative.** Moving a file to `resolved/` requires that the resolution actually landed in `SPEC.md`, `RUNG-CT.md`, or the macro — wherever it belongs. The resolution document records *what changed and where*. A question doc that says "answered" but points nowhere is not resolved; it is just a doc that stopped being maintained.
+1. **A question is not resolved until its answer has changed something normative.** Moving a file to `resolved/` requires that the resolution actually landed in `rung-props.md`, `RUNG-CT.md`, or the macro — wherever it belongs. The resolution document records *what changed and where*. A question doc that says "answered" but points nowhere is not resolved; it is just a doc that stopped being maintained.
 
 2. **This registry tracks; the normative surfaces receive.** The question documents are the audit trail — what was asked, when, and how it resolved. The *answer itself* lives in the guarantee, the spec section, or the code it changed, cited back to the question. Do not let a question document become a second home for a rule the spec owns; that is how you get two sources of truth that drift.
 
@@ -49,6 +49,7 @@ Moving a file between folders is the lifecycle. Git history records every transi
 | Q8 | The async driver (a free-standing feature, per Q7's resolution) | **open** |
 | Q9 | The dependency superstructure — what overlays the ladder level? | **resolved** — a **Grothendieck opfibration** of dependent optics |
 | Q10 | Is the registry structure fractal? (does the Q9 opfibration iterate up a domain hierarchy?) | **resolved** — an **iterated Grothendieck opfibration** of dependent optics (registry is fractal) |
+| Q11 | Gate-faithfulness (a ladder has no gate marker, so nothing checks that a transition is what it claims) | **open** |
 
 **The growth tower** (`morphisms → functors in Cat → natural transformations in Fun`) and the CT-map-as-question-generator live in `_map.md` — the category theory is the principled source of the growth questions, not an ad-hoc list.
 
@@ -60,7 +61,7 @@ Moving a file between folders is the lifecycle. Git history records every transi
 
 Questions are not independent. When Q7 resolved, three things rested on it and had to be re-examined: RUNG-CT §6 (which used its framing), the blocking-client decision (justified by it being unresolved), and Q8 (spawned by the resolution). Today those edges live only in prose — legible to a human re-reading every file, invisible to any traversal. That is a **tears-in-rain** gap one level up: the cascade is caught only if a hot-context reader happens to remember it.
 
-The full vocabulary and its rationale are in [`../EDGES.md`](../EDGES.md); the quickstart follows. Each file carries **typed dependency edges** in frontmatter:
+Each file carries **typed dependency edges** in frontmatter:
 
 ```yaml
 ---
@@ -94,4 +95,4 @@ python _reach.py --graph     # the whole typed edge list
 
 The implementation is deliberately minimal — frontmatter + a stdlib script, preserving "clone and read, no service to run." It is honest at this scale (SQLite next, a real graph store eventually, if the registry ever outgrows the filesystem). **The model is what matters, not the store:** the registry is a *graph of typed relationships between items*, and propagation is *typed reachability*. That model outlives whatever holds it.
 
-> **This is a Level-1 structure.** The growth tower in `_map.md` names it: Level 0 is arrows *within* a category (a transition); Level 1 is arrows in **Cat** (functors — maps between whole structures). A dependency is an arrow between *items*, not within one — the registry itself is a Level-1 object. The tower predicted it. **What that superstructure *is* precisely is now resolved (Q9): a Grothendieck opfibration whose fibres are the per-item ladders and whose typed edges are dependent optics** — the Q7 Prism result, one level up. See `resolved/q9-the-dependency-superstructure.md` (folded into `../RUNG-CT.md` §10 and `../EDGES.md`); `_reach.py` computes its deflationary boolean shadow.
+> **This is a Level-1 structure.** The growth tower in `_map.md` names it: Level 0 is arrows *within* a category (a transition); Level 1 is arrows in **Cat** (functors — maps between whole structures). A dependency is an arrow between *items*, not within one — the registry itself is a Level-1 object. The tower predicted it. **What that superstructure *is* precisely is now resolved (Q9): a Grothendieck opfibration whose fibres are the per-item ladders and whose typed edges are dependent optics** — the Q7 Prism result, one level up. See `resolved/q9-the-dependency-superstructure.md` (folded into `../rung-ct-props.md` §11); `_reach.py` computes its deflationary boolean shadow.

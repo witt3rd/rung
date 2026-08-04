@@ -1,0 +1,11 @@
+error: duplicate carry field `budget`
+  --> tests/ui/spec_rule1_duplicate_carry.rs:13:1
+   |
+13 | / ladder!(Bad {
+14 | |     carry { budget: u32, budget: u32 }
+15 | |
+16 | |     Start(S) => Working(L) => { Done }
+17 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)

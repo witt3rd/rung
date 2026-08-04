@@ -1,0 +1,10 @@
+error: RecoverEdge `unstall`: to_rung `Nonexistent` not declared
+  --> tests/ui/spec_rule5_recover_edge_target.rs:15:1
+   |
+15 | / ladder!(Bad {
+16 | |     Start(S) => Working(L) => { Stalled => Working }
+17 | |     recover { unstall: Stalled => Nonexistent }
+18 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)

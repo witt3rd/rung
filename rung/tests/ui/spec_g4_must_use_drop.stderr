@@ -1,0 +1,16 @@
+error: unused `Converged` that must be used
+  --> tests/ui/spec_g4_must_use_drop.rs:27:5
+   |
+27 |     demo::Converged::new();
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)
+note: the lint level is defined here
+  --> tests/ui/spec_g4_must_use_drop.rs:14:9
+   |
+14 | #![deny(unused_must_use)]
+   |         ^^^^^^^^^^^^^^^
+help: use `let _ = ...` to ignore the resulting value
+   |
+27 |     let _ = demo::Converged::new();
+   |     +++++++

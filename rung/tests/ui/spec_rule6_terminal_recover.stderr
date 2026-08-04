@@ -1,0 +1,10 @@
+error: terminal verdict `Done` has RecoverEdge `revive`
+  --> tests/ui/spec_rule6_terminal_recover.rs:14:1
+   |
+14 | / ladder!(Bad {
+15 | |     Start(S) => Working(L) => { Done }
+16 | |     recover { revive: Done => Working }
+17 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)

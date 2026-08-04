@@ -1,0 +1,10 @@
+error: RecoverEdge `unstall`: from_verdict `Stalled` not declared on any transition
+  --> tests/ui/spec_rule7_unknown_verdict.rs:13:1
+   |
+13 | / ladder!(Bad {
+14 | |     Start(S) => Working(L) => { Done }
+15 | |     recover { unstall: Stalled => Working }
+16 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)

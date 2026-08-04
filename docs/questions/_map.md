@@ -5,7 +5,7 @@ principled categorical ascent. Referenced from the registry README.*
 
 ## The category-theory map as a question generator
 
-[`RUNG-CT.md`](../RUNG-CT.md) is not decoration — its structure predicts features.
+[`rung-ct-props.md`](../rung-ct-props.md) is not decoration — its structure predicts features.
 The **growth** questions (Axis 2) all come from one place: the standard
 categorical **ascent**, where each level is "the arrows of the category one level
 up." That tower, not an ad-hoc feature list, is the principled generator.
@@ -23,8 +23,7 @@ functor situation: the outer arrow (`open → resolved`) is *witnessed by* the i
 ladder reaching its terminal. That witnessing relationship is what Q4 formalizes.
 (ii) The *dependency* structure between whole items is a second, distinct Level-1 object —
 a **Grothendieck opfibration** whose fibres are the Level-0 ladders and whose typed edges
-are dependent optics. That is **Q9** (resolved 2026-07-18; folded into `RUNG-CT.md` §10 and
-`EDGES.md`). (iii) That opfibration **iterated up a domain hierarchy** — `q ∘ p : E → B′`,
+are dependent optics. That is **Q9** (resolved 2026-07-18; folded into `../rung-ct-props.md` §11). (iii) That opfibration **iterated up a domain hierarchy** — `q ∘ p : E → B′`,
 opfibrations composing into one composite opfibration — is a third, distinct Level-1 object.
 That is **Q10** (resolved 2026-07-19; the registry is fractal, folded into `RUNG-CT.md` §10).
 Three different arrows-in-**Cat**, all genuinely Level 1.

@@ -4,7 +4,7 @@
 //! module (rung/verdict structs, the `StepOutcome` enum, and — with an inline
 //! `impl { .. }` block — the transition/recover functions). The borrow checker
 //! enforces linear consumption; the macro enforces structural correctness.
-//! See `SPEC.md` for the normative rules.
+//! See `rung-props.md` for the normative rules.
 
 use proc_macro::TokenStream;
 use quote::{ToTokens, format_ident, quote};
@@ -52,6 +52,115 @@ struct Transition {
     // None if branching (has verdicts instead)
     to_rung: Option<Ident>,
     verdicts: Vec<Verdict>,
+    /// The gate marker on this transition's *target*, if any (rung-props.md §1).
+    ///
+    /// `None` ⇒ unmarked, which reads as *decidable* and emits byte-for-byte
+    /// what it emitted before markers existed.
+    ///
+    /// The fourth gate never reaches here — `#[conditional(..)]` is refused at
+    /// parse time.
+    gate: Option<Gate>,
+}
+
+/// A gate marker, and the competence role it declares.
+///
+/// Two variants rather than one with a token-type field, because the two gates
+/// are not one mechanism parameterized by a name. They select **opposite**
+/// conditions over one pool (one-pool-two-filters): the judgmental filter
+/// demands provenance disjointness from the argument, the authorial filter
+/// demands capability plus standing over the container the subject sits in
+/// (authorial-qualifying-set, judgment-refuses-authorship-requires). They
+/// therefore emit different parameter types *and* different prologues, and
+/// nothing downstream may treat one as a spelling of the other.
+enum Gate {
+    /// `#[judgmental(R)]` — the transition takes `::rung::Qualified<R>`.
+    Judgmental(Type),
+    /// `#[authorial(R)]` — the transition takes `::rung::Authorized<'_, R>`.
+    Authorial(Type),
+}
+
+/// Parse the optional gate marker in front of a transition target.
+///
+/// The marker annotates the **target** rung, because a forward transition is
+/// named after its target (rung-props.md §1, "Transition naming"):
+///
+/// ```text
+/// Spec(SpecData)
+///   => #[judgmental(Reviewer)] Active(LoopState)
+///   => #[judgmental(Judge)] { Converged(Report) | Stalled => Active }
+///
+/// Filed(Sheet)
+///   => #[authorial(Curator)] Revised(Sheet)
+/// ```
+///
+/// Returns the gate and its declared competence role, or `None` when unmarked.
+fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Gate>> {
+    if !input.peek(Token![#]) {
+        return Ok(None);
+    }
+    let attrs = input.call(syn::Attribute::parse_outer)?;
+    if attrs.len() > 1 {
+        return Err(syn::Error::new(
+            attrs[1].span(),
+            "a transition carries at most one gate marker: Het's four gates are \
+             alternatives, not a set (see rung-het-props.md#four-gates)",
+        ));
+    }
+    let attr = &attrs[0];
+    let Some(gate) = attr.path().get_ident().map(|i| i.to_string()) else {
+        return Err(syn::Error::new(
+            attr.span(),
+            "unknown gate marker; the markers `ladder!` implements are \
+             `#[judgmental(Role)]` and `#[authorial(Role)]`",
+        ));
+    };
+
+    match gate.as_str() {
+        "judgmental" => match &attr.meta {
+            syn::Meta::List(list) => Ok(Some(Gate::Judgmental(list.parse_args::<Type>()?))),
+            _ => Err(syn::Error::new(
+                attr.span(),
+                "`#[judgmental]` must name the competence role it requires — write \
+                 `#[judgmental(Role)]`. A judgmental operation declares the role \
+                 needed to discharge it (rung-het-props.md#judgmental-declares-role); \
+                 an unnamed role cannot resolve a judge, so there is no signature \
+                 to emit.",
+            )),
+        },
+        "authorial" => match &attr.meta {
+            syn::Meta::List(list) => Ok(Some(Gate::Authorial(list.parse_args::<Type>()?))),
+            _ => Err(syn::Error::new(
+                attr.span(),
+                "`#[authorial]` must name the competence role it requires — write \
+                 `#[authorial(Role)]`. An authorial operation declares a standing \
+                 predicate (rung-het-props.md#authorial-declares-standing), and \
+                 its qualifying set is a conjunction — capable(p, role(o)) AND \
+                 standing(p, M) (rung-het-props.md#authorial-qualifying-set). A \
+                 marker naming no role can witness only the right conjunct, and a pen \
+                 that witnessed standing alone would make the competence filter \
+                 decorative.",
+            )),
+        },
+        "conditional" => Err(syn::Error::new(
+            attr.span(),
+            "`#[conditional(..)]` is not yet supported — it is the one gate of the \
+             four that `ladder!` does not implement. Het classifies a conditional \
+             gate per model, one level up (rung-het-props.md#classifier-one-level-up), \
+             while `ladder!`'s checks run at expansion time against a single \
+             declaration; the two do not yet meet. `#[judgmental(Role)]` and \
+             `#[authorial(Role)]` are implemented. This is what remains of Q11's \
+             second blocker — see docs/questions/open/q11-gate-faithfulness.md.",
+        )),
+        other => Err(syn::Error::new(
+            attr.span(),
+            format!(
+                "unknown gate marker `{other}`; the markers `ladder!` implements \
+                 are `#[judgmental(Role)]` and `#[authorial(Role)]`. An unmarked \
+                 transition reads as `decidable` and takes neither a qualifying \
+                 token nor a pen."
+            ),
+        )),
+    }
 }
 
 struct Verdict {
@@ -235,7 +344,7 @@ impl Parse for Ladder {
                     ));
                 }
             } else {
-                // Spine: `rung ( "=>" rung )* "=>" "{" verdicts "}"` (SPEC.md §1).
+                // Spine: `rung ( "=>" rung )* "=>" "{" verdicts "}"` (rung-props.md §1).
                 // Parse the first rung, then loop over forward hops until a verdict
                 // block terminates the spine. Each hop `=> Next` adds a rung and a
                 // forward transition named after its target (lowercased); a `=> { .. }`
@@ -252,14 +361,21 @@ impl Parse for Ladder {
                 while content.peek(Token![=>]) {
                     content.parse::<Token![=>]>()?;
 
+                    // The gate marker sits between the `=>` and the target it
+                    // annotates — which is also the transition it names.
+                    let gate = parse_gate_marker(&content)?;
+
                     if content.peek(syn::token::Brace) {
-                        // Verdict branching terminates the spine.
+                        // Verdict branching terminates the spine. It is markable
+                        // too: the branching transition is the `dispose` position
+                        // of Het's pass, and that is a judgmental arrow.
                         let verdicts = parse_verdict_block(&content)?;
                         transitions.push(Transition {
                             name: format_ident!("step"),
                             from_rung: cur_name.clone(),
                             to_rung: None,
                             verdicts,
+                            gate,
                         });
                         break;
                     }
@@ -278,6 +394,7 @@ impl Parse for Ladder {
                         from_rung: cur_name.clone(),
                         to_rung: Some(next_name.clone()),
                         verdicts: vec![],
+                        gate,
                     });
                     cur_name = next_name;
                 }
@@ -522,6 +639,25 @@ fn check(ladder: &Ladder) -> Result<(), String> {
 
 // ── code generator ──────────────────────────────────────────────────────────
 
+/// The identifier a closure input binds, for use in an *expression* position.
+///
+/// `arg_pat` splices a closure input into a parameter list, where `spec: Spec`
+/// is legal. An injected prologue needs the binding alone. Falls back to
+/// `default` when the input is absent or is not a plain (possibly typed)
+/// identifier — the same fallback the parameter list uses, so the two agree.
+fn pat_binding(input: Option<&syn::Pat>, default: &str) -> Ident {
+    fn ident_of(p: &syn::Pat) -> Option<Ident> {
+        match p {
+            syn::Pat::Ident(pi) => Some(pi.ident.clone()),
+            syn::Pat::Type(pt) => ident_of(&pt.pat),
+            _ => None,
+        }
+    }
+    input
+        .and_then(ident_of)
+        .unwrap_or_else(|| Ident::new(default, proc_macro2::Span::call_site()))
+}
+
 fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     let mod_name = format_ident!("{}", ladder.name.to_string().to_lowercase());
     let mod_vis = quote! { pub };
@@ -556,7 +692,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             let name = &r.name;
             let payload = &r.payload_type;
             let is_entry = entry_name.as_deref() == Some(&name.to_string());
-            // Constructor visibility (SPEC.md G2):
+            // Constructor visibility (rung-props.md G2):
             //   - With an inline `impl { .. }` block, transition bodies live INSIDE
             //     the module, so only the *entry* rung needs a public constructor
             //     (to start a run). Every downstream rung's `new` is module-private —
@@ -587,14 +723,14 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 // or `&#name` cannot cross a thread boundary, so two threads can never
                 // drive a transition on the same logical token. Rust's move semantics
                 // enforce one-consumer for owned values; this closes the shared-reference
-                // hole (SPEC.md G3). Constructed inside the module alongside `_seal`.
+                // hole (rung-props.md G3). Constructed inside the module alongside `_seal`.
                 //
                 // `#[must_use]`: Rust types are affine (may be silently dropped), but the
                 // linear-token contract is "consumed *exactly* once". Move semantics give
                 // "at most once"; this attribute guards "at least once" — dropping a live
                 // rung without advancing it or returning it in a `Failed` is a warning
                 // (an error under `#![deny(unused_must_use)]`). Closes the no-silent-drop
-                // half of linearity without waiting on language-level linear types (SPEC.md §5).
+                // half of linearity without waiting on language-level linear types (rung-props.md §5).
                 #[must_use = "a rung token must be consumed by a transition or returned in a Failed; dropping it silently abandons the ladder run"]
                 pub struct #name {
                     _seal: (),
@@ -629,7 +765,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     };
 
     // ── Verdict structs (sealed, !Send, constructible) ───────────────────
-    // Verdicts are outcome tokens, held to the same seal as rungs (SPEC.md G3):
+    // Verdicts are outcome tokens, held to the same seal as rungs (rung-props.md G3):
     // private `_seal` + `_not_send: PhantomData<*const ()>`.
     // A *recoverable* verdict additionally carries the rung it was produced from
     // (`source`), so its recover edge has the full prior context to re-enter with —
@@ -639,7 +775,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         .iter()
         .flat_map(|t| {
             let from_rung = t.from_rung.clone();
-            // Verdict constructors follow the same SPEC.md G2 visibility rule as rungs:
+            // Verdict constructors follow the same rung-props.md G2 visibility rule as rungs:
             // module-private when transition bodies are inline (they build verdicts
             // in-module), `pub` for a type-only declaration.
             let vctor_vis = if has_bodies { quote! {} } else { quote! { pub } };
@@ -757,8 +893,8 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     // ── Transition + recover bodies (inline `impl { .. }` form) ──────────
     // When an `impl { .. }` block is present, the transition/recover bodies expand
     // as `pub fn`s INSIDE the module. Because they live inside the seal boundary,
-    // they use the now-private constructors (no external fabrication, SPEC.md G2) and the
-    // macro wraps each recover body with the progress guard (SPEC.md G8 enforced, not by
+    // they use the now-private constructors (no external fabrication, rung-props.md G2) and the
+    // macro wraps each recover body with the progress guard (rung-props.md G8 enforced, not by
     // convention). There is no `Transitions` trait — one API surface.
     let body_for =
         |n: &str| -> Option<&TransitionBody> { ladder.bodies.iter().find(|b| b.name == n) };
@@ -779,6 +915,110 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             other => quote! { { #other } },
         }
     };
+    // The closure body's *statements*, for splicing after an injected prologue.
+    // A block body contributes its statements directly (rather than nesting a
+    // block inside the fn body, which would trip `unused_braces` when the body
+    // is a single expression); anything else contributes itself as the tail.
+    let fn_body_stmts = |c: &syn::ExprClosure| -> proc_macro2::TokenStream {
+        match &*c.body {
+            syn::Expr::Block(eb) => {
+                let stmts = &eb.block.stmts;
+                quote! { #(#stmts)* }
+            }
+            other => quote! { #other },
+        }
+    };
+
+    // The gate parameter, appended to a marked transition's signature.
+    //
+    // THE ENFORCING LINE is the `None => quote! {}` arm: an unmarked transition
+    // contributes an empty token stream, so its emitted signature is identical
+    // to what it was before gate markers existed. Everything downstream of this
+    // function is shared by both cases.
+    //
+    // For `#[judgmental(R)]` the parameter is `::rung::Qualified<R>`, taken **by
+    // value** — a judgment licence is spent on the arrow it was minted for. The
+    // token has no constructor outside `Pool::qualify`, so a marked transition
+    // cannot be called without one, and an unmarked one has no parameter that
+    // could admit one. Mis-marking is then not a claim that could be false; it
+    // is a signature the compiler either accepts or does not.
+    //
+    // For `#[authorial(R)]` it is `::rung::Authorized<'_, R>` — a **different
+    // type**, not the same token renamed. The two gates are opposite conditions
+    // over one pool (one-pool-two-filters), so the two signatures are as
+    // separate from each other as either is from the unmarked one: a pen cannot
+    // be passed where a licence is asked for, or the reverse, and rustc says so
+    // without knowing what either word means.
+    //
+    // The token's name comes from the body's *second* closure input when there
+    // is one (`active = |spec, q| { .. }`), so a body can read the judge off it;
+    // otherwise it is bound to `_q` (judgmental) or `_pen` (authorial) and
+    // consumed unread.
+    let gate_param = |t: &Transition, closure: &syn::ExprClosure| -> proc_macro2::TokenStream {
+        let named = |default: proc_macro2::TokenStream| {
+            closure
+                .inputs
+                .iter()
+                .nth(1)
+                .map(|p| quote! { #p })
+                .unwrap_or(default)
+        };
+        match &t.gate {
+            Some(Gate::Judgmental(role)) => {
+                let qpat = named(quote! { _q });
+                quote! { , #qpat: ::rung::Qualified<#role> }
+            }
+            Some(Gate::Authorial(role)) => {
+                let ppat = named(quote! { _pen });
+                quote! { , #ppat: ::rung::Authorized<'_, #role> }
+            }
+            None => quote! {},
+        }
+    };
+
+    // The **injected gate prologue** (rung-props.md G13 judgmental, G14 authorial).
+    //
+    // `gate_param` above makes the *signature* honest: a marked transition
+    // cannot be called without its token. It does not make the *arrow*
+    // admissible, because the token could have been minted against something
+    // else entirely.
+    //
+    // The two gates measure "something else" differently, and this is the whole
+    // asymmetry rather than a detail of it:
+    //
+    //   judgmental  disjointness-against-argument — `π(p) ∩ π(a) = ∅` for the
+    //               very `a` the operation is applied to. The token records
+    //               `π(a)`; the prologue admits it only against the source
+    //               rung's payload. Requires `::rung::Provenanced`.
+    //
+    //   authorial   authorial-qualifying-set — `standing(p, M)` over the very
+    //               container the subject sits in. The pen records `over`; the
+    //               prologue admits it only over the source rung payload's own
+    //               container. Requires `::rung::Situated`.
+    //
+    // Neither is the other with a word swapped: one refuses a principal for
+    // being too close to the subject, the other refuses it for being too far
+    // (judgment-refuses-authorship-requires).
+    //
+    // The body is the DOMAIN's, so neither check can live there — a body that
+    // simply never looked at its token would discharge nothing and nothing could
+    // notice. The macro therefore injects it as a prologue, exactly as it injects
+    // `must_progress` around a recover body for G8, and for the same reason: a
+    // guarantee a body can skip is not a guarantee.
+    let gate_prologue = |t: &Transition, closure: &syn::ExprClosure| -> proc_macro2::TokenStream {
+        let arg = pat_binding(closure.inputs.first(), "__arg");
+        match &t.gate {
+            None => quote! {},
+            Some(Gate::Judgmental(_)) => {
+                let q = pat_binding(closure.inputs.iter().nth(1), "_q");
+                quote! { must_be_bound_to(&#arg.payload, &#q); }
+            }
+            Some(Gate::Authorial(_)) => {
+                let pen = pat_binding(closure.inputs.iter().nth(1), "_pen");
+                quote! { must_hold_standing_over(&#arg.payload, &#pen); }
+            }
+        }
+    };
 
     let logic = if has_bodies {
         let transition_fns: Vec<_> = ladder
@@ -789,14 +1029,24 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 let from = &t.from_rung;
                 let b = body_for(&name.to_string())?;
                 let pat = arg_pat(&b.closure);
-                let body = fn_body(&b.closure);
+                let gate_param = gate_param(t, &b.closure);
+                let prologue = gate_prologue(t, &b.closure);
+                // Unmarked: emit byte-for-byte what was emitted before markers
+                // existed (rung-props.md G12). Marked: prologue first, then the body's
+                // statements — the body cannot run ahead of the check (G13).
+                let body = if t.gate.is_none() {
+                    fn_body(&b.closure)
+                } else {
+                    let stmts = fn_body_stmts(&b.closure);
+                    quote! { { #prologue #stmts } }
+                };
                 if let Some(ref to) = t.to_rung {
                     Some(quote! {
-                        pub fn #name(#pat: #from) -> #to #body
+                        pub fn #name(#pat: #from #gate_param) -> #to #body
                     })
                 } else if !t.verdicts.is_empty() {
                     Some(quote! {
-                        pub fn #name(#pat: #from) -> Result<StepOutcome, Failed<#from>> #body
+                        pub fn #name(#pat: #from #gate_param) -> Result<StepOutcome, Failed<#from>> #body
                     })
                 } else {
                     None
@@ -823,7 +1073,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                         pub fn #name(#pat: #param) -> #ret #body
                     }
                 } else {
-                    // Verdict recovery: auto-inject the progress guard (SPEC.md G8). The body
+                    // Verdict recovery: auto-inject the progress guard (rung-props.md G8). The body
                     // is used as the initializer of `__after`, so a `{ .. }` body isn't
                     // double-wrapped. `#pat` is the parameter; the snapshot borrows it
                     // before the body consumes it.
@@ -845,7 +1095,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         quote! {}
     };
 
-    // ── recovery-progress guard (SPEC.md G8) ──────────────────────
+    // ── recovery-progress guard (rung-props.md G8) ──────────────────────
     let progress_helper = quote! {
         /// Recovery-progress guard. A recover edge must make forward progress; a
         /// recover that returns a token identical to the one it received is an
@@ -861,9 +1111,101 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             assert!(
                 before != after,
                 "recovery made no progress: the recovered value equals its source \
-                 (SPEC.md G8 — infinite-stall guard)"
+                 (rung-props.md G8 — infinite-stall guard)"
             );
         }
+
+        /// Token-binding guard (rung-props.md G13). A `#[judgmental(R)]` transition is
+        /// licensed by a token that was measured against **one** argument; this
+        /// refuses it anywhere else.
+        ///
+        /// Het disjointness-against-argument states the non-identity condition
+        /// as `π(p) ∩ π(a) = ∅` for the very `a` the operation is applied to.
+        /// The seal on `Qualified` closes fabrication — nobody can write a
+        /// token. It does not close *transfer*: a token earned honestly against
+        /// one argument could be spent on another, which is the act the
+        /// proposition forbids.
+        ///
+        /// The macro injects the call at the head of every marked transition, so
+        /// a body cannot skip it — the same discipline as `must_progress`, and
+        /// panicking for the same reason: the transition's return type is the
+        /// domain's declaration, so there is no `Err` variant to route a refusal
+        /// through. A P0 violation is not a recoverable step outcome.
+        #[allow(dead_code)]
+        pub fn must_be_bound_to<A, R>(argument: &A, licence: &::rung::Qualified<R>)
+        where
+            A: ::rung::Provenanced,
+            R: ::rung::Role,
+        {
+            assert!(
+                licence.is_bound_to(argument),
+                "P0: this qualifying token was minted against a different argument \
+                 (minted against {:?}, applied to {:?}); disjointness is measured \
+                 against the argument the operation is applied to — rung-props.md G13, \
+                 rung-het-props.md#disjointness-against-argument",
+                licence.argument_provenance(),
+                ::rung::Provenanced::provenance(argument),
+            );
+        }
+    };
+
+    // The authorial guard (rung-props.md G14), emitted **only** for a ladder that
+    // actually carries an `#[authorial(R)]` marker.
+    //
+    // Conditional, unlike `must_progress` and `must_be_bound_to`, for one
+    // reason: G12's compatibility clause says an unmarked or judgmental ladder
+    // emits byte-for-byte what it emitted before. An unconditional helper would
+    // change every existing module's emission and break that clause for no
+    // benefit — nothing in an unmarked ladder can call it.
+    let standing_helper = if ladder
+        .transitions
+        .iter()
+        .any(|t| matches!(t.gate, Some(Gate::Authorial(_))))
+    {
+        quote! {
+            /// Standing guard (rung-props.md G14). An `#[authorial(R)]` transition is
+            /// licensed by a pen that was minted over **one** container; this
+            /// refuses it anywhere else.
+            ///
+            /// The authorial mirror of `must_be_bound_to`, and the mirror of a
+            /// mirror: the judgmental guard refuses a principal that is too
+            /// close to the subject, this one refuses a principal that is too
+            /// far from it (rung-het-props.md#judgment-refuses-authorship-requires).
+            /// Het's authorial qualifying set is
+            /// `capable(p, role(o)) ∧ standing(p, M)`
+            /// (rung-het-props.md#authorial-qualifying-set); `Pool::authorize`
+            /// settles both conjuncts, but it settles the second against the
+            /// container it was *asked* about. Nothing in the signature says
+            /// that container is the one this subject sits in.
+            ///
+            /// The seal on `Authorized` closes fabrication — nobody can write a
+            /// pen. It does not close *misdirection*: a pen earned honestly over
+            /// one container could be spent on a subject in another, which is a
+            /// write no one authorized.
+            ///
+            /// Injected at the head of every marked transition, so a body cannot
+            /// skip it, and panicking for the same reason `must_be_bound_to`
+            /// does: the transition's return type is the domain's declaration,
+            /// so there is no `Err` variant to route a refusal through.
+            #[allow(dead_code)]
+            pub fn must_hold_standing_over<A, R>(subject: &A, pen: &::rung::Authorized<'_, R>)
+            where
+                A: ::rung::Situated,
+                R: ::rung::Role,
+            {
+                assert!(
+                    pen.authorizes(subject),
+                    "standing: this pen authorizes `{}` and is being spent on a \
+                     subject sitting in `{}`; authorship requires standing over \
+                     the very container the subject is in — rung-props.md G14, \
+                     rung-het-props.md#authorial-qualifying-set",
+                    pen.over(),
+                    ::rung::Situated::container(subject),
+                );
+            }
+        }
+    } else {
+        quote! {}
     };
 
     // ── assemble module ─────────────────────────────────────────────────
@@ -876,6 +1218,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             #failed_type
             #verdict_enum
             #progress_helper
+            #standing_helper
             #logic
         }
     }

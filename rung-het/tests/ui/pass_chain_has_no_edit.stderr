@@ -1,0 +1,5 @@
+error[E0599]: no method named `edit` found for reference `&rung_het::Chain` in the current scope
+  --> tests/ui/pass_chain_has_no_edit.rs:63:35
+   |
+63 |     let _edit: &DraftEdit = chain.edit();
+   |                                   ^^^^ method not found in `&rung_het::Chain`

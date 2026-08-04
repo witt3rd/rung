@@ -49,6 +49,24 @@ ladder!(Work {
 });
 ```
 
+### Why "ladder"?
+
+Because the accurate name would defeat the design. A `ladder` declaration is a
+presentation of a free category on a linear graph — but the surface deliberately
+never says so. If the syntax required the mathematics, the enforcement would rest
+on you restating it correctly, which is the failure the macro exists to remove.
+You write rungs and transitions; the construction is what owes the category.
+
+The metaphor also happens to carry the guarantees: rungs are discrete positions
+(a rung is an object, inert), you cannot skip one (the category is freely
+generated, so a skipping path does not exist to be taken), and you cannot stand
+on two at once (composition consumes its input). It even scales — ladders stack
+into *towers*, and that turned out to name a real structure rather than a figure
+of speech.
+
+Fuller version, including where the metaphor strains, in
+[`docs/rung-notes.md`](docs/rung-notes.md) §0.
+
 ## Why use this?
 
 - **The compiler is the gate, not a code review.** A skipped transition is a
@@ -157,21 +175,99 @@ module-private, so no outside code can fabricate a mid-ladder token. Omit the
   ran the transition, not that its logic was valid — the boundary between
   typestate and formal verification), and cross-crate provenance (a token
   crossing a crate boundary is trusted, like any Rust API). See
-  [`docs/SPEC.md`](docs/SPEC.md) §5 for the full list of non-guarantees.
+  [the non-guarantees](docs/rung-props.md#non-guarantees) for the full list.
+
+## How rung is specified and verified
+
+The documents are not commentary on the implementation — they are part of how it
+is built. Every normative claim has a stable identity, a machine-checked place in
+a tree, and a recorded answer to *"what test fails if this stops being true?"*
+
+### Two classes of document, named by the rule
+
+**`*-props.md` is normative.** **`*-notes.md` is informative** — how each account
+was derived, what was tried and rejected, and what was later withdrawn. Where a
+notes file and its props file disagree, **the props file governs**; a claim made
+in notes and not in props is not a claim rung makes.
+
+| subject | normative | informative |
+|---|---|---|
+| the ladder language | [`docs/rung-props.md`](docs/rung-props.md) | [`docs/rung-notes.md`](docs/rung-notes.md) |
+| the category | [`docs/rung-ct-props.md`](docs/rung-ct-props.md) | [`docs/rung-ct-notes.md`](docs/rung-ct-notes.md) |
+| Het | [`docs/rung-het-props.md`](docs/rung-het-props.md) | [`docs/rung-het-notes.md`](docs/rung-het-notes.md) |
+
+### The conventions the props files follow
+
+- **Identity is the slug, not the number.** A proposition is anchored
+  `<a id="g2-sealed-construction" data-parent="guarantees">`. Its decimal number
+  is *derived* from the anchor, its `data-parent`, and document order — so
+  inserting, removing, or reparenting a proposition cannot break a reference.
+  `docs/_props.py fmt` recomputes every number and link text.
+- **One slug space across all three documents.** A reference naming another file
+  crosses into it; where a claim here touches one there, it links rather than
+  restates. That is what lets a categorical proposition cite the guarantee it is
+  the content of.
+- **A labelled subtree keeps an outside-facing ID.** `G1`–`G14` (guarantees) and
+  `J1`–`J2` (design judgments) are flat labels rather than decimals, because they
+  are cited from Rust comments and from `trybuild` test *filenames*, where a
+  renumbering would break something a slug cannot reach.
+- **Vocabulary is closed.** Terms Het retired are refused across every normative
+  document, so a superseded word cannot grow back on the next authoring pass.
+- **A claim that no machine settles says so.** `rung-props.md` §1–§6 are settled
+  by the macro, by rustc, or by a named test; §7 holds the two design judgments
+  no machine decides, and they carry no conformance test on purpose.
+
+### The conformance ledger
+
+[`docs/conformance.md`](docs/conformance.md) is **generated, never written**. It
+joins every proposition in all three documents to where it is enforced — and,
+more usefully, records where it is *not*. Verdicts are `enforced`,
+`expressible`, `deferred`, `collides`, `out-of-scope`, and `unclassified`.
+
+The join is deliberately **not** one-to-one, in either direction: a proposition
+may have no test, and a guarantee may have no proposition. `unclassified` exists
+so an unproven claim reads as a worklist entry rather than a clean bill, and
+`collides` — a claim that contradicts a guarantee — must stay empty.
+
+### What runs in CI
+
+| gate | what it catches |
+|---|---|
+| `cargo test --workspace` | a guarantee that stopped holding |
+| `docs/_props.py check` | a duplicate slug, a dangling reference, a stale number, a retired term |
+| `docs/_props.py cited` | a Rust comment citing a proposition that no longer exists |
+| `docs/_ledger.py check` | an unclassified-away proposition, a hand-edited ledger, an `enforced` row whose test does not exist |
+
+`_ledger.py check` regenerates the ledger and diffs it against disk, so
+`conformance.md` cannot be edited by hand and a new proposition cannot be added
+without receiving a verdict.
+
+### Two rules that keep the tests honest
+
+- **No guarantee may cite a `compile_fail` doctest as its evidence**
+  ([6.2](docs/rung-props.md#no-guarantee-cites-a-compile-fail-doctest)). rustdoc
+  ignores the `E0NNN` in a `compile_fail,E0999` fence — and E0999 does not exist.
+  Such a test asserts exactly one thing: *this did not compile*. It cannot tell
+  the refusal it was written for from a typo or a missing `main`. Refusals are
+  pinned by `trybuild` cases whose committed `.stderr` holds the full rendered
+  message.
+- **A refusal test that cannot fail is not a guarantee**
+  ([6.4](docs/rung-props.md#a-refusal-test-that-cannot-fail)). The way to
+  establish that a case *can* fail is to make the guarded thing legal and watch
+  it go red.
 
 ## Further reading
 
-- [`docs/SPEC.md`](docs/SPEC.md) — the normative specification: grammar, static
-  semantics, emitted artifacts, and test-backed guarantees
-- [`docs/EDGES.md`](docs/EDGES.md) — the typed dependency vocabulary across the
-  registries (normative reference)
-- [`docs/questions/`](docs/questions/) — the open-question registry: the
-  frontier for advancing the language (deepen vs grow). See
-  [`INTAKE.md`](docs/questions/INTAKE.md) for how a question enters it.
-- [`docs/RUNG-CT.md`](docs/RUNG-CT.md) — category theory correspondence
-  (free category, indexed monad, dagger, linear logic)
+- [`docs/questions/`](docs/questions/) — the open questions: the frontier
+  for advancing the language (deepen vs grow). A question resolves only when its
+  answer lands in a normative surface. See
+  [`INTAKE.md`](docs/questions/INTAKE.md) for how one enters. The questions are
+  themselves governed by a Het theory written in the DSL
+  ([`rung-std/src/questions.rs`](rung-std/src/questions.rs)), which declares the
+  typed dependency vocabulary; `rung-het/tests/questions_of_rung.rs` evaluates
+  every decidable sentence of it against the real files.
+- [`docs/rung-het-publishing.md`](docs/rung-het-publishing.md) — a brief for an
+  outside reviewer on whether Het is publishable mathematics.
 
-Historical, non-normative background is archived under
-[`docs/.archive/`](docs/.archive/) — the design record (`RUNG-RS.md`), the
-independent derivation (`CONVERGENCE.md`), and the three-voices loop
-(`THREE-VOICES.md`).
+Superseded material is under [`docs/.archive/`](docs/.archive/) — the independent
+derivation (`CONVERGENCE.md`) and the three-voices loop (`THREE-VOICES.md`).

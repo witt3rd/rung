@@ -1,0 +1,22 @@
+[package]
+name = "rung-het"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Het's gate-marked satisfaction, enforced by the type system"
+
+[dependencies]
+rung = { path = "../rung" }
+
+[dev-dependencies]
+# The theory this crate's own questions are audited by lives in rung-std;
+# `tests/questions_of_rung.rs` is a consumer of it. Dev-only, so the dependency
+# edge rung-std -> rung-het is not made circular for any real build.
+rung-std = { path = "../rung-std" }
+# The pass's refusals are `trybuild` cases rather than `compile_fail` doctests:
+# rustdoc does not verify the error code on a `compile_fail` block, so a doctest
+# cannot tell "failed for the intended reason" from "failed on a typo"
+# (rung-props.md 6.1). `trybuild` diffs the full stderr against a committed
+# snapshot.
+trybuild = "1"

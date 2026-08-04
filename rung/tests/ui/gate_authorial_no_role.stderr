@@ -1,0 +1,5 @@
+error: `#[authorial]` must name the competence role it requires — write `#[authorial(Role)]`. An authorial operation declares a standing predicate (rung-het-props.md#authorial-declares-standing), and its qualifying set is a conjunction — capable(p, role(o)) AND standing(p, M) (rung-het-props.md#authorial-qualifying-set). A marker naming no role can witness only the right conjunct, and a pen that witnessed standing alone would make the competence filter decorative.
+  --> tests/ui/gate_authorial_no_role.rs:19:23
+   |
+19 |     Spec(SpecData) => #[authorial] Active(LoopState) => { Done }
+   |                       ^

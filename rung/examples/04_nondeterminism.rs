@@ -1,4 +1,4 @@
-//! **The verbs-are-arrows law, proven by running it.**
+//! **The *verbs are arrows* law, proven by running it.**
 //!
 //! rung is a language for declaring the objects and legal arrows of a category.
 //! States are *objects* — inert, no verbs. Transitions are *morphisms* — the
@@ -7,7 +7,7 @@
 //!
 //! We did not read the theory and implement the law. We built a real ladder,
 //! tried to fold a live LLM verdict in by *constructing a state from outside*,
-//! and the sealed constructor (SPEC.md G2) refused. The type system enforced
+//! and the sealed constructor (rung-props.md G2) refused. The type system enforced
 //! what a category requires before we had named it. The law arrived from the
 //! inside, through the refusal. See `docs/.archive/2026-07-18_HANDOFF_verbs-are-arrows.md`
 //! for the full record.

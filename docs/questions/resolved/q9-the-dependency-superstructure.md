@@ -7,7 +7,7 @@ depends_on:
   - {on: q9-reviews, kind: evidence}
 affects:
   - {target: RUNG-CT, kind: premise}
-  - {target: EDGES, kind: premise}
+  - {target: question-registry-theory, kind: premise}
 ---
 
 # Q9 — The dependency superstructure: what overlays the ladder level?
@@ -49,11 +49,11 @@ The growth tower predicted a Level-1 structure; Q9 names it precisely. Level 0 t
 ## What folded upward, and where
 
 - **RUNG-CT gains §10 — "The Level-1 superstructure."** The tower's Level ≥1 was a *prediction*; it is now a *described structure*: a Grothendieck opfibration whose fibres are the Level-0 ladders and whose typed edges are dependent optics, with advisory functoriality recovered via the Q7 coproduct. *(Fold target: `RUNG-CT.md` §10; Summary renumbered §11.)*
-- **EDGES.md's closing is now resolved, not speculative.** It framed the superstructure as an open guess ("a presheaf, a fibration, or a dependency-edge-as-optic"); that speculation is closed. The `_reach.py` growth-path it describes is now principled: *stop computing boolean reachability; compute transport of typed obligations* — the support of the composite dependent optic. The store stays frontmatter for now; the model is named. *(Fold target: `../EDGES.md`. The `affects` edge that motivates the registry-growth consequence is retyped from `RUNG-RS` — the reviewers' shorthand for "the registry side" — to **EDGES**, its true home in this tree. RUNG-RS.md is the Rust *language* spec and is genuinely untouched by the registry meta-structure.)*
+- **EDGES.md's closing is now resolved, not speculative.** It framed the superstructure as an open guess ("a presheaf, a fibration, or a dependency-edge-as-optic"); that speculation is closed. The `_reach.py` growth-path it describes is now principled: *stop computing boolean reachability; compute transport of typed obligations* — the support of the composite dependent optic. The store stays frontmatter for now; the model is named. *(Fold target at the time: `../EDGES.md`. The `affects` edge that motivates the registry-growth consequence was retyped from `RUNG-RS` — the reviewers' shorthand for "the registry side" — to **EDGES**, its true home in this tree then. RUNG-RS.md is the Rust *language* spec and is genuinely untouched by the meta-structure. **2026-08-04:** `EDGES.md` is retired; its vocabulary is now declared by the Het theory in `rung-het/tests/question_registry.rs` and its derivation lives in `../../rung-ct-notes.md` §5, so the `affects` edge points at that theory. Nothing is owed — the target moved, the fold did not reopen.)*
 - **`_map.md` — the growth tower gets a second named Level-1 instance.** Level 1 was "functors in Cat — Q4 (nesting)"; the dependency opfibration is a *distinct* Level-1 functor (`p : E → B`, ladders as fibres), so the generator now names both, so it does not contradict its own resolved question.
 - **The Kleisli tie is now bidirectional.** Q7 said error and effects are orthogonal gadgets *within* a transition; Q9 shows the same coproduct is what keeps the *dependency* level functorial. The self-similarity is not analogy — it is the same categorical machinery loading two levels of the tower.
 
 ## State
 - 2026-07-18 (Q7 cascade) — Donald surfaces the phenomenon: *"a dozen things needed to update to ripple the consequences… a super-structure that overlays the current ladder level, worth deeply understanding."* Registry stopgap (`_reach.py`) built same session; Q9 tee'd for review.
 - 2026-07-18 — two independent CT reviews commissioned and returned.
-- 2026-07-18 — both converge: **opfibration + dependent optics.** Divergence (fibration vs opfibration; hedged vs committed optic) resolves toward the sharper review. Folded into RUNG-CT §10, EDGES.md, `_map.md`; this file moved to `resolved/` because the fold is real and complete — no owed change left as a note inside a resolved file (law #3).
+- 2026-07-18 — both converge: **opfibration + dependent optics.** Divergence (fibration vs opfibration; hedged vs committed optic) resolves toward the sharper review. Folded into RUNG-CT §10, EDGES.md (retired 2026-08-04; see the note above), `_map.md`; this file moved to `resolved/` because the fold is real and complete — no owed change left as a note inside a resolved file (law #3).

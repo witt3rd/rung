@@ -1,0 +1,5 @@
+error: `#[conditional(..)]` is not yet supported — it is the one gate of the four that `ladder!` does not implement. Het classifies a conditional gate per model, one level up (rung-het-props.md#classifier-one-level-up), while `ladder!`'s checks run at expansion time against a single declaration; the two do not yet meet. `#[judgmental(Role)]` and `#[authorial(Role)]` are implemented. This is what remains of Q11's second blocker — see docs/questions/open/q11-gate-faithfulness.md.
+  --> tests/ui/gate_conditional_unsupported.rs:18:23
+   |
+18 |     Spec(SpecData) => #[conditional(IsSettledByContainment)] Active(LoopState) => { Done }
+   |                       ^

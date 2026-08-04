@@ -1,0 +1,9 @@
+error: continue arm `Tick`: target rung `Nonexistent` not declared
+  --> tests/ui/spec_rule3_continue_target.rs:13:1
+   |
+13 | / ladder!(Bad {
+14 | |     Begin(S) => Counting(i32) => { Tick -> Nonexistent | Done }
+15 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)
