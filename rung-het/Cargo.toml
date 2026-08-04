@@ -14,3 +14,9 @@ rung = { path = "../rung" }
 # `tests/questions_of_rung.rs` is a consumer of it. Dev-only, so the dependency
 # edge rung-std -> rung-het is not made circular for any real build.
 rung-std = { path = "../rung-std" }
+# The pass's refusals are `trybuild` cases rather than `compile_fail` doctests:
+# rustdoc does not verify the error code on a `compile_fail` block, so a doctest
+# cannot tell "failed for the intended reason" from "failed on a typo"
+# (rung-props.md 6.1). `trybuild` diffs the full stderr against a committed
+# snapshot.
+trybuild = "1"
