@@ -135,12 +135,15 @@ def check_refs(lines, props):
             if m.group(2) not in slugs:
                 errs.append(f"L{i+1}: reference to #{m.group(2)}, which is not a proposition")
     # a bare decimal outside math and outside a link is almost certainly a
-    # hand-written reference that was never converted
+    # hand-written reference that was never converted. The trailing guard
+    # rejects only a longer number (1.234, 1.2.3) or a word — not sentence
+    # punctuation, which is where such a reference most often sits.
     for i, line in enumerate(lines):
-        if PROP.match(line) or ANCHOR.match(line):
+        if ANCHOR.match(line):
             continue
         bare = strip_math(REF.sub(lambda m: " " * len(m.group(0)), line))
-        for m in re.finditer(r"(?<![\w.#/-])(\d{1,2}\.\d{1,2})(?![\w.])", bare):
+        bare = PROP.sub(lambda m: " " * len(m.group(0)), bare)
+        for m in re.finditer(r"(?<![\w.#/§-])(\d{1,2}\.\d{1,2})(?![\w-]|\.\d)", bare):
             if m.group(1) in {p.num for p in props}:
                 errs.append(f"L{i+1}: bare number {m.group(1)} — write it as a [n](#slug) link")
     return errs
