@@ -884,6 +884,332 @@ impl<R: Role> std::fmt::Debug for Authorized<'_, R> {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Sentences — the `theory!` surface
+// ════════════════════════════════════════════════════════════════════════════
+//
+// `ladder!` is the **arrow** surface of the DSL; `theory!` is the **sentence**
+// surface. Het gate-marks both (gate-marker-required: "every sentence and every
+// operation"), so the two belong in one crate: a consumer that declares a
+// ladder and a consumer that declares a theory depend on the same thing.
+//
+// `rung-het` re-exports every item below and remains their documented home —
+// the gate law, its compile-fail proofs, and the pass (`propose`/`dispose`/
+// `enact`) all live there. What moved here is only what a *declaration* needs.
+
+/// The outcome of `M ⊨ φ` for one sentence.
+///
+/// Boolean, deliberately and incompletely. Het verdict-space-with-metric requires a verdict space
+/// carrying a **metric** `d`, with `ε` reported alongside every verdict as an
+/// error bar, so that the satisfaction condition survives renaming (pool-is-parameter). This
+/// crate does not implement it, and under a Boolean verdict space that
+/// condition does not hold. Named rather than papered over.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Verdict {
+    /// `M ⊨ φ`.
+    Conforming,
+    /// `M ⊭ φ`, with a reason.
+    NonConforming { reason: String },
+}
+
+impl Verdict {
+    pub fn conforming(holds: bool, reason_if_not: impl Into<String>) -> Self {
+        if holds {
+            Self::Conforming
+        } else {
+            Self::NonConforming {
+                reason: reason_if_not.into(),
+            }
+        }
+    }
+
+    pub fn is_conforming(&self) -> bool {
+        matches!(self, Self::Conforming)
+    }
+}
+
+/// A verdict together with how it was reached.
+///
+/// The gate is carried on the *result*, not merely on the sentence, so a
+/// consumer can tell a machine-check from an outside call without consulting
+/// the theory. A judgmental verdict names the principal that produced it; a
+/// decidable one has no principal to name, and the type says so.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Settled {
+    /// Computed inside the algebra. No outside.
+    Decidable {
+        sentence: &'static str,
+        verdict: Verdict,
+    },
+    /// Obtained from a principal that survived both filters.
+    Judgmental {
+        sentence: &'static str,
+        role: &'static str,
+        principal: String,
+        verdict: Verdict,
+    },
+}
+
+impl Settled {
+    pub fn verdict(&self) -> &Verdict {
+        match self {
+            Self::Decidable { verdict, .. } | Self::Judgmental { verdict, .. } => verdict,
+        }
+    }
+
+    pub fn sentence(&self) -> &'static str {
+        match self {
+            Self::Decidable { sentence, .. } | Self::Judgmental { sentence, .. } => sentence,
+        }
+    }
+
+    /// Whether an outside was consulted. The observable form of the gate.
+    pub fn consulted_outside(&self) -> bool {
+        matches!(self, Self::Judgmental { .. })
+    }
+}
+
+/// A judgmental sentence, and the role it requires.
+///
+/// This trait **is** `role(φ)` — Het's map from a sentence to the competence
+/// needed to discharge it (judgmental-declares-role). Implemented automatically by `theory!` for
+/// every judgmental sentence, and impossible to implement without naming a
+/// role, since `Requires` is an associated type with no default.
+///
+/// The gap this closes: in a prose encoding, a judgmental sentence that
+/// declared no role was simply a sentence with a field missing, and nothing
+/// could notice. Here a judgmental sentence that names no role does not
+/// typecheck — there is no term for it.
+pub trait Judgmental {
+    /// The competence role a principal must be capable of to settle this.
+    type Requires: Role;
+
+    /// The sentence's name, for the receipt.
+    const SENTENCE: &'static str;
+
+    /// `role(φ)` — the role name, resolved through the type.
+    fn role_name() -> &'static str {
+        <Self::Requires as Role>::NAME
+    }
+}
+
+/// Declare a Het theory — a sort and its gate-marked sentences.
+///
+/// ```text
+/// theory!(Name for ModelType {
+///     decidable  sentence_name = |m: &ModelType| -> bool { .. };
+///     judgmental sentence_name: RoleType;
+/// });
+/// ```
+///
+/// Emits a module (the theory name, lowercased) containing one unit struct per
+/// sentence, each with the signature its gate licenses:
+///
+/// - **decidable** → `fn holds(model: &M) -> Verdict`. No pool parameter, no
+///   principal, no capability. The body *cannot* reach an outside because
+///   nothing in scope can produce one.
+/// - **judgmental** → `fn settle(model: &M, q: Qualified<R>, v: Verdict) -> Settled`,
+///   consuming the token by value. Without a [`Qualified`], there is no term.
+///
+/// This is Het gate-faithful (gate-faithfulness) by construction rather than by audit: an
+/// algebra cannot launder a judgmental operation into a decidable one, because
+/// the two have different types.
+///
+/// The `SENTENCES` constant emitted alongside is the theory's `Sen(Σ)` as data —
+/// what a pass walks.
+///
+/// This is the **sentence** surface of the DSL, sibling to [`ladder!`]'s
+/// **arrow** surface. Both live in `rung` because Het gate-marks both
+/// (gate-marker-required), and because a library that declares a theory should
+/// not have to depend on the crate that hosts the pass.
+#[macro_export]
+macro_rules! theory {
+    (
+        $name:ident for $model:ty {
+            $( $rule:tt )*
+        }
+    ) => {
+        #[allow(non_snake_case)]
+        pub mod $name {
+            use super::*;
+            #[allow(unused_imports)]
+            use $crate::{Qualified, Settled, Verdict};
+
+            $crate::__sentences!($model ; $( $rule )*);
+        }
+    };
+}
+
+/// Emit one sentence per rule, and `SENTENCES` as the accumulated list.
+///
+/// Split by gate at the *matcher* rather than by a runtime tag: `decidable`
+/// and `judgmental` are different productions of the grammar, so a malformed
+/// declaration fails to parse instead of failing later. Rust also forbids an
+/// `expr` fragment being followed by `:`, so a single unified rule with both an
+/// optional body and an optional role is not expressible — the separation is
+/// forced, and is the better shape regardless.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __sentences {
+    // ── accumulate ──────────────────────────────────────────────────────
+    ( $model:ty ; $( $rest:tt )* ) => {
+        $crate::__sentences_acc!($model ; [] ; $( $rest )*);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __sentences_acc {
+    // decidable NAME = |m| ..;
+    ( $model:ty ; [ $( $acc:tt )* ] ;
+      decidable $sentence:ident = $body:expr ; $( $rest:tt )* ) => {
+        $crate::__decidable!($sentence, $model, $body);
+        $crate::__sentences_acc!($model ;
+            [ $( $acc )* (stringify!($sentence), "decidable"), ] ; $( $rest )*);
+    };
+
+    // judgmental NAME: Role;
+    ( $model:ty ; [ $( $acc:tt )* ] ;
+      judgmental $sentence:ident : $role:ty ; $( $rest:tt )* ) => {
+        $crate::__judgmental!($sentence, $model, $role);
+        $crate::__sentences_acc!($model ;
+            [ $( $acc )* (stringify!($sentence), "judgmental"), ] ; $( $rest )*);
+    };
+
+    // ── refusals, with the reason ───────────────────────────────────────
+
+    // judgmental with a body: a judgmental sentence is settled, not computed.
+    ( $model:ty ; [ $( $acc:tt )* ] ;
+      judgmental $sentence:ident = $body:expr ; $( $rest:tt )* ) => {
+        compile_error!(concat!(
+            "judgmental sentence `", stringify!($sentence), "` has a body. A judgmental \
+             sentence is settled by a principal, not computed — if it can be computed it \
+             is decidable, and marking it judgmental launders a machine check into an \
+             outside call. Het judgmental-declares-role also requires it declare the competence role needed to \
+             discharge it. Write: judgmental ", stringify!($sentence), ": SomeRole;"
+        ));
+    };
+
+    // decidable with a role: nothing is dispatched, so there is no role.
+    ( $model:ty ; [ $( $acc:tt )* ] ;
+      decidable $sentence:ident : $role:ty ; $( $rest:tt )* ) => {
+        compile_error!(concat!(
+            "decidable sentence `", stringify!($sentence), "` declares a role. A decidable \
+             sentence is machine-checked and consults no principal, so there is no role to \
+             play. Either give it a body (decidable ", stringify!($sentence), " = |m| ..;) \
+             or mark it judgmental."
+        ));
+    };
+
+    // judgmental with neither — the role(phi) gap, refused.
+    ( $model:ty ; [ $( $acc:tt )* ] ;
+      judgmental $sentence:ident ; $( $rest:tt )* ) => {
+        compile_error!(concat!(
+            "judgmental sentence `", stringify!($sentence), "` declares no role. Het judgmental-declares-role: \
+             every judgmental sentence MUST declare the competence role required to \
+             discharge it — it is what lets satisfaction resolve a judge at all. \
+             Write: judgmental ", stringify!($sentence), ": SomeRole;"
+        ));
+    };
+
+    // decidable with neither.
+    ( $model:ty ; [ $( $acc:tt )* ] ;
+      decidable $sentence:ident ; $( $rest:tt )* ) => {
+        compile_error!(concat!(
+            "decidable sentence `", stringify!($sentence), "` has no body. A decidable \
+             sentence is machine-checked, so it must say what to check. Write: decidable ",
+            stringify!($sentence), " = |m| ..;"
+        ));
+    };
+
+    // ── done ────────────────────────────────────────────────────────────
+    ( $model:ty ; [ $( $acc:tt )* ] ; ) => {
+        /// `Sen(Σ)` as data — every sentence with its gate. What a pass walks.
+        pub const SENTENCES: &[(&str, &str)] = &[ $( $acc )* ];
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __decidable {
+    ($sentence:ident, $model:ty, $body:expr) => {
+        #[allow(non_camel_case_types)]
+        pub struct $sentence;
+
+        impl $sentence {
+            pub const NAME: &'static str = stringify!($sentence);
+            pub const GATE: &'static str = "decidable";
+
+            /// `M ⊨ φ`, machine-checked.
+            ///
+            /// Takes only the model. There is no parameter through which a pool,
+            /// a principal, or a `Qualified` token could enter — which is the
+            /// enforcement, not a convention about what the body ought to do.
+            pub fn holds(model: &$model) -> $crate::Settled {
+                let f: fn(&$model) -> bool = $body;
+                $crate::Settled::Decidable {
+                    sentence: Self::NAME,
+                    verdict: $crate::Verdict::conforming(
+                        f(model),
+                        concat!(
+                            "decidable sentence `",
+                            stringify!($sentence),
+                            "` does not hold"
+                        ),
+                    ),
+                }
+            }
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __judgmental {
+    ($sentence:ident, $model:ty, $role:ty) => {
+        #[allow(non_camel_case_types)]
+        pub struct $sentence;
+
+        impl $sentence {
+            pub const NAME: &'static str = stringify!($sentence);
+            pub const GATE: &'static str = "judgmental";
+
+            /// `M ⊨ φ`, settled by an outside.
+            ///
+            /// Consumes the `Qualified` token **by value**: a licence is spent
+            /// on one sentence and cannot be reused to discharge a second. The
+            /// verdict comes from the principal; this records it. Nothing here
+            /// fabricates a verdict.
+            ///
+            /// The token is admitted only for **this** model
+            /// (non-identity-by-construction). A licence minted against another
+            /// model is `TokenNotBound` — the argument governs, so an unbound
+            /// token discharges nothing here. This is why a judgmental
+            /// sentence's sort must be `Provenanced`: without `π(a)` there is
+            /// nothing to admit the token against.
+            pub fn settle(
+                model: &$model,
+                q: $crate::Qualified<$role>,
+                verdict: $crate::Verdict,
+            ) -> ::core::result::Result<$crate::Settled, $crate::TokenNotBound> {
+                let q = $crate::Qualified::admit(q, model)?;
+                ::core::result::Result::Ok($crate::Settled::Judgmental {
+                    sentence: Self::NAME,
+                    role: <$role as $crate::Role>::NAME,
+                    principal: q.principal_id().to_string(),
+                    verdict,
+                })
+            }
+        }
+
+        /// `role(φ)` for this sentence — see [`Judgmental`].
+        impl $crate::Judgmental for $sentence {
+            type Requires = $role;
+            const SENTENCE: &'static str = stringify!($sentence);
+        }
+    };
+}
+
 // Compile-check and run the README's code blocks as doctests, so the README
 // cannot silently drift from the macro. `#[cfg(doctest)]` means this item exists
 // only during doctest builds — it never appears in the public API or on docs.rs.
