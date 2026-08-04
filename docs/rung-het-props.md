@@ -202,6 +202,30 @@ argument is $\mathsf{role}(\varphi)$ or $\mathsf{role}(o)$ — the role the
 A supplier of $\mathcal{P}$ cannot be asked to inspect Het's sentences; it
 does not have them.
 
+<a id="principal-provenance-floor" data-parent="pool-is-opaque"></a>
+**3.25** $\pi(p) \supseteq \{\mathsf{id}(p)\}$ — a principal's provenance
+contains its own identity. A supplier may declare a principal with no history
+whatever; it may not declare one with **no provenance**.
+
+$\pi(p) = \emptyset$ is disjoint from everything, so such a principal survives
+[3.5](#judgmental-qualifying-set) against every argument in the signature: a
+**universal judge**, admitted to rule on work it authored, with the filter
+running and passing. That is the exact shape in which non-identity becomes
+decorative, and it is the mirror of the vacuity already refused on the argument
+side — $\pi(a) = \emptyset$ makes disjointness hold trivially and is refused
+before the filter runs.
+
+The floor is a **derivation condition, not a check**. A supplier states what a
+principal has authored; $\pi$ is that with the identity adjoined, and the
+supplier has no term for the result. Refusing an empty $\pi(p)$ at the point of
+use would be one uncalled code path away from vacuous — the failure
+[3.54](#non-identity-by-construction) exists to foreclose — whereas a value the
+language will not produce cannot be reached by any path at all. *Conformance:
+`rung`'s `Principal` declares `authored` and never `provenance`, the sole route
+being `impl<P: Principal> Provenanced for P { authored().with(id()) }`;
+`rung/tests/provenance_floor.rs`, whose third case is a `trybuild` **E0119** —
+a hand-written `Provenanced` impl for a principal is refused by coherence.*
+
 <a id="three-belonging-predicates" data-parent="pool-is-parameter"></a>
 **3.3** Three of the four are **belonging predicates**: capability,
 non-identity, and standing. They decide whether a principal qualifies at
@@ -461,19 +485,56 @@ $$\mathbf{Kl}_{\text{judg}}(\mathcal{P}) = \{\, f : \pi(f(a)) \cap \pi(a) = \emp
 
 $$\mathbf{Kl}_{\text{auth}}(\mathcal{P}) = \{\, f : \pi(f(a)) \subseteq \pi(p) \ \wedge\ \mathsf{standing}(p, a) \,\} \qquad \text{(the steward)}$$
 
+<a id="judgment-provenance-is-the-judges" data-parent="constant-arrow-hazard"></a>
+**5.42** A judgmental arrow's outcome carries its **judge's** provenance:
+$\pi(f(a)) \subseteq \pi(p)$ for the principal $p$ drawn from
+[3.5](#judgmental-qualifying-set). The judgmental mirror of
+[7.24](#proposal-provenance-is-authors): a Proposal's provenance is its
+author's, and a ruling's is its judge's.
+
+Without it [5.41](#admissibility-subcategories) states a condition on $f(a)$
+that nothing in the interpretation obliges $f$ to meet. [5.4](#constant-arrow-hazard)
+is precisely the arrow that meets every *dispatch* condition and no outcome
+condition: the selection rule fires honestly and the value still comes from
+$M$'s own carrier. A dispatch discipline cannot refuse it, because the dispatch
+was not what was wrong.
+
+**Output admissibility is then a theorem, not a further check.** With
+[3.5](#judgmental-qualifying-set) enforced at the mint and this enforced where
+the outcome is spent:
+
+$$\pi(f(a)) \subseteq \pi(p) \ \wedge\ \pi(p) \cap \pi(a) = \emptyset \implies \pi(f(a)) \cap \pi(a) = \emptyset$$
+
+which is [5.41](#admissibility-subcategories)'s judgmental clause. An
+implementation that also asserted the disjointness would be asserting a
+conclusion whose premises it already enforces — a third guarantee in
+appearance and none in substance. *Conformance: `theory!`'s `settle` refuses
+$\pi(f(a)) \not\subseteq \pi(p)$ with `SettleError::OutcomeNotFromJudge`, and
+`ladder!` injects `must_derive_from_judge` as an epilogue on a forward
+judgmental transition ([G15](rung-props.md#g15-outcome-provenance));
+`gate_markers.rs::{a_judgmental_arrow_may_not_return_the_provenance_it_judged,
+the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render}`,
+`gate_law.rs::a_judgment_rendered_by_another_principal_is_refused`.*
+
+The outcome is unforgeable because it is **sealed**: `Judgment` has no
+constructor outside `rung` and `Principal::judgment` is the only mint, so the
+provenance an outcome carries is not a value its producer chose. A verdict
+handed in as a parameter — which is what `settle` took before this proposition
+— is exactly the case the seal removes.
+
 <a id="authorial-admissibility-stronger" data-parent="constant-arrow-hazard"></a>
-**5.42** Authorial admissibility is **stronger, not weaker** — not
+**5.43** Authorial admissibility is **stronger, not weaker** — not
 "anything goes," but "only the principal who holds stewardship may enact
 on it." Where judgmental demands disjointness, authorial demands
 containment plus standing.
 
 <a id="one-monad" data-parent="constant-arrow-hazard"></a>
-**5.43** Both are sub-categories of the **same** $\mathbf{Kl}(\mathcal{P})$.
+**5.44** Both are sub-categories of the **same** $\mathbf{Kl}(\mathcal{P})$.
 Distinct monads would mean distinct principal pools, which [3.4](#one-pool-two-filters) does not
 license.
 
 <a id="gate-relative-admissibility-licensed" data-parent="constant-arrow-hazard"></a>
-**5.44** Admissibility is gate-relative, and this is licensed.
+**5.45** Admissibility is gate-relative, and this is licensed.
 Decidability is already fiber-relative and classified one level up
 ([2.53](#classifier-one-level-up)); gate-relative admissibility is the same pattern applied to
 provenance instead of decidability. The institution's uniformity lives in

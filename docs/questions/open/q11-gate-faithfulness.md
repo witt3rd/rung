@@ -11,6 +11,13 @@ affects:
 
 **Status:** OPEN
 
+**Standing as of 2026-08-04.** Blocker (1) — the returned value — is **closed**
+by [Q12](../resolved/q12-admissibility-value-or-dispatch.md)'s ruling (R2), and
+closed *by derivation* rather than by a guard on the condition itself. Blocker
+(2) — `#[conditional(..)]` — **stands**, so this question stays open and
+`gate-faithful` stays `parked`. The detail is folded in below rather than
+summarised here.
+
 **Question.** Het requires every algebra in `Mod(Σ)` to be **gate-faithful**
 ([`gate-faithful`](../../rung-het-props.md#gate-faithful)): every decidable operation factors
 through `η`, every judgmental one is a judgmentally-admissible Kleisli arrow,
@@ -77,20 +84,55 @@ $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
 
 **Why that is not gate-faithfulness.**
 
-1. **Admissibility constrains the arrow's *output*, and this constrains its
-   *input*.** [`gate-faithful`](../../rung-het-props.md#gate-faithful) is
-   stated through
-   [`admissibility-subcategories`](../../rung-het-props.md#admissibility-subcategories),
-   which defines the judgmental sub-category as
-   $\mathbf{Kl}_{\text{judg}}(\mathcal{P}) = \{ f : \pi(f(a)) \cap \pi(a) = \emptyset \}$.
-   That is a condition on $f(a)$ — the value returned. G12 and G13 together
-   settle *who may be consulted about $a$*; they say nothing about the
-   provenance of what comes back. A judgmental transition whose body returns a
-   rung carrying $\pi(a)$ itself is inadmissible and passes every check built
-   here. That is Q1's territory, and this question inherits it whole — which is
-   exactly what the "Relationship to other questions" section warned.
+1. ~~**Admissibility constrains the arrow's *output*, and this constrains its
+   *input*.**~~ **CLOSED** by [Q12](../resolved/q12-admissibility-value-or-dispatch.md)'s
+   ruling — **R2**, adopt verdict provenance — and it is worth being precise
+   about *how*, because it did not close the way this question expected.
 
-2. **One of the four gates has no encoding at all** — down from two.
+   It did **not** close by an epilogue guard on the stated condition. The new
+   proposition
+   [`judgment-provenance-is-the-judges`](../../rung-het-props.md#judgment-provenance-is-the-judges)
+   obliges a judgmental arrow's outcome to carry its judge's provenance,
+   $\pi(f(a)) \subseteq \pi(p)$ — the judgmental mirror of
+   [`proposal-provenance-is-authors`](../../rung-het-props.md#proposal-provenance-is-authors)
+   — and *that* is what is asserted, by `theory!`'s `settle` and by the
+   epilogue `ladder!` injects on a forward judgmental transition
+   ([G15](../../rung-props.md#g15-outcome-provenance)). Since G13 already
+   enforces $\pi(p) \cap \pi(a) = \emptyset$ for the very argument the arrow
+   is applied to,
+
+   $$\pi(f(a)) \subseteq \pi(p) \ \wedge\ \pi(p) \cap \pi(a) = \emptyset \implies \pi(f(a)) \cap \pi(a) = \emptyset$$
+
+   so [`admissibility-subcategories`](../../rung-het-props.md#admissibility-subcategories)'s
+   judgmental clause is a **theorem of two enforced facts**. Nothing calls
+   `Prov::overlaps` on the way out, deliberately: asserting the conclusion of a
+   derivation whose premises are both enforced reads as a third guarantee and
+   is none.
+
+   What made the guard sound is what this section's *Received advisory input*
+   identified and could not supply — a payload whose provenance is not freely
+   chosen by the body. `rung::Judgment` is that payload: sealed, minted only by
+   `Principal::judgment`, which calls the new oracle `Principal::rule`. A body
+   may still decide *what* comes back; it cannot decide *whose* provenance the
+   return carries.
+
+   **What is left of this blocker, narrowed.** Two outward conditions are still
+   the body's, and they are recorded at
+   [`outward-conditions-remaining`](../../rung-props.md#outward-conditions-remaining)
+   rather than absorbed into the closure: the **authorial** conjunct
+   $\pi(f(a)) \subseteq \pi(p)$, which G14 left to the body exactly as G13 left
+   the judgmental one, and **branching** judgmental transitions, whose
+   recoverable and continue arms carry the argument onward by design
+   ([`reproposal-carries-the-chain`](../../rung-het-props.md#reproposal-carries-the-chain))
+   so that an epilogue there would refuse re-entry rather than laundering. The
+   first is a hole and is parked on
+   `gate_markers.rs::an_authorial_arrow_may_not_return_a_provenance_its_author_does_not_hold`;
+   the second is a question and is not settled here. Neither is what this
+   blocker said, which was that *nothing* constrained the returned value.
+
+2. **One of the four gates has no encoding at all** — down from two, and this
+   blocker **stands**. It is now the only one, and it is what keeps
+   `gate-faithful` and `mod-only-gate-faithful` parked.
    `#[authorial(Role)]` is implemented (rung-props.md G14): it emits an
    `Authorized<'_, Role>` pen, `Pool::authorize` runs **both** conjuncts of
    [`authorial-qualifying-set`](../../rung-het-props.md#authorial-qualifying-set),
@@ -125,11 +167,22 @@ $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
    already stated, of a kind with `G4` being the affine approximation of
    exactly-once. It belongs in the verification boundary, not in a blocker list.
 
-So the ledger keeps `gate-faithful` parked, with the blocker restated: not "the
-token is unbound" — that is fixed — and no longer purity, but (1) the returned
-value and (2) the one remaining unimplemented gate. Blocker (2) was two gates
-and is now one; blocker (1) is untouched and got *wider*, because there are now
-two admissibility conditions on the way out rather than one.
+So the ledger keeps `gate-faithful` parked, with the blocker restated once
+more: not "the token is unbound" — fixed by G13 — not purity — closed on
+advisory input — and no longer the returned value, which Q12's R2 closed by
+derivation. What is left is **(2) the one remaining unimplemented gate**.
+`gate-faithful` quantifies over *every* operation of an algebra, and an algebra
+with a conditional operation cannot be declared here at all, so it cannot state
+this proposition. That is now pinned by a runnable case rather than by this
+paragraph: `gate_markers.rs::a_conditional_marker_has_a_signature` asks the
+macro to accept the marker, and deleting its `#[ignore]` reports whether it
+does.
+
+The row that *did* move is `returned-value-unconstrained`, from `parked` to
+`enforced`, on
+`gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render`
+— a judgmental body that returns the argument it was handed, refused by the
+injected epilogue, and red when that injected call is deleted.
 
 ### Received advisory input
 
@@ -175,7 +228,7 @@ The proposal quotes the thing that would close it — a payload whose provenance
 is *not freely chosen by the body* — and then does not build it. Minting the
 output provenance from the token rather than reading it from the returned value
 is what makes the epilogue sound, and that is
-[Q12](q12-admissibility-value-or-dispatch.md)'s **R2**. The useful consequence:
+[Q12](../resolved/q12-admissibility-value-or-dispatch.md)'s **R2**. The useful consequence:
 R1 and R2 are not symmetric options. The epilogue only works in R2's world.
 
 The `G8` analogy also does not carry. `must_progress` compares body-produced
@@ -184,10 +237,15 @@ harms itself. Admissibility is a safety property against a body with motive.
 Same mechanism, different threat model.
 
 **What it does not touch.** Nothing in the analysis addresses
-[Q12](q12-admissibility-value-or-dispatch.md)'s decisive observation: `theory!`
+[Q12](../resolved/q12-admissibility-value-or-dispatch.md)'s decisive observation: `theory!`
 emits `settle(model, q, v: Verdict)` with the verdict as a *parameter*. The
 epilogue guards the `ladder!` path; the constant-arrow hazard lives on the
 `theory!` path and would survive all three proposed remedies intact.
+
+*Since resolved.* Q12's R2 removed the parameter: `settle` takes a sealed
+`Judgment` minted by the principal, and there is no term through which a caller
+can state a verdict. The reader's mechanism was sound and its predicate was
+wrong; both halves of that assessment held.
 
 ### What would falsify this argument
 
@@ -201,10 +259,13 @@ Any one of these would close the question or collapse a blocker:
   support that reading — 5.41 gives the sub-category by its arrow condition, not
   by its dispatch discipline — but the formalism is the repo owner's to amend,
   and this is the amendment that would do it.
-- **A rung payload whose provenance is not freely chosen by the body.** If a
-  judgmental transition's target payload derived $\pi$ structurally rather than
-  by the body's construction, blocker (1) becomes checkable by the same
-  prologue trick applied on the way out. This is worth trying and has not been.
+- ~~**A rung payload whose provenance is not freely chosen by the body.**~~
+  **Done, and it closed blocker (1).** `rung::Judgment` derives $\pi$
+  structurally from the judge that minted it, and the prologue trick applied on
+  the way out is [G15](../../rung-props.md#g15-outcome-provenance). The
+  predicate it asserts is *containment*, not the disjointness this bullet
+  imagined — disjointness follows, and asserting it too would be asserting a
+  conclusion.
 - ~~**`#[authorial]` and `#[conditional(..)]` implemented,** which removes (2)
   outright.~~ **Half done.** `#[authorial(Role)]` is built (G14) and verified by
   mutation: dropping the capability conjunct from `Pool::authorize` reddens
@@ -216,8 +277,11 @@ Any one of these would close the question or collapse a blocker:
   building.
 - **An effect discipline on decidable bodies,** which removes (3).
 
-Blocker (1) is the load-bearing one, and it is the one that is not a matter of
-building more.
+Blocker (1) *was* the load-bearing one; it is closed, and the falsifier that
+closed it is the second bullet above — a rung payload whose provenance is not
+freely chosen by the body. It was "worth trying and has not been"; it has now
+been tried, and it worked. What remains is blocker (2), and it is the one that
+is not a matter of building more.
 
 ## What makes it hard
 
@@ -306,14 +370,22 @@ mechanism.
    fail for the intended reason and not incidentally.~~ **Done** — G12, with
    `trybuild` snapshots rather than `compile_fail` doctests, because rustdoc
    does not verify error codes.
-2. Bind the qualifying token to its argument, ~~then~~ **done** (G13, verified by
-   mutation: removing the `admit` call reddens two named tests, and stubbing the
-   injected prologue reddens a third whose ladder body never reads its token).
-   What remains of this step is the second clause, untouched: *show that an
-   arrow declared judgmental cannot **return** a value whose provenance meets
-   its argument's.* That is the live work.
+2. ~~Bind the qualifying token to its argument, then show that an arrow
+   declared judgmental cannot **return** a value whose provenance meets its
+   argument's.~~ **Both done.** G13 binds the token (verified by mutation:
+   removing the `admit` call reddens two named tests, and stubbing the injected
+   prologue reddens a third whose ladder body never reads its token). G15 and
+   `settle` close the return (verified by mutation: deleting the injected
+   epilogue call reddens
+   `::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render`;
+   deleting `settle`'s containment assertion reddens
+   `gate_law.rs::a_judgment_rendered_by_another_principal_is_refused`; minting
+   the token's `Judgment` with the argument's provenance instead of the judge's
+   reddens `::a_judgmental_arrow_may_not_return_the_provenance_it_judged`). The
+   live work is step 3's residue and blocker (2).
 3. ~~Only then ask whether (1) + (2) is what Het means by gate-faithful.~~
    **Asked and answered: no.** See "Does half one + half two = gate-faithfulness?"
-   above, with its falsifiers. The question stays open on step 2's second clause
-   — now doubled, since the authorial gate has an outward condition of its own
-   — and on the one remaining unimplemented gate.
+   above, with its falsifiers. The question now stays open on **one** thing —
+   the unimplemented conditional gate — plus the narrowed residue of step 2's
+   second clause: the authorial gate's outward condition, and what a *branching*
+   judgmental transition's arms are, admissibility-wise.

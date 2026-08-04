@@ -736,3 +736,89 @@ fn the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render() {
     // Every gate on the way in is satisfied. The way out is where this fails.
     let _ = launder::repeated(launder::Heard::new(heard), licence);
 }
+
+// ── the outward conditions that are still open ─────────────────────────────
+
+/// **PARKED.** The *authorial* outward condition is unsecured, and so is the
+/// outcome of a *branching* judgmental transition.
+///
+/// [G15](rung-props.md) closed the judgmental half on a **forward** transition:
+/// `π(f(a)) ⊆ π(p)`, asserted by an injected epilogue, with disjointness
+/// following. Two outward conditions are left, and this is the sharper one.
+///
+/// `admissibility-subcategories` states the authorial clause as
+/// `π(f(a)) ⊆ π(p) ∧ standing(p, a)`. `G14` secures `standing` on the way in
+/// and leaves the containment on the way out entirely to the body — the same
+/// shape as `G13`'s gap, on the second gate. The arrow below is the case: the
+/// curator holds an honest pen over the cabinet, the sheet sits in the cabinet,
+/// and the revision it authors carries `someone-else`'s provenance. Nothing
+/// refuses it.
+///
+/// The other residue has no separate case because it is a question rather than
+/// a hole: a *branching* judgmental transition's recoverable and continue arms
+/// carry the argument onward by design (`reproposal-carries-the-chain`,
+/// `no-bound-on-reentry`), so which arms are outcomes in the sense of
+/// `admissibility-subcategories` is unsettled, and an epilogue there would
+/// refuse re-entry rather than laundering.
+///
+/// **Ignored, deliberately.** Unpark by deleting the attribute once an
+/// authorial epilogue exists; it must then panic in the same place the
+/// judgmental one does.
+#[test]
+#[ignore = "GAP, not a bug: G15 secures the JUDGMENTAL outward condition on a \
+            FORWARD transition. The authorial one — π(f(a)) ⊆ π(p) from \
+            admissibility-subcategories, the conjunct G14 left to the body — \
+            has no epilogue, and neither does a branching judgmental \
+            transition. This is what remains of Q11's blocker (1); see \
+            docs/questions/open/q11-gate-faithfulness.md. Unpark by deleting \
+            this attribute once an authorial epilogue exists."]
+#[should_panic(expected = "\u{3c0}(f(a)) \u{2284} \u{3c0}(p)")]
+fn an_authorial_arrow_may_not_return_a_provenance_its_author_does_not_hold() {
+    let pool = cabinet_pool();
+    let curator = curator();
+    let pen: Authorized<'_, Curator> = pool
+        .authorize(&curator, "cabinet")
+        .expect("the curator holds standing over the cabinet");
+
+    // Sits in the cabinet, so the standing prologue admits the pen. Written by
+    // someone the curator is not.
+    let sheet = Sheet {
+        container: "cabinet",
+        author: "someone-else",
+        revisions: 0,
+    };
+
+    let revised = revision::revised(revision::Filed::new(sheet), pen);
+    assert!(
+        !revised
+            .payload
+            .provenance()
+            .contained_in(&Prov::of(["curator"])),
+        "the arrow returned a provenance its author does not hold, and no \
+         guarantee looked"
+    );
+}
+
+/// **PARKED.** `#[conditional(..)]` has no encoding, so an algebra with a
+/// conditional operation cannot state gate-faithfulness here at all.
+///
+/// This is Q11's blocker (2), and it is not a matter of building more:
+/// `conditional-partitions-fiber` partitions `Mod(Σ)` — a static property of
+/// *which fiber a model sits in* — while rung's checks run at expansion time
+/// against a declaration, and `classifier-one-level-up` requires the
+/// classification be a sentence something can evaluate.
+///
+/// The cited file is the same declaration the refusal snapshot uses. Today the
+/// macro rejects it with a `compile_error!` naming the open question; the day a
+/// conditional marker has a signature, it compiles, and deleting the attribute
+/// below reports that rather than leaving the reader to notice.
+#[test]
+#[ignore = "GAP: `#[conditional(..)]` is a parse-time refusal, not an \
+            encoding. Gate-faithfulness quantifies over EVERY operation of an \
+            algebra (rung-het-props.md#gate-faithful), so an algebra with a \
+            conditional operation cannot state it here. This is Q11's blocker \
+            (2); see docs/questions/open/q11-gate-faithfulness.md. Unpark by \
+            deleting this attribute once the macro accepts the marker."]
+fn a_conditional_marker_has_a_signature() {
+    trybuild::TestCases::new().pass("tests/ui/gate_conditional_unsupported.rs");
+}

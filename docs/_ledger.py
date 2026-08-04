@@ -502,43 +502,44 @@ CURATED = {
     ),
     "gate-faithful": (
         "parked",
-        "Q11 (gate-faithfulness, open), and now with a case rather than only an "
-        "argument. The cited test is the load-bearing blocker made runnable: a "
-        "judgmental arrow that returns a value carrying π(a) itself passes every "
-        "check rung makes. Nothing was rigged for it — the gate-marker suite's "
-        "own `Review` ladder has been inadmissible since markers landed, and the "
-        "engine could not tell. Deleting the `#[ignore]` reports whether the "
-        "return side has been closed. "
-        "All three rows of Q11's table are now "
-        "built, and none of them is this proposition. The signature is honest "
-        "(G12) and the token is bound to its argument (G13), so no judgmental "
-        "arrow can be traversed except by a principal drawn from "
-        "P_judg(φ, a) for the very `a` — P0 closed. That is the *input* side. "
-        "This proposition is stated through "
-        "{#admissibility-subcategories}, whose condition is "
-        "π(f(a)) ∩ π(a) = ∅ — a constraint on what the arrow RETURNS, which no "
-        "signature reaches and which inherits SPEC §5, transition-body "
-        "correctness — and G14 added the authorial gate on the same "
-        "input side, so it moved no part of THIS row. ONE further blocker: "
-        "`#[conditional(..)]` remains a parse-time refusal, so an algebra with "
-        "a conditional operation cannot state gate-faithfulness here at all "
-        "(`#[authorial(Role)]` is implemented as of G14). Purity was a third "
-        "and is CLOSED on received advisory input: η is 𝒫's unit, so "
-        "\"factors through η\" IS 𝒫-purity and never claimed absolute purity. "
-        "That a decidable body may read a clock is {#purity-not-secured}, a "
-        "limit already stated, not a blocker. Argued in the question file, "
-        "with its falsifiers, at `docs/questions/open/q11-gate-faithfulness.md`.",
-        "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
+        "Q11 (gate-faithfulness, open), with **one** blocker rather than two. "
+        "Blocker (1) — the returned value — has CLOSED, and it closed by "
+        "derivation rather than by an epilogue guard on the condition itself. "
+        "R2 obliges a judgmental outcome to carry its judge's provenance "
+        "({#judgment-provenance-is-the-judges}): `Judgment` is sealed, "
+        "`Principal::judgment` is the only mint and calls the oracle "
+        "`Principal::rule`, and π(f(a)) ⊆ π(p) is asserted where a `Judgment` "
+        "is spent — by `theory!`'s `settle` and by G15's injected epilogue. "
+        "With G13 already enforcing π(p) ∩ π(a) = ∅, "
+        "{#admissibility-subcategories}'s judgmental clause is a THEOREM of two "
+        "enforced facts, so nothing calls `Prov::overlaps` on the way out and "
+        "nothing should. What is left of blocker (1) is narrower and is "
+        "recorded as such: the authorial outward conjunct and branching "
+        "judgmental arms ([5.621](rung-props.md#outward-conditions-remaining)). "
+        "Blocker (2) STANDS and is why this row does not move: "
+        "`#[conditional(..)]` is a parse-time refusal, gate-faithfulness "
+        "quantifies over EVERY operation, and an algebra with a conditional "
+        "operation therefore cannot state this proposition here at all. The "
+        "cited test is that blocker made runnable — it asks the macro to accept "
+        "a conditional marker, and deleting its `#[ignore]` reports whether it "
+        "does. Purity was a third blocker and is CLOSED on received advisory "
+        "input: η is 𝒫\'s unit, so \"factors through η\" IS 𝒫-purity and never "
+        "claimed absolute purity; that a decidable body may read a clock is "
+        "{#purity-not-secured}, a limit already stated. Argued with its "
+        "falsifiers at `docs/questions/open/q11-gate-faithfulness.md`.",
+        "rung/tests/gate_markers.rs::a_conditional_marker_has_a_signature",
     ),
     "mod-only-gate-faithful": (
         "parked",
-        "Follows {#gate-faithful}, and parks on the same case: `Mod(Σ)` can "
-        "consist only of gate-faithful algebras once gate-faithfulness is "
-        "checkable, and the cited test is what reports that it is not yet. Until "
-        "then a `theory!` declaration that violates "
-        "{#admissibility-subcategories} is admitted to `Mod(Σ)` without "
-        "complaint.",
-        "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
+        "Follows {#gate-faithful}, and parks on the same remaining blocker: "
+        "`Mod(Σ)` can consist only of gate-faithful algebras once "
+        "gate-faithfulness is checkable, and it is not checkable for an algebra "
+        "with a conditional operation, because such an algebra cannot be "
+        "declared. The outward half that used to park this row has closed — a "
+        "`theory!` declaration can no longer settle a judgmental sentence with "
+        "a verdict its judge never gave ({#judgment-provenance-is-the-judges}) "
+        "— which narrows the row without moving it.",
+        "rung/tests/gate_markers.rs::a_conditional_marker_has_a_signature",
     ),
 
     # ── structural correspondences worth recording ───────────────────────
@@ -957,6 +958,18 @@ CURATED_RUNG = {
         "whose ladder never reads the token.",
         "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token",
     ),
+    "judgmental-outcome-bound": (
+        "enforced",
+        "The emitted forward judgmental transition is followed by the injected "
+        "outcome epilogue ([G15](rung-props.md#g15-outcome-provenance)), so its "
+        "*target* payload must implement `::rung::Provenanced` as well as its "
+        "source. The cited test is the epilogue firing: a body that returns its "
+        "own argument does not complete. Removing the injected call from the "
+        "macro reddens it; a branching judgmental transition gets no epilogue, "
+        "which is why `review::step` still compiles with a `Report` payload "
+        "that carries no provenance.",
+        "rung/tests/gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render",
+    ),
     "authorial-signature": (
         "enforced",
         "The authorial mirror, coerced the same way to "
@@ -1052,12 +1065,15 @@ CURATED_RUNG = {
     ),
     "gate-faithfulness-not-secured": (
         "parked",
-        "The gap has a case now. rung checks the way **in** — G12 the signature, "
-        "G13 the token's binding to π(a), G14 the authorial mirror — and nothing "
-        "on the way out. The parked test is the demonstration: a judgmental arrow "
-        "returning a value that carries π(a) itself passes every check rung "
-        "makes. See {#returned-value-unconstrained}.",
-        "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
+        "Narrowed, not closed. rung now checks the way **out** as well as the "
+        "way in: G15 is the judgmental outcome epilogue and `settle` is its "
+        "sentence-surface twin, so {#returned-value-unconstrained} no longer "
+        "describes the whole outward side. What keeps this non-guarantee "
+        "standing is {#one-gate-unimplemented} — one of "
+        "Het\'s four gates has a refusal rather than an encoding — and the "
+        "residue at [5.621](rung-props.md#outward-conditions-remaining). The "
+        "cited test is the first of those, made runnable.",
+        "rung/tests/gate_markers.rs::a_conditional_marker_has_a_signature",
     ),
     "one-gate-unimplemented": (
         "enforced",
@@ -1069,14 +1085,38 @@ CURATED_RUNG = {
         "rung/tests/gate_markers.rs::conditional_is_refused_and_names_the_open_question",
     ),
     "returned-value-unconstrained": (
+        "enforced",
+        "The proposition used to read \"the returned value is unconstrained\", "
+        "and the measure of it was that `Prov::contained_in` existed and no "
+        "guarantee called it. Two guarantees call it now. G15 injects "
+        "`must_derive_from_judge` after every forward `#[judgmental(R)]` body, "
+        "and `theory!`\'s `settle` refuses a `Judgment` whose provenance the "
+        "licence does not contain. The cited test is the constant arrow as a "
+        "ladder — a judgmental body that returns the argument it was handed — "
+        "and deleting the injected call from the macro reddens it. The "
+        "companion `::a_judgmental_arrow_may_not_return_the_provenance_it_judged` "
+        "is the positive case, and minting the token\'s `Judgment` with the "
+        "argument\'s provenance instead of the judge\'s reddens that one. What "
+        "is NOT covered is stated at "
+        "[5.621](rung-props.md#outward-conditions-remaining) and parked on its "
+        "own test rather than folded in here.",
+        "rung/tests/gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render",
+    ),
+    "outward-conditions-remaining": (
         "parked",
-        "`Prov::contained_in` exists and no guarantee calls it — the proposition "
-        "says so, and now a test does. The parked case needed no rigging: the "
-        "gate-marker suite's own `Review` ladder has violated "
-        "{#admissibility-subcategories} since markers "
-        "landed, because `active` is `#[judgmental(Reviewer)]` and returns a "
-        "value declaring the provenance of the argument it judged.",
-        "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
+        "The two halves of the outward side that G15 does not reach. The "
+        "authorial conjunct π(f(a)) ⊆ π(p) from "
+        "{#admissibility-subcategories} is left to the body exactly as the "
+        "judgmental one was before R2 — G14 secures `standing` on the way in "
+        "and nothing looks on the way out — and the cited test is that arrow: "
+        "an honest pen over the right container, and a revision carrying "
+        "someone else\'s provenance. A branching judgmental transition takes "
+        "the prologue and no epilogue, because its recoverable and continue "
+        "arms carry the argument onward by design "
+        "({#reproposal-carries-the-chain}) and which arms are *outcomes* is "
+        "unsettled; that is a question rather than a hole, and it is recorded "
+        "in the same `#[ignore]` reason.",
+        "rung/tests/gate_markers.rs::an_authorial_arrow_may_not_return_a_provenance_its_author_does_not_hold",
     ),
     "decidable-is-not-pure": (
         "out-of-scope",

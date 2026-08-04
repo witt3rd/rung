@@ -15,7 +15,7 @@ document order. Run `./_props.py fmt` and the numbering follows;
 `./_props.py check` fails on a duplicate slug, a dangling parent or reference, a
 proposition out of order with its parent, or a number that has gone stale.
 
-**Two labelled subtrees.** [4](#guarantees) numbers its children `G1`–`G14` and
+**Two labelled subtrees.** [4](#guarantees) numbers its children `G1`–`G15` and
 [7](#design-judgments) numbers its children `J1`–`J2`, declared by
 `data-numbering` on the root. These are still derived numbers — the letter is
 the root's, the index is document order — but they are flat rather than
@@ -239,8 +239,15 @@ preceded by the injected binding prologue `must_be_bound_to(&spec.payload, &q);`
 ([G13](#g13-token-binding)), so the source rung's payload MUST implement
 `::rung::Provenanced`.
 
+<a id="judgmental-outcome-bound" data-parent="emitted-functions"></a>
+**3.73** A **forward** `#[judgmental(R)]` transition is also *followed* by the
+injected outcome epilogue `must_derive_from_judge(&out.payload, &judge_prov);`
+([G15](#g15-outcome-provenance)), so the *target* rung's payload MUST implement
+`::rung::Provenanced` as well as the source's. A branching judgmental
+transition gets the prologue and no epilogue.
+
 <a id="authorial-signature" data-parent="emitted-functions"></a>
-**3.73** **`#[authorial(R)]`:** `pub fn revised(filed: Filed, pen:
+**3.74** **`#[authorial(R)]`:** `pub fn revised(filed: Filed, pen:
 ::rung::Authorized<'_, R>) -> Revised` — a second parameter, taken by value. Its
 name comes from the body's *second* closure input when there is one; otherwise
 it is bound to `_pen` and consumed unread. The body is preceded by the injected
@@ -448,6 +455,50 @@ injected prologue reddens the prologue test. And the `tests/ui/` `trybuild`
 cases: `gate_authorial_missing_pen` → E0061, `gate_forged_pen` → E0451,
 `gate_authorial_no_role` → the macro's `compile_error!`.*
 
+<a id="g15-outcome-provenance" data-parent="guarantees"></a>
+**G15** **Outcome provenance.** The macro MUST follow every `#[judgmental(R)]`
+**forward** transition body with `must_derive_from_judge(&<out>.payload,
+&<π(p) snapshot>)`, which panics unless the returned payload's provenance is
+contained in the qualifying principal's. This requires the *target* rung's
+payload to implement `::rung::Provenanced` — without $\pi(f(a))$ there is
+nothing to measure. The snapshot is taken in the prologue, because the body
+consumes the licence; and the body runs inside an immediately-invoked closure,
+so a `return` in it cannot step over the check. Unmarked, `#[authorial(R)]` and
+*branching* judgmental emission is unchanged.
+
+[G13](#g13-token-binding) constrains the arrow's **argument**; this constrains
+its **outcome**, and they are the two halves of
+[5.41](rung-het-props.md#admissibility-subcategories). Without G15 a body may
+hold an honest licence, bound to the very argument it is applied to, and hand
+that argument straight back out — the constant arrow
+[5.4](rung-het-props.md#constant-arrow-hazard) names, expressed as a ladder.
+
+**It asserts containment, not disjointness, and that is the point.** With G13
+having just re-established $\pi(p) \cap \pi(a) = \emptyset$ for this argument,
+$\pi(f(a)) \subseteq \pi(p)$ entails
+$\pi(f(a)) \cap \pi(a) = \emptyset$
+([5.42](rung-het-props.md#judgment-provenance-is-the-judges)). A disjointness
+epilogue on top would assert the conclusion of a derivation whose premises are
+both enforced. Containment is also the half a lying body cannot satisfy by
+stamping: `::rung::Judgment` has no constructor outside `rung`, so a payload
+whose $\pi$ derives from one carries a provenance its producer did not choose.
+
+**Forward transitions only.** A branching judgmental transition returns a sum
+whose recoverable and continue arms carry the argument onward by design —
+re-entry rather than laundering
+([7.44](rung-het-props.md#reproposal-carries-the-chain)) — so which arms are
+*outcomes* in the sense of [5.41](rung-het-props.md#admissibility-subcategories)
+is unsettled, and the epilogue does not guess. Recorded as an open limit in
+`docs/questions/open/q11-gate-faithfulness.md`.
+
+*Conformance:
+`gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render`
+(a judgmental body that returns its own argument; deleting the injected call
+reddens it) and
+`::a_judgmental_arrow_may_not_return_the_provenance_it_judged` (the arrow whose
+outcome is built on the judge's `Judgment`; minting that `Judgment` with the
+argument's provenance instead of the judge's reddens it).*
+
 ---
 
 ## 5 · Non-guarantees
@@ -482,9 +533,10 @@ identical-token stall loop; it does not prove general forward progress.
 <a id="gate-faithfulness-not-secured" data-parent="non-guarantees"></a>
 **5.6** **Gate-faithfulness.** [G12](#g12-gate-marked-signature) secures the
 judgmental signature, [G13](#g13-token-binding) its argument,
-[G14](#g14-the-authorial-gate) both halves for the authorial gate. None secures
-the value an arrow *returns*, and one of Het's four gates still has no
-signature.
+[G14](#g14-the-authorial-gate) both halves of the authorial gate's *input*, and
+[G15](#g15-outcome-provenance) the judgmental *outcome* of a forward
+transition. What is still not secured is the outcome everywhere else, and one
+of Het's four gates still has no signature.
 
 <a id="one-gate-unimplemented" data-parent="gate-faithfulness-not-secured"></a>
 **5.61** *One gate is unimplemented.* `#[conditional(..)]` is a parse-time
@@ -493,14 +545,33 @@ of an algebra, so an algebra with a conditional arrow cannot state it here at
 all.
 
 <a id="returned-value-unconstrained" data-parent="gate-faithfulness-not-secured"></a>
-**5.62** *The returned value is unconstrained.* [G13](#g13-token-binding) checks
-`π(p) ∩ π(a) = ∅` and [G14](#g14-the-authorial-gate) checks standing, both on the
-way **in**. Admissibility as Het states it also constrains what comes **out** —
-[5.41](rung-het-props.md#admissibility-subcategories)
-gives `π(f(a)) ∩ π(a) = ∅` judgmentally and `π(f(a)) ⊆ π(p)` authorially — which
-is a property of the body, and so inherits
-[5.1](#transition-body-correctness) whole. `Prov::contained_in` exists and no
-guarantee calls it; that is the honest measure of the gap.
+**5.62** *The returned value is constrained judgmentally, and only there.* This
+non-guarantee used to read "the returned value is unconstrained," and it was
+exact: `Prov::contained_in` existed and no guarantee called it. Two now do.
+`theory!`'s `settle` takes a sealed `Judgment` rather than a `Verdict` and
+refuses `π(f(a)) ⊄ π(p)`; [G15](#g15-outcome-provenance) injects the same check
+as an epilogue on a forward judgmental transition. Disjointness —
+[5.41](rung-het-props.md#admissibility-subcategories)'s judgmental clause — is
+not checked because it is entailed
+([5.42](rung-het-props.md#judgment-provenance-is-the-judges)).
+
+The residue is stated at [5.621](#outward-conditions-remaining) rather than
+absorbed into a claim that the outward side is closed. It is not.
+
+<a id="outward-conditions-remaining" data-parent="returned-value-unconstrained"></a>
+**5.621** *Two outward conditions remain.* First, the **authorial** one:
+[5.41](rung-het-props.md#admissibility-subcategories) states the authorial
+clause as `π(f(a)) ⊆ π(p) ∧ standing(p, a)`, and
+[G14](#g14-the-authorial-gate) secures the standing conjunct on the way in
+while leaving the containment conjunct on the way out entirely to the body —
+the same shape as [G13](#g13-token-binding)'s gap, on the second gate. Second,
+**branching** judgmental transitions take the prologue and no epilogue, because
+a branching outcome is a sum whose recoverable and continue arms carry the
+argument onward by design
+([7.44](rung-het-props.md#reproposal-carries-the-chain)), and which of those
+arms is an *outcome* in [5.41](rung-het-props.md#admissibility-subcategories)'s
+sense is not settled. Both inherit [5.1](#transition-body-correctness) whole,
+as the whole outward side used to.
 
 <a id="decidable-is-not-pure" data-parent="gate-faithfulness-not-secured"></a>
 **5.63** *Decidable is not pure.* The unmarked signature excludes Het's outside
@@ -515,10 +586,11 @@ seal is
 
 <a id="gate-faithfulness-answered-no" data-parent="gate-faithfulness-not-secured"></a>
 **5.65** Whether [G12](#g12-gate-marked-signature) +
-[G13](#g13-token-binding) + [G14](#g14-the-authorial-gate) amount to
-gate-faithfulness is argued — and answered *no* — in
-[Q11](questions/open/q11-gate-faithfulness.md), which stays open on
-[5.61](#one-gate-unimplemented) and [5.62](#returned-value-unconstrained).
+[G13](#g13-token-binding) + [G14](#g14-the-authorial-gate) +
+[G15](#g15-outcome-provenance) amount to gate-faithfulness is argued — and
+answered *no* — in [Q11](questions/open/q11-gate-faithfulness.md), which stays
+open on [5.61](#one-gate-unimplemented) and, in its narrowed form,
+[5.621](#outward-conditions-remaining).
 
 <a id="a-cycle-through-an-authorial-act-cannot-close" data-parent="non-guarantees"></a>
 **5.7** **A cycle that must pass through an authorial act cannot close inside

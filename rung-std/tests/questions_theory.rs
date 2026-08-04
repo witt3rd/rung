@@ -341,8 +341,8 @@ fn a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on() {
     }
 
     // The other arm of the same coproduct — a strict edge has no such arm.
-    // The other arm is reached by finding a judge who takes it, not by handing
-    // one to `settle`.
+    // The other arm is reached by locating a judge who takes it, not by
+    // handing one to `settle`.
     let dissenter = Pool::new(vec![Person {
         id: "second-reader",
         prov: &["another-docket"],

@@ -417,9 +417,9 @@ fn a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on() {
     //
     // The advisory path is a real fork: the same edge, the same change, and a
     // judge that rules the other way. A strict edge has no such arm.
-    // The other arm is reached by finding a judge who takes it, not by handing
-    // one to `settle`. That is the whole of R2 in one call site: the fork is
-    // real because the *outside* differs, not because the caller said so.
+    // The other arm is reached by locating a judge who takes it, not by
+    // handing one to `settle`. That is the whole of R2 in one call site: the
+    // fork is real because the *outside* differs, not because the caller did.
     let dissenter = Pool::new(vec![Person {
         id: "second-reader",
         prov: &["another-shop"],

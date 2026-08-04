@@ -660,7 +660,7 @@ fn p0_refuses_a_principal_as_the_examiner_of_its_own_competence_claim() {
 /// channel to an actual outside — so its `rule` affirms whatever it is asked,
 /// which is this supplier's honest limit and is recorded as such in
 /// `rung_std::principals`. Reaching the other arm of a coproduct therefore
-/// means finding a principal who takes it, and that is the point: under R2 a
+/// means locating a principal who takes it, and that is the point: under R2 a
 /// test cannot arrange a verdict, only choose whom to ask.
 struct Dissenting(PrincipalDecl);
 

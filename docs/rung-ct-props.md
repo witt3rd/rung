@@ -528,7 +528,7 @@ instead by a condition on $f(a)$ — what the arrow **returns** — and the two
 gates take opposite conditions there: disjointness from the argument for
 $\mathbf{Kl}_{\text{judg}}$, provenance containment plus standing for
 $\mathbf{Kl}_{\text{auth}}$. Both restrict the *same* Kleisli category
-([5.43](rung-het-props.md#one-monad)), so this is one boundary crossed
+([5.44](rung-het-props.md#one-monad)), so this is one boundary crossed
 twice and not two separate gaps.
 
 Membership of either sub-category is therefore a property of the body, which is

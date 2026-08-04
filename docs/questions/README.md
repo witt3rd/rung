@@ -49,8 +49,8 @@ Moving a file between folders is the lifecycle. Git history records every transi
 | Q8 | The async driver (a free-standing feature, per Q7's resolution) | **open** |
 | Q9 | The dependency superstructure — what overlays the ladder level? | **resolved** — a **Grothendieck opfibration** of dependent optics |
 | Q10 | Is the registry structure fractal? (does the Q9 opfibration iterate up a domain hierarchy?) | **resolved** — an **iterated Grothendieck opfibration** of dependent optics (registry is fractal) |
-| Q11 | Gate-faithfulness (a ladder has no gate marker, so nothing checks that a transition is what it claims) | **open** |
-| Q12 | Does admissibility constrain the value an arrow returns, or the dispatch that produced it? | **open** |
+| Q11 | Gate-faithfulness (a ladder has no gate marker, so nothing checks that a transition is what it claims) | **open** — one blocker left: `#[conditional(..)]` has no encoding |
+| Q12 | Does admissibility constrain the value an arrow returns, or the dispatch that produced it? | **resolved** — the **value**; a judgmental outcome carries its judge's provenance, and output admissibility then *derives* |
 
 **The growth tower** (`morphisms → functors in Cat → natural transformations in Fun`) and the CT-map-as-question-generator live in `_map.md` — the category theory is the principled source of the growth questions, not an ad-hoc list.
 

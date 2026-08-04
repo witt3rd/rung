@@ -1,13 +1,132 @@
 ---
 id: q12
-status: open
+status: resolved
 depends_on:
   - {on: q11, kind: premise}
 ---
 
-# Q12 — Does admissibility constrain the value, or the dispatch? *(open)*
+# Q12 — Does admissibility constrain the value, or the dispatch? *(resolved)*
 
-**Status:** OPEN · **Gated:** the ruling is the repo owner's.
+**Status:** RESOLVED (2026-08-04) · **Ruling: R2 — adopt verdict provenance.**
+The value reading is load-bearing and stands. A judgmental arrow's outcome
+carries its judge's provenance; the outside supplies the verdict; and output
+admissibility then *derives* rather than needing a check of its own.
+
+## The ruling
+
+R2, as filed below, with one thing the filing did not anticipate.
+
+**The oracle.** `Principal` gains `rule(matter) -> Verdict`. Observation (2)
+below is exactly that no method of `Principal` returned one — so the audit's
+decisive point is answered at the trait, not at the call site.
+
+**The seal.** `Judgment` is a verdict together with `π(p)`, sealed as
+`Qualified` and `Authorized` are (rung-props.md G2): no constructor outside
+`rung`, and `Principal::judgment` — which calls the oracle — is the only mint.
+The model cannot mint one; nor can a token, because copying
+`Qualified::principal_provenance` onto a locally computed value produces a
+*claim* that a judge ruled and not a judge's ruling. `Pool::consult` qualifies
+and asks in one act, so the licence and the judgment are the same principal's
+by construction.
+
+**The chain.** `π(f(a)) ⊆ π(p)` is asserted wherever a `Judgment` is spent:
+`theory!`'s `settle` refuses `SettleError::OutcomeNotFromJudge`, and `ladder!`
+injects `must_derive_from_judge` as an **epilogue** on a forward judgmental
+transition (rung-props.md G15) — the mirror of G13's prologue, on the way out.
+
+**The derivation, which is the part that changes what had to be built.** G13
+already enforces `π(p) ∩ π(a) = ∅` for the very argument the arrow is applied
+to. So
+
+$$\pi(f(a)) \subseteq \pi(p) \ \wedge\ \pi(p) \cap \pi(a) = \emptyset \implies \pi(f(a)) \cap \pi(a) = \emptyset$$
+
+and `admissibility-subcategories`' judgmental clause is a **theorem of two
+enforced facts** rather than a third guarantee. Nothing calls `Prov::overlaps`
+on the way out, and nothing should: an epilogue asserting the conclusion of a
+derivation whose premises are both enforced reads as a guarantee and is none.
+This is why the received advisory input's epilogue proposal was right about the
+mechanism and wrong about the predicate — the guard that works is the
+containment one, and it works only in R2's world, which is what that input
+itself concluded.
+
+**Where the derivation does *not* carry, stated exactly.** It carries wherever
+containment is enforced, and containment is enforced in two places: `settle`,
+and forward judgmental `ladder!` transitions. It does **not** carry for
+
+- the **authorial** outward conjunct. `admissibility-subcategories` states it
+  as `π(f(a)) ⊆ π(p) ∧ standing(p, a)`; G14 secures `standing` on the way in
+  and leaves containment on the way out to the body. R2 is the judgmental
+  mirror of `proposal-provenance-is-authors` and does not reach it.
+- **branching** judgmental transitions. A branching outcome is a sum whose
+  recoverable and continue arms carry the argument onward *by design* —
+  re-entry, not laundering (`reproposal-carries-the-chain`,
+  `no-bound-on-reentry`) — so which arms are *outcomes* in 5.41's sense is
+  unsettled, and an epilogue there would refuse the re-entry rather than the
+  hazard. This is a question, not a hole, and it is not settled here.
+
+Both are recorded as `rung-props.md#outward-conditions-remaining` and parked on
+`gate_markers.rs::an_authorial_arrow_may_not_return_a_provenance_its_author_does_not_hold`,
+whose `#[ignore]` reason names them.
+
+**`constant-arrow-hazard` is not retired.** Under R1 it would have had to be —
+that was the filing's admissibility condition on R1 — and under R2 it stays
+standing and is now *closed at the term level*: there is no way to write
+`c_j : a ↦ η(j)` with `j` from `M`'s carrier and have it typecheck in a
+judgmental position, because the outcome must be a `Judgment` and a `Judgment`
+comes from a principal.
+
+## What landed, and where
+
+| surface | what changed |
+|---|---|
+| `rung-het-props.md` | **new** `judgment-provenance-is-the-judges` (5.42) — the judgmental mirror of `proposal-provenance-is-authors`, with the derivation stated beneath it. **new** `principal-provenance-floor` (3.25) — see below. |
+| `rung-props.md` | **new** `G15` outcome provenance; `3.721` the judgmental outcome bound; `5.6`/`5.62` restated, `5.621` names the residue. |
+| `rung` | `Principal::{authored, rule, judgment}`, `Judgment`, `OutcomeNotFromJudge`, `SettleError`, `Pool::consult`, `Prov::{with, contains}`; `Settled::Judgmental` carries the sealed `Judgment` rather than a bare `Verdict`. |
+| `rung-macro` | the injected epilogue and `must_derive_from_judge`. |
+| `conformance.md` | `returned-value-unconstrained` moves `parked → enforced`; `outward-conditions-remaining` is new and `parked`. `gate-faithful` and `mod-only-gate-faithful` stay `parked` on blocker (2). |
+
+## The entanglement, and how it was settled
+
+The last section below records that this question was entangled with the
+empty-provenance ruling: disposing of it requires a judge disjoint from the
+proposal's author, and a principal with no history declares `π(p) = ∅`, which
+is disjoint from everything. That was settled **by the floor, not by admitting
+∅**.
+
+`π(p) ⊇ {id(p)}`: a principal's provenance contains its own identity.
+`Principal` no longer has `Provenanced` as a supertrait and cannot state its own
+`π`; it declares `authored()` — which MAY be empty — and the sole route to
+`Provenanced` is the blanket impl `authored().with(id())`. So a principal with
+no history in this repository is still not disjoint from itself, the universal
+judge is **underivable** rather than refused, and a hand-written
+`impl Provenanced for SomePrincipal` is an E0119 coherence error
+(`rung/tests/ui/floor_forged_provenance.rs`).
+
+That is the difference between the floor and the guard the entanglement seemed
+to call for. A guard on `Pool::qualify` would have refused an empty `π(p)` at
+the point of use and been one uncalled code path away from vacuous — the exact
+failure `Qualified`'s seal exists to foreclose. A value the language will not
+produce cannot be reached by any path at all.
+
+Recorded as `rung-het-props.md#principal-provenance-floor`, pinned by
+`rung/tests/provenance_floor.rs`.
+
+## What this did to Q11
+
+Blocker (1) **closes**, and it closes *by derivation* rather than by an epilogue
+guard on the stated condition. Blocker (2) **stands**: `#[conditional(..)]` is
+still a parse-time refusal and gate-faithfulness quantifies over every
+operation. Q11 stays **open**, and `gate-faithful` and `mod-only-gate-faithful`
+stay `parked` — on one blocker now instead of two.
+
+---
+
+*Everything below is the question as filed, kept whole. It is the reasoning the
+ruling was made against, not a summary of the ruling.*
+
+---
+
+**Filed as:** OPEN · **Gated:** the ruling is the repo owner's.
 
 **Question.** `admissibility-subcategories` defines the judgmental sub-category
 as
