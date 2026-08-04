@@ -60,17 +60,24 @@ pub struct P {
     standing: Vec<&'static str>,
 }
 
-impl Provenanced for P {
-    fn provenance(&self) -> Prov {
-        Prov::of(self.prov.iter().copied())
-    }
-}
 impl Principal for P {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        Prov::of(self.prov.iter().copied())
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 impl Steward for P {
@@ -176,11 +183,18 @@ fn settle_refuses_a_token_minted_against_a_different_model() {
         .qualify::<Reviewer>(&augurs)
         .expect("forge is disjoint from augur's doc");
 
-    let refused = doc::is_constitutive::settle(&forges, token, Verdict::Conforming).expect_err(
+    let judgment = principal("forge", &["forge"], &[]).judgment("is_constitutive");
+    let refused = doc::is_constitutive::settle(&forges, token, judgment).expect_err(
         "P0: forge settled a judgmental sentence on its own document \
          with a licence minted against another",
     );
 
+    // The binding refusal fires on the way *in*, before the outcome check on
+    // the way out is reached: an unbound licence is not a licence, so there is
+    // nothing yet for a judgment to be contained in.
+    let rung_het::SettleError::TokenNotBound(refused) = refused else {
+        panic!("expected the binding refusal, got {refused:?}")
+    };
     assert_eq!(refused.principal, "forge");
     assert_eq!(refused.role, Reviewer::NAME);
     assert_eq!(

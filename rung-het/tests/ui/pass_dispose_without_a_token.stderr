@@ -1,22 +1,22 @@
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
-  --> tests/ui/pass_dispose_without_a_token.rs:84:20
+  --> tests/ui/pass_dispose_without_a_token.rs:91:20
    |
-84 |     let _outcome = pass::step(proposed);
+91 |     let _outcome = pass::step(proposed);
    |                    ^^^^^^^^^^---------- argument #2 of type `Qualified<Reader>` is missing
    |
 note: function defined here
-  --> tests/ui/pass_dispose_without_a_token.rs:59:1
+  --> tests/ui/pass_dispose_without_a_token.rs:66:1
    |
-59 | / het_pass!(Pass {
-60 | |     subject = Draft,
-61 | |     edit = DraftEdit,
-62 | |     author = Editor,
+66 | / het_pass!(Pass {
+67 | |     subject = Draft,
+68 | |     edit = DraftEdit,
+69 | |     author = Editor,
 ...  |
-67 | |     rule = |_p: &Proposal<DraftEdit>, _judge: &str| Disposition::Accept,
-68 | | });
+74 | |     rule = |_p: &Proposal<DraftEdit>, _judge: &str| Disposition::Accept,
+75 | | });
    | |__^
    = note: this error originates in the macro `$crate::ladder` which comes from the expansion of the macro `het_pass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-84 |     let _outcome = pass::step(proposed, /* Qualified<Reader> */);
+91 |     let _outcome = pass::step(proposed, /* Qualified<Reader> */);
    |                                       +++++++++++++++++++++++++

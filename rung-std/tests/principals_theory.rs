@@ -459,21 +459,27 @@ fn every_member_of_the_qualifying_set_is_a_well_formed_dispatch() {
         // A pool of one: the member is the only survivor, so the licence is
         // demonstrably that member's.
         let seat = Pool::new(vec![(*member).clone()]);
-        let q = seat
-            .qualify_for::<Examiner>(claimant)
+        let (q, judgment) = seat
+            .consult::<Examiner>(claimant, "competence_claim_is_true")
             .expect("this member is in the qualifying set");
-        let settled = principal::competence_claim_is_true::settle(claimant, q, Verdict::Conforming)
-            .expect("the licence was minted against this very claimant");
+        let settled = principal::competence_claim_is_true::settle(claimant, q, judgment)
+            .expect("the licence and the judgment are this member's");
         match settled {
             Settled::Judgmental {
                 sentence,
                 role,
                 principal,
-                verdict,
+                judgment,
             } => {
                 assert_eq!(sentence, "competence_claim_is_true");
                 assert_eq!(role, "examiner");
-                assert!(verdict.is_conforming());
+                assert!(judgment.verdict().is_conforming());
+                assert_eq!(
+                    judgment.judge_id(),
+                    principal,
+                    "the receipt names the judge that spoke, because the verdict \
+                     came sealed with its provenance rather than as a parameter"
+                );
                 who.push(principal);
             }
             other => panic!("a judgmental sentence must report its outside; got {other:?}"),
@@ -648,31 +654,57 @@ fn p0_refuses_a_principal_as_the_examiner_of_its_own_competence_claim() {
     assert_ne!(q.principal_id(), "mirabel");
 }
 
+/// A principal that rules the other way, wrapping a declared one.
+///
+/// `PrincipalDecl` is a *declaration* — a record of who a principal is, with no
+/// channel to an actual outside — so its `rule` affirms whatever it is asked,
+/// which is this supplier's honest limit and is recorded as such in
+/// `rung_std::principals`. Reaching the other arm of a coproduct therefore
+/// means finding a principal who takes it, and that is the point: under R2 a
+/// test cannot arrange a verdict, only choose whom to ask.
+struct Dissenting(PrincipalDecl);
+
+impl Principal for Dissenting {
+    fn capable(&self, role_name: &str) -> bool {
+        self.0.capable(role_name)
+    }
+    fn id(&self) -> &str {
+        self.0.id()
+    }
+    fn authored(&self) -> Prov {
+        self.0.authored()
+    }
+    fn rule(&self, matter: &str) -> Verdict {
+        Verdict::NonConforming {
+            reason: format!("`{matter}` does not hold, and I am the one asked"),
+        }
+    }
+}
+
 /// The kind partition is a *claim*, and a claim that cannot be questioned is a
 /// stipulation. Whether four kinds are the right partition is settled by an
 /// outside with taxonomic competence — never computed from the enum.
 #[test]
 fn the_kind_partition_is_ruled_on_by_an_outside_and_not_computed() {
     let r = roster_a();
-    let outside = Pool::new(vec![
+    let outside = Pool::new(vec![Dissenting(
         roster_b()
             .by_id("hollis")
             .expect("hollis keeps the orchard")
             .clone(),
-    ]);
-    let q = outside
-        .qualify_for::<Taxonomist>(&r)
+    )]);
+    let (q, judgment) = outside
+        .consult::<Taxonomist>(&r, "kind_partition_is_adequate")
         .expect("the orchard shares no provenance with the bench");
-    let settled = roster::kind_partition_is_adequate::settle(
-        &r,
-        q,
-        Verdict::NonConforming {
-            reason: "an outside that fits none of the four would falsify it".into(),
-        },
-    )
-    .expect("the licence was minted against this roster");
+    let settled = roster::kind_partition_is_adequate::settle(&r, q, judgment)
+        .expect("the licence and the judgment are hollis's");
     assert!(settled.consulted_outside());
-    assert!(!settled.verdict().is_conforming());
+    assert!(
+        !settled.verdict().is_conforming(),
+        "an outside that fits none of the four falsifies the partition — and it \
+         is the outside that says so. This test can no longer arrange the \
+         answer it wants: it has to find a principal who gives it"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -699,9 +731,9 @@ fn the_kind_partition_is_ruled_on_by_an_outside_and_not_computed() {
 /// by construction, and this theory says so in its own docs.
 #[test]
 #[ignore = "GAP: `Epsilon` is declared per principal and nothing reads it. \
-            `Settled::Judgmental` carries sentence, role, principal and \
-            verdict — there is no field for an error bar, so the ε a supplier \
-            declares cannot reach the caller. Closing this needs a verdict \
+            `Settled::Judgmental` carries sentence, role, principal and a \
+            sealed `Judgment` — there is no field for an error bar, so the ε a \
+            supplier declares cannot reach the caller. Closing this needs a verdict \
             space carrying a metric (rung-het-props.md#verdict-space-with-metric) \
             and an ε on `Settled` sourced from the principal that rendered the \
             verdict. Unpark by deleting this attribute once `Settled` carries \
@@ -713,8 +745,10 @@ fn a_verdict_carries_the_declared_epsilon_of_the_principal_that_rendered_it() {
     // ε 0.02 against ε 0.2 — an order of magnitude apart, by declaration.
     let settle_by = |id: &str| {
         let seat = Pool::new(vec![r.by_id(id).expect("on the bench").clone()]);
-        let q = seat.qualify_for::<Examiner>(claimant).expect("disjoint");
-        principal::competence_claim_is_true::settle(claimant, q, Verdict::Conforming)
+        let (q, judgment) = seat
+            .consult::<Examiner>(claimant, "competence_claim_is_true")
+            .expect("disjoint");
+        principal::competence_claim_is_true::settle(claimant, q, judgment)
             .expect("minted against this claimant")
     };
 

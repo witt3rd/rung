@@ -19,6 +19,16 @@ impl rung::Provenanced for SpecData {
     }
 }
 
+// A judgmental transition's outcome is measured too (rung-props.md G15,
+// π(f(a)) ⊆ π(p)), so the target payload must carry a provenance. Empty is
+// admissible and is supplied here for the same reason as above: so that the
+// ONLY error in this file is the one it exists to pin.
+impl rung::Provenanced for LoopState {
+    fn provenance(&self) -> rung::Prov {
+        rung::Prov::empty()
+    }
+}
+
 #[derive(Clone, Copy)]
 struct Reviewer;
 impl rung::Role for Reviewer {

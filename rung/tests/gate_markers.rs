@@ -26,8 +26,8 @@
 //! error code and the message text are both part of the assertion.
 
 use rung::{
-    AuthorizeError, Authorized, Pool, Principal, Prov, Provenanced, Qualified, Role, Situated,
-    Steward, ladder,
+    AuthorizeError, Authorized, Judgment, Pool, Principal, Prov, Provenanced, Qualified, Role,
+    Situated, Steward, Verdict, ladder,
 };
 
 // ── a role, a principal, and a pool ─────────────────────────────────────────
@@ -54,18 +54,24 @@ struct Person {
     stewards: &'static [&'static str],
 }
 
-impl Provenanced for Person {
-    fn provenance(&self) -> Prov {
-        self.prov.clone()
-    }
-}
-
 impl Principal for Person {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        self.prov.clone()
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 
@@ -86,14 +92,27 @@ impl Provenanced for SpecData {
     }
 }
 
+/// The judgmental arrow's outcome, and the shape R2 obliges it to have.
+///
+/// `rounds` is the body's to compute. `judgment` is not: it is the sealed
+/// answer the outside gave, carried out of the licence by
+/// `Qualified::into_judgment`, and `Provenanced` reads `π` off it. So the body
+/// decides *what* comes back and cannot decide *whose* provenance it carries —
+/// which is the "payload whose provenance is not freely chosen by the body"
+/// that Q11 named as the thing that would close its load-bearing blocker.
+///
+/// Before R2 this struct declared `Prov::of(["drafter"])` — the provenance of
+/// the very argument the arrow was called to judge — and passed every check the
+/// workspace made.
 #[derive(Clone, PartialEq)]
 struct LoopState {
+    judgment: Judgment,
     rounds: u32,
 }
 
 impl Provenanced for LoopState {
     fn provenance(&self) -> Prov {
-        Prov::of(["drafter"])
+        self.judgment.provenance()
     }
 }
 
@@ -110,7 +129,7 @@ ladder!(Review {
 } impl {
     active = |_spec, q| {
         assert_eq!(q.role_name(), "reviewer");
-        Active::new(LoopState { rounds: 0 })
+        Active::new(LoopState { judgment: q.into_judgment(), rounds: 0 })
     },
     step = |active, q| {
         assert_eq!(q.role_name(), "judge");
@@ -122,17 +141,32 @@ ladder!(Review {
     },
     unstall = |stalled| {
         let active = stalled.into_source();
-        Active::new(LoopState { rounds: active.payload.rounds + 1 })
+        let LoopState { judgment, rounds } = active.payload;
+        Active::new(LoopState { judgment, rounds: rounds + 1 })
     },
 });
 
+// Two principals, because R2 makes the second necessary. `active`'s outcome
+// now carries π(rita), so rita is no longer disjoint from what `step` is asked
+// to judge — she authored it, in the only sense Het cares about, and P0 refuses
+// her. That is the correct outcome and it used to be invisible: the old
+// `LoopState` declared π = {drafter} whoever produced it, so rita could rule on
+// her own ruling and no filter could see it.
 fn pool() -> Pool<Person> {
-    Pool::new(vec![Person {
-        id: "rita",
-        prov: Prov::of(["rita"]),
-        roles: &["reviewer", "judge"],
-        stewards: &[],
-    }])
+    Pool::new(vec![
+        Person {
+            id: "rita",
+            prov: Prov::of(["rita"]),
+            roles: &["reviewer", "judge"],
+            stewards: &[],
+        },
+        Person {
+            id: "quinn",
+            prov: Prov::of(["quinn"]),
+            roles: &["judge"],
+            stewards: &[],
+        },
+    ])
 }
 
 // ── 1. the positive case ────────────────────────────────────────────────────
@@ -199,14 +233,29 @@ impl Provenanced for Draft {
     }
 }
 
+/// An outcome that claims no provenance at all.
+///
+/// Admissible, and worth being explicit about: `∅ ⊆ π(p)` so the epilogue
+/// passes, and `∅ ∩ π(a) = ∅` so the proposition holds. A judgmental arrow may
+/// return something authored by nobody; what it may not do is return something
+/// authored by the party under judgment.
+#[derive(Clone, PartialEq)]
+struct Tally(u32);
+
+impl Provenanced for Tally {
+    fn provenance(&self) -> Prov {
+        Prov::empty()
+    }
+}
+
 ladder!(Blind {
     Manuscript(Draft)
-        => #[judgmental(Reviewer)] Reviewed(u32)
+        => #[judgmental(Reviewer)] Reviewed(Tally)
         => { Filed }
 } impl {
     // No `q` in sight. Whatever this body proves, it is not that a qualified
     // outside was consulted about *this* manuscript.
-    reviewed = |_manuscript, _q| { Reviewed::new(0) },
+    reviewed = |_manuscript, _q| { Reviewed::new(Tally(0)) },
     step     = |_reviewed| { Ok(StepOutcome::Filed(Filed::new())) },
 });
 
@@ -220,7 +269,7 @@ fn a_body_that_ignores_the_token_still_gets_the_binding_check() {
         .expect("rita is disjoint from the drafter");
 
     let reviewed = blind::reviewed(blind::Manuscript::new(manuscript), licence);
-    assert_eq!(reviewed.payload, 0);
+    assert_eq!(reviewed.payload.0, 0);
 }
 
 #[test]

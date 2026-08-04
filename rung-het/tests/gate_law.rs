@@ -54,18 +54,24 @@ pub struct Judge {
     roles: Vec<&'static str>,
 }
 
-impl Provenanced for Judge {
-    fn provenance(&self) -> Prov {
-        Prov::of(self.prov.iter().copied())
-    }
-}
-
 impl Principal for Judge {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        Prov::of(self.prov.iter().copied())
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 
@@ -245,10 +251,11 @@ fn an_empty_pool_qualifies_no_one() {
 fn judgmental_sentence_records_the_principal_that_settled_it() {
     let m = doc_by(&["augur"]);
     let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
-    let q = pool.qualify::<ChordReader>(&m).unwrap();
+    // The licence and the judgment come from the same principal, in one act:
+    // `consult` qualifies and then *asks*. The verdict is never the caller's.
+    let (q, judgment) = pool.consult::<ChordReader>(&m, "is_constitutive").unwrap();
 
-    // The verdict comes from the principal. The crate never fabricates one.
-    let settled = soul::is_constitutive::settle(&m, q, Verdict::Conforming)
+    let settled = soul::is_constitutive::settle(&m, q, judgment)
         .expect("the licence was minted against this very argument");
 
     assert!(settled.consulted_outside());
@@ -269,19 +276,16 @@ fn judgmental_sentence_records_the_principal_that_settled_it() {
 
 #[test]
 fn a_judgmental_verdict_may_be_non_conforming() {
-    // The outside is a real outside: it can rule against the candidate.
+    // The outside is a real outside: it can rule against the candidate. Which
+    // it does is now the *principal's* doing — `Contrarian::rule` returns
+    // non-conforming, and this test has no parameter through which it could
+    // have arranged the outcome itself.
     let m = doc_by(&["augur"]);
-    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
-    let q = pool.qualify::<ChordReader>(&m).unwrap();
+    let pool = Pool::new(vec![Contrarian]);
+    let (q, judgment) = pool.consult::<ChordReader>(&m, "is_constitutive").unwrap();
 
-    let settled = soul::is_constitutive::settle(
-        &m,
-        q,
-        Verdict::NonConforming {
-            reason: "derived, not constitutive".into(),
-        },
-    )
-    .expect("the licence was minted against this very argument");
+    let settled = soul::is_constitutive::settle(&m, q, judgment)
+        .expect("the licence was minted against this very argument");
     assert!(!settled.verdict().is_conforming());
 }
 
@@ -316,24 +320,18 @@ fn two_judges_of_differing_confidence_report_differing_verdicts() {
     let pool_b = Pool::new(vec![judge("smithy", &["smithy"], &[ChordReader::NAME])]);
 
     // Barely persuaded.
-    let a = soul::is_constitutive::settle(
-        &m,
-        pool_a.qualify::<ChordReader>(&m).unwrap(),
-        Verdict::NonConforming {
-            reason: "derived, not constitutive".into(),
-        },
-    )
-    .expect("the licence was minted against this very argument");
+    let (qa, ja) = pool_a
+        .consult::<ChordReader>(&m, "is_constitutive")
+        .unwrap();
+    let a = soul::is_constitutive::settle(&m, qa, ja)
+        .expect("the licence was minted against this very argument");
 
     // Certain.
-    let b = soul::is_constitutive::settle(
-        &m,
-        pool_b.qualify::<ChordReader>(&m).unwrap(),
-        Verdict::NonConforming {
-            reason: "derived, not constitutive".into(),
-        },
-    )
-    .expect("the licence was minted against this very argument");
+    let (qb, jb) = pool_b
+        .consult::<ChordReader>(&m, "is_constitutive")
+        .unwrap();
+    let b = soul::is_constitutive::settle(&m, qb, jb)
+        .expect("the licence was minted against this very argument");
 
     assert_ne!(
         a.verdict(),
@@ -477,9 +475,7 @@ fn a_judgment_rendered_by_another_principal_is_refused() {
             assert_eq!(e.licensed, "forge");
             assert_eq!(e.ruled, "bellows");
         }
-        other => panic!(
-            "π(f(a)) ⊆ π(p) is asserted where the judgment is spent; got {other:?}"
-        ),
+        other => panic!("π(f(a)) ⊆ π(p) is asserted where the judgment is spent; got {other:?}"),
     }
 }
 

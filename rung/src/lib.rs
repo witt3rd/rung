@@ -217,11 +217,62 @@ impl Prov {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+
+    /// Whether a given tag is in this provenance.
+    pub fn contains(&self, tag: &str) -> bool {
+        self.0.contains(tag)
+    }
+
+    /// This provenance with one further tag — `π ∪ {tag}`.
+    ///
+    /// The floor's constructor. [`Principal`] has no `provenance` of its own;
+    /// the blanket impl below computes it as `authored().with(id())`, so
+    /// `π(p) ⊇ {id(p)}` is a fact about how the value is *made* rather than a
+    /// condition someone checks after it is made.
+    #[must_use]
+    pub fn with(mut self, tag: impl Into<String>) -> Self {
+        self.0.insert(tag.into());
+        self
+    }
 }
 
 /// A thing that carries provenance. Subjects and principals both do.
+///
+/// **A principal does not implement this.** The only route from a [`Principal`]
+/// to a `Prov` is the blanket impl below, which is why this is not a supertrait
+/// of `Principal` and why a hand-written impl for a principal is a coherence
+/// error (E0119) rather than a lint. See the floor, stated on
+/// [`Principal::authored`].
 pub trait Provenanced {
     fn provenance(&self) -> Prov;
+}
+
+/// **The provenance floor** — `π(p) ⊇ {id(p)}`, and the only route from a
+/// principal to a provenance.
+///
+/// A principal declaring `π(p) = ∅` is disjoint from everything, so it survives
+/// the non-identity filter against every argument in the workspace. That is a
+/// **universal judge**, and it is the exact shape in which P0 becomes
+/// decorative — the same vacuity [`QualifyError::ModelHasNoProvenance`] refuses
+/// on the *argument* side, unrefused on the principal's.
+///
+/// The ruling is that it must be **underivable**, not refused. So `Principal`
+/// declares [`authored`](Principal::authored) — the history it claims, which
+/// MAY be empty — and never `provenance`; the identity is added here. A
+/// principal cannot present an empty `π`, because there is no term that
+/// produces one, and it cannot override this impl, because the trait solver
+/// refuses a second one (E0119, pinned by
+/// `rung/tests/ui/floor_forged_provenance.rs`).
+///
+/// Why the floor is the *identity*: a principal that judges has participated,
+/// and the participation is its own. `id(p)` is the tag of that participation.
+/// It is also what makes [`Judgment`] load-bearing — an outcome carrying the
+/// judge's provenance carries at least the judge's name, so a judgmental
+/// outcome can never be provenance-free.
+impl<P: Principal + ?Sized> Provenanced for P {
+    fn provenance(&self) -> Prov {
+        self.authored().with(self.id())
+    }
 }
 
 /// A thing that sits in a named container — what standing is held **over**.
@@ -285,13 +336,242 @@ pub trait Role: Copy + 'static {
 /// supplier and **nothing further**. No kinds, no substrates, no identity
 /// fields. `capable` and `π` are here; `standing` belongs to the authorial gate
 /// (out of scope) and `ε` to the verdict metric (out of scope).
-pub trait Principal: Provenanced {
+pub trait Principal {
     /// Het's `capable(p, Role)`, at its one arity (capable-single-arity).
     fn capable(&self, role_name: &str) -> bool;
 
-    /// A human-readable identity, for the receipt. Not read by any filter.
+    /// A human-readable identity.
+    ///
+    /// No longer "not read by any filter": under the provenance floor it is a
+    /// **member of `π(p)`** (see the blanket [`Provenanced`] impl), so both
+    /// filters read it. An identity that collides with an argument's provenance
+    /// tag is a principal that authored that argument, and P0 refuses it.
     fn id(&self) -> &str;
+
+    /// The history this principal **claims** — and it MAY be empty.
+    ///
+    /// This is not `π(p)`. `π(p)` is `authored().with(id())`, computed by the
+    /// blanket [`Provenanced`] impl and unavailable for a principal to state
+    /// directly. A principal with no history in this repository declares
+    /// nothing here and is *still* not disjoint from itself, which is the whole
+    /// content of the floor.
+    fn authored(&self) -> Prov;
+
+    /// **The oracle** — `M ⊨ φ` as the outside sees it.
+    ///
+    /// The method whose absence made `constant-arrow-hazard` live. Before it,
+    /// no method of `Principal` returned a [`Verdict`]: `settle` took the
+    /// verdict as a *parameter*, so a caller could compute one from the model's
+    /// own carrier and hand it in, and the receipt would name a judge that was
+    /// never asked. That is the constant arrow `c_j : a ↦ η(j)` with `j` drawn
+    /// from `M`'s carrier — an arrow no *dispatch* discipline can refuse,
+    /// because the dispatch was honest and the value was not.
+    ///
+    /// `matter` is the sentence or role the principal is asked about, named by
+    /// the supplying theory rather than by Het (nothing-further-required). The
+    /// principal is asked, and answers.
+    ///
+    /// This method is **not** the seal. Its return is a bare `Verdict`, which
+    /// anyone can write. [`judgment`](Principal::judgment) is the sealed form, and
+    /// it is what `settle` accepts.
+    fn rule(&self, matter: &str) -> Verdict;
+
+    /// **The seal** — the oracle's answer, stamped with the judge's provenance.
+    ///
+    /// Provided, and not meaningfully overridable: [`Judgment`] has no
+    /// constructor outside this crate, so an implementor writing its own
+    /// `judgment` has nothing to return. That is the discipline [`Qualified`] and
+    /// [`Authorized`] are held to (rung-props.md G2), held for the same reason
+    /// — a provenance that can be fabricated in object-position is not a
+    /// provenance.
+    ///
+    /// Three things this forecloses, each of which was open:
+    ///
+    /// - **the model cannot mint one.** A `Judgment` comes from a `Principal`. A
+    ///   value computed inside `M` and stamped with a judge's tag is not one.
+    /// - **a token cannot mint one.** [`Qualified::principal_provenance`] is
+    ///   readable, and copying it would produce a *claim* that the judge ruled,
+    ///   not the judge's ruling. The mint is here, on the judge.
+    /// - **the verdict comes from the oracle.** `self.rule(matter)` is called
+    ///   here, so there is no seam at which a caller's verdict could be
+    ///   substituted for the principal's.
+    fn judgment(&self, matter: &str) -> Judgment {
+        Judgment {
+            _seal: (),
+            judge_id: self.id().to_string(),
+            judge_prov: self.provenance(),
+            matter: matter.to_string(),
+            verdict: self.rule(matter),
+        }
+    }
 }
+
+/// A verdict **together with the provenance of the judge that rendered it**.
+///
+/// The judgmental mirror of `proposal-provenance-is-authors`: a proposal
+/// carries its author's provenance, and a judgmental arrow's outcome carries
+/// its judge's. Het states the condition as
+/// `π(f(a)) ⊆ π(p)` (admissibility-subcategories, judgmental half), and this is
+/// the term that makes it hold rather than the check that looks for it
+/// afterwards.
+///
+/// # Sealed, and minted only by a principal
+///
+/// There is no public constructor. [`Principal::judgment`] is the only mint, and
+/// it calls [`Principal::rule`] — the oracle — for the verdict and the blanket
+/// [`Provenanced`] impl for the provenance. So:
+///
+/// - the **model** cannot mint one (it is not the judge);
+/// - a **token** cannot mint one — reading `Qualified::principal_provenance`
+///   and stamping it on a locally-computed value produces a claim about the
+///   judge, not the judge's ruling;
+/// - and the **caller** cannot substitute a verdict, because the caller never
+///   supplies one.
+///
+/// That is the whole of `constant-arrow-hazard`, closed at the term level:
+/// there is no longer a way to write `c_j : a ↦ η(j)` with `j` from `M`'s own
+/// carrier and have it typecheck in a judgmental position.
+///
+/// # What follows from it
+///
+/// `π(f(a)) ⊆ π(p)` is asserted where a `Judgment` is spent — by `theory!`'s
+/// `settle` and by the epilogue `ladder!` injects on a judgmental transition.
+/// Together with `G13`'s `π(p) ∩ π(a) = ∅`, output admissibility *derives*:
+///
+/// ```text
+/// π(f(a)) ⊆ π(p)  ∧  π(p) ∩ π(a) = ∅  ⟹  π(f(a)) ∩ π(a) = ∅
+/// ```
+///
+/// so `admissibility-subcategories` is a theorem of two enforced facts rather
+/// than a third check. `Prov::overlaps` is deliberately **not** called on the
+/// way out; a disjointness epilogue on top of the containment one would restate
+/// the conclusion of a derivation whose premises are already enforced.
+///
+/// # Clonable, unlike [`Qualified`]
+///
+/// A licence is *spent*: it authorizes one dispatch and is consumed. A ruling
+/// is a *record* of what an outside said, and copying a record mints no
+/// authority — the provenance it carries is the judge's either way. So a
+/// payload may carry one, hand it on down a ladder, and be measured by it at
+/// every rung.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[must_use = "a Judgment is what an outside actually said; dropping it discards the judgment"]
+pub struct Judgment {
+    _seal: (),
+    judge_id: String,
+    judge_prov: Prov,
+    matter: String,
+    verdict: Verdict,
+}
+
+impl Judgment {
+    /// What the outside said.
+    pub fn verdict(&self) -> &Verdict {
+        &self.verdict
+    }
+
+    /// The judge's identity — for the receipt.
+    pub fn judge_id(&self) -> &str {
+        &self.judge_id
+    }
+
+    /// The sentence or role the judge was asked about.
+    pub fn matter(&self) -> &str {
+        &self.matter
+    }
+}
+
+/// `π(f(a)) = π(p)` — the judge's provenance, carried by the outcome.
+///
+/// This impl is why a payload built on a `Judgment` has a provenance the body did
+/// not choose. A body may still *decide* what to return; it cannot decide whose
+/// provenance the return carries.
+impl Provenanced for Judgment {
+    fn provenance(&self) -> Prov {
+        self.judge_prov.clone()
+    }
+}
+
+/// An outcome offered in a judgmental position did not come from the judge that
+/// was qualified for it.
+///
+/// `π(f(a)) ⊄ π(p)`. The token proves *this* principal passed both filters
+/// against *this* argument; the ruling carries the provenance of whoever
+/// actually spoke. When they differ, the receipt would name a judge that did
+/// not rule, which is `constant-arrow-hazard` under a different disguise: a
+/// ruling honestly obtained from principal A spent under principal B's licence.
+#[derive(Debug, PartialEq, Eq)]
+#[must_use = "an unchained outcome names a judge that did not rule; ignoring it re-opens the hazard"]
+pub struct OutcomeNotFromJudge {
+    /// The principal the licence was minted for.
+    pub licensed: String,
+    /// The principal that rendered the ruling.
+    pub ruled: String,
+    /// `π(f(a))` — the outcome's provenance.
+    pub outcome_prov: Prov,
+    /// `π(p)` — the licensed principal's provenance.
+    pub principal_prov: Prov,
+}
+
+impl std::fmt::Display for OutcomeNotFromJudge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "π(f(a)) ⊄ π(p): the licence was minted for `{}` with provenance {:?}, \
+             and the outcome offered carries provenance {:?} from `{}`. A judgmental \
+             arrow's outcome carries its judge's provenance \
+             (rung-het-props.md#judgment-provenance-is-the-judges)",
+            self.licensed, self.principal_prov, self.outcome_prov, self.ruled
+        )
+    }
+}
+
+impl std::error::Error for OutcomeNotFromJudge {}
+
+/// Why a judgmental sentence was not settled.
+///
+/// Two refusals, one on each side of the arrow, and they are not variants of
+/// one thing:
+///
+/// | variant | side | condition |
+/// |---|---|---|
+/// | [`TokenNotBound`] | in | the licence was measured against another argument |
+/// | [`OutcomeNotFromJudge`] | out | the judgment came from another principal |
+///
+/// The pair is the chain: the same principal must have been *admitted for this
+/// argument* and *the one that spoke*. Either alone leaves the receipt naming a
+/// judge that did not rule on this.
+#[derive(Debug, PartialEq, Eq)]
+#[must_use = "an unsettled sentence is a refusal, not an absence"]
+pub enum SettleError {
+    /// The licence was minted against a different argument (G13, on the way in).
+    TokenNotBound(TokenNotBound),
+    /// The judgment carries a provenance the licence does not (on the way out).
+    OutcomeNotFromJudge(OutcomeNotFromJudge),
+}
+
+impl From<TokenNotBound> for SettleError {
+    fn from(e: TokenNotBound) -> Self {
+        Self::TokenNotBound(e)
+    }
+}
+
+impl From<OutcomeNotFromJudge> for SettleError {
+    fn from(e: OutcomeNotFromJudge) -> Self {
+        Self::OutcomeNotFromJudge(e)
+    }
+}
+
+impl std::fmt::Display for SettleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TokenNotBound(e) => write!(f, "{e}"),
+            Self::OutcomeNotFromJudge(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for SettleError {}
 
 /// Why a principal was refused.
 #[derive(Debug, PartialEq, Eq)]
@@ -387,6 +667,10 @@ pub struct Qualified<R: Role> {
     /// `π(a)` — the provenance of the argument disjointness was measured
     /// against. The half of the pair that closes transfer.
     argument_prov: Prov,
+    /// What the qualifying principal **said** when asked to act in role `R`
+    /// about this argument. Minted by [`Principal::judgment`] at the same
+    /// instant as the licence, by the same principal.
+    judgment: Judgment,
     _role: PhantomData<R>,
 }
 
@@ -399,6 +683,30 @@ impl<R: Role> Qualified<R> {
     /// The qualifying principal's provenance, so a verdict can carry it.
     pub fn principal_provenance(&self) -> &Prov {
         &self.principal_prov
+    }
+
+    /// The outside's answer, sealed with its own provenance.
+    ///
+    /// The licence and the judgment are minted **together**, by the same
+    /// principal, at the point where the filter selected it. That is what
+    /// closes the gap a `ladder!` body would otherwise sit in: a judgmental
+    /// transition receives the token and nothing else, so if the token did not
+    /// carry the outside's answer there would be no way for the body to build
+    /// an outcome that came from the outside — and it would be back to
+    /// constructing one itself.
+    pub fn judgment(&self) -> &Judgment {
+        &self.judgment
+    }
+
+    /// Take the outside's answer out of the licence, to build an outcome from.
+    ///
+    /// A payload built on this carries `π(p)` structurally: `Judgment`'s
+    /// [`Provenanced`] impl returns the judge's provenance, and there is no
+    /// constructor a body could use to say otherwise. This is the "payload
+    /// whose provenance is not freely chosen by the body" that Q11 named as
+    /// what would close its load-bearing blocker.
+    pub fn into_judgment(self) -> Judgment {
+        self.judgment
     }
 
     /// `π(a)` — the provenance of the argument this licence was measured
@@ -542,6 +850,65 @@ impl<P: Principal> Pool<P> {
         &self,
         argument: &dyn Provenanced,
     ) -> Result<Qualified<R>, QualifyError> {
+        let (p, arg_prov, p_prov) = self.select::<R>(argument)?;
+        Ok(Qualified {
+            _seal: (),
+            _not_send: PhantomData,
+            principal_id: p.id().to_string(),
+            principal_prov: p_prov,
+            argument_prov: arg_prov,
+            // The outside is asked here, and only here. `R::NAME` is the matter:
+            // the principal is asked what it says in the role it was selected
+            // for, about the argument the filter measured it against.
+            judgment: p.judgment(R::NAME),
+            _role: PhantomData,
+        })
+    }
+
+    /// Qualify a principal **and consult it** — the two halves of a judgmental
+    /// dispatch, from one principal, in one act.
+    ///
+    /// Het's dispatch is two operations (dispatch-is-two-operations): compute
+    /// the qualifying set, then take any member of it. What was missing was the
+    /// third thing that always followed and was never modelled — *asking the
+    /// member*. `settle` used to take the answer as a parameter, so the asking
+    /// was the caller's private business and the receipt recorded a judge who
+    /// may never have been consulted.
+    ///
+    /// Returning both from one call is what makes the chain hold by
+    /// construction rather than by convention: the licence and the judgment are
+    /// the same principal's, so `π(f(a)) ⊆ π(p)` is true before anyone checks
+    /// it. The check in `settle` is still not ornamental — it refuses a
+    /// *pairing* the caller assembled from two principals, which is the same
+    /// hazard with two honest halves.
+    ///
+    /// `matter` is the sentence being settled, named by the supplying theory.
+    pub fn consult<R: Role>(
+        &self,
+        argument: &dyn Provenanced,
+        matter: &str,
+    ) -> Result<(Qualified<R>, Judgment), QualifyError> {
+        let (p, arg_prov, p_prov) = self.select::<R>(argument)?;
+        let licence = Qualified {
+            _seal: (),
+            _not_send: PhantomData,
+            principal_id: p.id().to_string(),
+            principal_prov: p_prov,
+            argument_prov: arg_prov,
+            judgment: p.judgment(R::NAME),
+            _role: PhantomData,
+        };
+        Ok((licence, p.judgment(matter)))
+    }
+
+    /// The filter itself — `{ p ∈ 𝒫 : capable(p, role) ∧ π(p) ∩ π(a) = ∅ }`,
+    /// and the first survivor. Shared by [`qualify_for`](Pool::qualify_for) and
+    /// [`consult`](Pool::consult) so that the two cannot drift apart: a
+    /// consulted principal is a qualified principal, by being the same code.
+    fn select<R: Role>(
+        &self,
+        argument: &dyn Provenanced,
+    ) -> Result<(&P, Prov, Prov), QualifyError> {
         let arg_prov = argument.provenance();
 
         // Refuse before filtering. With empty argument provenance every
@@ -571,14 +938,7 @@ impl<P: Principal> Pool<P> {
                 continue;
             }
 
-            return Ok(Qualified {
-                _seal: (),
-                _not_send: PhantomData,
-                principal_id: p.id().to_string(),
-                principal_prov: p_prov,
-                argument_prov: arg_prov,
-                _role: PhantomData,
-            });
+            return Ok((p, arg_prov, p_prov));
         }
 
         // One candidate: report why it failed. Several: report exhaustion, since
@@ -942,18 +1302,37 @@ pub enum Settled {
         verdict: Verdict,
     },
     /// Obtained from a principal that survived both filters.
+    ///
+    /// The verdict is not a field here. It is inside the [`Judgment`], which is
+    /// sealed and carries the judge's provenance — so a judgmental receipt
+    /// cannot be assembled around a verdict nobody gave, even though this
+    /// enum's fields are public. `Settled::Decidable` needs no such treatment:
+    /// it names no judge, so there is no judge to misattribute to.
     Judgmental {
         sentence: &'static str,
         role: &'static str,
         principal: String,
-        verdict: Verdict,
+        judgment: Judgment,
     },
 }
 
 impl Settled {
     pub fn verdict(&self) -> &Verdict {
         match self {
-            Self::Decidable { verdict, .. } | Self::Judgmental { verdict, .. } => verdict,
+            Self::Decidable { verdict, .. } => verdict,
+            Self::Judgmental { judgment, .. } => judgment.verdict(),
+        }
+    }
+
+    /// `π` of the outcome — the judge's, where there was a judge.
+    ///
+    /// `None` for a decidable settlement: it was computed inside the algebra
+    /// and there is no outside to attribute it to. That absence is the gate,
+    /// observable on the receipt.
+    pub fn judge_provenance(&self) -> Option<Prov> {
+        match self {
+            Self::Decidable { .. } => None,
+            Self::Judgmental { judgment, .. } => Some(judgment.provenance()),
         }
     }
 
@@ -1177,27 +1556,64 @@ macro_rules! __judgmental {
             /// `M ⊨ φ`, settled by an outside.
             ///
             /// Consumes the `Qualified` token **by value**: a licence is spent
-            /// on one sentence and cannot be reused to discharge a second. The
-            /// verdict comes from the principal; this records it. Nothing here
-            /// fabricates a verdict.
+            /// on one sentence and cannot be reused to discharge a second.
             ///
-            /// The token is admitted only for **this** model
+            /// # The two gates, in and out
+            ///
+            /// **In.** The token is admitted only for **this** model
             /// (non-identity-by-construction). A licence minted against another
-            /// model is `TokenNotBound` — the argument governs, so an unbound
-            /// token discharges nothing here. This is why a judgmental
-            /// sentence's sort must be `Provenanced`: without `π(a)` there is
-            /// nothing to admit the token against.
+            /// model is [`TokenNotBound`](rung::TokenNotBound) — the argument
+            /// governs, so an unbound token discharges nothing here. This is
+            /// why a judgmental sentence's sort must be `Provenanced`: without
+            /// `π(a)` there is nothing to admit the token against.
+            ///
+            /// **Out.** The outcome is a [`Judgment`](rung::Judgment), not a
+            /// `Verdict`. It used to be a `Verdict` — a parameter, which anyone
+            /// could write from the model's own fields, so the receipt could
+            /// name a judge that was never asked. That is
+            /// `constant-arrow-hazard` and it was live on this line. A
+            /// `Judgment` is minted only by [`Principal::judgment`](rung::Principal::judgment),
+            /// carries `π(p)`, and is checked here against the licence:
+            /// `π(f(a)) ⊆ π(p)`, or
+            /// [`OutcomeNotFromJudge`](rung::OutcomeNotFromJudge).
+            ///
+            /// # What is deliberately *not* checked
+            ///
+            /// `π(f(a)) ∩ π(a) = ∅`. It follows:
+            ///
+            /// ```text
+            /// π(f(a)) ⊆ π(p)  ∧  π(p) ∩ π(a) = ∅  ⟹  π(f(a)) ∩ π(a) = ∅
+            /// ```
+            ///
+            /// The left conjunct is asserted below; the right one is the
+            /// condition `Pool::qualify_for` minted the licence under, and
+            /// `admit` has just re-established it for *this* argument. Output
+            /// admissibility (admissibility-subcategories) is therefore a
+            /// theorem of two enforced facts. Adding a disjointness check here
+            /// would assert a conclusion, which reads as a third guarantee and
+            /// is none.
             pub fn settle(
                 model: &$model,
                 q: $crate::Qualified<$role>,
-                verdict: $crate::Verdict,
-            ) -> ::core::result::Result<$crate::Settled, $crate::TokenNotBound> {
+                judgment: $crate::Judgment,
+            ) -> ::core::result::Result<$crate::Settled, $crate::SettleError> {
                 let q = $crate::Qualified::admit(q, model)?;
+                let outcome = $crate::Provenanced::provenance(&judgment);
+                if !outcome.contained_in(q.principal_provenance()) {
+                    return ::core::result::Result::Err($crate::SettleError::OutcomeNotFromJudge(
+                        $crate::OutcomeNotFromJudge {
+                            licensed: q.principal_id().to_string(),
+                            ruled: judgment.judge_id().to_string(),
+                            outcome_prov: outcome,
+                            principal_prov: q.principal_provenance().clone(),
+                        },
+                    ));
+                }
                 ::core::result::Result::Ok($crate::Settled::Judgmental {
                     sentence: Self::NAME,
                     role: <$role as $crate::Role>::NAME,
                     principal: q.principal_id().to_string(),
-                    verdict,
+                    judgment,
                 })
             }
         }

@@ -79,19 +79,31 @@ struct Person {
     prov: &'static [&'static str],
     roles: &'static [&'static str],
     stewards: &'static [&'static str],
+    /// Which way this principal rules. A field, because the verdict is now the
+    /// principal's to give: a test that wants the other arm of a coproduct has
+    /// to find a principal who takes it, rather than passing the verdict it
+    /// wanted to `settle`.
+    dissents: bool,
 }
 
-impl Provenanced for Person {
-    fn provenance(&self) -> Prov {
-        Prov::of(self.prov.iter().copied())
-    }
-}
 impl Principal for Person {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        Prov::of(self.prov.iter().copied())
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, matter: &str) -> Verdict {
+        Verdict::conforming(!self.dissents, format!("`{matter}` does not hold"))
     }
 }
 impl Steward for Person {
@@ -107,6 +119,7 @@ const CURATOR: Person = Person {
     prov: &["rung-questions"],
     roles: &["curator"],
     stewards: &["open", "blocked", "parked", "docs/questions"],
+    dissents: false,
 };
 
 fn pool() -> Pool<Person> {
@@ -116,6 +129,7 @@ fn pool() -> Pool<Person> {
             prov: CURATOR.prov,
             roles: CURATOR.roles,
             stewards: CURATOR.stewards,
+            dissents: false,
         },
         // An outside reviewer: capable of both judgmental roles, tagged from
         // outside, stewards nothing.
@@ -124,6 +138,7 @@ fn pool() -> Pool<Person> {
             prov: &["external-review"],
             roles: &["interrogator", "adjudicator"],
             stewards: &[],
+            dissents: false,
         },
     ])
 }
@@ -356,7 +371,7 @@ fn a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on() {
     assert_eq!(gate_of(EdgeKind::Justification), "judgmental");
 
     // ── the strict edge ──────────────────────────────────────────────────
-    let out = propagate(&strict, &p, Verdict::Conforming).unwrap();
+    let out = propagate(&strict, &p).unwrap();
     let Propagated::Reexamined(settled) = out else {
         panic!("a `premise` edge must propagate decidably; got {out:?}")
     };
@@ -374,7 +389,7 @@ fn a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on() {
     // The coproduct: the judge collapses `ReviewRequired + Survives`. Q7's
     // resolution confirmed "no architectural debt", so the blocking-client
     // decision survived — and that is a ruling, not a computation.
-    let out = propagate(&advisory, &p, Verdict::Conforming).unwrap();
+    let out = propagate(&advisory, &p).unwrap();
     let Propagated::Ruled(settled) = out else {
         panic!(
             "a `justification` edge must be ruled on, not computed; got {out:?}. \
@@ -402,14 +417,17 @@ fn a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on() {
     //
     // The advisory path is a real fork: the same edge, the same change, and a
     // judge that rules the other way. A strict edge has no such arm.
-    let out = propagate(
-        &advisory,
-        &p,
-        Verdict::NonConforming {
-            reason: "the decision rested on the Kleisli framing after all".into(),
-        },
-    )
-    .unwrap();
+    // The other arm is reached by finding a judge who takes it, not by handing
+    // one to `settle`. That is the whole of R2 in one call site: the fork is
+    // real because the *outside* differs, not because the caller said so.
+    let dissenter = Pool::new(vec![Person {
+        id: "second-reader",
+        prov: &["another-shop"],
+        roles: &["adjudicator"],
+        stewards: &[],
+        dissents: true,
+    }]);
+    let out = propagate(&advisory, &dissenter).unwrap();
     let Propagated::Ruled(settled) = out else {
         panic!("still advisory")
     };
@@ -430,6 +448,7 @@ fn p0_refuses_the_curator_as_a_judge_of_this_repositorys_own_questions() {
         prov: CURATOR.prov,
         roles: &["curator", "interrogator", "adjudicator"],
         stewards: CURATOR.stewards,
+        dissents: false,
     }]);
 
     // Capable of both judgmental roles, and refused anyway: it shares
@@ -443,17 +462,19 @@ fn p0_refuses_the_curator_as_a_judge_of_this_repositorys_own_questions() {
     }
 
     // The outside reviewer does qualify — on a real file, with its real id.
-    let q = pool()
-        .qualify::<Interrogator>(q7)
+    let (q, judgment) = pool()
+        .consult::<Interrogator>(q7, "is_well_posed")
         .expect("the external reviewer is disjoint");
     assert_eq!(q.principal_id(), "external-reviewer");
-    let settled = question::is_well_posed::settle(q7, q, Verdict::Conforming)
+    let settled = question::is_well_posed::settle(q7, q, judgment)
         .expect("the licence was minted against this very question");
     assert_eq!(settled.sentence(), "is_well_posed");
 
     // Two judgmental sentences, two declared roles (`role-declared-not-enumerated`).
-    let q = pool().qualify::<Adjudicator>(q7).unwrap();
-    let settled = question::resolution_answers_the_question::settle(q7, q, Verdict::Conforming)
+    let (q, judgment) = pool()
+        .consult::<Adjudicator>(q7, "resolution_answers_the_question")
+        .unwrap();
+    let settled = question::resolution_answers_the_question::settle(q7, q, judgment)
         .expect("minted against q7");
     match settled {
         Settled::Judgmental { role, .. } => assert_eq!(role, "adjudicator"),
