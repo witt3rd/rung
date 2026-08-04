@@ -194,6 +194,15 @@ pub struct LlmConfig {
     /// - **All other models** — silently ignored.
     pub reasoning_level: Option<String>,
 
+    /// Request structured/JSON output from the provider (OpenAI-compatible
+    /// endpoints only — sent as `response_format: {"type": "json_object"}`).
+    ///
+    /// Off by default: forcing `response_format` breaks tool calling and
+    /// free-text responses on models that lack structured-output support
+    /// (e.g. some OpenRouter providers return 400). Opt in only when the caller
+    /// genuinely needs a JSON-schema-validated object back.
+    pub structured_outputs: bool,
+
     /// Optional streaming-side-channel listener.
     ///
     /// When `Some`, the HTTP response is read as SSE and each event is
@@ -213,6 +222,7 @@ impl std::fmt::Debug for LlmConfig {
             .field("max_tokens", &self.max_tokens)
             .field("temperature", &self.temperature)
             .field("reasoning_level", &self.reasoning_level)
+            .field("structured_outputs", &self.structured_outputs)
             .field(
                 "stream_listener",
                 if self.stream_listener.is_some() {
@@ -932,8 +942,13 @@ fn raw_call_openai(
         "model": config.model,
         "max_tokens": config.max_tokens,
         "messages": messages,
-        "response_format": {"type": "json_object"},
     });
+
+    // Structured output is opt-in only — forcing `response_format` here breaks
+    // tool calls and free-text on providers that lack JSON-mode support.
+    if config.structured_outputs {
+        body["response_format"] = serde_json::json!({"type": "json_object"});
+    }
 
     if !tools.is_empty() {
         body["tools"] = serde_json::json!(
