@@ -233,18 +233,24 @@ pub struct Person {
     pub stewards: &'static [&'static str],
 }
 
-impl Provenanced for Person {
-    fn provenance(&self) -> Prov {
-        Prov::of(self.prov.iter().copied())
-    }
-}
-
 impl Principal for Person {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        Prov::of(self.prov.iter().copied())
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 
@@ -331,14 +337,11 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
         "academy",
         "the collector authored the specimens and must be refused"
     );
-    let scope = cabinet::all_in_scope::settle(
-        &world.cabinet,
-        q,
-        Verdict::NonConforming {
-            reason: "s3 is an observation, not a specimen".into(),
-        },
-    )
-    .expect("the licence was minted against this very argument");
+    let (q, judgment) = pool
+        .consult::<Taxonomist>(&world.cabinet, "all_in_scope")
+        .expect("a disjoint taxonomist qualifies, and is asked");
+    let scope = cabinet::all_in_scope::settle(&world.cabinet, q, judgment)
+        .expect("the licence and the judgment are the academy's");
     assert!(scope.consulted_outside());
 
     // ── propose: AUTHORIAL (the-pass) — standing, not disjointness ───────────

@@ -37,17 +37,24 @@ pub enum DraftEdit {
 }
 
 pub struct Person;
-impl Provenanced for Person {
-    fn provenance(&self) -> Prov {
-        Prov::of(["editor"])
-    }
-}
 impl Principal for Person {
     fn capable(&self, role_name: &str) -> bool {
         role_name == "editor"
     }
     fn id(&self) -> &str {
         "editor"
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        Prov::of(["editor"])
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 impl Steward for Person {

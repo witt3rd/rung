@@ -26,8 +26,8 @@
 //! error code and the message text are both part of the assertion.
 
 use rung::{
-    AuthorizeError, Authorized, Pool, Principal, Prov, Provenanced, Qualified, Role, Situated,
-    Steward, ladder,
+    AuthorizeError, Authorized, Judgment, Pool, Principal, Prov, Provenanced, Qualified, Role,
+    Situated, Steward, Verdict, ladder,
 };
 
 // ── a role, a principal, and a pool ─────────────────────────────────────────
@@ -54,18 +54,24 @@ struct Person {
     stewards: &'static [&'static str],
 }
 
-impl Provenanced for Person {
-    fn provenance(&self) -> Prov {
-        self.prov.clone()
-    }
-}
-
 impl Principal for Person {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        self.prov.clone()
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 
@@ -86,14 +92,27 @@ impl Provenanced for SpecData {
     }
 }
 
+/// The judgmental arrow's outcome, and the shape R2 obliges it to have.
+///
+/// `rounds` is the body's to compute. `judgment` is not: it is the sealed
+/// answer the outside gave, carried out of the licence by
+/// `Qualified::into_judgment`, and `Provenanced` reads `π` off it. So the body
+/// decides *what* comes back and cannot decide *whose* provenance it carries —
+/// which is the "payload whose provenance is not freely chosen by the body"
+/// that Q11 named as the thing that would close its load-bearing blocker.
+///
+/// Before R2 this struct declared `Prov::of(["drafter"])` — the provenance of
+/// the very argument the arrow was called to judge — and passed every check the
+/// workspace made.
 #[derive(Clone, PartialEq)]
 struct LoopState {
+    judgment: Judgment,
     rounds: u32,
 }
 
 impl Provenanced for LoopState {
     fn provenance(&self) -> Prov {
-        Prov::of(["drafter"])
+        self.judgment.provenance()
     }
 }
 
@@ -110,7 +129,7 @@ ladder!(Review {
 } impl {
     active = |_spec, q| {
         assert_eq!(q.role_name(), "reviewer");
-        Active::new(LoopState { rounds: 0 })
+        Active::new(LoopState { judgment: q.into_judgment(), rounds: 0 })
     },
     step = |active, q| {
         assert_eq!(q.role_name(), "judge");
@@ -122,17 +141,32 @@ ladder!(Review {
     },
     unstall = |stalled| {
         let active = stalled.into_source();
-        Active::new(LoopState { rounds: active.payload.rounds + 1 })
+        let LoopState { judgment, rounds } = active.payload;
+        Active::new(LoopState { judgment, rounds: rounds + 1 })
     },
 });
 
+// Two principals, because R2 makes the second necessary. `active`'s outcome
+// now carries π(rita), so rita is no longer disjoint from what `step` is asked
+// to judge — she authored it, in the only sense Het cares about, and P0 refuses
+// her. That is the correct outcome and it used to be invisible: the old
+// `LoopState` declared π = {drafter} whoever produced it, so rita could rule on
+// her own ruling and no filter could see it.
 fn pool() -> Pool<Person> {
-    Pool::new(vec![Person {
-        id: "rita",
-        prov: Prov::of(["rita"]),
-        roles: &["reviewer", "judge"],
-        stewards: &[],
-    }])
+    Pool::new(vec![
+        Person {
+            id: "rita",
+            prov: Prov::of(["rita"]),
+            roles: &["reviewer", "judge"],
+            stewards: &[],
+        },
+        Person {
+            id: "quinn",
+            prov: Prov::of(["quinn"]),
+            roles: &["judge"],
+            stewards: &[],
+        },
+    ])
 }
 
 // ── 1. the positive case ────────────────────────────────────────────────────
@@ -199,14 +233,29 @@ impl Provenanced for Draft {
     }
 }
 
+/// An outcome that claims no provenance at all.
+///
+/// Admissible, and worth being explicit about: `∅ ⊆ π(p)` so the epilogue
+/// passes, and `∅ ∩ π(a) = ∅` so the proposition holds. A judgmental arrow may
+/// return something authored by nobody; what it may not do is return something
+/// authored by the party under judgment.
+#[derive(Clone, PartialEq)]
+struct Tally(u32);
+
+impl Provenanced for Tally {
+    fn provenance(&self) -> Prov {
+        Prov::empty()
+    }
+}
+
 ladder!(Blind {
     Manuscript(Draft)
-        => #[judgmental(Reviewer)] Reviewed(u32)
+        => #[judgmental(Reviewer)] Reviewed(Tally)
         => { Filed }
 } impl {
     // No `q` in sight. Whatever this body proves, it is not that a qualified
     // outside was consulted about *this* manuscript.
-    reviewed = |_manuscript, _q| { Reviewed::new(0) },
+    reviewed = |_manuscript, _q| { Reviewed::new(Tally(0)) },
     step     = |_reviewed| { Ok(StepOutcome::Filed(Filed::new())) },
 });
 
@@ -220,7 +269,7 @@ fn a_body_that_ignores_the_token_still_gets_the_binding_check() {
         .expect("rita is disjoint from the drafter");
 
     let reviewed = blind::reviewed(blind::Manuscript::new(manuscript), licence);
-    assert_eq!(reviewed.payload, 0);
+    assert_eq!(reviewed.payload.0, 0);
 }
 
 #[test]
@@ -624,12 +673,6 @@ fn two_markers_on_one_transition_are_refused() {
 /// attribute and be told. Until then a green suite must not read as a claim
 /// that gate-faithfulness holds.
 #[test]
-#[ignore = "GAP, not a bug: rung constrains a judgmental arrow's ARGUMENT (G12 \
-            + G13) and never its RETURN. Closing this needs a guarantee that \
-            checks π(f(a)) ∩ π(a) = ∅ on the way out — `Prov::contained_in` \
-            exists and nothing calls it. This is Q11's load-bearing blocker; \
-            see docs/questions/open/q11-gate-faithfulness.md. Unpark by \
-            deleting this attribute once such a guarantee exists."]
 fn a_judgmental_arrow_may_not_return_the_provenance_it_judged() {
     let pool = pool();
     let spec = SpecData("drafter");
@@ -647,4 +690,135 @@ fn a_judgmental_arrow_may_not_return_the_provenance_it_judged() {
          Kl_judg(P) = {{ f : π(f(a)) ∩ π(a) = ∅ }}. This one returned a value \
          carrying π(a) itself, and every gate rung has passed it"
     );
+}
+
+// ── the epilogue (R2) — a body cannot choose the outcome's provenance ───────
+//
+// `Launder` is `constant-arrow-hazard` written as a ladder: a judgmental
+// transition whose body returns the argument it was handed, unchanged. Under
+// G12 + G13 alone this arrow is well-marked, well-signed, and holds an honest
+// licence bound to the very argument it is applied to — and it launders π(a)
+// straight back out. It is the `settle(model, q, v)` hazard on the arrow
+// surface: the value is drawn from `M`'s own carrier.
+//
+// The injected epilogue asserts `π(f(a)) ⊆ π(p)` on the way out, the mirror of
+// the prologue's binding check on the way in. `{drafter}` is not contained in
+// `{rita}`, so the arrow does not complete.
+
+#[derive(Clone, PartialEq)]
+struct Whisper(&'static str);
+
+impl Provenanced for Whisper {
+    fn provenance(&self) -> Prov {
+        Prov::of([self.0])
+    }
+}
+
+ladder!(Launder {
+    Heard(Whisper)
+        => #[judgmental(Reviewer)] Repeated(Whisper)
+        => { Filed }
+} impl {
+    // c_j : a ↦ η(j), with j drawn from the argument itself.
+    repeated = |heard, _q| { Repeated::new(heard.payload) },
+    step     = |_repeated| { Ok(StepOutcome::Filed(Filed::new())) },
+});
+
+#[test]
+#[should_panic(expected = "π(f(a)) ⊄ π(p)")]
+fn the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render() {
+    let pool = pool();
+    let heard = Whisper("drafter");
+    let licence: Qualified<Reviewer> = pool
+        .qualify_for(&heard)
+        .expect("rita is disjoint from the drafter");
+
+    // Every gate on the way in is satisfied. The way out is where this fails.
+    let _ = launder::repeated(launder::Heard::new(heard), licence);
+}
+
+// ── the outward conditions that are still open ─────────────────────────────
+
+/// **PARKED.** The *authorial* outward condition is unsecured, and so is the
+/// outcome of a *branching* judgmental transition.
+///
+/// [G15](rung-props.md) closed the judgmental half on a **forward** transition:
+/// `π(f(a)) ⊆ π(p)`, asserted by an injected epilogue, with disjointness
+/// following. Two outward conditions are left, and this is the sharper one.
+///
+/// `admissibility-subcategories` states the authorial clause as
+/// `π(f(a)) ⊆ π(p) ∧ standing(p, a)`. `G14` secures `standing` on the way in
+/// and leaves the containment on the way out entirely to the body — the same
+/// shape as `G13`'s gap, on the second gate. The arrow below is the case: the
+/// curator holds an honest pen over the cabinet, the sheet sits in the cabinet,
+/// and the revision it authors carries `someone-else`'s provenance. Nothing
+/// refuses it.
+///
+/// The other residue has no separate case because it is a question rather than
+/// a hole: a *branching* judgmental transition's recoverable and continue arms
+/// carry the argument onward by design (`reproposal-carries-the-chain`,
+/// `no-bound-on-reentry`), so which arms are outcomes in the sense of
+/// `admissibility-subcategories` is unsettled, and an epilogue there would
+/// refuse re-entry rather than laundering.
+///
+/// **Ignored, deliberately.** Unpark by deleting the attribute once an
+/// authorial epilogue exists; it must then panic in the same place the
+/// judgmental one does.
+#[test]
+#[ignore = "GAP, not a bug: G15 secures the JUDGMENTAL outward condition on a \
+            FORWARD transition. The authorial one — π(f(a)) ⊆ π(p) from \
+            admissibility-subcategories, the conjunct G14 left to the body — \
+            has no epilogue, and neither does a branching judgmental \
+            transition. This is what remains of Q11's blocker (1); see \
+            docs/questions/open/q11-gate-faithfulness.md. Unpark by deleting \
+            this attribute once an authorial epilogue exists."]
+#[should_panic(expected = "\u{3c0}(f(a)) \u{2284} \u{3c0}(p)")]
+fn an_authorial_arrow_may_not_return_a_provenance_its_author_does_not_hold() {
+    let pool = cabinet_pool();
+    let curator = curator();
+    let pen: Authorized<'_, Curator> = pool
+        .authorize(&curator, "cabinet")
+        .expect("the curator holds standing over the cabinet");
+
+    // Sits in the cabinet, so the standing prologue admits the pen. Written by
+    // someone the curator is not.
+    let sheet = Sheet {
+        container: "cabinet",
+        author: "someone-else",
+        revisions: 0,
+    };
+
+    let revised = revision::revised(revision::Filed::new(sheet), pen);
+    assert!(
+        !revised
+            .payload
+            .provenance()
+            .contained_in(&Prov::of(["curator"])),
+        "the arrow returned a provenance its author does not hold, and no \
+         guarantee looked"
+    );
+}
+
+/// **PARKED.** `#[conditional(..)]` has no encoding, so an algebra with a
+/// conditional operation cannot state gate-faithfulness here at all.
+///
+/// This is Q11's blocker (2), and it is not a matter of building more:
+/// `conditional-partitions-fiber` partitions `Mod(Σ)` — a static property of
+/// *which fiber a model sits in* — while rung's checks run at expansion time
+/// against a declaration, and `classifier-one-level-up` requires the
+/// classification be a sentence something can evaluate.
+///
+/// The cited file is the same declaration the refusal snapshot uses. Today the
+/// macro rejects it with a `compile_error!` naming the open question; the day a
+/// conditional marker has a signature, it compiles, and deleting the attribute
+/// below reports that rather than leaving the reader to notice.
+#[test]
+#[ignore = "GAP: `#[conditional(..)]` is a parse-time refusal, not an \
+            encoding. Gate-faithfulness quantifies over EVERY operation of an \
+            algebra (rung-het-props.md#gate-faithful), so an algebra with a \
+            conditional operation cannot state it here. This is Q11's blocker \
+            (2); see docs/questions/open/q11-gate-faithfulness.md. Unpark by \
+            deleting this attribute once the macro accepts the marker."]
+fn a_conditional_marker_has_a_signature() {
+    trybuild::TestCases::new().pass("tests/ui/gate_conditional_unsupported.rs");
 }

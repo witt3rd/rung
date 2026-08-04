@@ -225,8 +225,9 @@
 // re-exported here unchanged: `rung-het` remains their documented home and
 // every path below (`rung_het::Pool`, `rung_het::Qualified`, ..) still resolves.
 pub use rung::{
-    AuthorizeError, Authorized, Judgmental, Pool, Principal, Prov, Provenanced, Qualified,
-    QualifyError, Role, Settled, Situated, StandingGate, Steward, TokenNotBound, Verdict,
+    AuthorizeError, Authorized, Judgment, Judgmental, OutcomeNotFromJudge, Pool, Principal, Prov,
+    Provenanced, Qualified, QualifyError, Role, SettleError, Settled, Situated, StandingGate,
+    Steward, TokenNotBound, Verdict,
 };
 
 // `theory!` and its helper macros moved to `rung` for the same reason the pool

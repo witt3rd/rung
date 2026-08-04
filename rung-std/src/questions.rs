@@ -75,8 +75,8 @@
 // comes from `rung-het`: `Applies` is how a theory says what its own edits do
 // (`enact-generic-over-edit`), and `enact` refuses to guess.
 use rung::{
-    Authorized, Pool, Principal, Prov, Provenanced, QualifyError, Role, Settled, Situated, Verdict,
-    ladder, theory,
+    Authorized, Pool, Principal, Prov, Provenanced, QualifyError, Role, Settled, Situated, ladder,
+    theory,
 };
 use rung_het::{Applies, EnactError};
 use std::collections::BTreeSet;
@@ -705,19 +705,21 @@ pub enum Propagated {
 /// `strict-and-advisory-are-the-gate` as a function. The pool is in scope for
 /// the whole function and is *unreachable* from the strict branch — not by
 /// discipline, but because `must_reexamine::holds` takes one argument.
-pub fn propagate<P: Principal>(
-    e: &Exposure,
-    pool: &Pool<P>,
-    ruling: Verdict,
-) -> Result<Propagated, QualifyError> {
+///
+/// **No verdict parameter.** There used to be one: `propagate(e, pool, ruling)`
+/// took the advisory ruling from its caller and handed it to `settle`, so a
+/// driver could decide the outcome and the receipt would name whichever
+/// principal the filter happened to select. `Pool::consult` asks the principal
+/// that qualified, and the answer is what lands on the receipt.
+pub fn propagate<P: Principal>(e: &Exposure, pool: &Pool<P>) -> Result<Propagated, QualifyError> {
     Ok(match propagation_of(e.edge) {
         Propagation::Strict => Propagated::Reexamined(propagation::must_reexamine::holds(e)),
         Propagation::Mechanical => Propagated::Mechanical(propagation::must_reexamine::holds(e)),
         Propagation::Advisory => {
-            let q = pool.qualify_for::<Adjudicator>(e)?;
+            let (q, judgment) = pool.consult::<Adjudicator>(e, "survives_the_change")?;
             Propagated::Ruled(
-                propagation::survives_the_change::settle(e, q, ruling)
-                    .expect("the licence was minted against this very exposure"),
+                propagation::survives_the_change::settle(e, q, judgment)
+                    .expect("the licence and the judgment are the same principal's"),
             )
         }
         Propagation::Generative => Propagated::Authored {

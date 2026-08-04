@@ -87,19 +87,31 @@ struct Person {
     prov: &'static [&'static str],
     roles: &'static [&'static str],
     stewards: &'static [&'static str],
+    /// Which way this principal rules. A field, because the verdict is now the
+    /// principal's to give: a test that wants the other arm of a coproduct has
+    /// to find a principal who takes it, rather than passing the verdict it
+    /// wanted to `settle`.
+    dissents: bool,
 }
 
-impl rung_het::Provenanced for Person {
-    fn provenance(&self) -> rung_het::Prov {
-        rung_het::Prov::of(self.prov.iter().copied())
-    }
-}
 impl rung_het::Principal for Person {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> rung_het::Prov {
+        rung_het::Prov::of(self.prov.iter().copied())
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, matter: &str) -> rung_het::Verdict {
+        rung_het::Verdict::conforming(!self.dissents, format!("`{matter}` does not hold"))
     }
 }
 impl rung_het::Steward for Person {
@@ -113,6 +125,7 @@ const CURATOR: Person = Person {
     prov: &["atlas-decisions"],
     roles: &["curator"],
     stewards: &["open", "blocked", "parked", "specs/decisions"],
+    dissents: false,
 };
 
 fn pool() -> Pool<Person> {
@@ -122,12 +135,14 @@ fn pool() -> Pool<Person> {
             prov: CURATOR.prov,
             roles: CURATOR.roles,
             stewards: CURATOR.stewards,
+            dissents: false,
         },
         Person {
             id: "guild-reviewer",
             prov: &["independent-guild"],
             roles: &["interrogator", "adjudicator"],
             stewards: &[],
+            dissents: false,
         },
     ])
 }
@@ -300,7 +315,7 @@ fn a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on() {
     assert_eq!(gate_of(EdgeKind::Premise), "decidable");
     assert_eq!(gate_of(EdgeKind::Justification), "judgmental");
 
-    let out = propagate(&strict, &p, rung_het::Verdict::Conforming).unwrap();
+    let out = propagate(&strict, &p).unwrap();
     let Propagated::Reexamined(settled) = out else {
         panic!("a `premise` edge must propagate decidably; got {out:?}")
     };
@@ -310,7 +325,7 @@ fn a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on() {
     );
     assert!(settled.verdict().is_conforming());
 
-    let out = propagate(&advisory, &p, rung_het::Verdict::Conforming).unwrap();
+    let out = propagate(&advisory, &p).unwrap();
     let Propagated::Ruled(settled) = out else {
         panic!("a `justification` edge must be ruled on, not computed; got {out:?}")
     };
@@ -326,14 +341,16 @@ fn a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on() {
     }
 
     // The other arm of the same coproduct — a strict edge has no such arm.
-    let out = propagate(
-        &advisory,
-        &p,
-        rung_het::Verdict::NonConforming {
-            reason: "d4 rested on d1's rejected framing after all".into(),
-        },
-    )
-    .unwrap();
+    // The other arm is reached by locating a judge who takes it, not by
+    // handing one to `settle`.
+    let dissenter = Pool::new(vec![Person {
+        id: "second-reader",
+        prov: &["another-docket"],
+        roles: &["adjudicator"],
+        stewards: &[],
+        dissents: true,
+    }]);
+    let out = propagate(&advisory, &dissenter).unwrap();
     let Propagated::Ruled(settled) = out else {
         panic!("still advisory")
     };
@@ -354,8 +371,8 @@ fn the_two_paths_differ_in_arity_not_in_convention() {
     let advisory: fn(
         &Exposure,
         rung_het::Qualified<Adjudicator>,
-        rung_het::Verdict,
-    ) -> Result<rung_het::Settled, rung_het::TokenNotBound> =
+        rung_het::Judgment,
+    ) -> Result<rung_het::Settled, rung_het::SettleError> =
         propagation::survives_the_change::settle;
 
     let e = Exposure {
@@ -372,12 +389,10 @@ fn the_two_paths_differ_in_arity_not_in_convention() {
         edge: EdgeKind::Justification,
         ..e
     };
-    let q = p.qualify_for::<Adjudicator>(&adv).unwrap();
-    assert!(
-        advisory(&adv, q, rung_het::Verdict::Conforming)
-            .unwrap()
-            .consulted_outside()
-    );
+    let (q, judgment) = p
+        .consult::<Adjudicator>(&adv, "survives_the_change")
+        .unwrap();
+    assert!(advisory(&adv, q, judgment).unwrap().consulted_outside());
 }
 
 /// A licence minted against one exposure does not settle another. A body of
@@ -398,10 +413,12 @@ fn a_ruling_on_one_exposure_does_not_carry_to_another() {
         ..one.clone()
     };
 
-    let q = p.qualify_for::<Adjudicator>(&one).unwrap();
+    let (q, judgment) = p
+        .consult::<Adjudicator>(&one, "survives_the_change")
+        .unwrap();
     assert!(matches!(
-        propagation::survives_the_change::settle(&other, q, rung_het::Verdict::Conforming),
-        Err(rung_het::TokenNotBound { .. })
+        propagation::survives_the_change::settle(&other, q, judgment),
+        Err(rung_het::SettleError::TokenNotBound(_))
     ));
 }
 
@@ -419,6 +436,7 @@ fn p0_refuses_the_curator_as_a_judge_of_the_questions_it_filed() {
         prov: CURATOR.prov,
         roles: &["curator", "interrogator", "adjudicator"],
         stewards: CURATOR.stewards,
+        dissents: false,
     }]);
 
     match only_curator.qualify::<Interrogator>(d3).unwrap_err() {
@@ -429,12 +447,11 @@ fn p0_refuses_the_curator_as_a_judge_of_the_questions_it_filed() {
         other => panic!("the curator must not judge what it filed; got {other:?}"),
     }
 
-    let q = pool()
-        .qualify::<Interrogator>(d3)
+    let (q, judgment) = pool()
+        .consult::<Interrogator>(d3, "is_well_posed")
         .expect("the guild reviewer is disjoint from the docket");
     assert_eq!(q.principal_id(), "guild-reviewer");
-    let settled = question::is_well_posed::settle(d3, q, rung_het::Verdict::Conforming)
-        .expect("minted against d3");
+    let settled = question::is_well_posed::settle(d3, q, judgment).expect("minted against d3");
     assert_eq!(settled.sentence(), "is_well_posed");
 }
 

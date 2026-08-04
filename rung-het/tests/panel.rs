@@ -35,7 +35,7 @@
 //! establish anything about running the seats concurrently; that is still Q5.
 
 use rung_het::{
-    Disposition, Pool, Principal, Proposal, Prov, Provenanced, Role, Ruling, Steward, dispose,
+    Disposition, Pool, Principal, Proposal, Prov, Role, Ruling, Steward, Verdict, dispose,
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -67,18 +67,24 @@ struct Person {
     stewards: &'static [&'static str],
 }
 
-impl Provenanced for Person {
-    fn provenance(&self) -> Prov {
-        Prov::of(self.prov.iter().copied())
-    }
-}
-
 impl Principal for Person {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        Prov::of(self.prov.iter().copied())
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 

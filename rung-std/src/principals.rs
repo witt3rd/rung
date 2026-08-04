@@ -83,7 +83,7 @@
 //!    `principals_theory.rs::role_is_not_kind_and_the_two_axes_are_independent`
 //!    rather than dressed as `decidable` sentences with nothing to decide.
 
-use rung::{Principal, Prov, Provenanced, Role, Steward, theory};
+use rung::{Principal, Prov, Provenanced, Role, Steward, Verdict, theory};
 use std::collections::{BTreeMap, BTreeSet};
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -347,13 +347,6 @@ impl PrincipalDecl {
     }
 }
 
-/// `π(p)`.
-impl Provenanced for PrincipalDecl {
-    fn provenance(&self) -> Prov {
-        Prov::of(self.provenance.iter().cloned())
-    }
-}
-
 /// **`capable`, and it actually checks.**
 ///
 /// A principal plays a role only if it meets that role's minimum
@@ -371,6 +364,18 @@ impl Principal for PrincipalDecl {
 
     fn id(&self) -> &str {
         &self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        Prov::of(self.provenance.iter().cloned())
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 

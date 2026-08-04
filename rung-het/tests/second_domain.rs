@@ -115,17 +115,24 @@ pub struct Dev {
     pub stewards: &'static [&'static str],
 }
 
-impl Provenanced for Dev {
-    fn provenance(&self) -> Prov {
-        Prov::of(self.prov.iter().copied())
-    }
-}
 impl Principal for Dev {
     fn capable(&self, role_name: &str) -> bool {
         self.roles.contains(&role_name)
     }
     fn id(&self) -> &str {
         self.id
+    }
+
+    /// `authored` — the history this principal claims. `π(p)` is this
+    /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
+    /// the provenance floor is not a value a principal gets to state.
+    fn authored(&self) -> Prov {
+        Prov::of(self.prov.iter().copied())
+    }
+
+    /// The oracle. The verdict is the outside's, not the caller's.
+    fn rule(&self, _matter: &str) -> Verdict {
+        Verdict::Conforming
     }
 }
 impl Steward for Dev {
@@ -196,14 +203,11 @@ fn a_domain_with_entirely_different_edits_runs_the_same_pass() {
     // audit, judgmental — the reporter is refused; the reviewer qualifies
     let q = p.qualify::<Triager>(&trk).expect("reviewer is disjoint");
     assert_eq!(q.principal_id(), "reviewer");
-    let _ = triage::all_actionable::settle(
-        &trk,
-        q,
-        Verdict::NonConforming {
-            reason: "i2 is unactionable as filed".into(),
-        },
-    )
-    .expect("the licence was minted against this very argument");
+    let (q, judgment) = p
+        .consult::<Triager>(&trk, "all_actionable")
+        .expect("reviewer is disjoint, and is asked");
+    let _ = triage::all_actionable::settle(&trk, q, judgment)
+        .expect("the licence and the judgment are the reviewer's");
 
     // propose — authorial, and the edit is THIS theory's
     let pen = p

@@ -1011,7 +1011,14 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             None => quote! {},
             Some(Gate::Judgmental(_)) => {
                 let q = pat_binding(closure.inputs.iter().nth(1), "_q");
-                quote! { must_be_bound_to(&#arg.payload, &#q); }
+                // `π(p)` is snapshotted here because the body consumes the
+                // licence. The epilogue needs it after the body has run, and
+                // reading it back off the body's own return value is exactly
+                // the mistake the epilogue exists to refuse.
+                quote! {
+                    must_be_bound_to(&#arg.payload, &#q);
+                    let __judge_prov = ::core::clone::Clone::clone(#q.principal_provenance());
+                }
             }
             Some(Gate::Authorial(_)) => {
                 let pen = pat_binding(closure.inputs.iter().nth(1), "_pen");
@@ -1019,6 +1026,41 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             }
         }
     };
+
+    // The **injected gate epilogue** (rung-props.md G15) — R2, on the way out.
+    //
+    // The prologue constrains the arrow's *argument*: `π(p) ∩ π(a) = ∅` for the
+    // very `a` it is applied to. It says nothing about what comes back, and
+    // `admissibility-subcategories` is stated on what comes back:
+    // `Kl_judg(𝒫) = { f : π(f(a)) ∩ π(a) = ∅ }`. A body could satisfy every
+    // check on the way in and return the argument it was handed —
+    // `constant-arrow-hazard` as an arrow rather than as a `settle` parameter.
+    //
+    // This asserts the *containment* half, `π(f(a)) ⊆ π(p)`, and not the
+    // disjointness the proposition states, because disjointness follows:
+    //
+    //     π(f(a)) ⊆ π(p)  ∧  π(p) ∩ π(a) = ∅  ⟹  π(f(a)) ∩ π(a) = ∅
+    //
+    // and the right conjunct is what the prologue has just re-established.
+    // Asserting the conclusion as well would read as a third guarantee and be
+    // none.
+    //
+    // Containment is not satisfiable by a body that merely *stamps* the judge's
+    // tag on something it computed: a payload built on a `::rung::Judgment`
+    // derives `π` from the judgment structurally, and `Judgment` has no
+    // constructor outside `rung`. A body that wants a provenance it did not
+    // receive has to invent a `Judgment`, and cannot.
+    //
+    // **Forward transitions only.** A branching judgmental transition returns a
+    // sum whose recoverable and continue arms carry the argument onward *by
+    // design* — re-entry, not laundering (reproposal-carries-the-chain,
+    // no-bound-on-reentry). A containment epilogue there would refuse the
+    // re-entry rather than the hazard, and which of those arms counts as an
+    // "outcome" in the sense of `admissibility-subcategories` is not settled.
+    // Recorded as a limit in docs/questions/open/q11-gate-faithfulness.md
+    // rather than guessed at here.
+    let has_epilogue =
+        |t: &Transition| matches!(t.gate, Some(Gate::Judgmental(_))) && t.to_rung.is_some();
 
     let logic = if has_bodies {
         let transition_fns: Vec<_> = ladder
@@ -1036,6 +1078,21 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 // statements — the body cannot run ahead of the check (G13).
                 let body = if t.gate.is_none() {
                     fn_body(&b.closure)
+                } else if has_epilogue(t) {
+                    // The body runs inside an immediately-invoked closure so
+                    // that a `return` in it returns from the *body*, not from
+                    // the transition — otherwise an adversarial body could step
+                    // straight over the epilogue on its way out.
+                    let stmts = fn_body_stmts(&b.closure);
+                    let to = t.to_rung.as_ref().expect("has_epilogue checked to_rung");
+                    quote! {
+                        {
+                            #prologue
+                            let __out: #to = (move || { #stmts })();
+                            must_derive_from_judge(&__out.payload, &__judge_prov);
+                            __out
+                        }
+                    }
                 } else {
                     let stmts = fn_body_stmts(&b.closure);
                     quote! { { #prologue #stmts } }
@@ -1145,6 +1202,42 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                  rung-het-props.md#disjointness-against-argument",
                 licence.argument_provenance(),
                 ::rung::Provenanced::provenance(argument),
+            );
+        }
+
+        /// Outcome-provenance guard (rung-props.md G15). A `#[judgmental(R)]`
+        /// forward transition's outcome must carry the **judge's** provenance:
+        /// `π(f(a)) ⊆ π(p)`.
+        ///
+        /// The judgmental mirror of `proposal-provenance-is-authors`. A
+        /// proposal carries its author's provenance; a judgmental arrow's
+        /// outcome carries its judge's. Without it a body may satisfy every
+        /// gate on the way in and hand back the argument it was given — the
+        /// constant arrow `c_j : a ↦ η(j)` with `j` drawn from the algebra's
+        /// own carrier, which is what `constant-arrow-hazard` names.
+        ///
+        /// Disjointness — `π(f(a)) ∩ π(a) = ∅`, the form
+        /// `admissibility-subcategories` states — is **not** asserted, because
+        /// it is entailed: the prologue has just re-established
+        /// `π(p) ∩ π(a) = ∅` for this argument, and containment in `π(p)`
+        /// carries the rest.
+        ///
+        /// Panics for the same reason `must_be_bound_to` does: the transition's
+        /// return type is the domain's declaration, so there is no `Err`
+        /// variant to route a refusal through, and an inadmissible arrow is not
+        /// a recoverable step outcome.
+        #[allow(dead_code)]
+        pub fn must_derive_from_judge<A>(outcome: &A, judge: &::rung::Prov)
+        where
+            A: ::rung::Provenanced,
+        {
+            let out = ::rung::Provenanced::provenance(outcome);
+            assert!(
+                out.contained_in(judge),
+                "π(f(a)) ⊄ π(p): this judgmental arrow returned a value with \
+                 provenance {out:?}, which is not contained in the judge's {judge:?}. \
+                 A judgmental arrow's outcome carries its judge's provenance — \
+                 rung-props.md G15, rung-het-props.md#judgment-provenance-is-the-judges",
             );
         }
     };
