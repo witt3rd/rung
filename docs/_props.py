@@ -239,7 +239,12 @@ ALSO_NORMATIVE = ("rung-props.md",)
 def retired_terms():
     """No normative document may use a term Het retired."""
     here = Path(__file__).parent
-    targets = docs() + [here / n for n in ALSO_NORMATIVE if (here / n).exists()]
+    seen = docs()
+    targets = seen + [
+        here / n
+        for n in ALSO_NORMATIVE
+        if (here / n).exists() and (here / n) not in seen
+    ]
     errs = []
     for path in targets:
         for i, line in enumerate(path.read_text().split("\n")):
