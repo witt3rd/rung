@@ -34,18 +34,23 @@ fn test_module_exists() {
 
 #[test]
 fn test_carry_accessor_exists() {
-    // Type-level proof: if Spec::carry() did not exist, this would not compile.
-    // The function `_check` only accepts closures matching &Spec -> &Carry.
-    // We never call it — the type system IS the test.
+    // Type-level proof: if `Spec::carry()` did not exist with this exact
+    // signature, the coercion below would not compile.
     //
-    // What this proves: the accessor method exists with the right signature.
-    // What it doesn't prove: that the accessor works at runtime (but the field
-    //   being private makes direct mutation a compile error, and the accessor's
-    //   &Carry return type makes mutation through the reference impossible).
+    // This test used to declare an *uninstantiated* generic helper —
+    // `fn _check<T: Fn(&Spec) -> &Carry>(_: T) {}` — and never call it. Nothing
+    // ever selected `T`, so the bound was never solved and renaming the emitted
+    // accessor left the test green. It was a refusal test that could not fail
+    // (rung-props.md a-refusal-test-that-cannot-fail), found by mutating the
+    // macro and watching nothing happen. Naming the method is what makes the
+    // compiler resolve it.
     //
-    // To verify: try adding `spec.carry.metric_name = "mutated"` somewhere —
-    // the compiler will refuse because `carry` is private.
-    fn _check<T: Fn(&metricoptimization::Spec) -> &metricoptimization::Carry>(_: T) {}
+    // What this proves: the accessor exists with the right signature.
+    // What it doesn't prove: that it works at runtime — but `carry` is a
+    // private field, so direct mutation is a compile error, and the `&Carry`
+    // return makes mutation through the reference impossible.
+    let _accessor: fn(&metricoptimization::Spec) -> &metricoptimization::Carry =
+        metricoptimization::Spec::carry;
 }
 
 #[test]
