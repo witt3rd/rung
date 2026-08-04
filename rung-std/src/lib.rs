@@ -1,7 +1,7 @@
 //! rung-std — the canonical building blocks.
 //!
 //! A block is admitted here when it recurs across independent projects and
-//! embeds no caller-specific knowledge. There are four:
+//! embeds no caller-specific knowledge. There are five:
 //!
 //! | block | surface | what recurs |
 //! |---|---|---|
@@ -9,9 +9,18 @@
 //! | [`agent`] | `ladder!` | one agentic turn — drive the LLM, dispatch tools, iterate |
 //! | [`questions`] | `theory!` + `ladder!` | questions posed, ruled on by an outside panel, folded back through a lifecycle |
 //! | [`principals`] | `theory!` | who may be dispatched to — the law of the pool both gates draw from |
+//! | [`driver`] | neither | hold suspended runs; release the ones evidence answers |
 //!
-//! The four exercise the two halves of the DSL: `ladder!` declares **arrows**,
-//! `theory!` declares **sentences**, and both live in `rung`.
+//! The first four exercise the two halves of the DSL: `ladder!` declares
+//! **arrows**, `theory!` declares **sentences**, and both live in `rung`.
+//!
+//! [`driver`] declares neither, and that is the point of it. A suspended run
+//! has to be held by *something* between the dispatch that could not be settled
+//! and the evidence that settles it, and that something must not decide
+//! anything — no order, no depth cap, no timeout, no re-entry bound, all of
+//! which are worth judgments Het declines to make (`het-declares-no-worth-law`).
+//! It is the smallest mechanism that lets a composition run, and it is written
+//! to stay that way.
 //!
 //! The fourth is the odd one, and deliberately: `rung` declares the *interface*
 //! a supplier of `𝒫` must expose and refuses to say what a principal is made of
@@ -86,6 +95,7 @@
 //!
 
 pub mod agent;
+pub mod driver;
 pub mod llm;
 pub mod principals;
 pub mod questions;
