@@ -1,15 +1,22 @@
 //! rung-std — the canonical building blocks.
 //!
 //! A block is admitted here when it recurs across independent projects and
-//! embeds no caller-specific knowledge. There are two:
+//! embeds no caller-specific knowledge. There are three:
 //!
 //! | block | surface | what recurs |
 //! |---|---|---|
 //! | [`LlmCall`](self) — this module | `ladder!` | one blocking LLM call, with retry |
 //! | [`questions`] | `theory!` + `ladder!` | questions posed, ruled on by an outside panel, folded back through a lifecycle |
+//! | [`principals`] | `theory!` | who may be dispatched to — the law of the pool both gates draw from |
 //!
-//! The two exercise the two halves of the DSL: `ladder!` declares **arrows**,
+//! The three exercise the two halves of the DSL: `ladder!` declares **arrows**,
 //! `theory!` declares **sentences**, and both live in `rung`.
+//!
+//! The third is the odd one, and deliberately: `rung` declares the *interface*
+//! a supplier of `𝒫` must expose and refuses to say what a principal is made of
+//! (`nothing-further-required`). [`principals`] is a **supplier** — it names the
+//! kinds, the identity fields, the cost tiers and the shape of a population,
+//! which is exactly the content Het declines to legislate.
 //!
 //! ---
 //!
@@ -83,6 +90,7 @@
 //! 2. Its canonical two-rung shape (request-construction rung + verdict-routing
 //!    rung) is domain-generic — no caller-specific knowledge is embedded.
 
+pub mod principals;
 pub mod questions;
 
 use rung::ladder;

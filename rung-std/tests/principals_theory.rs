@@ -41,6 +41,9 @@ const STRUCTURAL_AUDITOR: RoleSpec = RoleSpec {
     min_qualifications: &["rule-following"],
 };
 
+/// A principal, with no standing anywhere and a placeholder ε. Standing and ε
+/// are added by the two combinators below where a case turns on them, so that a
+/// roster reads as the population it is rather than as a wall of arguments.
 fn decl(
     id: &str,
     kind: Kind,
@@ -48,8 +51,6 @@ fn decl(
     quals: &[&str],
     plays: &[RoleSpec],
     prov: &[&str],
-    stewards: &[&str],
-    eps: f64,
 ) -> PrincipalDecl {
     PrincipalDecl {
         id: id.to_string(),
@@ -58,12 +59,28 @@ fn decl(
             .iter()
             .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
             .collect::<BTreeMap<_, _>>(),
-        qualifications: quals.iter().map(|q| (*q).to_string()).collect::<BTreeSet<_>>(),
+        qualifications: quals
+            .iter()
+            .map(|q| (*q).to_string())
+            .collect::<BTreeSet<_>>(),
         plays: plays.to_vec(),
-        provenance: prov.iter().map(|p| (*p).to_string()).collect::<BTreeSet<_>>(),
-        stewards: stewards.iter().map(|s| (*s).to_string()).collect::<BTreeSet<_>>(),
-        epsilon: Epsilon::declared(eps),
+        provenance: prov
+            .iter()
+            .map(|p| (*p).to_string())
+            .collect::<BTreeSet<_>>(),
+        stewards: BTreeSet::new(),
+        epsilon: Some(Epsilon::declared(0.1)),
     }
+}
+
+fn stewarding(mut p: PrincipalDecl, containers: &[&str]) -> PrincipalDecl {
+    p.stewards = containers.iter().map(|c| (*c).to_string()).collect();
+    p
+}
+
+fn with_epsilon(mut p: PrincipalDecl, bound: f64) -> PrincipalDecl {
+    p.epsilon = Some(Epsilon::declared(bound));
+    p
 }
 
 /// Deliberately **not** in cost order. `mirabel` is a human — the scarcest
@@ -87,23 +104,25 @@ fn roster_a() -> Roster {
                 &["rule-following"],
                 &[STRUCTURAL_AUDITOR],
                 &["hexcorp"],
-                &[],
-                0.08,
             ),
-            decl(
-                "mirabel",
-                Kind::Human,
-                &[("authority", "maintainer")],
-                &[
-                    "strong-reasoning",
-                    "category-theory",
-                    "competence-assessment",
-                    "substrate-taxonomy",
-                ],
-                &[CATEGORY_THEORIST, Examiner::spec(), Taxonomist::spec()],
-                &["mirabel"],
+            stewarding(
+                with_epsilon(
+                    decl(
+                        "mirabel",
+                        Kind::Human,
+                        &[("authority", "maintainer")],
+                        &[
+                            "strong-reasoning",
+                            "category-theory",
+                            "competence-assessment",
+                            "substrate-taxonomy",
+                        ],
+                        &[CATEGORY_THEORIST, Examiner::spec(), Taxonomist::spec()],
+                        &["mirabel"],
+                    ),
+                    0.02,
+                ),
                 &["specs/atlas"],
-                0.02,
             ),
             decl(
                 "swarm",
@@ -112,17 +131,16 @@ fn roster_a() -> Roster {
                 &["rule-following", "competence-assessment"],
                 &[STRUCTURAL_AUDITOR, Examiner::spec()],
                 &["swarm-works"],
-                &[],
-                0.14,
             ),
-            decl(
-                "chorus",
-                Kind::RelationalBeing,
-                &[("constellation", "atlas-circle")],
-                &["mutual-stake", "competence-assessment"],
-                &[Examiner::spec()],
-                &["atlas-circle"],
-                &[],
+            with_epsilon(
+                decl(
+                    "chorus",
+                    Kind::RelationalBeing,
+                    &[("constellation", "atlas-circle")],
+                    &["mutual-stake", "competence-assessment"],
+                    &[Examiner::spec()],
+                    &["atlas-circle"],
+                ),
                 0.2,
             ),
             decl(
@@ -137,8 +155,6 @@ fn roster_a() -> Roster {
                 ],
                 &[CATEGORY_THEORIST, Examiner::spec(), Taxonomist::spec()],
                 &["orbital"],
-                &[],
-                0.11,
             ),
         ],
     }
@@ -162,21 +178,22 @@ fn roster_b() -> Roster {
         namespace: "orchard-council",
         roles: vec![PRUNER, GRAFTER, Examiner::spec(), Taxonomist::spec()],
         principals: vec![
-            decl(
-                "hollis",
-                Kind::Human,
-                &[("authority", "orchard-steward")],
-                &[
-                    "shears-competence",
-                    "graft-competence",
-                    "patience",
-                    "competence-assessment",
-                    "substrate-taxonomy",
-                ],
-                &[PRUNER, GRAFTER, Examiner::spec(), Taxonomist::spec()],
-                &["hollis"],
+            stewarding(
+                decl(
+                    "hollis",
+                    Kind::Human,
+                    &[("authority", "orchard-steward")],
+                    &[
+                        "shears-competence",
+                        "graft-competence",
+                        "patience",
+                        "competence-assessment",
+                        "substrate-taxonomy",
+                    ],
+                    &[PRUNER, GRAFTER, Examiner::spec(), Taxonomist::spec()],
+                    &["hollis"],
+                ),
                 &["orchard/north"],
-                0.05,
             ),
             decl(
                 "sap-reader",
@@ -185,8 +202,6 @@ fn roster_b() -> Roster {
                 &["shears-competence", "competence-assessment"],
                 &[PRUNER, Examiner::spec()],
                 &["greenline"],
-                &[],
-                0.3,
             ),
         ],
     }
@@ -295,8 +310,6 @@ fn capability_is_a_mechanical_comparison_and_a_claimed_role_is_not_an_earned_one
         &["rule-following"],
         &[CATEGORY_THEORIST],
         &["hexcorp"],
-        &[],
-        0.5,
     );
     assert_eq!(
         pretender.unearned_roles(),
@@ -389,8 +402,6 @@ fn a_kind_fixes_its_identity_fields_and_a_principal_missing_one_is_refused() {
         &["rule-following"],
         &[STRUCTURAL_AUDITOR],
         &["hexcorp"],
-        &[],
-        0.1,
     );
     assert_eq!(nameless.missing_identity_fields(), vec!["model_id"]);
     assert!(
@@ -517,8 +528,8 @@ fn nothing_in_the_workspace_orders_by_cost_or_epsilon() {
     // Written as separate tables so that neither line carries both halves.
     const DECLARED: &[&str] = &["cost_tier", "CostTier", "epsilon", "Epsilon"];
     const ORDERS: &[&str] = &[
-        " < ", " > ", "<=", ">=", "sort", ".min(", "::min", ".max(", "::max", "cmp", "Ord",
-        "rank", "cheap", "argmin", "prefer",
+        " < ", " > ", "<=", ">=", "sort", ".min(", "::min", ".max(", "::max", "cmp", "Ord", "rank",
+        "cheap", "argmin", "prefer",
     ];
 
     let mut offences: Vec<String> = Vec::new();
@@ -581,12 +592,32 @@ fn cost_is_declared_per_kind_and_epsilon_per_principal() {
         for p in &r.principals {
             assert_eq!(p.cost_tier(), p.kind.cost_tier());
             // ε is declared. It is also unread: `Epsilon` exposes no accessor
-            // and no comparison, so the only thing a caller can do with one is
-            // print it. The reader HetOpt would add is the seam, and it is
+            // and no comparison, so the only fact available about one is that
+            // it is there. The reader HetOpt would add is the seam, and it is
             // empty.
-            assert!(format!("{:?}", p.epsilon).starts_with("Epsilon"));
+            assert!(p.epsilon.is_some(), "every principal declares an ε");
+            assert!(
+                principal::epsilon_is_declared::holds(p)
+                    .verdict()
+                    .is_conforming()
+            );
         }
     }
+}
+
+/// …and the ε sentence can fail, which is what makes it a sentence rather than
+/// a restatement of the type. Declaring ε is the half of
+/// `epsilon-declared-not-ranked` this theory can honour; carrying it out to the
+/// verdict is the half it cannot.
+#[test]
+fn a_principal_that_declares_no_epsilon_is_not_well_formed() {
+    let mut p = roster_a().by_id("nine-b").expect("on the bench").clone();
+    p.epsilon = None;
+    assert!(
+        !principal::epsilon_is_declared::holds(&p)
+            .verdict()
+            .is_conforming()
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -623,10 +654,12 @@ fn p0_refuses_a_principal_as_the_examiner_of_its_own_competence_claim() {
 #[test]
 fn the_kind_partition_is_ruled_on_by_an_outside_and_not_computed() {
     let r = roster_a();
-    let outside = Pool::new(vec![roster_b()
-        .by_id("hollis")
-        .expect("hollis keeps the orchard")
-        .clone()]);
+    let outside = Pool::new(vec![
+        roster_b()
+            .by_id("hollis")
+            .expect("hollis keeps the orchard")
+            .clone(),
+    ]);
     let q = outside
         .qualify_for::<Taxonomist>(&r)
         .expect("the orchard shares no provenance with the bench");
