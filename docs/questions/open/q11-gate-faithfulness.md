@@ -3,6 +3,8 @@ id: q11
 status: open
 depends_on:
   - {on: q1, kind: justification}
+affects:
+  - {target: q12, kind: premise}
 ---
 
 # Q11 — Gate-faithfulness *(open)*
