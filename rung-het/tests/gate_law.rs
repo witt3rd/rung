@@ -1,6 +1,6 @@
 //! Conformance tests for `rung-het` — Het's gate law as a type property.
 //!
-//! Following rung's own discipline (SPEC.md §6): every guarantee names the test
+//! Following rung's own discipline (SPEC.md fractal-property): every guarantee names the test
 //! that fails if the implementation stops honoring it. The tests that matter
 //! most here are the **negative** ones — a gate that never fires on a
 //! deliberate violation is not a gate.
@@ -185,7 +185,7 @@ fn p0_is_not_vacuous_when_the_model_claims_no_author() {
 
 #[test]
 fn competence_is_filtered_before_provenance_matters() {
-    // Disjoint, but cannot play the role. Both conjuncts of N39 are live.
+    // Disjoint, but cannot play the role. Both conjuncts of dispatch-is-two-operations are live.
     let m = doc_by(&["augur"]);
     let pool = Pool::new(vec![judge("forge", &["forge"], &[Cartographer::NAME])]);
 
@@ -200,7 +200,7 @@ fn competence_is_filtered_before_provenance_matters() {
 
 #[test]
 fn qualification_walks_the_pool_and_takes_any_survivor() {
-    // Het N9: dispatch to *a* qualifying judge. Not the best — Het has no
+    // Het no-preference-among-judges: dispatch to *a* qualifying judge. Not the best — Het has no
     // worth-law and must not rank. First survivor is Het-correct.
     let m = doc_by(&["augur"]);
     let pool = Pool::new(vec![
@@ -301,7 +301,7 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
 
 #[test]
 fn every_sentence_carries_a_gate_from_the_declared_vocabulary() {
-    // Het N1/N2: every operation carries an explicit gate marker, and it is one
+    // Het gate-marker-required/four-gates: every operation carries an explicit gate marker, and it is one
     // of the declared values. `authorial` and `conditional` are not yet
     // implemented here; when they are, this test must be extended, not relaxed.
     for (name, gate) in soul::SENTENCES {

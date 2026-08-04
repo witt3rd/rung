@@ -1,7 +1,7 @@
-//! A second domain, to prove §11.12 is real.
+//! A second domain, to prove edit-required-not-typed is real.
 //!
-//! The claim: Het declares that a remedy carries an **edit** (7.33) and that
-//! `enact` applies one (7.5), and does **not** enumerate edits. If that is
+//! The claim: Het declares that a remedy carries an **edit** (remedy-carries-an-edit) and that
+//! `enact` applies one (enact-makes-an-endofunctor), and does **not** enumerate edits. If that is
 //! true, a domain whose edits look nothing like the cabinet's must run through
 //! the same library with no change to it.
 //!
@@ -51,7 +51,7 @@ impl Role for Triager {
 
 /// **This theory's edits.** Not Het's, and not the cabinet's.
 ///
-/// §11.12. `WontFix` is the case that makes the point: it closes an issue
+/// edit-required-not-typed. `WontFix` is the case that makes the point: it closes an issue
 /// *while agreeing it is non-conforming*. Nothing in the cabinet's
 /// `Amend | Remove | Relocate` can express that, and nothing in Het needs to.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,7 +68,7 @@ theory!(triage for Tracker {
     judgmental all_actionable: Triager;
 });
 
-/// The domain applies its own edits (11.2). The library cannot: it does not
+/// The domain applies its own edits (enact-generic-over-edit). The library cannot: it does not
 /// know what an issue is, and has never heard of `WontFix`.
 impl Applies<TriageEdit> for Tracker {
     fn territory(&self) -> &'static str {
@@ -273,7 +273,7 @@ fn p0_holds_here_too_without_the_library_knowing_the_domain() {
 
 #[test]
 fn a_pen_for_one_territory_does_not_authorize_another() {
-    // The authorial condition is standing over THIS territory (3.4). A pen is
+    // The authorial condition is standing over THIS territory (one-pool-two-filters). A pen is
     // not a general licence to write: an author with standing over the cabinet
     // may not enact on the tracker, however sound the ruling.
     //

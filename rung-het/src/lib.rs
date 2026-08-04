@@ -24,7 +24,7 @@
 //!
 //! ## Why this belongs in rung
 //!
-//! `RUNG-CT.md` §1 states the law rung already enforces: *a verb can only live
+//! `RUNG-CT.md` one-relation states the law rung already enforces: *a verb can only live
 //! on a morphism, never inside an object* — enforced by sealed constructors
 //! (SPEC.md G2). Het's gate law is the same move on a second axis: **an outside
 //! call can only live on a judgmental arrow.** Same mechanism — seal the
@@ -59,21 +59,21 @@
 //!
 //! `within_budget`'s body is a plain predicate — it has no pool, no principal,
 //! no way to reach outside. `is_constitutive` declares the **competence role**
-//! it needs (Het N3) and can only be discharged by a principal that filter
+//! it needs (Het judgmental-declares-role) and can only be discharged by a principal that filter
 //! [`Pool::qualify`] admitted.
 //!
 //! ## Scope
 //!
 //! ## The gate law, as compile errors
 //!
-//! rung's own discipline (SPEC.md §6): a guarantee that no test can break is
+//! rung's own discipline (SPEC.md fractal-property): a guarantee that no test can break is
 //! not a guarantee. Each case below is a `compile_fail` doctest — if the
 //! enforcement is ever weakened, the example starts compiling and the test
 //! fails.
 //!
 //! ### A decidable body cannot reach an outside
 //!
-//! Het N24 (gate-faithfulness): a `decidable` operation must factor through
+//! Het gate-faithful (gate-faithfulness): a `decidable` operation must factor through
 //! `η` — pure, internal, no principal consulted. Here that is not a rule the
 //! body is asked to respect; `holds` takes only the model, so there is no
 //! parameter through which a pool or a token could arrive.
@@ -101,7 +101,7 @@
 //!
 //! ### A judgmental sentence cannot be settled without a qualified outside
 //!
-//! Het N7/N8 — **P0**. `settle` consumes a [`Qualified`], and [`Qualified`] has
+//! Het non-identity-before-dispatch/non-identity-not-deferrable — **P0**. `settle` consumes a [`Qualified`], and [`Qualified`] has
 //! no public constructor: [`Pool::qualify`] is the only mint, and it runs the
 //! non-identity filter. So there is no term for "settle this judgmental
 //! sentence without consulting anyone."
@@ -169,7 +169,7 @@
 //!
 //! ### A judgmental sentence must declare its role
 //!
-//! Het N3. This is the gap that went unnoticed in a prose encoding — the map
+//! Het judgmental-declares-role. This is the gap that went unnoticed in a prose encoding — the map
 //! from sentences to roles was simply absent, and nothing could notice.
 //! Here it is a parse error with an explanation.
 //!
@@ -186,7 +186,7 @@
 //! ### A judgmental sentence cannot carry a body
 //!
 //! If it can be computed it is decidable; marking it judgmental would launder
-//! a machine check into an outside call, which is the gate law (N27) read at
+//! a machine check into an outside call, which is the gate law (no-laundering-along-morphisms) read at
 //! the declaration site.
 //!
 //! ```compile_fail
@@ -214,9 +214,9 @@ use std::marker::PhantomData;
 
 /// A provenance tag set — Het's `π(x)`, the authorship of a thing.
 ///
-/// Het N20: the base category carries a provenance map `π_X: X → Prov` into a
+/// Het provenance-structure: the base category carries a provenance map `π_X: X → Prov` into a
 /// discrete category of tags. Both gate filters read it. Concretely a finite
-/// set of identifiers, and disjointness is decidable over finite sets (N7).
+/// set of identifiers, and disjointness is decidable over finite sets (non-identity-before-dispatch).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Prov(BTreeSet<String>);
 
@@ -251,7 +251,7 @@ impl Prov {
 
     /// Whether every tag of `self` is also in `other` — `π(self) ⊆ π(other)`.
     ///
-    /// The *authorial* condition (Het N22). Unused here: the authorial gate is
+    /// The *authorial* condition (Het admissibility-subcategories). Unused here: the authorial gate is
     /// out of scope for this crate. Present because the asymmetry is the point
     /// — judgment demands disjointness, authorship demands containment — and
     /// omitting the second makes the first look like the only option.
@@ -270,13 +270,13 @@ pub trait Provenanced {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Roles — Het N3 / N6c
+// Roles — Het judgmental-declares-role / capable-single-arity
 // ─────────────────────────────────────────────────────────────────────────
 
 /// A **competence role** — what a judgmental sentence needs done.
 ///
-/// Het N3: every judgmental operation MUST declare the competence role required
-/// to discharge it. N6c pins `capable` to exactly one arity — `𝒫 × Role` — so
+/// Het judgmental-declares-role: every judgmental operation MUST declare the competence role required
+/// to discharge it. capable-single-arity pins `capable` to exactly one arity — `𝒫 × Role` — so
 /// a principal is asked *"can you play this role?"*, never *"can you judge this
 /// sentence?"*. A principal does not have the theory's sentences and cannot be
 /// asked to inspect them.
@@ -292,7 +292,7 @@ pub trait Role: Copy + 'static {
 /// A judgmental sentence, and the role it requires.
 ///
 /// This trait **is** `role(φ)` — Het's map from a sentence to the competence
-/// needed to discharge it (N3). Implemented automatically by `theory!` for
+/// needed to discharge it (judgmental-declares-role). Implemented automatically by `theory!` for
 /// every judgmental sentence, and impossible to implement without naming a
 /// role, since `Requires` is an associated type with no default.
 ///
@@ -314,17 +314,17 @@ pub trait Judgmental {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Principals — Het §2.2, the interface
+// Principals — Het unmarked-not-wellformed, the interface
 // ─────────────────────────────────────────────────────────────────────────
 
 /// An inhabitant of the pool `𝒫` — a concrete outside.
 ///
-/// Het N6b: the theory requires exactly four predicates of a principal
+/// Het nothing-further-required: the theory requires exactly four predicates of a principal
 /// supplier and **nothing further**. No kinds, no substrates, no identity
 /// fields. `capable` and `π` are here; `standing` belongs to the authorial gate
 /// (out of scope) and `ε` to the verdict metric (out of scope).
 pub trait Principal: Provenanced {
-    /// Het's `capable(p, Role)`, at its one arity (N6c).
+    /// Het's `capable(p, Role)`, at its one arity (capable-single-arity).
     fn capable(&self, role_name: &str) -> bool;
 
     /// A human-readable identity, for the receipt. Not read by any filter.
@@ -394,7 +394,7 @@ impl std::error::Error for QualifyError {}
 /// - the outside cannot be the author of what it judges;
 /// - and neither fact depends on anyone remembering to check.
 ///
-/// That is Het N7/N8 — P0 — as a property of the type rather than of a code
+/// That is Het non-identity-before-dispatch/non-identity-not-deferrable — P0 — as a property of the type rather than of a code
 /// path. The failure mode this forecloses is a real one: an implementation may
 /// have a correct, well-tested qualification filter that nothing on the
 /// dispatch path ever calls.
@@ -451,14 +451,14 @@ impl<P: Principal> Pool<P> {
         self.principals.is_empty()
     }
 
-    /// Het N39 — the qualifying set, then *any* member of it.
+    /// Het dispatch-is-two-operations — the qualifying set, then *any* member of it.
     ///
     /// ```text
     /// qualifying = { p ∈ 𝒫 : capable(p, role(φ)) ∧ π(p) ∩ π(M) = ∅ }
     /// return any(qualifying)
     /// ```
     ///
-    /// **Any**, not the best. Het N9 forbids tiering, costing, or preferring
+    /// **Any**, not the best. Het no-preference-among-judges forbids tiering, costing, or preferring
     /// among qualifying judges — ordering is HetOpt's, and Het has no worth-law.
     /// Returning the first survivor is not a hardcode deferred; it is
     /// Het-correct. `argmin` is the named seam where HetOpt would land.
@@ -511,12 +511,12 @@ impl<P: Principal> Pool<P> {
             (n, _) => QualifyError::PoolExhausted { considered: n },
         })
     }
-    /// Het N39 applied to an arbitrary **argument** (N6d).
+    /// Het dispatch-is-two-operations applied to an arbitrary **argument** (disjointness-against-argument).
     ///
     /// [`Pool::qualify`] measures disjointness against a model; this measures
     /// it against whatever the operation is applied to. At `audit` those are
     /// the same object. At `dispose` they are not — the argument is a Proposal,
-    /// whose provenance is its author's (N32b).
+    /// whose provenance is its author's (proposal-provenance-is-authors).
     ///
     /// That difference is a live P0 hole when it is missed: a judge that
     /// authored a Proposal is disjoint from the *model* by construction, so a
@@ -530,14 +530,14 @@ impl<P: Principal> Pool<P> {
 
     /// How standing is settled for this principal over this container.
     ///
-    /// N11 — standing is the one **conditional** gate Het settles. Provenance
+    /// standing-conditional-gated — standing is the one **conditional** gate Het settles. Provenance
     /// containment decides it where it applies; otherwise a judge must rule
-    /// (N12: terminating at depth one, that judge's own qualification being
+    /// (standing-terminates-at-depth-one: terminating at depth one, that judge's own qualification being
     /// plain non-identity relative to the **author**).
     ///
-    /// The classifier is itself decidable, as N5 requires: asking *"does
+    /// The classifier is itself decidable, as classifier-not-judgmental requires: asking *"does
     /// containment settle this?"* is structural inspection, not judgment. A
-    /// judgmental classifier would reopen the regress §5.4 closes.
+    /// judgmental classifier would reopen the regress constant-arrow-hazard closes.
     pub fn classify_standing<S: Steward>(&self, principal: &S, over: &str) -> StandingGate {
         if principal.has_standing(over) {
             StandingGate::Decidable
@@ -555,7 +555,7 @@ impl<P: Principal> Pool<P> {
     /// The mirror of [`Pool::qualify`]: that one demands the principal did
     /// **not** author the argument; this one demands the object is theirs to
     /// revise. Judgment refuses the audited party; authorship requires standing
-    /// over it (§2.4).
+    /// over it (authorial-declares-standing).
     ///
     /// Refuses on the judgmental branch rather than guessing. When containment
     /// does not settle standing, Het says a judge must rule on it — and this
@@ -584,7 +584,7 @@ impl<P: Principal> Pool<P> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// The authorial gate — standing (N10-N12, N32a)
+// The authorial gate — standing (one-pool-two-filters .. standing-terminates-at-depth-one, propose-is-authorial)
 // ─────────────────────────────────────────────────────────────────────────
 
 /// A principal that may hold **standing** over an object.
@@ -598,15 +598,15 @@ impl<P: Principal> Pool<P> {
 /// | authorial | `π(outcome) ⊆ π(p)` and standing — **containment**. It is yours to revise. |
 ///
 /// One pool, two filters; the gate marker selects which predicate applies, not
-/// which pool is consulted (N10). A principal may be both — steward of one
+/// which pool is consulted (one-pool-two-filters). A principal may be both — steward of one
 /// container and a disinterested judge of another — and the two facts do not
 /// interfere, because they are asked about different objects.
 pub trait Steward: Principal {
     /// Whether this principal holds stewardship over the named container.
     ///
     /// The name is the theory's, not Het's: Het requires only that *some*
-    /// standing predicate exists (N4). What counts as standing over what is
-    /// the supplying theory's business (N6b).
+    /// standing predicate exists (authorial-declares-standing). What counts as standing over what is
+    /// the supplying theory's business (nothing-further-required).
     fn has_standing(&self, over: &str) -> bool;
 }
 
@@ -617,7 +617,7 @@ pub enum AuthorizeError {
     NoStanding { principal: String, over: String },
     /// Standing is judgmental in this model and a judge must rule on it first.
     ///
-    /// N11: standing is **conditional-gated** — decidable when provenance
+    /// standing-conditional-gated: standing is **conditional-gated** — decidable when provenance
     /// containment settles it, judgmental otherwise. This variant is the
     /// judgmental branch surfacing: the engine cannot settle it and must
     /// dispatch. See [`Pool::classify_standing`].
@@ -633,7 +633,7 @@ impl std::fmt::Display for AuthorizeError {
             Self::StandingIsJudgmental { principal, over } => write!(
                 f,
                 "standing of {principal} over `{over}` is not settled by provenance \
-                 containment; it must be ruled on by a judge (N11)"
+                 containment; it must be ruled on by a judge (standing-conditional-gated)"
             ),
         }
     }
@@ -643,15 +643,15 @@ impl std::error::Error for AuthorizeError {}
 
 /// How the standing predicate is settled for a given principal and container.
 ///
-/// N11 makes standing the one **conditional** gate Het actually settles: the
+/// standing-conditional-gated makes standing the one **conditional** gate Het actually settles: the
 /// mode of satisfaction depends on the specific algebra, and is classified one
-/// level up (§2.5, N14).
+/// level up (conditional-names-classifier, conditional-names-classifier).
 #[derive(Debug, PartialEq, Eq)]
 pub enum StandingGate {
     /// Provenance containment settles it — machine-checked, no outside.
     Decidable,
     /// Containment does not settle it; a judge must rule (terminating at depth
-    /// one, N12: that judge's own qualification is plain non-identity relative
+    /// one, standing-terminates-at-depth-one: that judge's own qualification is plain non-identity relative
     /// to the **author**, not to the audited object).
     Judgmental,
 }
@@ -663,11 +663,11 @@ pub enum StandingGate {
 /// (rung SPEC.md G2). [`Pool::authorize`] is the only mint.
 ///
 /// An `Authorized` is what `propose` and `enact` require — the two authorial
-/// operations of the pass (N32a). Without one there is no term for "author
+/// operations of the pass (propose-is-authorial). Without one there is no term for "author
 /// something about this object."
 ///
 /// Borrowed rather than owned: authorship is not spent by a single act. An
-/// author with standing may propose, be rejected, and re-propose (N32f) — the
+/// author with standing may propose, be rejected, and re-propose (reproposal-carries-the-chain) — the
 /// standing did not lapse. This is the deliberate asymmetry with [`Qualified`],
 /// which *is* consumed: a judgment licence is spent on one sentence, because
 /// each dispatch must re-run the filter against a different argument.
@@ -686,7 +686,7 @@ impl<'a> Authorized<'a> {
         &self.principal_id
     }
 
-    /// The author's provenance. A Proposal carries it (N32b).
+    /// The author's provenance. A Proposal carries it (proposal-provenance-is-authors).
     pub fn principal_provenance(&self) -> &Prov {
         &self.principal_prov
     }
@@ -704,13 +704,13 @@ impl std::fmt::Debug for Authorized<'_> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Proposals — the Proponent's answer (N32a-c)
+// Proposals — the Proponent's answer (propose-is-authorial, proposal-vocabulary)
 // ─────────────────────────────────────────────────────────────────────────
 
 /// **Het declares no edits.**
 ///
-/// §11.12: Het requires that a `remedy` carry an edit (7.33) and that `enact`
-/// apply one (7.5). It does not enumerate them. `Amend | Remove | Relocate`,
+/// edit-required-not-typed: Het requires that a `remedy` carry an edit (remedy-carries-an-edit) and that `enact`
+/// apply one (enact-makes-an-endofunctor). It does not enumerate them. `Amend | Remove | Relocate`,
 /// `Fix | WontFix | Duplicate`, `Defund` — these are their theories' and are
 /// equally Het-shaped.
 ///
@@ -722,26 +722,26 @@ impl std::fmt::Debug for Authorized<'_> {
 /// The consequence is 11.2 — [`enact`] is **generic over the theory's edit
 /// type**, and the library cannot apply an edit it did not name. The domain
 /// supplies the application through [`Applies`]. Het governs only who may
-/// perform it (3.4) and whether the result is admitted (7.52).
+/// perform it (one-pool-two-filters) and whether the result is admitted (target-runs-its-own-models).
 ///
 /// This is not a limitation worked around. A formalism that enumerated edits
 /// would be legislating domains it does not know.
 ///
 /// What the Proponent says in answer to a non-conforming verdict.
 ///
-/// **N32c** — a Proposal is a *remedy* or a *dispute*. Before the dispute case
+/// **proposal-vocabulary** — a Proposal is a *remedy* or a *dispute*. Before the dispute case
 /// existed there was no path to contest a verdict: `propose` is defined only on
 /// a non-conforming verdict, and the false-positive override lived at `dispose`
 /// — downstream. An author who believed the audit simply wrong had to author a
 /// remedy for the diagnosis they disputed, in order to obtain a vehicle for
 /// disputing it.
 ///
-/// **N32b** — a Proposal carries its **author's** provenance, not the model's.
+/// **proposal-provenance-is-authors** — a Proposal carries its **author's** provenance, not the model's.
 /// That is what makes `dispose` checkable: the judge must be disjoint from the
-/// *proposal* (N6d), and without knowing who authored it the check has nothing
+/// *proposal* (disjointness-against-argument), and without knowing who authored it the check has nothing
 /// to measure against.
 ///
-/// Construction requires an [`Authorized`] pen. `propose` is authorial (N32a);
+/// Construction requires an [`Authorized`] pen. `propose` is authorial (propose-is-authorial);
 /// there is no term for proposing without standing.
 #[derive(Debug, Clone)]
 #[must_use = "a Proposal is the Proponent's move; dropping it forfeits the turn"]
@@ -750,9 +750,9 @@ pub struct Proposal<E> {
     author: String,
     provenance: Prov,
     kind: ProposalKind<E>,
-    /// Which attempt this is. 1 for a first proposal (N32f).
+    /// Which attempt this is. 1 for a first proposal (reproposal-carries-the-chain).
     attempt: usize,
-    /// Reasons from prior rejections, oldest first (N32e/f).
+    /// Reasons from prior rejections, oldest first (reason-is-not-an-edit/f).
     prior_reasons: Vec<String>,
 }
 
@@ -763,7 +763,7 @@ enum ProposalKind<E> {
 }
 
 impl<E> Provenanced for Proposal<E> {
-    /// N32b. A judge disposing on this must be disjoint from *this*, not from
+    /// proposal-provenance-is-authors. A judge disposing on this must be disjoint from *this*, not from
     /// the model — which is why the provenance has to be the author's.
     fn provenance(&self) -> Prov {
         self.provenance.clone()
@@ -799,11 +799,11 @@ impl<E: Clone> Proposal<E> {
         }
     }
 
-    /// Re-propose after a rejection, carrying the chain (N32f).
+    /// Re-propose after a rejection, carrying the chain (reproposal-carries-the-chain).
     ///
     /// The chain is not bookkeeping. An author re-proposing without the prior
     /// reasons can cycle indefinitely on the same objection, and nothing
-    /// downstream could detect it — which is the failure N32f names.
+    /// downstream could detect it — which is the failure reproposal-carries-the-chain names.
     ///
     /// Takes the pen again because standing must still hold: an author who lost
     /// stewardship between attempts may not continue.
@@ -850,12 +850,12 @@ impl<E: Clone> Proposal<E> {
         }
     }
 
-    /// Which attempt this is (N32f). 1 for a first proposal.
+    /// Which attempt this is (reproposal-carries-the-chain). 1 for a first proposal.
     pub fn attempt(&self) -> usize {
         self.attempt
     }
 
-    /// Reasons from prior rejections, oldest first (N32e/f).
+    /// Reasons from prior rejections, oldest first (reason-is-not-an-edit/f).
     pub fn prior_reasons(&self) -> Vec<&str> {
         self.prior_reasons.iter().map(String::as_str).collect()
     }
@@ -867,9 +867,9 @@ impl<E: Clone> Proposal<E> {
 
 /// The outcome of `M ⊨ φ` for one sentence.
 ///
-/// Boolean, deliberately and incompletely. Het N15 requires a verdict space
+/// Boolean, deliberately and incompletely. Het verdict-space-with-metric requires a verdict space
 /// carrying a **metric** `d`, with `ε` reported alongside every verdict as an
-/// error bar, so that the satisfaction condition survives renaming (§3). This
+/// error bar, so that the satisfaction condition survives renaming (pool-is-parameter). This
 /// crate does not implement it, and under a Boolean verdict space that
 /// condition does not hold. Named rather than papered over.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -938,12 +938,12 @@ impl Settled {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Dispositions — the Opponent's ruling (N32, N32d-g)
+// Dispositions — the Opponent's ruling (disposition-is-a-ruling, no-amending-disposition-g)
 // ─────────────────────────────────────────────────────────────────────────
 
 /// The Opponent's ruling on a Proposal.
 ///
-/// **N32: a Disposition is a ruling, not a revision.** The judge classifies;
+/// **disposition-is-a-ruling: a Disposition is a ruling, not a revision.** The judge classifies;
 /// it does not author. That is why the vocabulary is exactly these five and
 /// not the six it used to be.
 ///
@@ -951,16 +951,16 @@ impl Settled {
 ///
 /// `accept-with-mod` is gone. A judge amending a proposal is *transforming*,
 /// not classifying — and the judge is provenance-**disjoint** from the object
-/// (§2.3), so it cannot hold standing over a modification it just authored
-/// (§2.4). The variant required one principal to satisfy two opposite
+/// (judgmental-declares-role), so it cannot hold standing over a modification it just authored
+/// (authorial-declares-standing). The variant required one principal to satisfy two opposite
 /// conditions on one object.
 ///
 /// `reject-with-alternative` fails identically and is not admitted.
 ///
 /// What replaces it: [`Disposition::RejectRemedy`] carrying a **reason** —
-/// advisory prose, not an edit (N32e). Stating *why* a remedy fails is
+/// advisory prose, not an edit (reason-is-not-an-edit). Stating *why* a remedy fails is
 /// classification. Supplying the replacement is authorship. The author
-/// re-proposes with the reason in hand (N32f).
+/// re-proposes with the reason in hand (reproposal-carries-the-chain).
 ///
 /// # The two rejections
 ///
@@ -981,7 +981,7 @@ pub enum Disposition {
     /// affirming — nothing is enacted.
     RejectDiagnosis,
     /// The remedy is not acceptable; the object remains non-conforming.
-    /// Non-terminal: the author re-proposes, carrying the reason (N32e/f).
+    /// Non-terminal: the author re-proposes, carrying the reason (reason-is-not-an-edit/f).
     RejectRemedy { reason: String },
     /// Cannot act yet; a prerequisite is required. Non-terminal.
     Defer { prerequisite: String },
@@ -1003,12 +1003,12 @@ impl Disposition {
         ("raises-questions", false, false),
     ];
 
-    /// **N32g — Het places no bound on re-entry, deliberately.**
+    /// **no-bound-on-reentry — Het places no bound on re-entry, deliberately.**
     ///
     /// If no acceptable remedy exists, `reject-remedy` re-enters forever and
     /// the object never leaves the loop. Het does not resolve this and cannot:
     /// every available answer — evict the object, bound the attempts, accept
-    /// non-conformance as declared debt — is **worth-shaped**, and N33 forbids
+    /// non-conformance as declared debt — is **worth-shaped**, and cut-at-valuation forbids
     /// a Het theory from declaring a worth-law.
     ///
     /// This is the first case found in which χ alone produces a state it
@@ -1043,7 +1043,7 @@ impl Disposition {
         matches!(self, Self::Accept)
     }
 
-    /// The advisory reason, where one is carried (N32e).
+    /// The advisory reason, where one is carried (reason-is-not-an-edit).
     pub fn reason(&self) -> Option<&str> {
         match self {
             Self::RejectRemedy { reason } => Some(reason),
@@ -1098,7 +1098,7 @@ impl<E> Ruling<E> {
 /// The Opponent rules on a Proposal — **judgmental**.
 ///
 /// Consumes a [`Qualified`] token by value. The token must have been minted
-/// against **the proposal** (N6d, [`Pool::qualify_for`]), not against the
+/// against **the proposal** (disjointness-against-argument, [`Pool::qualify_for`]), not against the
 /// model: a judge that authored the proposal is disjoint from the model by
 /// construction, and a model-relative check would admit it to rule on its own
 /// work.
@@ -1124,7 +1124,7 @@ pub fn dispose<R: Role, E: Clone>(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Enactment — the authorial gate, and the write-guard (N32, N32h)
+// Enactment — the authorial gate, and the write-guard (disposition-is-a-ruling, target-runs-its-own-models)
 // ─────────────────────────────────────────────────────────────────────────
 
 /// Why an enactment did not land.
@@ -1134,12 +1134,12 @@ pub enum EnactError {
     NotAffirmed { disposition: &'static str },
     /// The pen does not authorize writing to this container.
     NoStandingOverTarget { author: String, target: String },
-    /// **N32h.** The edit was authorized, and the destination's own law
+    /// **target-runs-its-own-models.** The edit was authorized, and the destination's own law
     /// refused it.
     ///
     /// This is the write-guard: where a revised object enters another governed
     /// container, that container's `⊨` runs — the pass composed with itself
-    /// under fractal closure (N26). An authorization to edit is *not* a licence
+    /// under fractal closure (fractal-property). An authorization to edit is *not* a licence
     /// to violate the target's law.
     ///
     /// `enact` therefore has two failure points, not one: the Disposition may
@@ -1160,7 +1160,7 @@ impl std::fmt::Display for EnactError {
             }
             Self::TargetRefused { target, reason } => write!(
                 f,
-                "`{target}` refused the write on its own law: {reason} (N32h)"
+                "`{target}` refused the write on its own law: {reason} (target-runs-its-own-models)"
             ),
             Self::ObjectNotFound { object } => write!(f, "no object `{object}` in the source"),
         }
@@ -1173,8 +1173,8 @@ impl std::error::Error for EnactError {}
 ///
 /// **Not part of Het's contract with `enact`** — a convenience for domains
 /// whose edits move objects between governed containers. `admits` is the
-/// target's `⊨` run at the boundary: the write-guard (7.52), which is the pass
-/// composed with itself (6.3), not new machinery.
+/// target's `⊨` run at the boundary: the write-guard (target-runs-its-own-models), which is the pass
+/// composed with itself (gate-law), not new machinery.
 ///
 /// A domain whose edits do not move anything (issue triage closing a ticket)
 /// needs none of this.
@@ -1200,21 +1200,21 @@ pub trait Container {
 
 /// How a domain's edit is applied — **supplied by the theory, not by Het**.
 ///
-/// §11.2. Het requires that `enact` apply an edit (7.5) and does not enumerate
-/// edits (11.12), so the library has nothing to dispatch on: it cannot know
+/// enact-generic-over-edit. Het requires that `enact` apply an edit (enact-makes-an-endofunctor) and does not enumerate
+/// edits (edit-required-not-typed), so the library has nothing to dispatch on: it cannot know
 /// that `Relocate` moves and `WontFix` closes. The theory that named the edits
 /// says what they do.
 ///
 /// What Het keeps is the part that is Het's: the author must hold standing
-/// (3.4), and where the result lands in governed territory that territory's
-/// law runs (7.52). Those are enforced by [`enact`] around this call, not
+/// (one-pool-two-filters), and where the result lands in governed territory that territory's
+/// law runs (target-runs-its-own-models). Those are enforced by [`enact`] around this call, not
 /// inside it.
 ///
 /// Returning [`EnactError::TargetRefused`] from `apply` is how a domain reports
 /// that its own destination declined the write. [`enact`] does not second-guess
 /// it.
 pub trait Applies<E> {
-    /// The territory this world is, as named in a standing predicate (3.4).
+    /// The territory this world is, as named in a standing predicate (one-pool-two-filters).
     ///
     /// `enact` checks the pen against it. Without this the pen is decorative:
     /// an author with standing over one container could enact on another.
@@ -1231,7 +1231,7 @@ pub trait Applies<E> {
 /// The author applies a ruling — **authorial**.
 ///
 /// Requires an [`Authorized`] pen: `enact` transforms the object, and
-/// transformation demands standing over it (3.4), never disjointness.
+/// transformation demands standing over it (one-pool-two-filters), never disjointness.
 ///
 /// Het's two checks, in order:
 ///
@@ -1240,7 +1240,7 @@ pub trait Applies<E> {
 ///    ([`EnactError::NoStandingOverTarget`]).
 ///
 /// Then the domain applies its own edit. Whatever the domain's law refuses —
-/// including a destination that declines an already-authorized write (7.52) —
+/// including a destination that declines an already-authorized write (target-runs-its-own-models) —
 /// comes back as [`EnactError::TargetRefused`].
 ///
 /// **The library performs no edit.** It cannot: it does not know what the
@@ -1267,7 +1267,7 @@ where
     }
 
     let Some(edit) = ruling.edit() else {
-        // A dispute affirms nothing to enact (7.3).
+        // A dispute affirms nothing to enact (proposal-vocabulary).
         return Ok(Enacted {
             object: ruling.object(),
         });
@@ -1318,7 +1318,7 @@ impl Enacted {
 /// - **judgmental** → `fn settle(model: &M, q: Qualified<R>, v: Verdict) -> Settled`,
 ///   consuming the token by value. Without a [`Qualified`], there is no term.
 ///
-/// This is Het N24 (gate-faithfulness) by construction rather than by audit: an
+/// This is Het gate-faithful (gate-faithfulness) by construction rather than by audit: an
 /// algebra cannot launder a judgmental operation into a decidable one, because
 /// the two have different types.
 ///
@@ -1387,7 +1387,7 @@ macro_rules! __sentences_acc {
             "judgmental sentence `", stringify!($sentence), "` has a body. A judgmental \
              sentence is settled by a principal, not computed — if it can be computed it \
              is decidable, and marking it judgmental launders a machine check into an \
-             outside call. Het N3 also requires it declare the competence role needed to \
+             outside call. Het judgmental-declares-role also requires it declare the competence role needed to \
              discharge it. Write: judgmental ", stringify!($sentence), ": SomeRole;"
         ));
     };
@@ -1407,7 +1407,7 @@ macro_rules! __sentences_acc {
     ( $model:ty ; [ $( $acc:tt )* ] ;
       judgmental $sentence:ident ; $( $rest:tt )* ) => {
         compile_error!(concat!(
-            "judgmental sentence `", stringify!($sentence), "` declares no role. Het N3: \
+            "judgmental sentence `", stringify!($sentence), "` declares no role. Het judgmental-declares-role: \
              every judgmental sentence MUST declare the competence role required to \
              discharge it — it is what lets satisfaction resolve a judge at all. \
              Write: judgmental ", stringify!($sentence), ": SomeRole;"

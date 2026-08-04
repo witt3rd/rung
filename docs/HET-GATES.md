@@ -21,7 +21,7 @@ The claim this crate tests:
 
 ## Why it belongs in rung
 
-`RUNG-CT.md` §1 already states the law rung enforces: *a verb can only live on
+`RUNG-CT.md` one-relation already states the law rung enforces: *a verb can only live on
 a morphism, never inside an object* — enforced by sealed constructors (G2). That
 law was **found from the inside**: an attempt to fold an LLM verdict into a
 ladder tried to construct the next state to hold the verdict, and the sealed
@@ -40,9 +40,9 @@ hold it. `Qualified<R>` is to the outside what `_seal` is to the rung.
 |---|---|
 | `Prov` | Het's `π` — a finite tag set, with `overlaps` (judgmental) and `contained_in` (authorial) |
 | `Role` | a competence, as a **type**. This is what supplies `role(φ)`. |
-| `Principal` | the pool interface: `capable(p, Role)` and `π(p)`, and nothing more (N6b) |
+| `Principal` | the pool interface: `capable(p, Role)` and `π(p)`, and nothing more (nothing-further-required) |
 | `Qualified<R>` | **the sealed capability.** No public constructor; `Pool::qualify` is the only mint |
-| `Pool::qualify` | N39's qualifying set — competence filter, then non-identity — returning *any* survivor (N9: Het must not rank) |
+| `Pool::qualify` | dispatch-is-two-operations's qualifying set — competence filter, then non-identity — returning *any* survivor (no-preference-among-judges: Het must not rank) |
 | `theory!` | the surface: declare a sort and its gate-marked sentences |
 | `Judgmental` | the trait carrying `role(φ)`; unimplementable without naming a role |
 
@@ -57,14 +57,14 @@ A **judgmental** sentence emits
 the token **by value**. Without a `Qualified`, there is no term. The only way to
 get one runs `π(p) ∩ π(M) = ∅`.
 
-That is Het N24 (gate-faithfulness) by construction: an algebra cannot launder a
+That is Het gate-faithful (gate-faithfulness) by construction: an algebra cannot launder a
 judgmental operation into a decidable one, because the two have different types.
 
 ## Verification
 
 `cargo test -p rung-het` — 16 integration tests, 1 doctest, **6 `compile_fail`
 doctests**. The negative cases are the ones that matter: a gate that never fires
-on a deliberate violation is not a gate (rung SPEC.md §6).
+on a deliberate violation is not a gate (rung SPEC.md fractal-property).
 
 Each `compile_fail` was additionally checked **by compiling it standalone** and
 reading the actual error, because a `compile_fail` that passes for the wrong
@@ -76,7 +76,7 @@ reason is exactly the vacuity this work exists to catch:
 | judgmental settled with no token | `E0061` — `Qualified` is not optional |
 | `Qualified` fabricated by struct literal | `E0451` — private fields |
 | one licence reused for two sentences | `E0382` — moved value |
-| judgmental with no role | custom `compile_error!` citing N3 |
+| judgmental with no role | custom `compile_error!` citing judgmental-declares-role |
 | judgmental with a body | custom `compile_error!` citing the gate law |
 
 Two runtime tests deserve naming:
@@ -91,22 +91,22 @@ Two runtime tests deserve naming:
 
 ## What this closes
 
-**`role(φ)`.** Het N3 requires every judgmental sentence to declare the
-competence role needed to discharge it, and N6c pins `capable` to arity
+**`role(φ)`.** Het judgmental-declares-role requires every judgmental sentence to declare the
+competence role needed to discharge it, and capable-single-arity pins `capable` to arity
 `𝒫 × Role`. In a prose encoding that map can simply be *absent* — it was, and
 nothing could notice, until the interface was written down and the gap became
 visible. Here a judgmental sentence that names no role does not parse.
 
 This is also one of two blockers an outside reviewer independently named as
-standing between Het and publication (`heteronomy/docs/publish_gaps.md` §10).
+standing between Het and publication (`heteronomy/docs/publish_gaps.md` models-defined-by-dispatch).
 
 ## What is deliberately missing
 
 | missing | why |
 |---|---|
 | **`authorial` gate** | standing, not disjointness — `π(outcome) ⊆ π(p)`. `Prov::contained_in` exists so the asymmetry is visible, but no gate consumes it yet. |
-| **`conditional` gate** | classified *one level up*, per model (N14). rung's checks are static; this one is not known at declaration time. **The first place the encoding will tell us something Het has not decided.** |
-| **verdict metric `d` and `ε`** | N15–N18. The verdict here is Boolean, so the satisfaction condition does not survive renaming. Named, not papered. |
+| **`conditional` gate** | classified *one level up*, per model (conditional-names-classifier). rung's checks are static; this one is not known at declaration time. **The first place the encoding will tell us something Het has not decided.** |
+| **verdict metric `d` and `ε`** | verdict-space-with-metric–epsilon-declared-not-ranked. The verdict here is Boolean, so the satisfaction condition does not survive renaming. Named, not papered. |
 | **the pass** | `audit → propose → dispose → enact` as a ladder. Needs the authorial gate first. |
 | **populations** | data, not code. Reading `SOUL.md` into objects is a separate concern. |
 
@@ -131,9 +131,9 @@ The split this rests on:
 > **Data = populations. Code = theories.**
 
 `SOUL.md` is data — a carrier with objects in it. *What makes a valid SOUL item*
-is a theory, and a theory is code. Under fractal closure (N26) some carrier
+is a theory, and a theory is code. Under fractal closure (fractal-property) some carrier
 objects are themselves theories, and those cross the boundary at exactly that
-point; rung's §10 composite opfibration is where that composition already lives.
+point; rung's models-defined-by-dispatch composite opfibration is where that composition already lives.
 
 ## Prior state
 

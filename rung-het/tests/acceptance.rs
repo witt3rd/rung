@@ -3,7 +3,7 @@
 //! **This is the test the effort exists to pass.** Everything else in
 //! `rung-het` is scaffolding until this is green.
 //!
-//! Written against `docs/heteronomy/formalism.md` §6.1 as ruled 2026-08-03.
+//! Written against `docs/heteronomy/formalism.md` tower-is-a-fibration as ruled 2026-08-03.
 //! The pass is not four operations with gates; it is four operations *and a
 //! chain of principals*, each acting on what the previous one produced, each
 //! constrained relative to **whose authorship it is acting on**:
@@ -12,18 +12,18 @@
 //!   operation   gate                    acts                        relative to
 //!   ──────────────────────────────────────────────────────────────────────────
 //!   audit       decidable | judgmental  nobody | judge              the object
-//!   propose     AUTHORIAL  (N32a)       author with standing        the object
+//!   propose     AUTHORIAL  (propose-is-authorial)       author with standing        the object
 //!   dispose     judgmental              judge                       THE PROPOSAL
 //!   enact       authorial               author with standing        the object
 //! ```
 //!
 //! Two of those are corrections landed today, and each closes a real hole:
 //!
-//! - **N32a** — `propose` was `conditional`, which resolves to `judgmental`
+//! - **propose-is-authorial** — `propose` was `conditional`, which resolves to `judgmental`
 //!   and dispatches under disjointness, i.e. to the *Opponent's* side. That
 //!   made the Opponent play the Proponent's move. Answering a verdict is
 //!   authorship; it needs standing, not disjointness.
-//! - **N6d** — disjointness is measured against the **argument**, not the
+//! - **disjointness-against-argument** — disjointness is measured against the **argument**, not the
 //!   model. At `audit` they coincide. At `dispose` they do not: the argument
 //!   is a Proposal, whose provenance is its author's. A judge who authored a
 //!   proposal is disjoint from the *model* by construction, so under the old
@@ -34,20 +34,20 @@
 //!
 //! Invented, so nothing reads as a special case of a real artifact. Two
 //! containers, each governed by its own theory — the second exists so that
-//! relocation writes into governed territory (7.52).
+//! relocation writes into governed territory (target-runs-its-own-models).
 //!
-//! # The edits are the DOMAIN's (§11.12)
+//! # The edits are the DOMAIN's (edit-required-not-typed)
 //!
 //! `CabinetEdit` is declared **here**, in the theory, not in `rung-het`. Het
-//! requires that a remedy carry an edit (7.33) and that `enact` apply one
-//! (7.5); it does not enumerate them. A GitHub-issue theory would declare
+//! requires that a remedy carry an edit (remedy-carries-an-edit) and that `enact` apply one
+//! (enact-makes-an-endofunctor); it does not enumerate them. A GitHub-issue theory would declare
 //! `Fix | WontFix | Duplicate`; this one declares amend, remove, relocate.
 //! Those are the same operation to Het and different acts to their domains.
 //!
-//! Consequently `enact` is generic over this type (11.2): the library cannot
+//! Consequently `enact` is generic over this type (enact-generic-over-edit): the library cannot
 //! apply an edit it did not name, so the domain supplies the application. Het
-//! governs only *who may perform it* (3.4) and *whether the result is
-//! admitted* (7.52).
+//! governs only *who may perform it* (one-pool-two-filters) and *whether the result is
+//! admitted* (target-runs-its-own-models).
 
 use rung_het::*;
 
@@ -67,7 +67,7 @@ pub struct Specimen {
 pub struct Cabinet {
     pub specimens: Vec<Specimen>,
     /// Declared and never read. Capacity is a **worth-law** — how many of the
-    /// conforming items to keep — and N33 forbids a Het theory from declaring
+    /// conforming items to keep — and cut-at-valuation forbids a Het theory from declaring
     /// one. Present to mark where HetOpt lands, and to make its absence
     /// visible rather than merely unmentioned.
     pub capacity: usize,
@@ -102,7 +102,7 @@ impl Role for Taxonomist {
 
 /// The cabinet's edit vocabulary — **declared by this theory, not by Het**.
 ///
-/// §11.12: Het requires a remedy name an edit and does not say what edits are.
+/// edit-required-not-typed: Het requires a remedy name an edit and does not say what edits are.
 /// A triage theory would name `WontFix { reason }`; a portfolio theory would
 /// name `Defund`. Neither is more or less Het-shaped than these three.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,7 +112,7 @@ pub enum CabinetEdit {
     /// The specimen leaves the cabinet.
     Remove,
     /// The specimen belongs elsewhere — and elsewhere is governed too, so the
-    /// write runs the target's law (7.52).
+    /// write runs the target's law (target-runs-its-own-models).
     Relocate { to: &'static str },
 }
 
@@ -127,7 +127,7 @@ theory!(fieldbook for Fieldbook {
 });
 
 // ─────────────────────────────────────────────────────────────────────────
-// The domain applies its OWN edits (§11.2)
+// The domain applies its OWN edits (enact-generic-over-edit)
 // ─────────────────────────────────────────────────────────────────────────
 
 /// Both containers together — what an edit of this domain acts on.
@@ -177,7 +177,7 @@ impl Applies<CabinetEdit> for Collection {
                     .position(|s| s.id == object)
                     .ok_or(EnactError::ObjectNotFound { object })?;
 
-                // THE WRITE-GUARD (7.52). The destination is governed too, so
+                // THE WRITE-GUARD (target-runs-its-own-models). The destination is governed too, so
                 // its own law runs before the write lands — and may refuse an
                 // edit the cabinet's judge already accepted.
                 let item = &self.cabinet.specimens[i];
@@ -209,7 +209,7 @@ pub struct Person {
     pub roles: &'static [&'static str],
     /// What this principal is steward of — the **authorial** condition.
     /// Judgment demands disjointness; authorship demands standing. Opposite
-    /// conditions, one pool, selected by the gate (N10).
+    /// conditions, one pool, selected by the gate (one-pool-two-filters).
     pub stewards: &'static [&'static str],
 }
 
@@ -320,7 +320,7 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
     );
     assert!(scope.consulted_outside());
 
-    // ── propose: AUTHORIAL (7.2) — standing, not disjointness ───────────
+    // ── propose: AUTHORIAL (the-pass) — standing, not disjointness ───────────
     let pen = pool
         .authorize(&CURATOR, "cabinet")
         .expect("the curator holds standing over the cabinet");
@@ -332,18 +332,18 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
         "a Proposal carries its author's provenance"
     );
 
-    // ── dispose: a judge disjoint from THE PROPOSAL (3.51) ──────────────
+    // ── dispose: a judge disjoint from THE PROPOSAL (disjointness-against-argument) ──────────────
     let qd = pool
         .qualify_for::<Taxonomist>(&relocation)
         .expect("the academy did not author this proposal");
     let ruling = dispose(&relocation, qd, Disposition::Accept);
     assert!(ruling.is_terminal() && ruling.is_affirming());
 
-    // ── enact: standing, and the DOMAIN applies its own edit (11.2) ─────
+    // ── enact: standing, and the DOMAIN applies its own edit (enact-generic-over-edit) ─────
     let refused = enact(&mut world, &ruling, &pen);
     assert!(
         matches!(refused, Err(EnactError::TargetRefused { .. })),
-        "s3 has no locality; the fieldbook's own law must refuse it (7.52)"
+        "s3 has no locality; the fieldbook's own law must refuse it (target-runs-its-own-models)"
     );
     assert_eq!(
         world.cabinet.specimens.len(),
@@ -366,12 +366,12 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// N6d — the P0 hole, closed
+// disjointness-against-argument — the P0 hole, closed
 // ─────────────────────────────────────────────────────────────────────────
 
 #[test]
 fn a_judge_may_not_dispose_on_a_proposal_it_authored() {
-    // The hole N6d closes. Under the old model-relative reading, a judge who
+    // The hole disjointness-against-argument closes. Under the old model-relative reading, a judge who
     // authored a proposal was disjoint from the MODEL by construction — so it
     // passed the filter and could rule on its own work. Measuring against the
     // ARGUMENT catches it.
@@ -400,25 +400,25 @@ fn a_judge_may_not_dispose_on_a_proposal_it_authored() {
             pool.qualify_for::<Taxonomist>(&p),
             Err(QualifyError::NonIdentityViolated { .. })
         ),
-        "N6d: disjointness is measured against the argument, and the argument \
+        "disjointness-against-argument: disjointness is measured against the argument, and the argument \
          here is the proposal this principal authored"
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// N32c — the contest path
+// proposal-vocabulary — the contest path
 // ─────────────────────────────────────────────────────────────────────────
 
 #[test]
 fn an_author_may_dispute_a_verdict_without_first_authoring_a_remedy() {
-    // Before N32c the only contest lived at dispose — downstream of propose.
+    // Before proposal-vocabulary the only contest lived at dispose — downstream of propose.
     // An author who believed the audit simply wrong had to first author a
     // remedy for the diagnosis they disputed, to obtain a vehicle to dispute it.
     let pool = outside_pool();
     let pen = pool.authorize(&CURATOR, "cabinet").unwrap();
 
     // The edit type must still be named: a dispute proposes no edit, but it is
-    // a Proposal of THIS theory, and the theory has one edit vocabulary (11.12).
+    // a Proposal of THIS theory, and the theory has one edit vocabulary (edit-required-not-typed).
     let d: Proposal<CabinetEdit> =
         Proposal::dispute(&pen, "s1", "the scope law does not reach this item");
     assert!(d.is_dispute());
@@ -436,15 +436,15 @@ fn an_author_may_dispute_a_verdict_without_first_authoring_a_remedy() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// N32d/e/f — rejection returns to the author, carrying the reason
+// no-amending-disposition/e/f — rejection returns to the author, carrying the reason
 // ─────────────────────────────────────────────────────────────────────────
 
 #[test]
 fn reject_remedy_is_non_terminal_and_the_reason_reaches_the_author() {
-    // `accept-with-mod` retired: a judge amending is AUTHORING, and N32 says a
+    // `accept-with-mod` retired: a judge amending is AUTHORING, and disposition-is-a-ruling says a
     // Disposition is a ruling, not a revision. What replaces it is a rejection
     // carrying a REASON — advisory prose, not an edit. That distinction is what
-    // keeps the judge inside the judgmental gate (N32e).
+    // keeps the judge inside the judgmental gate (reason-is-not-an-edit).
     let pool = outside_pool();
     let pen = pool.authorize(&CURATOR, "cabinet").unwrap();
 
@@ -465,7 +465,7 @@ fn reject_remedy_is_non_terminal_and_the_reason_reaches_the_author() {
         Some("removal is disproportionate; mount it instead")
     );
 
-    // N32f: the re-proposal carries the chain. Without it an author can cycle
+    // reproposal-carries-the-chain: the re-proposal carries the chain. Without it an author can cycle
     // forever on the same objection and nothing downstream could detect it.
     let second = first.reproposed(&pen, &ruling, CabinetEdit::Amend { note: "mount it" });
     assert_eq!(second.attempt(), 2);
@@ -500,10 +500,10 @@ fn the_disposition_vocabulary_is_exactly_the_five_that_survive_the_gate() {
 
 #[test]
 fn het_places_no_bound_on_re_entry() {
-    // N32g, pinned as a LIMIT rather than closed. If no acceptable remedy
+    // no-bound-on-reentry, pinned as a LIMIT rather than closed. If no acceptable remedy
     // exists, reject-remedy re-enters forever. Every honest answer — evict the
     // object, bound the attempts, accept non-conformance as declared debt — is
-    // worth-shaped, and N33 forbids a Het theory a worth-law.
+    // worth-shaped, and cut-at-valuation forbids a Het theory a worth-law.
     //
     // This test exists so an implementation cannot quietly paper over the limit
     // by giving up after three tries: that would be a worth-law smuggled in
