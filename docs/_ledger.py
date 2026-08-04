@@ -22,7 +22,17 @@ DOC = HERE / "rung-het-props.md"
 LEDGER = HERE / "conformance.md"
 ROOT = HERE.parent
 
-VERDICTS = {"enforced", "expressible", "deferred", "collides", "out-of-scope"}
+# `deferred` used to be here, and it let a row rest on a prose question file:
+# "blocked on a named open question, or on a named gap". A reader could not tell
+# a gap that had been measured from one that had merely been written down, and
+# nothing in a run reported when a deferral went stale — several of them had.
+#
+# `parked` replaces it and asks for more, not less: a real gap must cite a test
+# carrying `#[ignore = "..."]` whose reason names what would close it. Removing
+# the attribute then answers the question the deferral could only pose. `check`
+# enforces both halves — the citation must be a test, and that test must be
+# parked.
+VERDICTS = {"enforced", "expressible", "parked", "collides", "out-of-scope"}
 DEFAULT = ("out-of-scope", "mathematics of the institution — no host obligation", "—")
 
 # A `{#slug}` in a mechanism expands to a numbered link at generation time.
@@ -89,10 +99,14 @@ CURATED = {
     "non-identity-before-dispatch": (
         "expressible",
         "The filter is set operations over declared predicates "
-        "({#conformance-half-needs-no-judge}). rung enforces *that the token was "
+        "({#conformance-half-needs-no-judge}), and it runs **before** dispatch "
+        "because dispatch has no other door: a judgmental transition called "
+        "without a token is E0061, and the only mint is `Pool::qualify_for`, "
+        "which refuses before it returns. The cited `trybuild` case is that "
+        "refusal with its message committed. rung enforces *that the token was "
         "constructed*, never that the body computed the set "
         "correctly — SPEC §5, transition-body correctness.",
-        "—",
+        "rung/tests/gate_markers.rs::calling_a_judgmental_transition_without_a_token_is_e0061",
     ),
 
     # ── the surface: two gates are two signatures ────────────────────────
@@ -135,14 +149,24 @@ CURATED = {
     "the-pass": (
         "expressible",
         "One `ladder!` declaration. Rungs are the pass's positions; the branching "
-        "transition is `dispose`; verdict arms are the Disposition vocabulary.",
-        "—",
+        "transition is `dispose`; verdict arms are the Disposition vocabulary. "
+        "The cited test runs the whole table end to end and, more to the point, "
+        "runs it **as a chain of principals**: the judge that qualifies at "
+        "`audit` is refused at `dispose` when it authored the Proposal, and the "
+        "pen that authorizes `propose` is the same one `enact` demands. Which "
+        "principal may move is the content of this row; rung proves each move "
+        "was made by one who qualified, not that the move was wise (SPEC §5).",
+        "rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals",
     ),
     "disposition-vocabulary": (
         "enforced",
         "G6 exhaustive outcomes. `StepOutcome` is an enum, so every match site must "
-        "handle all five; adding a disposition breaks every call site at compile time.",
-        "rung/tests/compile_pass.rs::test_verdict_enum",
+        "handle all five; adding a disposition breaks every call site at compile time. "
+        "The cited test pins the vocabulary itself — the five, in order, each with "
+        "its terminal and affirming flags — so that the two that Het's gate "
+        "boundary excludes (`accept-with-mod`, `reject-with-alternative`) cannot "
+        "return without the assertion changing.",
+        "rung-het/tests/acceptance.rs::the_disposition_vocabulary_is_exactly_the_five_that_survive_the_gate",
     ),
     "disposition-is-a-ruling": (
         "enforced",
@@ -158,23 +182,36 @@ CURATED = {
     ),
     "reproposal-carries-the-chain": (
         "expressible",
-        "The chain rides in the rung payload. NOTE: this is exactly what would make "
+        "The chain rides in the rung payload, and the cited test reads it back: "
+        "a `RejectRemedy` carrying a reason is answered by a re-proposal whose "
+        "`attempt()` is 2 and whose `prior_reasons()` is the reason it was "
+        "rejected for. Without that, an author can cycle on one objection and "
+        "nothing downstream can tell. NOTE: this is exactly what would make "
         "a G8 progress guard vacuous — a strictly growing chain never compares equal "
         "— which is why re-entry must not use a guarded edge "
         "({#guarded-reentry-is-eviction}).",
-        "—",
+        "rung-het/tests/acceptance.rs::reject_remedy_is_non_terminal_and_the_reason_reaches_the_author",
     ),
     "enact-makes-an-endofunctor": (
         "expressible",
-        "`enact` is a forward transition returning the revised object's rung. rung "
-        "enforces that it ran, not that the edit was right (SPEC §5).",
-        "—",
+        "`enact` is a forward transition returning the revised object's rung — an "
+        "endofunctor rather than a funnel, because what comes out is audited "
+        "again. The cited test closes that loop: the relocated specimen lands in "
+        "the fieldbook and the fieldbook's own decidable sentence is run over the "
+        "result. rung enforces that the edit ran, not that it was right "
+        "(SPEC §5), and the edit itself is the theory's "
+        "({#edit-required-not-typed}).",
+        "rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals",
     ),
     "remedy-carries-an-edit": (
         "expressible",
         "The edit is the rung payload's type, supplied by the theory. G10's continue "
-        "arm carries its target rung live, so the edit type never leaves the ladder.",
-        "—",
+        "arm carries its target rung live, so the edit type never leaves the ladder. "
+        "The cited test pins the requirement at its boundary — a *remedy* names "
+        "an edit and a *dispute* does not, `edit()` returning `None`, because a "
+        "dispute proposes nothing to enact. A theory that let a remedy carry no "
+        "edit would make the two indistinguishable.",
+        "rung-het/tests/acceptance.rs::an_author_may_dispute_a_verdict_without_first_authoring_a_remedy",
     ),
 
     # ── the limit, and the collision it resolves ─────────────────────────
@@ -193,25 +230,55 @@ CURATED = {
         "expressible",
         "A continue arm loops with no host-imposed bound, which is what this "
         "proposition requires. Choosing a guarded edge instead would supply a bound "
-        "Het declines to declare.",
-        "rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn",
+        "Het declines to declare "
+        "(`end_to_end.rs::continue_arm_loops_without_a_recover_fn` is that "
+        "mechanism). The cited test pins the *limit* rather than the mechanism: "
+        "`Disposition::REENTRY_BOUND` is `None`, so an implementation cannot "
+        "quietly give up after three tries — that would be a worth-law smuggled "
+        "in under another name ({#cut-at-valuation}).",
+        "rung-het/tests/acceptance.rs::het_places_no_bound_on_re_entry",
     ),
 
     # ── the residual ─────────────────────────────────────────────────────
     "epsilon-reported-with-verdict": (
-        "deferred",
+        "parked",
         "GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no "
         "epsilon, so the satisfaction condition does not survive renaming "
-        "({#boolean-breaks-satisfaction}).",
-        "—",
+        "({#boolean-breaks-satisfaction}). The cited test is the gap as an "
+        "assertion: two judges settle the same sentence with the same polarity, "
+        "one barely persuaded and one certain, and the two verdicts are the same "
+        "object. Deleting the `#[ignore]` reports whether an error bar has "
+        "reached the caller.",
+        "rung-het/tests/gate_law.rs::two_judges_of_differing_confidence_report_differing_verdicts",
+    ),
+    "judgmental-qualifying-set": (
+        "parked",
+        "Both conjuncts are implemented and both are tested — competence by "
+        "`gate_law.rs::competence_is_filtered_before_provenance_matters`, "
+        "disjointness by `::p0_refuses_a_judge_who_authored_the_material`. What "
+        "is parked is the set's own **edge**. `Pool::qualify_for` refuses a "
+        "model with `\u03c0(a) = \u2205`, because every candidate would then pass "
+        "disjointness vacuously; the mirror on the *principal's* side is "
+        "unguarded, so a principal declaring `\u03c0(p) = \u2205` is disjoint from "
+        "everything and is a universal judge admitted by construction. Het as "
+        "written admits it. Whether that is a hole or the honest consequence of "
+        "the definition is a change to **this proposition**, which is why the "
+        "cited test presumes an answer and is parked rather than run: the engine "
+        "invented the model-side guard on its own judgment once, and inventing "
+        "its mirror unasked would be the same overreach twice.",
+        "rung-het/tests/token_binding.rs::a_principal_with_no_provenance_is_refused",
     ),
     "no-preference-among-judges": (
         "expressible",
-        "UNARGUED in both doctrine and code. `Pool::qualify` returns the FIRST "
-        "qualifying principal. Het says any qualifying judge yields a well-formed "
-        "verdict, so a deterministic pick is admissible — but whether pool position "
-        "constitutes an ordering has not been argued either way. Assumed, not shown.",
-        "—",
+        "`Pool::qualify_for` walks the pool and returns the FIRST survivor, and "
+        "the cited test shows what that does and does not mean: candidates are "
+        "skipped for failing a *conjunct* — wrong role, overlapping provenance — "
+        "never for being ranked below another. Het says any qualifying judge "
+        "yields a well-formed verdict, so a deterministic pick is admissible; "
+        "the seam where HetOpt's `argmin` would land is named in "
+        "`Pool::qualify_for`'s own docs and is empty. Still UNARGUED: whether "
+        "pool position itself constitutes an ordering. Assumed, not shown.",
+        "rung-het/tests/gate_law.rs::qualification_walks_the_pool_and_takes_any_survivor",
     ),
     "judgmental-arrow-shape": (
         "enforced",
@@ -231,34 +298,76 @@ CURATED = {
         "rung/tests/end_to_end.rs::recovers_from_the_failed_error_path",
     ),
 
-    # ── deferred on open questions ───────────────────────────────────────
+    # ── once deferred on open questions, now measured ────────────────────
+    #
+    # Four of these rested on Q4, Q5 and Q8. In each case the deferral had
+    # widened the question: Q5 asks about *concurrent* fork-join and the row
+    # asks only for more than one judge; Q8 asks about the *async* driver and
+    # the row asks only that the arrow be Kleisli; Q4 asks about
+    # ladder-in-ladder and the row asks only that the target's own law run at
+    # the boundary. What each question actually blocks is named below and kept.
     "panels": (
-        "deferred",
-        "Q5 (fork-join concurrency, open). A panel splits one argument across N "
-        "concurrent oracle calls; rung has no fork-join primitive.",
-        "docs/questions/open/q5-fork-join-concurrency.md",
+        "expressible",
+        "A panel is `⊨` with more than one judge, and the proposition says it is "
+        "**not a separate construction** — so the encoding must not add one. It "
+        "does not: a seat is a pool of one principal, each seat mints its own "
+        "licence against the very same argument, and the cited test convenes "
+        "three of them with nothing `rung-het` does not already export. The "
+        "combination rule is the theory's, exactly as its edits are "
+        "({#edit-required-not-typed}); putting a `panel()` primitive in the "
+        "library would legislate a rule Het does not have. What stays with Q5 is "
+        "running the seats **at the same time** — latency, which is HetOpt's "
+        "([cut-at-valuation](rung-het-props.md#cut-at-valuation)), not Het's.",
+        "rung-het/tests/panel.rs::a_panel_is_the_pass_with_more_than_one_judge",
     ),
     "panels-cannot-weaken-the-opponent": (
-        "deferred",
-        "Q5 (fork-join concurrency, open).",
-        "docs/questions/open/q5-fork-join-concurrency.md",
+        "expressible",
+        "The observable form of the claim: the same Proponent move, the same "
+        "first oracle answer, plus two more — and the seat that played in the "
+        "original game answers identically in the composite. Added answers may "
+        "take affirmation away and never grant it, so the Proponent's winning "
+        "set under the panel is contained in its winning set against any single "
+        "seat. rung proves the rulings were reached through qualified licences, "
+        "not that unanimity is the right combination rule ({#panels}).",
+        "rung-het/tests/panel.rs::a_panel_cannot_weaken_the_opponent",
     ),
     "judgmental-is-kleisli-arrow": (
-        "deferred",
-        "Q8 (async driver, open) for the async case only. A *blocking* outside call "
-        "works today — rung-std's `LlmCall` ladder puts the call on the arrow — so "
-        "this is a constraint, not a blocker.",
-        "docs/questions/open/q8-async-driver.md",
+        "expressible",
+        "`A → 𝒫(B)` is a claim about **shape**, and the shape is exhibited "
+        "directly: one argument, two qualifying judges, two different and equally "
+        "well-formed Dispositions. Were `dispose` an `A → B` the second call "
+        "could not disagree. The non-determinism is the outside itself — "
+        "{#no-preference-among-judges} forbids Het from ranking the two. A "
+        "*blocking* outside call works today; `rung-std`'s `LlmCall` ladder puts "
+        "one on the arrow. Q8 constrains **how** the call is made, not whether "
+        "the arrow is Kleisli.",
+        "rung-het/tests/panel.rs::a_judgmental_arrow_returns_a_set_and_not_a_value",
     ),
     "target-runs-its-own-models": (
-        "deferred",
-        "Q4 (composition / nested ladders, open). The pass composed with itself "
-        "across a container boundary is ladder-in-ladder.",
-        "docs/questions/open/q4-composition-nested-ladders.md",
+        "expressible",
+        "The write-guard exists and fires. `enact` checks the pen against "
+        "`Applies::territory` and hands `EnactError::TargetRefused` back "
+        "untouched, so a destination may decline a write its own judge already "
+        "authorized: in the cited test the relocation is accepted by a qualified "
+        "judge, refused by the fieldbook for want of a locality, and the source "
+        "container is left unchanged. The target's law is the **theory's** — the "
+        "library cannot know what admits a specimen — so rung secures the seam "
+        "and the standing, not the law. `second_domain.rs::a_pen_for_one_"
+        "territory_does_not_authorize_another` pins the standing half. What "
+        "stays with Q4 is expressing the composite as a ladder inside a ladder; "
+        "the boundary itself no longer waits on it.",
+        "rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals",
     ),
     "gate-faithful": (
-        "deferred",
-        "Q11 (gate-faithfulness, open) — all three rows of Q11's table are now "
+        "parked",
+        "Q11 (gate-faithfulness, open), and now with a case rather than only an "
+        "argument. The cited test is the load-bearing blocker made runnable: a "
+        "judgmental arrow that returns a value carrying π(a) itself passes every "
+        "check rung makes. Nothing was rigged for it — the gate-marker suite's "
+        "own `Review` ladder has been inadmissible since markers landed, and the "
+        "engine could not tell. Deleting the `#[ignore]` reports whether the "
+        "return side has been closed. "
+        "All three rows of Q11's table are now "
         "built, and none of them is this proposition. The signature is honest "
         "(G12) and the token is bound to its argument (G13), so no judgmental "
         "arrow can be traversed except by a principal drawn from "
@@ -274,13 +383,18 @@ CURATED = {
         "at all (`#[authorial(Role)]` is implemented as of G14); and "
         "`decidable` still does not factor through η, only past 𝒫 "
         "({#purity-not-secured}). Argued in the question file, with its "
-        "falsifier.",
-        "docs/questions/open/q11-gate-faithfulness.md",
+        "falsifier, at `docs/questions/open/q11-gate-faithfulness.md`.",
+        "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
     ),
     "mod-only-gate-faithful": (
-        "deferred",
-        "Q11 (gate-faithfulness, open). Follows gate-faithful.",
-        "docs/questions/open/q11-gate-faithfulness.md",
+        "parked",
+        "Follows {#gate-faithful}, and parks on the same case: `Mod(Σ)` can "
+        "consist only of gate-faithful algebras once gate-faithfulness is "
+        "checkable, and the cited test is what reports that it is not yet. Until "
+        "then a `theory!` declaration that violates "
+        "{#admissibility-subcategories} is admitted to `Mod(Σ)` without "
+        "complaint.",
+        "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
     ),
 
     # ── structural correspondences worth recording ───────────────────────
@@ -288,8 +402,13 @@ CURATED = {
         "expressible",
         "The composite Grothendieck opfibration "
         "([opfibrations-compose](rung-ct-props.md#opfibrations-compose)), "
-        "resolved by Q10. The correspondence is proved; no registry hierarchy is built.",
-        "docs/questions/resolved/q10-fractal-registry-hierarchy.md",
+        "resolved by Q10 (`docs/questions/resolved/`). The correspondence is "
+        "proved and no hierarchy is built — which leaves the property itself "
+        "needing a run, and the cited test is one: the pass composed with itself "
+        "at a container boundary, where the destination's own law is what "
+        "refuses a write the source's judge already authorized "
+        "({#target-runs-its-own-models}).",
+        "rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals",
     ),
     "two-directions-two-bases": (
         "expressible",
@@ -297,8 +416,14 @@ CURATED = {
         "Propagation is rung-CT's opfibration, pushforward and opcartesian "
         "([conformance-and-propagation-run-over-different-bases]"
         "(rung-ct-props.md#conformance-and-propagation-run-over-different-bases)). "
-        "Different bases at adjacent levels — not opposite orientations of one tower.",
-        "—",
+        "Different bases at adjacent levels — not opposite orientations of one tower. "
+        "The cited test is where the two are visible at once and are not "
+        "conflated: the docket's sentences are run *per question* — conformance, "
+        "each model against its own theory — while drift is reported *along "
+        "outbound edges*, from a revised question to whatever depended on it. "
+        "One suite, two directions, and the edge set is the theory's rather than "
+        "Het's ({#governs-who-not-what}).",
+        "rung-std/tests/questions_theory.rs::the_docket_reports_its_own_outbound_edge_drift",
     ),
     "monad-is-provenance-strict": (
         "expressible",
@@ -445,6 +570,446 @@ CURATED_CT = {
     ),
 }
 
+# ── rung's own propositions ──────────────────────────────────────────────
+#
+# The guarantees name their own conformance tests inside the document, so their
+# rows are derived rather than curated (`derive_from_body`). Everything else —
+# the grammar, the static-semantics rules, the emitted artifacts, the
+# non-guarantees, the conformance discipline, the design judgments — carried no
+# verdict at all: 46 propositions of a *normative* document classified as
+# `unclassified`, which is a worklist entry rather than a clean bill.
+#
+# Three kinds of row appear below.
+#
+# **`enforced`** names a test that fails if the macro stops doing the thing.
+# Most of these were already protected and merely unjoined — the workspace had
+# 101 test functions and the ledger cited 21 of them. Joining a test to the
+# proposition it already defends costs nothing and is the only kind of progress
+# that adds no new claim.
+#
+# **`out-of-scope`** covers three families, and each is a family rather than a
+# convenience:
+#
+#   - the **non-guarantees** (§5). A non-guarantee *withdraws* an obligation —
+#     "the macro does not enforce the following, and a claim that it does has no
+#     standing" — so there is nothing for a host to check. Where such a row can
+#     still point at the test that pins the **boundary** (external fabrication
+#     refused, the drop lint, the progress guard) it does, so a reader sees
+#     where the guarantee stops rather than only being told that it does.
+#   - the **conformance discipline** (§6.1, §6.3, §6.4). These are facts about
+#     rustdoc and rules about how evidence is produced. §6.4 — "a refusal test
+#     that cannot fail is not a guarantee" — is the mutation discipline itself,
+#     and no machine performs it.
+#   - the **design judgments** (§7). The document says of them that no machine
+#     decides them and that they carry no conformance test.
+#
+# **`parked`** names an `#[ignore]`d test whose reason says what would close it.
+# Two rows are parked, and they are the two real gaps: the returned value of a
+# gated arrow is unconstrained, and one of Het's four gates has a refusal rather
+# than an encoding.
+CURATED_RUNG = {
+    # ── 1 · Grammar ──────────────────────────────────────────────────────
+    "declaration-is-a-block": (
+        "enforced",
+        "The macro accepts exactly this shape. The cited ladder is a declaration "
+        "block followed by an inline `impl` block and is driven to a terminal "
+        "verdict, so both halves of the form are exercised by a run rather than "
+        "by an expansion that merely typechecks.",
+        "rung/tests/end_to_end.rs::drives_to_convergence",
+    ),
+    "declaration-grammar": (
+        "enforced",
+        "The cited declaration uses every production of the grammar at once — a "
+        "`carry` block, a multi-hop spine, a verdict block carrying a terminal "
+        "marker, a recoverable verdict, and a `recover` edge. A production the "
+        "parser dropped would fail to expand. The refusals that keep the grammar "
+        "from accepting *more* than this are {#macro-must-reject}.",
+        "rung/tests/compile_pass.rs::test_module_exists",
+    ),
+    "bodies-grammar": (
+        "enforced",
+        "The cited ladder supplies three inline bodies in the `ident = closure` "
+        "form, comma-separated, mixing block and expression closures. They expand "
+        "into the module and are called by the driver.",
+        "rung/tests/end_to_end.rs::drives_to_convergence",
+    ),
+    "transition-naming": (
+        "enforced",
+        "The driver calls `opt::active`, `opt::step` and `opt::iterate` by those "
+        "names — the target lowercased, `step` for the branching transition, the "
+        "recover edge's own name. Renaming any of the three in the macro turns "
+        "the call site into an unresolved path.",
+        "rung/tests/end_to_end.rs::drives_to_convergence",
+    ),
+    "marker-annotates-the-target": (
+        "enforced",
+        "The cited ladder marks both markable positions — a rung, and the verdict "
+        "block — and the test coerces `review::active` and `review::step` to `fn` "
+        "pointers of the exact expected types. A marker that annotated the source "
+        "rather than the target would put the parameter on the wrong function and "
+        "both coercions would fail.",
+        "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token",
+    ),
+    "at-most-one-marker": (
+        "enforced",
+        "A `trybuild` case with `#[judgmental(R)] #[authorial(R)]` on one "
+        "transition, whose committed `.stderr` holds the macro's message. The "
+        "macro has refused this since markers landed; until the case existed "
+        "nothing would have noticed if it stopped.",
+        "rung/tests/gate_markers.rs::two_markers_on_one_transition_are_refused",
+    ),
+    "two-markers-implemented": (
+        "enforced",
+        "Both markers emit, and emit *different* second parameters — the cited "
+        "test coerces the authorial transition to "
+        "`fn(Filed, Authorized<'_, R>) -> Revised`, and "
+        "`judgmental_transition_takes_a_qualified_token` does the same for "
+        "`Qualified<R>`. A pen cannot be passed where a licence is asked for, "
+        "which is the whole content of \"two gates, two signatures\".",
+        "rung/tests/gate_markers.rs::authorial_transition_takes_an_authorized_pen",
+    ),
+    "conditional-marker-refused": (
+        "enforced",
+        "A `trybuild` case whose committed `.stderr` holds the refusal, "
+        "including the pointer to the open question. A `compile_fail` doctest "
+        "would not have distinguished this refusal from a typo "
+        "({#compile-fail-asserts-only-non-compilation}).",
+        "rung/tests/gate_markers.rs::conditional_is_refused_and_names_the_open_question",
+    ),
+    "marker-without-role-refused": (
+        "enforced",
+        "Two `trybuild` cases, one per marker — the cited one for "
+        "`#[judgmental]`, `authorial_without_a_role_is_refused` for its mirror. "
+        "Both `.stderr` snapshots carry the reason, which is that there is no "
+        "signature to emit rather than that the syntax is unfamiliar.",
+        "rung/tests/gate_markers.rs::judgmental_without_a_role_is_refused",
+    ),
+
+    # ── 2 · Static semantics ─────────────────────────────────────────────
+    "macro-must-reject": (
+        "enforced",
+        "All ten rules, each a `trybuild` case with a committed `.stderr`. Two of "
+        "the ten are unreachable through the grammar rather than untested, and "
+        "the suite says so where the reachable neighbour lands: rule 2 cannot be "
+        "written because every rung of the spine is declared by the hop that "
+        "introduces it, and rule 5's *missing recover function* clause cannot be "
+        "written because one `recover` entry pushes the edge and the function "
+        "together. Before these cases, seven of the ten were prose the macro "
+        "happened to implement.",
+        "rung/tests/spec_refusals.rs::a_duplicate_carry_field_is_refused",
+    ),
+    "structural-rules-mirror-the-reference-checker": (
+        "out-of-scope",
+        "A provenance note about a retired artifact. The Python checker is under "
+        "`.archive/`, nothing in the workspace depends on it, and \"verified in "
+        "sync\" records a comparison made once by hand rather than a property "
+        "anything re-checks. What the note is *about* — that rules 1–8 are "
+        "structural — is now pinned rule by rule under {#macro-must-reject}.",
+        ".archive/python-poc/rung/checker.py",
+    ),
+    "body-rules-need-an-impl-block": (
+        "enforced",
+        "The cited declaration omits the `impl` block entirely and expands "
+        "cleanly, so rules 9–10 did not fire on a ladder with no bodies to check. "
+        "That they *do* fire when the block is present is "
+        "`spec_refusals.rs::an_impl_body_that_names_no_transition_is_refused` and "
+        "`::an_impl_block_missing_a_body_is_refused`.",
+        "rung/tests/compile_pass.rs::test_module_exists",
+    ),
+    "extension-refusals-are-pinned": (
+        "enforced",
+        "The proposition names its own three cases; this is the first of them. "
+        "Each holds a committed `.stderr`, which is what makes the refusal's "
+        "*message* part of the assertion rather than only its existence.",
+        "rung/tests/spec_refusals.rs::a_recoverable_verdict_cannot_declare_a_payload",
+    ),
+
+    # ── 3 · Emitted artifacts ────────────────────────────────────────────
+    "emitted-module": (
+        "enforced",
+        "Every path in the cited test goes through `metricoptimization::`, the "
+        "ladder name lowercased. A module emitted under another name, or not "
+        "emitted, is an unresolved path.",
+        "rung/tests/compile_pass.rs::test_module_exists",
+    ),
+    "emitted-carry": (
+        "enforced",
+        "`test_module_exists` constructs `Carry` with both declared fields by "
+        "name, which needs the struct, the field names, and their public "
+        "visibility. The cited test adds the accessor: a type-level coercion that "
+        "only holds if `Spec::carry(&self) -> &Carry` exists with that exact "
+        "signature.",
+        "rung/tests/compile_pass.rs::test_carry_accessor_exists",
+    ),
+    "emitted-rung-structs": (
+        "enforced",
+        "The seal and the thread-binding, which are the two clauses a host can "
+        "lose silently. The cited test uses autoref specialization to assert "
+        "`!Send` for rungs *and* verdicts; the `_seal` field is what "
+        "`spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624` "
+        "pins. Constructor visibility follows [G2](rung-props.md#g2-sealed-construction).",
+        "rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync",
+    ),
+    "emitted-verdict-structs": (
+        "enforced",
+        "All three shapes in one run: `Exhausted::new()` is the bare terminal "
+        "marker, `Converged(Report)` is a terminal carrying a payload read back "
+        "out through `.payload()`, and `Iterating => Active` is a recoverable "
+        "verdict built from its source rung and unwrapped with `.into_source()`. "
+        "The fourth clause — that a continue arm emits **no** verdict struct — is "
+        "`end_to_end.rs::continue_arm_loops_without_a_recover_fn`.",
+        "rung/tests/end_to_end.rs::drives_to_convergence",
+    ),
+    "emitted-step-outcome": (
+        "enforced",
+        "The clause that distinguishes `StepOutcome` from an ordinary verdict "
+        "enum: a continue arm's variant carries a **live target rung**, not a "
+        "verdict marker. The cited test reassigns that rung straight back into "
+        "the driver, with no recover function and no guard in between.",
+        "rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn",
+    ),
+    "emitted-failed": (
+        "enforced",
+        "The cited test takes the error path and reads both fields back — the "
+        "unconsumed `token` and the `error` string — which is what makes "
+        "`Failed<Prev>` a recovery vehicle rather than a discarded value.",
+        "rung/tests/end_to_end.rs::recovers_from_the_failed_error_path",
+    ),
+    "emitted-guards": (
+        "enforced",
+        "`must_progress` is the one an author cannot see: the cited ladder's "
+        "recover body contains no call to it and panics anyway, because the macro "
+        "wrapped the body ([G8](rung-props.md#g8-recovery-progress)). The other "
+        "two guards are pinned the same way, at "
+        "`gate_markers.rs::a_body_that_ignores_the_token_still_gets_the_binding_check` "
+        "and `::a_body_that_ignores_the_pen_still_gets_the_standing_check`.",
+        "rung/tests/end_to_end.rs::recover_guard_is_auto_injected",
+    ),
+    "emitted-functions": (
+        "enforced",
+        "One `pub fn` per transition and per recover edge, expanded *inside* the "
+        "module: the cited bodies call `Active::new`, which is private to the "
+        "module and unreachable from the test file. A body expanded outside would "
+        "not compile. The type-only case — no `impl` block, no functions — is "
+        "`compile_pass.rs::a_marker_on_a_type_only_declaration_is_inert`.",
+        "rung/tests/end_to_end.rs::drives_to_convergence",
+    ),
+    "unmarked-signature": (
+        "enforced",
+        "The driver calls `opt::active(spec)` with one argument. An unmarked "
+        "transition that grew a second parameter is E0061 at that call site — "
+        "which is the same diagnostic "
+        "`gate_markers.rs::calling_a_judgmental_transition_without_a_token_is_e0061` "
+        "pins from the other side.",
+        "rung/tests/end_to_end.rs::drives_to_convergence",
+    ),
+    "judgmental-signature": (
+        "enforced",
+        "The cited test coerces the emitted `fn` to "
+        "`fn(review::Spec, Qualified<Reviewer>) -> review::Active`, so an absent, "
+        "extra, or differently-typed second parameter fails to compile. The "
+        "injected prologue is separately pinned by "
+        "`gate_markers.rs::the_injected_prologue_refuses_a_transferred_token_the_body_never_reads`, "
+        "whose ladder never reads the token.",
+        "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token",
+    ),
+    "authorial-signature": (
+        "enforced",
+        "The authorial mirror, coerced the same way to "
+        "`fn(revision::Filed, Authorized<'_, Curator>) -> revision::Revised`, with "
+        "the standing prologue pinned by "
+        "`gate_markers.rs::the_injected_prologue_refuses_a_pen_for_another_container_the_body_never_reads`.",
+        "rung/tests/gate_markers.rs::authorial_transition_takes_an_authorized_pen",
+    ),
+    "body-name-resolution": (
+        "enforced",
+        "The cited bodies name `Active`, `StepOutcome`, `Converged` and `Carry` "
+        "unqualified, and `LoopState`/`Report` from the surrounding scope through "
+        "the emitted `use super::*`. Dropping either half leaves an unresolved "
+        "name at expansion.",
+        "rung/tests/end_to_end.rs::drives_to_convergence",
+    ),
+
+    # ── 4 · Guarantees — the one the document does not name a test for ───
+    "g7-recover-pairing": (
+        "enforced",
+        "Rules 4–7, one `trybuild` case each. The cited one is the first "
+        "direction (a recoverable verdict with no edge); "
+        "`::a_recover_edges_target_must_be_a_declared_rung`, "
+        "`::a_terminal_verdict_may_not_carry_a_recover_edge` and "
+        "`::a_recover_edge_must_name_a_declared_verdict` are the rest. This "
+        "guarantee said *(macro — static checks.)* and named no test, so it was "
+        "the one guarantee of the fourteen with nothing behind it.",
+        "rung/tests/spec_refusals.rs::a_recoverable_verdict_without_a_recover_edge_is_refused",
+    ),
+
+    # ── 5 · Non-guarantees ───────────────────────────────────────────────
+    "non-guarantees": (
+        "out-of-scope",
+        "The heading of the withdrawals. A non-guarantee states that the macro "
+        "does **not** enforce something and that a claim it does has no standing; "
+        "there is no obligation left for a host to discharge. Its children point "
+        "at the boundary tests where a boundary exists.",
+        "—",
+    ),
+    "transition-body-correctness": (
+        "out-of-scope",
+        "The typestate/verification boundary. The type proves a transition ran; "
+        "nothing here claims its logic was valid, so there is nothing to check. "
+        "Every `expressible` row in this ledger inherits this limit.",
+        "—",
+    ),
+    "cross-crate-provenance": (
+        "out-of-scope",
+        "A rung crossing a crate boundary is trusted, like any Rust public API. "
+        "Closing it needs a sub-crate per ladder, which is a packaging decision "
+        "rather than a macro guarantee.",
+        "—",
+    ),
+    "same-module-fabrication": (
+        "out-of-scope",
+        "The module-boundary limit Rust always has. The cited test pins where the "
+        "seal *does* bite — external construction is E0624 — so the withdrawal is "
+        "readable as a boundary rather than as an absence.",
+        "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624",
+    ),
+    "drop-proofing-beyond-the-lint": (
+        "out-of-scope",
+        "`mem::forget`, `let _ = token`, and a dropped container all bypass "
+        "`#[must_use]`; true no-drop needs language-level linear types. The cited "
+        "test pins the lint's actual reach, which is what is being bounded.",
+        "rung/tests/spec_refusals.rs::dropping_a_verdict_under_deny_must_use_is_an_error",
+    ),
+    "liveness-beyond-the-guard": (
+        "out-of-scope",
+        "[G8](rung-props.md#g8-recovery-progress) catches an identical-token "
+        "stall; general forward progress is a halting question. The cited test "
+        "exercises the guard on exactly the case it does catch, so what is being "
+        "withdrawn is legible as the complement of something real.",
+        "rung/tests/end_to_end.rs::must_progress_guard_panics_on_no_progress",
+    ),
+    "gate-faithfulness-not-secured": (
+        "parked",
+        "The gap has a case now. rung checks the way **in** — G12 the signature, "
+        "G13 the token's binding to π(a), G14 the authorial mirror — and nothing "
+        "on the way out. The parked test is the demonstration: a judgmental arrow "
+        "returning a value that carries π(a) itself passes every check rung "
+        "makes. See {#returned-value-unconstrained}.",
+        "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
+    ),
+    "one-gate-unimplemented": (
+        "enforced",
+        "The refusal itself is enforced, which is the honest reading: "
+        "`#[conditional(..)]` is a parse-time `compile_error!` naming the open "
+        "question, pinned by a `trybuild` snapshot. What is *not* secured is "
+        "gate-faithfulness for an algebra that has a conditional operation — that "
+        "algebra cannot be written here at all, and the refusal is what says so.",
+        "rung/tests/gate_markers.rs::conditional_is_refused_and_names_the_open_question",
+    ),
+    "returned-value-unconstrained": (
+        "parked",
+        "`Prov::contained_in` exists and no guarantee calls it — the proposition "
+        "says so, and now a test does. The parked case needed no rigging: the "
+        "gate-marker suite's own `Review` ladder has violated "
+        "{#admissibility-subcategories} since markers "
+        "landed, because `active` is `#[judgmental(Reviewer)]` and returns a "
+        "value declaring the provenance of the argument it judged.",
+        "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
+    ),
+    "decidable-is-not-pure": (
+        "out-of-scope",
+        "rung has no effect system. The unmarked signature excludes Het's "
+        "outside — there is no parameter a principal could enter through — and "
+        "says nothing about clocks, files, or sockets. Het states the same limit "
+        "independently ({#purity-not-secured}).",
+        "—",
+    ),
+    "type-only-marker-is-inert": (
+        "enforced",
+        "A declaration with no `impl` block emits no transition functions, so a "
+        "marker on one has no signature to change. The cited test states that as "
+        "something the compiler checks: the marked role type does **not** "
+        "implement `Role`, and the declaration compiles anyway — which it could "
+        "not if the marker were emitting a `Qualified<R>` parameter or a "
+        "prologue.",
+        "rung/tests/compile_pass.rs::a_marker_on_a_type_only_declaration_is_inert",
+    ),
+    "gate-faithfulness-answered-no": (
+        "out-of-scope",
+        "A claim about an argument, not about the host: it records that Q11 is "
+        "open and answered *no*. The two things it stays open on are "
+        "{#one-gate-unimplemented}, which is `enforced` as a refusal, and "
+        "{#returned-value-unconstrained}, which is `parked`. Both carry their own "
+        "row; this one carries the reasoning.",
+        "docs/questions/open/q11-gate-faithfulness.md",
+    ),
+
+    # ── 6 · Conformance ──────────────────────────────────────────────────
+    "conformance-suite": (
+        "enforced",
+        "\"A change that violates any guarantee MUST break at least the cited "
+        "test\" is only a claim if the citation is live. `./_ledger.py check` "
+        "regenerates every row from the propositions documents and fails when a "
+        "cited file is missing or a cited `fn` has been renamed away, so a "
+        "guarantee cannot quietly lose its test.",
+        "docs/_ledger.py",
+    ),
+    "compile-fail-asserts-only-non-compilation": (
+        "out-of-scope",
+        "A fact about rustdoc — it ignores the `E0NNN` in a `compile_fail` fence "
+        "— rather than an obligation on the host. What follows *from* it is "
+        "{#no-guarantee-cites-a-compile-fail-doctest}, and that is enforced.",
+        "—",
+    ),
+    "no-guarantee-cites-a-compile-fail-doctest": (
+        "enforced",
+        "`./_ledger.py check` refuses any conformance citation that points into a "
+        "crate's `src/`, which is the only place a doctest can live. A row that "
+        "tried to rest on a `compile_fail` fence is a ledger failure rather than "
+        "a reviewer's catch. Refusals are pinned by `trybuild` cases in "
+        "`rung/tests/ui/`, whose committed `.stderr` makes the message part of "
+        "the assertion.",
+        "docs/_ledger.py",
+    ),
+    "two-silent-doctest-traps": (
+        "out-of-scope",
+        "Two ways to write a doctest that passes while asserting nothing. "
+        "Guidance for authors of examples; the guarantees do not rest on "
+        "doctests at all ({#no-guarantee-cites-a-compile-fail-doctest}).",
+        "—",
+    ),
+    "a-refusal-test-that-cannot-fail": (
+        "out-of-scope",
+        "The mutation discipline itself — make the guarded thing legal and watch "
+        "the case go red. It is a rule about how evidence is produced, and no "
+        "machine performs it; a checker that could would be the guarantee.",
+        "—",
+    ),
+
+    # ── 7 · Design judgments ─────────────────────────────────────────────
+    "design-judgments": (
+        "out-of-scope",
+        "The document says of this subtree that **no machine decides them** and "
+        "that they carry no conformance test. They bind design decisions — where "
+        "a ladder stops, what earns a place in `rung-std` — and are amended as "
+        "rulings on the record rather than checked.",
+        "—",
+    ),
+    "j1-where-the-tower-bottoms-out": (
+        "out-of-scope",
+        "A judgment about leverage: extend the tower while structural enforcement "
+        "still buys correctness gains. Nothing in a run can answer it.",
+        "—",
+    ),
+    "j2-what-belongs-in-rung-std": (
+        "out-of-scope",
+        "A judgment about recurrence and canonicity. A test could count "
+        "dependents; it could not decide whether the canonical statement is "
+        "better than a project's own derivation.",
+        "—",
+    ),
+}
+
 
 def parse(path):
     """Return [(num, slug, section, body)] for one propositions document."""
@@ -549,10 +1114,13 @@ DOCS = (
             "The guarantees name their own conformance tests, so those rows are "
             "**derived from the document**, not curated here. Every other "
             "proposition — the grammar, the static-semantics rules, the emitted "
-            "artifacts — is `unclassified` until someone names a test for it."
+            "artifacts, the non-guarantees, the conformance discipline, the "
+            "design judgments — is curated in `_ledger.py`. A proposition added "
+            "to the document and to neither place lands as `unclassified`, which "
+            "fails `check`: a new normative claim cannot enter without a verdict."
         ),
         "default": ("unclassified", "no test is known to protect this proposition.", "—"),
-        "curated": {},
+        "curated": CURATED_RUNG,
         "derive": derive_from_body,
     },
     {
@@ -599,12 +1167,22 @@ def render():
     total = 0
     parts, summary = [], []
 
+    # `{#slug}` resolves across all three documents, not only the one the row
+    # sits in. Three documents share one slug space by design, and a mechanism
+    # that had to know which file its referent lived in would be a hardcode of
+    # the same kind the slug keying exists to avoid.
+    where = {}
+    for spec in DOCS:
+        p = HERE / spec["file"]
+        if p.exists():
+            for num, slug, _, _ in parse(p):
+                where[slug] = (spec["file"], num)
+
     for spec in DOCS:
         path = HERE / spec["file"]
         if not path.exists():
             continue
         rows = parse(path)
-        num_of = {slug: num for num, slug, _, _ in rows}
         sub = {v: 0 for v in VERDICTS}
         body, cur = [], None
 
@@ -622,8 +1200,10 @@ def render():
                 verdict, mech, conf = spec["default"]
             # an unresolvable {#slug} is left verbatim for `check` to report
             mech = CITE.sub(
-                lambda m: f"[{num_of[m.group(1)]}]({spec['file']}#{m.group(1)})"
-                if m.group(1) in num_of
+                lambda m: "[{}]({}#{})".format(
+                    where[m.group(1)][1], where[m.group(1)][0], m.group(1)
+                )
+                if m.group(1) in where
                 else m.group(0),
                 mech,
             )
@@ -657,7 +1237,7 @@ cannot cite a file that does not exist, and this text cannot be edited by hand.
 |---|---|
 | `enforced` | a rung guarantee makes the proposition hold, and a named test fails if it stops |
 | `expressible` | encodable in a ladder; rung proves it ran, not that it was right |
-| `deferred` | blocked on a named open question, or on a named gap |
+| `parked` | a real gap, pinned by an `#[ignore]`d test whose reason names what would close it |
 | `collides` | contradicts a rung guarantee — must be empty |
 | `out-of-scope` | mathematics of the account; nothing for a host to enforce |
 | `unclassified` | no verdict recorded — a worklist entry, not a clean bill |
@@ -757,8 +1337,40 @@ def check():
         target = ROOT / path
         if not target.exists():
             errs.append(f"row `{slug}`: cites {path}, which does not exist")
-        elif sym and not re.search(rf"\bfn {re.escape(sym)}\b", target.read_text()):
+            continue
+        if sym and not re.search(rf"\bfn {re.escape(sym)}\b", target.read_text()):
             errs.append(f"row `{slug}`: {path} has no fn {sym}")
+            continue
+
+        # rung-props.md §6.2 — no guarantee may rest on a `compile_fail`
+        # doctest. rustdoc ignores the error code in the fence, so such a
+        # doctest asserts only "this did not compile" and cannot tell the
+        # refusal it was written for from a typo. Doctests live in `src/`;
+        # `trybuild` cases, which diff a committed `.stderr`, live in `tests/`.
+        if "/src/" in f"/{path}":
+            errs.append(
+                f"row `{slug}`: cites {path}, which is inside a crate's `src/` — "
+                f"a conformance citation may not be a doctest "
+                f"(rung-props.md#no-guarantee-cites-a-compile-fail-doctest)"
+            )
+
+        # A `parked` row must cite a test that is actually parked, so that the
+        # gap answers back when the attribute comes off.
+        if verdict == "parked":
+            if not (path.endswith(".rs") and sym):
+                errs.append(
+                    f"row `{slug}`: `parked` must cite a test as `file.rs::fn`, "
+                    f"not `{conf}` — a gap is pinned by something a run reports"
+                )
+            else:
+                body = target.read_text()
+                attrs = body.split(f"fn {sym}")[0].rsplit("\n}\n", 1)[-1]
+                if "#[ignore" not in attrs:
+                    errs.append(
+                        f"row `{slug}`: `parked` cites {conf}, which carries no "
+                        f"`#[ignore = \"..\"]` — either the gap closed and the "
+                        f"row is now `enforced`, or the test does not pin it"
+                    )
 
     for _, _, slug, verdict in listed:
         if verdict == "collides":
