@@ -230,6 +230,33 @@ fn the_triage_is_recorded() {
     assert_eq!(by_kind.values().sum::<usize>(), 108);
 }
 
+/// The triage across the whole corpus. Pinned so a later reading that moves a
+/// proposition between kinds shows up here rather than in a diff nobody reads.
+#[test]
+fn the_corpus_triage_is_recorded() {
+    let mut by_kind = std::collections::BTreeMap::new();
+    for d in &all() {
+        for p in d.props() {
+            *by_kind.entry(p.kind.name()).or_insert(0usize) += 1;
+        }
+    }
+    println!("\n  corpus triage: {by_kind:?}\n");
+    assert_eq!(by_kind.get("signature").copied(), Some(125));
+    assert_eq!(by_kind.get("rationale").copied(), Some(199));
+    assert_eq!(by_kind.get("judgmental").copied(), Some(50));
+    assert_eq!(by_kind.get("decidable").copied(), Some(6));
+    assert_eq!(by_kind.values().sum::<usize>(), 380);
+}
+
+/// **Nothing is unclassified.** Every proposition carries a kind, because the
+/// type has no variant for "not yet decided" — a migration that left some
+/// unread would have had to say so in a field, and there is no field.
+#[test]
+fn every_proposition_in_the_corpus_carries_a_kind() {
+    let n: usize = all().iter().map(|d| d.props().count()).sum();
+    assert_eq!(n, 380);
+}
+
 /// **A decidable proposition names a sentence that exists.**
 ///
 /// Without this the `Decidable` marker is a promise someone keeps — precisely
@@ -241,16 +268,26 @@ fn the_triage_is_recorded() {
 #[test]
 fn every_decidable_proposition_names_a_declared_sentence() {
     use rung_doctrine::Kind;
+    use rung_std::principals::{principal, roster};
     use rung_std::questions::{propagation, questions};
 
+    // Every theory in the standard library. A decidable proposition may name a
+    // sentence from any of them; what it may not do is name one that does not
+    // exist, which is the whole content of the marker.
     let declared: Vec<&str> = questions::SENTENCES
         .iter()
         .chain(propagation::SENTENCES.iter())
+        .chain(principal::SENTENCES.iter())
+        .chain(roster::SENTENCES.iter())
         .map(|(name, _)| *name)
         .collect();
 
     let mut checked = 0;
-    for p in rung_ct::doctrine().props() {
+    for p in all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+    {
+        let p = &p;
         if let Kind::Decidable { sentence } = &p.kind {
             assert!(
                 declared.contains(&sentence.as_str()),
@@ -261,7 +298,7 @@ fn every_decidable_proposition_names_a_declared_sentence() {
             checked += 1;
         }
     }
-    assert_eq!(checked, 3, "the decidable fragment changed size");
+    assert_eq!(checked, 6, "the decidable fragment changed size");
 }
 
 /// **A judgmental proposition names a role**, and every one here names the same
@@ -277,13 +314,16 @@ fn every_decidable_proposition_names_a_declared_sentence() {
 fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
     use rung_doctrine::Kind;
     let mut n = 0;
-    for p in rung_ct::doctrine().props() {
+    for p in all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+    {
         if let Kind::Judgmental { role } = &p.kind {
             assert_eq!(role, "category-theorist", "#{}", p.slug);
             n += 1;
         }
     }
-    assert_eq!(n, 23);
+    assert_eq!(n, 50);
 }
 
 /// Signature and rationale carry no gate, and that is structural: neither is a
@@ -291,7 +331,10 @@ fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
 #[test]
 fn only_claims_carry_a_gate() {
     use rung_doctrine::Kind;
-    for p in rung_ct::doctrine().props() {
+    for p in all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+    {
         match &p.kind {
             Kind::Signature | Kind::Rationale => assert!(!p.kind.is_a_claim(), "#{}", p.slug),
             Kind::Decidable { .. } | Kind::Judgmental { .. } => {

@@ -55,7 +55,7 @@ is no number to leave.
         Element::Prop(Prop {
             slug: "one-relation".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"There is one relation:
 
@@ -68,7 +68,7 @@ A model $M$ satisfies sentence $\varphi$ under signature $\Sigma$.
         Element::Prop(Prop {
             slug: "institution-quadruple".into(),
             parent: Some("one-relation".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"The ambient structure is an institution — a quadruple
 $(\mathbf{Sign}, \mathsf{Sen}, \mathsf{Mod}, \models)$.
@@ -78,7 +78,7 @@ $(\mathbf{Sign}, \mathsf{Sen}, \mathsf{Mod}, \models)$.
         Element::Prop(Prop {
             slug: "sign-category".into(),
             parent: Some("institution-quadruple".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"$\mathbf{Sign}$ is a category. Its objects are signatures; its
 morphisms are signature morphisms.
@@ -88,7 +88,7 @@ morphisms are signature morphisms.
         Element::Prop(Prop {
             slug: "sen-functor".into(),
             parent: Some("institution-quadruple".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"$\mathsf{Sen} : \mathbf{Sign} \to \mathbf{Set}$ assigns to each
 signature its sentences.
@@ -98,7 +98,7 @@ signature its sentences.
         Element::Prop(Prop {
             slug: "mod-functor".into(),
             parent: Some("institution-quadruple".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"$\mathsf{Mod} : \mathbf{Sign}^{\text{op}} \to \mathbf{Cat}$
 assigns to each signature its algebras.
@@ -108,7 +108,7 @@ assigns to each signature its algebras.
         Element::Prop(Prop {
             slug: "satisfaction-typing".into(),
             parent: Some("institution-quadruple".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"$\models_\Sigma \;\subseteq\; \lvert\mathsf{Mod}(\Sigma)\rvert \times \mathsf{Sen}(\Sigma)$.
 
@@ -117,7 +117,7 @@ assigns to each signature its algebras.
         Element::Prop(Prop {
             slug: "satisfaction-condition".into(),
             parent: Some("one-relation".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"The institution's single axiom is the satisfaction condition:
 truth is invariant under change of notation.
@@ -129,7 +129,7 @@ $$M \models_{\Sigma'} \mathsf{Sen}(\sigma)(\varphi) \iff \mathsf{Mod}(\sigma)(M)
         Element::Prop(Prop {
             slug: "signature-declares".into(),
             parent: Some("one-relation".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A signature declares sorts, operation symbols with arities, gate
 markers, and the laws the theory declares.
@@ -174,7 +174,7 @@ pool, the tower, the game — is bookkeeping around {#one-relation}.
         Element::Prop(Prop {
             slug: "gate-marker-required".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Every sentence and every operation carries a **gate marker**, which
 fixes how its satisfaction is computed.
@@ -184,7 +184,7 @@ fixes how its satisfaction is computed.
         Element::Prop(Prop {
             slug: "four-gates".into(),
             parent: Some("gate-marker-required".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"The marker is one of exactly four.
 
@@ -200,7 +200,7 @@ fixes how its satisfaction is computed.
         Element::Prop(Prop {
             slug: "no-other-gate-value".into(),
             parent: Some("four-gates".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"No other value is well-formed.
 
@@ -209,7 +209,7 @@ fixes how its satisfaction is computed.
         Element::Prop(Prop {
             slug: "unmarked-not-wellformed".into(),
             parent: Some("gate-marker-required".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"An operation without a gate marker is not a well-formed
 declaration.
@@ -219,7 +219,7 @@ declaration.
         Element::Prop(Prop {
             slug: "judgmental-declares-role".into(),
             parent: Some("gate-marker-required".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A judgmental operation declares the **competence role** required
 to discharge it.
@@ -229,7 +229,7 @@ to discharge it.
         Element::Prop(Prop {
             slug: "role-not-kind".into(),
             parent: Some("judgmental-declares-role".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { sentence: "roles_are_earned".into() },
             numbering: None,
             prose: r#"A role, not a kind. Kind is what a principal is made of, and
 belongs to whatever supplies $\mathcal{P}$ ({#nothing-further-required}). Role is what the
@@ -251,7 +251,7 @@ is what lets $\models$ resolve a judge.
         Element::Prop(Prop {
             slug: "authorial-declares-standing".into(),
             parent: Some("gate-marker-required".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"An authorial operation declares a **standing predicate**.
 
@@ -260,7 +260,7 @@ is what lets $\models$ resolve a judge.
         Element::Prop(Prop {
             slug: "conditional-names-classifier".into(),
             parent: Some("gate-marker-required".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A conditional operation names a **classifying sentence**.
 
@@ -279,7 +279,7 @@ classifier reopens the regress {#tower-floor} closes.
         Element::Prop(Prop {
             slug: "conditional-partitions-fiber".into(),
             parent: Some("conditional-names-classifier".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"A conditional gate partitions the fiber $\mathsf{Mod}(\Sigma)$:
 
@@ -290,7 +290,7 @@ $$\mathsf{Mod}_{\mathsf{dec}}(\Sigma, \varphi) \quad\text{and}\quad \mathsf{Mod}
         Element::Prop(Prop {
             slug: "classifier-one-level-up".into(),
             parent: Some("conditional-names-classifier".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"For every conditional sentence $\varphi$ of $\Sigma$ there exists
 a classifying sentence in the theory one level up,
@@ -306,7 +306,7 @@ $$M \in \mathsf{Mod}_{\mathsf{dec}}(\Sigma, \varphi) \iff M \models_{\Sigma^\upa
         Element::Prop(Prop {
             slug: "decidability-expressible-internally".into(),
             parent: Some("conditional-names-classifier".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"The predicate *"$\varphi$ is decidable in this algebra"* is
 therefore expressible inside the ambient institution. The two sub-classes
@@ -324,7 +324,7 @@ restored.
         Element::Prop(Prop {
             slug: "pool-is-parameter".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"$\mathcal{P}$ is a **parameter of the satisfaction relation**, not a
 sort of the signature.
@@ -346,7 +346,7 @@ sort of the signature.
         Element::Prop(Prop {
             slug: "internalizing-outside-collapses".into(),
             parent: Some("pool-not-a-sort".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"A signature that declares $\mathcal{P}$ as a sort has
 internalized the outside. The ontological separation collapses and
@@ -368,7 +368,7 @@ substrate, never enumerates kinds, and never inspects an inhabitant.
         Element::Prop(Prop {
             slug: "supplier-interface".into(),
             parent: Some("pool-is-opaque".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { sentence: "identity_fields_are_declared".into() },
             numbering: None,
             prose: r#"Het requires only that whatever supplies $\mathcal{P}$ exposes
 four predicates.
@@ -473,7 +473,7 @@ that qualify. Ordering is HetOpt's ({#het-settles-hetopt-orders}).
         Element::Prop(Prop {
             slug: "epsilon-declared-not-ranked".into(),
             parent: Some("three-belonging-predicates".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { sentence: "epsilon_is_declared".into() },
             numbering: None,
             prose: r#"Het requires $\varepsilon$ be declared so the verdict can carry
 its error bar. Het never reads it as a preference.
@@ -496,7 +496,7 @@ Distinct pools are not licensed.
         Element::Prop(Prop {
             slug: "judgmental-qualifying-set".into(),
             parent: Some("pool-is-parameter".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A judgmental sentence dispatches to a judge drawn from its
 qualifying set:
@@ -583,7 +583,7 @@ verdict, reported with its own $\varepsilon$.
         Element::Prop(Prop {
             slug: "authorial-qualifying-set".into(),
             parent: Some("pool-is-parameter".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"An authorial operation dispatches to an author drawn from its
 qualifying set:
@@ -680,7 +680,7 @@ that subject?"* must not be that principal.
         Element::Prop(Prop {
             slug: "verdict-space-with-metric".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Satisfaction is quantitative. Every theory declares a **verdict
 space** carrying a **metric** $d$.
@@ -700,7 +700,7 @@ information, and sensitivity to surface features such as naming.
         Element::Prop(Prop {
             slug: "boolean-breaks-satisfaction".into(),
             parent: Some("judges-are-stochastic".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"Under Boolean satisfaction the satisfaction condition ({#satisfaction-condition})
 breaks: renaming a sort changes the verdict.
@@ -720,7 +720,7 @@ $\Delta^n$, or a strategy lattice.
         Element::Prop(Prop {
             slug: "satisfaction-condition-relaxed".into(),
             parent: Some("verdict-space-with-metric".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"The satisfaction condition is relaxed from strict equivalence to
 a **distance bound**:
@@ -802,7 +802,7 @@ survives renaming ({#satisfaction-is-a-game}).
         Element::Prop(Prop {
             slug: "algebra-is-kleisli-functor".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"An algebra is a functor into the Kleisli category of the principal
 monad:
@@ -820,7 +820,7 @@ $$M : T \to \mathbf{Kl}(\mathcal{P})$$
         Element::Prop(Prop {
             slug: "not-a-set-functor".into(),
             parent: Some("algebra-is-kleisli-functor".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"An algebra cannot be a functor into $\mathbf{Set}$.
 
@@ -871,7 +871,7 @@ decidable data embeds.
         Element::Prop(Prop {
             slug: "judgmental-is-kleisli-arrow".into(),
             parent: Some("monad-reading".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"A judgmental operation is a Kleisli arrow
 $A \to \mathcal{P}(B)$.
@@ -891,7 +891,7 @@ that the algebra could not generate alone.*
         Element::Prop(Prop {
             slug: "kleisli-composition-interleaves".into(),
             parent: Some("monad-reading".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"Composing pure morphisms with judgmental ones is Kleisli
 composition. This is why the fragments interleave without collapsing.
@@ -903,7 +903,7 @@ composition. This is why the fragments interleave without collapsing.
         Element::Prop(Prop {
             slug: "judgmental-arrow-shape".into(),
             parent: Some("monad-reading".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A judgmental operation has the shape
 
@@ -918,7 +918,7 @@ outside does not answer.
         Element::Prop(Prop {
             slug: "provenance-structure".into(),
             parent: Some("algebra-is-kleisli-functor".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"The base category carries a **provenance structure**: every
 object $X$ is equipped with a provenance map
@@ -932,7 +932,7 @@ to a discrete category of provenance tags.
         Element::Prop(Prop {
             slug: "morphisms-preserve-provenance".into(),
             parent: Some("provenance-structure".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Morphisms preserve or strictly externalize provenance.
 
@@ -941,7 +941,7 @@ to a discrete category of provenance tags.
         Element::Prop(Prop {
             slug: "monad-is-provenance-strict".into(),
             parent: Some("provenance-structure".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"$\mathcal{P}$ is **provenance-strict**:
 
@@ -969,7 +969,7 @@ the interpretation.
         Element::Prop(Prop {
             slug: "admissibility-subcategories".into(),
             parent: Some("constant-arrow-hazard".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"Judgmental and authorial arrows therefore inhabit their
 respective admissibility sub-categories:
@@ -1038,7 +1038,7 @@ containment plus standing.
         Element::Prop(Prop {
             slug: "one-monad".into(),
             parent: Some("constant-arrow-hazard".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"Both are sub-categories of the **same** $\mathbf{Kl}(\mathcal{P})$.
 Distinct monads would mean distinct principal pools, which {#one-pool-two-filters} does not
@@ -1065,7 +1065,7 @@ predicate.
         Element::Prop(Prop {
             slug: "gate-faithful".into(),
             parent: Some("algebra-is-kleisli-functor".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"An algebra is **gate-faithful** when every `decidable` operation
 factors through $\eta$, every `judgmental` operation is a
@@ -1099,7 +1099,7 @@ selection rule.
         Element::Prop(Prop {
             slug: "condition-propagates-by-reindexing".into(),
             parent: Some("gate-faithful".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"Because provenance re-indexes along signature morphisms, the
 condition propagates through the fibration. Re-indexing cannot invent a
@@ -1112,7 +1112,7 @@ common author that did not already exist.
         Element::Prop(Prop {
             slug: "subject-defined".into(),
             parent: Some("algebra-is-kleisli-functor".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"An **subject** is an inhabitant of a carrier set $M(S)$ — a
 specific datum, an element sitting in the algebra's interpretation of a
@@ -1169,7 +1169,7 @@ dispositions require the monad's outside.
         Element::Prop(Prop {
             slug: "fractal-property".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"An algebra whose carrier contains subjects that themselves carry
 signature declarations **becomes a theory at the next level**, with its
@@ -1180,7 +1180,7 @@ own fiber of algebras below.
         Element::Prop(Prop {
             slug: "tower-is-a-fibration".into(),
             parent: Some("fractal-property".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"The tower is a **fibered category** — the Grothendieck
 construction over the category of theories.
@@ -1209,7 +1209,7 @@ is available.
         Element::Prop(Prop {
             slug: "kleisli-iterates".into(),
             parent: Some("tower-is-a-fibration".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"The Kleisli construction iterates: the same algebra becomes the
 theory whose satisfaction relation tests algebras one level below.
@@ -1262,7 +1262,7 @@ opposite directions.
         Element::Prop(Prop {
             slug: "pointings-are-duals".into(),
             parent: Some("two-kinds-of-pointing".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"The two are duals of one edge. The up-pointing declaration is
 what the satisfaction-checker walks to find the theory to test against;
@@ -1318,7 +1318,7 @@ inspection); a theory extends another (a morphism in $\mathbf{Sign}$).
         Element::Prop(Prop {
             slug: "gate-law".into(),
             parent: Some("fractal-property".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Gate markers may be preserved or increased along morphisms —
 `decidable` → `decidable` or `judgmental`; `judgmental` → `judgmental`.
@@ -1340,7 +1340,7 @@ one. This is {#non-identity-not-deferrable} at the morphism level.
         Element::Prop(Prop {
             slug: "tower-floor".into(),
             parent: Some("fractal-property".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"The tower terminates on a **decidable well-formedness predicate**
 $W$ on signatures.
@@ -1350,7 +1350,7 @@ $W$ on signatures.
         Element::Prop(Prop {
             slug: "wellformedness-clauses".into(),
             parent: Some("tower-floor".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"$W(\Sigma)$ holds when: $\Sigma$ declares at least one sort and
 at least one operation; every operation carries a gate marker (2, {#unmarked-not-wellformed});
@@ -1397,7 +1397,7 @@ pool is non-empty.
         Element::Prop(Prop {
             slug: "adequacy-defined".into(),
             parent: Some("fractal-property".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Adequacy lives one level below, inside the theories that actually
 invoke judges. For a judgmental sentence $\varphi$ of a theory $T$:
@@ -1450,7 +1450,7 @@ and no global fixed-point proof.
         Element::Prop(Prop {
             slug: "adequacy-failure-returns-residual".into(),
             parent: Some("adequacy-defined".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Adequacy failure returns the residual
 ({#judgmental-arrow-shape}). The argument is not consumed, and
@@ -1656,7 +1656,7 @@ mis-filing, not an omission** — the emptiness is the diagnostic.
         Element::Prop(Prop {
             slug: "satisfaction-is-a-game".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"Satisfaction is a two-player game. A sentence is satisfied iff the
 **Proponent** has a winning strategy.
@@ -1711,7 +1711,7 @@ contest is itself a move ({#proposal-vocabulary}).
         Element::Prop(Prop {
             slug: "the-pass".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"The audit-rectify pass is the game in operation — a chain of
 principals, each acting on what the previous one produced. The gate says
@@ -1777,7 +1777,7 @@ principal $p$. Without this, {#judgmental-qualifying-set} cannot be evaluated at
         Element::Prop(Prop {
             slug: "proposal-vocabulary".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A Proposal is one of exactly two.
 
@@ -1815,7 +1815,7 @@ they dispute, in order to obtain a vehicle for disputing it.
         Element::Prop(Prop {
             slug: "remedy-carries-an-edit".into(),
             parent: Some("proposal-vocabulary".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A `remedy` carries an **edit** — what would be done to the subject.
 The edits are the theory's, not Het's ({#edit-required-not-typed}); Het requires only that a
@@ -1826,7 +1826,7 @@ remedy name one, and that `enact` apply it.
         Element::Prop(Prop {
             slug: "disposition-vocabulary".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A Disposition is one of exactly five.
 
@@ -1891,7 +1891,7 @@ objection, and nothing downstream could detect it.
         Element::Prop(Prop {
             slug: "enact-makes-an-endofunctor".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"`enact` is what makes the pass an **endofunctor** rather than a
 one-way funnel into a verdict.
@@ -1935,7 +1935,7 @@ withhold it, and the target may refuse it.
         Element::Prop(Prop {
             slug: "panels".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Panels are $\models$ with more than one judge — the game with an
 enlarged oracle-move set. They are not a separate construction.
@@ -1945,7 +1945,7 @@ enlarged oracle-move set. They are not a separate construction.
         Element::Prop(Prop {
             slug: "panels-cannot-weaken-the-opponent".into(),
             parent: Some("panels".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"A Proponent winning strategy in the original game remains
 winning in the composite; additional oracle answers can only strengthen
@@ -1974,7 +1974,7 @@ $$\textbf{HetOpt} = \textbf{Het} + V$$
         Element::Prop(Prop {
             slug: "metric-and-preference-same-furniture".into(),
             parent: Some("het-settles-hetopt-orders".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"Metric and preference are the same categorical furniture read two
 ways. A metric space *is* a category enriched over
@@ -2026,7 +2026,7 @@ minimal-judge rule.
         Element::Prop(Prop {
             slug: "valuation-instantiated-twice".into(),
             parent: Some("cut-at-valuation".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"One piece of machinery, two levels — {#fractal-property} applied to valuation.
 Judge selection and candidate ranking are not two features but one:
@@ -2084,7 +2084,7 @@ the HetOpt fiber by re-indexing.
         Element::Prop(Prop {
             slug: "enrichment-base-is-the-metric".into(),
             parent: Some("hetopt-is-a-theory-extension".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"In HetOpt the enrichment base $V$ **is** the metric $d$, and the
 fibers become $V$-enriched. In Het the verdict space carries $d$ alone.
@@ -2109,7 +2109,7 @@ the composite is again a judgmental institution.
         Element::Prop(Prop {
             slug: "composite-monad".into(),
             parent: Some("composition-is-closed".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"$\mathcal{P}_{1+2} = \mathcal{P}_1 + \mathcal{P}_2$, provenance
 preserved componentwise.
@@ -2119,7 +2119,7 @@ preserved componentwise.
         Element::Prop(Prop {
             slug: "non-identity-extends-to-composite".into(),
             parent: Some("composite-monad".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"The non-identity restriction extends to the composite Kleisli
 category.
@@ -2148,7 +2148,7 @@ component qualifying sets, each still filtered by non-identity.
         Element::Prop(Prop {
             slug: "adequacy-composes".into(),
             parent: Some("composition-is-closed".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Judgmental { role: "category-theorist".into() },
             numbering: None,
             prose: r#"The composite qualifying set is non-empty whenever either
 component's was. Adequacy composes.
@@ -2172,7 +2172,7 @@ component's was. Adequacy composes.
         Element::Prop(Prop {
             slug: "models-defined-by-dispatch".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"$\models$ is defined by dispatch on the gate marker:
 
@@ -2201,7 +2201,7 @@ against $M$.
         Element::Prop(Prop {
             slug: "dispatch-is-two-operations".into(),
             parent: Some("models-defined-by-dispatch".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Dispatch is two operations, and the first is decidable:
 
@@ -2253,7 +2253,7 @@ is what Het specifies ({#no-preference-among-judges}). The minimal-judge rule re
         Element::Prop(Prop {
             slug: "theory-declares-four-things".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A theory written *in* Het declares four things and nothing else: its
 sorts, its edits, its sentences with their gates, and a role for each
@@ -2345,7 +2345,7 @@ know.
         Element::Prop(Prop {
             slug: "decidable-is-a-total-predicate".into(),
             parent: Some("theory-declares-four-things".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"A decidable sentence is **any total predicate of the host language
 on the model**. Het names no logical fragment.

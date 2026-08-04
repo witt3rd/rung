@@ -1,12 +1,12 @@
-# The triage of `rung-ct-props.md`
+# The triage
 
 **Status: informative.** `rung-props.md`, `rung-ct-props.md` and
-`rung-het-props.md` govern. This records *why* each of the 108 propositions of
-the categorical account was classified as it was, and it states no proposition.
+`rung-het-props.md` govern. This records *why* each of the 380 propositions was
+classified as it was, and it states no proposition.
 
-The classification itself lives in `rung-doctrine/src/rung_ct.rs`, which is the
-source `rung-ct-props.md` is rendered from. Where this note and that file
-disagree, the file is right.
+The classification itself lives in `rung-doctrine/src/`, which is the source the
+`*-props.md` files are rendered from. Where this note and those files disagree,
+the files are right.
 
 ---
 
@@ -15,12 +15,12 @@ disagree, the file is right.
 A proposition's kind is **not** a claim about how important it is or how sure
 anyone is of it. It is a claim about *what would settle it*:
 
-| kind | settled by | count |
-|---|---:|---|
-| **signature** | nothing — it declares the correspondence | 41 |
-| **rationale** | nothing — it argues, or records a limit | 41 |
-| **judgmental** | a mathematician | 23 |
-| **decidable** | a sentence, run over a model | 3 |
+| kind | settled by | `rung` | `rung-het` | `rung-ct` | all |
+|---|---|---:|---:|---:|---:|
+| **signature** | nothing — it declares vocabulary | 46 | 38 | 41 | **125** |
+| **rationale** | nothing — it argues, or records a limit | 24 | 134 | 41 | **199** |
+| **judgmental** | a mathematician | 0 | 27 | 23 | **50** |
+| **decidable** | a sentence, run over a model | 0 | 3 | 3 | **6** |
 
 Signature and rationale carry no gate, and that is structural rather than
 conventional: neither is a claim that could be satisfied, so there is nothing
@@ -127,3 +127,72 @@ mathematician could refute*, and the person marking them is not that
 mathematician. The count is a bet about which parts of the account are load
 bearing, and it is exactly the sort of bet the system is built to route to
 someone else.
+
+
+---
+
+## 7 · The other two documents
+
+### `rung-props.md` — 46 signature, 24 rationale, **nothing else**
+
+No proposition of the macro specification is decidable or judgmental, and the
+reason is worth stating rather than treating as a gap.
+
+**The guarantees are signature.** `G1`–`G16` read like claims — *"every rung and
+verdict MUST be `!Send + !Sync`"* — and each names a conformance test. But what
+they declare is **the signature of the emitted module**: what a `ladder!`
+declaration produces. The named test checks that the macro *implements* the
+declared signature, which is what a conformance test is for. Encoding one as a
+`decidable` sentence would require a model of an emitted module, and there is
+none — the compiler holds that, not a value.
+
+That is stronger enforcement than a sentence, not weaker. It is simply not
+`M ⊨ φ`.
+
+**The non-guarantees are rationale, structurally.** A claim that something is
+*not* enforced has no satisfying model. All fifteen of §5 are of that shape.
+
+**`J1` and `J2` are rationale, and this is the call to push back on first.**
+They are design judgments — *where should a ladder bottom out*, *what belongs in
+`rung-std`* — and they read like questions an outside could rule on. They are
+classified rationale because their subject is a design decision rather than an
+artifact that could be handed to a judge. A reader who thinks a design decision
+*is* such an artifact would make them judgmental, and the argument is available.
+
+### `rung-het-props.md` — 27 judgmental, and that is where they live
+
+The judgmental fragment concentrates here, as expected: this is the document
+that makes mathematical identifications. *"An algebra is a functor into the
+Kleisli category"*, *"the tower is a fibered category"*, *"satisfaction is a
+two-player game"*, *"`enact` makes an endofunctor"* — each is a bet a competent
+mathematician could refute, and Q7's ruling shows that is not hypothetical.
+
+134 rationale is the large number, and it is honest. Het's document argues
+heavily: for every structural claim there are two or three propositions saying
+what it does *not* mean, why the alternative collapses, or where the limit sits.
+Those are arguments, and they belong where arguments belong.
+
+**Three decidable**, each naming a sentence `rung_std::principals` declares:
+
+| proposition | sentence |
+|---|---|
+| `epsilon-declared-not-ranked` | `epsilon_is_declared` |
+| `role-not-kind` | `roles_are_earned` |
+| `supplier-interface` | `identity_fields_are_declared` |
+
+Not more, deliberately. Several other propositions are *established* by tests —
+`het-declares-no-worth-law` by a source scan, `ordering-is-hetopts` likewise —
+but a test is not a sentence, and marking them decidable would name a body that
+does not exist.
+
+## 8 · The limit of this reading
+
+The rung-ct triage was made by reading each proposition. **These 272 were
+classified from each proposition's leading claim** — the sentence that says what
+kind of thing it is — rather than from its full body. That is a real reading and
+a shallower one, and it is most likely to be wrong where a proposition opens
+with a definition and then argues, or opens with an argument and then declares.
+
+Which is a reason the section above is the right shape: the classification is a
+**proposal**, and 50 propositions are now marked as claims a mathematician could
+refute by someone who is not one.

@@ -303,11 +303,15 @@ in notes and not in props is not a claim rung makes.
 
 ### The conventions the props files follow
 
-- **Identity is the slug, not the number.** A proposition is anchored
-  `<a id="g2-sealed-construction" data-parent="guarantees">`. Its decimal number
-  is *derived* from the anchor, its `data-parent`, and document order — so
-  inserting, removing, or reparenting a proposition cannot break a reference.
-  `docs/_props.py fmt` recomputes every number and link text.
+- **The `*-props.md` files are generated.** Their source is
+  [`rung-doctrine/`](rung-doctrine/), and they are written by
+  `cargo run -p rung-doctrine --bin render`. Editing one directly does nothing —
+  the next render restores it, and CI fails if the two disagree.
+- **Identity is the slug, not the number.** A proposition declares a slug and a
+  parent; its decimal number is *computed at render time* from its place in the
+  tree and appears nowhere in the source. So there is no number to go stale and
+  no link text to disagree with its target — inserting, removing or reparenting
+  a proposition cannot break a reference, because nothing anywhere stores one.
 - **One slug space across all three documents.** A reference naming another file
   crosses into it; where a claim here touches one there, it links rather than
   restates. That is what lets a categorical proposition cite the guarantee it is
