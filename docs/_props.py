@@ -191,6 +191,37 @@ def check_refs(lines, props, universe=None):
 # document names in order to refuse them. A ban has to say what it bans.
 RETIRED = {"accept-with-mod", "reject-with-alternative"}
 
+# Concepts Het replaced outright. A retired term must not reappear in a
+# normative document — not in a structural position, not in prose. Each was at
+# zero occurrences when the ban was added; a hit is a regression, not a legacy.
+# `role`, `presentation` and `element` are NOT here: all three have legitimate
+# current uses (a competence role; the presentation of a free category; ordinary
+# set membership), and banning them would be false positives.
+RETIRED_TERMS = {
+    "register": "a theory — an algebra carrying its own signature",
+    "registry": "a theory; Het replaces the concept entirely",
+    "charter": "\u03c7, the belonging-law, declared IN the signature",
+    "finding": "a subject; auditability is carried by the fractal property",
+}
+
+# Normative documents the vocabulary ban covers, beyond the proposition set.
+ALSO_NORMATIVE = ("SPEC.md",)
+
+
+def retired_terms():
+    """No normative document may use a term Het retired."""
+    here = Path(__file__).parent
+    targets = docs() + [here / n for n in ALSO_NORMATIVE if (here / n).exists()]
+    errs = []
+    for path in targets:
+        for i, line in enumerate(path.read_text().split("\n")):
+            for term, instead in RETIRED_TERMS.items():
+                if re.search(rf"\b{term}", line, re.I):
+                    errs.append(
+                        f"{path.name}: L{i+1}: `{term}` is retired — use {instead}"
+                    )
+    return errs
+
 # Crates that cite the propositions by slug. Scoped deliberately: elsewhere in
 # the workspace a hyphenated token is ordinary prose, not a citation.
 CITING = ("rung", "rung-het")
@@ -260,6 +291,7 @@ def main():
         return cited()
 
     recs, universe, errs = load()
+    errs += retired_terms()
     if not recs:
         print(f"no proposition document found — expected one of {', '.join(DOC_NAMES)}",
               file=sys.stderr)

@@ -518,15 +518,25 @@ adding a check to the construction.
 ## 11 · The dependency structure is an opfibration
 
 <a id="dependency-structure-is-an-opfibration"></a>
-**11** Items and the typed dependency edges between them form a **free base
-category**; items-in-states over it form a **Grothendieck opfibration**
-$p : E \to B$.
+**11** **Governed subjects** and the declared dependency morphisms between them
+form a **free base category**; subjects-in-states over it form a **Grothendieck
+opfibration** $p : E \to B$. A governed subject is one that carries its own
+signature, and so is a theory at the next level
+([6](rung-het-propositions.md#fractal-property)).
 
 <a id="fibre-is-a-ladder" data-parent="dependency-structure-is-an-opfibration"></a>
-**11.1** The **fibre over an item is exactly that item's ladder** — the category
-of [1](#ladder-declares-a-category). Each object of the base contains a
-category, which is Het's fractal property
-([6](rung-het-propositions.md#fractal-property)) in this setting.
+**11.1** The **fibre over a subject is exactly that subject's ladder** — the
+category of [1](#ladder-declares-a-category). Each object of the base contains a
+category; that is the fractal property read in this setting.
+
+<a id="declaration-names-no-foreign-object" data-parent="fibre-is-a-ladder"></a>
+**11.11** **A declaration names no object of another fibre.** An edge whose
+domain lies in a different fibre is not a morphism of *this* free category — it
+is a morphism of the total space $E$, crossing fibres. It is a different
+categorical object, and a declaration that admitted one would no longer present
+a free category ([1.4](#category-is-freely-generated)). Cross-fibre structure
+enters a declaration only through composition operators, never as a declared
+arrow.
 
 <a id="typed-edge-is-an-opcartesian-lift" data-parent="dependency-structure-is-an-opfibration"></a>
 **11.2** A typed edge is an **opcartesian lift**. A state change at the source
@@ -541,7 +551,21 @@ than a fibration; reversing it changes which lifts exist.
 **11.22** The **edge type selects the pushforward**. A strict edge lifts to an
 obligation; an advisory edge lifts to a coproduct; a generative edge lifts to
 the dependent's existence; a mechanical edge lifts to a state update with no
-outside. The taxonomy of edge types is the registry's, not this document's.
+outside.
+
+<a id="edge-taxonomy-is-the-theorys" data-parent="edge-type-selects-the-pushforward"></a>
+**11.221** **The taxonomy is the governing theory's**, declared by it exactly as
+an edit vocabulary is ([11.12](rung-het-propositions.md#edit-required-not-typed)).
+This document states that an edge type selects a pushforward; it never
+enumerates the types, for the reason
+[11.21](rung-het-propositions.md#governs-who-not-what) gives.
+
+<a id="strict-and-advisory-are-the-gate" data-parent="edge-type-selects-the-pushforward"></a>
+**11.222** The load-bearing split among edge types — obligatory against advisory,
+*this breaks* against *check whether this breaks* — is the **gate marker**
+([2.1](rung-het-propositions.md#four-gates)) at this level. A strict edge
+propagates decidably; an advisory edge requires a ruling. It is not a second
+taxonomy laid over the gates; it is the gates, read one level up.
 
 <a id="advisory-lift-lands-in-a-coproduct" data-parent="dependency-structure-is-an-opfibration"></a>
 **11.3** An **advisory lift does not break functoriality.** It does not land in
@@ -568,12 +592,12 @@ type depends on the state transported forward, which is what makes it dependent.
 <a id="exposure-is-the-backward-pass" data-parent="edges-are-dependent-optics"></a>
 **11.41** **Blast radius is the backward pass, not a count.** Querying backward
 along the composite optic returns a *typed exposure* — how many obligations of
-which kind — and a count of reachable items is its Boolean shadow.
+which kind — and a count of reachable subjects is its Boolean shadow.
 
 <a id="opfibrations-compose" data-parent="dependency-structure-is-an-opfibration"></a>
-**11.5** Opfibrations **compose**. A map from items to their containing domains
-is itself an opfibration, and its composite with $p$ is a single opfibration
-over the whole tower.
+**11.5** Opfibrations **compose**. A map from governed subjects to the theories
+that govern them is itself an opfibration, and its composite with $p$ is a
+single opfibration over the whole tower.
 
 <a id="iteration-not-a-second-level" data-parent="opfibrations-compose"></a>
 **11.51** Composing is an **iteration of one level, not the arrival of a second**.
@@ -595,7 +619,7 @@ content of *"the structure is fractal."*
 <a id="conformance-and-propagation-run-over-different-bases" data-parent="dependency-structure-is-an-opfibration"></a>
 **11.6** Propagation along this opfibration is **not** the inverse of
 conformance. Conformance runs from a model to its theory and re-indexes
-contravariantly; propagation runs from a revised item to its dependents and
+contravariantly; propagation runs from a revised subject to its dependents and
 transports covariantly. They are adjacent levels over different bases, not two
 orientations of one tower
 ([6.14](rung-het-propositions.md#two-directions-two-bases)).
