@@ -742,6 +742,7 @@ name = "rung-het"
 version = "0.1.0"
 dependencies = [
  "rung",
+ "rung-std",
 ]
 
 [[package]]
@@ -759,6 +760,7 @@ version = "0.1.0"
 dependencies = [
  "reqwest",
  "rung",
+ "rung-het",
  "serde",
  "serde_json",
 ]

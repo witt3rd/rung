@@ -1,3 +1,18 @@
+//! rung-std — the canonical building blocks.
+//!
+//! A block is admitted here when it recurs across independent projects and
+//! embeds no caller-specific knowledge. There are two:
+//!
+//! | block | surface | what recurs |
+//! |---|---|---|
+//! | [`LlmCall`](self) — this module | `ladder!` | one blocking LLM call, with retry |
+//! | [`questions`] | `theory!` + `ladder!` | questions posed, ruled on by an outside panel, folded back through a lifecycle |
+//!
+//! The two exercise the two halves of the DSL: `ladder!` declares **arrows**,
+//! `theory!` declares **sentences**, and both live in `rung`.
+//!
+//! ---
+//!
 //! Canonical `LlmCall` rung ladder for reuse across any rung-based project.
 //!
 //! ## What this is
@@ -68,6 +83,8 @@
 //! 2. Its canonical two-rung shape (request-construction rung + verdict-routing
 //!    rung) is domain-generic — no caller-specific knowledge is embedded.
 
+pub mod questions;
+
 use rung::ladder;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -125,7 +142,7 @@ pub enum ContentBlock {
 
 /// The full structured response from one LLM call.
 ///
-/// `#[must_use]` follows the same no-silent-drop idiom rung emits on every
+/// `#[must_use]` follows the same no-drop idiom rung emits on every
 /// verdict token (rung-props.md G4): a response dropped silently loses both the
 /// model's output and the token-usage accounting. Carrying the attribute here
 /// on a non-token result type makes the pattern visible to readers.
@@ -138,7 +155,7 @@ pub struct LlmResponse {
     pub stop_reason: StopReason,
     /// Token-usage counters.
     pub usage: Usage,
-    /// The model that produced this response (e.g. `"claude-sonnet-5-20251001"`).
+    /// The model that produced this response, as the provider reports it.
     pub model: String,
     /// Provider-assigned message identifier.
     pub id: String,
@@ -204,7 +221,7 @@ pub struct LlmConfig {
     /// genuinely needs a JSON-schema-validated object back.
     pub structured_outputs: bool,
 
-    /// Optional streaming-side-channel listener.
+    /// Optional streaming side-channel listener.
     ///
     /// When `Some`, the HTTP response is read as SSE and each event is
     /// forwarded to the listener. The ladder still blocks until the stream
@@ -1073,7 +1090,7 @@ fn raw_call_openai(
 
     classify_status(response.status().as_u16(), &url)?;
 
-    // Read line-by-line so the timeout applies per-chunk, not to the full body.
+    // Read line by line so the timeout applies per-chunk, not to the full body.
     use std::io::BufRead;
     let mut reader = std::io::BufReader::new(response);
     let mut first_data_line: Option<String> = None;

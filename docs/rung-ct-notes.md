@@ -235,10 +235,10 @@ and
 formalism's
 ([`edge-type-selects-the-pushforward`](rung-ct-props.md#edge-type-selects-the-pushforward),
 [`edge-taxonomy-is-the-theorys`](rung-ct-props.md#edge-taxonomy-is-the-theorys)).
-For this repository the theory that declares it is
-`rung-het/tests/question_registry.rs`, which governs `questions/` in the DSL and
-holds the seven kinds as its own `EdgeKind`; `questions/README.md` is the
-operational quickstart.
+The theory that declares it is `rung-std/src/questions.rs`, which holds the
+seven kinds as its own `EdgeKind` and is filled by two carriers —
+`questions/` (via `rung-het/tests/questions_of_rung.rs`) and a synthetic
+decision docket. `questions/README.md` is the operational quickstart.
 
 | edge type | what the pushforward does |
 |---|---|
@@ -267,12 +267,12 @@ breaks*, which is
 — the same gate distinction as §2, read one level up. The strict edge propagates
 decidably; the advisory one lands in a coproduct that a judge collapses. Both
 paths run over this very cascade in
-`rung-het/tests/question_registry.rs::a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on`,
+`rung-het/tests/questions_of_rung.rs::a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on`,
 which goes red the moment `justification` is reclassified strict.
 
 Adding an edge type stays cheap; each new type must still point at a *lived*
 instance, never a speculative one. That discipline is now itself a test —
-`every_declared_edge_kind_has_a_lived_instance_in_the_registry` fails if a
+`every_declared_edge_kind_has_a_lived_instance_on_disk` fails if a
 declared kind has no user in `questions/`.
 
 **Blast radius is the backward pass.** Before modifying an item, you query

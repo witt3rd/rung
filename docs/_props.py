@@ -257,7 +257,13 @@ def retired_terms():
 
 # Crates that cite the propositions by slug. Scoped deliberately: elsewhere in
 # the workspace a hyphenated token is ordinary prose, not a citation.
-CITING = ("rung", "rung-het")
+CITING = ("rung", "rung-het", "rung-std")
+
+# Slug-shaped tokens that are wire identifiers, not citations. Kept as an
+# explicit list rather than a pattern: every entry is a name some protocol
+# chose, and the alternative is degrading the documentation to satisfy a
+# regex.
+NOT_A_CITATION = {"x-api-key"}
 
 COMMENT = re.compile(r"^\s*(?://[/!]?)(.*)$")
 SLUGLIKE = re.compile(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+){2,}\b")
@@ -293,7 +299,7 @@ def cited():
     slugs = {p.slug for p in universe}
     # a comment that names a proposition document is citing the file, not a
     # proposition — and the file names are themselves slug-shaped
-    ignore = RETIRED | {Path(name).stem for name in DOC_NAMES}
+    ignore = RETIRED | NOT_A_CITATION | {Path(name).stem for name in DOC_NAMES}
     root = Path(__file__).parent.parent
     errs, n = [], 0
     for crate in CITING:

@@ -49,6 +49,24 @@ ladder!(Work {
 });
 ```
 
+### Why "ladder"?
+
+Because the accurate name would defeat the design. A `ladder` declaration is a
+presentation of a free category on a linear graph — but the surface deliberately
+never says so. If the syntax required the mathematics, the enforcement would rest
+on you restating it correctly, which is the failure the macro exists to remove.
+You write rungs and transitions; the construction is what owes the category.
+
+The metaphor also happens to carry the guarantees: rungs are discrete positions
+(a rung is an object, inert), you cannot skip one (the category is freely
+generated, so a skipping path does not exist to be taken), and you cannot stand
+on two at once (composition consumes its input). It even scales — ladders stack
+into *towers*, and that turned out to name a real structure rather than a figure
+of speech.
+
+Fuller version, including where the metaphor strains, in
+[`docs/rung-notes.md`](docs/rung-notes.md) §0.
+
 ## Why use this?
 
 - **The compiler is the gate, not a code review.** A skipped transition is a
@@ -245,9 +263,9 @@ without receiving a verdict.
   answer lands in a normative surface. See
   [`INTAKE.md`](docs/questions/INTAKE.md) for how one enters. The questions are
   themselves governed by a Het theory written in the DSL
-  ([`rung-het/tests/question_registry.rs`](rung-het/tests/question_registry.rs)),
-  which declares the typed dependency vocabulary and evaluates every decidable
-  sentence against the real files.
+  ([`rung-std/src/questions.rs`](rung-std/src/questions.rs)), which declares the
+  typed dependency vocabulary; `rung-het/tests/questions_of_rung.rs` evaluates
+  every decidable sentence of it against the real files.
 - [`docs/rung-het-publishing.md`](docs/rung-het-publishing.md) — a brief for an
   outside reviewer on whether Het is publishable mathematics.
 

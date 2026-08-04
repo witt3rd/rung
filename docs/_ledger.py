@@ -409,16 +409,24 @@ CURATED_CT = {
     "edge-taxonomy-is-the-theorys": (
         "expressible",
         "The edge vocabulary is declared by the governing theory, not by the "
-        "library — `rung-het` has no edge type and `EdgeKind` lives in the theory "
-        "that governs `docs/questions/`, exactly where an edit vocabulary sits "
-        "(`edit-required-not-typed`). What the cited test pins is the "
-        "**lived-instance** discipline that keeps the taxonomy the theory's: each "
-        "of the seven declared kinds must have a real user in `docs/questions/`, "
-        "and a speculative eighth fails. NOT enforced: nothing in rung could stop "
-        "a future library enumerating edge types — the location is a choice this "
-        "theory makes, and the test protects the discipline rather than the "
+        "formalism — neither `rung` nor `rung-het` has an edge type, and "
+        "`EdgeKind` lives in `rung-std::questions`, the theory that governs "
+        "bodies of questions, exactly where an edit vocabulary sits "
+        "(`edit-required-not-typed`). Moving the theory out of a test and into a "
+        "library sharpened the row without changing its verdict: the taxonomy is "
+        "now demonstrably neither the formalism's NOR one carrier's, because two "
+        "carriers with disjoint id spaces and disjoint edge sets fill the same "
+        "seven kinds — rung's `docs/questions/` and a synthetic decision docket. "
+        "What the cited test pins is the **lived-instance** discipline, now a "
+        "decidable sentence of the theory (`every_declared_kind_is_lived`) rather "
+        "than prose: a kind stays in the vocabulary only while some question in "
+        "the set under audit uses it, and deleting the sentence turns a test red "
+        "in BOTH carriers. STILL NOT enforced, and the reason is unchanged: what "
+        "would have to fail is a crate BELOW the theory naming an edge type, and "
+        "no test can fail for code that was never written. The location is a "
+        "choice this theory makes; the test protects the discipline, not the "
         "choice.",
-        "rung-het/tests/question_registry.rs::every_declared_edge_kind_has_a_lived_instance_in_the_registry",
+        "rung-het/tests/questions_of_rung.rs::every_declared_edge_kind_has_a_lived_instance_on_disk",
     ),
     "strict-and-advisory-are-the-gate": (
         "enforced",
@@ -433,7 +441,7 @@ CURATED_CT = {
         "at the declared gate, and again at the `Propagated::Ruled` match, where "
         "the advisory edge is found to have consulted nobody. That mutation is "
         "what establishes the row.",
-        "rung-het/tests/question_registry.rs::a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on",
+        "rung-het/tests/questions_of_rung.rs::a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on",
     ),
 }
 
