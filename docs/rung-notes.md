@@ -13,6 +13,73 @@ A Rust proc macro that compiles the rung `ladder` primitive to the borrow-checke
 
 ---
 
+## 0. Why "ladder"
+
+*Reconstructed, not recorded.* No document in this repo states why the primitive
+was named a ladder — the term is already in use in the first line of this file,
+which is the earliest design record there is. What follows is the case for the
+name as the rest of the corpus settled it, not a decision anyone wrote down at
+the time.
+
+### The accurate name would defeat the design
+
+A `ladder` declaration is a presentation of a free category on a linear graph.
+That is the precise description, and putting it on the surface is a rejected
+alternative (§9 of [`rung-ct-notes.md`](rung-ct-notes.md)) — rejected, in its own
+words, "as the whole point." The normative form is
+[`rung-ct-props.md`](rung-ct-props.md) 12:
+
+> The surface syntax names **objects and transitions**. It does not name free
+> categories, coproducts, indexed monads, daggers, or optics, **and it must
+> not.** [...] The hiding is **not a convenience**. A surface that required the
+> mathematics would make the mathematics the language, and the enforcement would
+> then rest on the author restating it correctly — which is the failure the
+> construction exists to remove.
+
+So the special term is not a friendlier label for the mathematics. It is there
+*instead of* the mathematics, deliberately, because a surface an author must
+restate correctly has moved the enforcement back into the author's hands. The
+whole point is that the construction is obliged to the category and the author
+is not.
+
+### The metaphor carries specific propositions
+
+Most naming metaphors are decoration. This one maps onto claims that are checked:
+
+| the physical fact | what it names |
+|---|---|
+| rungs are discrete positions, not a continuum | a rung is an **object** — inert, data at rest, no verbs ([`rung-ct-props.md`](rung-ct-props.md) 1.1) |
+| you cannot skip a rung | the category is **freely generated**: a path that skips a rung does not exist to be taken (1.4) |
+| you cannot stand on two rungs at once, and going up means letting go | composition is **linear** — not sequencing, but resource consumption (1.6, G1) |
+| a ladder has a floor, and ladders stack into towers | J1, *where does the tower bottom out?* ([`rung-props.md`](rung-props.md) §7) |
+
+The last row is the one that argues for the name most strongly. "Ladder" supplied
+a whole vocabulary — rung, climb, floor, tower — and *tower* turned out to name a
+real structure rather than a figure of speech: Q10 resolved the
+`domain ⊐ item ⊐ state` tower as an iterated Grothendieck opfibration. A metaphor
+that keeps being right about structures nobody had looked at yet is doing more
+than reading nicely.
+
+### Where it strains
+
+A ladder is purely linear and rung's graph is not. A continue arm
+(`Iterate -> Active`) stays in place; a recover edge (`Stalled => Active`) goes
+back *down*. The honest picture is a spine you climb with slips and retries, not
+a clean ascent.
+
+It holds up better than it should even there. G8 injects a progress guard that
+panics if recovery produces a token identical to its source, so you cannot slip
+back and retry the identical step forever. And the mathematically prettier
+option — an involutive dagger, `f†† = f` — was **rejected deliberately** (§9)
+because it "would permit a stall loop that type-checks"; the guard "trades
+symmetry for well-foundedness."
+
+Which is the interesting part: where the mathematics and the ladder intuition
+disagreed about what a retry should mean, the ladder intuition won, and the
+account was written to match it.
+
+---
+
 ## 1. The DSL — `ladder!` syntax
 
 ```
