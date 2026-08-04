@@ -227,6 +227,23 @@ identity for a raised matter indistinguishable from an error message; `Failed`
 is also emitted for every ladder, so widening it would break the compatibility
 clause outright. What the two share is the *shape*, `Result<_, Carrier<from>>`.
 
+<a id="suspended-reports-what-it-awaits" data-parent="emitted-suspended"></a>
+**3.41** The macro MUST also emit `impl<Prev> ::rung::Awaiting for
+Suspended<Prev>`, returning the carried [3.4](#emitted-suspended)
+unchanged. A run reports what it awaits **itself**, so that a holder of many
+suspended runs can ask each the same question without naming its module.
+
+The fields are already `pub`, so this adds no access. What it adds is that the
+reference cannot be supplied *about* a run by whoever holds it. A holder keyed
+by a caller-passed reference can be told a run awaits a matter it never raised —
+the same fabrication [G16](#g16-the-residual-channel) forecloses one
+level down by deriving evidence from the `Raised` rather than accepting it
+alongside. Reading it off the run leaves no parameter to lie through.
+
+Het requires nothing further of the reference here: the trait hands back the
+theory's value and declares no ordering, comparison or well-formedness over it
+([3.2](rung-het-props.md#pool-is-opaque)).
+
 <a id="emitted-step-outcome" data-parent="emitted-module"></a>
 **3.5** **`StepOutcome`** — `#[must_use] pub enum` with one variant per verdict
 of the branching transition. A continue arm's variant carries its **target

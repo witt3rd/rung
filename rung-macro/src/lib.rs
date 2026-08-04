@@ -952,6 +952,16 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                     write!(f, "Suspended(awaiting `{}`)", self.raised.reference())
                 }
             }
+
+            // What the run awaits, read off the run itself
+            // (rung-props.md suspended-reports-what-it-awaits). Emitted rather
+            // than left to a driver's own bookkeeping so that a park holding
+            // suspensions from several ladders cannot be *told* what one is
+            // waiting on — which is the hole a park keyed by a caller-supplied
+            // reference would have.
+            impl<Prev> ::rung::Awaiting for Suspended<Prev> {
+                fn awaiting(&self) -> &::rung::Raised { &self.raised }
+            }
         }
     } else {
         quote! {}

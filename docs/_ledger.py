@@ -935,6 +935,18 @@ CURATED_RUNG = {
         "its module is byte-identical.",
         "rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed",
     ),
+    "suspended-reports-what-it-awaits": (
+        "enforced",
+        "The emitted `impl ::rung::Awaiting for Suspended<Prev>` is what lets a "
+        "holder read what a run awaits off the run instead of being told. The "
+        "cited suite parks suspensions from a real ladder and matches them by "
+        "that trait alone; deleting the impl from the macro's emission makes "
+        "the whole file fail to compile with `Suspended<Filed>: Awaiting is "
+        "not satisfied`, because `Park<S>` is bounded on it. That the bound "
+        "carries the claim — rather than a `raised` field read a holder could "
+        "have done anyway — is the content of the proposition.",
+        "rung-std/tests/driver.rs::a_parked_run_is_released_by_its_evidence_and_resumes_to_a_terminal",
+    ),
     "resume-signature": (
         "enforced",
         "Three parameters and two injected prologues. The cited test coerces the "
