@@ -28,8 +28,8 @@ impl Principal for Nobody {
     fn authored(&self) -> rung::Prov {
         rung::Prov::empty()
     }
-    fn rule(&self, _matter: &str) -> rung::Verdict {
-        rung::Verdict::Conforming
+    fn rule(&self, _matter: &str) -> rung::Response {
+        rung::Response::Rendered(rung::Verdict::Conforming)
     }
 }
 
@@ -65,11 +65,17 @@ impl rung::Role for Reviewer {
 ladder!(Demo {
     Spec(SpecData) => #[judgmental(Reviewer)] Active(LoopState) => { Done }
 } impl {
-    active = |_spec, _q| { Active::new(LoopState) },
+    active = |_spec, _q| { Ok(Active::new(LoopState)) },
     step   = |_active|  { Ok(StepOutcome::Done(Done::new())) },
 });
 
 fn main() {
+    // Honestly obtained, and no help at all. `judgment` is the SEALED form and
+    // may defer (suspension-is-the-residual); this one answers, and unwrapping
+    // it here keeps the only error in this file the one it exists to pin.
+    let rung::Consulted::Rendered(answer) = Nobody.judgment("reviewer") else {
+        return;
+    };
     let forged: rung::Qualified<Reviewer> = rung::Qualified {
         _seal: (),
         _not_send: PhantomData,
@@ -78,8 +84,7 @@ fn main() {
         // The binding half of the token (non-identity-by-construction) is
         // sealed too: forging `π(a)` would make every argument the right one.
         argument_prov: rung::Prov::empty(),
-        // Honestly obtained, and no help at all.
-        judgment: Nobody.judgment("reviewer"),
+        judgment: answer,
         _role: PhantomData,
     };
     let spec = demo::Spec::new(SpecData);

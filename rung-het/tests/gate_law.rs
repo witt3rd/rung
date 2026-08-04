@@ -8,7 +8,9 @@
 //! The compile-fail cases live in `rung-het/src/lib.rs` as doctests, because
 //! only a doctest can assert that something does *not* compile.
 
-use rung_het::{Pool, Principal, Prov, Provenanced, QualifyError, Role, Verdict, theory};
+use rung_het::{
+    Consulted, Pool, Principal, Prov, Provenanced, QualifyError, Response, Role, Verdict, theory,
+};
 
 // ─────────────────────────────────────────────────────────────────────────
 // A tiny domain: a constitutive document with a character budget.
@@ -70,8 +72,8 @@ impl Principal for Judge {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 
@@ -428,10 +430,10 @@ impl Principal for Contrarian {
     fn authored(&self) -> Prov {
         Prov::empty()
     }
-    fn rule(&self, matter: &str) -> Verdict {
-        Verdict::NonConforming {
+    fn rule(&self, matter: &str) -> Response {
+        Response::Rendered(Verdict::NonConforming {
             reason: format!("`{matter}` does not hold, and I am the one asked"),
-        }
+        })
     }
 }
 
@@ -468,7 +470,9 @@ fn a_judgment_rendered_by_another_principal_is_refused() {
         .expect("forge qualifies");
 
     let bellows = judge("bellows", &["bellows"], &[ChordReader::NAME]);
-    let borrowed = bellows.judgment("is_constitutive");
+    let Consulted::Rendered(borrowed) = bellows.judgment("is_constitutive") else {
+        panic!("bellows answers when asked");
+    };
 
     match soul::is_constitutive::settle(&m, q, borrowed) {
         Err(rung_het::SettleError::OutcomeNotFromJudge(e)) => {

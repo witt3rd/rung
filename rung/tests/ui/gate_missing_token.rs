@@ -38,7 +38,7 @@ impl rung::Role for Reviewer {
 ladder!(Demo {
     Spec(SpecData) => #[judgmental(Reviewer)] Active(LoopState) => { Done }
 } impl {
-    active = |_spec, _q| { Active::new(LoopState) },
+    active = |_spec, _q| { Ok(Active::new(LoopState)) },
     step   = |_active|  { Ok(StepOutcome::Done(Done::new())) },
 });
 

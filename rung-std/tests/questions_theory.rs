@@ -110,8 +110,11 @@ impl rung_het::Principal for Person {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, matter: &str) -> rung_het::Verdict {
-        rung_het::Verdict::conforming(!self.dissents, format!("`{matter}` does not hold"))
+    fn rule(&self, matter: &str) -> rung_het::Response {
+        rung_het::Response::Rendered(rung_het::Verdict::conforming(
+            !self.dissents,
+            format!("`{matter}` does not hold"),
+        ))
     }
 }
 impl rung_het::Steward for Person {

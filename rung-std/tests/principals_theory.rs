@@ -25,7 +25,7 @@ use rung_std::principals::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use rung::{Principal, Prov, Provenanced, Role, Settled, Steward, Verdict};
+use rung::{Principal, Prov, Provenanced, Response, Role, Settled, Steward, Verdict};
 use rung_het::{Pool, QualifyError};
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -674,10 +674,10 @@ impl Principal for Dissenting {
     fn authored(&self) -> Prov {
         self.0.authored()
     }
-    fn rule(&self, matter: &str) -> Verdict {
-        Verdict::NonConforming {
+    fn rule(&self, matter: &str) -> Response {
+        Response::Rendered(Verdict::NonConforming {
             reason: format!("`{matter}` does not hold, and I am the one asked"),
-        }
+        })
     }
 }
 

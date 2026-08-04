@@ -1,6 +1,8 @@
 ---
 id: q2
 status: parked
+affects:
+  - {target: q13, kind: justification}
 ---
 
 # Q2 — Cross-crate provenance *(parked)*

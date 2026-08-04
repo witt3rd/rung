@@ -25,6 +25,9 @@ struct Ladder {
     transitions: Vec<Transition>,
     recover_edges: Vec<RecoverEdge>,
     recover_fns: Vec<RecoverFn>,
+    /// `resume { name: #[authorial(R)] Suspended(Rung) => Rung }` — the edge
+    /// back from a suspended judgmental dispatch (rung-props.md G16).
+    resume_fns: Vec<ResumeFn>,
     /// Inline transition/recover bodies from a trailing `impl { .. }` block.
     /// Empty ⇒ type-only declaration (structs, enum, guards — no logic).
     bodies: Vec<TransitionBody>,
@@ -231,6 +234,31 @@ struct RecoverEdge {
     to_rung: Ident,
 }
 
+/// One `resume { name: #[authorial(R)] Suspended(From) => To }` edge.
+///
+/// The residual's adjoint, made declarable
+/// (`resume-edge-is-the-residual-dagger`). Three things distinguish it from a
+/// `RecoverFn`, and none of them is cosmetic:
+///
+/// - it consumes a `Suspended<From>`, not a verdict and not a `Failed`;
+/// - it is **authorial** — reviving a suspended run produces a rung of this
+///   ladder, and `G2` seals that construction against everything outside the
+///   module, so the edge is emitted inside it and gated on standing
+///   (`resumption-is-authorial`);
+/// - it is **unguarded** — no `must_progress`. A raised question may take any
+///   number of rounds, and a guard on re-entry is the eviction rule
+///   `guarded-reentry-is-eviction` forbids.
+struct ResumeFn {
+    name: Ident,
+    /// The rung the suspension carries, unconsumed.
+    from_rung: Ident,
+    return_rung: Ident,
+    /// `role(o)` — the competence the authorial pen must witness. Not optional:
+    /// a resume edge with no marker is refused at expansion, because an edge
+    /// inside the seal that anyone may call is the seal with a door in it.
+    role: Type,
+}
+
 struct RecoverFn {
     name: Ident,
     param_type: Type,
@@ -254,14 +282,15 @@ impl Parse for Ladder {
         let mut transitions = Vec::new();
         let mut recover_edges = Vec::new();
         let mut recover_fns = Vec::new();
+        let mut resume_fns = Vec::new();
 
         while !content.is_empty() {
-            // Peek: if the next token is an ident and it's "carry" or "recover",
-            // handle it specially. Otherwise, parse as a rung.
+            // Peek: if the next token is an ident and it's "carry", "recover"
+            // or "resume", handle it specially. Otherwise, parse as a rung.
             let is_carry_or_recover = content
                 .fork()
                 .parse::<Ident>()
-                .map(|kw: Ident| kw == "carry" || kw == "recover")
+                .map(|kw: Ident| kw == "carry" || kw == "recover" || kw == "resume")
                 .unwrap_or(false);
 
             if is_carry_or_recover {
@@ -335,6 +364,81 @@ impl Parse for Ladder {
                             return_rung,
                             from_failed: None,
                         });
+                        let _ = block.parse::<Token![;]>();
+                    }
+                } else if kw == "resume" {
+                    // resume { name: #[authorial(R)] Suspended(Rung) => Rung, ... }
+                    let block;
+                    braced!(block in content);
+                    while !block.is_empty() {
+                        let edge_name: Ident = block.parse()?;
+                        block.parse::<Token![:]>()?;
+
+                        // The marker sits where it sits on a spine target: in
+                        // front of the thing it annotates. It is REQUIRED here,
+                        // unlike on the spine, where absence reads as decidable.
+                        // There is no decidable reading of a resume edge — see
+                        // the `None` arm below.
+                        let gate = parse_gate_marker(&block)?;
+                        let role = match gate {
+                            Some(Gate::Authorial(role)) => role,
+                            Some(Gate::Judgmental(_)) => {
+                                return Err(syn::Error::new(
+                                    edge_name.span(),
+                                    format!(
+                                        "resume edge `{edge_name}` is marked `#[judgmental(..)]`. \
+                                         Resuming a suspended run PRODUCES a rung of this ladder; \
+                                         it does not classify one. The judgmental filter admits a \
+                                         principal for being provenance-disjoint from the subject \
+                                         (rung-het-props.md#judgmental-qualifying-set), which is \
+                                         exactly what disqualifies it from writing to the subject \
+                                         (rung-het-props.md#judgment-refuses-authorship-requires). \
+                                         Write `#[authorial(Role)]`."
+                                    ),
+                                ));
+                            }
+                            None => {
+                                return Err(syn::Error::new(
+                                    edge_name.span(),
+                                    format!(
+                                        "resume edge `{edge_name}` names no authorial role. \
+                                         Reviving a suspended run constructs a rung of this \
+                                         ladder, which rung-props.md G2 seals against everything \
+                                         outside the module — so the edge is emitted INSIDE it, \
+                                         and an edge inside the seal that anyone may call is the \
+                                         seal with a door in it. Resumption is therefore authorial \
+                                         (rung-het-props.md#resumption-is-authorial): it requires \
+                                         a principal holding standing over the subject, the same \
+                                         shape as `enact`. Write: resume {{ {edge_name}: \
+                                         #[authorial(Role)] Suspended(Rung) => Rung }}"
+                                    ),
+                                ));
+                            }
+                        };
+
+                        let suspended_kw: Ident = block.parse()?;
+                        if suspended_kw != "Suspended" {
+                            return Err(syn::Error::new(
+                                suspended_kw.span(),
+                                format!(
+                                    "resume edge `{edge_name}` takes a `Suspended(Rung)`, not \
+                                     `{suspended_kw}(..)`. A resume edge is the adjoint of the \
+                                     residual summand and consumes what the residual carries."
+                                ),
+                            ));
+                        }
+                        let inner;
+                        syn::parenthesized!(inner in block);
+                        let from_rung: Ident = inner.parse()?;
+                        block.parse::<Token![=>]>()?;
+                        let return_rung: Ident = block.parse()?;
+                        resume_fns.push(ResumeFn {
+                            name: edge_name,
+                            from_rung,
+                            return_rung,
+                            role,
+                        });
+                        let _ = block.parse::<Token![,]>();
                         let _ = block.parse::<Token![;]>();
                     }
                 } else {
@@ -429,6 +533,7 @@ impl Parse for Ladder {
             transitions,
             recover_edges,
             recover_fns,
+            resume_fns,
             bodies,
         })
     }
@@ -602,6 +707,41 @@ fn check(ladder: &Ladder) -> Result<(), String> {
         }
     }
 
+    // 11. A resume edge names declared rungs, and the rung it resumes from must
+    //     actually be suspendable — i.e. it must be the source of a judgmental
+    //     forward transition, which is the only thing that produces a
+    //     `Suspended` (rung-props.md G16). A resume edge from a rung nothing can
+    //     suspend is an unreachable door into the seal.
+    for rf in &ladder.resume_fns {
+        if !rung_names.contains(&rf.from_rung.to_string()) {
+            return Err(format!(
+                "resume `{}`: `Suspended({})` names an undeclared rung",
+                rf.name, rf.from_rung
+            ));
+        }
+        if !rung_names.contains(&rf.return_rung.to_string()) {
+            return Err(format!(
+                "resume `{}`: return rung `{}` not declared",
+                rf.name, rf.return_rung
+            ));
+        }
+        let suspendable = ladder.transitions.iter().any(|t| {
+            t.from_rung == rf.from_rung
+                && t.to_rung.is_some()
+                && matches!(t.gate, Some(Gate::Judgmental(_)))
+        });
+        if !suspendable {
+            return Err(format!(
+                "resume `{}`: nothing suspends `{}`. A `Suspended<{}>` is produced only by a \
+                 `#[judgmental(R)]` FORWARD transition out of `{}` — the residual summand of a \
+                 judgmental arrow (rung-het-props.md#judgmental-arrow-shape). Without one this \
+                 edge is a route into a mid-ladder rung that no suspension can reach, which is \
+                 rung-props.md G2 with a door in it",
+                rf.name, rf.from_rung, rf.from_rung, rf.from_rung
+            ));
+        }
+    }
+
     // 9 & 10. If an inline `impl { .. }` block is present, its bodies must
     // correspond exactly to the ladder's transition + recover functions.
     if !ladder.bodies.is_empty() {
@@ -611,6 +751,7 @@ fn check(ladder: &Ladder) -> Result<(), String> {
             .filter(|t| t.to_rung.is_some() || !t.verdicts.is_empty())
             .map(|t| t.name.to_string())
             .chain(ladder.recover_fns.iter().map(|rf| rf.name.to_string()))
+            .chain(ladder.resume_fns.iter().map(|rf| rf.name.to_string()))
             .collect();
 
         // 9. every body names a real transition/recover fn (no phantom bodies)
@@ -684,6 +825,14 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     // ── Rung structs (sealed) + sealed constructor + carry accessor ──────
     let has_carry = !carry_fields.is_empty();
     let has_bodies = !ladder.bodies.is_empty();
+    // A judgmental FORWARD transition is the one thing that can suspend: the
+    // residual summand of `judgmental-arrow-shape`, as an arrow. A branching
+    // transition already returns `Result<StepOutcome, Failed<from>>` and is not
+    // touched here (see G16's limit).
+    let is_judgmental_forward =
+        |t: &Transition| matches!(t.gate, Some(Gate::Judgmental(_))) && t.to_rung.is_some();
+    let needs_suspension =
+        ladder.transitions.iter().any(is_judgmental_forward) || !ladder.resume_fns.is_empty();
     let entry_name = ladder.rungs.first().map(|r| r.name.to_string());
     let rung_structs: Vec<_> = ladder
         .rungs
@@ -762,6 +911,50 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         // with no recovery and no completion. Force the caller to handle it.
         #[must_use = "a Failed carries the unconsumed token and the error; dropping it swallows both — handle it or recover from it"]
         pub struct Failed<Prev> { pub token: Prev, pub error: String }
+    };
+
+    // ── Suspended<Prev> (rung-props.md G16) ─────────────────────────────
+    //
+    // The residual channel of a judgmental forward transition: the argument
+    // returned unconsumed, together with the opaque reference to what the
+    // outside raised instead of answering.
+    //
+    // **Conditional**, exactly as the standing helper is, and for the same
+    // reason: G12's compatibility clause says an unmarked ladder emits
+    // byte-for-byte what it emitted before. Nothing in an unmarked ladder can
+    // produce or consume one.
+    //
+    // **Not `Failed<Prev>` widened.** `Failed` carries `error: String`, and
+    // pushing a raised reference through it would make the theory's identity
+    // for a raised question indistinguishable from an error message — the
+    // resume edge could not tell a suspension from a failure, and Het's
+    // `adequacy-failure-is-not-a-w-defect` is precisely the statement that
+    // these are different. `Failed` is also emitted for EVERY ladder, so
+    // widening it would break the compatibility clause outright. What is reused
+    // is the *shape*: `Result<_, Carrier<from>>`, the same one a branching
+    // transition already returns.
+    //
+    // The fields are `pub`, like `Failed`'s, so a driver can hold a suspended
+    // run in memory and read what it awaits. That is not a G2 hole: parking a
+    // token you already hold authorizes nothing. Unparking is the gated act,
+    // and it is the resume edge — `resumption-is-authorial`.
+    let suspended_type = if needs_suspension {
+        quote! {
+            #[must_use = "a Suspended carries the unconsumed token and what was raised; dropping it abandons the run and the question it is waiting on"]
+            pub struct Suspended<Prev> { pub token: Prev, pub raised: ::rung::Raised }
+
+            // `Debug` by hand rather than by derive, so it does not demand
+            // `Prev: Debug` — a rung is a sealed token and printing one says
+            // nothing. What a driver wants to see is what the run is waiting
+            // on, which is the reference the theory raised.
+            impl<Prev> ::core::fmt::Debug for Suspended<Prev> {
+                fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                    write!(f, "Suspended(awaiting `{}`)", self.raised.reference())
+                }
+            }
+        }
+    } else {
+        quote! {}
     };
 
     // ── Verdict structs (sealed, !Send, constructible) ───────────────────
@@ -1083,13 +1276,24 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                     // that a `return` in it returns from the *body*, not from
                     // the transition — otherwise an adversarial body could step
                     // straight over the epilogue on its way out.
+                    //
+                    // The epilogue runs on the **answered** arm only. G15 is
+                    // stated on `π(f(a))`, the arrow's outcome; the residual is
+                    // not an outcome but the argument coming back unconsumed
+                    // (`residual-summand`), and measuring `π` of the argument
+                    // against the judge's would refuse every suspension by
+                    // construction — the argument is the audited party's, which
+                    // is why a judge was wanted in the first place.
                     let stmts = fn_body_stmts(&b.closure);
                     let to = t.to_rung.as_ref().expect("has_epilogue checked to_rung");
                     quote! {
                         {
                             #prologue
-                            let __out: #to = (move || { #stmts })();
-                            must_derive_from_judge(&__out.payload, &__judge_prov);
+                            let __out: ::core::result::Result<#to, Suspended<#from>> =
+                                (move || { #stmts })();
+                            if let ::core::result::Result::Ok(ref __answered) = __out {
+                                must_derive_from_judge(&__answered.payload, &__judge_prov);
+                            }
                             __out
                         }
                     }
@@ -1098,8 +1302,16 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                     quote! { { #prologue #stmts } }
                 };
                 if let Some(ref to) = t.to_rung {
+                    // A judgmental forward transition gains the residual
+                    // channel (rung-props.md G16). Everything else keeps the
+                    // return type it had.
+                    let ret = if is_judgmental_forward(t) {
+                        quote! { ::core::result::Result<#to, Suspended<#from>> }
+                    } else {
+                        quote! { #to }
+                    };
                     Some(quote! {
-                        pub fn #name(#pat: #from #gate_param) -> #to #body
+                        pub fn #name(#pat: #from #gate_param) -> #ret #body
                     })
                 } else if !t.verdicts.is_empty() {
                     Some(quote! {
@@ -1147,7 +1359,73 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             })
             .collect();
 
-        quote! { #(#transition_fns)* #(#recover_fns)* }
+        // ── resume edges (rung-props.md G16) ────────────────────────────
+        //
+        // The residual's adjoint, declared. Three injected facts, none of them
+        // the body's to supply:
+        //
+        //   the pen        `#[authorial(R)]` puts an `::rung::Authorized<'_, R>`
+        //                  in the signature, so there is no term for resuming
+        //                  without standing. The construction it performs is a
+        //                  rung of this ladder, which G2 seals from outside the
+        //                  module — so the edge lives inside the seal, and what
+        //                  keeps that from being a door is the pen
+        //                  (`resumption-is-authorial`).
+        //
+        //   the container  `must_hold_standing_over` — the same guard the
+        //                  authorial spine transitions get (G14). A pen minted
+        //                  over one container does not authorize a write to a
+        //                  subject sitting in another.
+        //
+        //   the terminal   `must_answer_the_raised` — the outer arrow awaits
+        //                  the terminal of the run IT raised, not of some other
+        //                  run that happened to finish.
+        //
+        // And one thing deliberately **not** injected: `must_progress`. A raised
+        // question may take any number of rounds, so re-entry is unguarded
+        // (`error-dagger-is-optional-and-unguarded`); a guard here would be the
+        // bound Het declines to declare, which is an eviction rule under another
+        // name (`guarded-reentry-is-eviction`, `no-bound-on-reentry`).
+        let resume_fns: Vec<_> = ladder
+            .resume_fns
+            .iter()
+            .map(|rf| {
+                let name = &rf.name;
+                let from = &rf.from_rung;
+                let ret = &rf.return_rung;
+                let role = &rf.role;
+                // `check()` guarantees a body exists for every resume fn.
+                let b = body_for(&name.to_string()).expect("resume body checked");
+                let pat = arg_pat(&b.closure);
+                let named = |n: usize, default: proc_macro2::TokenStream| {
+                    b.closure
+                        .inputs
+                        .iter()
+                        .nth(n)
+                        .map(|p| quote! { #p })
+                        .unwrap_or(default)
+                };
+                let evpat = named(1, quote! { _evidence });
+                let penpat = named(2, quote! { _pen });
+                let s = pat_binding(b.closure.inputs.first(), "__suspended");
+                let ev = pat_binding(b.closure.inputs.iter().nth(1), "_evidence");
+                let pen = pat_binding(b.closure.inputs.iter().nth(2), "_pen");
+                let stmts = fn_body_stmts(&b.closure);
+                quote! {
+                    pub fn #name(
+                        #pat: Suspended<#from>,
+                        #evpat: ::rung::Terminated,
+                        #penpat: ::rung::Authorized<'_, #role>
+                    ) -> #ret {
+                        must_hold_standing_over(&#s.token.payload, &#pen);
+                        must_answer_the_raised(&#s.raised, &#ev);
+                        #stmts
+                    }
+                }
+            })
+            .collect();
+
+        quote! { #(#transition_fns)* #(#recover_fns)* #(#resume_fns)* }
     } else {
         quote! {}
     };
@@ -1254,6 +1532,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         .transitions
         .iter()
         .any(|t| matches!(t.gate, Some(Gate::Authorial(_))))
+        || !ladder.resume_fns.is_empty()
     {
         quote! {
             /// Standing guard (rung-props.md G14). An `#[authorial(R)]` transition is
@@ -1301,6 +1580,49 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         quote! {}
     };
 
+    // The terminal guard (rung-props.md G16), emitted only for a ladder that
+    // can suspend. Conditional for the same reason the standing helper is.
+    let terminal_helper = if needs_suspension {
+        quote! {
+            /// Terminal guard (rung-props.md G16). A resume edge revives the
+            /// arrow that raised a matter, so the evidence it consumes must be
+            /// evidence about **that** matter.
+            ///
+            /// The third member of a family. `must_be_bound_to` refuses a
+            /// licence measured against another argument; `must_hold_standing_over`
+            /// refuses a pen minted over another container; this refuses
+            /// evidence about another raised run. Each closes *transfer* on a
+            /// value whose fabrication was already closed — a `::rung::Terminated`
+            /// is derived from the `::rung::Raised` it is about, so it cannot
+            /// name a reference nobody raised, but nothing in that stops one
+            /// honest terminal being spent on a different suspension.
+            ///
+            /// It does **not** assert that anything terminates.
+            /// `no-bound-on-reentry` is a stated limit: a raised run that never
+            /// terminates produces no evidence, and the outer arrow stays
+            /// suspended, visibly. Asserting termination here would be the bound
+            /// Het declines to declare.
+            ///
+            /// Panics for the same reason its siblings do: the resume edge's
+            /// return type is the domain's declaration, so there is no `Err`
+            /// variant to route a refusal through.
+            #[allow(dead_code)]
+            pub fn must_answer_the_raised(raised: &::rung::Raised, evidence: &::rung::Terminated) {
+                assert!(
+                    evidence.answers(raised),
+                    "this evidence is about `{}` and does not answer the matter this run \
+                     raised, `{}`; a suspended arrow awaits the terminal of the run IT \
+                     raised — rung-props.md G16, \
+                     rung-het-props.md#resumption-needs-a-terminal",
+                    evidence.reference(),
+                    raised.reference(),
+                );
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     // ── assemble module ─────────────────────────────────────────────────
     quote! {
         #mod_vis mod #mod_name {
@@ -1309,9 +1631,11 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             #(#rung_structs)*
             #(#verdict_structs)*
             #failed_type
+            #suspended_type
             #verdict_enum
             #progress_helper
             #standing_helper
+            #terminal_helper
             #logic
         }
     }

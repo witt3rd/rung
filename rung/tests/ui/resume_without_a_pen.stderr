@@ -1,0 +1,5 @@
+error: resume edge `revive` names no authorial role. Reviving a suspended run constructs a rung of this ladder, which rung-props.md G2 seals against everything outside the module — so the edge is emitted INSIDE it, and an edge inside the seal that anyone may call is the seal with a door in it. Resumption is therefore authorial (rung-het-props.md#resumption-is-authorial): it requires a principal holding standing over the subject, the same shape as `enact`. Write: resume { revive: #[authorial(Role)] Suspended(Rung) => Rung }
+  --> tests/ui/resume_without_a_pen.rs:46:14
+   |
+46 |     resume { revive: Suspended(Posed) => Posed }
+   |              ^^^^^^

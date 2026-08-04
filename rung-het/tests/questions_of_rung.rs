@@ -102,8 +102,11 @@ impl Principal for Person {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, matter: &str) -> Verdict {
-        Verdict::conforming(!self.dissents, format!("`{matter}` does not hold"))
+    fn rule(&self, matter: &str) -> Response {
+        Response::Rendered(Verdict::conforming(
+            !self.dissents,
+            format!("`{matter}` does not hold"),
+        ))
     }
 }
 impl Steward for Person {
@@ -150,15 +153,15 @@ fn pool() -> Pool<Person> {
 /// The questions are read, not invented. If this count drifts, every audit
 /// below is silently weaker, so it is pinned.
 #[test]
-fn the_twelve_questions_are_read_from_disk() {
+fn the_thirteen_questions_are_read_from_disk() {
     let r = load();
     let ids: Vec<&str> = r.questions.iter().map(|q| q.id.as_str()).collect();
     assert_eq!(
         ids,
         [
-            "q1", "q10", "q11", "q12", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9"
+            "q1", "q10", "q11", "q12", "q13", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9"
         ],
-        "docs/questions/ holds twelve questions; an audit over zero of them proves nothing"
+        "docs/questions/ holds thirteen questions; an audit over zero of them proves nothing"
     );
 }
 
