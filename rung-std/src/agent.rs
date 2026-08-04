@@ -46,6 +46,7 @@ use crate::llm::{
 };
 use crate::tools::Toolset;
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 // ─── Carry data ────────────────────────────────────────────────────────────────
@@ -163,7 +164,7 @@ fn response_text(blocks: &[ContentBlock]) -> Option<String> {
 ladder!(AgentLoop {
     carry {
         state: LoopState,
-        tools: &'static dyn Toolset,
+        tools: Arc<dyn Toolset>,
         config: LlmConfig,
     }
 
@@ -197,7 +198,7 @@ ladder!(AgentLoop {
         let state = calling.carry().state.clone();
         let thread = calling.payload.clone();  // will be consumed below
         let config = calling.carry().config.clone();
-        let tools = calling.carry().tools;  // &'static dyn Toolset
+        let tools = calling.carry().tools.clone();  // Arc<dyn Toolset>
 
         // ── termination gates (before the LLM call) ──────────────────────
         if state.api_call_count >= state.max_iterations {
