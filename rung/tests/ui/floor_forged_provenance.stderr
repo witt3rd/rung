@@ -1,0 +1,9 @@
+error[E0119]: conflicting implementations of trait `Provenanced` for type `Universal`
+  --> tests/ui/floor_forged_provenance.rs:39:1
+   |
+39 | impl Provenanced for Universal {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: conflicting implementation in crate `rung`:
+           - impl<P> Provenanced for P
+             where P: Principal, P: ?Sized;
