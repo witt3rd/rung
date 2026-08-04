@@ -247,6 +247,37 @@ pen-gated resume edge does the resuming. And it's in-memory only — whether a
 suspended run can survive process death at all is
 [Q13](docs/questions/open/q13-suspension-across-process-death.md), open.
 
+### Questions about questions are just more questions
+
+Here's the part that makes the whole thing hold together.
+
+Questions are themselves governed by a theory — `rung_std::questions`, written in
+this DSL, with an edit vocabulary and a lifecycle ladder. So auditing the
+questions can raise a question. And *that* question is a subject of the same
+theory you were already in.
+
+The recursion doesn't climb. It lands back where it started.
+
+That sounds like a curiosity and is actually the load-bearing fact, because it
+means **the nesting is type-stable**. One `Park` serves depth 1 and depth 40
+alike. If each nested question ascended a level, a depth-*n* suspension would
+need a type indexed by *n*, and "unbounded depth" would be not merely unbounded
+but impossible to write down — you'd be forced into either a cap (a judgment
+about which work matters least) or type erasure (throwing away the seal that
+makes any of this worth doing).
+
+It's why nesting can be *normal* rather than exceptional. Answering one question
+routinely raises another: Q11 raised Q12, and Q12 took a dependency back on Q11.
+That's not a cycle and not a fault — it's what thinking looks like — so the
+theory distinguishes it from deadlock rather than flagging it. Only a cycle in
+`gate` edges, where each question is *blocked by* the next, is a real stuck
+state, because no answer anywhere can free it.
+
+Being a subject of your own theory is not a paradox here. A theory is
+**self-governing** — its own decidable sentences audit it — but not
+**self-closing**: its judgmental sentences still need an outside. The regress
+stops on a decidable well-formedness check that needs no theory to run.
+
 Fuller treatment in [`docs/rung-het-props.md`](docs/rung-het-props.md);
 [`docs/composition-notes.md`](docs/composition-notes.md) sketches where this is
 going.
