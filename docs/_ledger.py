@@ -743,8 +743,14 @@ def check():
             continue
         slug, verdict, conf = m.group(1), m.group(2), m.group(3).strip()
         if conf in ("—", "(rustc)"):
-            if verdict == "enforced" and conf == "—":
-                errs.append(f"row `{slug}`: `enforced` must cite a conformance test")
+            # Every row that makes a claim about the host must point at
+            # something a run can check. `out-of-scope` is the only verdict
+            # that asserts no host obligation, so it is the only one exempt.
+            if verdict != "out-of-scope" and conf == "—":
+                errs.append(
+                    f"row `{slug}`: `{verdict}` must cite a conformance test, "
+                    f"a parked test, or an open question"
+                )
             continue
         t = re.match(r"^(\S+?)::(\w+)$", conf)
         path, sym = (t.group(1), t.group(2)) if t else (conf.split(" ")[0], None)
