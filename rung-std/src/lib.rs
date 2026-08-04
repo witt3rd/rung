@@ -1,18 +1,19 @@
 //! rung-std — the canonical building blocks.
 //!
 //! A block is admitted here when it recurs across independent projects and
-//! embeds no caller-specific knowledge. There are three:
+//! embeds no caller-specific knowledge. There are four:
 //!
 //! | block | surface | what recurs |
 //! |---|---|---|
 //! | [`llm`] | `ladder!` | one blocking LLM call, with retry |
+//! | [`agent`] | `ladder!` | one agentic turn — drive the LLM, dispatch tools, iterate |
 //! | [`questions`] | `theory!` + `ladder!` | questions posed, ruled on by an outside panel, folded back through a lifecycle |
 //! | [`principals`] | `theory!` | who may be dispatched to — the law of the pool both gates draw from |
 //!
-//! The three exercise the two halves of the DSL: `ladder!` declares **arrows**,
+//! The four exercise the two halves of the DSL: `ladder!` declares **arrows**,
 //! `theory!` declares **sentences**, and both live in `rung`.
 //!
-//! The third is the odd one, and deliberately: `rung` declares the *interface*
+//! The fourth is the odd one, and deliberately: `rung` declares the *interface*
 //! a supplier of `𝒫` must expose and refuses to say what a principal is made of
 //! (`nothing-further-required`). [`principals`] is a **supplier** — it names the
 //! kinds, the identity fields, the cost tiers and the shape of a population,
@@ -84,6 +85,8 @@
 //!   introduce a new transition. The verb (HTTP I/O) remains on the arrow.
 //!
 
+pub mod agent;
 pub mod llm;
 pub mod principals;
 pub mod questions;
+pub mod tools;
