@@ -100,6 +100,34 @@ A remedy that adopts R1 *and* keeps `constant-arrow-hazard` is not admissible as
 stated — it would close `gate-faithful` on the weaker property while the hazard
 the proposition exists to refuse stays open under its own name.
 
+## Received advisory input (Q11)
+
+An outside reader proposed an **epilogue guard** for blocker (1): capture
+$\pi(a)$ before the body consumes its argument, run the body, then assert
+$\pi(f(a)) \cap \pi(a) = \emptyset$ on the way out — the `G13` prologue
+mirrored. Assessed in full under Q11's *Received advisory input*; two
+consequences land here.
+
+**It sharpens R1 versus R2 rather than sitting beside them.**
+`Provenanced::provenance` is implemented by the domain on its payload type and
+the body constructs the payload, so an epilogue reads a provenance *the body
+supplies*. A body that computes internally and stamps the judge's tag passes it.
+The guard becomes sound only when the output provenance is **minted from the
+token** instead of read from the returned value — which is R2. So R1 and R2 are
+not symmetric: **the epilogue only works in R2's world**, and under R1 there is
+nothing for it to check.
+
+**It leaves the decisive observation untouched.** The proposal guards the
+`ladder!` path. Observation (2) above is on the `theory!` path — `settle` takes
+the verdict as a parameter — and no epilogue on a transition reaches it. A
+remedy that adopts the epilogue and stops there would harden the arrow while
+leaving the constant arrow exactly where it is.
+
+In Het's own terms the analysis is a **reason**, not a remedy
+([`reason-is-not-an-edit`](../../rung-het-props.md#reason-is-not-an-edit)): it
+holds no standing over `rung-het-props.md`, so it informs the author and does
+not author. Recorded as such.
+
 ## Two things this question knows about itself
 
 **The pass cannot close it.** Running this through the audit-rectify pass would

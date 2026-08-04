@@ -116,17 +116,78 @@ $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
    ([`standing-terminates-at-depth-one`](../../rung-het-props.md#standing-terminates-at-depth-one)),
    and rung has no term for that dispatch.
 
-3. **`decidable` still does not factor through $\eta$.** The unmarked signature
-   excludes $\mathcal{P}$ and nothing else
-   ([`purity-not-secured`](../../rung-het-props.md#purity-not-secured)). A
-   decidable transition may read a clock. "Factors through $\eta$" is strictly
-   stronger than "cannot reach the pool."
+3. ~~**`decidable` still does not factor through $\eta$.**~~ **CLOSED** — see
+   *Received advisory input* below. The argument was an over-read on our part:
+   $\eta$ is the unit of $\mathcal{P}$, so "factors through $\eta$" *is*
+   $\mathcal{P}$-purity and never claimed absolute world-purity. A decidable
+   transition may still read a clock, and that is
+   [`purity-not-secured`](../../rung-het-props.md#purity-not-secured) — a limit
+   already stated, of a kind with `G4` being the affine approximation of
+   exactly-once. It belongs in the verification boundary, not in a blocker list.
 
-So the ledger keeps `gate-faithful` as `deferred`, with the blocker restated:
-not "the token is unbound" — that is fixed — but (1) the returned value, (2) the
-one remaining unimplemented gate, (3) purity. Blocker (2) was two gates and is
-now one; blockers (1) and (3) are untouched, and (1) got *wider*, because there
-are now two admissibility conditions on the way out rather than one.
+So the ledger keeps `gate-faithful` parked, with the blocker restated: not "the
+token is unbound" — that is fixed — and no longer purity, but (1) the returned
+value and (2) the one remaining unimplemented gate. Blocker (2) was two gates
+and is now one; blocker (1) is untouched and got *wider*, because there are now
+two admissibility conditions on the way out rather than one.
+
+### Received advisory input
+
+An outside reader with no standing over this document returned an analysis
+proposing to collapse all three blockers. In Het's own terms that is a
+**reason**, not a remedy
+([`reason-is-not-an-edit`](../../rung-het-props.md#reason-is-not-an-edit)):
+stating why a position fails is classification, supplying the replacement is
+authorship. It is recorded here and acted on where it holds.
+
+**On blocker (3) — accepted, and it closes.** $\eta$ is $\mathcal{P}$'s unit;
+factoring through it is $\mathcal{P}$-purity by construction. Q11 had read the
+phrase as absolute purity, which turned an already-stated limit into an
+apparent blocker. Folded above.
+
+**On blocker (2) — half accepted.** The strong half is that a declaration
+carrying bodies *is a model*, and a model must take a stand on a conditional
+gate rather than defer it. That has more support than the reader knew:
+[`freeness-enforced-only-with-bodies`](../../rung-ct-props.md#freeness-enforced-only-with-bodies)
+already draws the theory/model line inside the macro on exactly that basis. The
+weak half is the proposal to express conditionality as a branching transition,
+`ConditionCheck => { DecidableOutcome | JudgmentRequired }`. That is a
+per-invocation runtime branch;
+[`conditional-partitions-fiber`](../../rung-het-props.md#conditional-partitions-fiber)
+partitions $\mathsf{Mod}(\Sigma)$ — a static property of *which fiber a model
+sits in*. A ladder that may branch either way per call sits in neither class,
+which contradicts the partition rather than implementing it. And
+[`classifier-one-level-up`](../../rung-het-props.md#classifier-one-level-up)
+requires the classification be a *sentence* something can evaluate; "the author
+chose a marker" records no classifier.
+
+**On blocker (1) — advances, does not close.** The proposal is an *epilogue
+guard*: capture $\pi(a)$ before the body consumes its argument, run the body,
+then assert $\pi(f(a)) \cap \pi(a) = \emptyset$ on the way out, mirroring the
+`G13` prologue. The mechanism is sound and the checked-versus-unchecked
+difference is real. It does not reach the hazard, because
+`Provenanced::provenance` is implemented **by the domain on its payload type**
+and the body constructs the payload — so the guard reads a provenance *the body
+supplies*. A body that computes internally and stamps its output with the
+judge's tag passes.
+
+The proposal quotes the thing that would close it — a payload whose provenance
+is *not freely chosen by the body* — and then does not build it. Minting the
+output provenance from the token rather than reading it from the returned value
+is what makes the epilogue sound, and that is
+[Q12](q12-admissibility-value-or-dispatch.md)'s **R2**. The useful consequence:
+R1 and R2 are not symmetric options. The epilogue only works in R2's world.
+
+The `G8` analogy also does not carry. `must_progress` compares body-produced
+payloads to detect a *stall* — a liveness property, where a lying body only
+harms itself. Admissibility is a safety property against a body with motive.
+Same mechanism, different threat model.
+
+**What it does not touch.** Nothing in the analysis addresses
+[Q12](q12-admissibility-value-or-dispatch.md)'s decisive observation: `theory!`
+emits `settle(model, q, v: Verdict)` with the verdict as a *parameter*. The
+epilogue guards the `ladder!` path; the constant-arrow hazard lives on the
+`theory!` path and would survive all three proposed remedies intact.
 
 ### What would falsify this argument
 

@@ -519,13 +519,15 @@ CURATED = {
         "π(f(a)) ∩ π(a) = ∅ — a constraint on what the arrow RETURNS, which no "
         "signature reaches and which inherits SPEC §5, transition-body "
         "correctness — and G14 added the authorial gate on the same "
-        "input side, so it moved no part of THIS row. Two further blockers, one "
-        "now smaller: `#[conditional(..)]` remains a parse-time refusal, so an "
-        "algebra with a conditional operation cannot state gate-faithfulness here "
-        "at all (`#[authorial(Role)]` is implemented as of G14); and "
-        "`decidable` still does not factor through η, only past 𝒫 "
-        "({#purity-not-secured}). Argued in the question file, with its "
-        "falsifier, at `docs/questions/open/q11-gate-faithfulness.md`.",
+        "input side, so it moved no part of THIS row. ONE further blocker: "
+        "`#[conditional(..)]` remains a parse-time refusal, so an algebra with "
+        "a conditional operation cannot state gate-faithfulness here at all "
+        "(`#[authorial(Role)]` is implemented as of G14). Purity was a third "
+        "and is CLOSED on received advisory input: η is 𝒫's unit, so "
+        "\"factors through η\" IS 𝒫-purity and never claimed absolute purity. "
+        "That a decidable body may read a clock is {#purity-not-secured}, a "
+        "limit already stated, not a blocker. Argued in the question file, "
+        "with its falsifiers, at `docs/questions/open/q11-gate-faithfulness.md`.",
         "rung/tests/gate_markers.rs::a_judgmental_arrow_may_not_return_the_provenance_it_judged",
     ),
     "mod-only-gate-faithful": (
