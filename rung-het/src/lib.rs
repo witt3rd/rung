@@ -239,6 +239,142 @@ pub use rung::{
 // `rung_het`.
 pub use rung::theory;
 
+// The pass is declared with `ladder!` ([`het_pass!`] below expands to one), so
+// the macro has to be reachable from here: a consumer that declares the pass
+// should not have to name `rung` as well.
+pub use rung::ladder;
+
+// ─────────────────────────────────────────────────────────────────────────
+// The chain — what the pass carries back to the authoring position
+// (reproposal-carries-the-chain, reason-is-not-an-edit)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The record of how the subject got back to the authoring position.
+///
+/// **Classification only, and that is a constraint rather than a choice.**
+/// `Chain` is the payload of the pass's `Proposing` rung, and `Proposing` is
+/// the target of the `RejectRemedy` and `Defer` **continue arms**. A continue
+/// arm's target rung is built *inline by `step`* (rung-props.md G10) — that is,
+/// by the **judge**. Anything `Chain` could carry, a judge could therefore
+/// author. So it carries an id, a container, a count, the audit's diagnosis,
+/// and prose: no edit, no proposal, and no type parameter one could hide in
+/// (disposition-is-a-ruling, no-amending-disposition, reason-is-not-an-edit).
+///
+/// What it *must* carry is the chain itself (reproposal-carries-the-chain).
+/// Without the prior reasons an author can cycle indefinitely on the same
+/// objection and nothing downstream could detect it.
+///
+/// Note the consequence for re-entry: because the chain **strictly grows**, a
+/// `must_progress`-style guard on this edge could never fire.
+/// It would be mandatory and vacuous at once — which is the second reason
+/// re-entry is a continue arm rather than a recoverable verdict, the first
+/// being that such a guard is an eviction rule (guarded-reentry-is-eviction).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Chain {
+    subject_id: String,
+    container: String,
+    /// The audit's diagnosis — why the subject is in the loop at all.
+    diagnosis: Option<String>,
+    /// Which attempt the proposal authored from this chain will be. 1 on entry.
+    attempt: usize,
+    /// The dispositions already rendered, oldest first — **names only**.
+    prior_dispositions: Vec<&'static str>,
+    /// The reasons they carried, oldest first. Advisory prose, never an edit.
+    prior_reasons: Vec<String>,
+}
+
+impl Chain {
+    /// The chain a subject enters the authoring position with, first time.
+    pub fn opening(subject_id: &str, container: &str, verdict: &Verdict) -> Self {
+        Self {
+            subject_id: subject_id.to_string(),
+            container: container.to_string(),
+            diagnosis: match verdict {
+                Verdict::Conforming => None,
+                Verdict::NonConforming { reason } => Some(reason.clone()),
+            },
+            attempt: 1,
+            prior_dispositions: Vec::new(),
+            prior_reasons: Vec::new(),
+        }
+    }
+
+    /// The chain after a non-terminal ruling — one attempt further on, with the
+    /// disposition's name and its reason appended.
+    ///
+    /// The only thing a [`Disposition`] contributes here is its **name and its
+    /// prose**. There is no parameter through which an edit could arrive.
+    #[must_use]
+    pub fn reentered(&self, disposition: &Disposition) -> Self {
+        let mut prior_dispositions = self.prior_dispositions.clone();
+        prior_dispositions.push(disposition.name());
+        let mut prior_reasons = self.prior_reasons.clone();
+        if let Some(r) = disposition.reason() {
+            prior_reasons.push(r.to_string());
+        }
+        Self {
+            subject_id: self.subject_id.clone(),
+            container: self.container.clone(),
+            diagnosis: self.diagnosis.clone(),
+            attempt: self.attempt + 1,
+            prior_dispositions,
+            prior_reasons,
+        }
+    }
+
+    pub fn subject_id(&self) -> &str {
+        &self.subject_id
+    }
+
+    /// Which attempt the next proposal is (reproposal-carries-the-chain).
+    pub fn attempt(&self) -> usize {
+        self.attempt
+    }
+
+    /// What the audit said, if it said anything.
+    pub fn diagnosis(&self) -> Option<&str> {
+        self.diagnosis.as_deref()
+    }
+
+    /// The dispositions already rendered, oldest first.
+    pub fn prior_dispositions(&self) -> &[&'static str] {
+        &self.prior_dispositions
+    }
+
+    /// The reasons carried back, oldest first (reason-is-not-an-edit).
+    pub fn prior_reasons(&self) -> Vec<&str> {
+        self.prior_reasons.iter().map(String::as_str).collect()
+    }
+}
+
+/// The container the subject sits in — what the authorial pen must be held
+/// over (authorial-qualifying-set).
+///
+/// This is what makes `Proposing`'s payload legal as the source of an
+/// `#[authorial(R)]` transition: rung-props.md G14 injects
+/// `must_hold_standing_over(&proposing.payload, &pen)` ahead of the body, and
+/// without a container there is nothing standing could be held over.
+impl Situated for Chain {
+    fn container(&self) -> &str {
+        &self.container
+    }
+}
+
+/// What an author answers a verdict with (proposal-vocabulary).
+///
+/// Exactly two, because a Proposal is exactly two. Separate from [`Proposal`]
+/// because the Proposal also carries the author, the provenance and the chain —
+/// none of which the author supplies. `Answer` is the part that is theirs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Answer<E> {
+    /// *"The verdict stands; here is the fix."* Carries an **edit**
+    /// (remedy-carries-an-edit); the edits are the theory's.
+    Remedy(E),
+    /// *"The verdict is wrong; the subject stands as authored."* Nothing to
+    /// enact, and still judged (dispute-is-still-judged).
+    Dispute { grounds: &'static str },
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Proposals — the Proponent's answer (propose-is-authorial, proposal-vocabulary)
 // ─────────────────────────────────────────────────────────────────────────
@@ -282,14 +418,12 @@ pub use rung::theory;
 #[derive(Debug, Clone)]
 #[must_use = "a Proposal is the Proponent's move; dropping it forfeits the turn"]
 pub struct Proposal<E> {
-    object: &'static str,
     author: String,
     provenance: Prov,
     kind: ProposalKind<E>,
-    /// Which attempt this is. 1 for a first proposal (reproposal-carries-the-chain).
-    attempt: usize,
-    /// Reasons from prior rejections, oldest first (reason-is-not-an-edit/f).
-    prior_reasons: Vec<String>,
+    /// The chain this was authored from (reproposal-carries-the-chain). It also
+    /// names the subject and the container, so nothing else has to.
+    chain: Chain,
 }
 
 #[derive(Debug, Clone)]
@@ -307,16 +441,32 @@ impl<E> Provenanced for Proposal<E> {
 }
 
 impl<E: Clone> Proposal<E> {
-    /// *"The verdict stands; here is the fix."*
-    pub fn remedy<R: Role>(pen: &Authorized<'_, R>, object: &'static str, edit: E) -> Self {
+    /// The authorial act, in one place: an answer, a pen, and the chain it was
+    /// authored from.
+    ///
+    /// This is what the pass's `#[authorial(R)]` transition calls. The pen is
+    /// required because `propose` is authorial (propose-is-authorial) and there
+    /// is no term for proposing without standing; the chain is required because
+    /// a re-proposal must carry it (reproposal-carries-the-chain).
+    pub fn from_chain<R: Role>(pen: &Authorized<'_, R>, chain: &Chain, answer: Answer<E>) -> Self {
         Self {
-            object,
             author: pen.principal_id().to_string(),
             provenance: pen.principal_provenance().clone(),
-            kind: ProposalKind::Remedy(edit),
-            attempt: 1,
-            prior_reasons: Vec::new(),
+            kind: match answer {
+                Answer::Remedy(edit) => ProposalKind::Remedy(edit),
+                Answer::Dispute { grounds } => ProposalKind::Dispute { grounds },
+            },
+            chain: chain.clone(),
         }
+    }
+
+    /// *"The verdict stands; here is the fix."*
+    pub fn remedy<R: Role>(pen: &Authorized<'_, R>, object: &str, edit: E) -> Self {
+        Self::from_chain(
+            pen,
+            &Chain::opening(object, pen.over(), &Verdict::Conforming),
+            Answer::Remedy(edit),
+        )
     }
 
     /// *"The verdict is wrong; the object stands as authored."*
@@ -324,19 +474,12 @@ impl<E: Clone> Proposal<E> {
     /// Still judged. The author does not overturn a verdict by asserting it —
     /// a dispute goes to `dispose` exactly as a remedy does, and the Opponent
     /// rules on the dispute itself.
-    pub fn dispute<R: Role>(
-        pen: &Authorized<'_, R>,
-        object: &'static str,
-        grounds: &'static str,
-    ) -> Self {
-        Self {
-            object,
-            author: pen.principal_id().to_string(),
-            provenance: pen.principal_provenance().clone(),
-            kind: ProposalKind::Dispute { grounds },
-            attempt: 1,
-            prior_reasons: Vec::new(),
-        }
+    pub fn dispute<R: Role>(pen: &Authorized<'_, R>, object: &str, grounds: &'static str) -> Self {
+        Self::from_chain(
+            pen,
+            &Chain::opening(object, pen.over(), &Verdict::Conforming),
+            Answer::Dispute { grounds },
+        )
     }
 
     /// Re-propose after a rejection, carrying the chain (reproposal-carries-the-chain).
@@ -353,22 +496,20 @@ impl<E: Clone> Proposal<E> {
         ruling: &Ruling<E>,
         edit: E,
     ) -> Self {
-        let mut reasons = self.prior_reasons.clone();
-        if let Some(r) = ruling.reason() {
-            reasons.push(r.to_string());
-        }
-        Self {
-            object: self.object,
-            author: pen.principal_id().to_string(),
-            provenance: pen.principal_provenance().clone(),
-            kind: ProposalKind::Remedy(edit),
-            attempt: self.attempt + 1,
-            prior_reasons: reasons,
-        }
+        Self::from_chain(
+            pen,
+            &self.chain.reentered(ruling.disposition()),
+            Answer::Remedy(edit),
+        )
     }
 
-    pub fn object(&self) -> &'static str {
-        self.object
+    pub fn object(&self) -> &str {
+        self.chain.subject_id()
+    }
+
+    /// The chain this was authored from (reproposal-carries-the-chain).
+    pub fn chain(&self) -> &Chain {
+        &self.chain
     }
 
     pub fn author(&self) -> &str {
@@ -397,12 +538,12 @@ impl<E: Clone> Proposal<E> {
 
     /// Which attempt this is (reproposal-carries-the-chain). 1 for a first proposal.
     pub fn attempt(&self) -> usize {
-        self.attempt
+        self.chain.attempt()
     }
 
     /// Reasons from prior rejections, oldest first (reason-is-not-an-edit/f).
     pub fn prior_reasons(&self) -> Vec<&str> {
-        self.prior_reasons.iter().map(String::as_str).collect()
+        self.chain.prior_reasons()
     }
 }
 
@@ -536,7 +677,7 @@ impl Disposition {
 #[derive(Debug, Clone)]
 #[must_use = "a Ruling decides what happens next; dropping it strands the object"]
 pub struct Ruling<E> {
-    object: &'static str,
+    object: String,
     disposition: Disposition,
     judge: String,
     /// The edit the ruling affirms, if it affirms one.
@@ -544,8 +685,8 @@ pub struct Ruling<E> {
 }
 
 impl<E> Ruling<E> {
-    pub fn object(&self) -> &'static str {
-        self.object
+    pub fn object(&self) -> &str {
+        &self.object
     }
     pub fn disposition(&self) -> &Disposition {
         &self.disposition
@@ -565,6 +706,95 @@ impl<E> Ruling<E> {
     /// The edit this ruling licenses, if any.
     pub fn edit(&self) -> Option<&E> {
         self.edit.as_ref()
+    }
+
+    /// Take the licence out of an affirming ruling, or `None`.
+    ///
+    /// The type-level statement of licence-is-not-guarantee: only an affirming
+    /// Disposition yields a [`Licence`], and a `Licence` is still only
+    /// permission — see [`enact`] for the two ways it fails to land.
+    pub fn into_licence(self) -> Option<Licence<E>> {
+        Licence::of(self)
+    }
+}
+
+/// What a terminal, affirming Disposition hands to the author.
+///
+/// **licence-is-not-guarantee.** A `Licence` is permission to `enact`, not a
+/// promise the edit lands. It exists as a type so that the pass's `Accept` arm
+/// carries *permission* rather than a revised subject: an
+/// `Accept -> Governed` arm would have had the **judge** apply the edit, which
+/// disposition-is-a-ruling forbids. `enact` is a separate authorial arrow,
+/// consuming this licence and a pen.
+///
+/// The two ways it still fails are enact-has-two-failure-points, and both live
+/// in [`enact`]: the pen may not authorize the territory, and the target may
+/// refuse the write on its own law (target-runs-its-own-models).
+#[derive(Debug, Clone)]
+#[must_use = "a Licence is permission to enact; dropping it forfeits the affirmation"]
+pub struct Licence<E> {
+    ruling: Ruling<E>,
+}
+
+impl<E> Licence<E> {
+    /// A licence from an affirming ruling. `None` for every other disposition —
+    /// the vocabulary's `affirming` column is the whole condition.
+    pub fn of(ruling: Ruling<E>) -> Option<Self> {
+        ruling.is_affirming().then_some(Self { ruling })
+    }
+
+    /// The ruling this licence rests on.
+    pub fn ruling(&self) -> &Ruling<E> {
+        &self.ruling
+    }
+
+    pub fn into_ruling(self) -> Ruling<E> {
+        self.ruling
+    }
+}
+
+impl<E> std::ops::Deref for Licence<E> {
+    type Target = Ruling<E>;
+    fn deref(&self) -> &Ruling<E> {
+        &self.ruling
+    }
+}
+
+/// What a terminal, **non**-affirming Disposition hands back.
+///
+/// The payload of the pass's `RejectDiagnosis` arm: the audit was wrong, so
+/// there is nothing to enact and nothing to re-propose. It records who ruled
+/// and on what — a ruling with no attributable judge cannot be audited for
+/// non-identity after the fact.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use = "a Why is the terminal record of a rejected diagnosis"]
+pub struct Why {
+    subject_id: String,
+    judge: String,
+    reason: String,
+}
+
+impl Why {
+    /// Read a terminal non-affirming ruling.
+    pub fn of<E>(ruling: &Ruling<E>) -> Self {
+        Self {
+            subject_id: ruling.object().to_string(),
+            judge: ruling.judge().to_string(),
+            reason: ruling
+                .reason()
+                .unwrap_or("the audit was wrong; the subject stands as authored")
+                .to_string(),
+        }
+    }
+
+    pub fn subject_id(&self) -> &str {
+        &self.subject_id
+    }
+    pub fn judge(&self) -> &str {
+        &self.judge
+    }
+    pub fn reason(&self) -> &str {
+        &self.reason
     }
 }
 
@@ -600,7 +830,7 @@ pub fn dispose<R: Role, E: Clone>(
         None
     };
     Ok(Ruling {
-        object: proposal.object(),
+        object: proposal.object().to_string(),
         judge: judge.principal_id().to_string(),
         disposition,
         edit,
@@ -630,7 +860,7 @@ pub enum EnactError {
     /// withhold it, and the target may refuse it.
     TargetRefused { target: String, reason: String },
     /// The object named by the ruling is not in the source container.
-    ObjectNotFound { object: &'static str },
+    ObjectNotFound { object: String },
 }
 
 impl std::fmt::Display for EnactError {
@@ -709,7 +939,7 @@ pub trait Applies<E> {
     /// Called only after [`enact`] has confirmed the ruling affirms and the pen
     /// authorizes. Provenance and standing are already settled; what remains is
     /// the domain's own law and its own mechanics.
-    fn apply(&mut self, object: &'static str, edit: &E) -> Result<(), EnactError>;
+    fn apply(&mut self, object: &str, edit: &E) -> Result<(), EnactError>;
 }
 
 /// The author applies a ruling — **authorial**.
@@ -753,13 +983,13 @@ where
     let Some(edit) = ruling.edit() else {
         // A dispute affirms nothing to enact (proposal-vocabulary).
         return Ok(Enacted {
-            object: ruling.object(),
+            object: ruling.object().to_string(),
         });
     };
 
     world.apply(ruling.object(), edit)?;
     Ok(Enacted {
-        object: ruling.object(),
+        object: ruling.object().to_string(),
     })
 }
 
@@ -767,15 +997,230 @@ where
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use]
 pub struct Enacted {
-    object: &'static str,
+    object: String,
 }
 
 impl Enacted {
-    pub fn object(&self) -> &'static str {
-        self.object
+    pub fn object(&self) -> &str {
+        &self.object
     }
     /// The object that moved — for a relocation.
-    pub fn moved(&self) -> &'static str {
-        self.object
+    pub fn moved(&self) -> &str {
+        &self.object
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// The pass, as a `ladder!` (the-pass)
+// ═════════════════════════════════════════════════════════════════════════
+
+/// Declare the audit–rectify pass for one theory.
+///
+/// Expands to a single [`ladder!`] declaration. **The spine, the gates and the
+/// Disposition vocabulary are Het's**; the three bodies are the theory's.
+///
+/// ```text
+/// carry { subject_id: String, container: String }
+/// Governed(Subject)
+///   => Audited(Verdict)
+///   => Proposing(Chain)                          // classification-only payload
+///   => #[authorial(Author)] Proposed(Proposal)   // propose-is-authorial
+///   => #[judgmental(Judge)] {
+///        Accept(Licence)
+///        | RejectDiagnosis(Why)
+///        | RejectRemedy    -> Proposing
+///        | Defer           -> Proposing
+///        | RaisesQuestions -> Audited
+///      }
+/// ```
+///
+/// # Two constraints that fall out of the shape
+///
+/// **[`Proposing`](Chain) carries classification only.** `RejectRemedy` and
+/// `Defer` are **continue arms**, and a continue arm's target rung is built
+/// inline by `step` — by the *judge* (rung-props.md G10). If that rung's
+/// payload held proposal content the judge would be authoring, which
+/// disposition-is-a-ruling and no-amending-disposition forbid. So it is a
+/// [`Chain`]: a count, an id, a container, and prose.
+///
+/// **`enact` is not in the branching transition.** `Accept -> Governed` would
+/// close the loop inside the ladder — and would have the judge apply the edit,
+/// for exactly the same reason. `Accept` is terminal and carries a [`Licence`];
+/// [`enact`] is a separate authorial arrow consuming that licence and a pen.
+/// The endofunctor of enact-makes-an-endofunctor therefore lives at the level
+/// of **composition**, not inside one declaration — see rung-props.md §5.7.
+///
+/// # Re-entry is unguarded
+///
+/// `RejectRemedy` / `Defer` are `->`, never `=>`. A recoverable verdict makes
+/// the macro inject `must_progress` (rung-props.md G8), which panics on no
+/// progress — an eviction rule, which guarded-reentry-is-eviction forbids. And
+/// because reproposal-carries-the-chain makes the payload strictly grow, such a
+/// guard could never fire: mandatory *and* vacuous.
+///
+/// # The three bodies
+///
+/// | body | signature | what it is |
+/// |---|---|---|
+/// | `audit` | `Fn(&Subject) -> Verdict` | the theory's own law, run on the subject |
+/// | `propose` | `Fn(&Chain, &str) -> Answer<Edit>` | the **author's** move; the `&str` is the pen's principal id |
+/// | `rule` | `Fn(&Proposal<Edit>, &str) -> Disposition` | the **judge's** ruling; the `&str` is the licensed principal's id |
+///
+/// The judge is reached by *id* rather than by a static method on the role, so
+/// two qualifying judges may rule differently on one argument — the arrow is
+/// `A → 𝒫(B)` (judgmental-is-kleisli-arrow), not `A → B`.
+///
+/// ```
+/// use rung_het::*;
+///
+/// #[derive(Clone, Debug, PartialEq)]
+/// pub struct Draft { pub complete: bool }
+/// impl Provenanced for Draft { fn provenance(&self) -> Prov { Prov::of(["drafter"]) } }
+///
+/// #[derive(Clone, Copy)] pub struct Editor;
+/// impl Role for Editor { const NAME: &'static str = "editor"; }
+/// #[derive(Clone, Copy)] pub struct Reader;
+/// impl Role for Reader { const NAME: &'static str = "reader"; }
+///
+/// #[derive(Clone, Debug, PartialEq, Eq)] pub enum DraftEdit { Finish }
+///
+/// het_pass!(Pass {
+///     subject = Draft,
+///     edit = DraftEdit,
+///     author = Editor,
+///     judge = Reader,
+/// } impl {
+///     audit = |d: &Draft| Verdict::conforming(d.complete, "unfinished"),
+///     propose = |_c: &Chain, _who: &str| Answer::Remedy(DraftEdit::Finish),
+///     rule = |_p: &Proposal<DraftEdit>, _who: &str| Disposition::Accept,
+/// });
+///
+/// # fn main() {
+/// let entry = pass::Governed::new(
+///     Draft { complete: false },
+///     pass::Carry { subject_id: "d1".into(), container: "folio".into() },
+/// );
+/// assert_eq!(pass::proposing(pass::audited(entry)).payload.attempt(), 1);
+/// # }
+/// ```
+#[macro_export]
+macro_rules! het_pass {
+    (
+        $name:ident {
+            subject = $subject:ty,
+            edit = $edit:ty,
+            author = $author:ty,
+            judge = $judge:ty $(,)?
+        } impl {
+            audit = $audit:expr,
+            propose = $propose:expr,
+            rule = $rule:expr $(,)?
+        }
+    ) => {
+        $crate::ladder!($name {
+            carry { subject_id: String, container: String }
+
+            Governed($subject)
+              => Audited($crate::Verdict)
+              => Proposing($crate::Chain)
+              => #[authorial($author)] Proposed($crate::Proposal<$edit>)
+              => #[judgmental($judge)] {
+                     Accept($crate::Licence<$edit>)
+                   | RejectDiagnosis($crate::Why)
+                   | RejectRemedy    -> Proposing
+                   | Defer           -> Proposing
+                   | RaisesQuestions -> Audited
+                 }
+        } impl {
+            // `audit` — unmarked, so it reads as decidable and has no parameter
+            // an outside could enter through (rung-props.md G12). A theory whose
+            // audit is judgmental settles it through `theory!`'s `settle` and
+            // hands the resulting `Verdict` in.
+            audited = |governed| {
+                let carry = ::core::clone::Clone::clone(governed.carry());
+                let verdict = ($audit)(&governed.payload);
+                Audited::new(verdict, carry)
+            },
+
+            // The subject reaches the authoring position. Nothing is authored
+            // here: the chain records why, and how many times.
+            proposing = |audited| {
+                let carry = ::core::clone::Clone::clone(audited.carry());
+                let chain = $crate::Chain::opening(
+                    &carry.subject_id,
+                    &carry.container,
+                    &audited.payload,
+                );
+                Proposing::new(chain, carry)
+            },
+
+            // `propose` — AUTHORIAL (propose-is-authorial). The pen is in the
+            // signature, so there is no term for proposing without standing,
+            // and G14's injected prologue admits it only over the container the
+            // chain names.
+            proposed = |proposing, pen| {
+                let carry = ::core::clone::Clone::clone(proposing.carry());
+                let answer = ($propose)(&proposing.payload, pen.principal_id());
+                let proposal = $crate::Proposal::from_chain(&pen, &proposing.payload, answer);
+                Proposed::new(proposal, carry)
+            },
+
+            // `dispose` — JUDGMENTAL. The licence is in the signature (G12) and
+            // G13's injected prologue admits it only against **this Proposal**
+            // (disjointness-against-argument): a judge that authored the
+            // proposal is disjoint from the *model* by construction, so a
+            // model-relative mint would admit it to rule on its own work.
+            //
+            // Nothing here decides. The disposition comes from the judge; this
+            // body routes it, and the routing is the vocabulary
+            // (disposition-vocabulary).
+            step = |proposed, judge| {
+                let carry = ::core::clone::Clone::clone(proposed.carry());
+                let proposal = ::core::clone::Clone::clone(&proposed.payload);
+                let disposition = ($rule)(&proposal, judge.principal_id());
+                let ruling = match $crate::dispose(&proposal, judge, disposition) {
+                    ::core::result::Result::Ok(r) => r,
+                    ::core::result::Result::Err(e) => {
+                        return ::core::result::Result::Err(Failed {
+                            token: proposed,
+                            error: ::std::string::ToString::to_string(&e),
+                        });
+                    }
+                };
+                let ruled = ::core::clone::Clone::clone(ruling.disposition());
+                ::core::result::Result::Ok(match ruled {
+                    // Terminal, affirming. The licence goes OUT of the ladder;
+                    // `enact` is a separate authorial arrow.
+                    $crate::Disposition::Accept => StepOutcome::Accept(Accept::new(
+                        ruling
+                            .into_licence()
+                            .expect("`accept` is the affirming disposition"),
+                    )),
+                    // Terminal, not affirming — nothing to enact.
+                    $crate::Disposition::RejectDiagnosis => {
+                        StepOutcome::RejectDiagnosis(RejectDiagnosis::new($crate::Why::of(&ruling)))
+                    }
+                    // Non-terminal: back to the authoring position, unguarded,
+                    // carrying the chain (guarded-reentry-is-eviction,
+                    // reproposal-carries-the-chain).
+                    $crate::Disposition::RejectRemedy { .. } | $crate::Disposition::Defer { .. } => {
+                        let chain = proposal.chain().reentered(&ruled);
+                        let outcome = Proposing::new(chain, carry);
+                        match ruled {
+                            $crate::Disposition::Defer { .. } => StepOutcome::Defer(outcome),
+                            _ => StepOutcome::RejectRemedy(outcome),
+                        }
+                    }
+                    // Non-terminal, and further back: the auditor clarifies, so
+                    // the subject re-enters at `Audited` and the chain restarts.
+                    $crate::Disposition::RaisesQuestions { question } => {
+                        StepOutcome::RaisesQuestions(Audited::new(
+                            $crate::Verdict::NonConforming { reason: question },
+                            carry,
+                        ))
+                    }
+                })
+            },
+        });
+    };
 }

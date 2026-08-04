@@ -32,17 +32,17 @@ formalism requires.
 
 | document | propositions | verdicts |
 |---|---|---|
-| [`rung-props.md`](rung-props.md) | 60 | 43 enforced · 15 out-of-scope · 2 parked |
+| [`rung-props.md`](rung-props.md) | 61 | 43 enforced · 16 out-of-scope · 2 parked |
 | [`rung-ct-props.md`](rung-ct-props.md) | 107 | 16 enforced · 1 expressible · 90 out-of-scope |
 | [`rung-het-props.md`](rung-het-props.md) | 193 | 21 enforced · 14 expressible · 154 out-of-scope · 4 parked |
 
-**Total.** 360 propositions across 3 documents.
+**Total.** 361 propositions across 3 documents.
 
 ## rung — the ladder language
 
 The guarantees name their own conformance tests, so those rows are **derived from the document**, not curated here. Every other proposition — the grammar, the static-semantics rules, the emitted artifacts, the non-guarantees, the conformance discipline, the design judgments — is curated in `_ledger.py`. A proposition added to the document and to neither place lands as `unclassified`, which fails `check`: a new normative claim cannot enter without a verdict.
 
-**Counts.** 43 enforced · 15 out-of-scope · 2 parked · 60 total.
+**Counts.** 43 enforced · 16 out-of-scope · 2 parked · 61 total.
 
 ### Grammar
 
@@ -120,6 +120,7 @@ The guarantees name their own conformance tests, so those rows are **derived fro
 | [5.63](rung-props.md#decidable-is-not-pure) | `decidable-is-not-pure` | `out-of-scope` | rung has no effect system. The unmarked signature excludes Het's outside — there is no parameter a principal could enter through — and says nothing about clocks, files, or sockets. Het states the same limit independently ([11.42](rung-het-props.md#purity-not-secured)). | — |
 | [5.64](rung-props.md#type-only-marker-is-inert) | `type-only-marker-is-inert` | `enforced` | A declaration with no `impl` block emits no transition functions, so a marker on one has no signature to change. The cited test states that as something the compiler checks: the marked role type does **not** implement `Role`, and the declaration compiles anyway — which it could not if the marker were emitting a `Qualified<R>` parameter or a prologue. | rung/tests/compile_pass.rs::a_marker_on_a_type_only_declaration_is_inert |
 | [5.65](rung-props.md#gate-faithfulness-answered-no) | `gate-faithfulness-answered-no` | `out-of-scope` | A claim about an argument, not about the host: it records that Q11 is open and answered *no*. The two things it stays open on are [5.61](rung-props.md#one-gate-unimplemented), which is `enforced` as a refusal, and [5.62](rung-props.md#returned-value-unconstrained), which is `parked`. Both carry their own row; this one carries the reasoning. | docs/questions/open/q11-gate-faithfulness.md |
+| [5.7](rung-props.md#a-cycle-through-an-authorial-act-cannot-close) | `a-cycle-through-an-authorial-act-cannot-close` | `out-of-scope` | A limit on the DECLARATION, recorded rather than worked around. `ladder!` declares a linear spine with backward continue arms, and a continue arm's target rung is built inline by `step` ([G10](rung-props.md#g10-continue-arms)) — by whoever holds that transition's token. An `Accept -> Governed` arm on the pass would therefore have the JUDGE produce the revised subject, which [7.42](rung-het-props.md#no-amending-disposition) forbids. So `enact` sits outside the branching transition and the loop of [7.5](rung-het-props.md#enact-makes-an-endofunctor) closes by composition, not inside one declaration. The cited test is the shape as built: `Accept` is terminal and carries a `Licence`, and the run leaves the ladder to enact. Expressing the composite as a declaration is Q4 (`docs/questions/open/q4-composition-nested-ladders.md`), open — nothing here is claimed to close it. | rung-het/tests/pass_ladder.rs::the_pass_runs_end_to_end_as_a_ladder |
 
 ### Conformance
 

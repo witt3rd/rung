@@ -159,7 +159,7 @@ impl Applies<CabinetEdit> for Collection {
         "cabinet"
     }
 
-    fn apply(&mut self, object: &'static str, edit: &CabinetEdit) -> Result<(), EnactError> {
+    fn apply(&mut self, object: &str, edit: &CabinetEdit) -> Result<(), EnactError> {
         match edit {
             CabinetEdit::Amend { note } => {
                 let s = self
@@ -167,7 +167,9 @@ impl Applies<CabinetEdit> for Collection {
                     .specimens
                     .iter_mut()
                     .find(|s| s.id == object)
-                    .ok_or(EnactError::ObjectNotFound { object })?;
+                    .ok_or_else(|| EnactError::ObjectNotFound {
+                        object: object.to_string(),
+                    })?;
                 if *note == "mount it" {
                     s.mounted = true;
                 }
@@ -179,7 +181,9 @@ impl Applies<CabinetEdit> for Collection {
                     .specimens
                     .iter()
                     .position(|s| s.id == object)
-                    .ok_or(EnactError::ObjectNotFound { object })?;
+                    .ok_or_else(|| EnactError::ObjectNotFound {
+                        object: object.to_string(),
+                    })?;
                 self.cabinet.specimens.remove(i);
                 Ok(())
             }
@@ -189,7 +193,9 @@ impl Applies<CabinetEdit> for Collection {
                     .specimens
                     .iter()
                     .position(|s| s.id == object)
-                    .ok_or(EnactError::ObjectNotFound { object })?;
+                    .ok_or_else(|| EnactError::ObjectNotFound {
+                        object: object.to_string(),
+                    })?;
 
                 // THE WRITE-GUARD (target-runs-its-own-models). The destination is governed too, so
                 // its own law runs before the write lands — and may refuse an

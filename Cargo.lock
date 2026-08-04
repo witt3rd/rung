@@ -743,6 +743,7 @@ version = "0.1.0"
 dependencies = [
  "rung",
  "rung-std",
+ "trybuild",
 ]
 
 [[package]]

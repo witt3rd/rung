@@ -520,6 +520,30 @@ gate-faithfulness is argued — and answered *no* — in
 [Q11](questions/open/q11-gate-faithfulness.md), which stays open on
 [5.61](#one-gate-unimplemented) and [5.62](#returned-value-unconstrained).
 
+<a id="a-cycle-through-an-authorial-act-cannot-close" data-parent="non-guarantees"></a>
+**5.7** **A cycle that must pass through an authorial act cannot close inside
+one `ladder!`.** [1.1](#declaration-grammar) declares a **linear spine** with
+backward continue arms. A continue arm's target rung is built *inline by
+`step`* ([G10](#g10-continue-arms)), so every arm of the branching transition is
+authored by whoever holds that transition's token. Where `step` is
+`#[judgmental(R)]`, an arm returning to the ladder's **entry** rung would
+therefore have the judge produce the revised subject — the amendment
+[7.42](rung-het-props.md#no-amending-disposition) forbids.
+
+The audit–rectify pass is the case. Het states that `enact` is what makes the
+pass an **endofunctor** rather than a one-way funnel into a verdict
+([7.5](rung-het-props.md#enact-makes-an-endofunctor)); `rung-het`'s
+`het_pass!` therefore stops one arrow short, with `Accept` terminal and
+carrying a licence, and `enact` a **separate** authorial arrow consuming that
+licence and a pen. The loop closes by **composition** — feeding `enact`'s
+result into a fresh run — and not within the declaration.
+
+So `ladder!` does not express the endofunctor, and a claim that a single
+declaration is one has no standing here. Whether a rung's payload may be a
+completed sub-ladder run — which is the shape that would let the composite be
+declared rather than driven — is
+[Q4](questions/open/q4-composition-nested-ladders.md), open.
+
 ---
 
 ## 6 · Conformance

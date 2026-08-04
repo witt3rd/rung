@@ -261,7 +261,11 @@ fn the_pass_runs_end_to_end_as_a_ladder() {
         let judge = pool
             .qualify_for::<Reader>(&proposed.payload)
             .expect("a reader disjoint from the proposal's author");
-        match pass::step(proposed, judge).expect("the step did not fail") {
+        let outcome = match pass::step(proposed, judge) {
+            Ok(o) => o,
+            Err(f) => panic!("the step failed: {}", f.error),
+        };
+        match outcome {
             pass::StepOutcome::Accept(accepted) => {
                 // enact — a SEPARATE authorial arrow, outside the branching
                 // transition. `Accept` carries a licence, not a revised
@@ -279,7 +283,10 @@ fn the_pass_runs_end_to_end_as_a_ladder() {
         }
     };
 
-    assert_eq!(rounds, 2, "the first remedy was rejected, the second accepted");
+    assert_eq!(
+        rounds, 2,
+        "the first remedy was rejected, the second accepted"
+    );
     assert_eq!(landed.object(), "d1");
     assert!(world.drafts[0].complete);
 }
@@ -381,7 +388,11 @@ fn reject_remedy_re_enters_with_no_progress_guard() {
         let pen = pool.authorize::<Editor, _>(&EDITOR, "folio").unwrap();
         let proposed = stall::proposed(proposing, pen);
         let judge = pool.qualify_for::<Reader>(&proposed.payload).unwrap();
-        match stall::step(proposed, judge).unwrap() {
+        let outcome = match stall::step(proposed, judge) {
+            Ok(o) => o,
+            Err(f) => panic!("the step failed: {}", f.error),
+        };
+        match outcome {
             stall::StepOutcome::RejectRemedy(next) => proposing = next,
             _ => panic!("this judge only ever rejects the remedy"),
         }

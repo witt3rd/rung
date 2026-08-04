@@ -880,6 +880,24 @@ CURATED_RUNG = {
         "test pins the lint's actual reach, which is what is being bounded.",
         "rung/tests/spec_refusals.rs::dropping_a_verdict_under_deny_must_use_is_an_error",
     ),
+    "a-cycle-through-an-authorial-act-cannot-close": (
+        "out-of-scope",
+        "A limit on the DECLARATION, recorded rather than worked around. "
+        "`ladder!` declares a linear spine with backward continue arms, and a "
+        "continue arm's target rung is built inline by `step` "
+        "([G10](rung-props.md#g10-continue-arms)) — by whoever holds that "
+        "transition's token. An `Accept -> Governed` arm on the pass would "
+        "therefore have the JUDGE produce the revised subject, which "
+        "{#no-amending-disposition} forbids. So `enact` sits outside the "
+        "branching transition and the loop of {#enact-makes-an-endofunctor} "
+        "closes by composition, not inside one declaration. The cited test is "
+        "the shape as built: `Accept` is terminal and carries a `Licence`, and "
+        "the run leaves the ladder to enact. Expressing the composite as a "
+        "declaration is Q4 "
+        "(`docs/questions/open/q4-composition-nested-ladders.md`), open — "
+        "nothing here is claimed to close it.",
+        "rung-het/tests/pass_ladder.rs::the_pass_runs_end_to_end_as_a_ladder",
+    ),
     "liveness-beyond-the-guard": (
         "out-of-scope",
         "[G8](rung-props.md#g8-recovery-progress) catches an identical-token "

@@ -86,12 +86,14 @@ impl Applies<TriageEdit> for Tracker {
         "tracker"
     }
 
-    fn apply(&mut self, object: &'static str, edit: &TriageEdit) -> Result<(), EnactError> {
+    fn apply(&mut self, object: &str, edit: &TriageEdit) -> Result<(), EnactError> {
         let issue = self
             .issues
             .iter_mut()
             .find(|i| i.id == object)
-            .ok_or(EnactError::ObjectNotFound { object })?;
+            .ok_or_else(|| EnactError::ObjectNotFound {
+                object: object.to_string(),
+            })?;
         match edit {
             TriageEdit::Fix { commit } => issue.closed = Some(commit),
             TriageEdit::WontFix { reason } => issue.closed = Some(reason),

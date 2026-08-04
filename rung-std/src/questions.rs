@@ -748,12 +748,14 @@ impl Applies<QuestionEdit> for Questions {
         self.scheme.root
     }
 
-    fn apply(&mut self, object: &'static str, edit: &QuestionEdit) -> Result<(), EnactError> {
+    fn apply(&mut self, object: &str, edit: &QuestionEdit) -> Result<(), EnactError> {
         let idx = self
             .questions
             .iter()
             .position(|q| q.id == object)
-            .ok_or(EnactError::ObjectNotFound { object })?;
+            .ok_or_else(|| EnactError::ObjectNotFound {
+                object: object.to_string(),
+            })?;
 
         match edit {
             QuestionEdit::Relocate { to } => {
