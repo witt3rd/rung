@@ -521,6 +521,61 @@ impl Questions {
         out
     }
 
+    /// Cycles in the **`gate` sub-graph** — the one edge kind whose cycle is a
+    /// deadlock.
+    ///
+    /// A `gate` edge means *blocked by*: the dependent cannot proceed until the
+    /// target lifts. A cycle among them is a set of questions each waiting on
+    /// another, and no principal can move any of them. That is a deadlock, not
+    /// a slow answer, and no ruling resolves it.
+    ///
+    /// **Mixed-kind cycles are not faults and must not be reported.** Answering
+    /// a question routinely raises a second whose framing rests on the first:
+    /// the sub-question takes a `premise` edge *upward* while the parent takes
+    /// a `gate` edge *downward*. Opposite directions, different kinds — that is
+    /// what healthy nesting looks like, and this repository's own Q11 and Q12
+    /// are exactly that shape. A traversal over mixed kinds needs a visited
+    /// set; it does not need a prohibition.
+    ///
+    /// Each cycle is returned once, as the ids on it.
+    pub fn gate_cycles(&self) -> Vec<Vec<String>> {
+        fn walk(
+            qs: &Questions,
+            id: &str,
+            stack: &mut Vec<String>,
+            done: &mut BTreeSet<String>,
+            out: &mut Vec<Vec<String>>,
+        ) {
+            if done.contains(id) {
+                return;
+            }
+            if let Some(at) = stack.iter().position(|x| x == id) {
+                out.push(stack[at..].to_vec());
+                return;
+            }
+            stack.push(id.to_string());
+            if let Some(q) = qs.by_id(id) {
+                for e in &q.depends_on {
+                    if e.kind == EdgeKind::Gate.name() && is_internal_id(qs.scheme, &e.target) {
+                        walk(qs, &e.target, stack, done, out);
+                    }
+                }
+            }
+            stack.pop();
+            done.insert(id.to_string());
+        }
+
+        let mut out = Vec::new();
+        let mut done = BTreeSet::new();
+        for q in &self.questions {
+            walk(self, &q.id, &mut Vec::new(), &mut done, &mut out);
+        }
+        // One entry point per cycle: dedupe on the member set.
+        let mut seen = BTreeSet::new();
+        out.retain(|c| seen.insert(c.iter().cloned().collect::<BTreeSet<_>>()));
+        out
+    }
+
     /// Read a set of questions from a directory tree of markdown files.
     ///
     /// One question per `*.md`; the directory it sits in is its `dir`. Files
@@ -639,6 +694,12 @@ theory!(questions for Questions {
     // Every inbound edge is acknowledged by its source's `affects`.
     decidable affects_mirrors_inbound = |qs: &Questions|
         qs.outbound_drift().is_empty();
+
+    // No question is blocked, transitively, on itself. Scoped to `gate` because
+    // that is the only kind whose cycle is a deadlock — see `gate_cycles`, which
+    // says why a mixed-kind cycle is nesting rather than a fault.
+    decidable gate_edges_are_acyclic = |qs: &Questions|
+        qs.gate_cycles().is_empty();
 });
 
 // ═════════════════════════════════════════════════════════════════════════

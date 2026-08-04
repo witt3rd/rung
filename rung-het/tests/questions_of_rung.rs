@@ -613,3 +613,49 @@ fn resolved_runs_its_own_law_on_a_write_the_ruling_already_authorized() {
     let ruling = dispose(&proposal, judge, Disposition::Accept).unwrap();
     assert_eq!(enact(&mut r, &ruling, &pen).unwrap().object(), "q7");
 }
+
+/// **No question in this repository is blocked, transitively, on itself.**
+///
+/// Scoped to `gate`, because that is the only kind whose cycle is a deadlock.
+/// A `premise` edge upward paired with a `gate` edge downward is *nesting* —
+/// answering one question raised another — and Q11/Q12 are exactly that shape.
+/// `rung_std::questions::Questions::gate_cycles` says why at length.
+///
+/// **This sentence is currently VACUOUS over this corpus**, and the assertion
+/// below says so out loud rather than letting a green tick imply otherwise:
+/// every `gate` edge here points at an external target, so the internal gate
+/// sub-graph is empty. It starts doing work the moment a suspended run files
+/// its first blocking edge, which is what `docs/composition-notes.md` describes.
+#[test]
+fn no_question_is_blocked_on_itself() {
+    let qs = load();
+
+    let internal_gates: Vec<(String, String)> = qs
+        .questions
+        .iter()
+        .flat_map(|q| {
+            q.internal_depends_on()
+                .into_iter()
+                .filter(|(_, kind)| *kind == "gate")
+                .map(|(t, _)| (q.id.clone(), t.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+
+    println!("\n  internal `gate` edges: {}", internal_gates.len());
+    for (from, to) in &internal_gates {
+        println!("    {from} --gate--> {to}");
+    }
+
+    assert!(
+        qs.gate_cycles().is_empty(),
+        "a gate cycle is a deadlock: {:?}",
+        qs.gate_cycles()
+    );
+    assert_eq!(
+        internal_gates.len(),
+        0,
+        "no internal gate edge exists yet, so the check above is vacuous — \
+         when this count rises, the acyclicity assertion starts carrying weight"
+    );
+}
