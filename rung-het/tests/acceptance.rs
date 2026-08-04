@@ -3,7 +3,8 @@
 //! **This is the test the effort exists to pass.** Everything else in
 //! `rung-het` is scaffolding until this is green.
 //!
-//! Written against `docs/heteronomy/formalism.md` tower-is-a-fibration as ruled 2026-08-03.
+//! Written against `docs/rung-het-propositions.md` tower-is-a-fibration as
+//! ruled 2026-08-03.
 //! The pass is not four operations with gates; it is four operations *and a
 //! chain of principals*, each acting on what the previous one produced, each
 //! constrained relative to **whose authorship it is acting on**:

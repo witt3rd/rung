@@ -7,8 +7,8 @@ Nothing here is settled doctrine. It exists to find out what breaks.
 
 ## The claim being tested
 
-Het (`witt3rd/heteronomy`, `docs/formalism.md`) extends institution theory at
-exactly one point: the satisfaction relation `M ⊨ φ`. Sentences carry a **gate
+Het (`witt3rd/heteronomy`, here as `docs/rung-het-propositions.md`) extends
+institution theory at exactly one point: the satisfaction relation `M ⊨ φ`. Sentences carry a **gate
 marker** — `decidable` sentences are machine-checked, `judgmental` sentences
 dispatch to a principal drawn from a pool, and the principal's verdict *is* the
 outcome.
@@ -98,7 +98,8 @@ nothing could notice, until the interface was written down and the gap became
 visible. Here a judgmental sentence that names no role does not parse.
 
 This is also one of two blockers an outside reviewer independently named as
-standing between Het and publication (`heteronomy/docs/publish_gaps.md` models-defined-by-dispatch).
+standing between Het and publication (`docs/heteronomy/publish_gaps.md`
+models-defined-by-dispatch).
 
 ## What is deliberately missing
 

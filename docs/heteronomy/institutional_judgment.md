@@ -8,8 +8,9 @@
 > had to be resolved along the way (§9). It records *how the formalism was
 > arrived at*, including alternatives considered and rejected.
 >
-> **The normative statement is [`formalism.md`](formalism.md).** Where the
-> two disagree, `formalism.md` governs.
+> **The normative statement is
+> [`rung-het-propositions.md`](../rung-het-propositions.md).** Where the two
+> disagree, `rung-het-propositions.md` governs.
 >
 > Two things here remain load-bearing and are cited as such:
 >
@@ -18,7 +19,7 @@
 > - **The derivations** — `het/theory.yaml` and `principals/theory.yaml`
 >   cite specific sections as provenance for individual sentences. Those
 >   citations point *here* deliberately: they record the reasoning, not the
->   requirement. The requirement is in `formalism.md`.
+>   requirement. The requirement is in `rung-het-propositions.md`.
 
 ## 1. The Wall
 

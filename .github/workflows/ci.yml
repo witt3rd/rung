@@ -24,13 +24,13 @@ jobs:
       - name: test
         run: cargo test --workspace --locked
 
-  formalism:
+  propositions:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: proposition numbering and references
-        run: docs/heteronomy/_props.py check
+        run: docs/_props.py check
       - name: conformance ledger coverage
-        run: docs/heteronomy/_ledger.py check
+        run: docs/_ledger.py check
       - name: proposition citations in Rust source
-        run: docs/heteronomy/_props.py cited
+        run: docs/_props.py cited

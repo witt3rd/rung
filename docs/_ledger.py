@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate and check docs/heteronomy/conformance.md.
+"""Generate and check docs/conformance.md.
 
 The ledger joins Het's propositions to their enforcement in rung. It is keyed
 on proposition slug, so it survives every renumbering (see `_props.py`).
@@ -18,9 +18,9 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-DOC = HERE / "formalism.md"
+DOC = HERE / "rung-het-propositions.md"
 LEDGER = HERE / "conformance.md"
-ROOT = HERE.parent.parent
+ROOT = HERE.parent
 
 VERDICTS = {"enforced", "expressible", "deferred", "collides", "out-of-scope"}
 DEFAULT = ("out-of-scope", "mathematics of the institution — no host obligation", "—")
@@ -313,19 +313,20 @@ def render():
         verdict, mech, conf = CURATED.get(slug, DEFAULT)
         # an unresolvable {#slug} is left verbatim for `check` to report
         mech = CITE.sub(
-            lambda m: f"[{num_of[m.group(1)]}](formalism.md#{m.group(1)})"
+            lambda m: f"[{num_of[m.group(1)]}](rung-het-propositions.md#{m.group(1)})"
             if m.group(1) in num_of
             else m.group(0),
             mech,
         )
         tally[verdict] += 1
         body.append(
-            f"| [{num}](formalism.md#{slug}) | `{slug}` | `{verdict}` | {mech} | {conf} |"
+            f"| [{num}](rung-het-propositions.md#{slug}) | `{slug}` | `{verdict}` | {mech} | {conf} |"
         )
 
     head = f"""# Het — Conformance
 
-**Status: not normative.** [`formalism.md`](formalism.md) governs. This ledger
+**Status: not normative.**
+[`rung-het-propositions.md`](rung-het-propositions.md) governs. This ledger
 records where each of its propositions is enforced, and where it is not.
 
 Rows are keyed on the proposition's **slug**, not its number, so the ledger
@@ -381,7 +382,7 @@ def gen():
 def check():
     errs = []
     text, _, _ = render()
-    listed = re.findall(r"^\| \[[\d.]+\]\(formalism\.md#([a-z0-9-]+)\) \| `([a-z0-9-]+)` \| `([a-z-]+)` \|",
+    listed = re.findall(r"^\| \[[\d.]+\]\(rung-het-propositions\.md#([a-z0-9-]+)\) \| `([a-z0-9-]+)` \| `([a-z-]+)` \|",
                         text, re.M)
     all_slugs = [s for _, s in props()]
 
@@ -395,7 +396,7 @@ def check():
 
     for slug, n in seen.items():
         if slug not in all_slugs:
-            errs.append(f"row `{slug}`: not a proposition of formalism.md")
+            errs.append(f"row `{slug}`: not a proposition of rung-het-propositions.md")
         if n > 1:
             errs.append(f"row `{slug}`: listed {n} times")
     for slug in all_slugs:

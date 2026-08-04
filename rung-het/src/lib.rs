@@ -2,8 +2,8 @@
 //!
 //! ## What this is
 //!
-//! Het (see `witt3rd/heteronomy`, `docs/formalism.md`) extends institution
-//! theory at exactly one point: the satisfaction relation `M ⊨ φ`. Every
+//! Het (see `witt3rd/heteronomy`, here as `docs/rung-het-propositions.md`)
+//! extends institution theory at exactly one point: the satisfaction relation `M ⊨ φ`. Every
 //! sentence carries a **gate marker** fixing *how* satisfaction is computed:
 //!
 //! | gate | how `M ⊨ φ` is settled |

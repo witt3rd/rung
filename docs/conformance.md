@@ -1,6 +1,7 @@
 # Het — Conformance
 
-**Status: not normative.** [`formalism.md`](formalism.md) governs. This ledger
+**Status: not normative.**
+[`rung-het-propositions.md`](rung-het-propositions.md) governs. This ledger
 records where each of its propositions is enforced, and where it is not.
 
 Rows are keyed on the proposition's **slug**, not its number, so the ledger
@@ -48,251 +49,251 @@ formalism requires.
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [1](formalism.md#one-relation) | `one-relation` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.1](formalism.md#institution-quadruple) | `institution-quadruple` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.11](formalism.md#sign-category) | `sign-category` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.12](formalism.md#sen-functor) | `sen-functor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.13](formalism.md#mod-functor) | `mod-functor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.14](formalism.md#satisfaction-typing) | `satisfaction-typing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.2](formalism.md#satisfaction-condition) | `satisfaction-condition` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.3](formalism.md#signature-declares) | `signature-declares` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.31](formalism.md#extension-is-in-models) | `extension-is-in-models` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.32](formalism.md#no-layer-above-sigma) | `no-layer-above-sigma` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [1.4](formalism.md#rest-is-bookkeeping) | `rest-is-bookkeeping` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1](rung-het-propositions.md#one-relation) | `one-relation` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.1](rung-het-propositions.md#institution-quadruple) | `institution-quadruple` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.11](rung-het-propositions.md#sign-category) | `sign-category` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.12](rung-het-propositions.md#sen-functor) | `sen-functor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.13](rung-het-propositions.md#mod-functor) | `mod-functor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.14](rung-het-propositions.md#satisfaction-typing) | `satisfaction-typing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.2](rung-het-propositions.md#satisfaction-condition) | `satisfaction-condition` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.3](rung-het-propositions.md#signature-declares) | `signature-declares` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.31](rung-het-propositions.md#extension-is-in-models) | `extension-is-in-models` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.32](rung-het-propositions.md#no-layer-above-sigma) | `no-layer-above-sigma` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [1.4](rung-het-propositions.md#rest-is-bookkeeping) | `rest-is-bookkeeping` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 2 · The gate
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [2](formalism.md#gate-marker-required) | `gate-marker-required` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.1](formalism.md#four-gates) | `four-gates` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.11](formalism.md#no-other-gate-value) | `no-other-gate-value` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.2](formalism.md#unmarked-not-wellformed) | `unmarked-not-wellformed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.3](formalism.md#judgmental-declares-role) | `judgmental-declares-role` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.31](formalism.md#role-not-kind) | `role-not-kind` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.32](formalism.md#role-declared-pointwise) | `role-declared-pointwise` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.4](formalism.md#authorial-declares-standing) | `authorial-declares-standing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.5](formalism.md#conditional-names-classifier) | `conditional-names-classifier` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.51](formalism.md#classifier-not-judgmental) | `classifier-not-judgmental` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.52](formalism.md#conditional-partitions-fiber) | `conditional-partitions-fiber` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.53](formalism.md#classifier-one-level-up) | `classifier-one-level-up` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [2.54](formalism.md#decidability-expressible-internally) | `decidability-expressible-internally` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2](rung-het-propositions.md#gate-marker-required) | `gate-marker-required` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.1](rung-het-propositions.md#four-gates) | `four-gates` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.11](rung-het-propositions.md#no-other-gate-value) | `no-other-gate-value` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.2](rung-het-propositions.md#unmarked-not-wellformed) | `unmarked-not-wellformed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.3](rung-het-propositions.md#judgmental-declares-role) | `judgmental-declares-role` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.31](rung-het-propositions.md#role-not-kind) | `role-not-kind` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.32](rung-het-propositions.md#role-declared-pointwise) | `role-declared-pointwise` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.4](rung-het-propositions.md#authorial-declares-standing) | `authorial-declares-standing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.5](rung-het-propositions.md#conditional-names-classifier) | `conditional-names-classifier` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.51](rung-het-propositions.md#classifier-not-judgmental) | `classifier-not-judgmental` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.52](rung-het-propositions.md#conditional-partitions-fiber) | `conditional-partitions-fiber` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.53](rung-het-propositions.md#classifier-one-level-up) | `classifier-one-level-up` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [2.54](rung-het-propositions.md#decidability-expressible-internally) | `decidability-expressible-internally` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 3 · The pool
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [3](formalism.md#pool-is-parameter) | `pool-is-parameter` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.1](formalism.md#pool-not-a-sort) | `pool-not-a-sort` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.11](formalism.md#internalizing-outside-collapses) | `internalizing-outside-collapses` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.2](formalism.md#pool-is-opaque) | `pool-is-opaque` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.21](formalism.md#supplier-interface) | `supplier-interface` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.22](formalism.md#interface-by-signature-inspection) | `interface-by-signature-inspection` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.23](formalism.md#nothing-further-required) | `nothing-further-required` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.24](formalism.md#capable-single-arity) | `capable-single-arity` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.3](formalism.md#three-belonging-predicates) | `three-belonging-predicates` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.31](formalism.md#ordering-is-hetopts) | `ordering-is-hetopts` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.32](formalism.md#epsilon-declared-not-ranked) | `epsilon-declared-not-ranked` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.4](formalism.md#one-pool-two-filters) | `one-pool-two-filters` | `expressible` | Both filters produce tokens over one pool; the gate selects the predicate. rung sees two differently-typed tokens and nothing else. | — |
-| [3.5](formalism.md#judgmental-qualifying-set) | `judgmental-qualifying-set` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.51](formalism.md#disjointness-against-argument) | `disjointness-against-argument` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.52](formalism.md#argument-governs) | `argument-governs` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.53](formalism.md#non-identity-before-dispatch) | `non-identity-before-dispatch` | `expressible` | The filter is set operations over declared predicates ([10.22](formalism.md#conformance-half-needs-no-judge)). rung enforces *that the token was constructed*, never that the body computed the set correctly — SPEC §5, transition-body correctness. | — |
-| [3.54](formalism.md#non-identity-by-construction) | `non-identity-by-construction` | `deferred` | GAP — the token is unforgeable but UNBOUND. `rung-het`'s `Qualified<R>` records the principal and its provenance and forgets the argument it was measured against (`rung-het/src/lib.rs:402-408`), so a token earned against one argument can be spent on another. Sealing the constructor closes fabrication, not transfer. Binding the token is the substrate rewrite's job. | — |
-| [3.55](formalism.md#non-identity-not-deferrable) | `non-identity-not-deferrable` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.56](formalism.md#no-preference-among-judges) | `no-preference-among-judges` | `expressible` | UNARGUED in both doctrine and code. `Pool::qualify` returns the FIRST qualifying principal. Het says any qualifying judge yields a well-formed verdict, so a deterministic pick is admissible — but whether pool position constitutes an ordering has not been argued either way. Assumed, not shown. | — |
-| [3.6](formalism.md#authorial-qualifying-set) | `authorial-qualifying-set` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.61](formalism.md#judgment-refuses-authorship-requires) | `judgment-refuses-authorship-requires` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.62](formalism.md#provenance-overlap-is-the-point) | `provenance-overlap-is-the-point` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.63](formalism.md#standing-conditional-gated) | `standing-conditional-gated` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.64](formalism.md#standing-terminates-at-depth-one) | `standing-terminates-at-depth-one` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.65](formalism.md#standing-judge-disjoint-from-author) | `standing-judge-disjoint-from-author` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.66](formalism.md#two-escalation-triggers) | `two-escalation-triggers` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.67](formalism.md#standing-escalation-precedes-valuation) | `standing-escalation-precedes-valuation` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3](rung-het-propositions.md#pool-is-parameter) | `pool-is-parameter` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.1](rung-het-propositions.md#pool-not-a-sort) | `pool-not-a-sort` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.11](rung-het-propositions.md#internalizing-outside-collapses) | `internalizing-outside-collapses` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.2](rung-het-propositions.md#pool-is-opaque) | `pool-is-opaque` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.21](rung-het-propositions.md#supplier-interface) | `supplier-interface` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.22](rung-het-propositions.md#interface-by-signature-inspection) | `interface-by-signature-inspection` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.23](rung-het-propositions.md#nothing-further-required) | `nothing-further-required` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.24](rung-het-propositions.md#capable-single-arity) | `capable-single-arity` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.3](rung-het-propositions.md#three-belonging-predicates) | `three-belonging-predicates` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.31](rung-het-propositions.md#ordering-is-hetopts) | `ordering-is-hetopts` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.32](rung-het-propositions.md#epsilon-declared-not-ranked) | `epsilon-declared-not-ranked` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.4](rung-het-propositions.md#one-pool-two-filters) | `one-pool-two-filters` | `expressible` | Both filters produce tokens over one pool; the gate selects the predicate. rung sees two differently-typed tokens and nothing else. | — |
+| [3.5](rung-het-propositions.md#judgmental-qualifying-set) | `judgmental-qualifying-set` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.51](rung-het-propositions.md#disjointness-against-argument) | `disjointness-against-argument` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.52](rung-het-propositions.md#argument-governs) | `argument-governs` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.53](rung-het-propositions.md#non-identity-before-dispatch) | `non-identity-before-dispatch` | `expressible` | The filter is set operations over declared predicates ([10.22](rung-het-propositions.md#conformance-half-needs-no-judge)). rung enforces *that the token was constructed*, never that the body computed the set correctly — SPEC §5, transition-body correctness. | — |
+| [3.54](rung-het-propositions.md#non-identity-by-construction) | `non-identity-by-construction` | `deferred` | GAP — the token is unforgeable but UNBOUND. `rung-het`'s `Qualified<R>` records the principal and its provenance and forgets the argument it was measured against (`rung-het/src/lib.rs:402-408`), so a token earned against one argument can be spent on another. Sealing the constructor closes fabrication, not transfer. Binding the token is the substrate rewrite's job. | — |
+| [3.55](rung-het-propositions.md#non-identity-not-deferrable) | `non-identity-not-deferrable` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.56](rung-het-propositions.md#no-preference-among-judges) | `no-preference-among-judges` | `expressible` | UNARGUED in both doctrine and code. `Pool::qualify` returns the FIRST qualifying principal. Het says any qualifying judge yields a well-formed verdict, so a deterministic pick is admissible — but whether pool position constitutes an ordering has not been argued either way. Assumed, not shown. | — |
+| [3.6](rung-het-propositions.md#authorial-qualifying-set) | `authorial-qualifying-set` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.61](rung-het-propositions.md#judgment-refuses-authorship-requires) | `judgment-refuses-authorship-requires` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.62](rung-het-propositions.md#provenance-overlap-is-the-point) | `provenance-overlap-is-the-point` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.63](rung-het-propositions.md#standing-conditional-gated) | `standing-conditional-gated` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.64](rung-het-propositions.md#standing-terminates-at-depth-one) | `standing-terminates-at-depth-one` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.65](rung-het-propositions.md#standing-judge-disjoint-from-author) | `standing-judge-disjoint-from-author` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.66](rung-het-propositions.md#two-escalation-triggers) | `two-escalation-triggers` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.67](rung-het-propositions.md#standing-escalation-precedes-valuation) | `standing-escalation-precedes-valuation` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 4 · The verdict
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [4](formalism.md#verdict-space-with-metric) | `verdict-space-with-metric` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.1](formalism.md#judges-are-stochastic) | `judges-are-stochastic` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.11](formalism.md#boolean-breaks-satisfaction) | `boolean-breaks-satisfaction` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.2](formalism.md#typical-verdict-spaces) | `typical-verdict-spaces` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.3](formalism.md#satisfaction-condition-relaxed) | `satisfaction-condition-relaxed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.31](formalism.md#drift-within-tolerance) | `drift-within-tolerance` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.4](formalism.md#metric-carried-by-verdict-space) | `metric-carried-by-verdict-space` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.5](formalism.md#metric-measures-not-ranks) | `metric-measures-not-ranks` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.51](formalism.md#order-as-preference-is-hetopts) | `order-as-preference-is-hetopts` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.6](formalism.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `deferred` | GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ([4.11](formalism.md#boolean-breaks-satisfaction)). | — |
-| [4.7](formalism.md#translation-invariance-is-candidates-burden) | `translation-invariance-is-candidates-burden` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4](rung-het-propositions.md#verdict-space-with-metric) | `verdict-space-with-metric` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.1](rung-het-propositions.md#judges-are-stochastic) | `judges-are-stochastic` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.11](rung-het-propositions.md#boolean-breaks-satisfaction) | `boolean-breaks-satisfaction` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.2](rung-het-propositions.md#typical-verdict-spaces) | `typical-verdict-spaces` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.3](rung-het-propositions.md#satisfaction-condition-relaxed) | `satisfaction-condition-relaxed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.31](rung-het-propositions.md#drift-within-tolerance) | `drift-within-tolerance` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.4](rung-het-propositions.md#metric-carried-by-verdict-space) | `metric-carried-by-verdict-space` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.5](rung-het-propositions.md#metric-measures-not-ranks) | `metric-measures-not-ranks` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.51](rung-het-propositions.md#order-as-preference-is-hetopts) | `order-as-preference-is-hetopts` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.6](rung-het-propositions.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `deferred` | GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ([4.11](rung-het-propositions.md#boolean-breaks-satisfaction)). | — |
+| [4.7](rung-het-propositions.md#translation-invariance-is-candidates-burden) | `translation-invariance-is-candidates-burden` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 5 · The semantics
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [5](formalism.md#algebra-is-kleisli-functor) | `algebra-is-kleisli-functor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.1](formalism.md#not-a-set-functor) | `not-a-set-functor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.11](formalism.md#set-functor-decides-everything) | `set-functor-decides-everything` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.12](formalism.md#set-functor-violates-refusal) | `set-functor-violates-refusal` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.2](formalism.md#monad-reading) | `monad-reading` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.21](formalism.md#unit-is-no-outside) | `unit-is-no-outside` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.22](formalism.md#judgmental-is-kleisli-arrow) | `judgmental-is-kleisli-arrow` | `deferred` | Q8 (async driver, open) for the async case only. A *blocking* outside call works today — rung-std's `LlmCall` ladder puts the call on the arrow — so this is a constraint, not a blocker. | docs/questions/open/q8-async-driver.md |
-| [5.23](formalism.md#monad-is-what-outside-adds) | `monad-is-what-outside-adds` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.24](formalism.md#kleisli-composition-interleaves) | `kleisli-composition-interleaves` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.25](formalism.md#judgmental-arrow-shape) | `judgmental-arrow-shape` | `enforced` | The `+ A` residual is `Failed<Prev> { token, error }` — the unconsumed argument handed back. RUNG-CT §6.1 names this the Prism's residual and is why the error structure is not a Kleisli arrow; the monad `P` layers on the forward pass, which §6.1 explicitly permits. | rung/tests/compile_pass.rs::test_failed_type |
-| [5.3](formalism.md#provenance-structure) | `provenance-structure` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.31](formalism.md#morphisms-preserve-provenance) | `morphisms-preserve-provenance` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.32](formalism.md#monad-is-provenance-strict) | `monad-is-provenance-strict` | `expressible` | `carry` is the natural home for provenance: a product factor preserved across every arrow, immutable by G5. It does not carry a *principal's* provenance, which lives outside the ladder. | rung/tests/compile_pass.rs::test_carry_accessor_exists |
-| [5.4](formalism.md#constant-arrow-hazard) | `constant-arrow-hazard` | `enforced` | G2 sealed construction. A judgmental arrow cannot be interpreted by a constant drawn from the algebra's own carrier, because no mid-ladder rung is constructible outside its module. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
-| [5.41](formalism.md#admissibility-subcategories) | `admissibility-subcategories` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.42](formalism.md#authorial-admissibility-stronger) | `authorial-admissibility-stronger` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.43](formalism.md#one-monad) | `one-monad` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.44](formalism.md#gate-relative-admissibility-licensed) | `gate-relative-admissibility-licensed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.5](formalism.md#gate-faithful) | `gate-faithful` | `deferred` | GAP — no question filed. The ladder DSL has no gate marker, so an algebra cannot declare which arrows are judgmental and nothing checks faithfulness. This is the largest unclosed distance between Het and rung. | — |
-| [5.51](formalism.md#mod-only-gate-faithful) | `mod-only-gate-faithful` | `deferred` | GAP — no question filed. Follows gate-faithful. | — |
-| [5.52](formalism.md#refusal-at-model-category) | `refusal-at-model-category` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.53](formalism.md#condition-propagates-by-reindexing) | `condition-propagates-by-reindexing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.6](formalism.md#subject-defined) | `subject-defined` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.61](formalism.md#decidable-runs-pure) | `decidable-runs-pure` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.62](formalism.md#judgmental-runs-kleisli) | `judgmental-runs-kleisli` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.63](formalism.md#self-governing-not-self-closing) | `self-governing-not-self-closing` | `enforced` | G2 sealed construction. This proposition *is* rung's founding refusal: an attempt to fold a live verdict into the next state was rejected by the sealed constructor (RUNG-CT, 'The law'). The algebra runs its own decidable step; it cannot construct the state that holds a judgmental outcome. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
-| [5.64](formalism.md#autopoiesis-made-precise) | `autopoiesis-made-precise` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5](rung-het-propositions.md#algebra-is-kleisli-functor) | `algebra-is-kleisli-functor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.1](rung-het-propositions.md#not-a-set-functor) | `not-a-set-functor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.11](rung-het-propositions.md#set-functor-decides-everything) | `set-functor-decides-everything` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.12](rung-het-propositions.md#set-functor-violates-refusal) | `set-functor-violates-refusal` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.2](rung-het-propositions.md#monad-reading) | `monad-reading` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.21](rung-het-propositions.md#unit-is-no-outside) | `unit-is-no-outside` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.22](rung-het-propositions.md#judgmental-is-kleisli-arrow) | `judgmental-is-kleisli-arrow` | `deferred` | Q8 (async driver, open) for the async case only. A *blocking* outside call works today — rung-std's `LlmCall` ladder puts the call on the arrow — so this is a constraint, not a blocker. | docs/questions/open/q8-async-driver.md |
+| [5.23](rung-het-propositions.md#monad-is-what-outside-adds) | `monad-is-what-outside-adds` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.24](rung-het-propositions.md#kleisli-composition-interleaves) | `kleisli-composition-interleaves` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.25](rung-het-propositions.md#judgmental-arrow-shape) | `judgmental-arrow-shape` | `enforced` | The `+ A` residual is `Failed<Prev> { token, error }` — the unconsumed argument handed back. RUNG-CT §6.1 names this the Prism's residual and is why the error structure is not a Kleisli arrow; the monad `P` layers on the forward pass, which §6.1 explicitly permits. | rung/tests/compile_pass.rs::test_failed_type |
+| [5.3](rung-het-propositions.md#provenance-structure) | `provenance-structure` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.31](rung-het-propositions.md#morphisms-preserve-provenance) | `morphisms-preserve-provenance` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.32](rung-het-propositions.md#monad-is-provenance-strict) | `monad-is-provenance-strict` | `expressible` | `carry` is the natural home for provenance: a product factor preserved across every arrow, immutable by G5. It does not carry a *principal's* provenance, which lives outside the ladder. | rung/tests/compile_pass.rs::test_carry_accessor_exists |
+| [5.4](rung-het-propositions.md#constant-arrow-hazard) | `constant-arrow-hazard` | `enforced` | G2 sealed construction. A judgmental arrow cannot be interpreted by a constant drawn from the algebra's own carrier, because no mid-ladder rung is constructible outside its module. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
+| [5.41](rung-het-propositions.md#admissibility-subcategories) | `admissibility-subcategories` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.42](rung-het-propositions.md#authorial-admissibility-stronger) | `authorial-admissibility-stronger` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.43](rung-het-propositions.md#one-monad) | `one-monad` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.44](rung-het-propositions.md#gate-relative-admissibility-licensed) | `gate-relative-admissibility-licensed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.5](rung-het-propositions.md#gate-faithful) | `gate-faithful` | `deferred` | GAP — no question filed. The ladder DSL has no gate marker, so an algebra cannot declare which arrows are judgmental and nothing checks faithfulness. This is the largest unclosed distance between Het and rung. | — |
+| [5.51](rung-het-propositions.md#mod-only-gate-faithful) | `mod-only-gate-faithful` | `deferred` | GAP — no question filed. Follows gate-faithful. | — |
+| [5.52](rung-het-propositions.md#refusal-at-model-category) | `refusal-at-model-category` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.53](rung-het-propositions.md#condition-propagates-by-reindexing) | `condition-propagates-by-reindexing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.6](rung-het-propositions.md#subject-defined) | `subject-defined` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.61](rung-het-propositions.md#decidable-runs-pure) | `decidable-runs-pure` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.62](rung-het-propositions.md#judgmental-runs-kleisli) | `judgmental-runs-kleisli` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.63](rung-het-propositions.md#self-governing-not-self-closing) | `self-governing-not-self-closing` | `enforced` | G2 sealed construction. This proposition *is* rung's founding refusal: an attempt to fold a live verdict into the next state was rejected by the sealed constructor (RUNG-CT, 'The law'). The algebra runs its own decidable step; it cannot construct the state that holds a judgmental outcome. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
+| [5.64](rung-het-propositions.md#autopoiesis-made-precise) | `autopoiesis-made-precise` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 6 · The tower
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [6](formalism.md#fractal-property) | `fractal-property` | `expressible` | RUNG-CT §10 — the composite Grothendieck opfibration, resolved by Q10. The correspondence is proved; no registry hierarchy is built. | docs/questions/resolved/q10-fractal-registry-hierarchy.md |
-| [6.1](formalism.md#tower-is-a-fibration) | `tower-is-a-fibration` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.11](formalism.md#same-relation-every-level) | `same-relation-every-level` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.12](formalism.md#kleisli-iterates) | `kleisli-iterates` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.13](formalism.md#tower-semantic-every-level) | `tower-semantic-every-level` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.14](formalism.md#two-directions-two-bases) | `two-directions-two-bases` | `expressible` | Conformance is Het's fibration (Mod: Sign^op → Cat, contravariant). Propagation is RUNG-CT §10's opfibration (pushforward, opcartesian). Different bases at adjacent levels — not opposite orientations of one tower. | — |
-| [6.2](formalism.md#two-kinds-of-pointing) | `two-kinds-of-pointing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.21](formalism.md#pointings-are-duals) | `pointings-are-duals` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.22](formalism.md#declaration-on-models-only) | `declaration-on-models-only` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.23](formalism.md#model-without-theory-is-empty) | `model-without-theory-is-empty` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.24](formalism.md#declaration-is-not-a-morphism) | `declaration-is-not-a-morphism` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.25](formalism.md#three-relations-not-conflated) | `three-relations-not-conflated` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.3](formalism.md#gate-law) | `gate-law` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.31](formalism.md#no-laundering-along-morphisms) | `no-laundering-along-morphisms` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.4](formalism.md#tower-floor) | `tower-floor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.41](formalism.md#wellformedness-clauses) | `wellformedness-clauses` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.42](formalism.md#clauses-decidable-by-inspection) | `clauses-decidable-by-inspection` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.43](formalism.md#floor-not-gate-marked) | `floor-not-gate-marked` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.44](formalism.md#w-checks-declaration-not-adequacy) | `w-checks-declaration-not-adequacy` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.5](formalism.md#adequacy-defined) | `adequacy-defined` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.51](formalism.md#adequacy-is-judgmental) | `adequacy-is-judgmental` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.52](formalism.md#adequacy-failure-is-not-a-w-defect) | `adequacy-failure-is-not-a-w-defect` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.53](formalism.md#adequacy-asks-for-a-judge) | `adequacy-asks-for-a-judge` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.54](formalism.md#adequacy-local-not-global) | `adequacy-local-not-global` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.55](formalism.md#adequacy-failure-returns-residual) | `adequacy-failure-returns-residual` | `enforced` | G9 error-path recovery, `Failed(R) => R`, explicitly unguarded — a re-entry after an unanswered call may reuse the argument. G4 additionally forbids silently dropping the returned residual. | rung/tests/end_to_end.rs::recovers_from_the_failed_error_path |
-| [6.6](formalism.md#self-grounding-is-a-pair) | `self-grounding-is-a-pair` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.61](formalism.md#het-self-grounding-condition) | `het-self-grounding-condition` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.62](formalism.md#neither-stands-on-itself) | `neither-stands-on-itself` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.63](formalism.md#first-question-is-hets-own-signature) | `first-question-is-hets-own-signature` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.7](formalism.md#signature-claims-are-w-clauses) | `signature-claims-are-w-clauses` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [6.71](formalism.md#sentence-needs-an-inhabitant) | `sentence-needs-an-inhabitant` | `out-of-scope` | A signature-claim has no carrier inhabitant to test. Nothing for a host to run. | — |
-| [6.72](formalism.md#empty-equation-is-a-misfiling) | `empty-equation-is-a-misfiling` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6](rung-het-propositions.md#fractal-property) | `fractal-property` | `expressible` | RUNG-CT §10 — the composite Grothendieck opfibration, resolved by Q10. The correspondence is proved; no registry hierarchy is built. | docs/questions/resolved/q10-fractal-registry-hierarchy.md |
+| [6.1](rung-het-propositions.md#tower-is-a-fibration) | `tower-is-a-fibration` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.11](rung-het-propositions.md#same-relation-every-level) | `same-relation-every-level` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.12](rung-het-propositions.md#kleisli-iterates) | `kleisli-iterates` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.13](rung-het-propositions.md#tower-semantic-every-level) | `tower-semantic-every-level` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.14](rung-het-propositions.md#two-directions-two-bases) | `two-directions-two-bases` | `expressible` | Conformance is Het's fibration (Mod: Sign^op → Cat, contravariant). Propagation is RUNG-CT §10's opfibration (pushforward, opcartesian). Different bases at adjacent levels — not opposite orientations of one tower. | — |
+| [6.2](rung-het-propositions.md#two-kinds-of-pointing) | `two-kinds-of-pointing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.21](rung-het-propositions.md#pointings-are-duals) | `pointings-are-duals` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.22](rung-het-propositions.md#declaration-on-models-only) | `declaration-on-models-only` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.23](rung-het-propositions.md#model-without-theory-is-empty) | `model-without-theory-is-empty` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.24](rung-het-propositions.md#declaration-is-not-a-morphism) | `declaration-is-not-a-morphism` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.25](rung-het-propositions.md#three-relations-not-conflated) | `three-relations-not-conflated` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.3](rung-het-propositions.md#gate-law) | `gate-law` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.31](rung-het-propositions.md#no-laundering-along-morphisms) | `no-laundering-along-morphisms` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.4](rung-het-propositions.md#tower-floor) | `tower-floor` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.41](rung-het-propositions.md#wellformedness-clauses) | `wellformedness-clauses` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.42](rung-het-propositions.md#clauses-decidable-by-inspection) | `clauses-decidable-by-inspection` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.43](rung-het-propositions.md#floor-not-gate-marked) | `floor-not-gate-marked` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.44](rung-het-propositions.md#w-checks-declaration-not-adequacy) | `w-checks-declaration-not-adequacy` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.5](rung-het-propositions.md#adequacy-defined) | `adequacy-defined` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.51](rung-het-propositions.md#adequacy-is-judgmental) | `adequacy-is-judgmental` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.52](rung-het-propositions.md#adequacy-failure-is-not-a-w-defect) | `adequacy-failure-is-not-a-w-defect` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.53](rung-het-propositions.md#adequacy-asks-for-a-judge) | `adequacy-asks-for-a-judge` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.54](rung-het-propositions.md#adequacy-local-not-global) | `adequacy-local-not-global` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.55](rung-het-propositions.md#adequacy-failure-returns-residual) | `adequacy-failure-returns-residual` | `enforced` | G9 error-path recovery, `Failed(R) => R`, explicitly unguarded — a re-entry after an unanswered call may reuse the argument. G4 additionally forbids silently dropping the returned residual. | rung/tests/end_to_end.rs::recovers_from_the_failed_error_path |
+| [6.6](rung-het-propositions.md#self-grounding-is-a-pair) | `self-grounding-is-a-pair` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.61](rung-het-propositions.md#het-self-grounding-condition) | `het-self-grounding-condition` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.62](rung-het-propositions.md#neither-stands-on-itself) | `neither-stands-on-itself` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.63](rung-het-propositions.md#first-question-is-hets-own-signature) | `first-question-is-hets-own-signature` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.7](rung-het-propositions.md#signature-claims-are-w-clauses) | `signature-claims-are-w-clauses` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [6.71](rung-het-propositions.md#sentence-needs-an-inhabitant) | `sentence-needs-an-inhabitant` | `out-of-scope` | A signature-claim has no carrier inhabitant to test. Nothing for a host to run. | — |
+| [6.72](rung-het-propositions.md#empty-equation-is-a-misfiling) | `empty-equation-is-a-misfiling` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 7 · The game
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [7](formalism.md#satisfaction-is-a-game) | `satisfaction-is-a-game` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.1](formalism.md#proponent-and-opponent) | `proponent-and-opponent` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.11](formalism.md#decidable-games-are-bounded) | `decidable-games-are-bounded` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.12](formalism.md#judgmental-games-have-an-oracle) | `judgmental-games-have-an-oracle` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.13](formalism.md#game-resolves-disagreement) | `game-resolves-disagreement` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.2](formalism.md#the-pass) | `the-pass` | `expressible` | One `ladder!` declaration. Rungs are the pass's positions; the branching transition is `dispose`; verdict arms are the Disposition vocabulary. | — |
-| [7.21](formalism.md#propose-is-authorial) | `propose-is-authorial` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.22](formalism.md#judgmental-propose-swaps-roles) | `judgmental-propose-swaps-roles` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.23](formalism.md#difficulty-is-not-an-outside) | `difficulty-is-not-an-outside` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.24](formalism.md#proposal-provenance-is-authors) | `proposal-provenance-is-authors` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.3](formalism.md#proposal-vocabulary) | `proposal-vocabulary` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.31](formalism.md#dispute-is-still-judged) | `dispute-is-still-judged` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.32](formalism.md#dispute-is-the-only-contest) | `dispute-is-the-only-contest` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.33](formalism.md#remedy-carries-an-edit) | `remedy-carries-an-edit` | `expressible` | The edit is the rung payload's type, supplied by the theory. G10's continue arm carries its target rung live, so the edit type never leaves the ladder. | — |
-| [7.4](formalism.md#disposition-vocabulary) | `disposition-vocabulary` | `enforced` | G6 exhaustive outcomes. `StepOutcome` is an enum, so every match site must handle all five; adding a disposition breaks every call site at compile time. | rung/tests/compile_pass.rs::test_verdict_enum |
-| [7.41](formalism.md#disposition-is-a-ruling) | `disposition-is-a-ruling` | `enforced` | G2. `dispose` returns a verdict; only the separately-declared authorial arrow produces the revised object. A ruling cannot construct what it rules on. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
-| [7.42](formalism.md#no-amending-disposition) | `no-amending-disposition` | `enforced` | G2, same mechanism. A judge's arrow has no constructor for the authored object, so an amending disposition is not expressible. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
-| [7.43](formalism.md#reason-is-not-an-edit) | `reason-is-not-an-edit` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.44](formalism.md#reproposal-carries-the-chain) | `reproposal-carries-the-chain` | `expressible` | The chain rides in the rung payload. NOTE: this is exactly what would make a G8 progress guard vacuous — a strictly growing chain never compares equal — which is why re-entry must not use a guarded edge ([12.5](formalism.md#guarded-reentry-is-eviction)). | — |
-| [7.5](formalism.md#enact-makes-an-endofunctor) | `enact-makes-an-endofunctor` | `expressible` | `enact` is a forward transition returning the revised object's rung. rung enforces that it ran, not that the edit was right (SPEC §5). | — |
-| [7.51](formalism.md#licence-is-not-guarantee) | `licence-is-not-guarantee` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.52](formalism.md#target-runs-its-own-models) | `target-runs-its-own-models` | `deferred` | Q4 (composition / nested ladders, open). The pass composed with itself across a container boundary is ladder-in-ladder. | docs/questions/open/q4-composition-nested-ladders.md |
-| [7.53](formalism.md#enact-has-two-failure-points) | `enact-has-two-failure-points` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [7.6](formalism.md#panels) | `panels` | `deferred` | Q5 (fork-join concurrency, open). A panel splits one argument across N concurrent oracle calls; rung has no fork-join primitive. | docs/questions/open/q5-fork-join-concurrency.md |
-| [7.61](formalism.md#panels-cannot-weaken-the-opponent) | `panels-cannot-weaken-the-opponent` | `deferred` | Q5 (fork-join concurrency, open). | docs/questions/open/q5-fork-join-concurrency.md |
+| [7](rung-het-propositions.md#satisfaction-is-a-game) | `satisfaction-is-a-game` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.1](rung-het-propositions.md#proponent-and-opponent) | `proponent-and-opponent` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.11](rung-het-propositions.md#decidable-games-are-bounded) | `decidable-games-are-bounded` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.12](rung-het-propositions.md#judgmental-games-have-an-oracle) | `judgmental-games-have-an-oracle` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.13](rung-het-propositions.md#game-resolves-disagreement) | `game-resolves-disagreement` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.2](rung-het-propositions.md#the-pass) | `the-pass` | `expressible` | One `ladder!` declaration. Rungs are the pass's positions; the branching transition is `dispose`; verdict arms are the Disposition vocabulary. | — |
+| [7.21](rung-het-propositions.md#propose-is-authorial) | `propose-is-authorial` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.22](rung-het-propositions.md#judgmental-propose-swaps-roles) | `judgmental-propose-swaps-roles` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.23](rung-het-propositions.md#difficulty-is-not-an-outside) | `difficulty-is-not-an-outside` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.24](rung-het-propositions.md#proposal-provenance-is-authors) | `proposal-provenance-is-authors` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.3](rung-het-propositions.md#proposal-vocabulary) | `proposal-vocabulary` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.31](rung-het-propositions.md#dispute-is-still-judged) | `dispute-is-still-judged` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.32](rung-het-propositions.md#dispute-is-the-only-contest) | `dispute-is-the-only-contest` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.33](rung-het-propositions.md#remedy-carries-an-edit) | `remedy-carries-an-edit` | `expressible` | The edit is the rung payload's type, supplied by the theory. G10's continue arm carries its target rung live, so the edit type never leaves the ladder. | — |
+| [7.4](rung-het-propositions.md#disposition-vocabulary) | `disposition-vocabulary` | `enforced` | G6 exhaustive outcomes. `StepOutcome` is an enum, so every match site must handle all five; adding a disposition breaks every call site at compile time. | rung/tests/compile_pass.rs::test_verdict_enum |
+| [7.41](rung-het-propositions.md#disposition-is-a-ruling) | `disposition-is-a-ruling` | `enforced` | G2. `dispose` returns a verdict; only the separately-declared authorial arrow produces the revised object. A ruling cannot construct what it rules on. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
+| [7.42](rung-het-propositions.md#no-amending-disposition) | `no-amending-disposition` | `enforced` | G2, same mechanism. A judge's arrow has no constructor for the authored object, so an amending disposition is not expressible. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
+| [7.43](rung-het-propositions.md#reason-is-not-an-edit) | `reason-is-not-an-edit` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.44](rung-het-propositions.md#reproposal-carries-the-chain) | `reproposal-carries-the-chain` | `expressible` | The chain rides in the rung payload. NOTE: this is exactly what would make a G8 progress guard vacuous — a strictly growing chain never compares equal — which is why re-entry must not use a guarded edge ([12.5](rung-het-propositions.md#guarded-reentry-is-eviction)). | — |
+| [7.5](rung-het-propositions.md#enact-makes-an-endofunctor) | `enact-makes-an-endofunctor` | `expressible` | `enact` is a forward transition returning the revised object's rung. rung enforces that it ran, not that the edit was right (SPEC §5). | — |
+| [7.51](rung-het-propositions.md#licence-is-not-guarantee) | `licence-is-not-guarantee` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.52](rung-het-propositions.md#target-runs-its-own-models) | `target-runs-its-own-models` | `deferred` | Q4 (composition / nested ladders, open). The pass composed with itself across a container boundary is ladder-in-ladder. | docs/questions/open/q4-composition-nested-ladders.md |
+| [7.53](rung-het-propositions.md#enact-has-two-failure-points) | `enact-has-two-failure-points` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [7.6](rung-het-propositions.md#panels) | `panels` | `deferred` | Q5 (fork-join concurrency, open). A panel splits one argument across N concurrent oracle calls; rung has no fork-join primitive. | docs/questions/open/q5-fork-join-concurrency.md |
+| [7.61](rung-het-propositions.md#panels-cannot-weaken-the-opponent) | `panels-cannot-weaken-the-opponent` | `deferred` | Q5 (fork-join concurrency, open). | docs/questions/open/q5-fork-join-concurrency.md |
 
 ### 8 · The cut
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [8](formalism.md#het-settles-hetopt-orders) | `het-settles-hetopt-orders` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.1](formalism.md#metric-and-preference-same-furniture) | `metric-and-preference-same-furniture` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.2](formalism.md#cut-at-valuation) | `cut-at-valuation` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.21](formalism.md#het-declares-no-worth-law) | `het-declares-no-worth-law` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.22](formalism.md#v-applies-to-conforming-sets) | `v-applies-to-conforming-sets` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.23](formalism.md#valuation-instantiated-twice) | `valuation-instantiated-twice` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.3](formalism.md#filter-then-optimize) | `filter-then-optimize` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.31](formalism.md#cut-lands-no-later) | `cut-lands-no-later` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.32](formalism.md#cut-lands-no-earlier) | `cut-lands-no-earlier` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.4](formalism.md#hetopt-is-a-theory-extension) | `hetopt-is-a-theory-extension` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [8.41](formalism.md#enrichment-base-is-the-metric) | `enrichment-base-is-the-metric` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8](rung-het-propositions.md#het-settles-hetopt-orders) | `het-settles-hetopt-orders` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.1](rung-het-propositions.md#metric-and-preference-same-furniture) | `metric-and-preference-same-furniture` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.2](rung-het-propositions.md#cut-at-valuation) | `cut-at-valuation` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.21](rung-het-propositions.md#het-declares-no-worth-law) | `het-declares-no-worth-law` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.22](rung-het-propositions.md#v-applies-to-conforming-sets) | `v-applies-to-conforming-sets` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.23](rung-het-propositions.md#valuation-instantiated-twice) | `valuation-instantiated-twice` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.3](rung-het-propositions.md#filter-then-optimize) | `filter-then-optimize` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.31](rung-het-propositions.md#cut-lands-no-later) | `cut-lands-no-later` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.32](rung-het-propositions.md#cut-lands-no-earlier) | `cut-lands-no-earlier` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.4](rung-het-propositions.md#hetopt-is-a-theory-extension) | `hetopt-is-a-theory-extension` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [8.41](rung-het-propositions.md#enrichment-base-is-the-metric) | `enrichment-base-is-the-metric` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 9 · Composition
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [9](formalism.md#composition-is-closed) | `composition-is-closed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [9.1](formalism.md#composite-monad) | `composite-monad` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [9.11](formalism.md#non-identity-extends-to-composite) | `non-identity-extends-to-composite` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [9.12](formalism.md#composite-qualifying-set) | `composite-qualifying-set` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [9.2](formalism.md#composite-kinds) | `composite-kinds` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [9.3](formalism.md#adequacy-composes) | `adequacy-composes` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [9.4](formalism.md#theory-combination-closed) | `theory-combination-closed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [9](rung-het-propositions.md#composition-is-closed) | `composition-is-closed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [9.1](rung-het-propositions.md#composite-monad) | `composite-monad` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [9.11](rung-het-propositions.md#non-identity-extends-to-composite) | `non-identity-extends-to-composite` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [9.12](rung-het-propositions.md#composite-qualifying-set) | `composite-qualifying-set` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [9.2](rung-het-propositions.md#composite-kinds) | `composite-kinds` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [9.3](rung-het-propositions.md#adequacy-composes) | `adequacy-composes` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [9.4](rung-het-propositions.md#theory-combination-closed) | `theory-combination-closed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 10 · Evaluation
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [10](formalism.md#models-defined-by-dispatch) | `models-defined-by-dispatch` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [10.1](formalism.md#run-over-every-sentence) | `run-over-every-sentence` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [10.2](formalism.md#dispatch-is-two-operations) | `dispatch-is-two-operations` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [10.21](formalism.md#dispatch-argument-is-the-argument) | `dispatch-argument-is-the-argument` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [10.22](formalism.md#conformance-half-needs-no-judge) | `conformance-half-needs-no-judge` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [10.23](formalism.md#any-is-specified-argmin-is-the-seam) | `any-is-specified-argmin-is-the-seam` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [10](rung-het-propositions.md#models-defined-by-dispatch) | `models-defined-by-dispatch` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [10.1](rung-het-propositions.md#run-over-every-sentence) | `run-over-every-sentence` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [10.2](rung-het-propositions.md#dispatch-is-two-operations) | `dispatch-is-two-operations` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [10.21](rung-het-propositions.md#dispatch-argument-is-the-argument) | `dispatch-argument-is-the-argument` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [10.22](rung-het-propositions.md#conformance-half-needs-no-judge) | `conformance-half-needs-no-judge` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [10.23](rung-het-propositions.md#any-is-specified-argmin-is-the-seam) | `any-is-specified-argmin-is-the-seam` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 11 · The surface
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [11](formalism.md#theory-declares-four-things) | `theory-declares-four-things` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.1](formalism.md#het-declares-the-slots) | `het-declares-the-slots` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.11](formalism.md#role-declared-not-enumerated) | `role-declared-not-enumerated` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.12](formalism.md#edit-required-not-typed) | `edit-required-not-typed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.13](formalism.md#verdict-space-required-not-fixed) | `verdict-space-required-not-fixed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.14](formalism.md#interface-required-not-populated) | `interface-required-not-populated` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.2](formalism.md#enact-generic-over-edit) | `enact-generic-over-edit` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.21](formalism.md#governs-who-not-what) | `governs-who-not-what` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.3](formalism.md#decidable-is-a-total-predicate) | `decidable-is-a-total-predicate` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.31](formalism.md#two-signatures-not-two-fragments) | `two-signatures-not-two-fragments` | `enforced` | rustc. The two gates differ in the arity of the emitted transition; the host's type system separates them with no knowledge of Het. | rung/tests/compile_pass.rs::test_module_exists |
-| [11.32](formalism.md#decidable-cannot-consult-pool) | `decidable-cannot-consult-pool` | `enforced` | G2. The qualifying token has no constructor reachable from a decidable body, so the prohibition is a term that cannot be written rather than a rule an author is asked to respect. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
-| [11.33](formalism.md#mismarking-is-not-a-false-claim) | `mismarking-is-not-a-false-claim` | `enforced` | rustc. A body needing an outside does not typecheck in a decidable position. | rung/tests/compile_pass.rs::test_module_exists |
-| [11.34](formalism.md#signature-replaces-fragment-membership) | `signature-replaces-fragment-membership` | `enforced` | rustc. The compiler does not know Het exists and cannot be persuaded — which is the whole claim of this proposition. | rung/tests/compile_pass.rs::test_module_exists |
-| [11.4](formalism.md#two-properties-not-secured) | `two-properties-not-secured` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [11.41](formalism.md#termination-not-secured) | `termination-not-secured` | `out-of-scope` | Matches SPEC §5 exactly — 'liveness beyond the guard'. Het and rung state the same limit independently. | — |
-| [11.42](formalism.md#purity-not-secured) | `purity-not-secured` | `out-of-scope` | rung has no effect system; a decidable body may still reach the world. Het already states this as a limit rather than a guarantee. | — |
-| [11.43](formalism.md#neither-limit-closed-here) | `neither-limit-closed-here` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11](rung-het-propositions.md#theory-declares-four-things) | `theory-declares-four-things` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.1](rung-het-propositions.md#het-declares-the-slots) | `het-declares-the-slots` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.11](rung-het-propositions.md#role-declared-not-enumerated) | `role-declared-not-enumerated` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.12](rung-het-propositions.md#edit-required-not-typed) | `edit-required-not-typed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.13](rung-het-propositions.md#verdict-space-required-not-fixed) | `verdict-space-required-not-fixed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.14](rung-het-propositions.md#interface-required-not-populated) | `interface-required-not-populated` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.2](rung-het-propositions.md#enact-generic-over-edit) | `enact-generic-over-edit` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.21](rung-het-propositions.md#governs-who-not-what) | `governs-who-not-what` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.3](rung-het-propositions.md#decidable-is-a-total-predicate) | `decidable-is-a-total-predicate` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.31](rung-het-propositions.md#two-signatures-not-two-fragments) | `two-signatures-not-two-fragments` | `enforced` | rustc. The two gates differ in the arity of the emitted transition; the host's type system separates them with no knowledge of Het. | rung/tests/compile_pass.rs::test_module_exists |
+| [11.32](rung-het-propositions.md#decidable-cannot-consult-pool) | `decidable-cannot-consult-pool` | `enforced` | G2. The qualifying token has no constructor reachable from a decidable body, so the prohibition is a term that cannot be written rather than a rule an author is asked to respect. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
+| [11.33](rung-het-propositions.md#mismarking-is-not-a-false-claim) | `mismarking-is-not-a-false-claim` | `enforced` | rustc. A body needing an outside does not typecheck in a decidable position. | rung/tests/compile_pass.rs::test_module_exists |
+| [11.34](rung-het-propositions.md#signature-replaces-fragment-membership) | `signature-replaces-fragment-membership` | `enforced` | rustc. The compiler does not know Het exists and cannot be persuaded — which is the whole claim of this proposition. | rung/tests/compile_pass.rs::test_module_exists |
+| [11.4](rung-het-propositions.md#two-properties-not-secured) | `two-properties-not-secured` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [11.41](rung-het-propositions.md#termination-not-secured) | `termination-not-secured` | `out-of-scope` | Matches SPEC §5 exactly — 'liveness beyond the guard'. Het and rung state the same limit independently. | — |
+| [11.42](rung-het-propositions.md#purity-not-secured) | `purity-not-secured` | `out-of-scope` | rung has no effect system; a decidable body may still reach the world. Het already states this as a limit rather than a guarantee. | — |
+| [11.43](rung-het-propositions.md#neither-limit-closed-here) | `neither-limit-closed-here` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 12 · The limit
 
 | prop | slug | verdict | mechanism | conformance |
 |---|---|---|---|---|
-| [12](formalism.md#no-bound-on-reentry) | `no-bound-on-reentry` | `expressible` | A continue arm loops with no host-imposed bound, which is what this proposition requires. Choosing a guarded edge instead would supply a bound Het declines to declare. | rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn |
-| [12.1](formalism.md#reentry-never-terminates) | `reentry-never-terminates` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [12.2](formalism.md#answers-are-worth-shaped) | `answers-are-worth-shaped` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [12.3](formalism.md#bound-belongs-to-hetopt) | `bound-belongs-to-hetopt` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [12.4](formalism.md#stated-as-limit-not-closed) | `stated-as-limit-not-closed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [12.5](formalism.md#guarded-reentry-is-eviction) | `guarded-reentry-is-eviction` | `enforced` | G10 continue arms — 'no recover function, no guard, no source'. Re-entry must be `RejectRemedy -> Proposing`, never `RejectRemedy => Proposing`: the recoverable-verdict form injects G8's `must_progress`, which panics on no progress and is therefore an eviction rule ([12.2](formalism.md#answers-are-worth-shaped)). CONSTRAINT: a continue arm's target rung is built inline by `dispose`, i.e. by the judge, so that rung's payload must be classification-only ([7.42](formalism.md#no-amending-disposition)). | rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn |
+| [12](rung-het-propositions.md#no-bound-on-reentry) | `no-bound-on-reentry` | `expressible` | A continue arm loops with no host-imposed bound, which is what this proposition requires. Choosing a guarded edge instead would supply a bound Het declines to declare. | rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn |
+| [12.1](rung-het-propositions.md#reentry-never-terminates) | `reentry-never-terminates` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [12.2](rung-het-propositions.md#answers-are-worth-shaped) | `answers-are-worth-shaped` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [12.3](rung-het-propositions.md#bound-belongs-to-hetopt) | `bound-belongs-to-hetopt` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [12.4](rung-het-propositions.md#stated-as-limit-not-closed) | `stated-as-limit-not-closed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [12.5](rung-het-propositions.md#guarded-reentry-is-eviction) | `guarded-reentry-is-eviction` | `enforced` | G10 continue arms — 'no recover function, no guard, no source'. Re-entry must be `RejectRemedy -> Proposing`, never `RejectRemedy => Proposing`: the recoverable-verdict form injects G8's `must_progress`, which panics on no progress and is therefore an eviction rule ([12.2](rung-het-propositions.md#answers-are-worth-shaped)). CONSTRAINT: a continue arm's target rung is built inline by `dispose`, i.e. by the judge, so that rung's payload must be classification-only ([7.42](rung-het-propositions.md#no-amending-disposition)). | rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn |
