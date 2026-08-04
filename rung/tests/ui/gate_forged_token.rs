@@ -13,6 +13,16 @@ use std::marker::PhantomData;
 struct SpecData;
 struct LoopState;
 
+// A `#[judgmental(R)]` transition admits its token only against the argument it
+// was measured against (SPEC.md G13), so the source rung's payload must carry a
+// provenance. Supplied here so that the ONLY error in this file is the one it
+// exists to pin.
+impl rung::Provenanced for SpecData {
+    fn provenance(&self) -> rung::Prov {
+        rung::Prov::of(["drafter"])
+    }
+}
+
 #[derive(Clone, Copy)]
 struct Reviewer;
 impl rung::Role for Reviewer {
@@ -32,6 +42,9 @@ fn main() {
         _not_send: PhantomData,
         principal_id: String::from("nobody"),
         principal_prov: rung::Prov::empty(),
+        // The binding half of the token (non-identity-by-construction) is
+        // sealed too: forging `π(a)` would make every argument the right one.
+        argument_prov: rung::Prov::empty(),
         _role: PhantomData,
     };
     let spec = demo::Spec::new(SpecData);

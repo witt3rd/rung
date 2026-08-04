@@ -290,10 +290,10 @@ impl std::error::Error for QualifyError {}
 // Qualified — the sealed capability
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Proof that a principal qualified to judge **this** model under role `R`.
+/// Proof that a principal qualified to judge **this argument** under role `R`.
 ///
 /// This is the crate's load-bearing type. It has no public constructor: the
-/// only way to obtain one is [`Pool::qualify`], which runs the competence
+/// only way to obtain one is [`Pool::qualify_for`], which runs the competence
 /// filter and the non-identity filter and refuses on either. Sealed exactly as
 /// rung seals its rungs (SPEC.md G2), and for the same categorical reason — a
 /// capability that could be fabricated in object-position is not a capability.
@@ -308,12 +308,33 @@ impl std::error::Error for QualifyError {}
 /// path. The failure mode this forecloses is a real one: an implementation may
 /// have a correct, well-tested qualification filter that nothing on the
 /// dispatch path ever calls.
+///
+/// # The token witnesses a **pair**
+///
+/// Het non-identity-by-construction: the token witnesses the principal *and*
+/// **the argument it was measured against**, and the operation that consumes it
+/// admits it only for that argument. A token recording only the principal is
+/// unforgeable but **unbound** — it proves someone passed the filter, not that
+/// they passed it against *this* argument, so it can be earned against one
+/// argument and spent on another. That is the act
+/// disjointness-against-argument forbids. Sealing the constructor closes
+/// fabrication; [`argument_prov`](Qualified::argument_provenance) closes
+/// transfer.
+///
+/// The binding is a value, not a lifetime brand. A brand would index the token
+/// by a scope rather than by the argument, force every consumer into a
+/// scoped-closure API, and change every signature `ladder!` emits. What is
+/// actually required is `π(p) ∩ π(a) = ∅` **for this `a`** — a statement about
+/// provenance, which is what is recorded and what is compared.
 #[must_use = "a Qualified token is a licence to judge; dropping it discards the outside"]
 pub struct Qualified<R: Role> {
     _seal: (),
     _not_send: PhantomData<*const ()>,
     principal_id: String,
     principal_prov: Prov,
+    /// `π(a)` — the provenance of the argument disjointness was measured
+    /// against. The half of the pair that closes transfer.
+    argument_prov: Prov,
     _role: PhantomData<R>,
 }
 
@@ -328,8 +349,47 @@ impl<R: Role> Qualified<R> {
         &self.principal_prov
     }
 
+    /// `π(a)` — the provenance of the argument this licence was measured
+    /// against (non-identity-by-construction).
+    pub fn argument_provenance(&self) -> &Prov {
+        &self.argument_prov
+    }
+
     pub fn role_name(&self) -> &'static str {
         R::NAME
+    }
+
+    /// Whether this licence was minted against **this** argument.
+    ///
+    /// The predicate half of [`admit`](Qualified::admit), for callers that want
+    /// to branch rather than to refuse.
+    #[must_use]
+    pub fn is_bound_to(&self, argument: &dyn Provenanced) -> bool {
+        self.argument_prov == argument.provenance()
+    }
+
+    /// Admit this licence **for this argument**, or refuse it.
+    ///
+    /// The consuming half of non-identity-by-construction. Every operation that
+    /// spends a `Qualified` calls this first: the filter ran against some
+    /// argument, and the only argument the token licences is that one. A
+    /// mismatch is [`TokenNotBound`] — a value the caller cannot drop silently,
+    /// not a boolean it may ignore.
+    ///
+    /// Returns the token on success so it can still be spent; the check is a
+    /// gate on the way in, not a copy.
+    pub fn admit(self, argument: &dyn Provenanced) -> Result<Self, TokenNotBound> {
+        let applied_to = argument.provenance();
+        if self.argument_prov == applied_to {
+            Ok(self)
+        } else {
+            Err(TokenNotBound {
+                principal: self.principal_id,
+                role: R::NAME,
+                minted_against: self.argument_prov,
+                applied_to,
+            })
+        }
     }
 }
 
@@ -338,6 +398,43 @@ impl<R: Role> std::fmt::Debug for Qualified<R> {
         write!(f, "Qualified<{}>({})", R::NAME, self.principal_id)
     }
 }
+
+/// A licence was spent on an argument it was not measured against.
+///
+/// **P0, at the point of use.** The qualification filter ran and the principal
+/// passed it — against something else. disjointness-against-argument requires
+/// `π(p) ∩ π(a) = ∅` for the very `a` the operation is applied to, so a licence
+/// earned elsewhere discharges nothing here.
+///
+/// This is the refusal that closes *transfer*. The seal on [`Qualified`] closes
+/// *fabrication*; the two are different failures and need different mechanisms.
+#[derive(Debug, PartialEq, Eq)]
+#[must_use = "a token-binding refusal is a P0 violation; ignoring it re-opens the transfer hole"]
+pub struct TokenNotBound {
+    /// The principal that holds the licence.
+    pub principal: String,
+    /// The role the licence names.
+    pub role: &'static str,
+    /// `π(a)` at the mint.
+    pub minted_against: Prov,
+    /// `π(a)` at the point of use.
+    pub applied_to: Prov,
+}
+
+impl std::fmt::Display for TokenNotBound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "P0: {}'s `{}` licence was minted against provenance {:?} and is being \
+             spent on an argument with provenance {:?}; disjointness is measured \
+             against the argument the operation is applied to \
+             (rung-het-propositions.md#disjointness-against-argument)",
+            self.principal, self.role, self.minted_against, self.applied_to
+        )
+    }
+}
+
+impl std::error::Error for TokenNotBound {}
 
 // ─────────────────────────────────────────────────────────────────────────
 // The pool
@@ -361,10 +458,11 @@ impl<P: Principal> Pool<P> {
         self.principals.is_empty()
     }
 
-    /// Het dispatch-is-two-operations — the qualifying set, then *any* member of it.
+    /// Het dispatch-is-two-operations — the qualifying set for **this
+    /// argument**, then *any* member of it.
     ///
     /// ```text
-    /// qualifying = { p ∈ 𝒫 : capable(p, role(φ)) ∧ π(p) ∩ π(M) = ∅ }
+    /// qualifying = { p ∈ 𝒫 : capable(p, role(φ)) ∧ π(p) ∩ π(a) = ∅ }
     /// return any(qualifying)
     /// ```
     ///
@@ -375,12 +473,28 @@ impl<P: Principal> Pool<P> {
     ///
     /// Both conjuncts read only the declared interface, so this is decidable
     /// and testable cold — no outside call is made to decide who may be called.
-    pub fn qualify<R: Role>(&self, model: &dyn Provenanced) -> Result<Qualified<R>, QualifyError> {
-        let model_prov = model.provenance();
+    ///
+    /// This is the mint, and the only one. The token it returns records `π(a)`
+    /// alongside the principal (non-identity-by-construction), so which
+    /// argument was measured is a fact the token carries rather than a fact the
+    /// caller is trusted to have got right — see [`Qualified::admit`].
+    ///
+    /// **disjointness-against-argument / argument-governs.** Disjointness is
+    /// measured against the argument the operation is applied to, never against
+    /// "the model" in general. At `audit` the two coincide (`π(a) = π(M)`); at
+    /// `dispose` they do not — the argument is a Proposal, whose provenance is
+    /// its author's (proposal-provenance-is-authors). A judge that authored a
+    /// Proposal is disjoint from the *model* by construction, so a
+    /// model-relative check admits it to rule on its own work.
+    pub fn qualify_for<R: Role>(
+        &self,
+        argument: &dyn Provenanced,
+    ) -> Result<Qualified<R>, QualifyError> {
+        let arg_prov = argument.provenance();
 
-        // Refuse before filtering. With empty model provenance every candidate
-        // passes disjointness and the filter becomes ornamental.
-        if model_prov.is_empty() {
+        // Refuse before filtering. With empty argument provenance every
+        // candidate passes disjointness and the filter becomes ornamental.
+        if arg_prov.is_empty() {
             return Err(QualifyError::ModelHasNoProvenance);
         }
 
@@ -396,8 +510,8 @@ impl<P: Principal> Pool<P> {
             }
 
             let p_prov = p.provenance();
-            if p_prov.overlaps(&model_prov) {
-                let shared: Vec<String> = p_prov.0.intersection(&model_prov.0).cloned().collect();
+            if p_prov.overlaps(&arg_prov) {
+                let shared: Vec<String> = p_prov.0.intersection(&arg_prov.0).cloned().collect();
                 last = Some(QualifyError::NonIdentityViolated {
                     principal: p.id().to_string(),
                     shared,
@@ -410,6 +524,7 @@ impl<P: Principal> Pool<P> {
                 _not_send: PhantomData,
                 principal_id: p.id().to_string(),
                 principal_prov: p_prov,
+                argument_prov: arg_prov,
                 _role: PhantomData,
             });
         }
@@ -421,21 +536,22 @@ impl<P: Principal> Pool<P> {
             (n, _) => QualifyError::PoolExhausted { considered: n },
         })
     }
-    /// Het dispatch-is-two-operations applied to an arbitrary **argument** (disjointness-against-argument).
+
+    /// The `audit` reading of [`qualify_for`](Pool::qualify_for): the argument
+    /// **is** the model.
     ///
-    /// [`Pool::qualify`] measures disjointness against a model; this measures
-    /// it against whatever the operation is applied to. At `audit` those are
-    /// the same object. At `dispose` they are not — the argument is a Proposal,
-    /// whose provenance is its author's (proposal-provenance-is-authors).
+    /// argument-governs: where the argument is the subject under audit,
+    /// `π(a) = π(M)` and the two readings coincide. There is one filter, and
+    /// this name records which case the caller believes it is in.
     ///
-    /// That difference is a live P0 hole when it is missed: a judge that
-    /// authored a Proposal is disjoint from the *model* by construction, so a
-    /// model-relative check admits it to rule on its own work.
-    pub fn qualify_for<R: Role>(
-        &self,
-        argument: &dyn Provenanced,
-    ) -> Result<Qualified<R>, QualifyError> {
-        self.qualify::<R>(argument)
+    /// It used to be the other way round — `qualify_for` was a pure alias for
+    /// `qualify`, so "against the argument" lived entirely in which reference
+    /// the caller happened to pass, and nothing downstream could tell a
+    /// model-relative mint from an argument-relative one. It can now: the token
+    /// records `π(a)`, and [`Qualified::admit`] refuses it anywhere else. The
+    /// caller's choice of name is a comment; the recorded `π(a)` is the check.
+    pub fn qualify<R: Role>(&self, model: &dyn Provenanced) -> Result<Qualified<R>, QualifyError> {
+        self.qualify_for::<R>(model)
     }
 
     /// How standing is settled for this principal over this container.

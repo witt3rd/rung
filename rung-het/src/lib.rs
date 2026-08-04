@@ -213,7 +213,7 @@
 // every path below (`rung_het::Pool`, `rung_het::Qualified`, ..) still resolves.
 pub use rung::{
     AuthorizeError, Authorized, Pool, Principal, Prov, Provenanced, Qualified, QualifyError, Role,
-    StandingGate, Steward,
+    StandingGate, Steward, TokenNotBound,
 };
 
 /// A judgmental sentence, and the role it requires.
@@ -634,30 +634,41 @@ impl<E> Ruling<E> {
 
 /// The Opponent rules on a Proposal — **judgmental**.
 ///
-/// Consumes a [`Qualified`] token by value. The token must have been minted
-/// against **the proposal** (disjointness-against-argument, [`Pool::qualify_for`]), not against the
+/// Consumes a [`Qualified`] token by value, and **admits it only for this
+/// proposal**. The token must have been minted against the proposal
+/// (disjointness-against-argument, [`Pool::qualify_for`]), not against the
 /// model: a judge that authored the proposal is disjoint from the model by
 /// construction, and a model-relative check would admit it to rule on its own
 /// work.
+///
+/// That last sentence used to be advice. It is now the first statement of the
+/// body: [`Qualified::admit`] compares the token's recorded `π(a)` against this
+/// proposal's, and a licence minted elsewhere comes back as [`TokenNotBound`]
+/// (non-identity-by-construction). Sealing the constructor closed fabrication;
+/// this closes transfer.
 ///
 /// The disposition comes from the judge. This function records it; nothing
 /// here decides.
 pub fn dispose<R: Role, E: Clone>(
     proposal: &Proposal<E>,
-    _judge: Qualified<R>,
+    judge: Qualified<R>,
     disposition: Disposition,
-) -> Ruling<E> {
+) -> Result<Ruling<E>, TokenNotBound> {
+    // P0 at the point of use. Before this line, `dispose` trusted the caller to
+    // have minted against the right argument.
+    let judge = judge.admit(proposal)?;
+
     let edit = if disposition.is_affirming() {
         proposal.edit().cloned()
     } else {
         None
     };
-    Ruling {
+    Ok(Ruling {
         object: proposal.object(),
-        judge: _judge.principal_id().to_string(),
+        judge: judge.principal_id().to_string(),
         disposition,
         edit,
-    }
+    })
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1019,17 +1030,26 @@ macro_rules! __judgmental {
             /// on one sentence and cannot be reused to discharge a second. The
             /// verdict comes from the principal; this records it. Nothing here
             /// fabricates a verdict.
+            ///
+            /// The token is admitted only for **this** model
+            /// (non-identity-by-construction). A licence minted against another
+            /// model is [`TokenNotBound`](rung_het::TokenNotBound) — the
+            /// argument governs, so an unbound token discharges nothing here.
+            /// This is why a judgmental sentence's sort must be
+            /// [`Provenanced`](rung_het::Provenanced): without `π(a)` there is
+            /// nothing to admit the token against.
             pub fn settle(
-                _model: &$model,
+                model: &$model,
                 q: $crate::Qualified<$role>,
                 verdict: $crate::Verdict,
-            ) -> $crate::Settled {
-                $crate::Settled::Judgmental {
+            ) -> ::core::result::Result<$crate::Settled, $crate::TokenNotBound> {
+                let q = $crate::Qualified::admit(q, model)?;
+                ::core::result::Result::Ok($crate::Settled::Judgmental {
                     sentence: Self::NAME,
                     role: <$role as $crate::Role>::NAME,
                     principal: q.principal_id().to_string(),
                     verdict,
-                }
+                })
             }
         }
 

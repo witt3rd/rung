@@ -2,5 +2,3 @@ __pycache__/
 .pytest_cache/
 *.pyc
 target/
-# RED-by-design probe, kept out of the suite (handoff §4d)
-rung-het/tests/token_binding.rs

@@ -248,7 +248,8 @@ fn judgmental_sentence_records_the_principal_that_settled_it() {
     let q = pool.qualify::<ChordReader>(&m).unwrap();
 
     // The verdict comes from the principal. The crate never fabricates one.
-    let settled = soul::is_constitutive::settle(&m, q, Verdict::Conforming);
+    let settled = soul::is_constitutive::settle(&m, q, Verdict::Conforming)
+        .expect("the licence was minted against this very argument");
 
     assert!(settled.consulted_outside());
     match settled {
@@ -279,7 +280,8 @@ fn a_judgmental_verdict_may_be_non_conforming() {
         Verdict::NonConforming {
             reason: "derived, not constitutive".into(),
         },
-    );
+    )
+    .expect("the licence was minted against this very argument");
     assert!(!settled.verdict().is_conforming());
 }
 

@@ -318,7 +318,8 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
         Verdict::NonConforming {
             reason: "s3 is an observation, not a specimen".into(),
         },
-    );
+    )
+    .expect("the licence was minted against this very argument");
     assert!(scope.consulted_outside());
 
     // ── propose: AUTHORIAL (the-pass) — standing, not disjointness ───────────
@@ -337,7 +338,8 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
     let qd = pool
         .qualify_for::<Taxonomist>(&relocation)
         .expect("the academy did not author this proposal");
-    let ruling = dispose(&relocation, qd, Disposition::Accept);
+    let ruling = dispose(&relocation, qd, Disposition::Accept)
+        .expect("the licence was minted against this very argument");
     assert!(ruling.is_terminal() && ruling.is_affirming());
 
     // ── enact: standing, and the DOMAIN applies its own edit (enact-generic-over-edit) ─────
@@ -431,7 +433,8 @@ fn an_author_may_dispute_a_verdict_without_first_authoring_a_remedy() {
     // A dispute is still judged. The author does not overturn a verdict by
     // asserting it.
     let q = pool.qualify_for::<Taxonomist>(&d).unwrap();
-    let ruling = dispose(&d, q, Disposition::RejectDiagnosis);
+    let ruling = dispose(&d, q, Disposition::RejectDiagnosis)
+        .expect("the licence was minted against this very argument");
     assert!(ruling.is_terminal());
     assert!(!ruling.is_affirming(), "nothing is enacted on a dispute");
 }
@@ -457,7 +460,8 @@ fn reject_remedy_is_non_terminal_and_the_reason_reaches_the_author() {
         Disposition::RejectRemedy {
             reason: "removal is disproportionate; mount it instead".into(),
         },
-    );
+    )
+    .expect("the licence was minted against this very argument");
 
     assert!(!ruling.is_terminal(), "the object re-enters the loop");
     assert!(!ruling.is_affirming());

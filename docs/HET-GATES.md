@@ -42,8 +42,9 @@ hold it. `Qualified<R>` is to the outside what `_seal` is to the rung.
 | `Prov` | Het's `π` — a finite tag set, with `overlaps` (judgmental) and `contained_in` (authorial) |
 | `Role` | a competence, as a **type**. This is what supplies `role(φ)`. |
 | `Principal` | the pool interface: `capable(p, Role)` and `π(p)`, and nothing more (nothing-further-required) |
-| `Qualified<R>` | **the sealed capability.** No public constructor; `Pool::qualify` is the only mint |
-| `Pool::qualify` | dispatch-is-two-operations's qualifying set — competence filter, then non-identity — returning *any* survivor (no-preference-among-judges: Het must not rank) |
+| `Qualified<R>` | **the sealed capability.** No public constructor; `Pool::qualify_for` is the only mint. Records the principal **and** `π(a)`, the argument disjointness was measured against (non-identity-by-construction) |
+| `Qualified::admit` | the one gate that spends a token: refuses it for any argument but the one it was measured against, with `TokenNotBound` |
+| `Pool::qualify_for` | dispatch-is-two-operations's qualifying set for a given argument — competence filter, then non-identity — returning *any* survivor (no-preference-among-judges: Het must not rank). `Pool::qualify` is its `audit` reading, where `π(a) = π(M)` |
 | `theory!` | the surface: declare a sort and its gate-marked sentences |
 | `Judgmental` | the trait carrying `role(φ)`; unimplementable without naming a role |
 
@@ -54,12 +55,22 @@ There is no parameter through which a pool, a principal, or a token could
 arrive — so the body cannot consult an outside. Not "should not." *Cannot.*
 
 A **judgmental** sentence emits
-`fn settle(model: &M, q: Qualified<R>, verdict: Verdict) -> Settled`, consuming
-the token **by value**. Without a `Qualified`, there is no term. The only way to
-get one runs `π(p) ∩ π(M) = ∅`.
+`fn settle(model: &M, q: Qualified<R>, verdict: Verdict)
+-> Result<Settled, TokenNotBound>`, consuming the token **by value**. Without a
+`Qualified`, there is no term. The only way to get one runs `π(p) ∩ π(a) = ∅`.
+
+And the token is **bound**: `settle` admits it only for the model it was
+measured against. Sealing the constructor closes *fabrication* — nobody can
+write a token. It does not close *transfer*: before the binding, a licence
+earned honestly against one argument could be spent on another, which is the act
+disjointness-against-argument forbids. `TokenNotBound` is that refusal, and it
+is a value the caller cannot drop in silence. `rung_het::dispose` does the same
+against the **proposal**, which is where the two readings come apart
+(argument-governs).
 
 That is Het gate-faithful (gate-faithfulness) by construction: an algebra cannot launder a
 judgmental operation into a decidable one, because the two have different types.
+It is not *all* of gate-faithfulness — see Q11 for what remains.
 
 ## Verification
 

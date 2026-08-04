@@ -1,21 +1,21 @@
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
-  --> tests/ui/gate_missing_token.rs:27:19
+  --> tests/ui/gate_missing_token.rs:37:19
    |
-27 |     let _active = demo::active(spec);
+37 |     let _active = demo::active(spec);
    |                   ^^^^^^^^^^^^------ argument #2 of type `Qualified<Reviewer>` is missing
    |
 note: function defined here
-  --> tests/ui/gate_missing_token.rs:18:1
+  --> tests/ui/gate_missing_token.rs:28:1
    |
-18 | / ladder!(Demo {
-19 | |     Spec(SpecData) => #[judgmental(Reviewer)] Active(LoopState) => { Done }
-20 | | } impl {
-21 | |     active = |_spec, _q| { Active::new(LoopState) },
-22 | |     step   = |_active|  { Ok(StepOutcome::Done(Done::new())) },
-23 | | });
+28 | / ladder!(Demo {
+29 | |     Spec(SpecData) => #[judgmental(Reviewer)] Active(LoopState) => { Done }
+30 | | } impl {
+31 | |     active = |_spec, _q| { Active::new(LoopState) },
+32 | |     step   = |_active|  { Ok(StepOutcome::Done(Done::new())) },
+33 | | });
    | |__^
    = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-27 |     let _active = demo::active(spec, /* Qualified<Reviewer> */);
+37 |     let _active = demo::active(spec, /* Qualified<Reviewer> */);
    |                                    +++++++++++++++++++++++++++

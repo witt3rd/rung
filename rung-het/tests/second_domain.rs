@@ -189,7 +189,8 @@ fn a_domain_with_entirely_different_edits_runs_the_same_pass() {
         Verdict::NonConforming {
             reason: "i2 is unactionable as filed".into(),
         },
-    );
+    )
+    .expect("the licence was minted against this very argument");
 
     // propose — authorial, and the edit is THIS theory's
     let pen = p.authorize(&MAINTAINER, "tracker").unwrap();
@@ -203,7 +204,8 @@ fn a_domain_with_entirely_different_edits_runs_the_same_pass() {
 
     // dispose — a judge disjoint from the PROPOSAL
     let qd = p.qualify_for::<Triager>(&proposal).unwrap();
-    let ruling = dispose(&proposal, qd, Disposition::Accept);
+    let ruling = dispose(&proposal, qd, Disposition::Accept)
+        .expect("the licence was minted against this very argument");
 
     // enact — the domain applies its own edit
     let landed = enact(&mut trk, &ruling, &pen).expect("the maintainer holds standing");
@@ -229,7 +231,8 @@ fn wont_fix_closes_an_issue_that_remains_non_conforming() {
         },
     );
     let qd = p.qualify_for::<Triager>(&proposal).unwrap();
-    let ruling = dispose(&proposal, qd, Disposition::Accept);
+    let ruling = dispose(&proposal, qd, Disposition::Accept)
+        .expect("the licence was minted against this very argument");
     let landed = enact(&mut trk, &ruling, &pen).unwrap();
     assert_eq!(landed.object(), "i2");
 
@@ -299,7 +302,8 @@ fn a_pen_for_one_territory_does_not_authorize_another() {
     let right_pen = maintainer_pool.authorize(&MAINTAINER, "tracker").unwrap();
     let proposal = Proposal::remedy(&right_pen, "i2", TriageEdit::Reprioritize { to: 1 });
     let qd = maintainer_pool.qualify_for::<Triager>(&proposal).unwrap();
-    let ruling = dispose(&proposal, qd, Disposition::Accept);
+    let ruling = dispose(&proposal, qd, Disposition::Accept)
+        .expect("the licence was minted against this very argument");
 
     match enact(&mut trk, &ruling, &wrong_pen) {
         Err(EnactError::NoStandingOverTarget { author, target }) => {
