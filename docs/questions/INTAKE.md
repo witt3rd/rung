@@ -1,6 +1,6 @@
 # INTAKE — how a question enters the registry
 
-**Date:** 2026-07-19 · **Status:** v0 — "maybe this is right?" A first pass at making an *implicit habit* explicit, expected to be revised through use. Companion to the [README](README.md) (the *back half* of a question's life) and [`../EDGES.md`](../EDGES.md) (the edge vocabulary). If a step here proves wrong in practice, fix it — this doc is itself a question that resolves through iteration.
+**Date:** 2026-07-19 · **Status:** v0 — "maybe this is right?" A first pass at making an *implicit habit* explicit, expected to be revised through use. Companion to the [README](README.md) (the *back half* of a question's life, including the edge vocabulary). If a step here proves wrong in practice, fix it — this doc is itself a question that resolves through iteration.
 
 ---
 
@@ -50,7 +50,7 @@ This is what rung has that a capture-only registry does not: a principled genera
      - {target: <doc-or-decision>, kind: premise}
    ---
    ```
-   - **Only encode a lived edge** — a dependency that actually exists *right now*. Never a speculative one. If you're unsure whether an edge is real, leave it out: a missing edge is cheap to add when it becomes real; a phantom edge is noise that erodes trust in the graph. (Edge kinds and their propagation semantics: [`../EDGES.md`](../EDGES.md).)
+   - **Only encode a lived edge** — a dependency that actually exists *right now*. Never a speculative one. If you're unsure whether an edge is real, leave it out: a missing edge is cheap to add when it becomes real; a phantom edge is noise that erodes trust in the graph. (Edge kinds and their propagation semantics: [the README](README.md#dependencies--the-registry-is-a-typed-graph), and the theory that declares them, `rung-het/tests/question_registry.rs`.)
 6. **Run the check** — `python _reach.py --graph` to confirm the file parses and any edge shows up. If it doesn't appear, the frontmatter is malformed.
 7. **Keep both status markers.** The prose `**Status:**` line (human) and the frontmatter `status:` (machine) are redundant on purpose; set both to the same value.
 

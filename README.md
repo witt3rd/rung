@@ -240,14 +240,16 @@ without receiving a verdict.
 
 ## Further reading
 
-- [`docs/questions/`](docs/questions/) — the open-question registry: the frontier
+- [`docs/questions/`](docs/questions/) — the open questions: the frontier
   for advancing the language (deepen vs grow). A question resolves only when its
   answer lands in a normative surface. See
-  [`INTAKE.md`](docs/questions/INTAKE.md) for how one enters.
+  [`INTAKE.md`](docs/questions/INTAKE.md) for how one enters. The questions are
+  themselves governed by a Het theory written in the DSL
+  ([`rung-het/tests/question_registry.rs`](rung-het/tests/question_registry.rs)),
+  which declares the typed dependency vocabulary and evaluates every decidable
+  sentence against the real files.
 - [`docs/rung-het-publishing.md`](docs/rung-het-publishing.md) — a brief for an
   outside reviewer on whether Het is publishable mathematics.
-- [`docs/EDGES.md`](docs/EDGES.md) — the typed dependency vocabulary across the
-  registries (being retired).
 
 Superseded material is under [`docs/.archive/`](docs/.archive/) — the independent
 derivation (`CONVERGENCE.md`) and the three-voices loop (`THREE-VOICES.md`).

@@ -33,7 +33,7 @@ formalism requires.
 | document | propositions | verdicts |
 |---|---|---|
 | [`rung-props.md`](rung-props.md) | 60 | 14 enforced · 46 unclassified |
-| [`rung-ct-props.md`](rung-ct-props.md) | 107 | 15 enforced · 92 out-of-scope |
+| [`rung-ct-props.md`](rung-ct-props.md) | 107 | 16 enforced · 1 expressible · 90 out-of-scope |
 | [`rung-het-props.md`](rung-het-props.md) | 193 | 7 deferred · 21 enforced · 10 expressible · 155 out-of-scope |
 
 **Total.** 360 propositions across 3 documents.
@@ -143,7 +143,7 @@ The guarantees name their own conformance tests, so those rows are **derived fro
 
 **The default is `out-of-scope`.** Most propositions state the mathematics of the category and impose no obligation on any host; the ones that do bind name a guarantee, and that guarantee's row under rung above carries the test. Read a bare `out-of-scope` as *"no claim made"*, not as *"checked and found irrelevant"*.
 
-**Counts.** 15 enforced · 92 out-of-scope · 107 total.
+**Counts.** 16 enforced · 1 expressible · 90 out-of-scope · 107 total.
 
 ### The category
 
@@ -289,8 +289,8 @@ The guarantees name their own conformance tests, so those rows are **derived fro
 | [11.2](rung-ct-props.md#typed-edge-is-an-opcartesian-lift) | `typed-edge-is-an-opcartesian-lift` | `out-of-scope` | mathematics of the category — no host obligation | — |
 | [11.21](rung-ct-props.md#orientation-is-load-bearing) | `orientation-is-load-bearing` | `out-of-scope` | mathematics of the category — no host obligation | — |
 | [11.22](rung-ct-props.md#edge-type-selects-the-pushforward) | `edge-type-selects-the-pushforward` | `out-of-scope` | mathematics of the category — no host obligation | — |
-| [11.221](rung-ct-props.md#edge-taxonomy-is-the-theorys) | `edge-taxonomy-is-the-theorys` | `out-of-scope` | mathematics of the category — no host obligation | — |
-| [11.222](rung-ct-props.md#strict-and-advisory-are-the-gate) | `strict-and-advisory-are-the-gate` | `out-of-scope` | mathematics of the category — no host obligation | — |
+| [11.221](rung-ct-props.md#edge-taxonomy-is-the-theorys) | `edge-taxonomy-is-the-theorys` | `expressible` | The edge vocabulary is declared by the governing theory, not by the library — `rung-het` has no edge type and `EdgeKind` lives in the theory that governs `docs/questions/`, exactly where an edit vocabulary sits (`edit-required-not-typed`). What the cited test pins is the **lived-instance** discipline that keeps the taxonomy the theory's: each of the seven declared kinds must have a real user in `docs/questions/`, and a speculative eighth fails. NOT enforced: nothing in rung could stop a future library enumerating edge types — the location is a choice this theory makes, and the test protects the discipline rather than the choice. | rung-het/tests/question_registry.rs::every_declared_edge_kind_has_a_lived_instance_in_the_registry |
+| [11.222](rung-ct-props.md#strict-and-advisory-are-the-gate) | `strict-and-advisory-are-the-gate` | `enforced` | G12 + G2, read at the dependency level. `premise` routes to a `decidable` sentence whose `holds` takes only the model — there is no parameter a pool could enter through — and `justification` routes to a `judgmental` one whose `settle` consumes a `Qualified<Adjudicator>` that only `Pool::qualify_for` mints. The two lifts therefore differ in ARITY, not in convention, and the cited test runs both over the one real cascade (Q7's resolution) that forced typed edges. Reclassifying `justification` as strict is type-valid and turns the test red twice — at the declared gate, and again at the `Propagated::Ruled` match, where the advisory edge is found to have consulted nobody. That mutation is what establishes the row. | rung-het/tests/question_registry.rs::a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on |
 | [11.3](rung-ct-props.md#advisory-lift-lands-in-a-coproduct) | `advisory-lift-lands-in-a-coproduct` | `out-of-scope` | mathematics of the category — no host obligation | — |
 | [11.31](rung-ct-props.md#same-coproduct-at-both-levels) | `same-coproduct-at-both-levels` | `out-of-scope` | mathematics of the category — no host obligation | — |
 | [11.32](rung-ct-props.md#vertical-morphisms-preserve-agency) | `vertical-morphisms-preserve-agency` | `out-of-scope` | mathematics of the category — no host obligation | — |

@@ -398,6 +398,45 @@ CURATED = {
     ),
 }
 
+# slug -> (verdict, mechanism, conformance) for rung-ct-props.md.
+#
+# Kept separate from CURATED because the two documents' defaults differ: a CT
+# proposition with no curated row falls to `derive_ct`, which reads the
+# guarantees it names. Only propositions that bind a mechanism *at the
+# dependency level* — where the fibres are whole items rather than rungs —
+# belong here; everything else is the mathematics of the category.
+CURATED_CT = {
+    "edge-taxonomy-is-the-theorys": (
+        "expressible",
+        "The edge vocabulary is declared by the governing theory, not by the "
+        "library — `rung-het` has no edge type and `EdgeKind` lives in the theory "
+        "that governs `docs/questions/`, exactly where an edit vocabulary sits "
+        "(`edit-required-not-typed`). What the cited test pins is the "
+        "**lived-instance** discipline that keeps the taxonomy the theory's: each "
+        "of the seven declared kinds must have a real user in `docs/questions/`, "
+        "and a speculative eighth fails. NOT enforced: nothing in rung could stop "
+        "a future library enumerating edge types — the location is a choice this "
+        "theory makes, and the test protects the discipline rather than the "
+        "choice.",
+        "rung-het/tests/question_registry.rs::every_declared_edge_kind_has_a_lived_instance_in_the_registry",
+    ),
+    "strict-and-advisory-are-the-gate": (
+        "enforced",
+        "G12 + G2, read at the dependency level. `premise` routes to a "
+        "`decidable` sentence whose `holds` takes only the model — there is no "
+        "parameter a pool could enter through — and `justification` routes to a "
+        "`judgmental` one whose `settle` consumes a `Qualified<Adjudicator>` that "
+        "only `Pool::qualify_for` mints. The two lifts therefore differ in ARITY, "
+        "not in convention, and the cited test runs both over the one real "
+        "cascade (Q7's resolution) that forced typed edges. Reclassifying "
+        "`justification` as strict is type-valid and turns the test red twice — "
+        "at the declared gate, and again at the `Propagated::Ruled` match, where "
+        "the advisory edge is found to have consulted nobody. That mutation is "
+        "what establishes the row.",
+        "rung-het/tests/question_registry.rs::a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on",
+    ),
+}
+
 
 def parse(path):
     """Return [(num, slug, section, body)] for one propositions document."""
@@ -519,7 +558,7 @@ DOCS = (
             "*\"no claim made\"*, not as *\"checked and found irrelevant\"*."
         ),
         "default": ("out-of-scope", "mathematics of the category — no host obligation", "—"),
-        "curated": {},
+        "curated": CURATED_CT,
         "derive": derive_ct,
     },
     {

@@ -231,9 +231,14 @@ state. Normative as
 and
 [`same-coproduct-at-both-levels`](rung-ct-props.md#same-coproduct-at-both-levels).
 
-**Edge types as pushforwards.** The operative registry consequence is
-`EDGES.md`; the taxonomy is the registry's, not the formalism's
-([`edge-type-selects-the-pushforward`](rung-ct-props.md#edge-type-selects-the-pushforward)).
+**Edge types as pushforwards.** The taxonomy is the governing theory's, not the
+formalism's
+([`edge-type-selects-the-pushforward`](rung-ct-props.md#edge-type-selects-the-pushforward),
+[`edge-taxonomy-is-the-theorys`](rung-ct-props.md#edge-taxonomy-is-the-theorys)).
+For this repository the theory that declares it is
+`rung-het/tests/question_registry.rs`, which governs `questions/` in the DSL and
+holds the seven kinds as its own `EdgeKind`; `questions/README.md` is the
+operational quickstart.
 
 | edge type | what the pushforward does |
 |---|---|
@@ -241,6 +246,34 @@ and
 | `justification` | coproduct lift → review-required + survives (advisory) |
 | `spawn` | the dependent exists only as the source's child |
 | `citation` | a mechanical state update, no human in the loop |
+
+**The falsifier that forced typed edges — a lived cascade, not a design taste.**
+The cheap thing to build is one untyped `depends_on`. What killed it was **Q7's
+resolution** (`questions/resolved/q7-effectful-bodies-which-monad.md`), where
+three items rested on the changed node and each required a *different* response:
+
+- **RUNG-CT §6** was a `premise`. Its framing was **wrong** until the resolution
+  was folded in. Hard propagate — obligatory, and no ruling needed.
+- **the blocking-client decision** was a `justification`. The premise moved and
+  the decision **held** (Q7 confirmed "no architectural debt"). A single edge
+  type that auto-cascaded *invalidate* would have **wrongly flagged a decision
+  that was fine.**
+- **Q8** was a `spawn`. Not invalidated at all — a child to revisit.
+
+One edge type must pick one propagation rule and be wrong for the other two. The
+first two are the load-bearing pair: *this breaks* against *check whether this
+breaks*, which is
+[`strict-and-advisory-are-the-gate`](rung-ct-props.md#strict-and-advisory-are-the-gate)
+— the same gate distinction as §2, read one level up. The strict edge propagates
+decidably; the advisory one lands in a coproduct that a judge collapses. Both
+paths run over this very cascade in
+`rung-het/tests/question_registry.rs::a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on`,
+which goes red the moment `justification` is reclassified strict.
+
+Adding an edge type stays cheap; each new type must still point at a *lived*
+instance, never a speculative one. That discipline is now itself a test —
+`every_declared_edge_kind_has_a_lived_instance_in_the_registry` fails if a
+declared kind has no user in `questions/`.
 
 **Blast radius is the backward pass.** Before modifying an item, you query
 backward along the composite optic; the answer is a typed *exposure vector* —
