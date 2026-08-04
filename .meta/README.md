@@ -78,5 +78,5 @@ progress — those are known and accepted.
 | `docs/rung-ct-propositions.md` | Normative category-theoretic account of what a `ladder` declaration is. |
 | `docs/RUNG-CT.md` | How that account was derived — informative, not a register. |
 | `.gl/schema.json` | This charter in machine-consumable form. |
-| `rung/src/lib.rs` | Conformance doctests (compile_fail and compile_pass). |
+| `rung/src/lib.rs` | Illustrative compile_fail doctests. Not conformance — rustdoc does not check the error code (SPEC.md §6); the refusals are pinned by `rung/tests/ui/`. |
 | `rung/tests/` | Full conformance suite. |

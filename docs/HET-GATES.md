@@ -78,9 +78,16 @@ It is not *all* of gate-faithfulness — see Q11 for what remains.
 doctests**. The negative cases are the ones that matter: a gate that never fires
 on a deliberate violation is not a gate (rung SPEC.md fractal-property).
 
-Each `compile_fail` was additionally checked **by compiling it standalone** and
-reading the actual error, because a `compile_fail` that passes for the wrong
-reason is exactly the vacuity this work exists to catch:
+rustdoc does **not** check the error code on a `compile_fail` block (SPEC.md
+§6), so each case was additionally compiled standalone and its actual error
+read — a `compile_fail` that passes for the wrong reason is exactly the vacuity
+this work exists to catch. The audit of 2026-08-04 re-ran that check and found
+the third row below had drifted: the struct literal had gone stale against
+`Qualified`'s field list, so it was failing on **E0063** (missing
+`argument_prov`) and would have kept failing with the seal removed. It is
+repaired, and the seal is now pinned by
+`gate_markers.rs::a_qualified_token_cannot_be_constructed_outside_the_pool`,
+whose committed `.stderr` a drifting literal cannot satisfy.
 
 | case | fails with |
 |---|---|

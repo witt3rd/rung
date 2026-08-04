@@ -40,14 +40,14 @@ CURATED = {
         "sealed constructor — [the law](rung-ct-propositions.md#the-law). The "
         "algebra runs its own decidable "
         "step; it cannot construct the state that holds a judgmental outcome.",
-        "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
+        "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624",
     ),
     "constant-arrow-hazard": (
         "enforced",
         "G2 sealed construction. A judgmental arrow cannot be interpreted by a "
         "constant drawn from the algebra's own carrier, because no mid-ladder rung "
         "is constructible outside its module.",
-        "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
+        "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624",
     ),
     "non-identity-by-construction": (
         "enforced",
@@ -145,13 +145,13 @@ CURATED = {
         "enforced",
         "G2. `dispose` returns a verdict; only the separately-declared authorial arrow "
         "produces the revised object. A ruling cannot construct what it rules on.",
-        "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
+        "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624",
     ),
     "no-amending-disposition": (
         "enforced",
         "G2, same mechanism. A judge's arrow has no constructor for the authored "
         "object, so an amending disposition is not expressible.",
-        "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
+        "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624",
     ),
     "reproposal-carries-the-chain": (
         "expressible",

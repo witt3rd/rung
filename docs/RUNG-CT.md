@@ -37,8 +37,9 @@ That was not read from theory and implemented. It was found from the inside.
 
 An attempt to fold a live LLM verdict into a ladder tried to **construct the
 next state to hold the verdict**, and the sealed constructor refused:
-`Active::new` cannot be called from outside the arrow (`rung/src/lib.rs`
-compile_fail doctest, E0624). The refusal looked at first like an ergonomic
+`Active::new` cannot be called from outside the arrow (E0624, pinned by
+`rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624`
+and illustrated by the `rung/src/lib.rs` compile_fail doctest). The refusal looked at first like an ergonomic
 annoyance — a fabrication guard being over-strict.
 
 It was not. A morphism was being asked for in object-position, and no such

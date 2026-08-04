@@ -128,6 +128,13 @@
 //! The seal (rung SPEC.md G2, applied to the capability rather than the rung).
 //! If this compiled, P0 would be a convention.
 //!
+//! The literal must name **every** field of `Qualified`, including
+//! `argument_prov`. An incomplete literal fails with `E0063` (missing field)
+//! whether or not the fields are private — so it would keep failing with the
+//! seal removed, and would assert nothing. Complete, the sole error is `E0451`,
+//! which is exactly the seal. Pinned by
+//! `gate_markers.rs::a_qualified_token_cannot_be_constructed_outside_the_pool`.
+//!
 //! ```compile_fail
 //! use rung_het::{Qualified, Role};
 //! #[derive(Clone, Copy)]
@@ -136,6 +143,7 @@
 //! fn forge_a_licence() -> Qualified<R> {
 //!     Qualified { _seal: (), _not_send: std::marker::PhantomData,
 //!                 principal_id: "me".into(), principal_prov: Default::default(),
+//!                 argument_prov: Default::default(),
 //!                 _role: std::marker::PhantomData }
 //! }
 //! fn main() { let _ = forge_a_licence(); }

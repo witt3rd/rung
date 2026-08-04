@@ -1,0 +1,10 @@
+error: recoverable verdict `Stalled` cannot declare a payload; it carries its source rung (use `Stalled(..)` only on terminal verdicts)
+  --> tests/ui/spec_rule3_recoverable_payload.rs:15:1
+   |
+15 | / ladder!(Bad {
+16 | |     Spec(S) => Active(L) => { Done | Stalled(Info) => Active }
+17 | |     recover { unstall: Stalled => Active }
+18 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)

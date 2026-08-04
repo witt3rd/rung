@@ -38,6 +38,14 @@
 //! `#[must_use]` attribute were ever dropped from the macro's emit, this example
 //! would start compiling and the `compile_fail` test would fail.
 //!
+//! The explicit `fn main` is load-bearing: without it rustdoc wraps the whole
+//! snippet in one, the `ladder!`-generated `mod demo` no longer sees the
+//! function-local `SpecData`/`LoopData`, and the example fails on `E0425`
+//! instead of on `unused_must_use` — a green test asserting nothing. The
+//! diagnostic itself is pinned by
+//! `spec_refusals.rs::dropping_a_verdict_under_deny_must_use_is_an_error`,
+//! because rustdoc does not check the error code (§6 of SPEC.md).
+//!
 //! ```compile_fail
 //! #![deny(unused_must_use)]
 //! use rung::ladder;
@@ -50,13 +58,19 @@
 //! fn abandons_the_outcome() {
 //!     demo::Converged::new(); // dropping a #[must_use] verdict — denied
 //! }
+//! fn main() {}
 //! ```
 //!
 //! ## No external fabrication (SPEC.md G2)
 //!
 //! With an inline `impl { .. }` block, only the *entry* rung has a public
 //! constructor — every downstream rung's `new` is module-private, so no outside
-//! code can mint a mid-ladder token. The following must fail to compile:
+//! code can mint a mid-ladder token. The following must fail to compile — with
+//! `E0624`, and with nothing else. The `fn main` keeps the items at module
+//! scope; without it rustdoc wraps them in a function body and three `E0425`
+//! resolution errors join the one the example exists to show, so the example
+//! would keep failing even if the constructor were made public. The diagnostic
+//! is pinned by `spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624`.
 //!
 //! ```compile_fail
 //! use rung::ladder;
@@ -75,6 +89,7 @@
 //!     // `Active::new` is private to `demo` — cannot fabricate a mid-ladder rung.
 //!     let _ = demo::Active::new(LoopData);
 //! }
+//! fn main() {}
 //! ```
 //!
 //! ## Terminal verdict payloads
