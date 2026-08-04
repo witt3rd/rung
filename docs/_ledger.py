@@ -70,27 +70,34 @@ CURATED = {
     # ── the surface: two gates are two signatures ────────────────────────
     "two-signatures-not-two-fragments": (
         "enforced",
-        "rustc. The two gates differ in the arity of the emitted transition; the "
-        "host's type system separates them with no knowledge of Het.",
-        "rung/tests/compile_pass.rs::test_module_exists",
+        "`ladder!` gate markers. `#[judgmental(R)]` on a rung emits "
+        "`fn t(prev, q: Qualified<R>)`; unmarked emits `fn t(prev)`. The two "
+        "gates differ in the arity of the emitted transition, and the host's "
+        "type system separates them with no knowledge of Het.",
+        "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token",
     ),
     "decidable-cannot-consult-pool": (
         "enforced",
         "G2. The qualifying token has no constructor reachable from a decidable "
         "body, so the prohibition is a term that cannot be written rather than a "
-        "rule an author is asked to respect.",
-        "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
+        "rule an author is asked to respect. An unmarked transition has no "
+        "parameter a token could enter through, and `Qualified` is sealed: "
+        "constructing one outside `Pool::qualify` is E0451.",
+        "rung/tests/gate_markers.rs::a_qualified_token_cannot_be_constructed_outside_the_pool",
     ),
     "mismarking-is-not-a-false-claim": (
         "enforced",
-        "rustc. A body needing an outside does not typecheck in a decidable position.",
-        "rung/tests/compile_pass.rs::test_module_exists",
+        "rustc. Marking a transition judgmental gives it the judgmental "
+        "signature; calling it as though it were decidable is E0061, not a "
+        "promise someone broke.",
+        "rung/tests/gate_markers.rs::calling_a_judgmental_transition_without_a_token_is_e0061",
     ),
     "signature-replaces-fragment-membership": (
         "enforced",
-        "rustc. The compiler does not know Het exists and cannot be persuaded — "
-        "which is the whole claim of this proposition.",
-        "rung/tests/compile_pass.rs::test_module_exists",
+        "rustc. The refusal is an arity error from a compiler that does not know "
+        "Het exists and cannot be persuaded — which is the whole claim of this "
+        "proposition.",
+        "rung/tests/gate_markers.rs::calling_a_judgmental_transition_without_a_token_is_e0061",
     ),
 
     # ── the pass ─────────────────────────────────────────────────────────
@@ -220,12 +227,13 @@ CURATED = {
     ),
     "gate-faithful": (
         "deferred",
-        "Q11 (gate-faithfulness, open). The ladder DSL has no gate marker, so an "
-        "algebra cannot declare which arrows are judgmental and nothing checks "
-        "faithfulness. The largest unclosed distance between Het and rung. Q11 "
-        "splits it: a marker makes the SIGNATURE honest; binding the qualifying "
-        "token is what would make the ARROW admissible. Whether the conjunction "
-        "is gate-faithfulness is itself unargued.",
+        "Q11 (gate-faithfulness, open) — HALF built. `ladder!` now takes "
+        "`#[judgmental(Role)]`, so an algebra CAN declare which arrows are "
+        "judgmental and the declaration is a signature rather than a promise. "
+        "What remains is the other half: the qualifying token records the "
+        "principal and forgets the argument it was measured against, so it is "
+        "unforgeable but unbound and admissibility is still unchecked. Whether "
+        "the two halves together are gate-faithfulness is itself unargued.",
         "docs/questions/open/q11-gate-faithfulness.md",
     ),
     "mod-only-gate-faithful": (

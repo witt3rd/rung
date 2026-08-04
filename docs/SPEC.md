@@ -22,10 +22,12 @@ ladder!( Name { <declaration> } [ impl { <bodies> } ] )
 **Declaration:**
 
 ```
-declaration := [ carry ] rung ( "=>" rung )* "=>" "{" verdict ( "|" verdict )* "}" [ recover ]
+declaration := [ carry ] rung ( "=>" [gate] rung )* "=>" [gate] "{" verdict ( "|" verdict )* "}" [ recover ]
 
 carry       := "carry" "{" ( ident ":" type )  ( "," ident ":" type )* "}"
 rung        := Ident "(" type ")"                     -- name + payload type
+
+gate        := "#" "[" "judgmental" "(" type ")" "]"  -- competence role
 
 verdict     := Ident                                  -- terminal marker
              | Ident "(" type ")"                     -- terminal carrying a result payload
@@ -52,6 +54,19 @@ match these (§2, checks 9–10).
 `=>` reads *recover*; `->` reads *produces*. A continue arm carries its target
 rung as a live token; a recoverable verdict carries its source rung and hands off
 to a guarded recover function.
+
+**Gate markers.** A marker annotates the transition's *target*, because that is
+what the transition is named after. `#[judgmental(R)]` on a rung marks the
+forward transition producing it; `#[judgmental(R)]` on the verdict block marks
+`step`. An unmarked transition reads as *decidable* and is emitted exactly as it
+was before markers existed (G12). The marker is out of Het's four gates
+([`four-gates`](rung-het-propositions.md#four-gates)); of those, only
+`judgmental` is implemented. `#[authorial]` and `#[conditional(..)]` are
+`compile_error!` — see [Q11](questions/open/q11-gate-faithfulness.md) — and
+`#[judgmental]` with no role is likewise refused
+([`judgmental-declares-role`](rung-het-propositions.md#judgmental-declares-role):
+a role that is not named cannot resolve a judge, so there is no signature to
+emit).
 
 ---
 
@@ -113,6 +128,11 @@ lowercased) containing:
   returns `Result<StepOutcome, Failed<from>>`; a recover function returns its
   target rung. Omitting the `impl` block yields a type-only declaration (no
   functions).
+  - **Unmarked:** `pub fn active(spec: Spec) -> Active`.
+  - **`#[judgmental(R)]`:** `pub fn active(spec: Spec, q: ::rung::Qualified<R>)
+    -> Active` — a second parameter, taken by value. Its name comes from the
+    body's *second* closure input (`active = |spec, q| { .. }`) when there is
+    one; otherwise it is bound to `_q` and consumed unread.
 
 Inside body expressions, rung/verdict names resolve unqualified; payload types
 resolve from the surrounding scope (`use super::*`).
@@ -169,6 +189,21 @@ Each guarantee is normative and names its conformance test.
 - **G11 — Terminal payloads.** A `V(P)` terminal verdict returns a value through
   the verdict, read via `.payload()` / `.into_payload()`. *Conformance:
   `end_to_end.rs::drives_to_convergence` asserts the returned payload.*
+- **G12 — Gate-marked signature.** A `#[judgmental(R)]` transition MUST take a
+  second parameter of type `::rung::Qualified<R>`, by value; an unmarked
+  transition MUST emit byte-for-byte what it emitted before markers existed. Two
+  gates are therefore two *signatures*, separated by the host's type system
+  rather than by a convention someone keeps
+  ([`two-signatures-not-two-fragments`](rung-het-propositions.md#two-signatures-not-two-fragments)).
+  `Qualified` has no public constructor — `Pool::qualify` is the only mint — so a
+  judgmental transition cannot be called without an outside, and a decidable one
+  has no parameter an outside could enter through
+  ([`decidable-cannot-consult-pool`](rung-het-propositions.md#decidable-cannot-consult-pool)).
+  **This makes the signature honest, not the arrow admissible** — see §5.
+  *Conformance: `gate_markers.rs::judgmental_transition_takes_a_qualified_token`
+  (the emitted `fn` is coerced to a `fn` pointer of the exact expected type), and
+  the `tests/ui/` `trybuild` cases: `gate_missing_token` → E0061,
+  `gate_forged_token` → E0451.*
 
 ---
 
@@ -188,6 +223,21 @@ Explicitly out of scope. The macro does **not** enforce:
   no-drop needs language-level linear types.
 - **Liveness beyond the guard.** G8 catches an identical-token stall loop; it does
   not prove general forward progress.
+- **Gate-faithfulness.** G12 secures the signature, and nothing beyond it. Three
+  named limits:
+  - *The token is unbound.* `Qualified<R>` records the principal and forgets the
+    argument it was measured against, so a licence earned against one argument can
+    be spent on another. Sealing the constructor closes fabrication, not transfer
+    ([`non-identity-by-construction`](rung-het-propositions.md#non-identity-by-construction)).
+  - *Decidable is not pure.* The unmarked signature excludes Het's outside — the
+    principal pool — and is silent about clocks, files, and networks
+    ([`purity-not-secured`](rung-het-propositions.md#purity-not-secured)).
+  - *A type-only declaration emits no transitions,* so a marker on one has
+    nothing to constrain and is inert, exactly as G2's seal is
+    ([`freeness-enforced-only-with-bodies`](rung-ct-propositions.md#freeness-enforced-only-with-bodies)).
+
+  Whether closing the first of these would amount to gate-faithfulness is itself
+  unargued: [Q11](questions/open/q11-gate-faithfulness.md) remains open.
 
 ---
 

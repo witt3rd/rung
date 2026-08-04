@@ -52,6 +52,90 @@ struct Transition {
     // None if branching (has verdicts instead)
     to_rung: Option<Ident>,
     verdicts: Vec<Verdict>,
+    /// The gate marker on this transition's *target*, if any (SPEC.md §1).
+    ///
+    /// `Some(role)` ⇒ `#[judgmental(role)]`: the transition takes a second
+    /// parameter, `::rung::Qualified<role>`, and so cannot be called without a
+    /// token minted by the pool. `None` ⇒ unmarked, which reads as *decidable*
+    /// and emits byte-for-byte what it emitted before markers existed.
+    ///
+    /// The other two gates never reach here — `#[authorial]` and
+    /// `#[conditional(..)]` are refused at parse time.
+    gate_role: Option<Type>,
+}
+
+/// Parse the optional gate marker in front of a transition target.
+///
+/// The marker annotates the **target** rung, because a forward transition is
+/// named after its target (SPEC.md §1, "Transition naming"):
+///
+/// ```text
+/// Spec(SpecData)
+///   => #[judgmental(Reviewer)] Active(LoopState)
+///   => #[judgmental(Judge)] { Converged(Report) | Stalled => Active }
+/// ```
+///
+/// Returns the declared competence role, or `None` when unmarked.
+fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Type>> {
+    if !input.peek(Token![#]) {
+        return Ok(None);
+    }
+    let attrs = input.call(syn::Attribute::parse_outer)?;
+    if attrs.len() > 1 {
+        return Err(syn::Error::new(
+            attrs[1].span(),
+            "a transition carries at most one gate marker: Het's four gates are \
+             alternatives, not a set (see rung-het-propositions.md#four-gates)",
+        ));
+    }
+    let attr = &attrs[0];
+    let Some(gate) = attr.path().get_ident().map(|i| i.to_string()) else {
+        return Err(syn::Error::new(
+            attr.span(),
+            "unknown gate marker; the only marker `ladder!` implements is \
+             `#[judgmental(Role)]`",
+        ));
+    };
+
+    match gate.as_str() {
+        "judgmental" => match &attr.meta {
+            syn::Meta::List(list) => Ok(Some(list.parse_args::<Type>()?)),
+            _ => Err(syn::Error::new(
+                attr.span(),
+                "`#[judgmental]` must name the competence role it requires — write \
+                 `#[judgmental(Role)]`. A judgmental operation declares the role \
+                 needed to discharge it (rung-het-propositions.md#judgmental-declares-role); \
+                 an unnamed role cannot resolve a judge, so there is no signature \
+                 to emit.",
+            )),
+        },
+        "authorial" => Err(syn::Error::new(
+            attr.span(),
+            "`#[authorial]` is not yet supported. The authorial gate needs a third \
+             signature — an `Authorized` pen over a declared standing predicate \
+             (rung-het-propositions.md#authorial-declares-standing) — and standing is \
+             conditional-gated, so it is settled per call rather than per declaration \
+             (rung-het-propositions.md#standing-conditional-gated). Only \
+             `#[judgmental(Role)]` is implemented. See \
+             docs/questions/open/q11-gate-faithfulness.md.",
+        )),
+        "conditional" => Err(syn::Error::new(
+            attr.span(),
+            "`#[conditional(..)]` is not yet supported. Het classifies a conditional \
+             gate per model, one level up (rung-het-propositions.md#classifier-one-level-up), \
+             while `ladder!`'s checks run at expansion time against a single \
+             declaration; the two do not yet meet. This is the open half of Q11 — \
+             see docs/questions/open/q11-gate-faithfulness.md.",
+        )),
+        other => Err(syn::Error::new(
+            attr.span(),
+            format!(
+                "unknown gate marker `{other}`; the only marker `ladder!` implements \
+                 is `#[judgmental(Role)]`. An unmarked transition reads as \
+                 `decidable` and takes no qualifying token."
+            ),
+        )),
+    }
 }
 
 struct Verdict {
@@ -252,14 +336,21 @@ impl Parse for Ladder {
                 while content.peek(Token![=>]) {
                     content.parse::<Token![=>]>()?;
 
+                    // The gate marker sits between the `=>` and the target it
+                    // annotates — which is also the transition it names.
+                    let gate_role = parse_gate_marker(&content)?;
+
                     if content.peek(syn::token::Brace) {
-                        // Verdict branching terminates the spine.
+                        // Verdict branching terminates the spine. It is markable
+                        // too: the branching transition is the `dispose` position
+                        // of Het's pass, and that is a judgmental arrow.
                         let verdicts = parse_verdict_block(&content)?;
                         transitions.push(Transition {
                             name: format_ident!("step"),
                             from_rung: cur_name.clone(),
                             to_rung: None,
                             verdicts,
+                            gate_role,
                         });
                         break;
                     }
@@ -278,6 +369,7 @@ impl Parse for Ladder {
                         from_rung: cur_name.clone(),
                         to_rung: Some(next_name.clone()),
                         verdicts: vec![],
+                        gate_role,
                     });
                     cur_name = next_name;
                 }
@@ -780,6 +872,38 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         }
     };
 
+    // The gate parameter, appended to a marked transition's signature.
+    //
+    // THE ENFORCING LINE is the `None => quote! {}` arm: an unmarked transition
+    // contributes an empty token stream, so its emitted signature is identical
+    // to what it was before gate markers existed. Everything downstream of this
+    // function is shared by both cases.
+    //
+    // For `#[judgmental(R)]` the parameter is `::rung::Qualified<R>`, taken **by
+    // value** — a judgment licence is spent on the arrow it was minted for. The
+    // token has no constructor outside `Pool::qualify`, so a marked transition
+    // cannot be called without one, and an unmarked one has no parameter that
+    // could admit one. Mis-marking is then not a claim that could be false; it
+    // is a signature the compiler either accepts or does not.
+    //
+    // The token's name comes from the body's *second* closure input when there
+    // is one (`active = |spec, q| { .. }`), so a body can read the judge off it;
+    // otherwise it is bound to `_q` and consumed unread.
+    let gate_param = |t: &Transition, closure: &syn::ExprClosure| -> proc_macro2::TokenStream {
+        match &t.gate_role {
+            Some(role) => {
+                let qpat = closure
+                    .inputs
+                    .iter()
+                    .nth(1)
+                    .map(|p| quote! { #p })
+                    .unwrap_or(quote! { _q });
+                quote! { , #qpat: ::rung::Qualified<#role> }
+            }
+            None => quote! {},
+        }
+    };
+
     let logic = if has_bodies {
         let transition_fns: Vec<_> = ladder
             .transitions
@@ -790,13 +914,14 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 let b = body_for(&name.to_string())?;
                 let pat = arg_pat(&b.closure);
                 let body = fn_body(&b.closure);
+                let gate_param = gate_param(t, &b.closure);
                 if let Some(ref to) = t.to_rung {
                     Some(quote! {
-                        pub fn #name(#pat: #from) -> #to #body
+                        pub fn #name(#pat: #from #gate_param) -> #to #body
                     })
                 } else if !t.verdicts.is_empty() {
                     Some(quote! {
-                        pub fn #name(#pat: #from) -> Result<StepOutcome, Failed<#from>> #body
+                        pub fn #name(#pat: #from #gate_param) -> Result<StepOutcome, Failed<#from>> #body
                     })
                 } else {
                     None

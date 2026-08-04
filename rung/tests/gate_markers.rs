@@ -191,5 +191,5 @@ fn conditional_is_refused_and_names_the_open_question() {
 // transition marked judgmental is judgmentally admissible: the token records
 // the principal and forgets the argument it was measured against, so a licence
 // earned against one argument can be spent on another. That is the unbound-token
-// gap (non-identity-by-construction), and it is the second half of Q11 —
-// docs/questions/open/q11-gate-faithfulness.md. Nothing here closes it.
+// gap (non-identity-by-construction), and it is the second half of Q11, whose
+// note lives under docs/questions/open/. Nothing here closes it.
