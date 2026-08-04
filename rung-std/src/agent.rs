@@ -191,7 +191,7 @@ ladder!(AgentLoop {
         Calling::new(idle.payload, carry)
     },
 
-    // Calling → verdict. THE verb-on-arrow seam: the LLM API call lives here,
+    // Calling → verdict. THE verb on the arrow: the LLM API call lives here,
     // inside the transition body (the-law).
     step = |calling| {
         let state = calling.carry().state.clone();

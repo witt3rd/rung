@@ -20,7 +20,7 @@
 //!
 //! Tools are stateless, blocking, and synchronous. All state lives in the
 //! conversation history. Execution happens inside the transition body — the
-//! verb-on-arrow law: a tool call is a verb and lives on the arrow
+//! verb on the arrow (`the-law`) law: a tool call is a verb and lives on the arrow
 //! (`the-law`).
 //!
 //! ## What this module could not say
