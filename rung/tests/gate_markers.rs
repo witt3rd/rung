@@ -555,6 +555,17 @@ fn conditional_is_refused_and_names_the_open_question() {
     trybuild::TestCases::new().compile_fail("tests/ui/gate_conditional_unsupported.rs");
 }
 
+// ── 5. at most one marker (at-most-one-marker) ──────────────────────────────
+
+#[test]
+fn two_markers_on_one_transition_are_refused() {
+    // Het's four gates are alternatives, not a set (four-gates). Two markers on
+    // one transition ask for two second parameters and two prologues, and claim
+    // the arrow is settled two ways at once. The macro has refused this since
+    // markers landed; until this case existed nothing said so.
+    trybuild::TestCases::new().compile_fail("tests/ui/gate_two_markers.rs");
+}
+
 // ── what these tests do and do not establish ────────────────────────────────
 //
 // The trybuild cases and the `fn`-pointer coercion are about the *signature*
@@ -585,3 +596,55 @@ fn conditional_is_refused_and_names_the_open_question() {
 // still reach a clock or a socket, because the decidable signature excludes
 // only Het's outside (purity-not-secured). The argument, and what would falsify
 // it, is in Q11's note under docs/questions/open/.
+
+// ── the gap, as a test rather than as a paragraph ───────────────────────────
+
+/// **PARKED.** The judgmental arrow's *returned value* is unconstrained, and
+/// this is the case that shows it.
+///
+/// `admissibility-subcategories` puts a judgmental operation in
+/// `Kl_judg(𝒫) = { f : π(f(a)) ∩ π(a) = ∅ }`. Every check rung has runs on the
+/// way **in**: G12 makes the signature demand a token, G13 binds that token to
+/// `π(a)`, G14 does the authorial mirror. Nothing looks at what comes back.
+///
+/// So this passes every check rung makes, and is inadmissible: `active` is
+/// `#[judgmental(Reviewer)]`, its argument's provenance is `{drafter}`, and the
+/// `Active` it returns declares the very same provenance. The arrow launders
+/// the material it was called to judge back out under a new rung name. The
+/// engine cannot tell, because `Prov::contained_in` and `Prov::overlaps` exist
+/// and no guarantee calls them on a return value.
+///
+/// That fixture is not a rigged one written for this test — it is the repo's
+/// own gate-marker fixture, unchanged since markers landed. The condition has
+/// been violated in-tree the whole time and nothing said so.
+///
+/// **Ignored, deliberately.** It is not a bug in the ladder above; it is
+/// `returned-value-unconstrained` stated as an assertion instead of as prose,
+/// so that the day rung constrains the return value someone can delete one
+/// attribute and be told. Until then a green suite must not read as a claim
+/// that gate-faithfulness holds.
+#[test]
+#[ignore = "GAP, not a bug: rung constrains a judgmental arrow's ARGUMENT (G12 \
+            + G13) and never its RETURN. Closing this needs a guarantee that \
+            checks π(f(a)) ∩ π(a) = ∅ on the way out — `Prov::contained_in` \
+            exists and nothing calls it. This is Q11's load-bearing blocker; \
+            see docs/questions/open/q11-gate-faithfulness.md. Unpark by \
+            deleting this attribute once such a guarantee exists."]
+fn a_judgmental_arrow_may_not_return_the_provenance_it_judged() {
+    let pool = pool();
+    let spec = SpecData("drafter");
+
+    let licence: Qualified<Reviewer> = pool
+        .qualify_for(&spec)
+        .expect("rita is disjoint from the drafter");
+
+    let argument = spec.provenance();
+    let active = review::active(review::Spec::new(spec), licence);
+
+    assert!(
+        !active.payload.provenance().overlaps(&argument),
+        "admissibility-subcategories: a judgmental arrow inhabits \
+         Kl_judg(P) = {{ f : π(f(a)) ∩ π(a) = ∅ }}. This one returned a value \
+         carrying π(a) itself, and every gate rung has passed it"
+    );
+}

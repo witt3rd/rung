@@ -285,6 +285,65 @@ fn a_judgmental_verdict_may_be_non_conforming() {
     assert!(!settled.verdict().is_conforming());
 }
 
+/// **PARKED.** `epsilon-reported-with-verdict` — ε is reported alongside the
+/// verdict, as an honest error bar. `Verdict` is Boolean, so it is not.
+///
+/// Het's `verdict-space-with-metric` asks for a verdict space carrying a metric
+/// `d`, and 4.6 asks that every verdict arrive with its ε. Under a Boolean
+/// verdict space there is nothing to report and nothing to measure: a judge
+/// that is barely persuaded and a judge that is certain return the *same
+/// value*, and the satisfaction condition does not survive renaming
+/// (`boolean-breaks-satisfaction`).
+///
+/// The two settlements below are exactly that pair. They agree on polarity and
+/// on prose, and they are the same object — which is the gap, stated as an
+/// assertion rather than as a caveat in a doc comment.
+///
+/// **Ignored, deliberately.** Nothing here is broken; `Verdict` is Boolean by
+/// declaration and says so in its own docs. This is parked so that the day a
+/// metric lands, deleting one attribute reports whether ε actually reaches the
+/// caller — rather than the gap living only in prose that nothing runs.
+#[test]
+#[ignore = "GAP: `Verdict` is Boolean (Conforming | NonConforming), so there is \
+            no metric d and no ε to report. Closing this needs a verdict space \
+            carrying a metric (rung-het-props.md#verdict-space-with-metric) and \
+            an ε on `Settled` (rung-het-props.md#epsilon-reported-with-verdict). \
+            Unpark by deleting this attribute once `Settled` carries an error \
+            bar; the two settlements below must then differ by it."]
+fn two_judges_of_differing_confidence_report_differing_verdicts() {
+    let m = doc_by(&["augur"]);
+    let pool_a = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
+    let pool_b = Pool::new(vec![judge("smithy", &["smithy"], &[ChordReader::NAME])]);
+
+    // Barely persuaded.
+    let a = soul::is_constitutive::settle(
+        &m,
+        pool_a.qualify::<ChordReader>(&m).unwrap(),
+        Verdict::NonConforming {
+            reason: "derived, not constitutive".into(),
+        },
+    )
+    .expect("the licence was minted against this very argument");
+
+    // Certain.
+    let b = soul::is_constitutive::settle(
+        &m,
+        pool_b.qualify::<ChordReader>(&m).unwrap(),
+        Verdict::NonConforming {
+            reason: "derived, not constitutive".into(),
+        },
+    )
+    .expect("the licence was minted against this very argument");
+
+    assert_ne!(
+        a.verdict(),
+        b.verdict(),
+        "epsilon-reported-with-verdict: two judgmental verdicts of the same \
+         polarity are still distinct judgments, and must be told apart by their \
+         ε. Under a Boolean verdict space they cannot be"
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Sen(Σ) as data
 // ─────────────────────────────────────────────────────────────────────────

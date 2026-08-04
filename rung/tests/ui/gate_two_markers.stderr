@@ -1,0 +1,39 @@
+error: a transition carries at most one gate marker: Het's four gates are alternatives, not a set (see rung-het-props.md#four-gates)
+  --> tests/ui/gate_two_markers.rs:28:36
+   |
+28 |         => #[judgmental(Reviewer)] #[authorial(Curator)] Active(LoopState)
+   |                                    ^
+
+error[E0277]: the trait bound `Reviewer: Copy` is not satisfied
+  --> tests/ui/gate_two_markers.rs:18:15
+   |
+18 | impl Role for Reviewer {
+   |               ^^^^^^^^ the trait `Copy` is not implemented for `Reviewer`
+   |
+note: required by a bound in `Role`
+  --> src/lib.rs
+   |
+   | pub trait Role: Copy + 'static {
+   |                 ^^^^ required by this bound in `Role`
+help: consider annotating `Reviewer` with `#[derive(Copy)]`
+   |
+17 + #[derive(Copy)]
+18 | struct Reviewer;
+   |
+
+error[E0277]: the trait bound `Curator: Copy` is not satisfied
+  --> tests/ui/gate_two_markers.rs:22:15
+   |
+22 | impl Role for Curator {
+   |               ^^^^^^^ the trait `Copy` is not implemented for `Curator`
+   |
+note: required by a bound in `Role`
+  --> src/lib.rs
+   |
+   | pub trait Role: Copy + 'static {
+   |                 ^^^^ required by this bound in `Role`
+help: consider annotating `Curator` with `#[derive(Copy)]`
+   |
+21 + #[derive(Copy)]
+22 | struct Curator;
+   |
