@@ -159,7 +159,8 @@ fn the_fifteen_questions_are_read_from_disk() {
     assert_eq!(
         ids,
         [
-            "q1", "q10", "q11", "q12", "q13", "q14", "q15", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9"
+            "q1", "q10", "q11", "q12", "q13", "q14", "q15", "q2", "q3", "q4", "q5", "q6", "q7",
+            "q8", "q9"
         ],
         "docs/questions/ holds fifteen questions; an audit over zero of them proves nothing"
     );
