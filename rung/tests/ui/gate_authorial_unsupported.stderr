@@ -1,0 +1,5 @@
+error: `#[authorial]` is not yet supported. The authorial gate needs a third signature — an `Authorized` pen over a declared standing predicate (rung-het-propositions.md#authorial-declares-standing) — and standing is conditional-gated, so it is settled per call rather than per declaration (rung-het-propositions.md#standing-conditional-gated). Only `#[judgmental(Role)]` is implemented. See docs/questions/open/q11-gate-faithfulness.md.
+  --> tests/ui/gate_authorial_unsupported.rs:17:23
+   |
+17 |     Spec(SpecData) => #[authorial] Active(LoopState) => { Done }
+   |                       ^
