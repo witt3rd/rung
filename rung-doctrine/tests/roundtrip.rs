@@ -190,30 +190,95 @@ fn coverage_is_reported() {
     assert!(c.props > 100, "the propositions did not survive migration");
 }
 
-/// Every proposition arrived as `Rationale`, and that is the absence of a
-/// classification rather than a claim that they are all arguments.
+/// Where the triage has got to.
 ///
-/// Pinned so the triage — the actual work this encoding exists to enable — is
-/// visible as it happens rather than being something a reader must diff for.
+/// Reported and pinned. The counts are not a target — they are a record of a
+/// reading, and if a later reading moves a proposition between kinds this test
+/// is where that becomes visible rather than something a reader must diff for.
 #[test]
-fn the_triage_has_not_begun() {
-    use rung_doctrine::Kind;
+fn the_triage_is_recorded() {
     let d = rung_ct::doctrine();
     let mut by_kind = std::collections::BTreeMap::new();
     for p in d.props() {
         *by_kind.entry(p.kind.name()).or_insert(0usize) += 1;
     }
-    println!("\n  kinds: {by_kind:?}\n");
-    assert_eq!(
-        by_kind.get("rationale").copied().unwrap_or(0),
-        d.props().count(),
-        "the triage has started; update this test to record where it has got to"
-    );
-    assert!(d.props().all(|p| !p.kind.is_a_claim()));
-    assert!(matches!(
-        d.props().next().map(|p| p.kind),
-        Some(Kind::Rationale)
-    ));
+    println!("\n  triage: {by_kind:?}\n");
+    assert_eq!(by_kind.get("signature").copied(), Some(41));
+    assert_eq!(by_kind.get("rationale").copied(), Some(41));
+    assert_eq!(by_kind.get("judgmental").copied(), Some(23));
+    assert_eq!(by_kind.get("decidable").copied(), Some(3));
+    assert_eq!(by_kind.values().sum::<usize>(), 108);
+}
+
+/// **A decidable proposition names a sentence that exists.**
+///
+/// Without this the `Decidable` marker is a promise someone keeps — precisely
+/// the failure mode the encoding exists to remove, reintroduced one level up.
+/// The names are checked against the sentences the theories actually declare,
+/// which is a fact about compiled code.
+///
+/// Mutation: misspell any `sentence:` and this reddens.
+#[test]
+fn every_decidable_proposition_names_a_declared_sentence() {
+    use rung_doctrine::Kind;
+    use rung_std::questions::{propagation, questions};
+
+    let declared: Vec<&str> = questions::SENTENCES
+        .iter()
+        .chain(propagation::SENTENCES.iter())
+        .map(|(name, _)| *name)
+        .collect();
+
+    let mut checked = 0;
+    for p in rung_ct::doctrine().props() {
+        if let Kind::Decidable { sentence } = p.kind {
+            assert!(
+                declared.contains(&sentence),
+                "#{} names sentence `{sentence}`, which no theory declares. \
+                 Declared: {declared:?}",
+                p.slug
+            );
+            checked += 1;
+        }
+    }
+    assert_eq!(checked, 3, "the decidable fragment changed size");
+}
+
+/// **A judgmental proposition names a role**, and every one here names the same
+/// one — because what makes these judgmental is identical in each case: they
+/// assert a *mathematical identification that could be wrong*, and only a
+/// mathematician can say.
+///
+/// The precedent is lived rather than assumed. Q7 (transitions are Prisms),
+/// Q9 (the dependency structure is an opfibration) and Q10 (opfibrations
+/// compose) were each settled by outside expert review, and the reviews are in
+/// `docs/questions/resolved/_evidence/`. These 23 are the claims of that kind.
+#[test]
+fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
+    use rung_doctrine::Kind;
+    let mut n = 0;
+    for p in rung_ct::doctrine().props() {
+        if let Kind::Judgmental { role } = p.kind {
+            assert_eq!(role, "category-theorist", "#{}", p.slug);
+            n += 1;
+        }
+    }
+    assert_eq!(n, 23);
+}
+
+/// Signature and rationale carry no gate, and that is structural: neither is a
+/// claim that could be satisfied, so there is nothing for a principal to settle.
+#[test]
+fn only_claims_carry_a_gate() {
+    use rung_doctrine::Kind;
+    for p in rung_ct::doctrine().props() {
+        match p.kind {
+            Kind::Signature | Kind::Rationale => assert!(!p.kind.is_a_claim(), "#{}", p.slug),
+            Kind::Decidable { .. } | Kind::Judgmental { .. } => {
+                assert!(p.kind.is_a_claim(), "#{}", p.slug)
+            }
+        }
+    }
 }
 
 /// The verbatim escape hatch carries what a document has beyond propositions —

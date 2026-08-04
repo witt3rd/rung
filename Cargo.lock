@@ -742,6 +742,7 @@ name = "rung-doctrine"
 version = "0.1.0"
 dependencies = [
  "rung",
+ "rung-std",
 ]
 
 [[package]]

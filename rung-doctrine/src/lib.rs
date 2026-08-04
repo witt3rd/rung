@@ -53,8 +53,14 @@ use std::fmt::Write as _;
 /// What a proposition is, and therefore what it must supply.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-    /// A claim a machine settles. Carries a body evaluated over a model.
-    Decidable,
+    /// A claim a machine settles, naming the `theory!` sentence that carries
+    /// its body.
+    ///
+    /// The name is not decoration: a proposition marked decidable with no
+    /// sentence behind it is a promise someone keeps, which is the thing this
+    /// encoding exists to abolish. `sentence` is checked against the declared
+    /// sentences of the theory that owns it.
+    Decidable { sentence: &'static str },
     /// A claim needing an outside. Carries the competence role required.
     Judgmental { role: &'static str },
     /// Declares part of the signature — a sort, an operation. Not a claim
@@ -67,7 +73,7 @@ pub enum Kind {
 impl Kind {
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Decidable => "decidable",
+            Self::Decidable { .. } => "decidable",
             Self::Judgmental { .. } => "judgmental",
             Self::Signature => "signature",
             Self::Rationale => "rationale",
@@ -77,7 +83,7 @@ impl Kind {
     /// Whether this kind is a claim that could be true or false. Signature and
     /// rationale are not, which is why neither carries a gate.
     pub fn is_a_claim(&self) -> bool {
-        matches!(self, Self::Decidable | Self::Judgmental { .. })
+        matches!(self, Self::Decidable { .. } | Self::Judgmental { .. })
     }
 }
 

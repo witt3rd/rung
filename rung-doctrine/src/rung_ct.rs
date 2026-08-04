@@ -59,7 +59,7 @@ guarantee; this document is the normative statement of the category.
             Element::Prop(Prop {
                 slug: "ladder-declares-a-category",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A `ladder` declaration is a **presentation of a free category**. It
 declares the objects and the generating morphisms; the category is everything
@@ -70,7 +70,7 @@ those generate and nothing else.
             Element::Prop(Prop {
                 slug: "rungs-are-objects",
                 parent: Some("ladder-declares-a-category"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A **rung is an object**. An object is inert — data at rest, a point. It
 has no verbs.
@@ -80,7 +80,7 @@ has no verbs.
             Element::Prop(Prop {
                 slug: "transitions-are-morphisms",
                 parent: Some("ladder-declares-a-category"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A **declared transition is a generating morphism**. Every *doing* lives
 on an arrow.
@@ -90,7 +90,7 @@ on an arrow.
             Element::Prop(Prop {
                 slug: "the-law",
                 parent: Some("ladder-declares-a-category"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"**The law: a verb can live only on a morphism, never inside an object.**
 Compute, judge, call an outside, touch the world — each is a verb, and each
@@ -134,7 +134,7 @@ outcome ({#self-governing-not-self-closing}).
             Element::Prop(Prop {
                 slug: "category-is-freely-generated",
                 parent: Some("ladder-declares-a-category"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The category is **freely generated** by the declared arrows. Between two
 objects there is no morphism but the composites of declared arrows; a path
@@ -159,7 +159,7 @@ diagnostic fires.
             Element::Prop(Prop {
                 slug: "entry-constructor-is-public",
                 parent: Some("freeness-enforced-only-with-bodies"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The entry object's constructor is public even with bodies present. This
 is not a breach: it is the morphism that starts a run, and a free category with
@@ -181,7 +181,7 @@ the outside, not against the module's own contents.
             Element::Prop(Prop {
                 slug: "well-typed-program-is-a-functor",
                 parent: Some("ladder-declares-a-category"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A well-typed program is a **functor** from the declared category into
 the host's types — each object to a type, each generating morphism to a
@@ -192,7 +192,7 @@ function — and the host's type checker enforces that it respects composition.
             Element::Prop(Prop {
                 slug: "composition-consumes",
                 parent: Some("ladder-declares-a-category"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"Composition is **linear** (`G1`): the intermediate object is consumed.
 Composition is not sequencing; it is resource consumption.
@@ -219,7 +219,7 @@ It survives only as an entry in an accumulated trace ({#trace-is-a-writer-monad}
             Element::Prop(Prop {
                 slug: "branching-is-a-coproduct",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The outcome of a branching transition is a **coproduct**. Its injections
 construct; its universal property is elimination by exhaustive case analysis.
@@ -229,7 +229,7 @@ construct; its universal property is elimination by exhaustive case analysis.
             Element::Prop(Prop {
                 slug: "shape-of-the-branching-transition",
                 parent: Some("branching-is-a-coproduct"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A branching transition out of object $A$ has the shape
 
@@ -240,7 +240,7 @@ $$A \longrightarrow \textstyle\sum_i B_i \;+\; A$$
             Element::Prop(Prop {
                 slug: "injections-point-into-the-coproduct",
                 parent: Some("shape-of-the-branching-transition"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"Each summand **injects into** the coproduct. Elimination is the unique
 morphism *out*, determined by one morphism per injection. The two directions are
@@ -251,7 +251,7 @@ not interchangeable: injections point in, elimination points out.
             Element::Prop(Prop {
                 slug: "coproduct-is-heterogeneous",
                 parent: Some("branching-is-a-coproduct"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The coproduct is **heterogeneous**. Its summands are not all of one
 kind, and the distinction is structural, not cosmetic.
@@ -261,7 +261,7 @@ kind, and the distinction is structural, not cosmetic.
             Element::Prop(Prop {
                 slug: "verdict-summand",
                 parent: Some("coproduct-is-heterogeneous"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A **verdict summand** carries a verdict object — an object that is not
 a rung and has no outgoing generating morphism. It is where a run stops, or
@@ -272,7 +272,7 @@ where it hands off to a backward edge.
             Element::Prop(Prop {
                 slug: "continue-summand-carries-an-object",
                 parent: Some("coproduct-is-heterogeneous"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A **continue summand** carries an object *of the category itself* — a
 live rung, not a verdict. Nothing has left the category.
@@ -282,7 +282,7 @@ live rung, not a verdict. Nothing has left the category.
             Element::Prop(Prop {
                 slug: "residual-summand",
                 parent: Some("coproduct-is-heterogeneous"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The **residual summand** is the final `+ A`: the input object returned
 unconsumed when the transition does not answer. It is the same residual Het's
@@ -294,7 +294,7 @@ judgmental arrow carries
             Element::Prop(Prop {
                 slug: "elimination-is-exhaustive",
                 parent: Some("branching-is-a-coproduct"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"Elimination is **exhaustive** (`G6`): a morphism out of the coproduct
 must be defined on every injection. Exhaustiveness is not a lint; it is the
@@ -330,7 +330,7 @@ exactly because it is a coproduct, and enforced by
             Element::Prop(Prop {
                 slug: "continue-arm-is-an-ordinary-generating-morphism",
                 parent: Some("branching-is-a-coproduct"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A **continue arm** is an ordinary generating morphism whose *selection*
 is deferred to the coproduct. The morphism into its target rung is taken on the
@@ -381,7 +381,7 @@ category and returns under a guard; the second never leaves.
             Element::Prop(Prop {
                 slug: "carry-is-a-product-factor",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"Where a ladder declares a `carry`, every object is a **product** of a
 payload factor and the carry factor.
@@ -391,7 +391,7 @@ payload factor and the carry factor.
             Element::Prop(Prop {
                 slug: "projection-onto-carry",
                 parent: Some("carry-is-a-product-factor"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The second projection $\pi_2$ is the only access to the carry, and it is
 read-only (`G5`). No morphism of the category mutates it in place.
@@ -401,7 +401,7 @@ read-only (`G5`). No morphism of the category mutates it in place.
             Element::Prop(Prop {
                 slug: "carry-factor-is-unrestricted",
                 parent: Some("carry-is-a-product-factor"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The two factors obey different disciplines. The payload factor is
 consumed by the arrow that acts on it; the carry factor is unrestricted. This is
@@ -412,7 +412,7 @@ a cartesian product sitting inside an otherwise affine category.
             Element::Prop(Prop {
                 slug: "carry-is-copied-per-object",
                 parent: Some("carry-is-a-product-factor"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The carry is **copied into each object by value**. Every object holds
 its own carry field; the successor's carry is written when the successor is
@@ -424,7 +424,9 @@ another's.
             Element::Prop(Prop {
                 slug: "copying-is-what-makes-it-cartesian",
                 parent: Some("carry-is-copied-per-object"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"The copy *is* the cartesian diagonal $\Delta : C \to C \times C$. A
 factor that could not be duplicated would not be cartesian, and duplication is
@@ -435,7 +437,9 @@ exactly what {#carry-factor-is-unrestricted} licenses.
             Element::Prop(Prop {
                 slug: "carry-is-a-comonadic-context",
                 parent: Some("carry-is-a-product-factor"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"The carry reads as a **graded comonadic context**: the grade is the
 object's position in the ladder, and the counit is $\pi_2$.
@@ -465,7 +469,9 @@ is not a guarantee of the construction.
             Element::Prop(Prop {
                 slug: "ladder-is-an-indexed-monad",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"The ladder as a whole is an **indexed monad**. A value of $M\,i\,j\,A$ is a
 computation that starts at object $i$, ends at object $j$, and yields $A$.
@@ -475,7 +481,7 @@ computation that starts at object $i$, ends at object $j$, and yields $A$.
             Element::Prop(Prop {
                 slug: "index-alignment-is-composition",
                 parent: Some("ladder-is-an-indexed-monad"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"`bind` composes $M\,i\,j\,A$ with $A \to M\,j\,k\,B$ only when the inner
 index matches. Index alignment is the free category's composition, read as a
@@ -486,7 +492,7 @@ monad.
             Element::Prop(Prop {
                 slug: "unrepresentable-paths",
                 parent: Some("ladder-is-an-indexed-monad"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A path not generated by the declared arrows has no inhabitant. It is not
 forbidden by a check; it is **unrepresentable** — the consequence of
@@ -497,7 +503,9 @@ forbidden by a check; it is **unrepresentable** — the consequence of
             Element::Prop(Prop {
                 slug: "monad-laws-hold-by-construction",
                 parent: Some("ladder-is-an-indexed-monad"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"The monad laws hold by construction. They require no separate proof
 because the only compositions that exist are those the declaration generates.
@@ -525,7 +533,9 @@ those types, not an artifact alongside them.
             Element::Prop(Prop {
                 slug: "trace-is-a-writer-monad",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"An accumulated record of which arrows ran is a **trace**, and it is the
 output of a **writer monad**.
@@ -535,7 +545,9 @@ output of a **writer monad**.
             Element::Prop(Prop {
                 slug: "trace-is-a-free-monoid",
                 parent: Some("trace-is-a-writer-monad"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"A trace is the **free monoid** on trace entries: an empty trace and
 concatenation, associative, with the empty trace as unit. Nothing about a trace
@@ -546,7 +558,9 @@ depends on what an entry says.
             Element::Prop(Prop {
                 slug: "graded-writer",
                 parent: Some("trace-is-a-writer-monad"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"Composed with {#ladder-is-an-indexed-monad}, the full type is a
 **graded writer**: the grade tracks the pair of objects, the writer accumulates
@@ -600,7 +614,9 @@ unrelated structures, and neither substitutes for the other.
             Element::Prop(Prop {
                 slug: "transition-is-a-prism",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"A branching transition is a **Prism** — a dependent optic — presented as a
 forward/backward pair.
@@ -610,7 +626,7 @@ forward/backward pair.
             Element::Prop(Prop {
                 slug: "match-is-the-forward-pass",
                 parent: Some("transition-is-a-prism"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The forward pass (*match*) is exactly
 {#shape-of-the-branching-transition}.
@@ -620,7 +636,7 @@ forward/backward pair.
             Element::Prop(Prop {
                 slug: "build-is-the-backward-pass",
                 parent: Some("transition-is-a-prism"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The backward pass (*build*) is the declared backward edges
 ({#the-dagger-is-partial-and-contractive}). The recover edges *are* the
@@ -631,7 +647,7 @@ Prism's build pass.
             Element::Prop(Prop {
                 slug: "residual-is-the-optics-residual",
                 parent: Some("transition-is-a-prism"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The residual summand ({#residual-summand}) is the optic's
 residual. Returning the input on failure is not an oddity of the encoding; it is
@@ -642,7 +658,9 @@ what the shape requires.
             Element::Prop(Prop {
                 slug: "not-a-monad",
                 parent: Some("transition-is-a-prism"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"The structure is **not a monad**. Compose $f : A \to B + A$ with
 $g : B \to C + B$: a failing $g$ hands back $B$, while the composite's domain is
@@ -669,7 +687,9 @@ principal monad.
             Element::Prop(Prop {
                 slug: "strength-carries-linearity",
                 parent: Some("effects-layer-on-the-forward-pass"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"Tensorial strength $A \otimes T(B) \to T(A \otimes B)$ is what proves
 linearity survives suspension. A monad without strength cannot carry a linear
@@ -691,7 +711,9 @@ distributive law, and neither subsumes the other.
             Element::Prop(Prop {
                 slug: "generative-body-is-a-kernel",
                 parent: Some("effects-layer-on-the-forward-pass"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"A generative transition body is a **Markov kernel** — an affine
 probability monad on the forward pass. It is an instance of
@@ -709,7 +731,9 @@ probability monad on the forward pass. It is an instance of
             Element::Prop(Prop {
                 slug: "the-dagger-is-partial-and-contractive",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"The category's dagger is **partial**: an adjoint $f^\dagger$ exists only
 where a backward edge declares one.
@@ -719,7 +743,7 @@ where a backward edge declares one.
             Element::Prop(Prop {
                 slug: "three-shapes-of-loop-back",
                 parent: Some("the-dagger-is-partial-and-contractive"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"There are **three shapes of loop-back, and only two are daggers.**
 
@@ -745,7 +769,7 @@ nothing that stayed can return.
             Element::Prop(Prop {
                 slug: "verdict-dagger-is-mandatory",
                 parent: Some("the-dagger-is-partial-and-contractive"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The dagger is **total on recoverable verdicts** (`G7`): each has an
 adjoint and each adjoint has a verdict. The pairing is checked, not trusted.
@@ -755,7 +779,9 @@ adjoint and each adjoint has a verdict. The pairing is checked, not trusted.
             Element::Prop(Prop {
                 slug: "verdict-dagger-is-contractive",
                 parent: Some("the-dagger-is-partial-and-contractive"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"The verdict dagger is **contractive, not involutive**. The round trip
 forward-then-back is required to *decrease* (`G8`), so
@@ -766,7 +792,7 @@ $f^\dagger \circ f \neq \mathrm{id}$ by construction.
             Element::Prop(Prop {
                 slug: "contraction-is-on-the-payload",
                 parent: Some("verdict-dagger-is-contractive"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The contraction is measured **on the payload factor**, not on the
 object. The guard compares the payload the verdict carried in with the payload
@@ -801,7 +827,7 @@ forward progress.
             Element::Prop(Prop {
                 slug: "error-dagger-is-optional-and-unguarded",
                 parent: Some("the-dagger-is-partial-and-contractive"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The residual's adjoint is **optional and unguarded** (`G9`). Optional,
 because a caller may handle a returned residual itself; unguarded, because a
@@ -814,7 +840,7 @@ licence Het grants a returned residual
             Element::Prop(Prop {
                 slug: "resume-edge-is-the-residual-dagger",
                 parent: Some("error-dagger-is-optional-and-unguarded"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A **resume edge** is that adjoint, declared. It consumes the residual
 of a judgmental forward transition — the argument returned unconsumed together
@@ -842,7 +868,7 @@ and this is the second one with its adjoint written down.
             Element::Prop(Prop {
                 slug: "terminal-verdicts-have-no-adjoint",
                 parent: Some("the-dagger-is-partial-and-contractive"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A terminal verdict has **no adjoint**. It is an absorbing object, and
 declaring a backward edge from one is rejected.
@@ -871,7 +897,9 @@ dagger the involution is not merely unverified but **deliberately broken** by
             Element::Prop(Prop {
                 slug: "substrate-is-affine",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"The host substrate implements **affine logic** — linear logic without the
 requirement to use exactly once — and that is what the category's linearity
@@ -882,7 +910,7 @@ rests on.
             Element::Prop(Prop {
                 slug: "linear-logic-dictionary",
                 parent: Some("substrate-is-affine"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The correspondence:
 
@@ -899,7 +927,7 @@ rests on.
             Element::Prop(Prop {
                 slug: "at-most-once-not-exactly-once",
                 parent: Some("substrate-is-affine"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The substrate gives **at most once**, not exactly once. An object cannot
 be used twice; it *can* be dropped.
@@ -930,7 +958,7 @@ discard, or buried in a dropped container. The close is partial.
             Element::Prop(Prop {
                 slug: "one-token-one-thread",
                 parent: Some("substrate-is-affine"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"Linearity is a claim about a **unique consumer**, and a shared reference
 crossing a thread boundary would supply a second. `G3` forbids it: no object of
@@ -971,7 +999,9 @@ linear substrate would make it exact; an affine one admits the approximation
             Element::Prop(Prop {
                 slug: "types-are-propositions",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"Under Curry–Howard an object is a **proposition** and a path through the
 category is a **proof** of it.
@@ -981,7 +1011,7 @@ category is a **proof** of it.
             Element::Prop(Prop {
                 slug: "object-asserts-its-history",
                 parent: Some("types-are-propositions"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"Holding an object asserts that every arrow on some path into it ran. The
 assertion is discharged by the type, not by an accompanying check.
@@ -991,7 +1021,7 @@ assertion is discharged by the type, not by an accompanying check.
             Element::Prop(Prop {
                 slug: "residual-is-a-conjunction",
                 parent: Some("types-are-propositions"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The residual is a **conjunction**: *the step did not answer* **and**
 *the argument is preserved*. Both conjuncts are carried by the one object.
@@ -1001,7 +1031,7 @@ assertion is discharged by the type, not by an accompanying check.
             Element::Prop(Prop {
                 slug: "terminal-payload-is-the-witness",
                 parent: Some("types-are-propositions"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"A terminal verdict may carry a payload (`G11`). That payload is the
 **witness** the terminal proposition asserts the existence of, returned through
@@ -1134,7 +1164,9 @@ adding a check to the construction.
             Element::Prop(Prop {
                 slug: "dependency-structure-is-an-opfibration",
                 parent: None,
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"**Governed subjects** and the declared dependency morphisms between them
 form a **free base category**; subjects-in-states over it form a **Grothendieck
@@ -1147,7 +1179,7 @@ signature, and so is a theory at the next level
             Element::Prop(Prop {
                 slug: "fibre-is-a-ladder",
                 parent: Some("dependency-structure-is-an-opfibration"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The **fibre over a subject is exactly that subject's ladder** — the
 category of {#ladder-declares-a-category}. Each object of the base contains a
@@ -1158,7 +1190,9 @@ category; that is the fractal property read in this setting.
             Element::Prop(Prop {
                 slug: "declaration-names-no-foreign-object",
                 parent: Some("fibre-is-a-ladder"),
-                kind: Kind::Rationale,
+                kind: Kind::Decidable {
+                    sentence: "every_dependency_resolves",
+                },
                 numbering: None,
                 prose: r#"**A declaration names no object of another fibre.** An edge whose
 domain lies in a different fibre is not a morphism of *this* free category — it
@@ -1173,7 +1207,9 @@ arrow.
             Element::Prop(Prop {
                 slug: "typed-edge-is-an-opcartesian-lift",
                 parent: Some("dependency-structure-is-an-opfibration"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"A typed edge is an **opcartesian lift**. A state change at the source
 transports *forward* along the edge by a pushforward functor between fibres.
@@ -1194,7 +1230,7 @@ than a fibration; reversing it changes which lifts exist.
             Element::Prop(Prop {
                 slug: "edge-type-selects-the-pushforward",
                 parent: Some("typed-edge-is-an-opcartesian-lift"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"The **edge type selects the pushforward**. A strict edge lifts to an
 obligation; an advisory edge lifts to a coproduct; a generative edge lifts to
@@ -1206,7 +1242,9 @@ outside.
             Element::Prop(Prop {
                 slug: "edge-taxonomy-is-the-theorys",
                 parent: Some("edge-type-selects-the-pushforward"),
-                kind: Kind::Rationale,
+                kind: Kind::Decidable {
+                    sentence: "every_declared_kind_is_lived",
+                },
                 numbering: None,
                 prose: r#"**The taxonomy is the governing theory's**, declared by it exactly as
 an edit vocabulary is ({#edit-required-not-typed}).
@@ -1219,7 +1257,9 @@ enumerates the types, for the reason
             Element::Prop(Prop {
                 slug: "strict-and-advisory-are-the-gate",
                 parent: Some("edge-type-selects-the-pushforward"),
-                kind: Kind::Rationale,
+                kind: Kind::Decidable {
+                    sentence: "must_reexamine",
+                },
                 numbering: None,
                 prose: r#"The load-bearing split among edge types — obligatory against advisory,
 *this breaks* against *check whether this breaks* — is the **gate marker**
@@ -1232,7 +1272,9 @@ taxonomy laid over the gates; it is the gates, read one level up.
             Element::Prop(Prop {
                 slug: "advisory-lift-lands-in-a-coproduct",
                 parent: Some("dependency-structure-is-an-opfibration"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"An **advisory lift does not break functoriality.** It does not land in
 the target's objects; it lands in a **coproduct** — *review required* plus
@@ -1267,7 +1309,9 @@ functoriality holds over the total space rather than in spite of it.
             Element::Prop(Prop {
                 slug: "edges-are-dependent-optics",
                 parent: Some("dependency-structure-is-an-opfibration"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"A dependency edge is a **dependent optic**: covariant forward transport
 of a state change, contravariant backward query of exposure. The backward pass's
@@ -1278,7 +1322,7 @@ type depends on the state transported forward, which is what makes it dependent.
             Element::Prop(Prop {
                 slug: "exposure-is-the-backward-pass",
                 parent: Some("edges-are-dependent-optics"),
-                kind: Kind::Rationale,
+                kind: Kind::Signature,
                 numbering: None,
                 prose: r#"**Blast radius is the backward pass, not a count.** Querying backward
 along the composite optic returns a *typed exposure* — how many obligations of
@@ -1289,7 +1333,9 @@ which kind — and a count of reachable subjects is its Boolean shadow.
             Element::Prop(Prop {
                 slug: "opfibrations-compose",
                 parent: Some("dependency-structure-is-an-opfibration"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"Opfibrations **compose**. A map from governed subjects to the theories
 that govern them is itself an opfibration, and its composite with $p$ is a
@@ -1300,7 +1346,9 @@ single opfibration over the whole tower.
             Element::Prop(Prop {
                 slug: "iteration-not-a-second-level",
                 parent: Some("opfibrations-compose"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"Composing is an **iteration of one level, not the arrival of a second**.
 Opfibrations are 1-cells and compose as such. A genuine second level needs a
@@ -1312,7 +1360,9 @@ nesting does not supply.
             Element::Prop(Prop {
                 slug: "transport-is-scale-invariant",
                 parent: Some("opfibrations-compose"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"Because optics compose, obligation-transport is **scale-invariant**. A
 traversal of the backward pass need not know whether an edge crosses a domain
@@ -1323,7 +1373,9 @@ boundary; the same pass runs at every scale.
             Element::Prop(Prop {
                 slug: "horizontal-and-vertical-coincide",
                 parent: Some("opfibrations-compose"),
-                kind: Kind::Rationale,
+                kind: Kind::Judgmental {
+                    role: "category-theorist",
+                },
                 numbering: None,
                 prose: r#"Under the Grothendieck construction the hierarchy flattens: a
 sibling-to-sibling edge and a domain-to-parent edge are both generating
