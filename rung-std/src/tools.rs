@@ -2,18 +2,18 @@
 //!
 //! ## What this is
 //!
-//! A tool registry framework with built-in file-system tools. The [`Tool`]
+//! A tool roster framework with built-in file-system tools. The [`Tool`]
 //! trait declares the interface every tool must satisfy; [`ToolCollection`]
-//! groups tools by name; [`ToolRegistry`] assembles one or more collections
+//! groups tools by name; [`ToolRoster`] assembles one or more collections
 //! and provides the unified [`Toolset`] interface the [`agent`](crate::agent)
 //! ladder consumes.
 //!
 //! ## Theory here, roster in deployment
 //!
 //! The [`Tool`] trait and built-in collections live here; the concrete
-//! registry (which collections, in what order) is the caller's. The agent
+//! roster (which collections, in what order) is the caller's. The agent
 //! ladder takes `&dyn Toolset` — the narrow projection it needs — and has no
-//! knowledge of which tools are registered or where they came from.
+//! knowledge of which tools are admitted or where they came from.
 //! `nothing-further-required`.
 //!
 //! ## Tool contract
@@ -25,7 +25,7 @@
 //!
 //! ## What this module could not say
 //!
-//! The registry is not a pool — there is no qualification filter, no
+//! The roster is not a pool — there is no qualification filter, no
 //! standing predicate, and no gate. Tools are equal; only the name
 //! distinguishes them, and duplicates are resolved by declaration order.
 
@@ -58,7 +58,7 @@ pub trait Tool: Send + Sync + std::fmt::Debug {
 /// A named group of tools.
 ///
 /// Tools within a collection must have unique names (enforced by declaration
-/// order — later registrations of the same name shadow earlier ones for
+/// order — later admissions of the same name shadow earlier ones for
 /// execution, but both appear in definitions).
 #[derive(Debug)]
 pub struct ToolCollection {
@@ -74,8 +74,8 @@ impl ToolCollection {
         }
     }
 
-    /// Register a tool and return `self` for chaining.
-    pub fn register(&mut self, tool: impl Tool + 'static) -> &mut Self {
+    /// Admit a tool and return `self` for chaining.
+    pub fn admit(&mut self, tool: impl Tool + 'static) -> &mut Self {
         let name = tool.name().to_string();
         self.tools.push((name, Box::new(tool)));
         self
@@ -105,26 +105,26 @@ impl ToolCollection {
     }
 }
 
-// ─── ToolRegistry ─────────────────────────────────────────────────────────────
+// ─── ToolRoster ─────────────────────────────────────────────────────────────
 
 /// Assembles one or more [`ToolCollection`]s into a unified tool set.
 ///
 /// The `Toolset` trait implementation provides the narrow interface the
 /// [`agent`](crate::agent) ladder consumes: definitions for the LLM request
 /// and execution for tool dispatch. The agent has no knowledge of which
-/// collections are registered or where a tool came from.
+/// collections are admitted or where a tool came from.
 ///
 /// ## Duplicate names
 ///
 /// Collections added later take priority for execution (last-wins). This
-/// lets a caller override a built-in tool by registering a replacement in a
+/// lets a caller override a built-in tool by admitting a replacement in a
 /// later collection. Definitions are deduplicated by name on the same basis.
 #[derive(Debug)]
-pub struct ToolRegistry {
+pub struct ToolRoster {
     collections: Vec<ToolCollection>,
 }
 
-impl ToolRegistry {
+impl ToolRoster {
     pub fn new() -> Self {
         Self {
             collections: Vec::new(),
@@ -178,7 +178,7 @@ impl ToolRegistry {
     }
 }
 
-impl Default for ToolRegistry {
+impl Default for ToolRoster {
     fn default() -> Self {
         Self::new()
     }
@@ -188,15 +188,15 @@ impl Default for ToolRegistry {
 
 /// The narrow interface the agent ladder consumes.
 ///
-/// Separated from [`ToolRegistry`] so the agent carry can hold a `&dyn
+/// Separated from [`ToolRoster`] so the agent carry can hold a `&dyn
 /// Toolset` trait object — the ladder is not generic over a concrete
-/// registry type, and integration tests can supply a mock executor.
+/// roster type, and integration tests can supply a mock executor.
 pub trait Toolset: std::fmt::Debug {
     fn definitions(&self) -> Vec<ToolDefinition>;
     fn execute(&self, name: &str, input: &Value) -> Result<String, String>;
 }
 
-impl Toolset for ToolRegistry {
+impl Toolset for ToolRoster {
     fn definitions(&self) -> Vec<ToolDefinition> {
         self.definitions()
     }
@@ -213,17 +213,17 @@ impl Toolset for ToolRegistry {
 /// [`filesystem_tools_with_shell`] if the caller explicitly opts in.
 pub fn filesystem_tools() -> ToolCollection {
     let mut c = ToolCollection::new("filesystem");
-    c.register(ReadFile);
-    c.register(WriteFile);
-    c.register(ListFiles);
-    c.register(Grep);
+    c.admit(ReadFile);
+    c.admit(WriteFile);
+    c.admit(ListFiles);
+    c.admit(Grep);
     c
 }
 
 /// Return the file-system tools WITH the shell enabled.
 pub fn filesystem_tools_with_shell() -> ToolCollection {
     let mut c = filesystem_tools();
-    c.register(Shell);
+    c.admit(Shell);
     c
 }
 
@@ -555,7 +555,7 @@ mod tests {
     }
 
     #[test]
-    fn registry_collections_last_wins_for_execute() {
+    fn roster_collections_last_wins_for_execute() {
         // A "mock-grep" tool that overrides the built-in grep.
         #[derive(Debug)]
         struct MockGrep;
@@ -574,28 +574,28 @@ mod tests {
             }
         }
 
-        let mut registry = ToolRegistry::new();
-        registry.add(filesystem_tools());
+        let mut roster = ToolRoster::new();
+        roster.add(filesystem_tools());
         let mut override_coll = ToolCollection::new("test-override");
-        override_coll.register(MockGrep);
-        registry.add(override_coll);
+        override_coll.admit(MockGrep);
+        roster.add(override_coll);
 
-        let result = registry
+        let result = roster
             .execute("grep", &serde_json::json!({"pattern": "x", "path": "."}))
             .unwrap();
         assert_eq!(result, "mock result");
     }
 
     #[test]
-    fn registry_unknown_tool_returns_error() {
-        let registry = ToolRegistry::new();
-        let result = registry.execute("nonexistent", &Value::Null);
+    fn roster_unknown_tool_returns_error() {
+        let roster = ToolRoster::new();
+        let result = roster.execute("nonexistent", &Value::Null);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("unknown tool"));
     }
 
     #[test]
-    fn registry_definitions_deduplicates_by_name() {
+    fn roster_definitions_deduplicates_by_name() {
         #[derive(Debug)]
         struct MockGrep;
         impl Tool for MockGrep {
@@ -613,13 +613,13 @@ mod tests {
             }
         }
 
-        let mut registry = ToolRegistry::new();
-        registry.add(filesystem_tools());
+        let mut roster = ToolRoster::new();
+        roster.add(filesystem_tools());
         let mut override_coll = ToolCollection::new("test-override");
-        override_coll.register(MockGrep);
-        registry.add(override_coll);
+        override_coll.admit(MockGrep);
+        roster.add(override_coll);
 
-        let defs = registry.definitions();
+        let defs = roster.definitions();
         let grep_defs: Vec<_> = defs.iter().filter(|d| d.name == "grep").collect();
         assert_eq!(grep_defs.len(), 1, "duplicate names must be deduplicated");
         assert_eq!(grep_defs[0].description, "mock", "last-added wins");
@@ -647,9 +647,9 @@ mod tests {
 
     #[test]
     fn toolset_trait_object_works() {
-        let mut registry = ToolRegistry::new();
-        registry.add(filesystem_tools());
-        let tools: &dyn Toolset = &registry;
+        let mut roster = ToolRoster::new();
+        roster.add(filesystem_tools());
+        let tools: &dyn Toolset = &roster;
         let defs = tools.definitions();
         assert!(defs.iter().any(|d| d.name == "read_file"));
         let result = tools

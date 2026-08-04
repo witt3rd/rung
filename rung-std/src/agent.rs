@@ -14,7 +14,7 @@
 //!   module — no caller can fabricate a terminal outcome
 //!   (`the-law`).
 //!
-//! - **G5 (carry immutability).** [`LoopState`] and the tool registry ride
+//! - **G5 (carry immutability).** [`LoopState`] and the tool roster ride
 //!   in the immutable carry. The recover edge threads them forward
 //!   unchanged.
 //!
