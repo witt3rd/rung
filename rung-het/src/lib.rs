@@ -938,7 +938,7 @@ impl Settled {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Dispositions — the Opponent's ruling (disposition-is-a-ruling, no-amending-disposition-g)
+// Dispositions — the Opponent's ruling (disposition-is-a-ruling, no-amending-disposition)
 // ─────────────────────────────────────────────────────────────────────────
 
 /// The Opponent's ruling on a Proposal.

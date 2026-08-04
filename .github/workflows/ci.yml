@@ -32,3 +32,5 @@ jobs:
         run: docs/heteronomy/_props.py check
       - name: conformance ledger coverage
         run: docs/heteronomy/_ledger.py check
+      - name: proposition citations in Rust source
+        run: docs/heteronomy/_props.py cited

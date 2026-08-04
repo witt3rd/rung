@@ -16,15 +16,21 @@ unknown, or an `enforced` row cites a file that does not exist.
 | `collides` | contradicts a rung guarantee — must be empty |
 | `out-of-scope` | mathematics of the institution; nothing for a host to enforce |
 
+**No Het theory is currently expressed as a `ladder!`.** `rung-het` has empty
+`[dependencies]` and zero occurrences of `ladder!`; its guarantees come from
+hand-rolled sealed structs. Every `enforced` row below therefore names the rung
+guarantee that **will** apply once the pass is a ladder — not one in force
+today. The mechanism underneath is bespoke until the substrate rewrite lands.
+
 **The default is `out-of-scope`.** Most propositions state the structure of the
 institution and impose no obligation on any host. Only rows that name a
 mechanism have been curated; the rest are marked by that rule, not by
 inspection. Read a bare `out-of-scope` as *"no claim made"*, not as *"checked
 and found irrelevant"*.
 
-**Counts.** 13 enforced · 10 expressible ·
-6 deferred · 0 collides ·
-164 out-of-scope · 193 total.
+**Counts.** 12 enforced · 11 expressible ·
+9 deferred · 0 collides ·
+162 out-of-scope · 194 total.
 
 ## What rung guarantees that Het does not state
 
@@ -91,9 +97,9 @@ formalism requires.
 | [3.51](formalism.md#disjointness-against-argument) | `disjointness-against-argument` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [3.52](formalism.md#argument-governs) | `argument-governs` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [3.53](formalism.md#non-identity-before-dispatch) | `non-identity-before-dispatch` | `expressible` | The filter is set operations over declared predicates (10.22). rung enforces *that the token was constructed*, never that the body computed the set correctly — SPEC §5, transition-body correctness. | — |
-| [3.54](formalism.md#non-identity-by-construction) | `non-identity-by-construction` | `enforced` | G2 sealed construction, applied to the qualifying token rather than to a rung. Where the filter is the token's only constructor, a principal that failed it cannot be named in a judgmental position. This is what moves P0 out of SPEC §5's transition-body non-guarantee. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
+| [3.54](formalism.md#non-identity-by-construction) | `non-identity-by-construction` | `deferred` | GAP — the token is unforgeable but UNBOUND. `rung-het`'s `Qualified<R>` records the principal and its provenance and forgets the argument it was measured against (`rung-het/src/lib.rs:402-408`), so a token earned against one argument can be spent on another. Sealing the constructor closes fabrication, not transfer. Binding the token is the substrate rewrite's job. | — |
 | [3.55](formalism.md#non-identity-not-deferrable) | `non-identity-not-deferrable` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [3.56](formalism.md#no-preference-among-judges) | `no-preference-among-judges` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [3.56](formalism.md#no-preference-among-judges) | `no-preference-among-judges` | `expressible` | UNARGUED in both doctrine and code. `Pool::qualify` returns the FIRST qualifying principal. Het says any qualifying judge yields a well-formed verdict, so a deterministic pick is admissible — but whether pool position constitutes an ordering has not been argued either way. Assumed, not shown. | — |
 | [3.6](formalism.md#authorial-qualifying-set) | `authorial-qualifying-set` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [3.61](formalism.md#judgment-refuses-authorship-requires) | `judgment-refuses-authorship-requires` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [3.62](formalism.md#provenance-overlap-is-the-point) | `provenance-overlap-is-the-point` | `out-of-scope` | mathematics of the institution — no host obligation | — |
@@ -116,7 +122,7 @@ formalism requires.
 | [4.4](formalism.md#metric-carried-by-verdict-space) | `metric-carried-by-verdict-space` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [4.5](formalism.md#metric-measures-not-ranks) | `metric-measures-not-ranks` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [4.51](formalism.md#order-as-preference-is-hetopts) | `order-as-preference-is-hetopts` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [4.6](formalism.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [4.6](formalism.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `deferred` | GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming (4.11). | — |
 | [4.7](formalism.md#translation-invariance-is-candidates-burden) | `translation-invariance-is-candidates-burden` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 
 ### 5 · The semantics
@@ -138,9 +144,10 @@ formalism requires.
 | [5.32](formalism.md#monad-is-provenance-strict) | `monad-is-provenance-strict` | `expressible` | `carry` is the natural home for provenance: a product factor preserved across every arrow, immutable by G5. It does not carry a *principal's* provenance, which lives outside the ladder. | rung/tests/compile_pass.rs::test_carry_accessor_exists |
 | [5.4](formalism.md#constant-arrow-hazard) | `constant-arrow-hazard` | `enforced` | G2 sealed construction. A judgmental arrow cannot be interpreted by a constant drawn from the algebra's own carrier, because no mid-ladder rung is constructible outside its module. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
 | [5.41](formalism.md#admissibility-subcategories) | `admissibility-subcategories` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.42](formalism.md#authorial-admissibility-stronger) | `authorial-admissibility-stronger` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.43](formalism.md#one-monad) | `one-monad` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.44](formalism.md#gate-relative-admissibility-licensed) | `gate-relative-admissibility-licensed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.42](formalism.md#verdict-provenance-is-judges) | `verdict-provenance-is-judges` | `deferred` | GAP — there is no channel from a principal to an outcome. `Principal` declares only `capable` and `id`; the verdict is a *parameter* of the judgmental operation, and the only `-> Verdict` in `rung-het` is on the DECIDABLE gate. The decidable arrow produces a verdict and the judgmental arrow consumes one, which is exactly backwards. Until this is closed the engine proves an outside was available, never that it was consulted. | — |
+| [5.43](formalism.md#authorial-admissibility-stronger) | `authorial-admissibility-stronger` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.44](formalism.md#one-monad) | `one-monad` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.45](formalism.md#gate-relative-admissibility-licensed) | `gate-relative-admissibility-licensed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [5.5](formalism.md#gate-faithful) | `gate-faithful` | `deferred` | GAP — no question filed. The ladder DSL has no gate marker, so an algebra cannot declare which arrows are judgmental and nothing checks faithfulness. This is the largest unclosed distance between Het and rung. | — |
 | [5.51](formalism.md#mod-only-gate-faithful) | `mod-only-gate-faithful` | `deferred` | GAP — no question filed. Follows gate-faithful. | — |
 | [5.52](formalism.md#refusal-at-model-category) | `refusal-at-model-category` | `out-of-scope` | mathematics of the institution — no host obligation | — |

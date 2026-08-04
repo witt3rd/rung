@@ -39,12 +39,13 @@ CURATED = {
         "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
     ),
     "non-identity-by-construction": (
-        "enforced",
-        "G2 sealed construction, applied to the qualifying token rather than to a "
-        "rung. Where the filter is the token's only constructor, a principal that "
-        "failed it cannot be named in a judgmental position. This is what moves P0 "
-        "out of SPEC §5's transition-body non-guarantee.",
-        "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
+        "deferred",
+        "GAP — the token is unforgeable but UNBOUND. `rung-het`'s `Qualified<R>` "
+        "records the principal and its provenance and forgets the argument it was "
+        "measured against (`rung-het/src/lib.rs:402-408`), so a token earned against "
+        "one argument can be spent on another. Sealing the constructor closes "
+        "fabrication, not transfer. Binding the token is the substrate rewrite's job.",
+        "—",
     ),
     "non-identity-before-dispatch": (
         "expressible",
@@ -145,6 +146,30 @@ CURATED = {
     ),
 
     # ── the residual ─────────────────────────────────────────────────────
+    "verdict-provenance-is-judges": (
+        "deferred",
+        "GAP — there is no channel from a principal to an outcome. `Principal` "
+        "declares only `capable` and `id`; the verdict is a *parameter* of the "
+        "judgmental operation, and the only `-> Verdict` in `rung-het` is on the "
+        "DECIDABLE gate. The decidable arrow produces a verdict and the judgmental "
+        "arrow consumes one, which is exactly backwards. Until this is closed the "
+        "engine proves an outside was available, never that it was consulted.",
+        "—",
+    ),
+    "epsilon-reported-with-verdict": (
+        "deferred",
+        "GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no "
+        "epsilon, so the satisfaction condition does not survive renaming (4.11).",
+        "—",
+    ),
+    "no-preference-among-judges": (
+        "expressible",
+        "UNARGUED in both doctrine and code. `Pool::qualify` returns the FIRST "
+        "qualifying principal. Het says any qualifying judge yields a well-formed "
+        "verdict, so a deterministic pick is admissible — but whether pool position "
+        "constitutes an ordering has not been argued either way. Assumed, not shown.",
+        "—",
+    ),
     "judgmental-arrow-shape": (
         "enforced",
         "The `+ A` residual is `Failed<Prev> { token, error }` — the unconsumed "
@@ -302,6 +327,12 @@ unknown, or an `enforced` row cites a file that does not exist.
 | `deferred` | blocked on a named open question, or on a named gap |
 | `collides` | contradicts a rung guarantee — must be empty |
 | `out-of-scope` | mathematics of the institution; nothing for a host to enforce |
+
+**No Het theory is currently expressed as a `ladder!`.** `rung-het` has empty
+`[dependencies]` and zero occurrences of `ladder!`; its guarantees come from
+hand-rolled sealed structs. Every `enforced` row below therefore names the rung
+guarantee that **will** apply once the pass is a ladder — not one in force
+today. The mechanism underneath is bespoke until the substrate rewrite lands.
 
 **The default is `out-of-scope`.** Most propositions state the structure of the
 institution and impose no obligation on any host. Only rows that name a

@@ -14,6 +14,7 @@ is the stable slug:
 
     ./_props.py check    exit 1 on any integrity failure; changes nothing
     ./_props.py fmt      recompute every number and link text in place
+    ./_props.py cited    exit 1 if Rust source cites a slug that is not a proposition
 """
 
 import re
@@ -146,8 +147,49 @@ def check_refs(lines, props):
     return errs
 
 
+# Slug-shaped tokens that are deliberately NOT propositions: variants the
+# formalism names in order to refuse them. A ban has to say what it bans.
+RETIRED = {"accept-with-mod", "reject-with-alternative"}
+
+# Crates that cite the formalism by slug. Scoped deliberately: elsewhere in the
+# workspace a hyphenated token is ordinary prose, not a citation.
+CITING = ("rung-het",)
+
+COMMENT = re.compile(r"^\s*(?://[/!]?)(.*)$")
+SLUGLIKE = re.compile(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+){2,}\b")
+
+
+def cited():
+    """Every slug-shaped token in a Rust comment must be a proposition."""
+    slugs = {p.slug for p in parse(DOC.read_text().split("\n"))[0]}
+    root = DOC.parent.parent.parent
+    errs, n = [], 0
+    for crate in CITING:
+      for src in sorted((root / crate).rglob("*.rs")):
+        if "target" in src.parts:
+            continue
+        for i, line in enumerate(src.read_text(errors="ignore").split("\n")):
+            m = COMMENT.match(line)
+            if not m:
+                continue
+            for tok in SLUGLIKE.findall(m.group(1)):
+                if tok in slugs:
+                    n += 1
+                elif tok not in RETIRED:
+                    rel = src.relative_to(root)
+                    errs.append(f"{rel}:{i+1}: cites `{tok}`, which is not a proposition")
+    if errs:
+        print("\n".join(f"  {e}" for e in errs), file=sys.stderr)
+        print(f"\n{len(errs)} problem(s)", file=sys.stderr)
+        return 1
+    print(f"ok — {n} proposition citations in Rust source, all resolve")
+    return 0
+
+
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
+    if cmd == "cited":
+        return cited()
     lines = DOC.read_text().split("\n")
 
     props, errs = parse(lines)
