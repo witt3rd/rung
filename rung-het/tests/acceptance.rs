@@ -97,6 +97,48 @@ theory!(fieldbook for Fieldbook {
     judgmental all_observed: Taxonomist;
 });
 
+// The two containers, as movable populations. `admits` is each one's own law
+// run at the boundary — the write-guard (N32h), which is the pass composed
+// with itself, not new machinery.
+
+impl Container for Cabinet {
+    type Item = Specimen;
+    fn name(&self) -> &'static str {
+        "cabinet"
+    }
+    fn take(&mut self, id: &str) -> Option<Specimen> {
+        let i = self.specimens.iter().position(|s| s.id == id)?;
+        Some(self.specimens.remove(i))
+    }
+    fn admits(&self, _item: &Specimen) -> Option<String> {
+        None // the cabinet admits anything; its law is checked by audit
+    }
+    fn put(&mut self, item: Specimen) {
+        self.specimens.push(item);
+    }
+}
+
+impl Container for Fieldbook {
+    type Item = Specimen;
+    fn name(&self) -> &'static str {
+        "fieldbook"
+    }
+    fn take(&mut self, id: &str) -> Option<Specimen> {
+        let i = self.notes.iter().position(|s| s.id == id)?;
+        Some(self.notes.remove(i))
+    }
+    fn admits(&self, item: &Specimen) -> Option<String> {
+        // The fieldbook's own law: a note without a locality is not a note.
+        // An edit the cabinet's judge ACCEPTED is still refused here.
+        item.locality
+            .is_none()
+            .then(|| format!("`{}` has no locality; the fieldbook requires one", item.id))
+    }
+    fn put(&mut self, item: Specimen) {
+        self.notes.push(item);
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Principals
 // ─────────────────────────────────────────────────────────────────────────
@@ -246,7 +288,8 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
 
     // Satisfy the target's law, and the same authorized edit lands.
     cab.specimens[2].locality = Some("east wood");
-    enact(&mut cab, &mut book, &ruling, &pen).expect("the target now admits it");
+    let landed = enact(&mut cab, &mut book, &ruling, &pen).expect("the target now admits it");
+    assert_eq!(landed.moved(), "s3");
     assert_eq!(cab.specimens.len(), 2);
     assert_eq!(book.notes.len(), 1);
     assert!(
@@ -269,15 +312,15 @@ fn a_judge_may_not_dispose_on_a_proposal_it_authored() {
     let cab = cabinet_of(vec![specimen("s1", false, None)]);
 
     // A principal that is disjoint from the cabinet AND authored the proposal.
-    let insider = Person {
+    const INSIDER: Person = Person {
         id: "academy",
         prov: &["academy"],
         roles: &["taxonomist"],
         stewards: &["cabinet"],
     };
-    let pool = Pool::new(vec![insider]);
+    let pool = Pool::new(vec![INSIDER]);
 
-    let pen = pool.authorize(&insider, "cabinet").unwrap();
+    let pen = pool.authorize(&INSIDER, "cabinet").unwrap();
     let p = Proposal::remedy(&pen, "s1", Edit::Amend { note: "mount it" });
 
     // Disjoint from the cabinet — would have passed the old check.
@@ -305,7 +348,6 @@ fn an_author_may_dispute_a_verdict_without_first_authoring_a_remedy() {
     // Before N32c the only contest lived at dispose — downstream of propose.
     // An author who believed the audit simply wrong had to first author a
     // remedy for the diagnosis they disputed, to obtain a vehicle to dispute it.
-    let cab = cabinet_of(vec![specimen("s1", true, None)]);
     let pool = outside_pool();
     let pen = pool.authorize(&CURATOR, "cabinet").unwrap();
 
@@ -334,7 +376,6 @@ fn reject_remedy_is_non_terminal_and_the_reason_reaches_the_author() {
     // Disposition is a ruling, not a revision. What replaces it is a rejection
     // carrying a REASON — advisory prose, not an edit. That distinction is what
     // keeps the judge inside the judgmental gate (N32e).
-    let cab = cabinet_of(vec![specimen("s2", false, Some("south fen"))]);
     let pool = outside_pool();
     let pen = pool.authorize(&CURATOR, "cabinet").unwrap();
 
@@ -363,7 +404,6 @@ fn reject_remedy_is_non_terminal_and_the_reason_reaches_the_author() {
         second.prior_reasons(),
         vec!["removal is disproportionate; mount it instead"]
     );
-    let _ = cab;
 }
 
 // ─────────────────────────────────────────────────────────────────────────

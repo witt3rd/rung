@@ -511,6 +511,358 @@ impl<P: Principal> Pool<P> {
             (n, _) => QualifyError::PoolExhausted { considered: n },
         })
     }
+    /// Het N39 applied to an arbitrary **argument** (N6d).
+    ///
+    /// [`Pool::qualify`] measures disjointness against a model; this measures
+    /// it against whatever the operation is applied to. At `audit` those are
+    /// the same object. At `dispose` they are not — the argument is a Proposal,
+    /// whose provenance is its author's (N32b).
+    ///
+    /// That difference is a live P0 hole when it is missed: a judge that
+    /// authored a Proposal is disjoint from the *model* by construction, so a
+    /// model-relative check admits it to rule on its own work.
+    pub fn qualify_for<R: Role>(
+        &self,
+        argument: &dyn Provenanced,
+    ) -> Result<Qualified<R>, QualifyError> {
+        self.qualify::<R>(argument)
+    }
+
+    /// How standing is settled for this principal over this container.
+    ///
+    /// N11 — standing is the one **conditional** gate Het settles. Provenance
+    /// containment decides it where it applies; otherwise a judge must rule
+    /// (N12: terminating at depth one, that judge's own qualification being
+    /// plain non-identity relative to the **author**).
+    ///
+    /// The classifier is itself decidable, as N5 requires: asking *"does
+    /// containment settle this?"* is structural inspection, not judgment. A
+    /// judgmental classifier would reopen the regress §5.4 closes.
+    pub fn classify_standing<S: Steward>(&self, principal: &S, over: &str) -> StandingGate {
+        if principal.has_standing(over) {
+            StandingGate::Decidable
+        } else {
+            StandingGate::Judgmental
+        }
+    }
+
+    /// Mint an [`Authorized`] pen — the authorial filter.
+    ///
+    /// ```text
+    /// P_auth(o, M) = { p ∈ P : capable(p, role(o)) ∧ standing(p, M) }
+    /// ```
+    ///
+    /// The mirror of [`Pool::qualify`]: that one demands the principal did
+    /// **not** author the argument; this one demands the object is theirs to
+    /// revise. Judgment refuses the audited party; authorship requires standing
+    /// over it (§2.4).
+    ///
+    /// Refuses on the judgmental branch rather than guessing. When containment
+    /// does not settle standing, Het says a judge must rule on it — and this
+    /// engine cannot invent that ruling. Surfacing
+    /// [`AuthorizeError::StandingIsJudgmental`] is the honest outcome; closing
+    /// it requires the outside.
+    pub fn authorize<'a, S: Steward>(
+        &self,
+        principal: &'a S,
+        over: &'a str,
+    ) -> Result<Authorized<'a>, AuthorizeError> {
+        match self.classify_standing(principal, over) {
+            StandingGate::Decidable => Ok(Authorized {
+                _seal: (),
+                _not_send: PhantomData,
+                principal_id: principal.id().to_string(),
+                principal_prov: principal.provenance(),
+                over,
+            }),
+            StandingGate::Judgmental => Err(AuthorizeError::StandingIsJudgmental {
+                principal: principal.id().to_string(),
+                over: over.to_string(),
+            }),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// The authorial gate — standing (N10-N12, N32a)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A principal that may hold **standing** over an object.
+///
+/// Standing is the authorial condition, and it is the exact mirror of
+/// non-identity:
+///
+/// | gate | condition |
+/// |---|---|
+/// | judgmental | `π(p) ∩ π(a) = ∅` — **disjointness**. You did not author this. |
+/// | authorial | `π(outcome) ⊆ π(p)` and standing — **containment**. It is yours to revise. |
+///
+/// One pool, two filters; the gate marker selects which predicate applies, not
+/// which pool is consulted (N10). A principal may be both — steward of one
+/// container and a disinterested judge of another — and the two facts do not
+/// interfere, because they are asked about different objects.
+pub trait Steward: Principal {
+    /// Whether this principal holds stewardship over the named container.
+    ///
+    /// The name is the theory's, not Het's: Het requires only that *some*
+    /// standing predicate exists (N4). What counts as standing over what is
+    /// the supplying theory's business (N6b).
+    fn has_standing(&self, over: &str) -> bool;
+}
+
+/// Why authorization was refused.
+#[derive(Debug, PartialEq, Eq)]
+pub enum AuthorizeError {
+    /// The principal holds no standing over this container.
+    NoStanding { principal: String, over: String },
+    /// Standing is judgmental in this model and a judge must rule on it first.
+    ///
+    /// N11: standing is **conditional-gated** — decidable when provenance
+    /// containment settles it, judgmental otherwise. This variant is the
+    /// judgmental branch surfacing: the engine cannot settle it and must
+    /// dispatch. See [`Pool::classify_standing`].
+    StandingIsJudgmental { principal: String, over: String },
+}
+
+impl std::fmt::Display for AuthorizeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoStanding { principal, over } => {
+                write!(f, "{principal} holds no standing over `{over}`")
+            }
+            Self::StandingIsJudgmental { principal, over } => write!(
+                f,
+                "standing of {principal} over `{over}` is not settled by provenance \
+                 containment; it must be ruled on by a judge (N11)"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for AuthorizeError {}
+
+/// How the standing predicate is settled for a given principal and container.
+///
+/// N11 makes standing the one **conditional** gate Het actually settles: the
+/// mode of satisfaction depends on the specific algebra, and is classified one
+/// level up (§2.5, N14).
+#[derive(Debug, PartialEq, Eq)]
+pub enum StandingGate {
+    /// Provenance containment settles it — machine-checked, no outside.
+    Decidable,
+    /// Containment does not settle it; a judge must rule (terminating at depth
+    /// one, N12: that judge's own qualification is plain non-identity relative
+    /// to the **author**, not to the audited object).
+    Judgmental,
+}
+
+/// Proof that a principal holds standing to author over a named container.
+///
+/// The authorial counterpart to [`Qualified`], and sealed for the same reason:
+/// a capability that can be fabricated in object-position is not a capability
+/// (rung SPEC.md G2). [`Pool::authorize`] is the only mint.
+///
+/// An `Authorized` is what `propose` and `enact` require — the two authorial
+/// operations of the pass (N32a). Without one there is no term for "author
+/// something about this object."
+///
+/// Borrowed rather than owned: authorship is not spent by a single act. An
+/// author with standing may propose, be rejected, and re-propose (N32f) — the
+/// standing did not lapse. This is the deliberate asymmetry with [`Qualified`],
+/// which *is* consumed: a judgment licence is spent on one sentence, because
+/// each dispatch must re-run the filter against a different argument.
+#[must_use = "an Authorized pen is a licence to author; dropping it discards the standing"]
+pub struct Authorized<'a> {
+    _seal: (),
+    _not_send: PhantomData<*const ()>,
+    principal_id: String,
+    principal_prov: Prov,
+    over: &'a str,
+}
+
+impl<'a> Authorized<'a> {
+    /// The authoring principal's id — for the receipt, and for provenance.
+    pub fn principal_id(&self) -> &str {
+        &self.principal_id
+    }
+
+    /// The author's provenance. A Proposal carries it (N32b).
+    pub fn principal_provenance(&self) -> &Prov {
+        &self.principal_prov
+    }
+
+    /// The container this pen authorizes writing to.
+    pub fn over(&self) -> &str {
+        self.over
+    }
+}
+
+impl std::fmt::Debug for Authorized<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Authorized({} over `{}`)", self.principal_id, self.over)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Proposals — the Proponent's answer (N32a-c)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// What a remedy would do to the object.
+///
+/// **Het does not define this.** `propose` yields "what should be done about a
+/// non-conforming object" and the formalism never says what an edit *is*. This
+/// enum is therefore an invention of the encoding, and the first place the DSL
+/// asks Het a question rather than transcribing an answer.
+///
+/// The three cases are what the acceptance domain needs, not what Het licenses:
+///
+/// - `Amend` — the object stays, changed
+/// - `Remove` — the object leaves the container
+/// - `Relocate` — the object belongs somewhere else, and *somewhere else is
+///   also governed*, so the write runs the target's law (N32h)
+///
+/// `Relocate` is the interesting one: it is the case that makes `enact` a
+/// two-container operation and forces the write-guard. A vocabulary without it
+/// would let the pass pretend edits are local.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Edit {
+    Amend { note: &'static str },
+    Remove,
+    Relocate { to: &'static str },
+}
+
+/// What the Proponent says in answer to a non-conforming verdict.
+///
+/// **N32c** — a Proposal is a *remedy* or a *dispute*. Before the dispute case
+/// existed there was no path to contest a verdict: `propose` is defined only on
+/// a non-conforming verdict, and the false-positive override lived at `dispose`
+/// — downstream. An author who believed the audit simply wrong had to author a
+/// remedy for the diagnosis they disputed, in order to obtain a vehicle for
+/// disputing it.
+///
+/// **N32b** — a Proposal carries its **author's** provenance, not the model's.
+/// That is what makes `dispose` checkable: the judge must be disjoint from the
+/// *proposal* (N6d), and without knowing who authored it the check has nothing
+/// to measure against.
+///
+/// Construction requires an [`Authorized`] pen. `propose` is authorial (N32a);
+/// there is no term for proposing without standing.
+#[derive(Debug, Clone)]
+#[must_use = "a Proposal is the Proponent's move; dropping it forfeits the turn"]
+pub struct Proposal {
+    object: &'static str,
+    author: String,
+    provenance: Prov,
+    kind: ProposalKind,
+    /// Which attempt this is. 1 for a first proposal (N32f).
+    attempt: usize,
+    /// Reasons from prior rejections, oldest first (N32e/f).
+    prior_reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+enum ProposalKind {
+    Remedy(Edit),
+    Dispute { grounds: &'static str },
+}
+
+impl Provenanced for Proposal {
+    /// N32b. A judge disposing on this must be disjoint from *this*, not from
+    /// the model — which is why the provenance has to be the author's.
+    fn provenance(&self) -> Prov {
+        self.provenance.clone()
+    }
+}
+
+impl Proposal {
+    /// *"The verdict stands; here is the fix."*
+    pub fn remedy(pen: &Authorized<'_>, object: &'static str, edit: Edit) -> Self {
+        Self {
+            object,
+            author: pen.principal_id().to_string(),
+            provenance: pen.principal_provenance().clone(),
+            kind: ProposalKind::Remedy(edit),
+            attempt: 1,
+            prior_reasons: Vec::new(),
+        }
+    }
+
+    /// *"The verdict is wrong; the object stands as authored."*
+    ///
+    /// Still judged. The author does not overturn a verdict by asserting it —
+    /// a dispute goes to `dispose` exactly as a remedy does, and the Opponent
+    /// rules on the dispute itself.
+    pub fn dispute(pen: &Authorized<'_>, object: &'static str, grounds: &'static str) -> Self {
+        Self {
+            object,
+            author: pen.principal_id().to_string(),
+            provenance: pen.principal_provenance().clone(),
+            kind: ProposalKind::Dispute { grounds },
+            attempt: 1,
+            prior_reasons: Vec::new(),
+        }
+    }
+
+    /// Re-propose after a rejection, carrying the chain (N32f).
+    ///
+    /// The chain is not bookkeeping. An author re-proposing without the prior
+    /// reasons can cycle indefinitely on the same objection, and nothing
+    /// downstream could detect it — which is the failure N32f names.
+    ///
+    /// Takes the pen again because standing must still hold: an author who lost
+    /// stewardship between attempts may not continue.
+    pub fn reproposed(&self, pen: &Authorized<'_>, ruling: &Ruling, edit: Edit) -> Self {
+        let mut reasons = self.prior_reasons.clone();
+        if let Some(r) = ruling.reason() {
+            reasons.push(r.to_string());
+        }
+        Self {
+            object: self.object,
+            author: pen.principal_id().to_string(),
+            provenance: pen.principal_provenance().clone(),
+            kind: ProposalKind::Remedy(edit),
+            attempt: self.attempt + 1,
+            prior_reasons: reasons,
+        }
+    }
+
+    pub fn object(&self) -> &'static str {
+        self.object
+    }
+
+    pub fn author(&self) -> &str {
+        &self.author
+    }
+
+    pub fn is_dispute(&self) -> bool {
+        matches!(self.kind, ProposalKind::Dispute { .. })
+    }
+
+    /// The edit this proposes, if any. A dispute proposes none — there is
+    /// nothing to enact.
+    pub fn edit(&self) -> Option<&Edit> {
+        match &self.kind {
+            ProposalKind::Remedy(e) => Some(e),
+            ProposalKind::Dispute { .. } => None,
+        }
+    }
+
+    pub fn grounds(&self) -> Option<&'static str> {
+        match &self.kind {
+            ProposalKind::Dispute { grounds } => Some(grounds),
+            ProposalKind::Remedy(_) => None,
+        }
+    }
+
+    /// Which attempt this is (N32f). 1 for a first proposal.
+    pub fn attempt(&self) -> usize {
+        self.attempt
+    }
+
+    /// Reasons from prior rejections, oldest first (N32e/f).
+    pub fn prior_reasons(&self) -> Vec<&str> {
+        self.prior_reasons.iter().map(String::as_str).collect()
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -586,6 +938,353 @@ impl Settled {
     /// Whether an outside was consulted. The observable form of the gate.
     pub fn consulted_outside(&self) -> bool {
         matches!(self, Self::Judgmental { .. })
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Dispositions — the Opponent's ruling (N32, N32d-g)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The Opponent's ruling on a Proposal.
+///
+/// **N32: a Disposition is a ruling, not a revision.** The judge classifies;
+/// it does not author. That is why the vocabulary is exactly these five and
+/// not the six it used to be.
+///
+/// # What was retired, and why
+///
+/// `accept-with-mod` is gone. A judge amending a proposal is *transforming*,
+/// not classifying — and the judge is provenance-**disjoint** from the object
+/// (§2.3), so it cannot hold standing over a modification it just authored
+/// (§2.4). The variant required one principal to satisfy two opposite
+/// conditions on one object.
+///
+/// `reject-with-alternative` fails identically and is not admitted.
+///
+/// What replaces it: [`Disposition::RejectRemedy`] carrying a **reason** —
+/// advisory prose, not an edit (N32e). Stating *why* a remedy fails is
+/// classification. Supplying the replacement is authorship. The author
+/// re-proposes with the reason in hand (N32f).
+///
+/// # The two rejections
+///
+/// `reject` used to mean two different things, and the conflation left a
+/// dangling object:
+///
+/// - [`RejectDiagnosis`](Disposition::RejectDiagnosis) — *the audit was
+///   wrong.* Terminal, correctly: nothing to enact because nothing is broken.
+/// - [`RejectRemedy`](Disposition::RejectRemedy) — *the object is
+///   non-conforming; this fix is not acceptable.* **Non-terminal**, or the
+///   object is stranded: `propose` is gated on a non-conforming verdict and
+///   the loop would have nowhere to go.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Disposition {
+    /// Execute the Proposal as-is. Terminal, affirming.
+    Accept,
+    /// The audit was wrong; the object stands as authored. Terminal, not
+    /// affirming — nothing is enacted.
+    RejectDiagnosis,
+    /// The remedy is not acceptable; the object remains non-conforming.
+    /// Non-terminal: the author re-proposes, carrying the reason (N32e/f).
+    RejectRemedy { reason: String },
+    /// Cannot act yet; a prerequisite is required. Non-terminal.
+    Defer { prerequisite: String },
+    /// Needs clarification from the auditor. Non-terminal.
+    RaisesQuestions { question: String },
+}
+
+impl Disposition {
+    /// The vocabulary as `(name, terminal, affirming)`.
+    ///
+    /// Pinned as data so a change to the vocabulary breaks a test rather than
+    /// passing silently. `accept-with-mod` and `reject-with-alternative` are
+    /// both absent, for the same reason.
+    pub const VARIANTS: &'static [(&'static str, bool, bool)] = &[
+        ("accept", true, true),
+        ("reject-diagnosis", true, false),
+        ("reject-remedy", false, false),
+        ("defer", false, false),
+        ("raises-questions", false, false),
+    ];
+
+    /// **N32g — Het places no bound on re-entry, deliberately.**
+    ///
+    /// If no acceptable remedy exists, `reject-remedy` re-enters forever and
+    /// the object never leaves the loop. Het does not resolve this and cannot:
+    /// every available answer — evict the object, bound the attempts, accept
+    /// non-conformance as declared debt — is **worth-shaped**, and N33 forbids
+    /// a Het theory from declaring a worth-law.
+    ///
+    /// This is the first case found in which χ alone produces a state it
+    /// cannot exit. It is a stated limit, not an oversight. **The bound belongs
+    /// in HetOpt**; an implementation that quietly gave up after N attempts
+    /// would be smuggling a worth-law in under another name.
+    ///
+    /// Until HetOpt ships, an implementation must surface a re-entering object
+    /// to its outside rather than loop on it.
+    pub const REENTRY_BOUND: Option<usize> = None;
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Accept => "accept",
+            Self::RejectDiagnosis => "reject-diagnosis",
+            Self::RejectRemedy { .. } => "reject-remedy",
+            Self::Defer { .. } => "defer",
+            Self::RaisesQuestions { .. } => "raises-questions",
+        }
+    }
+
+    /// Whether the object reaches a fixed point, or re-enters the loop.
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Accept | Self::RejectDiagnosis)
+    }
+
+    /// Whether this licenses enactment. Only `accept` does.
+    ///
+    /// Terminality and affirmation are different questions:
+    /// `reject-diagnosis` is terminal and enacts nothing.
+    pub fn is_affirming(&self) -> bool {
+        matches!(self, Self::Accept)
+    }
+
+    /// The advisory reason, where one is carried (N32e).
+    pub fn reason(&self) -> Option<&str> {
+        match self {
+            Self::RejectRemedy { reason } => Some(reason),
+            Self::Defer { prerequisite } => Some(prerequisite),
+            Self::RaisesQuestions { question } => Some(question),
+            _ => None,
+        }
+    }
+}
+
+/// A Disposition together with the proposal it ruled on and the judge that
+/// rendered it.
+///
+/// The judge is recorded because a ruling with no attributable judge cannot be
+/// audited for non-identity after the fact — and P0 is exactly the property
+/// someone will later want to check.
+#[derive(Debug, Clone)]
+#[must_use = "a Ruling decides what happens next; dropping it strands the object"]
+pub struct Ruling {
+    object: &'static str,
+    disposition: Disposition,
+    judge: String,
+    /// The edit the ruling affirms, if it affirms one.
+    edit: Option<Edit>,
+}
+
+impl Ruling {
+    pub fn object(&self) -> &'static str {
+        self.object
+    }
+    pub fn disposition(&self) -> &Disposition {
+        &self.disposition
+    }
+    pub fn judge(&self) -> &str {
+        &self.judge
+    }
+    pub fn is_terminal(&self) -> bool {
+        self.disposition.is_terminal()
+    }
+    pub fn is_affirming(&self) -> bool {
+        self.disposition.is_affirming()
+    }
+    pub fn reason(&self) -> Option<&str> {
+        self.disposition.reason()
+    }
+    /// The edit this ruling licenses, if any.
+    pub fn edit(&self) -> Option<&Edit> {
+        self.edit.as_ref()
+    }
+}
+
+/// The Opponent rules on a Proposal — **judgmental**.
+///
+/// Consumes a [`Qualified`] token by value. The token must have been minted
+/// against **the proposal** (N6d, [`Pool::qualify_for`]), not against the
+/// model: a judge that authored the proposal is disjoint from the model by
+/// construction, and a model-relative check would admit it to rule on its own
+/// work.
+///
+/// The disposition comes from the judge. This function records it; nothing
+/// here decides.
+pub fn dispose<R: Role>(
+    proposal: &Proposal,
+    _judge: Qualified<R>,
+    disposition: Disposition,
+) -> Ruling {
+    let edit = if disposition.is_affirming() {
+        proposal.edit().cloned()
+    } else {
+        None
+    };
+    Ruling {
+        object: proposal.object(),
+        judge: _judge.principal_id().to_string(),
+        disposition,
+        edit,
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Enactment — the authorial gate, and the write-guard (N32, N32h)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Why an enactment did not land.
+#[derive(Debug, PartialEq, Eq)]
+pub enum EnactError {
+    /// The Disposition does not license enactment — it is not affirming.
+    NotAffirmed { disposition: &'static str },
+    /// The pen does not authorize writing to this container.
+    NoStandingOverTarget { author: String, target: String },
+    /// **N32h.** The edit was authorized, and the destination's own law
+    /// refused it.
+    ///
+    /// This is the write-guard: where a revised object enters another governed
+    /// container, that container's `⊨` runs — the pass composed with itself
+    /// under fractal closure (N26). An authorization to edit is *not* a licence
+    /// to violate the target's law.
+    ///
+    /// `enact` therefore has two failure points, not one: the Disposition may
+    /// withhold it, and the target may refuse it.
+    TargetRefused { target: String, reason: String },
+    /// The object named by the ruling is not in the source container.
+    ObjectNotFound { object: &'static str },
+}
+
+impl std::fmt::Display for EnactError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotAffirmed { disposition } => {
+                write!(f, "`{disposition}` does not license enactment")
+            }
+            Self::NoStandingOverTarget { author, target } => {
+                write!(f, "{author} holds no standing over `{target}`")
+            }
+            Self::TargetRefused { target, reason } => write!(
+                f,
+                "`{target}` refused the write on its own law: {reason} (N32h)"
+            ),
+            Self::ObjectNotFound { object } => write!(f, "no object `{object}` in the source"),
+        }
+    }
+}
+
+impl std::error::Error for EnactError {}
+
+/// A container that objects can be moved between, governed by its own law.
+///
+/// The two methods are what a write-guard needs: take an object out, and offer
+/// one in. `admits` is the target's `⊨` — the guard itself.
+pub trait Container {
+    /// The object type this container holds.
+    type Item;
+
+    /// The container's name, as used by [`Steward::has_standing`].
+    fn name(&self) -> &'static str;
+
+    /// Remove an object by id, if present.
+    fn take(&mut self, id: &str) -> Option<Self::Item>;
+
+    /// **The write-guard.** Would this container's own law admit the object?
+    ///
+    /// Returns the reason for refusal, or `None` to admit. This is the target's
+    /// `⊨` run before the write lands — `pass ∘ pass`, not new machinery.
+    fn admits(&self, item: &Self::Item) -> Option<String>;
+
+    /// Accept an object. Called only after `admits` returned `None`.
+    fn put(&mut self, item: Self::Item);
+}
+
+/// The author applies a ruling — **authorial**.
+///
+/// Requires an [`Authorized`] pen: `enact` transforms the object, and
+/// transformation demands standing over it (§2.4), never disjointness.
+///
+/// Three refusals, in order:
+///
+/// 1. the Disposition does not affirm ([`EnactError::NotAffirmed`]);
+/// 2. the pen does not cover the destination
+///    ([`EnactError::NoStandingOverTarget`]);
+/// 3. **the destination's own law refuses the object**
+///    ([`EnactError::TargetRefused`] — N32h).
+///
+/// The third is the one worth noticing. A ruling can be terminal *and*
+/// affirming and the edit still not land, because the target is governed too.
+pub fn enact<S, T>(
+    source: &mut S,
+    target: &mut T,
+    ruling: &Ruling,
+    pen: &Authorized<'_>,
+) -> Result<Enacted, EnactError>
+where
+    S: Container,
+    T: Container<Item = S::Item>,
+{
+    if !ruling.is_affirming() {
+        return Err(EnactError::NotAffirmed {
+            disposition: ruling.disposition().name(),
+        });
+    }
+
+    match ruling.edit() {
+        Some(Edit::Relocate { to }) => {
+            if pen.over() != *to && pen.over() != source.name() {
+                return Err(EnactError::NoStandingOverTarget {
+                    author: pen.principal_id().to_string(),
+                    target: (*to).to_string(),
+                });
+            }
+            // Take, test against the TARGET's law, and put it back if refused.
+            let item = source
+                .take(ruling.object())
+                .ok_or(EnactError::ObjectNotFound {
+                    object: ruling.object(),
+                })?;
+
+            if let Some(reason) = target.admits(&item) {
+                source.put(item); // a refused write changes nothing
+                return Err(EnactError::TargetRefused {
+                    target: (*to).to_string(),
+                    reason,
+                });
+            }
+            target.put(item);
+            Ok(Enacted {
+                object: ruling.object(),
+            })
+        }
+        Some(Edit::Remove) => {
+            source
+                .take(ruling.object())
+                .ok_or(EnactError::ObjectNotFound {
+                    object: ruling.object(),
+                })?;
+            Ok(Enacted {
+                object: ruling.object(),
+            })
+        }
+        Some(Edit::Amend { .. }) | None => Ok(Enacted {
+            object: ruling.object(),
+        }),
+    }
+}
+
+/// Evidence that an edit landed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
+pub struct Enacted {
+    object: &'static str,
+}
+
+impl Enacted {
+    pub fn object(&self) -> &'static str {
+        self.object
+    }
+    /// The object that moved — for a relocation.
+    pub fn moved(&self) -> &'static str {
+        self.object
     }
 }
 
