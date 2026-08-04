@@ -318,16 +318,109 @@ CURATED = {
         "rung-het/tests/token_binding.rs::a_principal_with_no_provenance_is_refused",
     ),
     "no-preference-among-judges": (
+        "enforced",
+        "The set is now **exposed as a set**, and that is what moves this row. "
+        "`Pool::qualify_for` still walks the pool and returns the first "
+        "survivor — candidates skipped for failing a *conjunct*, never for "
+        "being ranked below another "
+        "(`gate_law.rs::qualification_walks_the_pool_and_takes_any_survivor`) — "
+        "but a single-survivor API could only ever IMPLY that any other "
+        "survivor would have done. `rung-std::principals::qualifying_set` "
+        "returns all of them, and the cited test takes each of the four in "
+        "turn, mints a licence against the very same argument and settles the "
+        "very same sentence: four well-formed dispatches, one per member. "
+        "Truncating the set to its first member is type-valid and turns the "
+        "test red at the count. The UNARGUED residue is gone with it — pool "
+        "position cannot constitute an ordering over a value that carries every "
+        "member.",
+        "rung-std/tests/principals_theory.rs::every_member_of_the_qualifying_set_is_a_well_formed_dispatch",
+    ),
+    "ordering-is-hetopts": (
+        "enforced",
+        "Cost tier is declared — per substrate kind, in "
+        "`rung-std::principals::Kind::cost_tier` — and ordered nowhere. The "
+        "cited test is the direct observation: roster A is laid out so the "
+        "qualifying set opens with the costliest substrate and closes with the "
+        "cheapest, and `Pool::qualify_for` picks the human over the model. Under "
+        "the minimal-judge rule the order inverts. Deriving `Ord` on `CostTier` "
+        "and sorting the set by it in `qualifying_set` is type-valid and turns "
+        "the test red at the kind sequence. This row was `out-of-scope` while "
+        "nothing in the workspace declared a tier; a supplier now does, and "
+        "ordering it is a thing a host can refuse to do.",
+        "rung-std/tests/principals_theory.rs::the_qualifying_set_is_not_ordered_by_cost",
+    ),
+    "epsilon-declared-not-ranked": (
+        "parked",
+        "HALF HOLDS, HALF IS A GAP. *Never ranked*: `rung-std::principals` "
+        "declares an `Epsilon` per principal and no accessor and no comparison "
+        "exist for one, so nothing can read it as a preference; "
+        "`principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon` "
+        "enforces that across every source file. *Declared so the verdict can "
+        "carry its error bar*: it cannot. `Settled::Judgmental` carries "
+        "sentence, role, principal and verdict, and there is no field for an "
+        "error bar — so the ε a supplier already declares stops at the supplier. "
+        "This is a **different** gap from {#epsilon-reported-with-verdict}, "
+        "which asks whether a judge's confidence is expressible at all; this one "
+        "asks whether the ε that IS declared reaches the caller. Deleting the "
+        "`#[ignore]` reports it.",
+        "rung-std/tests/principals_theory.rs::a_verdict_carries_the_declared_epsilon_of_the_principal_that_rendered_it",
+    ),
+    "nothing-further-required": (
         "expressible",
-        "`Pool::qualify_for` walks the pool and returns the FIRST survivor, and "
-        "the cited test shows what that does and does not mean: candidates are "
-        "skipped for failing a *conjunct* — wrong role, overlapping provenance — "
-        "never for being ranked below another. Het says any qualifying judge "
-        "yields a well-formed verdict, so a deterministic pick is admissible; "
-        "the seam where HetOpt's `argmin` would land is named in "
-        "`Pool::qualify_for`'s own docs and is empty. Still UNARGUED: whether "
-        "pool position itself constitutes an ordering. Assumed, not shown.",
-        "rung-het/tests/gate_law.rs::qualification_walks_the_pool_and_takes_any_survivor",
+        "The division is now observable from both sides. `rung::Principal` asks "
+        "for `capable` and `id`, `Provenanced` for `π`, `Steward` for standing — "
+        "and nothing anywhere in `rung` names a kind, a substrate partition, an "
+        "identity field, a cost tier or a population. `rung-std::principals` "
+        "names all five, because a supplier that named none of them would have "
+        "supplied nothing. The cited test binds the interface at its declared "
+        "arities and shows the licence that comes back out carrying an id, a "
+        "provenance and a role — the kind, its required fields and its tier stay "
+        "on the supplier's side of the line. What is NOT enforced: that a future "
+        "`rung` stays incurious. Nothing structurally prevents the library "
+        "growing a `Kind`; this row records that it has not.",
+        "rung-std/tests/principals_theory.rs::nothing_further_than_the_declared_interface_crosses_into_rung",
+    ),
+    "capable-single-arity": (
+        "expressible",
+        "`Principal::capable(&self, role_name: &str)` — one arity, and the "
+        "second argument is a NAME. A supplier keys its qualification table on "
+        "that name (`rung-std::principals::RoleSpec`), because a `Role` type "
+        "cannot be recovered from a string; that is the shape this proposition "
+        "forces, met rather than worked around. The cited test passes a "
+        "*sentence* name where a role name goes and gets `false`: a principal "
+        "does not have the theory's sentences and cannot be asked to inspect "
+        "them. rung proves the arity, not that any supplier's table is right.",
+        "rung-std/tests/principals_theory.rs::nothing_further_than_the_declared_interface_crosses_into_rung",
+    ),
+    "role-not-kind": (
+        "expressible",
+        "Two axes, and a supplier that declares both is what makes their "
+        "independence visible. `rung-std::principals::Kind` is substrate — the "
+        "supplier's, closed, with identity fields and a tier; `Role` is what a "
+        "sentence needs done and is `rung`'s type. The cited test plays one role "
+        "across all four kinds and shows a kind entitled to no role it has not "
+        "earned. The one apparent exception — a competence that excludes a bare "
+        "model — is stated in that role's own minimum qualifications and never "
+        "in the partition, which is the asymmetry this proposition names.",
+        "rung-std/tests/principals_theory.rs::role_is_not_kind_and_the_two_axes_are_independent",
+    ),
+    "het-declares-no-worth-law": (
+        "enforced",
+        "**The α cut, given teeth.** This row and {#ordering-is-hetopts} were "
+        "`out-of-scope` by default and never inspected — correctly, while "
+        "nothing in the workspace declared a cost tier or an ε for a worth-law "
+        "to be built out of. `rung-std::principals` declares both, so the "
+        "refusal is now a property a run can check: the cited test reads every "
+        "line of Rust in all four crates that names a cost tier or an ε and "
+        "fails on any that also sorts, compares, ranks or takes an extremum. It "
+        "reads attribute lines above a hit as well, so `#[derive(.., Ord)]` on "
+        "`CostTier` is caught although the derive names no cost of its own — "
+        "that derive is the cheapest possible crossing of the cut and it is the "
+        "mutation this test exists to see. `CostTier` and `Epsilon` "
+        "independently carry no `Ord`, no `PartialOrd` and no accessor, so the "
+        "minimal-judge rule of {#v-applies-to-conforming-sets} has neither a "
+        "comparison nor a value to read.",
+        "rung-std/tests/principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon",
     ),
     "judgmental-arrow-shape": (
         "enforced",
