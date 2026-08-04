@@ -75,7 +75,7 @@ progress — those are known and accepted.
 |---|---|
 | `docs/SPEC.md` | Normative spec — the equational half. Machine-enforced. |
 | `docs/JUDGMENTS.md` | Design judgments J1/J2 — the oracle half. You enforce these. |
-| `docs/rung-ct-propositions.md` | Normative category-theoretic account of what a `ladder` declaration is. |
+| `docs/rung-ct-props.md` | Normative category-theoretic account of what a `ladder` declaration is. |
 | `docs/RUNG-CT.md` | How that account was derived — informative, not a register. |
 | `.gl/schema.json` | This charter in machine-consumable form. |
 | `rung/src/lib.rs` | Illustrative compile_fail doctests. Not conformance — rustdoc does not check the error code (SPEC.md §6); the refusals are pinned by `rung/tests/ui/`. |
