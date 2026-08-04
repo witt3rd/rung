@@ -13,7 +13,7 @@
 //! says it is. A repository where the two can differ has two sources of truth
 //! and a habit of picking whichever was edited last.
 
-use rung_doctrine::{Doctrine, Resolver, rung_ct};
+use rung_doctrine::{Doctrine, Resolver, rung, rung_ct, rung_het};
 use std::path::{Path, PathBuf};
 
 fn docs() -> PathBuf {
@@ -59,7 +59,9 @@ fn externals(r: &mut Resolver, encoded: &[&str]) {
 
 fn main() {
     let check = std::env::args().any(|a| a == "--check");
-    let doctrines: Vec<Doctrine> = vec![rung_ct::doctrine()];
+    // Declaration order fixes nothing here — numbering is per document.
+    let doctrines: Vec<Doctrine> =
+        vec![rung::doctrine(), rung_het::doctrine(), rung_ct::doctrine()];
 
     let encoded: Vec<&str> = doctrines.iter().map(|d| d.file.as_str()).collect();
     let mut resolver = Resolver::new();

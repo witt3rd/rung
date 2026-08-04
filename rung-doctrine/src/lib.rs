@@ -42,7 +42,9 @@
 //! going the wrong way.
 
 pub mod governed;
+pub mod rung;
 pub mod rung_ct;
+pub mod rung_het;
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;

@@ -1,0 +1,2610 @@
+//! `rung-het-props.md`, encoded.
+//!
+//! **Generated once** from `docs/rung-het-props.md` by `docs/_migrate.py`, and the
+//! source of truth from then on. The markdown is rendered from this; where the
+//! two disagree, this is right and the markdown is stale.
+//!
+//! Every proposition arrives as [`Kind::Rationale`], which is not a claim that
+//! they are all arguments — it is the absence of a claim. Markdown does not
+//! record what kind a proposition is, so the migration does not invent one. The
+//! triage into signature, decidable and judgmental is a reading, done
+//! deliberately, and it is the work this encoding exists to make possible.
+
+use crate::{Doctrine, Element, Kind, Prop};
+
+/// The doctrine `docs/rung-het-props.md` is rendered from.
+pub fn doctrine() -> Doctrine {
+    Doctrine {
+        file: "rung-het-props.md".into(),
+        elements: vec![
+        Element::Verbatim(r#"# Het — The Formalism
+
+**Status: normative.** This document is Het. It is self-contained: it
+depends on no other document, cites no artifact, and records no history.
+Every claim is stated once, in one place, and referred to elsewhere by
+number.
+
+The numbering is a tree. A proposition `n.m` is a remark on `n`; `n.mm`
+is a remark on `n.m`. Interior propositions are the conjunction of their
+children. Leaves are single checkable claims.
+
+**Scope.** Propositions [1](#one-relation)–[7](#satisfaction-is-a-game)
+and [9](#composition-is-closed)–[11](#theory-declares-four-things)
+specify Het. Proposition [8](#het-settles-hetopt-orders) specifies the
+cut between Het and HetOpt, and states of HetOpt only what the cut
+requires. Proposition [12](#no-bound-on-reentry) states the limit Het
+does not close.
+
+**This document is generated.** Its source is `rung-doctrine/src/rung_het.rs`,
+and it is written by `cargo run -p rung-doctrine --bin render`. Editing it here
+does not change what it says; the next render restores this text. Where the two
+differ, the encoding is right and this file is stale — CI checks exactly that.
+
+**Numbers are derived, not authored.** A proposition's identity is its slug;
+its place in the tree is its declared parent; its order is declaration order.
+The decimal number and every reference to it are computed at render time and
+appear nowhere in the source, so inserting, removing or reparenting a
+proposition cannot break a reference and cannot leave a number stale — there
+is no number to leave.
+
+---
+
+## 1 · The relation
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "one-relation".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"There is one relation:
+
+$$M \models_\Sigma \varphi$$
+
+A model $M$ satisfies sentence $\varphi$ under signature $\Sigma$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "institution-quadruple".into(),
+            parent: Some("one-relation".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The ambient structure is an institution — a quadruple
+$(\mathbf{Sign}, \mathsf{Sen}, \mathsf{Mod}, \models)$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "sign-category".into(),
+            parent: Some("institution-quadruple".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathbf{Sign}$ is a category. Its objects are signatures; its
+morphisms are signature morphisms.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "sen-functor".into(),
+            parent: Some("institution-quadruple".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathsf{Sen} : \mathbf{Sign} \to \mathbf{Set}$ assigns to each
+signature its sentences.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "mod-functor".into(),
+            parent: Some("institution-quadruple".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathsf{Mod} : \mathbf{Sign}^{\text{op}} \to \mathbf{Cat}$
+assigns to each signature its algebras.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "satisfaction-typing".into(),
+            parent: Some("institution-quadruple".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\models_\Sigma \;\subseteq\; \lvert\mathsf{Mod}(\Sigma)\rvert \times \mathsf{Sen}(\Sigma)$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "satisfaction-condition".into(),
+            parent: Some("one-relation".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The institution's single axiom is the satisfaction condition:
+truth is invariant under change of notation.
+
+$$M \models_{\Sigma'} \mathsf{Sen}(\sigma)(\varphi) \iff \mathsf{Mod}(\sigma)(M) \models_\Sigma \varphi$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "signature-declares".into(),
+            parent: Some("one-relation".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A signature declares sorts, operation symbols with arities, gate
+markers, and the laws the theory declares.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "extension-is-in-models".into(),
+            parent: Some("signature-declares".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The signature layer is standard. Het's entire extension is in
+$\models$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "no-layer-above-sigma".into(),
+            parent: Some("signature-declares".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"There is no layer above $\Sigma$. There is $\Sigma$, there is
+$M$, and there is one gate-dispatched $\models$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "rest-is-bookkeeping".into(),
+            parent: Some("one-relation".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Every other structure named in this document — the gates, the
+pool, the tower, the game — is bookkeeping around {#one-relation}.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 2 · The gate
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "gate-marker-required".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Every sentence and every operation carries a **gate marker**, which
+fixes how its satisfaction is computed.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "four-gates".into(),
+            parent: Some("gate-marker-required".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The marker is one of exactly four.
+
+| gate | satisfaction mechanism |
+|---|---|
+| `decidable` | $M \models \varphi$ is machine-checked. Standard equational logic. |
+| `judgmental` | $M \models \varphi$ dispatches to a **judge** — an inhabitant of the principal pool $\mathcal{P}$. The judge's verdict *is* the satisfaction outcome. |
+| `authorial` | The operation *transforms* the subject rather than classifying it, or produces new content about it. It dispatches to an **author**, also from $\mathcal{P}$, holding standing over the subject. |
+| `conditional` | Whether satisfaction is decidable depends on the specific algebra. The condition is classified one level up ({#conditional-names-classifier}). |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "no-other-gate-value".into(),
+            parent: Some("four-gates".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"No other value is well-formed.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "unmarked-not-wellformed".into(),
+            parent: Some("gate-marker-required".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An operation without a gate marker is not a well-formed
+declaration.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-declares-role".into(),
+            parent: Some("gate-marker-required".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judgmental operation declares the **competence role** required
+to discharge it.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "role-not-kind".into(),
+            parent: Some("judgmental-declares-role".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A role, not a kind. Kind is what a principal is made of, and
+belongs to whatever supplies $\mathcal{P}$ ({#nothing-further-required}). Role is what the
+sentence needs done, and only the sentence's own theory knows that.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "role-declared-pointwise".into(),
+            parent: Some("judgmental-declares-role".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The declaration is pointwise. There is no global map from
+sentences to competences, and none is needed: the pointwise declaration
+is what lets $\models$ resolve a judge.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "authorial-declares-standing".into(),
+            parent: Some("gate-marker-required".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An authorial operation declares a **standing predicate**.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "conditional-names-classifier".into(),
+            parent: Some("gate-marker-required".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A conditional operation names a **classifying sentence**.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "classifier-not-judgmental".into(),
+            parent: Some("conditional-names-classifier".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The classifying sentence is not itself judgmental. A judgmental
+classifier reopens the regress {#tower-floor} closes.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "conditional-partitions-fiber".into(),
+            parent: Some("conditional-names-classifier".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A conditional gate partitions the fiber $\mathsf{Mod}(\Sigma)$:
+
+$$\mathsf{Mod}_{\mathsf{dec}}(\Sigma, \varphi) \quad\text{and}\quad \mathsf{Mod}_{\mathsf{jud}}(\Sigma, \varphi)$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "classifier-one-level-up".into(),
+            parent: Some("conditional-names-classifier".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"For every conditional sentence $\varphi$ of $\Sigma$ there exists
+a classifying sentence in the theory one level up,
+
+$$\mathsf{Decidable}_\Sigma(\varphi) \in \mathsf{Sen}(\Sigma^\uparrow)$$
+
+such that
+
+$$M \in \mathsf{Mod}_{\mathsf{dec}}(\Sigma, \varphi) \iff M \models_{\Sigma^\uparrow} \mathsf{Decidable}_\Sigma(\varphi)$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "decidability-expressible-internally".into(),
+            parent: Some("conditional-names-classifier".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The predicate *"$\varphi$ is decidable in this algebra"* is
+therefore expressible inside the ambient institution. The two sub-classes
+are ordinary sub-fibers defined by satisfaction of a higher sentence.
+Re-indexing transports that higher sentence, and fiber-wise uniformity is
+restored.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 3 · The pool
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "pool-is-parameter".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathcal{P}$ is a **parameter of the satisfaction relation**, not a
+sort of the signature.
+
+> The theory declares *what* must be judged; $\models$ determines *how* —
+> mechanically or by delegation.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "pool-not-a-sort".into(),
+            parent: Some("pool-is-parameter".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathcal{P}$ does not appear as a sort in any signature.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "internalizing-outside-collapses".into(),
+            parent: Some("pool-not-a-sort".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A signature that declares $\mathcal{P}$ as a sort has
+internalized the outside. The ontological separation collapses and
+non-identity becomes unenforceable: if the judge is an element of the
+algebra, what judges the judge?
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "pool-is-opaque".into(),
+            parent: Some("pool-is-parameter".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathcal{P}$ is **opaque**. Het never names a principal
+substrate, never enumerates kinds, and never inspects an inhabitant.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "supplier-interface".into(),
+            parent: Some("pool-is-opaque".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het requires only that whatever supplies $\mathcal{P}$ exposes
+four predicates.
+
+| predicate | arity | gate | what $\models$ needs it for |
+|---|---|---|---|
+| $\mathsf{capable}$ | $\mathcal{P} \times \mathsf{Role} \to \mathsf{Bool}$ | decidable | competence filter — can this principal play the role the sentence declares ({#judgmental-declares-role})? |
+| $\pi$ | $X \to \mathsf{Prov}$, for $X$ a principal or an subject | decidable | provenance tags; both filters read it |
+| $\mathsf{standing}$ | $\mathcal{P} \times S \to \mathsf{Bool}$ | conditional | authorial filter ({#authorial-qualifying-set}); classified one level up |
+| $\varepsilon$ | $\mathcal{P} \to {#epsilon-reported-with-verdict}) |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "interface-by-signature-inspection".into(),
+            parent: Some("pool-is-opaque".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A theory that supplies $\mathcal{P}$ declares all four at these
+arities. Conformance is signature inspection — decidable, and requiring
+no edge machinery beyond reading the declaration.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "nothing-further-required".into(),
+            parent: Some("pool-is-opaque".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het requires nothing further of a supplier. Kinds, substrate
+partitions, identity fields, cost tiers, and the population itself are
+the supplier's. Naming any of them here would internalize the outside a
+second way — not as a sort, but as a stipulated content.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "capable-single-arity".into(),
+            parent: Some("pool-is-opaque".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathsf{capable}$ is used at exactly one arity,
+$\mathcal{P} \times \mathsf{Role}$, everywhere in Het. Its second
+argument is $\mathsf{role}(\varphi)$ or $\mathsf{role}(o)$ — the role the
+*sentence* or *operation* declares — never the sentence or subject itself.
+A supplier of $\mathcal{P}$ cannot be asked to inspect Het's sentences; it
+does not have them.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "principal-provenance-floor".into(),
+            parent: Some("pool-is-opaque".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\pi(p) \supseteq \{\mathsf{id}(p)\}$ — a principal's provenance
+contains its own identity. A supplier may declare a principal with no history
+whatever; it may not declare one with **no provenance**.
+
+$\pi(p) = \emptyset$ is disjoint from everything, so such a principal survives
+{#judgmental-qualifying-set} against every argument in the signature: a
+**universal judge**, admitted to rule on work it authored, with the filter
+running and passing. That is the exact shape in which non-identity becomes
+decorative, and it is the mirror of the vacuity already refused on the argument
+side — $\pi(a) = \emptyset$ makes disjointness hold trivially and is refused
+before the filter runs.
+
+The floor is a **derivation condition, not a check**. A supplier states what a
+principal has authored; $\pi$ is that with the identity adjoined, and the
+supplier has no term for the result. Refusing an empty $\pi(p)$ at the point of
+use would be one uncalled code path away from vacuous — the failure
+{#non-identity-by-construction} exists to foreclose — whereas a value the
+language will not produce cannot be reached by any path at all. *Conformance:
+`rung`'s `Principal` declares `authored` and never `provenance`, the sole route
+being `impl<P: Principal> Provenanced for P { authored().with(id()) }`;
+`rung/tests/provenance_floor.rs`, whose third case is a `trybuild` **E0119** —
+a hand-written `Provenanced` impl for a principal is refused by coherence.*
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "three-belonging-predicates".into(),
+            parent: Some("pool-is-parameter".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Three of the four are **belonging predicates**: capability,
+non-identity, and standing. They decide whether a principal qualifies at
+all. All three are Het's.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "ordering-is-hetopts".into(),
+            parent: Some("three-belonging-predicates".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\varepsilon$ and cost tier support **ordering** among those
+that qualify. Ordering is HetOpt's ({#het-settles-hetopt-orders}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "epsilon-declared-not-ranked".into(),
+            parent: Some("three-belonging-predicates".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het requires $\varepsilon$ be declared so the verdict can carry
+its error bar. Het never reads it as a preference.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "one-pool-two-filters".into(),
+            parent: Some("pool-is-parameter".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"There is **one pool and two filters**. The gate marker selects
+which qualification predicate applies, not which pool is consulted.
+Distinct pools are not licensed.
+
+### The judgmental filter — non-identity
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-qualifying-set".into(),
+            parent: Some("pool-is-parameter".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judgmental sentence dispatches to a judge drawn from its
+qualifying set:
+
+$$\mathcal{P}_{\text{judg}}(\varphi, a) = \{\, p \in \mathcal{P} : \mathsf{capable}(p, \mathsf{role}(\varphi)) \wedge \pi(p) \cap \pi(a) = \emptyset \,\}$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "disjointness-against-argument".into(),
+            parent: Some("judgmental-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Disjointness is measured against **the argument the operation is
+applied to**, not against the model in general.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "argument-governs".into(),
+            parent: Some("judgmental-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Where the argument is the subject under audit, $\pi(a) = \pi(M)$
+and the two readings coincide. Where the argument is a Proposal, its
+provenance is its author's ({#proposal-provenance-is-authors}) and the author need not be the model.
+The argument governs.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "non-identity-before-dispatch".into(),
+            parent: Some("judgmental-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Non-identity is enforced before any judgmental dispatch. It is
+decidable — disjointness of finite provenance-tag sets — and belongs to
+the decidable fragment.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "non-identity-by-construction".into(),
+            parent: Some("judgmental-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Non-identity is discharged by the **construction of the qualifying
+token**, not by a check inside a dispatching body. The token witnesses a
+**pair** — the principal, and the argument it was measured against — and the
+operation that consumes it admits it only for that argument.
+
+A token recording only the principal is unforgeable but **unbound**. It proves
+someone passed the filter, not that they passed it against *this* argument, so
+it can be earned against one argument and spent on another — which is the act
+{#disjointness-against-argument} forbids. Sealing the constructor closes
+fabrication; it does not close transfer.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "non-identity-not-deferrable".into(),
+            parent: Some("judgmental-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Non-identity is not deferrable to valuation. It is a belonging
+predicate, not a preference. A system that dispatches without it is
+self-certifying, which is the failure this formalism exists to refuse.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "no-preference-among-judges".into(),
+            parent: Some("judgmental-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het dispatches to *a* qualifying judge. It does not tier, cost,
+or prefer among qualifying judges. Any of them yields a well-formed
+verdict, reported with its own $\varepsilon$.
+
+### The authorial filter — standing
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "authorial-qualifying-set".into(),
+            parent: Some("pool-is-parameter".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An authorial operation dispatches to an author drawn from its
+qualifying set:
+
+$$\mathcal{P}_{\text{auth}}(o, M) = \{\, p \in \mathcal{P} : \mathsf{capable}(p, \mathsf{role}(o)) \wedge \mathsf{standing}(p, M) \,\}$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgment-refuses-authorship-requires".into(),
+            parent: Some("authorial-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Judgment classifies; authorship transforms. Both require an
+outside, in opposite directions.
+
+> **Judgment refuses the audited party. Authorship requires standing over it.**
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "provenance-overlap-is-the-point".into(),
+            parent: Some("authorial-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Non-identity excludes exactly the arrows authorship needs: the
+author of a candidate *is* the party under audit, and enacting a remedy
+means revising one's own text. Provenance overlap is the point, not the
+defect.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "standing-conditional-gated".into(),
+            parent: Some("authorial-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Standing is conditional-gated. It is **decidable** when
+provenance containment settles it, $\pi(\text{outcome}) \subseteq \pi(p)$,
+and **judgmental** otherwise.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "standing-terminates-at-depth-one".into(),
+            parent: Some("authorial-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Standing-judgment terminates at depth one. The standing-judge's
+own qualification is plain non-identity, decidable by
+provenance-disjointness.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "standing-judge-disjoint-from-author".into(),
+            parent: Some("authorial-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"That disjointness is relative to the **author**, not to the
+audited subject. The judge ruling *"does this principal have standing over
+that subject?"* must not be that principal.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "two-escalation-triggers".into(),
+            parent: Some("authorial-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Two escalation triggers exist and are not the same.
+
+| trigger | level | reason |
+|---|---|---|
+| standing is judgmental in this model | **Het** | qualification itself needs a ruling |
+| the minimal author cannot close it | **HetOpt** | worth-ordering says escalate |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "standing-escalation-precedes-valuation".into(),
+            parent: Some("authorial-qualifying-set".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Standing-escalation happens before any valuation is applied.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 4 · The verdict
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "verdict-space-with-metric".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Satisfaction is quantitative. Every theory declares a **verdict
+space** carrying a **metric** $d$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judges-are-stochastic".into(),
+            parent: Some("verdict-space-with-metric".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Judges are stochastic. Verdicts carry confidence, distributional
+information, and sensitivity to surface features such as naming.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "boolean-breaks-satisfaction".into(),
+            parent: Some("judges-are-stochastic".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Under Boolean satisfaction the satisfaction condition ({#satisfaction-condition})
+breaks: renaming a sort changes the verdict.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "typical-verdict-spaces".into(),
+            parent: Some("verdict-space-with-metric".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Typical verdict spaces are $[0,1]$, a probability simplex
+$\Delta^n$, or a strategy lattice.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "satisfaction-condition-relaxed".into(),
+            parent: Some("verdict-space-with-metric".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The satisfaction condition is relaxed from strict equivalence to
+a **distance bound**:
+
+$$d\!\left(M \models_{\Sigma'} \mathsf{Sen}(\sigma)(\varphi),\;\; \mathsf{Mod}(\sigma)(M) \models_\Sigma \varphi\right) \le \varepsilon$$
+
+where $\varepsilon$ bounds acceptable naming-induced drift.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "drift-within-tolerance".into(),
+            parent: Some("satisfaction-condition-relaxed".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judge whose confidence shifts from 0.92 to 0.81 under renaming
+is within tolerance if $\varepsilon = 0.15$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "metric-carried-by-verdict-space".into(),
+            parent: Some("verdict-space-with-metric".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$d$ is carried by the verdict space the theory declares, not
+bolted on. Without $d$ there is nothing for $\varepsilon$ to bound, and
+satisfaction falls back to Boolean.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "metric-measures-not-ranks".into(),
+            parent: Some("verdict-space-with-metric".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$d$ **measures**. It is symmetric. It states how far two verdicts
+lie apart under renaming, and nothing about which is better.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "order-as-preference-is-hetopts".into(),
+            parent: Some("metric-measures-not-ranks".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Reading an order on the verdict space as preference is
+valuation, and belongs to HetOpt ({#het-settles-hetopt-orders}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "epsilon-reported-with-verdict".into(),
+            parent: Some("verdict-space-with-metric".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\varepsilon$ is reported alongside the verdict — an honest error
+bar.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "translation-invariance-is-candidates-burden".into(),
+            parent: Some("verdict-space-with-metric".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Translation-invariance is the **candidate's** burden. A candidate
+that adopts obscure naming bears the cost of the judge's drift. The
+Proponent must name its structures clearly enough that its strategy
+survives renaming ({#satisfaction-is-a-game}).
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 5 · The semantics
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "algebra-is-kleisli-functor".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An algebra is a functor into the Kleisli category of the principal
+monad:
+
+$$M : T \to \mathbf{Kl}(\mathcal{P})$$
+
+| gate | interpretation |
+|---|---|
+| `decidable` | an ordinary pure morphism — an actual function on the carrier; factors through $\eta$ |
+| `judgmental` | a morphism in $\mathbf{Kl}_{\text{judg}}(\mathcal{P})$ — a computation that may consult the outside |
+| `authorial` | a morphism in $\mathbf{Kl}_{\text{auth}}(\mathcal{P})$ — an enactment by a principal with standing. Never pure. |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "not-a-set-functor".into(),
+            parent: Some("algebra-is-kleisli-functor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An algebra cannot be a functor into $\mathbf{Set}$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "set-functor-decides-everything".into(),
+            parent: Some("not-a-set-functor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A functor to $\mathbf{Set}$ assigns every operation — including
+judgmental ones — to an actual function, that is, to a decision
+procedure.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "set-functor-violates-refusal".into(),
+            parent: Some("not-a-set-functor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Such an algebra would *decide* the judgmental operations,
+computing the very judgments the gate marker says no closed system can
+discharge on itself. That is {#non-identity-not-deferrable} violated in the semantic dimension.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "monad-reading".into(),
+            parent: Some("algebra-is-kleisli-functor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathcal{P}(X)$ is *"an $X$, possibly obtained by a call on a
+principal."*
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "unit-is-no-outside".into(),
+            parent: Some("monad-reading".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The unit $\eta : X \to \mathcal{P}(X)$ is *"no outside needed"*;
+decidable data embeds.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-is-kleisli-arrow".into(),
+            parent: Some("monad-reading".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judgmental operation is a Kleisli arrow
+$A \to \mathcal{P}(B)$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "monad-is-what-outside-adds".into(),
+            parent: Some("monad-reading".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The monad is exactly *what the trip through the outside adds
+that the algebra could not generate alone.*
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "kleisli-composition-interleaves".into(),
+            parent: Some("monad-reading".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Composing pure morphisms with judgmental ones is Kleisli
+composition. This is why the fragments interleave without collapsing.
+
+### Provenance
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-arrow-shape".into(),
+            parent: Some("monad-reading".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judgmental operation has the shape
+
+$$A \longrightarrow \mathcal{P}\Big(\textstyle\sum_i B_i \;+\; A\Big)$$
+
+The monad is the outside call. The sum is the verdict space. The final
+summand is the **residual** — the argument returned unconsumed when the
+outside does not answer.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "provenance-structure".into(),
+            parent: Some("algebra-is-kleisli-functor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The base category carries a **provenance structure**: every
+object $X$ is equipped with a provenance map
+
+$$\pi_X : X \to \mathsf{Prov}$$
+
+to a discrete category of provenance tags.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "morphisms-preserve-provenance".into(),
+            parent: Some("provenance-structure".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Morphisms preserve or strictly externalize provenance.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "monad-is-provenance-strict".into(),
+            parent: Some("provenance-structure".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathcal{P}$ is **provenance-strict**:
+
+$$\pi_{\mathcal{P}X} \circ \eta_X = \pi_X, \qquad \pi_{\mathcal{P}X} \circ \mu_X = \pi_{\mathcal{P}^2X}$$
+
+$\eta$ never invents a new author; $\mu$ propagates the outermost author.
+
+### Admissibility
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "constant-arrow-hazard".into(),
+            parent: Some("algebra-is-kleisli-functor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Nothing in the plain Kleisli construction prevents $M$ from
+sending a judgmental operation to a **constant** arrow
+$c_j : a \mapsto \eta(j)$ whose value $j$ is drawn from $M$'s own carrier.
+The selection rule never fires; self-reference has been hard-coded into
+the interpretation.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "admissibility-subcategories".into(),
+            parent: Some("constant-arrow-hazard".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Judgmental and authorial arrows therefore inhabit their
+respective admissibility sub-categories:
+
+$$\mathbf{Kl}_{\text{judg}}(\mathcal{P}) = \{\, f : \pi(f(a)) \cap \pi(a) = \emptyset \,\} \qquad \text{(the outside)}$$
+
+$$\mathbf{Kl}_{\text{auth}}(\mathcal{P}) = \{\, f : \pi(f(a)) \subseteq \pi(p) \ \wedge\ \mathsf{standing}(p, a) \,\} \qquad \text{(the steward)}$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgment-provenance-is-the-judges".into(),
+            parent: Some("constant-arrow-hazard".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judgmental arrow's outcome carries its **judge's** provenance:
+$\pi(f(a)) \subseteq \pi(p)$ for the principal $p$ drawn from
+{#judgmental-qualifying-set}. The judgmental mirror of
+{#proposal-provenance-is-authors}: a Proposal's provenance is its
+author's, and a ruling's is its judge's.
+
+Without it {#admissibility-subcategories} states a condition on $f(a)$
+that nothing in the interpretation obliges $f$ to meet. {#constant-arrow-hazard}
+is precisely the arrow that meets every *dispatch* condition and no outcome
+condition: the selection rule fires honestly and the value still comes from
+$M$'s own carrier. A dispatch discipline cannot refuse it, because the dispatch
+was not what was wrong.
+
+**Output admissibility is then a theorem, not a further check.** With
+{#judgmental-qualifying-set} enforced at the mint and this enforced where
+the outcome is spent:
+
+$$\pi(f(a)) \subseteq \pi(p) \ \wedge\ \pi(p) \cap \pi(a) = \emptyset \implies \pi(f(a)) \cap \pi(a) = \emptyset$$
+
+which is {#admissibility-subcategories}'s judgmental clause. An
+implementation that also asserted the disjointness would be asserting a
+conclusion whose premises it already enforces — a third guarantee in
+appearance and none in substance. *Conformance: `theory!`'s `settle` refuses
+$\pi(f(a)) \not\subseteq \pi(p)$ with `SettleError::OutcomeNotFromJudge`, and
+`ladder!` injects `must_derive_from_judge` as an epilogue on a forward
+judgmental transition ({#g15-outcome-provenance});
+`gate_markers.rs::{a_judgmental_arrow_may_not_return_the_provenance_it_judged,
+the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render}`,
+`gate_law.rs::a_judgment_rendered_by_another_principal_is_refused`.*
+
+The outcome is unforgeable because it is **sealed**: `Judgment` has no
+constructor outside `rung` and `Principal::judgment` is the only mint, so the
+provenance an outcome carries is not a value its producer chose. A verdict
+handed in as a parameter — which is what `settle` took before this proposition
+— is exactly the case the seal removes.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "authorial-admissibility-stronger".into(),
+            parent: Some("constant-arrow-hazard".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Authorial admissibility is **stronger, not weaker** — not
+"anything goes," but "only the principal who holds stewardship may enact
+on it." Where judgmental demands disjointness, authorial demands
+containment plus standing.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "one-monad".into(),
+            parent: Some("constant-arrow-hazard".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Both are sub-categories of the **same** $\mathbf{Kl}(\mathcal{P})$.
+Distinct monads would mean distinct principal pools, which {#one-pool-two-filters} does not
+license.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "gate-relative-admissibility-licensed".into(),
+            parent: Some("constant-arrow-hazard".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Admissibility is gate-relative, and this is licensed.
+Decidability is already fiber-relative and classified one level up
+({#classifier-one-level-up}); gate-relative admissibility is the same pattern applied to
+provenance instead of decidability. The institution's uniformity lives in
+*one $\models$, gate-dispatched* — not in having one admissibility
+predicate.
+
+### Gate-faithfulness
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "gate-faithful".into(),
+            parent: Some("algebra-is-kleisli-functor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An algebra is **gate-faithful** when every `decidable` operation
+factors through $\eta$, every `judgmental` operation is a
+judgmentally-admissible Kleisli arrow, and every `authorial` operation is
+an authorially-admissible Kleisli arrow.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "mod-only-gate-faithful".into(),
+            parent: Some("gate-faithful".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathsf{Mod}(\Sigma)$ consists **only** of gate-faithful
+algebras.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "refusal-at-model-category".into(),
+            parent: Some("gate-faithful".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A gate-faithful algebra cannot launder a judgmental operation
+into a decidable one, and cannot dispatch judgment to itself. The refusal
+is enforced at the level of the model category, not as a post-hoc
+selection rule.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "condition-propagates-by-reindexing".into(),
+            parent: Some("gate-faithful".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Because provenance re-indexes along signature morphisms, the
+condition propagates through the fibration. Re-indexing cannot invent a
+common author that did not already exist.
+
+### Subjects
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "subject-defined".into(),
+            parent: Some("algebra-is-kleisli-functor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An **subject** is an inhabitant of a carrier set $M(S)$ — a
+specific datum, an element sitting in the algebra's interpretation of a
+sort.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "decidable-runs-pure".into(),
+            parent: Some("subject-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A decidable operation on an subject runs as a pure morphism: its
+result is computed inside the algebra, with no outside.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-runs-kleisli".into(),
+            parent: Some("subject-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judgmental operation on an subject runs as a Kleisli morphism:
+it emits an outside call, and the outcome is obtained only when the
+outside answers.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "self-governing-not-self-closing".into(),
+            parent: Some("subject-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An subject is therefore **self-governing** — its own algebra runs
+its decidable audit — but **not self-closing**: its judgmental
+dispositions require the monad's outside.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "autopoiesis-made-precise".into(),
+            parent: Some("subject-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"That is autopoiesis without self-loop degeneracy, made precise.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 6 · The tower
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "fractal-property".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An algebra whose carrier contains subjects that themselves carry
+signature declarations **becomes a theory at the next level**, with its
+own fiber of algebras below.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "tower-is-a-fibration".into(),
+            parent: Some("fractal-property".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The tower is a **fibered category** — the Grothendieck
+construction over the category of theories.
+
+| level | role in fibration |
+|---|---|
+| theory $T$ | object in the base category $\mathbf{B}$ |
+| $\mathsf{Mod}(T)$ | fiber over $T$ — the category of $T$-algebras |
+| $\sigma : T_1 \to T_2$ | base morphism — a signature morphism |
+| $\mathsf{Mod}(\sigma)$ | re-indexing — restricts $T_2$-algebra views to $T_1$ |
+| $\models_T$ | fiber-wise relation: algebra × sentence → verdict |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "same-relation-every-level".into(),
+            parent: Some("tower-is-a-fibration".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The satisfaction relation is the same at every level. What
+changes is which theory's $\models$ is invoked and which principal pool
+is available.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "kleisli-iterates".into(),
+            parent: Some("tower-is-a-fibration".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The Kleisli construction iterates: the same algebra becomes the
+theory whose satisfaction relation tests algebras one level below.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "tower-semantic-every-level".into(),
+            parent: Some("tower-is-a-fibration".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The tower is **semantic at every level**. The fibration carries
+the Kleisli structure through re-indexing, and gate-faithfulness is
+preserved by signature morphisms.
+
+### Two kinds of pointing
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "two-directions-two-bases".into(),
+            parent: Some("tower-is-a-fibration".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Two directions run over different bases and must not be conflated.
+**Conformance** runs from a model to its theory and re-indexes
+contravariantly — the tower of {#tower-is-a-fibration}.
+**Propagation** runs from a revised subject to whatever depends on it and
+transports covariantly ({#target-runs-its-own-models}). Het declares
+that propagation occurs; the taxonomy of dependency is the theory's, not
+Het's ({#governs-who-not-what}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "two-kinds-of-pointing".into(),
+            parent: Some("fractal-property".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Two distinct relations both look like "pointing," and run in
+opposite directions.
+
+| | direction | what it is |
+|---|---|---|
+| **conformance declaration** | up (concrete → abstract) | a *model* declares the theory it interprets. This is what a checker walks. |
+| **signature morphism** | down (abstract → concrete) | the arrow selecting the structure a theory's algebras must carry — the semantic map whose existence the declaration asserts. |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "pointings-are-duals".into(),
+            parent: Some("two-kinds-of-pointing".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The two are duals of one edge. The up-pointing declaration is
+what the satisfaction-checker walks to find the theory to test against;
+the down-pointing morphism is the truth-condition the declaration claims
+to satisfy.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "declaration-on-models-only".into(),
+            parent: Some("two-kinds-of-pointing".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A conformance declaration is carried by **models only**. A
+theory does not carry one.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "model-without-theory-is-empty".into(),
+            parent: Some("two-kinds-of-pointing".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A model with no declared theory is a set of records with no law
+to be measured against. There is nothing for $\models$ to evaluate.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "declaration-is-not-a-morphism".into(),
+            parent: Some("two-kinds-of-pointing".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A conformance declaration is not a signature morphism and cannot
+serve as one. Theory-to-theory morphisms are the arrows of
+$\mathbf{Sign}$ ({#sign-category}) and are constitutive of the institution.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "three-relations-not-conflated".into(),
+            parent: Some("two-kinds-of-pointing".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Three relations must not be conflated: a population interprets a
+law ({#declaration-on-models-only}); a theory supplies $\mathcal{P}$ ({#supplier-interface}, checked by signature
+inspection); a theory extends another (a morphism in $\mathbf{Sign}$).
+
+### The gate law
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "gate-law".into(),
+            parent: Some("fractal-property".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Gate markers may be preserved or increased along morphisms —
+`decidable` → `decidable` or `judgmental`; `judgmental` → `judgmental`.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "no-laundering-along-morphisms".into(),
+            parent: Some("gate-law".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"No morphism may launder a judgmental predicate into a decidable
+one. This is {#non-identity-not-deferrable} at the morphism level.
+
+### Termination
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "tower-floor".into(),
+            parent: Some("fractal-property".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The tower terminates on a **decidable well-formedness predicate**
+$W$ on signatures.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "wellformedness-clauses".into(),
+            parent: Some("tower-floor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$W(\Sigma)$ holds when: $\Sigma$ declares at least one sort and
+at least one operation; every operation carries a gate marker (2, {#unmarked-not-wellformed});
+every judgmental operation declares a competence role ({#judgmental-declares-role}); every
+authorial operation declares a standing predicate ({#authorial-declares-standing}); every
+conditional operation names a classifying sentence ({#conditional-names-classifier}); and, if
+$\Sigma$ supplies $\mathcal{P}$, it declares the four predicates of {#supplier-interface}
+at their stated arities.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "clauses-decidable-by-inspection".into(),
+            parent: Some("tower-floor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Each clause is decidable by inductive inspection of the
+declaration. $W$ invokes no judge.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "floor-not-gate-marked".into(),
+            parent: Some("tower-floor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$W$ is the floor the regress terminates on. It is not
+gate-marked and is not itself a Het theory; asking it to be one would ask
+the floor to stand on itself.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "w-checks-declaration-not-adequacy".into(),
+            parent: Some("tower-floor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$W$ checks **declaration, never adequacy**. It never asserts
+that any concrete principal satisfies its own predicates, nor that the
+pool is non-empty.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "adequacy-defined".into(),
+            parent: Some("fractal-property".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Adequacy lives one level below, inside the theories that actually
+invoke judges. For a judgmental sentence $\varphi$ of a theory $T$:
+
+$$\mathsf{Adequate}_T(\varphi) \equiv \text{“a qualifying non-identical judge for } \varphi \text{ exists and returns a verdict”}$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "adequacy-is-judgmental".into(),
+            parent: Some("adequacy-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"That sentence is itself **judgmental**, discharged by an outside
+call exactly when an algebra of $T$ attempts to interpret $\varphi$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "adequacy-failure-is-not-a-w-defect".into(),
+            parent: Some("adequacy-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Failure of adequacy is an ordinary judgmental failure at the
+level where the judge is required. It is not a defect in $W$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "adequacy-asks-for-a-judge".into(),
+            parent: Some("adequacy-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Adequacy asks for *a* qualifying judge, not the minimal one.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "adequacy-local-not-global".into(),
+            parent: Some("adequacy-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Adequacy is **local, not global**. There is no infinite regress
+and no global fixed-point proof.
+
+### Self-grounding
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "adequacy-failure-returns-residual".into(),
+            parent: Some("adequacy-defined".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Adequacy failure returns the residual
+({#judgmental-arrow-shape}). The argument is not consumed, and
+re-enters.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "suspension-is-the-residual".into(),
+            parent: Some("adequacy-failure-returns-residual".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judge that **exists and has not answered** is one of the two ways
+{#adequacy-defined} fails, and it is the interesting one. Adequacy is a
+conjunction — a qualifying judge exists *and* returns a verdict — so a judge
+that raises a matter instead of ruling leaves adequacy **undischarged**, which
+{#adequacy-failure-returns-residual} already disposes of: the argument
+comes back unconsumed and re-enters.
+
+**A suspension is therefore not a new summand.** It is the final `+ A` of
+{#judgmental-arrow-shape}, read as *"awaiting a matter this dispatch
+raised"* rather than *"nobody answered"*. Nothing in the arrow's shape changes;
+what changes is that the residual now carries **what** is being awaited.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "raised-reference-is-opaque".into(),
+            parent: Some("suspension-is-the-residual".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The identity of the raised matter is **opaque** to Het, for the
+reason {#pool-is-opaque} gives. Het never inspects an inhabitant of
+$\mathcal{P}$, and what an inhabitant raised is on the same side of that line:
+an issue number, a lifecycle subject, a filename — all of them the supplying
+theory's, none of them Het's. Het transports the reference from the principal
+that raised it to the position that resumes on it, and has no predicate over it
+whatever ({#nothing-further-required}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "deferral-is-not-a-verdict".into(),
+            parent: Some("suspension-is-the-residual".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A deferral **is not a verdict**, and no operation converts one into
+one. A judge that raised a matter has said nothing about the sentence, so a
+verdict attributed to it would name a judge that did not rule — which is
+{#constant-arrow-hazard} in the one disguise the dispatch discipline
+cannot see through, because here the judge is real and was honestly selected
+and it is the *answer* that does not exist.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "no-preference-after-a-deferral".into(),
+            parent: Some("suspension-is-the-residual".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A theory MAY dispatch again, and the pool does not do it for it.
+Walking on to the next qualifying judge because the first raised a matter is a
+**preference among qualifying judges**, which {#no-preference-among-judges}
+forbids Het to have; whether it is worth doing is a worth-question and belongs
+to HetOpt ({#het-settles-hetopt-orders}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "resumption-is-authorial".into(),
+            parent: Some("adequacy-failure-returns-residual".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Resuming a suspended dispatch is **authorial**, not judgmental.
+
+The residual re-enters at the position that produced it, which means the
+suspended object is *written back into* the run. That is a transformation of the
+subject, and {#judgment-refuses-authorship-requires} settles which filter
+governs a transformation: judgment classifies and refuses the audited party,
+authorship transforms and requires standing over it. So resumption dispatches
+through {#authorial-qualifying-set} — capability **and** standing — exactly
+as `enact` does ({#enact-makes-an-endofunctor}).
+
+**The judge that ruled on the raised matter cannot be the one that resumes.**
+It qualified by being provenance-disjoint from the subject
+({#judgmental-qualifying-set}), and that disjointness is precisely what
+denies it standing ({#provenance-overlap-is-the-point}). The two roles are
+held by two principals, and that is the shape rather than an inconvenience.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "resumption-needs-a-terminal".into(),
+            parent: Some("resumption-is-authorial".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Resumption is gated on the raised matter having reached a
+**terminal**, and on that terminal being the one **this** dispatch awaits. What
+counts as a terminal is the supplying theory's ({#nothing-further-required}),
+exactly as the reference is.
+
+This is not a promise of termination. {#no-bound-on-reentry} is a stated
+limit and this does not close it: a raised matter that never terminates yields
+no evidence, and the outer arrow stays suspended — **visibly**, which is what
+{#stated-as-limit-not-closed} asks for and all it asks for.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "resumption-is-unguarded".into(),
+            parent: Some("resumption-is-authorial".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Re-entry through a resumption is **unguarded**. A raised matter may
+take any number of rounds, and a host that bounded them would have declared the
+bound Het declines to declare — {#guarded-reentry-is-eviction} names that
+an eviction rule under another name, whatever else it is called.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "self-grounding-is-a-pair".into(),
+            parent: Some("fractal-property".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Self-grounding is a property of a **pair**, never of one member
+alone.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "het-self-grounding-condition".into(),
+            parent: Some("self-grounding-is-a-pair".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het is self-grounding when its own signature satisfies $W$, and
+$W$ is decidable.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "neither-stands-on-itself".into(),
+            parent: Some("self-grounding-is-a-pair".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Neither member stands on itself: the signature is grounded by
+satisfying a predicate that is not gate-marked, and the predicate is
+grounded by being an ordinary shape-check.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "first-question-is-hets-own-signature".into(),
+            parent: Some("self-grounding-is-a-pair".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The first question is therefore not whether some domain conforms
+to Het, but whether Het's own signature satisfies $W$. Answering it
+**demonstrates** self-grounding rather than asserting it.
+
+### Signature-claims are not sentences
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "signature-claims-are-w-clauses".into(),
+            parent: Some("fractal-property".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A theory's claims about **its own signature** — that a type is
+closed, that two axes are orthogonal, that the theory declares no
+population — are clauses of $W$, not sentences.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "sentence-needs-an-inhabitant".into(),
+            parent: Some("signature-claims-are-w-clauses".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A sentence is evaluated as $M \models \varphi$ against
+inhabitants of a carrier. A signature-claim has no such inhabitant to
+test, and walking a population cannot check it.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "empty-equation-is-a-misfiling".into(),
+            parent: Some("signature-claims-are-w-clauses".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Such a claim carries no equation because there is nothing for
+$\models$ to compute. **A decidable sentence with no equation is a
+mis-filing, not an omission** — the emptiness is the diagnostic.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 7 · The game
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "satisfaction-is-a-game".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Satisfaction is a two-player game. A sentence is satisfied iff the
+**Proponent** has a winning strategy.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "proponent-and-opponent".into(),
+            parent: Some("satisfaction-is-a-game".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The Proponent is the candidate algebra, asserting
+$M \models \varphi$. The **Opponent** is the environment, which may query
+an oracle — the judge.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "decidable-games-are-bounded".into(),
+            parent: Some("proponent-and-opponent".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Decidable predicates are games with finite, mechanizable winning
+strategies: the tree is bounded and the strategy is a decision procedure.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-games-have-an-oracle".into(),
+            parent: Some("proponent-and-opponent".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Judgmental predicates are games where the Opponent has oracle
+access: the tree may be unbounded, and the strategy involves querying the
+oracle at specific nodes.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "game-resolves-disagreement".into(),
+            parent: Some("proponent-and-opponent".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Static satisfaction cannot say who is right when judge and
+candidate disagree. The game can: the Proponent may contest, and the
+contest is itself a move ({#proposal-vocabulary}).
+
+### The pass
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "the-pass".into(),
+            parent: Some("satisfaction-is-a-game".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The audit-rectify pass is the game in operation — a chain of
+principals, each acting on what the previous one produced. The gate says
+*how* each move is settled; the table says *by whom*, and relative to
+whose authorship.
+
+| game move | operation | gate | acts | result |
+|---|---|---|---|---|
+| a violation is found | `audit` | decidable, or judgmental per $\varphi$ | nobody, or a judge disjoint from $M$ | Verdict |
+| the Proponent answers | `propose` | **authorial** | an author with standing over $x$ | Proposal |
+| the Opponent rules | `dispose` | judgmental | a judge disjoint from **the Proposal** | Disposition |
+| the Proponent applies it | `enact` | authorial | an author with standing over $x$ | the revised subject |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "propose-is-authorial".into(),
+            parent: Some("the-pass".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"`propose` is **authorial**. Answering a verdict is the
+Proponent's move, and producing content about an subject is authorship,
+which requires standing over it ({#authorial-qualifying-set}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-propose-swaps-roles".into(),
+            parent: Some("the-pass".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A judgmental gate on `propose` would dispatch under the
+disjointness filter ({#judgmental-qualifying-set}), that is, to the Opponent's side — making the
+Opponent play the Proponent's move.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "difficulty-is-not-an-outside".into(),
+            parent: Some("the-pass".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"That the remedy is sometimes mechanically determined and
+sometimes requires assessment is a statement about the author's
+difficulty, not about whether an outside is needed. Authorship is
+required either way.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "proposal-provenance-is-authors".into(),
+            parent: Some("the-pass".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A Proposal's provenance is its **author's**:
+$\pi(\mathsf{propose}(x, v)) \subseteq \pi(p)$ for the authoring
+principal $p$. Without this, {#judgmental-qualifying-set} cannot be evaluated at `dispose`.
+
+### The Proposal vocabulary
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "proposal-vocabulary".into(),
+            parent: Some("satisfaction-is-a-game".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A Proposal is one of exactly two.
+
+| | means | licenses |
+|---|---|---|
+| `remedy` | *"the verdict stands; here is the fix"* | `enact` on acceptance |
+| `dispute` | *"the verdict is wrong; the subject stands as authored"* | nothing to enact |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "dispute-is-still-judged".into(),
+            parent: Some("proposal-vocabulary".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A `dispute` is still judged. The Opponent rules on it exactly as
+on a `remedy`; an author does not overturn a verdict by asserting it.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "dispute-is-the-only-contest".into(),
+            parent: Some("proposal-vocabulary".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"`dispute` is the only path to contest a verdict. `propose` is
+defined only on a non-conforming verdict, so without it an author who
+believed the audit wrong would have to author a remedy for a diagnosis
+they dispute, in order to obtain a vehicle for disputing it.
+
+### The Disposition vocabulary
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "remedy-carries-an-edit".into(),
+            parent: Some("proposal-vocabulary".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A `remedy` carries an **edit** — what would be done to the subject.
+The edits are the theory's, not Het's ({#edit-required-not-typed}); Het requires only that a
+remedy name one, and that `enact` apply it.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "disposition-vocabulary".into(),
+            parent: Some("satisfaction-is-a-game".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A Disposition is one of exactly five.
+
+| | terminal | affirming | who acts next |
+|---|---|---|---|
+| `accept` | ✓ | ✓ | the author enacts |
+| `reject-diagnosis` | ✓ | ✗ | nobody — the audit was wrong; the subject stands |
+| `reject-remedy` | ✗ | ✗ | the author re-proposes, carrying the reason |
+| `defer` | ✗ | ✗ | a prerequisite is required first |
+| `raises-questions` | ✗ | ✗ | the auditor clarifies; the subject re-enters |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "disposition-is-a-ruling".into(),
+            parent: Some("disposition-vocabulary".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A Disposition is a **ruling, not a revision**. Something must
+apply it, and that something is an author with standing ({#authorial-qualifying-set}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "no-amending-disposition".into(),
+            parent: Some("disposition-vocabulary".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"No Disposition amends a Proposal. A judge that amends is
+*transforming*, not classifying; and being provenance-disjoint from the
+subject ({#judgmental-qualifying-set}), it cannot hold standing over a modification it has just
+authored ({#authorial-qualifying-set}). Any amending variant would require one principal to
+satisfy two opposite conditions on one subject.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "reason-is-not-an-edit".into(),
+            parent: Some("disposition-vocabulary".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"`reject-remedy` may carry a **reason**, which is advisory prose
+and **not an edit**. Stating why a remedy fails is classification;
+supplying the replacement is authorship. The author re-proposes with the
+reason in hand.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "reproposal-carries-the-chain".into(),
+            parent: Some("disposition-vocabulary".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A re-proposal carries the chain of prior dispositions and their
+reasons. Without them an author can cycle indefinitely on the same
+objection, and nothing downstream could detect it.
+
+### Enactment
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "enact-makes-an-endofunctor".into(),
+            parent: Some("satisfaction-is-a-game".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"`enact` is what makes the pass an **endofunctor** rather than a
+one-way funnel into a verdict.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "licence-is-not-guarantee".into(),
+            parent: Some("enact-makes-an-endofunctor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A terminal-and-affirming Disposition licenses `enact`; it does
+not guarantee the edit lands.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "target-runs-its-own-models".into(),
+            parent: Some("enact-makes-an-endofunctor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Where the revised subject enters another governed container,
+**that container's own $\models$ runs** — the pass composed with itself
+under {#fractal-property} — and may refuse it.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "enact-has-two-failure-points".into(),
+            parent: Some("enact-makes-an-endofunctor".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"An authorization to edit is not a licence to violate the
+target's law. `enact` has two failure points: the Disposition may
+withhold it, and the target may refuse it.
+
+### Panels
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "panels".into(),
+            parent: Some("satisfaction-is-a-game".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Panels are $\models$ with more than one judge — the game with an
+enlarged oracle-move set. They are not a separate construction.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "panels-cannot-weaken-the-opponent".into(),
+            parent: Some("panels".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A Proponent winning strategy in the original game remains
+winning in the composite; additional oracle answers can only strengthen
+the Opponent.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 8 · The cut
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "het-settles-hetopt-orders".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Het settles belonging. HetOpt orders what belongs.**
+
+$$\textbf{Het} = \text{judgmental institution} + \text{gate-marked } \models + \text{metric verdict space}$$
+
+$$\textbf{HetOpt} = \textbf{Het} + V$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "metric-and-preference-same-furniture".into(),
+            parent: Some("het-settles-hetopt-orders".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Metric and preference are the same categorical furniture read two
+ways. A metric space *is* a category enriched over
+$([0,\infty], \ge, +)$, and quantale-enrichment is the general form. They
+are not the same **role**.
+
+| | what it does | where it lives |
+|---|---|---|
+| $d$ — verdict metric | symmetric; how far two verdicts lie apart under renaming | **Het** |
+| $V$ — worth-law | orders a conforming set by preference | **HetOpt** |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "cut-at-valuation".into(),
+            parent: Some("het-settles-hetopt-orders".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The cut is drawn at **valuation itself**, not at any one
+application of it.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "het-declares-no-worth-law".into(),
+            parent: Some("cut-at-valuation".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A Het theory declares no worth-law $V$, and does not declare the
+minimal-judge rule.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "v-applies-to-conforming-sets".into(),
+            parent: Some("cut-at-valuation".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$V$ applies wherever Het has produced a conforming set.
+
+| Het produces | HetOpt orders it by | yielding |
+|---|---|---|
+| the qualifying judges for a sentence | cost tier, then $\varepsilon$ | the **minimal-judge rule** |
+| the qualifying authors for an operation | cost tier | the **minimal-author rule** |
+| the conforming algebras of a theory | the declared worth-law | ranked candidates |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "valuation-instantiated-twice".into(),
+            parent: Some("cut-at-valuation".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"One piece of machinery, two levels — {#fractal-property} applied to valuation.
+Judge selection and candidate ranking are not two features but one:
+*conformance, then valuation*, instantiated twice.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "filter-then-optimize".into(),
+            parent: Some("het-settles-hetopt-orders".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The cut lands here because the order is filter first, then
+optimize. Non-identity is enforced at the model-category level as an
+admissibility restriction on Kleisli arrows ({#admissibility-subcategories}); the minimal-judge
+rule optimizes only among arrows that have already survived that filter.
+Het is the filter; HetOpt is the optimization.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "cut-lands-no-later".into(),
+            parent: Some("filter-then-optimize".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"It lands no later: non-identity cannot move to HetOpt ({#non-identity-not-deferrable}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "cut-lands-no-earlier".into(),
+            parent: Some("filter-then-optimize".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"It lands no earlier: Het has no $V$ anywhere, HetOpt has $V$
+everywhere. Keeping a valuation in Het for judges while withholding one
+for candidates would leave *"why judges and not candidates?"* with no
+answer beyond stipulation.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "hetopt-is-a-theory-extension".into(),
+            parent: Some("het-settles-hetopt-orders".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"HetOpt is a theory extension in the ordinary sense.
+$\mathbf{Sign}_{\textbf{HetOpt}}$ extends $\mathbf{Sign}_{\textbf{Het}}$
+with the declaration of $V$, and
+$\textbf{Het} \hookrightarrow \textbf{HetOpt}$ carries Het-algebras into
+the HetOpt fiber by re-indexing.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "enrichment-base-is-the-metric".into(),
+            parent: Some("hetopt-is-a-theory-extension".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"In HetOpt the enrichment base $V$ **is** the metric $d$, and the
+fibers become $V$-enriched. In Het the verdict space carries $d$ alone.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 9 · Composition
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "composition-is-closed".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"When two theories are combined, their principal pools combine, and
+the composite is again a judgmental institution.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "composite-monad".into(),
+            parent: Some("composition-is-closed".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\mathcal{P}_{1+2} = \mathcal{P}_1 + \mathcal{P}_2$, provenance
+preserved componentwise.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "non-identity-extends-to-composite".into(),
+            parent: Some("composite-monad".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The non-identity restriction extends to the composite Kleisli
+category.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "composite-qualifying-set".into(),
+            parent: Some("composite-monad".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The qualifying set of the composite is the union of the
+component qualifying sets, each still filtered by non-identity.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "composite-kinds".into(),
+            parent: Some("composition-is-closed".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Kinds form the disjoint union $K_1 \sqcup K_2$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "adequacy-composes".into(),
+            parent: Some("composition-is-closed".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The composite qualifying set is non-empty whenever either
+component's was. Adequacy composes.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "theory-combination-closed".into(),
+            parent: Some("composition-is-closed".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Theory combination is closed.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 10 · Evaluation
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "models-defined-by-dispatch".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\models$ is defined by dispatch on the gate marker:
+
+$$
+M \models \varphi \;=\;
+\begin{cases}
+\mathsf{check}(M, \varphi) & \varphi\text{ decidable} \\[2pt]
+\mathsf{dispatch}(\varphi, a, \mathcal{P}_{\text{judg}}) & \varphi\text{ judgmental} \\[2pt]
+\mathsf{dispatch}(\varphi, a, \mathcal{P}_{\text{auth}}) & \varphi\text{ authorial} \\[2pt]
+M \models_{\Sigma^\uparrow} \mathsf{Decidable}_\Sigma(\varphi) \;?\; \mathsf{check} : \mathsf{dispatch} & \varphi\text{ conditional}
+\end{cases}
+$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "run-over-every-sentence".into(),
+            parent: Some("models-defined-by-dispatch".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$\models$ is run over every $\varphi \in \mathsf{Sen}(\Sigma)$
+against $M$.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "dispatch-is-two-operations".into(),
+            parent: Some("models-defined-by-dispatch".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Dispatch is two operations, and the first is decidable:
+
+$$\text{qualifying} = \{\, p \in \mathcal{P} : \mathsf{capable}(p, \mathsf{role}(\varphi)) \wedge \pi(p) \cap \pi(a) = \emptyset \,\}$$
+
+$$\mathsf{dispatch} = \text{any member of } \text{qualifying}$$
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "dispatch-argument-is-the-argument".into(),
+            parent: Some("dispatch-is-two-operations".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"$a$ is **the argument the operation is applied to** ({#disjointness-against-argument}) —
+the subject at `audit`, the Proposal at `dispose`. Reading $\pi(M)$ in its
+place is the error {#argument-governs} excludes.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "conformance-half-needs-no-judge".into(),
+            parent: Some("dispatch-is-two-operations".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Both conjuncts read only the four predicates of
+{#supplier-interface}. The conformance half requires no judge to
+test: it is set operations over declared predicates.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "any-is-specified-argmin-is-the-seam".into(),
+            parent: Some("dispatch-is-two-operations".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Returning *any* qualifying judge is not a decision deferred; it
+is what Het specifies ({#no-preference-among-judges}). The minimal-judge rule replaces
+*any* with *argmin*, and that substitution is the seam where HetOpt lands
+({#v-applies-to-conforming-sets}).
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## 11 · The surface
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "theory-declares-four-things".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A theory written *in* Het declares four things and nothing else: its
+sorts, its edits, its sentences with their gates, and a role for each
+judgmental sentence.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "het-declares-the-slots".into(),
+            parent: Some("theory-declares-four-things".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het declares the **slots**. The theory fills them. This is the
+division that runs through the whole document: Het says what must be
+declared and under what condition it is settled; it never says what the
+content is.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "role-declared-not-enumerated".into(),
+            parent: Some("het-declares-the-slots".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het requires that a judgmental sentence declare a role ({#role-not-kind}). It
+does not enumerate roles. `taxonomist`, `triager`, `chord-reader` are the
+theory's.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "edit-required-not-typed".into(),
+            parent: Some("het-declares-the-slots".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het requires that a `remedy` carry an **edit** ({#remedy-carries-an-edit}) and that
+`enact` apply one ({#enact-makes-an-endofunctor}). It does not enumerate edits. Whether the domain's
+edits are `amend | remove | relocate`, or `fix | won't-fix | duplicate |
+reprioritize`, is the theory's.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "verdict-space-required-not-fixed".into(),
+            parent: Some("het-declares-the-slots".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het requires a verdict space carrying a metric ({#judges-are-stochastic}). It does not
+say what the space is.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "interface-required-not-populated".into(),
+            parent: Some("het-declares-the-slots".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het requires that a supplier of $\mathcal{P}$ expose four
+predicates ({#supplier-interface}). It does not say what a principal is made of ({#interface-by-signature-inspection}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "enact-generic-over-edit".into(),
+            parent: Some("theory-declares-four-things".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Consequently `enact` is **generic over the theory's edit type**. Het
+cannot apply an edit it did not name. The theory supplies the application;
+Het governs only who may perform it ({#one-pool-two-filters}) and whether the result is admitted
+({#target-runs-its-own-models}).
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "governs-who-not-what".into(),
+            parent: Some("enact-generic-over-edit".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"This is not a limitation worked around. Het governs *who may act,
+and under what condition*. What the act **is** belongs to the domain, and a
+formalism that enumerated edits would be legislating domains it does not
+know.
+
+### The decidable fragment
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "decidable-is-a-total-predicate".into(),
+            parent: Some("theory-declares-four-things".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A decidable sentence is **any total predicate of the host language
+on the model**. Het names no logical fragment.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "two-signatures-not-two-fragments".into(),
+            parent: Some("decidable-is-a-total-predicate".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The two gates are not two fragments. They are two **signatures**,
+and the host language's type system separates them:
+
+| gate | the sentence's form |
+|---|---|
+| `decidable` | $M \to \mathsf{Bool}$ — the model alone |
+| `judgmental` | $M \times \mathsf{Qualified}\langle \mathsf{role}(\varphi) \rangle \to \mathsf{Verdict}$ |
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "decidable-cannot-consult-pool".into(),
+            parent: Some("decidable-is-a-total-predicate".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A decidable sentence therefore *cannot* consult $\mathcal{P}$: no
+parameter admits a principal, and the qualifying token has no constructor
+outside {#judgmental-qualifying-set}. The prohibition is not a rule
+the author is asked to respect; it is a term that cannot be written.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "mismarking-is-not-a-false-claim".into(),
+            parent: Some("decidable-is-a-total-predicate".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Mis-marking is likewise not a claim that could be false. Marking a
+sentence `decidable` gives it the decidable signature. A body needing an
+outside will not typecheck in that position.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "signature-replaces-fragment-membership".into(),
+            parent: Some("decidable-is-a-total-predicate".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"This replaces fragment-membership as the mechanism of
+gate-honesty. A chosen fragment is a constraint someone must check; a
+signature is checked by the host language's compiler, which does not know
+Het exists and cannot be persuaded.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "two-properties-not-secured".into(),
+            parent: Some("theory-declares-four-things".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Two properties the signature does **not** secure. Both are stated
+as limits.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "termination-not-secured".into(),
+            parent: Some("two-properties-not-secured".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Termination.** A host language admitting non-termination admits
+a `decidable` sentence that does not terminate. Het does not check this. The
+type proves the sentence was *evaluated as* a machine check, not that the
+check *halts*.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "purity-not-secured".into(),
+            parent: Some("two-properties-not-secured".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Purity.** The decidable signature excludes $\mathcal{P}$. It does
+not exclude the world: a predicate on the model may still reach a network, a
+clock, a file. "Consults no outside" is exact about **Het's** outside — the
+principal pool — and silent about every other.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "neither-limit-closed-here".into(),
+            parent: Some("two-properties-not-secured".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Neither is closed here. Closing {#termination-not-secured} requires a total language;
+closing {#purity-not-secured} requires an effect system. Het requires neither, and a Het
+built on a host that supplies them inherits the guarantee for free.
+
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
+
+## Vocabulary
+
+Terms not listed here are not part of the formalism. An encoding that
+introduces one has drifted.
+
+**The `in rung` column is the dictionary** between this document's vocabulary
+and the host's. Plain = exists today. *Italic* = agreed, not yet built. `—` =
+no surface counterpart, because the term is mathematics of the institution and
+nothing in a host answers to it.
+
+### The institution
+
+| term | symbol | in rung | meaning | prop |
+|---|---|---|---|---|
+| **signature** | $\Sigma$ | `ladder!` decl | a theory declaration: sorts, operation symbols with arities, gate markers, and the laws the theory declares | [1.3](#signature-declares) |
+| **signature category** | $\mathbf{Sign}$ | — | the category of signatures; objects are theories, morphisms are signature morphisms | [1.11](#sign-category) |
+| **sentence** | $\varphi$ | *`theory!` sentence* | an element of $\mathsf{Sen}(\Sigma)$; a claim over the signature, carrying a gate marker | [1.12](#sen-functor), [2](#gate-marker-required) |
+| **sentence functor** | $\mathsf{Sen}$ | — | $\mathbf{Sign} \to \mathbf{Set}$ | [1.12](#sen-functor) |
+| **algebra**, **model** | $M$ | — | an interpretation of a signature; here a functor $T \to \mathbf{Kl}(\mathcal{P})$ | [1.13](#mod-functor), [5](#algebra-is-kleisli-functor) |
+| **model functor** | $\mathsf{Mod}$ | — | $\mathbf{Sign}^{\text{op}} \to \mathbf{Cat}$ | [1.13](#mod-functor) |
+| **satisfaction relation** | $\models$ | — | the mechanism testing an algebra against a sentence; the locus of the entire extension | [1](#one-relation), [1.31](#extension-is-in-models) |
+| **satisfaction condition** | | — | truth is invariant under change of notation; the institution's only axiom | [1.2](#satisfaction-condition), [4.3](#satisfaction-condition-relaxed) |
+| **signature morphism** | $\sigma$ | — | a structure-preserving map of signatures; translates sentences forward and algebras backward | [1.11](#sign-category), [6.24](#declaration-is-not-a-morphism) |
+| **re-indexing** | $\mathsf{Mod}(\sigma)$ | — | transport of algebras along a signature morphism | [6.1](#tower-is-a-fibration) |
+| **sort** | $S$ | rung payload type | a type declared by the signature, interpreted as a carrier $M(S)$ | [1.3](#signature-declares) |
+| **subject** | $x : M(S)$ | payload | an inhabitant of a carrier — a specific datum under judgment | [5.6](#subject-defined) |
+| **conformance declaration** | | — | the up-pointing edge on a model: "this population interprets that law" | [6.2](#two-kinds-of-pointing), [6.22](#declaration-on-models-only) |
+
+### Judgment
+
+| term | symbol | in rung | meaning | prop |
+|---|---|---|---|---|
+| **gate marker** | | *`#[…]` on a rung* | the annotation fixing a sentence's or operation's satisfaction mechanism | [2](#gate-marker-required) |
+| **decidable** | | *unmarked transition* | satisfaction is machine-checked by standard equational logic | [2.1](#four-gates) |
+| **judgmental** | | *`#[judgmental(R)]`* | satisfaction dispatches to a judge; the verdict *is* the outcome | [2.1](#four-gates) |
+| **authorial** | | *`#[authorial]`* | the operation transforms rather than classifies; dispatches to an author | [2.1](#four-gates), [3.6](#authorial-qualifying-set) |
+| **conditional** | | *`#[conditional(φ)]`* | decidability depends on the algebra; classified one level up | [2.1](#four-gates), [2.5](#conditional-names-classifier) |
+| **competence role** | $\mathsf{Role}$ | `Role` | what a judgmental sentence needs done; declared pointwise by the sentence | [2.3](#judgmental-declares-role) |
+| **principal pool** | $\mathcal{P}$ | `Pool` (supplied) | the pool dispatched to by non-decidable gates. **A parameter of $\models$, never a sort** | [3](#pool-is-parameter) |
+| **judge** | | `Qualified<R>` | a principal filtered by capability and non-identity; renders a verdict | [3.5](#judgmental-qualifying-set) |
+| **author** | | `Authorized` | a principal filtered by capability and standing; enacts a ruling | [3.6](#authorial-qualifying-set) |
+| **standing** | | — | an author holds stewardship of what it enacts on. Conditional-gated | [3.6](#authorial-qualifying-set), [3.63](#standing-conditional-gated) |
+| **non-identity** | | — | a judge must not be the author of what it judges. Decidable; enforced before dispatch | [3.5](#judgmental-qualifying-set), [3.53](#non-identity-before-dispatch) |
+| **belonging predicate** | | — | a predicate deciding whether a principal qualifies at all: capability, non-identity, standing | [3.3](#three-belonging-predicates) |
+| **qualifying set** | | — | the principals surviving the gate's belonging predicates. Het's output | [3.5](#judgmental-qualifying-set), [3.6](#authorial-qualifying-set), [10.2](#dispatch-is-two-operations) |
+| **kind** | $K_i$ | — | a partition of $\mathcal{P}$ by substrate. The supplier's, not Het's | [3.23](#nothing-further-required), [9.2](#composite-kinds) |
+| **cost tier** | | — | ordering on principals by resource consumption. **HetOpt** | [3.31](#ordering-is-hetopts), [8.22](#v-applies-to-conforming-sets) |
+| **minimal-judge rule** | | — | select the cheapest qualifying judge, breaking ties by lowest $\varepsilon$. **HetOpt** | [8.22](#v-applies-to-conforming-sets) |
+| **minimal-author rule** | | — | select the cheapest principal with standing, escalating when it cannot close. **HetOpt** | [3.66](#two-escalation-triggers), [8.22](#v-applies-to-conforming-sets) |
+| **renaming-robustness** | $\varepsilon$ | — | tolerated verdict drift under signature morphisms. Reported in Het; a criterion in HetOpt | [3.32](#epsilon-declared-not-ranked), [4.6](#epsilon-reported-with-verdict) |
+| **adequacy** | | — | that *a* qualifying non-identical judge exists and returns a verdict. Judgmental, discharged where invoked | [6.5](#adequacy-defined) |
+| **gate law** | | — | gate markers may be preserved or increased along morphisms, never laundered downward | [6.3](#gate-law) |
+
+### Semantics
+
+| term | symbol | in rung | meaning | prop |
+|---|---|---|---|---|
+| **Kleisli category** | $\mathbf{Kl}(\mathcal{P})$ | — | where algebras land; judgmental and authorial operations are Kleisli arrows, decidable ones factor through $\eta$ | [5](#algebra-is-kleisli-functor) |
+| **admissibility sub-categories** | $\mathbf{Kl}_{\text{judg}}$, $\mathbf{Kl}_{\text{auth}}$ | — | gate-selected restrictions: provenance-disjoint versus containment-plus-standing | [5.41](#admissibility-subcategories) |
+| **provenance** | $\pi_X$ | `Provenanced` | a map to provenance tags, carried by every object; strict under $\eta$ and $\mu$ | [5.3](#provenance-structure), [5.32](#monad-is-provenance-strict) |
+| **gate-faithful** | | *emitted signature* | an algebra whose decidable operations are pure, judgmental ones judgmentally-admissible, authorial ones authorially-admissible | [5.5](#gate-faithful) |
+| **fibration** | | — | the Grothendieck construction over the category of theories | [6.1](#tower-is-a-fibration) |
+| **fractal property** | | — | an algebra carrying its own signature declaration becomes a theory at the next level | [6](#fractal-property) |
+| **well-formedness predicate** | $W$ | — | the decidable shape-check on signatures on which the tower terminates | [6.4](#tower-floor) |
+
+### Verdicts, worth, and the two formalisms
+
+| term | symbol | in rung | meaning | prop |
+|---|---|---|---|---|
+| **verdict** | | `Verdict` | a judge's answer; the satisfaction outcome for a judgmental sentence | [2.1](#four-gates) |
+| **verdict space** | | — | the space verdicts inhabit — $[0,1]$, a simplex $\Delta^n$, a strategy lattice | [4](#verdict-space-with-metric), [4.2](#typical-verdict-spaces) |
+| **metric** | $d$ | — | distance on the verdict space. **Measures** drift; symmetric | [4](#verdict-space-with-metric), [4.5](#metric-measures-not-ranks) |
+| **worth-law**, **valuation** | $V$ | — | a quantale whose order **ranks** a conforming set. **HetOpt only** | [8](#het-settles-hetopt-orders), [8.22](#v-applies-to-conforming-sets) |
+| **belonging**, **conformance** | $\chi$ | — | the belonging predicate: what a candidate must satisfy to be a conforming algebra | [8](#het-settles-hetopt-orders) |
+| **Het** | | — | judgmental institution + gate-marked $\models$ + metric verdict space. Settles belonging | [8](#het-settles-hetopt-orders) |
+| **HetOpt** | | — | Het + $V$. Orders what belongs — qualifying judges and conforming candidates alike | [8](#het-settles-hetopt-orders) |
+
+### The game
+
+| term | in rung | meaning | prop |
+|---|---|---|---|
+| **Proponent** | — | the candidate algebra, asserting $M \models \varphi$ | [7.1](#proponent-and-opponent) |
+| **Opponent** | — | the environment; may query the judge as oracle | [7.1](#proponent-and-opponent) |
+| **winning strategy** | — | what satisfaction amounts to: the Proponent has one | [7](#satisfaction-is-a-game) |
+| **audit** | transition | a violation is found; produces a Verdict | [7.2](#the-pass) |
+| **propose** | transition | the Proponent answers; authorial; produces a Proposal | [7.2](#the-pass), [7.21](#propose-is-authorial) |
+| **dispose** | branching transition | the Opponent rules; judgmental; produces a Disposition | [7.2](#the-pass) |
+| **enact** | transition | the Proponent applies a terminal-and-affirming Disposition; produces the revised subject | [7.2](#the-pass), [7.5](#enact-makes-an-endofunctor) |
+| **panel** | — | $\models$ with more than one judge; the game with an enlarged oracle-move set | [7.6](#panels) |
+
+---
+
+## 12 · The limit
+
+"#.into()),
+        Element::Prop(Prop {
+            slug: "no-bound-on-reentry".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het places **no bound on re-entry**.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "reentry-never-terminates".into(),
+            parent: Some("no-bound-on-reentry".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"If no acceptable remedy exists, `reject-remedy` re-enters
+forever ({#disposition-vocabulary}) and the subject never leaves the loop.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "answers-are-worth-shaped".into(),
+            parent: Some("no-bound-on-reentry".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Het cannot close this. The available answers — evict the subject,
+bound the attempts, or accept non-conformance as declared debt — are all
+worth-shaped, and {#het-declares-no-worth-law} forbids a Het theory from declaring a worth-law.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "bound-belongs-to-hetopt".into(),
+            parent: Some("no-bound-on-reentry".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"This is the one state that belonging alone produces and cannot
+exit. The bound belongs to HetOpt.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "stated-as-limit-not-closed".into(),
+            parent: Some("no-bound-on-reentry".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"It is stated as a limit rather than closed by an eviction rule,
+which would be a worth-law under another name.
+
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "guarded-reentry-is-eviction".into(),
+            parent: Some("no-bound-on-reentry".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"A host that injects a termination guard on re-entry has declared
+the bound Het declines to declare. Re-entry is an **unguarded** return to
+the authoring position; a guarded one is an eviction rule under another
+name.
+"#.into(),
+        }),
+        ],
+    }
+}

@@ -105,7 +105,7 @@ def migrate(path):
     n_props = sum(1 for e in elements if e[0] == "prop")
     n_verb = sum(1 for e in elements if e[0] == "verbatim")
     body = "\n".join(out)
-    return n_props, n_verb, f"""//! The categorical account, encoded.
+    return n_props, n_verb, f"""//! `{path.name}`, encoded.
 //!
 //! **Generated once** from `docs/{path.name}` by `docs/_migrate.py`, and the
 //! source of truth from then on. The markdown is rendered from this; where the
@@ -119,7 +119,7 @@ def migrate(path):
 
 use crate::{{Doctrine, Element, Kind, Prop}};
 
-/// The categorical account of what a `ladder` declaration is.
+/// The doctrine `docs/{path.name}` is rendered from.
 pub fn doctrine() -> Doctrine {{
     Doctrine {{
         file: "{path.name}".into(),

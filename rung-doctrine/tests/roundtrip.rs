@@ -9,7 +9,7 @@
 //!
 //! It also fails cheaply, which is the point of doing it first.
 
-use rung_doctrine::{Element, Resolver, rung_ct};
+use rung_doctrine::{Doctrine, Element, Resolver, rung, rung_ct, rung_het};
 use std::path::PathBuf;
 
 fn docs() -> PathBuf {
@@ -25,13 +25,19 @@ fn docs() -> PathBuf {
 /// which are still prose. Their numbers are read out of them — the same
 /// derivation, applied to a document that has not migrated yet. As each is
 /// encoded this shrinks, and when the last one lands it is empty.
+fn all() -> Vec<Doctrine> {
+    vec![rung::doctrine(), rung_het::doctrine(), rung_ct::doctrine()]
+}
+
+/// **Every document is encoded, so the resolver needs nothing external.**
+///
+/// While a document was still prose its numbers had to be read off the page —
+/// the very thing being abolished, kept alive as scaffolding. That scaffolding
+/// is gone: the three doctrines resolve each other.
 fn resolver() -> Resolver {
-    let mut r = Resolver::new().with_doctrine(&rung_ct::doctrine());
-    for file in ["rung-props.md", "rung-het-props.md"] {
-        let text = std::fs::read_to_string(docs().join(file)).expect("a governing document");
-        for (slug, number) in numbers_of(&text) {
-            r.with_external(&slug, file, &number);
-        }
+    let mut r = Resolver::new();
+    for d in &all() {
+        r = r.with_doctrine(d);
     }
     r
 }
@@ -66,13 +72,17 @@ fn numbers_of(text: &str) -> Vec<(String, String)> {
 
 // ════════════════════════════════════════════════════════════════════════════
 
-/// The whole bet, in one assertion.
+/// The whole bet, over every governing document.
 #[test]
-fn the_encoded_doctrine_renders_the_document_byte_for_byte() {
-    let d = rung_ct::doctrine();
+fn every_encoded_doctrine_renders_its_document_byte_for_byte() {
     let r = resolver();
+    for d in &all() {
+        one_document(d, &r);
+    }
+}
 
-    let faults = d.check(&r);
+fn one_document(d: &Doctrine, r: &Resolver) {
+    let faults = d.check(r);
     assert!(
         faults.is_empty(),
         "the encoding does not resolve:\n{}",
@@ -83,8 +93,8 @@ fn the_encoded_doctrine_renders_the_document_byte_for_byte() {
             .join("\n")
     );
 
-    let rendered = d.render(&r).expect("checked above");
-    let on_disk = std::fs::read_to_string(docs().join("rung-ct-props.md")).expect("the document");
+    let rendered = d.render(r).expect("checked above");
+    let on_disk = std::fs::read_to_string(docs().join(&d.file)).expect("the document");
 
     if rendered != on_disk {
         // A byte diff over 731 lines is unreadable; report the first divergence
@@ -97,11 +107,12 @@ fn the_encoded_doctrine_renders_the_document_byte_for_byte() {
             .position(|(x, y)| x != y)
             .unwrap_or(a.len().min(b.len()));
         panic!(
-            "rendered output differs from docs/rung-ct-props.md\n\
+            "rendered output differs from docs/{}\n\
              first divergence at line {}\n\
              rendered: {:?}\n\
              on disk:  {:?}\n\
              ({} lines rendered, {} on disk)",
+            d.file,
             at + 1,
             a.get(at),
             b.get(at),
@@ -118,22 +129,25 @@ fn the_encoded_doctrine_renders_the_document_byte_for_byte() {
 /// one, which is the difference between a failing test and a usable one.
 #[test]
 fn every_derived_number_matches_the_document() {
-    let d = rung_ct::doctrine();
-    let derived = d.numbers();
-    let on_disk: std::collections::BTreeMap<String, String> = numbers_of(
-        &std::fs::read_to_string(docs().join("rung-ct-props.md")).expect("the document"),
-    )
-    .into_iter()
-    .collect();
-
     let mut wrong = Vec::new();
-    for (slug, num) in &derived {
-        match on_disk.get(slug.as_str()) {
-            Some(shown) if shown == num => {}
-            Some(shown) => wrong.push(format!("  #{slug}: derives {num}, document shows {shown}")),
-            None => wrong.push(format!(
-                "  #{slug}: derived {num}, absent from the document"
-            )),
+    let mut total = 0;
+    for d in &all() {
+        let derived = d.numbers();
+        let on_disk: std::collections::BTreeMap<String, String> =
+            numbers_of(&std::fs::read_to_string(docs().join(&d.file)).expect("the document"))
+                .into_iter()
+                .collect();
+        total += derived.len();
+        for (slug, num) in &derived {
+            match on_disk.get(slug.as_str()) {
+                Some(shown) if shown == num => {}
+                Some(shown) => {
+                    wrong.push(format!("  #{slug}: derives {num}, document shows {shown}"))
+                }
+                None => wrong.push(format!(
+                    "  #{slug}: derived {num}, absent from the document"
+                )),
+            }
         }
     }
     assert!(
@@ -142,7 +156,7 @@ fn every_derived_number_matches_the_document() {
         wrong.len(),
         wrong.join("\n")
     );
-    println!("\n  {} numbers, all derived\n", derived.len());
+    println!("\n  {total} numbers, all derived, across three documents\n");
 }
 
 /// No proposition stores a number, and no prose contains a rendered link.
@@ -154,9 +168,12 @@ fn every_derived_number_matches_the_document() {
 /// removed — so it is asserted separately.
 #[test]
 fn the_source_holds_no_number_and_no_rendered_link() {
-    let d = rung_ct::doctrine();
     let mut offenders = Vec::new();
-    for p in d.props() {
+    for p in all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+    {
+        let p = &p;
         if p.prose.contains("](#") || p.prose.contains("-props.md#") {
             offenders.push(format!("  #{}: prose holds a rendered link", p.slug));
         }
@@ -177,17 +194,20 @@ fn the_source_holds_no_number_and_no_rendered_link() {
 /// tick would not reveal.
 #[test]
 fn coverage_is_reported() {
-    let d = rung_ct::doctrine();
-    let c = d.coverage();
-    println!(
-        "\n  rung-ct-props.md — {} propositions, {:.1}% structured\n  \
-         ({} bytes structured, {} bytes verbatim)\n",
-        c.props,
-        c.fraction() * 100.0,
-        c.structured_bytes,
-        c.verbatim_bytes
-    );
-    assert!(c.props > 100, "the propositions did not survive migration");
+    let mut props = 0;
+    println!();
+    for d in &all() {
+        let c = d.coverage();
+        props += c.props;
+        println!(
+            "  {:<22} {:>3} propositions, {:.1}% structured",
+            d.file,
+            c.props,
+            c.fraction() * 100.0
+        );
+    }
+    println!("  {props} propositions encoded in total\n");
+    assert_eq!(props, 380, "the corpus did not survive migration");
 }
 
 /// Where the triage has got to.
@@ -294,4 +314,45 @@ fn verbatim_blocks_carry_only_non_propositional_matter() {
             );
         }
     }
+}
+
+/// **The whole corpus is encoded, and the scaffolding is gone.**
+///
+/// While any document was still prose, cross-document references had to be
+/// resolved by reading numbers off the page — the very practice being
+/// abolished, kept alive to bridge the migration. With all three encoded the
+/// resolver is built from doctrines alone, and this asserts that no external
+/// entry is needed to render any of them.
+///
+/// Mutation: drop one doctrine from `all()` and the other two stop resolving,
+/// because their cross-references have nowhere to land.
+#[test]
+fn no_document_depends_on_a_number_read_off_a_page() {
+    let r = resolver();
+    let mut unresolved = Vec::new();
+    for d in &all() {
+        for e in d.check(&r) {
+            unresolved.push(format!("  {e}"));
+        }
+    }
+    assert!(
+        unresolved.is_empty(),
+        "the corpus does not resolve from its own encodings:\n{}",
+        unresolved.join("\n")
+    );
+
+    // And every governing document in docs/ is one of the three.
+    let mut on_disk: Vec<String> = std::fs::read_dir(docs())
+        .expect("docs/")
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|n| n.ends_with("-props.md"))
+        .collect();
+    on_disk.sort();
+    let mut encoded: Vec<String> = all().iter().map(|d| d.file.clone()).collect();
+    encoded.sort();
+    assert_eq!(
+        on_disk, encoded,
+        "a governing document exists that nothing generates"
+    );
 }
