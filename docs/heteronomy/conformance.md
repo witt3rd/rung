@@ -30,8 +30,8 @@ inspection. Read a bare `out-of-scope` as *"no claim made"*, not as *"checked
 and found irrelevant"*.
 
 **Counts.** 12 enforced · 11 expressible ·
-9 deferred · 0 collides ·
-162 out-of-scope · 194 total.
+8 deferred · 0 collides ·
+162 out-of-scope · 193 total.
 
 ## What rung guarantees that Het does not state
 
@@ -145,10 +145,9 @@ formalism requires.
 | [5.32](formalism.md#monad-is-provenance-strict) | `monad-is-provenance-strict` | `expressible` | `carry` is the natural home for provenance: a product factor preserved across every arrow, immutable by G5. It does not carry a *principal's* provenance, which lives outside the ladder. | rung/tests/compile_pass.rs::test_carry_accessor_exists |
 | [5.4](formalism.md#constant-arrow-hazard) | `constant-arrow-hazard` | `enforced` | G2 sealed construction. A judgmental arrow cannot be interpreted by a constant drawn from the algebra's own carrier, because no mid-ladder rung is constructible outside its module. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |
 | [5.41](formalism.md#admissibility-subcategories) | `admissibility-subcategories` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.42](formalism.md#verdict-provenance-is-judges) | `verdict-provenance-is-judges` | `deferred` | GAP — there is no channel from a principal to an outcome. `Principal` declares only `capable` and `id`; the verdict is a *parameter* of the judgmental operation, and the only `-> Verdict` in `rung-het` is on the DECIDABLE gate. The decidable arrow produces a verdict and the judgmental arrow consumes one, which is exactly backwards. Until this is closed the engine proves an outside was available, never that it was consulted. | — |
-| [5.43](formalism.md#authorial-admissibility-stronger) | `authorial-admissibility-stronger` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.44](formalism.md#one-monad) | `one-monad` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.45](formalism.md#gate-relative-admissibility-licensed) | `gate-relative-admissibility-licensed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.42](formalism.md#authorial-admissibility-stronger) | `authorial-admissibility-stronger` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.43](formalism.md#one-monad) | `one-monad` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.44](formalism.md#gate-relative-admissibility-licensed) | `gate-relative-admissibility-licensed` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [5.5](formalism.md#gate-faithful) | `gate-faithful` | `deferred` | GAP — no question filed. The ladder DSL has no gate marker, so an algebra cannot declare which arrows are judgmental and nothing checks faithfulness. This is the largest unclosed distance between Het and rung. | — |
 | [5.51](formalism.md#mod-only-gate-faithful) | `mod-only-gate-faithful` | `deferred` | GAP — no question filed. Follows gate-faithful. | — |
 | [5.52](formalism.md#refusal-at-model-category) | `refusal-at-model-category` | `out-of-scope` | mathematics of the institution — no host obligation | — |

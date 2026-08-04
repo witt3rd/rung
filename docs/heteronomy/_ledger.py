@@ -159,16 +159,6 @@ CURATED = {
     ),
 
     # ── the residual ─────────────────────────────────────────────────────
-    "verdict-provenance-is-judges": (
-        "deferred",
-        "GAP — there is no channel from a principal to an outcome. `Principal` "
-        "declares only `capable` and `id`; the verdict is a *parameter* of the "
-        "judgmental operation, and the only `-> Verdict` in `rung-het` is on the "
-        "DECIDABLE gate. The decidable arrow produces a verdict and the judgmental "
-        "arrow consumes one, which is exactly backwards. Until this is closed the "
-        "engine proves an outside was available, never that it was consulted.",
-        "—",
-    ),
     "epsilon-reported-with-verdict": (
         "deferred",
         "GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no "

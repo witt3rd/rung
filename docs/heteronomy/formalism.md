@@ -461,29 +461,19 @@ $$\mathbf{Kl}_{\text{judg}}(\mathcal{P}) = \{\, f : \pi(f(a)) \cap \pi(a) = \emp
 
 $$\mathbf{Kl}_{\text{auth}}(\mathcal{P}) = \{\, f : \pi(f(a)) \subseteq \pi(p) \ \wedge\ \mathsf{standing}(p, a) \,\} \qquad \text{(the steward)}$$
 
-<a id="verdict-provenance-is-judges" data-parent="constant-arrow-hazard"></a>
-**5.42** A judgmental arrow's outcome carries its **judge's** provenance:
-$\pi(f(a)) \subseteq \pi(p)$ for the dispatched principal $p$ — the mirror of
-[7.24](#proposal-provenance-is-authors) on the judgmental side.
-
-Without it [5.41](#admissibility-subcategories) cannot be evaluated, because
-nothing obliges a verdict to carry provenance at all. An outside that was
-*available* but never *consulted* then yields a verdict indistinguishable from
-one the algebra computed itself.
-
 <a id="authorial-admissibility-stronger" data-parent="constant-arrow-hazard"></a>
-**5.43** Authorial admissibility is **stronger, not weaker** — not
+**5.42** Authorial admissibility is **stronger, not weaker** — not
 "anything goes," but "only the principal who holds stewardship may enact
 on it." Where judgmental demands disjointness, authorial demands
 containment plus standing.
 
 <a id="one-monad" data-parent="constant-arrow-hazard"></a>
-**5.44** Both are sub-categories of the **same** $\mathbf{Kl}(\mathcal{P})$.
+**5.43** Both are sub-categories of the **same** $\mathbf{Kl}(\mathcal{P})$.
 Distinct monads would mean distinct principal pools, which [3.4](#one-pool-two-filters) does not
 license.
 
 <a id="gate-relative-admissibility-licensed" data-parent="constant-arrow-hazard"></a>
-**5.45** Admissibility is gate-relative, and this is licensed.
+**5.44** Admissibility is gate-relative, and this is licensed.
 Decidability is already fiber-relative and classified one level up
 ([2.53](#classifier-one-level-up)); gate-relative admissibility is the same pattern applied to
 provenance instead of decidability. The institution's uniformity lives in
