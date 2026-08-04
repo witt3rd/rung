@@ -1,0 +1,13 @@
+error: impl block is missing a body for `step`
+  --> tests/ui/spec_rule10_missing_body.rs:15:1
+   |
+15 | / ladder!(Bad {
+16 | |     carry { budget: u32 }
+17 | |
+18 | |     Start(S) => Working(L) => { Done }
+19 | | } impl {
+20 | |     working = |start| { Working::new(L, start.carry().clone()) },
+21 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)

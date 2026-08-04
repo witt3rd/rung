@@ -1,0 +1,10 @@
+error: verdict `Stalled`: recover_target `Nonexistent` not declared
+  --> tests/ui/spec_rule3_recover_target.rs:17:1
+   |
+17 | / ladder!(Bad {
+18 | |     Start(S) => Working(L) => { Stalled => Nonexistent }
+19 | |     recover { unstall: Stalled => Working }
+20 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)

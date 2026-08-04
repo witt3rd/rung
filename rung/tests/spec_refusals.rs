@@ -51,3 +51,64 @@ fn a_failed_source_rung_must_be_declared() {
     // rung-props.md §2 rule 8 (the error-path extension).
     trybuild::TestCases::new().compile_fail("tests/ui/spec_rule8_failed_source.rs");
 }
+
+// ── the rest of §2, so that every rule is a case rather than a sentence ─────
+//
+// rung-props.md §2 states ten rules and calls them a conjunction. Until these
+// landed, three of the ten had a `trybuild` snapshot and seven were prose: the
+// macro implemented them, and nothing would have noticed if it stopped. A rule
+// with no case is a rule the suite cannot tell from a rule that was deleted.
+
+#[test]
+fn a_duplicate_carry_field_is_refused() {
+    // rung-props.md §2 rule 1.
+    trybuild::TestCases::new().compile_fail("tests/ui/spec_rule1_duplicate_carry.rs");
+}
+
+#[test]
+fn a_recover_target_must_be_a_declared_rung() {
+    // rung-props.md §2 rule 3 (the recover-target branch). Rule 2 — a
+    // transition naming an undeclared `from`/`to` rung — has no case because
+    // the grammar makes it unreachable: every rung of the spine is declared by
+    // the hop that introduces it.
+    trybuild::TestCases::new().compile_fail("tests/ui/spec_rule3_recover_target.rs");
+}
+
+#[test]
+fn a_recoverable_verdict_without_a_recover_edge_is_refused() {
+    // rung-props.md §2 rule 4, and G7's first direction.
+    trybuild::TestCases::new().compile_fail("tests/ui/spec_rule4_missing_recover_edge.rs");
+}
+
+#[test]
+fn a_recover_edges_target_must_be_a_declared_rung() {
+    // rung-props.md §2 rule 5 (the target branch). The other clause — an edge
+    // with no matching recover function — is unreachable through the grammar:
+    // one `recover { name: V => R }` entry pushes the edge and the function
+    // together, so they cannot come apart.
+    trybuild::TestCases::new().compile_fail("tests/ui/spec_rule5_recover_edge_target.rs");
+}
+
+#[test]
+fn a_terminal_verdict_may_not_carry_a_recover_edge() {
+    // rung-props.md §2 rule 6, and G7's terminal clause.
+    trybuild::TestCases::new().compile_fail("tests/ui/spec_rule6_terminal_recover.rs");
+}
+
+#[test]
+fn a_recover_edge_must_name_a_declared_verdict() {
+    // rung-props.md §2 rule 7.
+    trybuild::TestCases::new().compile_fail("tests/ui/spec_rule7_unknown_verdict.rs");
+}
+
+#[test]
+fn an_impl_body_that_names_no_transition_is_refused() {
+    // rung-props.md §2 rule 9 — no phantom bodies.
+    trybuild::TestCases::new().compile_fail("tests/ui/spec_rule9_phantom_body.rs");
+}
+
+#[test]
+fn an_impl_block_missing_a_body_is_refused() {
+    // rung-props.md §2 rule 10 — no gaps.
+    trybuild::TestCases::new().compile_fail("tests/ui/spec_rule10_missing_body.rs");
+}

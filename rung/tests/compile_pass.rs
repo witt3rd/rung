@@ -111,3 +111,39 @@ fn test_verdict_enum() {
 // Minimal payload types so the macro expansion works
 struct MetricOptimizationSpec;
 struct ActiveLoop;
+
+// ── a type-only declaration emits no transitions (type-only-marker-is-inert) ──
+//
+// `MetricOptimization` above omits the `impl` block, so rules 9–10 have nothing
+// to apply to (body-rules-need-an-impl-block) and no transition functions are
+// emitted (emitted-functions). A gate marker on such a declaration therefore
+// has nothing to constrain: the marker's only effect is on the *signature* of
+// an emitted `fn`, and there is none.
+//
+// `NotARole` deliberately does **not** implement `rung::Role`. If the marker
+// were doing anything at all — emitting a prologue, a guard, or a `Qualified`
+// parameter — this declaration would not compile, because `Qualified<R>`
+// requires `R: Role`. That it compiles is the inertness, stated as a fact the
+// compiler checks rather than as prose.
+
+// `dead_code` is itself part of the evidence: nothing the macro emitted refers
+// to `NotARole`, which is what "inert" means.
+#[allow(dead_code)]
+struct NotARole;
+struct DraftPayload;
+struct RuledPayload;
+
+ladder!(TypeOnly {
+    Draft(DraftPayload)
+        => #[judgmental(NotARole)] Ruled(RuledPayload)
+        => { Done }
+});
+
+#[test]
+fn a_marker_on_a_type_only_declaration_is_inert() {
+    // The types exist; no transition function does, so there is nothing the
+    // marker could have gated.
+    let _: Option<typeonly::Draft> = None;
+    let _: Option<typeonly::Ruled> = None;
+    let _: Option<typeonly::StepOutcome> = None;
+}

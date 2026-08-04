@@ -1,0 +1,13 @@
+error: impl body `ghost` does not match any transition or recover function
+  --> tests/ui/spec_rule9_phantom_body.rs:14:1
+   |
+14 | / ladder!(Bad {
+15 | |     carry { budget: u32 }
+16 | |
+17 | |     Start(S) => Working(L) => { Done }
+...  |
+21 | |     ghost   = |_w| { unreachable!() },
+22 | | });
+   | |__^
+   |
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)
