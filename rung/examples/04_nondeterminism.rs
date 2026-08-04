@@ -1,4 +1,4 @@
-//! **The verbs-are-arrows law, proven by running it.**
+//! **The *verbs are arrows* law, proven by running it.**
 //!
 //! rung is a language for declaring the objects and legal arrows of a category.
 //! States are *objects* — inert, no verbs. Transitions are *morphisms* — the

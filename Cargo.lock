@@ -733,6 +733,9 @@ dependencies = [
 [[package]]
 name = "rung-het"
 version = "0.1.0"
+dependencies = [
+ "rung",
+]
 
 [[package]]
 name = "rung-macro"

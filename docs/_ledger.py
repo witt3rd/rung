@@ -53,7 +53,7 @@ CURATED = {
         "deferred",
         "GAP — the token is unforgeable but UNBOUND. `rung-het`'s `Qualified<R>` "
         "records the principal and its provenance and forgets the argument it was "
-        "measured against (`rung-het/src/lib.rs:402-408`), so a token earned against "
+        "measured against (`rung/src/lib.rs:312-318`), so a token earned against "
         "one argument can be spent on another. Sealing the constructor closes "
         "fabrication, not transfer. Binding the token is the substrate rewrite's job.",
         "—",

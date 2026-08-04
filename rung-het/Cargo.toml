@@ -7,3 +7,4 @@ repository.workspace = true
 description = "Het's gate-marked satisfaction, enforced by the type system"
 
 [dependencies]
+rung = { path = "../rung" }

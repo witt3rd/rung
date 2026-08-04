@@ -33,7 +33,7 @@
 //! a terminal verdict when it hits zero. The graph makes the exhaustion path
 //! explicit and unskippable; it does not invent a limit for you.
 //!
-//! Three runs below exercise all three paths: recover-then-succeed, a
+//! Three runs below exercise all three paths: recover then succeed, a
 //! non-retryable error that skips retrying entirely, and exhaustion.
 //!
 //! Run: `cargo run -p rung --example 03_failure_edges`

@@ -255,7 +255,7 @@ fn recover_guard_is_auto_injected() {
     }
 }
 
-// Regression (spec-says-N, parser-did-1): a spine longer than two rungs. SPEC.md
+// Regression (spec says N rungs, parser built 1): a spine longer than two rungs. SPEC.md
 // §1 grammar is `rung (=> rung)* => { verdicts }`, but the parser once hardcoded
 // exactly two forward hops and silently dropped the rest — so a body for the
 // third-hop transition matched nothing. This 5-rung / 4-hop spine is the shape

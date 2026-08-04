@@ -193,7 +193,7 @@ RETIRED = {"accept-with-mod", "reject-with-alternative"}
 
 # Crates that cite the propositions by slug. Scoped deliberately: elsewhere in
 # the workspace a hyphenated token is ordinary prose, not a citation.
-CITING = ("rung-het",)
+CITING = ("rung", "rung-het")
 
 COMMENT = re.compile(r"^\s*(?://[/!]?)(.*)$")
 SLUGLIKE = re.compile(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+){2,}\b")
