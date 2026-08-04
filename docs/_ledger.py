@@ -147,16 +147,21 @@ CURATED = {
 
     # ── the pass ─────────────────────────────────────────────────────────
     "the-pass": (
-        "expressible",
-        "One `ladder!` declaration. Rungs are the pass's positions; the branching "
-        "transition is `dispose`; verdict arms are the Disposition vocabulary. "
-        "The cited test runs the whole table end to end and, more to the point, "
-        "runs it **as a chain of principals**: the judge that qualifies at "
-        "`audit` is refused at `dispose` when it authored the Proposal, and the "
-        "pen that authorizes `propose` is the same one `enact` demands. Which "
-        "principal may move is the content of this row; rung proves each move "
-        "was made by one who qualified, not that the move was wise (SPEC §5).",
-        "rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals",
+        "enforced",
+        "One `ladder!` declaration, and it is now written: `het_pass!` expands "
+        "to the spine `Governed => Audited => Proposing => "
+        "#[authorial(Author)] Proposed => #[judgmental(Judge)] { .. }`. The "
+        "table's `gate` column is a **marker** and its `acts` column is a "
+        "**parameter type**, so which principal may move is settled by rustc "
+        "rather than by a driver keeping to a convention: `propose` without a "
+        "pen is E0061 and `dispose` without a licence is E0061, each with its "
+        "message committed as a `trybuild` snapshot. Retargeting the judgmental "
+        "marker at the author's role — one token, type-valid, the library still "
+        "compiles — turns the cited test red on `expected Qualified<Editor>, "
+        "found Qualified<Reader>`. rung proves each move was made by one who "
+        "qualified, not that the move was wise (SPEC §5). What is NOT in the "
+        "declaration is `enact`: see {#a-cycle-through-an-authorial-act-cannot-close}.",
+        "rung-het/tests/pass_ladder.rs::the_pass_runs_end_to_end_as_a_ladder",
     ),
     "disposition-vocabulary": (
         "enforced",
@@ -176,42 +181,82 @@ CURATED = {
     ),
     "no-amending-disposition": (
         "enforced",
-        "G2, same mechanism. A judge's arrow has no constructor for the authored "
-        "object, so an amending disposition is not expressible.",
-        "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624",
+        "G2 plus G10, and the second half is what the pass added. A judge's "
+        "arrow has no constructor for the authored object — but a continue arm's "
+        "target rung is built INLINE by `step`, i.e. by the judge, so the pass's "
+        "re-entry rung is the one place an amendment could have arrived. Its "
+        "payload is therefore `Chain`: a concrete, non-generic record of an id, "
+        "a container, a count and prose, with no edit and no type parameter one "
+        "could hide in. The cited `trybuild` case pins the E0599 that reading an "
+        "edit off it produces; giving `Chain` an `edit` accessor — type-valid, "
+        "the library still compiles — turns it red on a diff.",
+        "rung-het/tests/pass_ladder.rs::a_chain_cannot_be_read_for_an_edit",
     ),
     "reproposal-carries-the-chain": (
-        "expressible",
-        "The chain rides in the rung payload, and the cited test reads it back: "
-        "a `RejectRemedy` carrying a reason is answered by a re-proposal whose "
-        "`attempt()` is 2 and whose `prior_reasons()` is the reason it was "
-        "rejected for. Without that, an author can cycle on one objection and "
-        "nothing downstream can tell. NOTE: this is exactly what would make "
+        "enforced",
+        "The chain rides in the rung payload and there is no other route to a "
+        "re-proposal: the pass's authorial transition builds its Proposal from "
+        "the `Chain` the continue arm handed back, so an author cannot drop it "
+        "by omission. The cited test rejects the identical remedy five times and "
+        "reads all five reasons off the sixth chain. Deleting the push in "
+        "`Chain::reentered` — type-valid — turns it red at `left: 0, right: 5`, "
+        "and `acceptance.rs::reject_remedy_is_non_terminal_and_the_reason_"
+        "reaches_the_author` with it. Without the chain an author can cycle on "
+        "one objection and nothing downstream can tell. NOTE: this is exactly "
+        "what would make "
         "a G8 progress guard vacuous — a strictly growing chain never compares equal "
         "— which is why re-entry must not use a guarded edge "
         "({#guarded-reentry-is-eviction}).",
-        "rung-het/tests/acceptance.rs::reject_remedy_is_non_terminal_and_the_reason_reaches_the_author",
+        "rung-het/tests/pass_ladder.rs::reject_remedy_re_enters_with_no_progress_guard",
     ),
     "enact-makes-an-endofunctor": (
         "expressible",
-        "`enact` is a forward transition returning the revised object's rung — an "
-        "endofunctor rather than a funnel, because what comes out is audited "
-        "again. The cited test closes that loop: the relocated specimen lands in "
-        "the fieldbook and the fieldbook's own decidable sentence is run over the "
-        "result. rung enforces that the edit ran, not that it was right "
-        "(SPEC §5), and the edit itself is the theory's "
-        "({#edit-required-not-typed}).",
+        "The loop closes, and it closes by COMPOSITION rather than inside the "
+        "declaration — which is the honest reading and is now recorded as a "
+        "non-guarantee ({#a-cycle-through-an-authorial-act-cannot-close}). "
+        "`ladder!` declares a linear spine with backward continue arms, and a "
+        "continue arm's target is built inline by `step`, so an `Accept -> "
+        "Governed` arm would have the judge apply the edit "
+        "({#no-amending-disposition}). `Accept` is therefore terminal and "
+        "carries a `Licence`; `enact` is a separate authorial arrow consuming "
+        "that licence and a pen, and what comes out is audited again. The cited "
+        "test closes the loop that way: the relocated specimen lands in the "
+        "fieldbook and the fieldbook's own decidable sentence is run over the "
+        "result. STILL `expressible`, and the reason is not shyness — no single "
+        "`ladder!` declaration is an endofunctor, and saying otherwise would be "
+        "a claim no mutation could falsify. Declaring the composite is Q4, open. "
+        "rung enforces that the edit ran, not that it was right (SPEC §5), and "
+        "the edit itself is the theory's ({#edit-required-not-typed}).",
+        "rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals",
+    ),
+    "licence-is-not-guarantee": (
+        "enforced",
+        "A `Licence<E>` is now a type, minted only from an affirming `Ruling` "
+        "and consumed by `enact` — so the pass's `Accept` arm carries "
+        "PERMISSION rather than a revised subject. Permission is all it is: "
+        "`enact` still checks the pen against `Applies::territory` and hands the "
+        "domain's own refusal back untouched. Making `enact` swallow "
+        "`Applies::apply`'s error — type-valid, `world.apply(..)?` to `let _ = "
+        "world.apply(..)` — turns the cited test red where it requires the "
+        "fieldbook to refuse a write the cabinet's judge already accepted. "
+        "The two failure points are {#enact-has-two-failure-points}.",
         "rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals",
     ),
     "remedy-carries-an-edit": (
-        "expressible",
-        "The edit is the rung payload's type, supplied by the theory. G10's continue "
-        "arm carries its target rung live, so the edit type never leaves the ladder. "
-        "The cited test pins the requirement at its boundary — a *remedy* names "
-        "an edit and a *dispute* does not, `edit()` returning `None`, because a "
-        "dispute proposes nothing to enact. A theory that let a remedy carry no "
-        "edit would make the two indistinguishable.",
-        "rung-het/tests/acceptance.rs::an_author_may_dispute_a_verdict_without_first_authoring_a_remedy",
+        "enforced",
+        "The edit is the rung payload's type, supplied by the theory, and the "
+        "requirement is now a *variant shape*: an author answers through "
+        "`Answer<E>`, whose `Remedy(E)` has nowhere to put the absence of an "
+        "edit. A theory that let a remedy carry none would make `remedy` and "
+        "`dispute` indistinguishable, and there is no term for it. Dropping the "
+        "edit in `Proposal::from_chain` — type-valid, `Remedy` rewritten to "
+        "`Dispute` — reddens the cited test at `rounds: left 1, right 2` (the "
+        "judge has nothing to reject, so the loop it exists to exercise never "
+        "runs) and `acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_"
+        "principals` with it. The boundary itself is pinned by "
+        "`acceptance.rs::an_author_may_dispute_a_verdict_without_first_"
+        "authoring_a_remedy`: a dispute's `edit()` is `None`.",
+        "rung-het/tests/pass_ladder.rs::the_pass_runs_end_to_end_as_a_ladder",
     ),
 
     # ── the limit, and the collision it resolves ─────────────────────────
@@ -227,16 +272,20 @@ CURATED = {
         "rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn",
     ),
     "no-bound-on-reentry": (
-        "expressible",
-        "A continue arm loops with no host-imposed bound, which is what this "
-        "proposition requires. Choosing a guarded edge instead would supply a bound "
-        "Het declines to declare "
-        "(`end_to_end.rs::continue_arm_loops_without_a_recover_fn` is that "
-        "mechanism). The cited test pins the *limit* rather than the mechanism: "
-        "`Disposition::REENTRY_BOUND` is `None`, so an implementation cannot "
-        "quietly give up after three tries — that would be a worth-law smuggled "
-        "in under another name ({#cut-at-valuation}).",
-        "rung-het/tests/acceptance.rs::het_places_no_bound_on_re_entry",
+        "enforced",
+        "A continue arm loops with no host-imposed bound, and the pass now runs "
+        "that loop: the cited test drives five identical rounds — the same edit "
+        "answered by the same reason — and nothing panics, nothing evicts, and "
+        "the subject is still in the loop at attempt six. Choosing a guarded "
+        "edge instead would supply a bound Het declines to declare "
+        "({#guarded-reentry-is-eviction}); so would giving up quietly after "
+        "three tries, which is the mutation that proves the test can fail — "
+        "`assert!(chain.attempt() <= 3)` in the re-entry arm reddens it on the "
+        "fourth round. `acceptance.rs::het_places_no_bound_on_re_entry` "
+        "additionally pins `Disposition::REENTRY_BOUND` as `None`. Either "
+        "answer would be a worth-law smuggled in under another name "
+        "({#cut-at-valuation}).",
+        "rung-het/tests/pass_ladder.rs::reject_remedy_re_enters_with_no_progress_guard",
     ),
 
     # ── the residual ─────────────────────────────────────────────────────
