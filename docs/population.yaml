@@ -1,0 +1,100 @@
+# Who may judge and who may author, for this repository.
+#
+# Read by `rung-driver`. Two rules govern everything here and neither is
+# enforced by this file — both are enforced when a dispatch is attempted:
+#
+#   judgmental  capable(p, role) AND pi(p) disjoint from what is judged
+#   authorial   capable(p, role) AND standing over the container written to
+#
+# So `authored` is not bookkeeping. It is the list that disqualifies a
+# principal from ruling on its own work, and understating it is how P0 becomes
+# decorative.
+#
+# `capabilities` is the ONLY thing the competence filter reads. `kind` is
+# recorded and never filtered on: a model that can edit files fills a role
+# needing `file-editing`, and an agent that never declared `structured-outputs`
+# does not fill one needing it.
+
+roles:
+  # Rules on whether a proposition is a claim at all, as against signature or
+  # rationale. The triage proposes this; only an editor settles it.
+  - name: editor
+    requires: [reasoning, structured-outputs]
+
+  # Rules on whether a categorical identification is right. The role the 23
+  # judgmental propositions of rung-ct-props.md name. Q7, Q9 and Q10 were each
+  # settled by a principal in this role, and Q7's ruling overturned the account
+  # that preceded it.
+  - name: category-theorist
+    requires: [reasoning, web-research]
+
+  # Amends a normative document. Authorship, not judgment — it needs standing
+  # over the document, and being able to judge it buys nothing here.
+  - name: maintainer
+    requires: [code-generation, file-editing]
+
+principals:
+  # ── the human ────────────────────────────────────────────────────────────
+  #
+  # Last in the escalation chain, and the only principal here whose provenance
+  # is a genuine record rather than an estimate.
+  - id: donald
+    kind: human
+    capabilities: [reasoning, structured-outputs, web-research, code-generation, file-editing]
+    standing: [rung-props.md, rung-het-props.md, rung-ct-props.md, docs]
+    authored:
+      # Directed the whole corpus. Declared per-document rather than per-slug
+      # because that is what is actually known; a finer record would be a
+      # guess, and a guess here manufactures admissibility.
+      - rung-props.md
+      - rung-het-props.md
+      - rung-ct-props.md
+    backing: {via: outside}
+
+  # ── models ───────────────────────────────────────────────────────────────
+  #
+  # WARNING, and it is the whole reason this file cannot yet be used to judge
+  # this repository: `authored` below is a placeholder. Q14 (what provenance a
+  # model principal carries) is OPEN, and until it is ruled on there is no
+  # defensible value here.
+  #
+  #   per-family    -> every model is disqualified from nearly everything,
+  #                    because models wrote most of this corpus
+  #   per-invocation -> non-identity holds always and VACUOUSLY, and a model
+  #                    judges text it produced minutes earlier
+  #
+  # The second passes every check this system has while making the guarantee
+  # decorative, so the empty list below is deliberately the conservative
+  # reading's opposite and must not be shipped as-is. Anything dispatched
+  # against these today should be treated as unsettled.
+  - id: opus-judge
+    kind: llm
+    capabilities: [reasoning, structured-outputs, web-research]
+    standing: []
+    authored: []
+    backing: {via: model, model: claude-opus-4-6}
+
+  # A second judge, deliberately from a different family. Two judges that share
+  # a lineage share its blind spots, and non-identity does not notice.
+  - id: gpt-judge
+    kind: llm
+    capabilities: [reasoning, structured-outputs]
+    standing: []
+    authored: []
+    backing: {via: model, model: gpt-5}
+
+  # ── the author ───────────────────────────────────────────────────────────
+  #
+  # An agent, because enacting an edit means editing files. It holds standing
+  # over the doctrine source and NOT over the rendered markdown: the markdown
+  # is generated, so writing to it directly would put a change somewhere the
+  # next render silently discards.
+  - id: opus-author
+    kind: agent
+    capabilities: [reasoning, code-generation, file-editing]
+    standing: [rung-doctrine/src]
+    authored: []
+    backing:
+      via: agent
+      model: claude-opus-4-6
+      tools: [read, edit, search]

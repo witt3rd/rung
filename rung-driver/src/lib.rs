@@ -30,9 +30,11 @@
 //! no timeout for the same reason.
 
 pub mod config;
+pub mod oracle_llm;
 pub mod principal;
 
 pub use config::{Backing, ConfigError, Kind, Population, PrincipalSpec, RoleSpec};
+pub use oracle_llm::{Adjudicate, Endpoint, ModelOracle, Prompt};
 pub use principal::{Answer, Configured, Oracle, Unwired, population_pool};
 
 /// Re-exported so a driver has one import for holding suspended runs.
