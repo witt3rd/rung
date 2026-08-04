@@ -440,7 +440,7 @@ pub trait Principal {
 /// `𝒫` names its own questions — an issue number, a lifecycle subject id, a
 /// filename — and Het has no predicate over any of them. So this type carries
 /// two strings and offers nothing that reads them: no ordering, no
-/// well-formedness, no registry of live references. Het transports it from the
+/// well-formedness, no roster of live references. Het transports it from the
 /// principal that raised it to the edge that resumes on it, and that is all.
 ///
 /// Making it a type rather than a bare `String` is not a claim to interpret it.

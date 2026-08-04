@@ -268,7 +268,10 @@ CURATED = {
         "progress and is therefore an eviction rule ({#answers-are-worth-shaped}). "
         "CONSTRAINT: a continue arm's target rung is built inline by `dispose`, i.e. "
         "by the judge, so that rung's payload must be classification-only "
-        "({#no-amending-disposition}).",
+        "({#no-amending-disposition}). The resume edge is the SECOND unguarded "
+        "re-entry and is pinned separately by {#resumption-is-unguarded}: "
+        "injecting `must_progress` there is type-valid and reddens the "
+        "double-resume test on the first round.",
         "rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn",
     ),
     "no-bound-on-reentry": (
@@ -432,12 +435,118 @@ CURATED = {
         "([effects-layer-on-the-forward-pass](rung-ct-props.md#effects-layer-on-the-forward-pass)).",
         "rung/tests/compile_pass.rs::test_failed_type",
     ),
+    "adequacy-defined": (
+        "enforced",
+        "Adequacy is a CONJUNCTION — a qualifying judge exists AND returns a "
+        "verdict — and the engine now has a term for each conjunct failing "
+        "separately. An empty qualifying set is `QualifyError::NotCapable` / "
+        "`NonIdentityViolated` / `PoolExhausted`; a judge that exists and has not "
+        "answered is `QualifyError::JudgeDeferred`, which is documented as NOT a "
+        "filter failure. Before the deferral there was one outcome for both and "
+        "the second conjunct was unrepresentable, so the definition could not be "
+        "wrong about anything. The cited test settles both halves against one "
+        "argument: the deferring pool mints no licence, and an answering pool "
+        "does. Collapsing `JudgeDeferred` into `PoolExhausted` is type-valid and "
+        "reddens it at the `Err(other)` arm.",
+        "rung/tests/suspension.rs::the_pool_propagates_a_deferral_and_mints_no_licence",
+    ),
     "adequacy-failure-returns-residual": (
         "enforced",
         "G9 error-path recovery, `Failed(R) => R`, explicitly unguarded — a re-entry "
         "after an unanswered call may reuse the argument. G4 additionally forbids "
-        "silently dropping the returned residual.",
+        "silently dropping the returned residual. A judgmental FORWARD transition "
+        "now carries the same residual too ([G16](rung-props.md#g16-the-residual-channel)); "
+        "the children below are that case.",
         "rung/tests/end_to_end.rs::recovers_from_the_failed_error_path",
+    ),
+    "suspension-is-the-residual": (
+        "enforced",
+        "G16, and the whole of the claim is that it adds nothing. A judgmental "
+        "forward transition returns `Result<Next, Suspended<Prev>>`, and the cited "
+        "test coerces the emitted `fn` to that exact pointer type and then reads "
+        "the token back out to find the very argument it passed in — unconsumed, "
+        "as {#adequacy-failure-returns-residual} requires. What is new is the "
+        "channel, not the summand: before it a forward judgmental transition "
+        "returned its target rung and a theory whose principal could not answer "
+        "yet had no term for saying so. Emitting `#to` instead of the `Result` is "
+        "type-valid at the macro and turns the test red at the coercion.",
+        "rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed",
+    ),
+    "raised-reference-is-opaque": (
+        "enforced",
+        "{#pool-is-opaque} reaches the raised matter. `rung::Raised` carries two "
+        "strings the crate never reads — no ordering, no well-formedness, no "
+        "roster of live references — and the cited test raises `¶ anything at all §` "
+        "and gets it back unchanged. `Terminated::of` is the one derived "
+        "constructor, which is what keeps opacity from becoming laxity: evidence "
+        "is built FROM a `Raised`, so it cannot name a reference nobody raised. "
+        "Adding any predicate over the reference to `rung` is type-valid and makes "
+        "the cited case a refusal instead of a round trip.",
+        "rung/tests/suspension.rs::the_raised_reference_is_carried_and_never_interpreted",
+    ),
+    "deferral-is-not-a-verdict": (
+        "enforced",
+        "The R2 seal, on the side where the judge is real and the verdict is not. "
+        "`Principal::judgment` is the only mint for a `Judgment` and it calls "
+        "`rule`; when `rule` defers there is no verdict, and the sealed "
+        "`Consulted` says so rather than manufacturing one. There is no "
+        "`From<Raised> for Judgment` and no `unwrap_or`. The mutation is the "
+        "direct one: making the deferring branch of `Principal::judgment` build a "
+        "`Judgment` anyway is type-valid — any verdict at all will do, which is "
+        "exactly the point — and turns the cited test red at its `Rendered` arm.",
+        "rung/tests/suspension.rs::a_deferral_is_not_a_judgment",
+    ),
+    "no-preference-after-a-deferral": (
+        "enforced",
+        "The pool reports what the principal it selected said, and does not walk "
+        "on. `Pool::consult` and `Pool::qualify_for` return "
+        "`QualifyError::JudgeDeferred` carrying the reference; the cited test also "
+        "shows a pool whose member answers is unaffected, so the deferral is a "
+        "distinct outcome and not a new way for the FILTER to fail. Looping to the "
+        "next survivor is type-valid and is a preference among qualifying judges, "
+        "which {#no-preference-among-judges} forbids; it turns the cited test red "
+        "at the `JudgeDeferred` arm as soon as the pool holds a second, answering "
+        "principal.",
+        "rung/tests/suspension.rs::the_pool_propagates_a_deferral_and_mints_no_licence",
+    ),
+    "resumption-is-authorial": (
+        "enforced",
+        "G16, and it is FORCED rather than chosen. Reviving a suspended run "
+        "constructs a rung, which [G2](rung-props.md#g2-sealed-construction) seals "
+        "from outside the module — so the resume edge is emitted inside it, and an "
+        "edge inside the seal that anyone may call is the seal with a door in it. "
+        "The marker is therefore mandatory: a resume edge with no "
+        "`#[authorial(R)]` is a `compile_error!` "
+        "(`suspension.rs::a_resume_edge_without_an_authorial_marker_is_refused`), "
+        "and calling one without its pen is E0061. The cited test drives the round "
+        "trip and coerces the emitted `fn` to its exact pointer type. Deleting the "
+        "injected `must_hold_standing_over` from the resume path is type-valid and "
+        "reddens `::resume_refuses_a_pen_over_another_container`, where the body "
+        "never mentions the pen at all.",
+        "rung/tests/suspension.rs::a_suspension_resumes_through_the_authorial_edge",
+    ),
+    "resumption-needs-a-terminal": (
+        "enforced",
+        "`must_answer_the_raised`, injected. A `Terminated` is derived from the "
+        "`Raised` it is about, which closes fabrication; the guard closes "
+        "TRANSFER, exactly as `must_be_bound_to` does for a licence and "
+        "`must_hold_standing_over` for a pen. The cited test resumes with evidence "
+        "about `q-99` and is refused. It asserts nothing about termination and "
+        "must not: {#no-bound-on-reentry} stands, and a matter that never "
+        "terminates yields no evidence and leaves the arrow suspended, visibly.",
+        "rung/tests/suspension.rs::resume_refuses_evidence_from_another_raised_matter",
+    ),
+    "resumption-is-unguarded": (
+        "enforced",
+        "The ABSENCE, pinned. The macro injects no `must_progress` on a resume "
+        "edge, and the cited test suspends and resumes the same run twice with a "
+        "payload that does not change — which is the normal case, not a stall: the "
+        "argument was never consumed and the raised matter took another round. "
+        "Injecting `must_progress` there is type-valid and reddens the test on the "
+        "FIRST round, which is what makes this row an enforcement rather than an "
+        "observation that nothing happened. A guard would be the bound Het "
+        "declines to declare ({#guarded-reentry-is-eviction}).",
+        "rung/tests/suspension.rs::the_same_suspension_resumes_twice_with_no_progress_guard",
     ),
 
     # ── once deferred on open questions, now measured ────────────────────
@@ -676,6 +785,33 @@ CURATED = {
 # dependency level* — where the fibres are whole items rather than rungs —
 # belong here; everything else is the mathematics of the category.
 CURATED_CT = {
+    "residual-summand": (
+        "enforced",
+        "The `+ A` is emitted. A judgmental forward transition returns "
+        "`Result<Next, Suspended<Prev>>` and the `Suspended` carries the INPUT "
+        "OBJECT unconsumed, which is what this proposition says the summand is — "
+        "the cited test reads the very argument back out of it. This row was "
+        "`out-of-scope` while the residual existed only as `Failed`'s error "
+        "string, which carries no object the caller handed in and no identity for "
+        "what went unanswered. Emitting `#to` instead of the `Result` is "
+        "type-valid at the macro and turns the cited test red at its `fn`-pointer "
+        "coercion.",
+        "rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed",
+    ),
+    "resume-edge-is-the-residual-dagger": (
+        "enforced",
+        "[G16](rung-props.md#g16-the-residual-channel). The residual's adjoint, "
+        "declared: `resume { revive: #[authorial(R)] Suspended(Rung) => Rung }`. "
+        "It inherits both halves of {#error-dagger-is-optional-and-unguarded} — "
+        "OPTIONAL, because a driver may hold a `Suspended` and never resume, and "
+        "UNGUARDED, which "
+        "`suspension.rs::the_same_suspension_resumes_twice_with_no_progress_guard` "
+        "pins by resuming an unchanged payload twice. What it does not inherit is "
+        "freedom of WHO may take it, and that is a condition on the principal "
+        "rather than on the arrow, so {#three-shapes-of-loop-back} is undisturbed: "
+        "still three shapes, with the second one's adjoint now written down.",
+        "rung/tests/suspension.rs::a_suspension_resumes_through_the_authorial_edge",
+    ),
     "edge-taxonomy-is-the-theorys": (
         "expressible",
         "The edge vocabulary is declared by the governing theory, not by the "
@@ -785,6 +921,41 @@ CURATED_RUNG = {
         "recover edge's own name. Renaming any of the three in the macro turns "
         "the call site into an unresolved path.",
         "rung/tests/end_to_end.rs::drives_to_convergence",
+    ),
+    "emitted-suspended": (
+        "enforced",
+        "The residual channel as a type. The cited test coerces the emitted `fn` "
+        "to a `fn` pointer of the exact expected type — "
+        "`fn(Posed, Qualified<Adjudicator>) -> Result<Answered, Suspended<Posed>>` "
+        "— so dropping the summand from the return type is a compile error at "
+        "that line rather than a silently weaker signature, and it then reads "
+        "the unconsumed token back out and finds the very argument. Emission is "
+        "CONDITIONAL, which is what keeps {#g12-gate-marked-signature}'s "
+        "compatibility clause true: an unmarked ladder emits no `Suspended` and "
+        "its module is byte-identical.",
+        "rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed",
+    ),
+    "resume-signature": (
+        "enforced",
+        "Three parameters and two injected prologues. The cited test coerces the "
+        "emitted resume `fn` to its exact pointer type, so the pen cannot quietly "
+        "leave the signature; its siblings pin the prologues — a pen minted over "
+        "another container is refused although the body never mentions it, and "
+        "evidence about another raised matter resumes nothing. Deleting the "
+        "injected `must_hold_standing_over` reddens "
+        "`::resume_refuses_a_pen_over_another_container`.",
+        "rung/tests/suspension.rs::a_suspension_resumes_through_the_authorial_edge",
+    ),
+    "resume-rules-are-g2": (
+        "enforced",
+        "The declaration-time refusals. The cited `trybuild` case declares a "
+        "resume edge with no `#[authorial(R)]` marker and holds the macro's exact "
+        "message: an edge emitted inside the seal that anyone may call is "
+        "[G2](rung-props.md#g2-sealed-construction) with a door in it, so a "
+        "penless resume is not a signature a caller forgot to satisfy — it is not "
+        "declarable. Making the marker optional is type-valid and turns this red "
+        "at the snapshot.",
+        "rung/tests/suspension.rs::a_resume_edge_without_an_authorial_marker_is_refused",
     ),
     "marker-annotates-the-target": (
         "enforced",
@@ -1015,6 +1186,17 @@ CURATED_RUNG = {
         "nothing here claims its logic was valid, so there is nothing to check. "
         "Every `expressible` row in this ledger inherits this limit.",
         "—",
+    ),
+    "suspension-is-in-process-only": (
+        "out-of-scope",
+        "A driver may hold a `Suspended<Prev>` in memory for as long as it likes "
+        "and that is the whole of the claim. Persisting one across process death "
+        "is not merely unimplemented — a rung read back from bytes is a "
+        "mid-ladder rung nobody traversed to, which is what "
+        "[G2](rung-props.md#g2-sealed-construction) exists to refuse, and "
+        "{#resumption-is-authorial} answers WHO MAY revive a run without saying "
+        "WHAT a reconstituted token is. Filed rather than guessed at.",
+        "docs/questions/open/q13-suspension-across-process-death.md",
     ),
     "cross-crate-provenance": (
         "out-of-scope",

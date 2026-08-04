@@ -245,11 +245,11 @@ fn the_raised_reference_is_carried_and_never_interpreted() {
 /// The outcome of the arrow, when it is answered. Its provenance is the
 /// judge's, structurally — G15's epilogue still runs on the `Ok` arm.
 #[derive(Clone, PartialEq)]
-struct Finding {
+struct Report {
     judgment: Judgment,
 }
 
-impl Provenanced for Finding {
+impl Provenanced for Report {
     fn provenance(&self) -> Prov {
         self.judgment.provenance()
     }
@@ -257,7 +257,7 @@ impl Provenanced for Finding {
 
 ladder!(Inquiry {
     Posed(Matter)
-        => #[judgmental(Adjudicator)] Answered(Finding)
+        => #[judgmental(Adjudicator)] Answered(Report)
         => { Closed }
     resume { revive: #[authorial(Curator)] Suspended(Posed) => Posed }
 } impl {
@@ -267,7 +267,7 @@ ladder!(Inquiry {
         if posed.payload.0 == "unanswerable" {
             Err(Suspended { token: posed, raised: ::rung::Raised::new("q-13", "is_well_posed") })
         } else {
-            Ok(Answered::new(Finding { judgment: q.into_judgment() }))
+            Ok(Answered::new(Report { judgment: q.into_judgment() }))
         }
     },
     step = |_answered| { Ok(StepOutcome::Closed(Closed::new())) },

@@ -734,6 +734,77 @@ and no global fixed-point proof.
 ([5.25](#judgmental-arrow-shape)). The argument is not consumed, and
 re-enters.
 
+<a id="suspension-is-the-residual" data-parent="adequacy-failure-returns-residual"></a>
+**6.551** A judge that **exists and has not answered** is one of the two ways
+[6.5](#adequacy-defined) fails, and it is the interesting one. Adequacy is a
+conjunction — a qualifying judge exists *and* returns a verdict — so a judge
+that raises a matter instead of ruling leaves adequacy **undischarged**, which
+[6.55](#adequacy-failure-returns-residual) already disposes of: the argument
+comes back unconsumed and re-enters.
+
+**A suspension is therefore not a new summand.** It is the final `+ A` of
+[5.25](#judgmental-arrow-shape), read as *"awaiting a matter this dispatch
+raised"* rather than *"nobody answered"*. Nothing in the arrow's shape changes;
+what changes is that the residual now carries **what** is being awaited.
+
+<a id="raised-reference-is-opaque" data-parent="suspension-is-the-residual"></a>
+**6.5511** The identity of the raised matter is **opaque** to Het, for the
+reason [3.2](#pool-is-opaque) gives. Het never inspects an inhabitant of
+$\mathcal{P}$, and what an inhabitant raised is on the same side of that line:
+an issue number, a lifecycle subject, a filename — all of them the supplying
+theory's, none of them Het's. Het transports the reference from the principal
+that raised it to the position that resumes on it, and has no predicate over it
+whatever ([3.23](#nothing-further-required)).
+
+<a id="deferral-is-not-a-verdict" data-parent="suspension-is-the-residual"></a>
+**6.5512** A deferral **is not a verdict**, and no operation converts one into
+one. A judge that raised a matter has said nothing about the sentence, so a
+verdict attributed to it would name a judge that did not rule — which is
+[5.4](#constant-arrow-hazard) in the one disguise the dispatch discipline
+cannot see through, because here the judge is real and was honestly selected
+and it is the *answer* that does not exist.
+
+<a id="no-preference-after-a-deferral" data-parent="suspension-is-the-residual"></a>
+**6.5513** A theory MAY dispatch again, and the pool does not do it for it.
+Walking on to the next qualifying judge because the first raised a matter is a
+**preference among qualifying judges**, which [3.56](#no-preference-among-judges)
+forbids Het to have; whether it is worth doing is a worth-question and belongs
+to HetOpt ([8](#het-settles-hetopt-orders)).
+
+<a id="resumption-is-authorial" data-parent="adequacy-failure-returns-residual"></a>
+**6.552** Resuming a suspended dispatch is **authorial**, not judgmental.
+
+The residual re-enters at the position that produced it, which means the
+suspended object is *written back into* the run. That is a transformation of the
+subject, and [3.61](#judgment-refuses-authorship-requires) settles which filter
+governs a transformation: judgment classifies and refuses the audited party,
+authorship transforms and requires standing over it. So resumption dispatches
+through [3.6](#authorial-qualifying-set) — capability **and** standing — exactly
+as `enact` does ([7.5](#enact-makes-an-endofunctor)).
+
+**The judge that ruled on the raised matter cannot be the one that resumes.**
+It qualified by being provenance-disjoint from the subject
+([3.5](#judgmental-qualifying-set)), and that disjointness is precisely what
+denies it standing ([3.62](#provenance-overlap-is-the-point)). The two roles are
+held by two principals, and that is the shape rather than an inconvenience.
+
+<a id="resumption-needs-a-terminal" data-parent="resumption-is-authorial"></a>
+**6.5521** Resumption is gated on the raised matter having reached a
+**terminal**, and on that terminal being the one **this** dispatch awaits. What
+counts as a terminal is the supplying theory's ([3.23](#nothing-further-required)),
+exactly as the reference is.
+
+This is not a promise of termination. [12](#no-bound-on-reentry) is a stated
+limit and this does not close it: a raised matter that never terminates yields
+no evidence, and the outer arrow stays suspended — **visibly**, which is what
+[12.4](#stated-as-limit-not-closed) asks for and all it asks for.
+
+<a id="resumption-is-unguarded" data-parent="resumption-is-authorial"></a>
+**6.5522** Re-entry through a resumption is **unguarded**. A raised matter may
+take any number of rounds, and a host that bounded them would have declared the
+bound Het declines to declare — [12.5](#guarded-reentry-is-eviction) names that
+an eviction rule under another name, whatever else it is called.
+
 <a id="self-grounding-is-a-pair" data-parent="fractal-property"></a>
 **6.6** Self-grounding is a property of a **pair**, never of one member
 alone.

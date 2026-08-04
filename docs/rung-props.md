@@ -48,7 +48,7 @@ ladder!( Name { <declaration> } [ impl { <bodies> } ] )
 **1.1** The declaration MUST match:
 
 ```
-declaration := [ carry ] rung ( "=>" [gate] rung )* "=>" [gate] "{" verdict ( "|" verdict )* "}" [ recover ]
+declaration := [ carry ] rung ( "=>" [gate] rung )* "=>" [gate] "{" verdict ( "|" verdict )* "}" [ recover ] [ resume ]
 
 carry       := "carry" "{" ( ident ":" type )  ( "," ident ":" type )* "}"
 rung        := Ident "(" type ")"                     -- name + payload type
@@ -64,11 +64,18 @@ verdict     := Ident                                  -- terminal marker
 recover     := "recover" "{" edge* "}"
 edge        := ident ":" Ident        "=>" Ident      -- verdict recovery:   name: Verdict => Rung
              | ident ":" "Failed" "(" Ident ")" "=>" Ident   -- error-path recovery: name: Failed(Rung) => Rung
+
+resume      := "resume" "{" redge* "}"
+redge       := ident ":" authorial "Suspended" "(" Ident ")" "=>" Ident
+                                                      -- name: #[authorial(R)] Suspended(Rung) => Rung
 ```
 
 `=>` reads *recover*; `->` reads *produces*. A continue arm carries its target
 rung as a live token; a recoverable verdict carries its source rung and hands
 off to a guarded recover function.
+
+A `resume` edge is the adjoint of the **residual**, and its `#[authorial(R)]`
+marker is **not optional** — see [G16](#g16-the-residual-channel).
 
 <a id="bodies-grammar" data-parent="declaration-is-a-block"></a>
 **1.2** The inline `impl` block, when present, MUST match:
@@ -149,6 +156,7 @@ any ladder in which:
 | 8 | a recover function's return rung — or a `Failed(Rung)` source rung — is not declared |
 | 9 | *(inline bodies present)* a body names no transition/recover function, or names one twice |
 | 10 | *(inline bodies present)* a transition/recover function has no body |
+| 11 | a `resume` edge names an undeclared rung; carries no `#[authorial(R)]` marker, or a `#[judgmental(..)]` one; or resumes from a rung that no `#[judgmental(R)]` forward transition can suspend |
 
 <a id="structural-rules-mirror-the-reference-checker" data-parent="macro-must-reject"></a>
 **2.1** Rules 1–8 are structural and mirror the Python reference checker
@@ -157,8 +165,17 @@ any ladder in which:
 <a id="body-rules-need-an-impl-block" data-parent="macro-must-reject"></a>
 **2.2** Rules 9–10 apply **only** when an `impl` block is present.
 
+<a id="resume-rules-are-g2" data-parent="macro-must-reject"></a>
+**2.3** Rule 11's three clauses are one clause: a resume edge is emitted
+*inside* the module, so every way of declaring one that nothing gates, or that
+nothing can reach, is [G2](#g2-sealed-construction) with a door in it. The
+marker clause is the sharpest — an unmarked spine transition reads as
+*decidable* ([1.41](#at-most-one-marker)), and there is no decidable reading of
+an arrow that writes a rung
+([6.552](rung-het-props.md#resumption-is-authorial)).
+
 <a id="extension-refusals-are-pinned" data-parent="macro-must-reject"></a>
-**2.3** The payload (rule 3), continue-target (rule 3), and `Failed(Rung)`
+**2.4** The payload (rule 3), continue-target (rule 3), and `Failed(Rung)`
 (rule 8) extensions are each pinned by a `trybuild` case —
 `spec_refusals.rs::a_recoverable_verdict_cannot_declare_a_payload`,
 `::a_continue_arm_target_must_be_a_declared_rung`, and
@@ -196,17 +213,31 @@ accessor `pub fn carry(&self) -> &Carry`. Constructor visibility follows
   `.into_source()`.
 - a continue arm emits **no** verdict struct (its outcome carries a live rung).
 
+<a id="emitted-suspended" data-parent="emitted-module"></a>
+**3.4** **`Suspended<Prev>`** — `#[must_use] pub struct Suspended<Prev> { pub
+token: Prev, pub raised: ::rung::Raised }`, with a hand-written `Debug` that
+prints the reference and not the token. Emitted **only** when the ladder has a
+`#[judgmental(R)]` forward transition or a `resume` edge, so that an unmarked
+ladder's emission is unchanged ([G12](#g12-gate-marked-signature)'s
+compatibility clause).
+
+It is **not** [3.6](#emitted-failed) widened. `Failed` carries an error
+string, and routing a raised reference through one would make the theory's
+identity for a raised matter indistinguishable from an error message; `Failed`
+is also emitted for every ladder, so widening it would break the compatibility
+clause outright. What the two share is the *shape*, `Result<_, Carrier<from>>`.
+
 <a id="emitted-step-outcome" data-parent="emitted-module"></a>
-**3.4** **`StepOutcome`** — `#[must_use] pub enum` with one variant per verdict
+**3.5** **`StepOutcome`** — `#[must_use] pub enum` with one variant per verdict
 of the branching transition. A continue arm's variant carries its **target
 rung**; every other variant carries its **verdict struct**.
 
 <a id="emitted-failed" data-parent="emitted-module"></a>
-**3.5** **`Failed<Prev>`** — `#[must_use] pub struct Failed<Prev> { pub token:
+**3.6** **`Failed<Prev>`** — `#[must_use] pub struct Failed<Prev> { pub token:
 Prev, pub error: String }`.
 
 <a id="emitted-guards" data-parent="emitted-module"></a>
-**3.6** The guards the injected prologues call:
+**3.7** The guards the injected prologues call:
 
 - **`must_progress<T: PartialEq>(before: &T, after: &T)`** — the recovery guard
   ([G8](#g8-recovery-progress)).
@@ -216,11 +247,16 @@ Prev, pub error: String }`.
 - **`must_hold_standing_over<A: Situated, R: Role>(subject: &A, pen:
   &::rung::Authorized<'_, R>)`** — the standing guard
   ([G14](#g14-the-authorial-gate)). Emitted **only** when the ladder carries an
-  `#[authorial(R)]` marker, so that an unmarked or judgmental ladder's emission
-  is unchanged ([G12](#g12-gate-marked-signature)'s compatibility clause).
+  `#[authorial(R)]` marker **or a `resume` edge**, so that an unmarked or
+  judgmental ladder's emission is unchanged
+  ([G12](#g12-gate-marked-signature)'s compatibility clause).
+- **`must_answer_the_raised(raised: &::rung::Raised, evidence:
+  &::rung::Terminated)`** — the terminal guard
+  ([G16](#g16-the-residual-channel)). Emitted under the same condition as
+  [3.4](#emitted-suspended).
 
 <a id="emitted-functions" data-parent="emitted-module"></a>
-**3.7** **Transition and recover functions** (when an `impl` block is present) —
+**3.8** **Transition and recover functions** (when an `impl` block is present) —
 one `pub fn` per transition/recover, expanded from the corresponding body
 *inside* the module. A forward transition returns its target rung; a branching
 transition returns `Result<StepOutcome, Failed<from>>`; a recover function
@@ -228,10 +264,10 @@ returns its target rung. Omitting the `impl` block yields a type-only
 declaration (no functions).
 
 <a id="unmarked-signature" data-parent="emitted-functions"></a>
-**3.71** **Unmarked:** `pub fn active(spec: Spec) -> Active`.
+**3.81** **Unmarked:** `pub fn active(spec: Spec) -> Active`.
 
 <a id="judgmental-signature" data-parent="emitted-functions"></a>
-**3.72** **`#[judgmental(R)]`:** `pub fn active(spec: Spec, q:
+**3.82** **`#[judgmental(R)]`:** `pub fn active(spec: Spec, q:
 ::rung::Qualified<R>) -> Active` — a second parameter, taken by value. Its name
 comes from the body's *second* closure input (`active = |spec, q| { .. }`) when
 there is one; otherwise it is bound to `_q` and consumed unread. The body is
@@ -240,14 +276,24 @@ preceded by the injected binding prologue `must_be_bound_to(&spec.payload, &q);`
 `::rung::Provenanced`.
 
 <a id="judgmental-outcome-bound" data-parent="emitted-functions"></a>
-**3.73** A **forward** `#[judgmental(R)]` transition is also *followed* by the
+**3.83** A **forward** `#[judgmental(R)]` transition is also *followed* by the
 injected outcome epilogue `must_derive_from_judge(&out.payload, &judge_prov);`
 ([G15](#g15-outcome-provenance)), so the *target* rung's payload MUST implement
 `::rung::Provenanced` as well as the source's. A branching judgmental
 transition gets the prologue and no epilogue.
 
+<a id="resume-signature" data-parent="emitted-functions"></a>
+**3.84** **`resume`:** `pub fn revive(s: Suspended<Posed>, evidence:
+::rung::Terminated, pen: ::rung::Authorized<'_, R>) -> Posed`. The second and
+third parameter names come from the body's second and third closure inputs when
+there are any; otherwise they are `_evidence` and `_pen` and are consumed
+unread. Two prologues are injected — `must_hold_standing_over(&s.token.payload,
+&pen)` and `must_answer_the_raised(&s.raised, &evidence)` — so the source rung's
+payload MUST implement `::rung::Situated`. **No `must_progress`**
+([G16](#g16-the-residual-channel)).
+
 <a id="authorial-signature" data-parent="emitted-functions"></a>
-**3.74** **`#[authorial(R)]`:** `pub fn revised(filed: Filed, pen:
+**3.85** **`#[authorial(R)]`:** `pub fn revised(filed: Filed, pen:
 ::rung::Authorized<'_, R>) -> Revised` — a second parameter, taken by value. Its
 name comes from the body's *second* closure input when there is one; otherwise
 it is bound to `_pen` and consumed unread. The body is preceded by the injected
@@ -256,7 +302,7 @@ standing prologue `must_hold_standing_over(&filed.payload, &pen);`
 `::rung::Situated`.
 
 <a id="body-name-resolution" data-parent="emitted-module"></a>
-**3.8** Inside body expressions, rung/verdict names resolve unqualified;
+**3.9** Inside body expressions, rung/verdict names resolve unqualified;
 payload types resolve from the surrounding scope (`use super::*`).
 
 ---
@@ -358,7 +404,7 @@ judgmental transition cannot be called without an outside, and a decidable one
 has no parameter an outside could enter through
 ([11.32](rung-het-props.md#decidable-cannot-consult-pool)).
 **This makes the signature honest; [G13](#g13-token-binding) is what binds the
-token to an argument** — see [5.6](#gate-faithfulness-not-secured) for what
+token to an argument** — see [5.7](#gate-faithfulness-not-secured) for what
 neither secures. *Conformance:
 `gate_markers.rs::judgmental_transition_takes_a_qualified_token` (the emitted
 `fn` is coerced to a `fn` pointer of the exact expected type), and the
@@ -499,6 +545,64 @@ reddens it) and
 outcome is built on the judge's `Judgment`; minting that `Judgment` with the
 argument's provenance instead of the judge's reddens it).*
 
+<a id="g16-the-residual-channel" data-parent="guarantees"></a>
+**G16** **The residual channel, and the arrow back.** A `#[judgmental(R)]`
+**forward** transition MUST return `Result<Next, Suspended<Prev>>`, so that a
+dispatch which cannot be settled now can hand the argument back **unconsumed**
+together with the opaque reference to what was raised. A `resume` edge MUST take
+an `::rung::Authorized<'_, R>` pen and `::rung::Terminated` evidence, MUST be
+prefixed with `must_hold_standing_over` and `must_answer_the_raised`, and MUST
+NOT be wrapped in `must_progress`. Unmarked, `#[authorial(R)]` and *branching*
+judgmental emission is unchanged.
+
+**This adds no summand.** The residual is the final `+ A` Het's judgmental
+arrow already carries
+([5.25](rung-het-props.md#judgmental-arrow-shape)), and a
+judge that exists and has not answered is adequacy **undischarged**, which
+[6.55](rung-het-props.md#adequacy-failure-returns-residual) already returns as
+that residual. What G16 supplies is the *channel*: before it, a forward
+judgmental transition returned its target rung and had nowhere to put the
+argument, so a theory whose principal could not answer yet had no term for
+saying so — the suspension existed in the formalism and not in the language.
+
+**The pen is forced, not chosen.** Resuming produces a rung of this ladder, and
+[G2](#g2-sealed-construction) seals that construction against everything outside
+the module. The edge must therefore be emitted *inside* the module — and an
+edge inside the seal that any caller may invoke is the seal with a door in it.
+So resumption dispatches through the authorial filter
+([6.552](rung-het-props.md#resumption-is-authorial)): capability and standing
+over the container the subject sits in, the same shape as `enact`. The judge
+that ruled on the raised matter cannot be the principal that resumes — it
+qualified by provenance-disjointness, which is what denies it standing
+([3.62](rung-het-props.md#provenance-overlap-is-the-point)).
+
+**The absent guard is the point.** [G8](#g8-recovery-progress) exists because a
+recover edge that returns its own source is an infinite stall. A resume edge
+that returns its own source is the *normal case*: the argument was never
+consumed, the raised matter took another round, and nothing about the subject
+should have changed. A progress guard here would refuse the shape rather than a
+bug, and would be the bound Het declines to declare
+([12.5](rung-het-props.md#guarded-reentry-is-eviction)).
+
+**What it does not promise.** Termination. A raised matter that never terminates
+yields no `Terminated`, and the arrow stays suspended
+([6.5521](rung-het-props.md#resumption-needs-a-terminal)). Nor does it survive
+process death — see [5.6](#suspension-is-in-process-only).
+
+*Conformance: `suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed`
+(the emitted `fn` is coerced to a `fn` pointer of the exact expected type, and
+the returned token is the very argument);
+`::a_suspension_resumes_through_the_authorial_edge` (the round trip, with the
+resume edge coerced to its exact pointer type);
+`::the_same_suspension_resumes_twice_with_no_progress_guard` — **the unguarded
+test**: injecting `must_progress` on the resume edge is type-valid and reddens
+it on the first round; `::resume_refuses_a_pen_over_another_container` (the
+body never mentions the pen, and a pen over another container is refused
+anyway — deleting the injected `must_hold_standing_over` reddens it);
+`::resume_refuses_evidence_from_another_raised_matter`. And the `tests/ui/`
+`trybuild` cases: `resume_without_a_pen` → the macro's `compile_error!`,
+`resume_missing_pen` → E0061.*
+
 ---
 
 ## 5 · Non-guarantees
@@ -530,8 +634,21 @@ dropped container all bypass. True no-drop needs language-level linear types.
 **5.5** **Liveness beyond the guard.** [G8](#g8-recovery-progress) catches an
 identical-token stall loop; it does not prove general forward progress.
 
+<a id="suspension-is-in-process-only" data-parent="non-guarantees"></a>
+**5.6** **Suspension does not survive process death.**
+[G16](#g16-the-residual-channel) suspends and resumes **in one process**: a
+driver may hold a `Suspended<Prev>` in memory for as long as it likes, and that
+is the whole of the claim. Writing one to disk and reconstituting it later is
+not supported and is not merely unimplemented — a rung read back from bytes is a
+mid-ladder rung nobody traversed to, which is exactly what
+[G2](#g2-sealed-construction) exists to refuse. Resumption being authorial
+answers *who may* revive a run; it says nothing about *how a token survives
+serialization*. Filed as
+[Q13](questions/open/q13-suspension-across-process-death.md), and related to
+[5.2](#cross-crate-provenance).
+
 <a id="gate-faithfulness-not-secured" data-parent="non-guarantees"></a>
-**5.6** **Gate-faithfulness.** [G12](#g12-gate-marked-signature) secures the
+**5.7** **Gate-faithfulness.** [G12](#g12-gate-marked-signature) secures the
 judgmental signature, [G13](#g13-token-binding) its argument,
 [G14](#g14-the-authorial-gate) both halves of the authorial gate's *input*, and
 [G15](#g15-outcome-provenance) the judgmental *outcome* of a forward
@@ -539,13 +656,13 @@ transition. What is still not secured is the outcome everywhere else, and one
 of Het's four gates still has no signature.
 
 <a id="one-gate-unimplemented" data-parent="gate-faithfulness-not-secured"></a>
-**5.61** *One gate is unimplemented.* `#[conditional(..)]` is a parse-time
+**5.71** *One gate is unimplemented.* `#[conditional(..)]` is a parse-time
 refusal, not an encoding. Gate-faithfulness is a condition on **every** operation
 of an algebra, so an algebra with a conditional arrow cannot state it here at
 all.
 
 <a id="returned-value-unconstrained" data-parent="gate-faithfulness-not-secured"></a>
-**5.62** *The returned value is constrained judgmentally, and only there.* This
+**5.72** *The returned value is constrained judgmentally, and only there.* This
 non-guarantee used to read "the returned value is unconstrained," and it was
 exact: `Prov::contained_in` existed and no guarantee called it. Two now do.
 `theory!`'s `settle` takes a sealed `Judgment` rather than a `Verdict` and
@@ -555,11 +672,11 @@ as an epilogue on a forward judgmental transition. Disjointness —
 not checked because it is entailed
 ([5.42](rung-het-props.md#judgment-provenance-is-the-judges)).
 
-The residue is stated at [5.621](#outward-conditions-remaining) rather than
+The residue is stated at [5.721](#outward-conditions-remaining) rather than
 absorbed into a claim that the outward side is closed. It is not.
 
 <a id="outward-conditions-remaining" data-parent="returned-value-unconstrained"></a>
-**5.621** *Two outward conditions remain.* First, the **authorial** one:
+**5.721** *Two outward conditions remain.* First, the **authorial** one:
 [5.41](rung-het-props.md#admissibility-subcategories) states the authorial
 clause as `π(f(a)) ⊆ π(p) ∧ standing(p, a)`, and
 [G14](#g14-the-authorial-gate) secures the standing conjunct on the way in
@@ -574,26 +691,26 @@ sense is not settled. Both inherit [5.1](#transition-body-correctness) whole,
 as the whole outward side used to.
 
 <a id="decidable-is-not-pure" data-parent="gate-faithfulness-not-secured"></a>
-**5.63** *Decidable is not pure.* The unmarked signature excludes Het's outside
+**5.73** *Decidable is not pure.* The unmarked signature excludes Het's outside
 — the principal pool — and is silent about clocks, files, and networks
 ([11.42](rung-het-props.md#purity-not-secured)).
 
 <a id="type-only-marker-is-inert" data-parent="gate-faithfulness-not-secured"></a>
-**5.64** *A type-only declaration emits no transitions,* so a marker on one has
+**5.74** *A type-only declaration emits no transitions,* so a marker on one has
 nothing to constrain and is inert, exactly as [G2](#g2-sealed-construction)'s
 seal is
 ([1.41](rung-ct-props.md#freeness-enforced-only-with-bodies)).
 
 <a id="gate-faithfulness-answered-no" data-parent="gate-faithfulness-not-secured"></a>
-**5.65** Whether [G12](#g12-gate-marked-signature) +
+**5.75** Whether [G12](#g12-gate-marked-signature) +
 [G13](#g13-token-binding) + [G14](#g14-the-authorial-gate) +
 [G15](#g15-outcome-provenance) amount to gate-faithfulness is argued — and
 answered *no* — in [Q11](questions/open/q11-gate-faithfulness.md), which stays
-open on [5.61](#one-gate-unimplemented) and, in its narrowed form,
-[5.621](#outward-conditions-remaining).
+open on [5.71](#one-gate-unimplemented) and, in its narrowed form,
+[5.721](#outward-conditions-remaining).
 
 <a id="a-cycle-through-an-authorial-act-cannot-close" data-parent="non-guarantees"></a>
-**5.7** **A cycle that must pass through an authorial act cannot close inside
+**5.8** **A cycle that must pass through an authorial act cannot close inside
 one `ladder!`.** [1.1](#declaration-grammar) declares a **linear spine** with
 backward continue arms. A continue arm's target rung is built *inline by
 `step`* ([G10](#g10-continue-arms)), so every arm of the branching transition is

@@ -15,7 +15,7 @@
 use rung::ladder;
 
 struct Matter;
-struct Finding;
+struct Report;
 
 impl rung::Provenanced for Matter {
     fn provenance(&self) -> rung::Prov {
@@ -23,7 +23,7 @@ impl rung::Provenanced for Matter {
     }
 }
 
-impl rung::Provenanced for Finding {
+impl rung::Provenanced for Report {
     fn provenance(&self) -> rung::Prov {
         rung::Prov::empty()
     }
@@ -42,10 +42,10 @@ impl rung::Role for Adjudicator {
 }
 
 ladder!(Demo {
-    Posed(Matter) => #[judgmental(Adjudicator)] Answered(Finding) => { Closed }
+    Posed(Matter) => #[judgmental(Adjudicator)] Answered(Report) => { Closed }
     resume { revive: Suspended(Posed) => Posed }
 } impl {
-    answered = |_posed, _q| { Ok(Answered::new(Finding)) },
+    answered = |_posed, _q| { Ok(Answered::new(Report)) },
     step     = |_answered| { Ok(StepOutcome::Closed(Closed::new())) },
     revive   = |s| { s.token },
 });

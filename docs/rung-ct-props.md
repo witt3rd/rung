@@ -387,6 +387,28 @@ re-entry after an unanswered call may legitimately reuse the argument — the sa
 licence Het grants a returned residual
 ([6.55](rung-het-props.md#adequacy-failure-returns-residual)).
 
+<a id="resume-edge-is-the-residual-dagger" data-parent="error-dagger-is-optional-and-unguarded"></a>
+**7.41** A **resume edge** is that adjoint, declared. It consumes the residual
+of a judgmental forward transition — the argument returned unconsumed together
+with the reference to what the outside raised
+([6.551](rung-het-props.md#suspension-is-the-residual)) — and returns the
+object to the position that produced it.
+
+It inherits both halves of [7.4](#error-dagger-is-optional-and-unguarded)
+unchanged. **Optional:** a caller may hold the residual and never resume, and a
+suspended run that no one revives is a blocked arrow, not a broken one.
+**Unguarded:** no contraction is required, because a raised matter may take any
+number of rounds and a guard would be an eviction rule
+([6.5522](rung-het-props.md#resumption-is-unguarded)).
+
+What it does *not* inherit is freedom of who may take it. The verdict and
+residual daggers are morphisms of the same category as the forward pass; this
+one **writes back into** the subject, so it dispatches through the authorial
+filter ([6.552](rung-het-props.md#resumption-is-authorial)). That is a
+condition on the *principal*, not on the arrow, and so does not disturb
+[7.1](#three-shapes-of-loop-back): there are still three shapes of loop-back,
+and this is the second one with its adjoint written down.
+
 <a id="terminal-verdicts-have-no-adjoint" data-parent="the-dagger-is-partial-and-contractive"></a>
 **7.5** A terminal verdict has **no adjoint**. It is an absorbing object, and
 declaring a backward edge from one is rejected.
