@@ -220,15 +220,18 @@ CURATED = {
     ),
     "gate-faithful": (
         "deferred",
-        "GAP — no question filed. The ladder DSL has no gate marker, so an algebra "
-        "cannot declare which arrows are judgmental and nothing checks faithfulness. "
-        "This is the largest unclosed distance between Het and rung.",
-        "—",
+        "Q11 (gate-faithfulness, open). The ladder DSL has no gate marker, so an "
+        "algebra cannot declare which arrows are judgmental and nothing checks "
+        "faithfulness. The largest unclosed distance between Het and rung. Q11 "
+        "splits it: a marker makes the SIGNATURE honest; binding the qualifying "
+        "token is what would make the ARROW admissible. Whether the conjunction "
+        "is gate-faithfulness is itself unargued.",
+        "docs/questions/open/q11-gate-faithfulness.md",
     ),
     "mod-only-gate-faithful": (
         "deferred",
-        "GAP — no question filed. Follows gate-faithful.",
-        "—",
+        "Q11 (gate-faithfulness, open). Follows gate-faithful.",
+        "docs/questions/open/q11-gate-faithfulness.md",
     ),
 
     # ── structural correspondences worth recording ───────────────────────
