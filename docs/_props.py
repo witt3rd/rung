@@ -237,21 +237,38 @@ ALSO_NORMATIVE = ("rung-props.md",)
 
 
 def retired_terms():
-    """No normative document may use a term Het retired."""
+    """No normative document and no source file may use a term Het retired.
+
+    Source is in scope because a retired concept spreads through identifiers,
+    doc comments and message strings, not only through prose — and a ban that
+    covers the one place a term is already absent enforces nothing.
+    """
     here = Path(__file__).parent
+    root = here.parent
     seen = docs()
     targets = seen + [
         here / n
         for n in ALSO_NORMATIVE
         if (here / n).exists() and (here / n) not in seen
     ]
+    for crate in CITING:
+        targets += [
+            src
+            for src in sorted((root / crate).rglob("*.rs"))
+            if "target" not in src.parts
+        ]
     errs = []
     for path in targets:
         for i, line in enumerate(path.read_text().split("\n")):
             for term, instead in RETIRED_TERMS.items():
                 if re.search(rf"\b{term}", line, re.I):
+                    where = (
+                        path.name
+                        if path.parent == here
+                        else path.relative_to(here.parent)
+                    )
                     errs.append(
-                        f"{path.name}: L{i+1}: `{term}` is retired — use {instead}"
+                        f"{where}: L{i+1}: `{term}` is retired — use {instead}"
                     )
     return errs
 

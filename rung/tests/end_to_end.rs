@@ -259,7 +259,7 @@ fn recover_guard_is_auto_injected() {
 // §1 grammar is `rung (=> rung)* => { verdicts }`, but the parser once hardcoded
 // exactly two forward hops and silently dropped the rest — so a body for the
 // third-hop transition matched nothing. This 5-rung / 4-hop spine is the shape
-// that surfaced it; if any hop fails to register, its body fails check 9 and this
+// that surfaced it; if any hop fails to record, its body fails check 9 and this
 // stops compiling.
 struct Doc;
 
