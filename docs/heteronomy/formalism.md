@@ -243,13 +243,20 @@ The argument governs.
 decidable — disjointness of finite provenance-tag sets — and belongs to
 the decidable fragment.
 
+<a id="non-identity-by-construction" data-parent="judgmental-qualifying-set"></a>
+**3.54** Non-identity is discharged by the **construction of the qualifying
+token**, not by a check inside a dispatching body. Where the filter is the
+token's only constructor, a principal that failed it cannot be named in a
+judgmental position at all. Where it is not, nothing has been enforced: no
+type discipline verifies what a body does.
+
 <a id="non-identity-not-deferrable" data-parent="judgmental-qualifying-set"></a>
-**3.54** Non-identity is not deferrable to valuation. It is a belonging
+**3.55** Non-identity is not deferrable to valuation. It is a belonging
 predicate, not a preference. A system that dispatches without it is
 self-certifying, which is the failure this formalism exists to refuse.
 
 <a id="no-preference-among-judges" data-parent="judgmental-qualifying-set"></a>
-**3.55** Het dispatches to *a* qualifying judge. It does not tier, cost,
+**3.56** Het dispatches to *a* qualifying judge. It does not tier, cost,
 or prefer among qualifying judges. Any of them yields a well-formed
 verdict, reported with its own $\varepsilon$.
 
@@ -381,7 +388,7 @@ procedure.
 <a id="set-functor-violates-refusal" data-parent="not-a-set-functor"></a>
 **5.12** Such an algebra would *decide* the judgmental operations,
 computing the very judgments the gate marker says no closed system can
-discharge on itself. That is [3.54](#non-identity-not-deferrable) violated in the semantic dimension.
+discharge on itself. That is [3.55](#non-identity-not-deferrable) violated in the semantic dimension.
 
 <a id="monad-reading" data-parent="algebra-is-kleisli-functor"></a>
 **5.2** $\mathcal{P}(X)$ is *"an $X$, possibly obtained by a call on a
@@ -404,6 +411,15 @@ that the algebra could not generate alone.*
 composition. This is why the fragments interleave without collapsing.
 
 ### Provenance
+
+<a id="judgmental-arrow-shape" data-parent="monad-reading"></a>
+**5.25** A judgmental operation has the shape
+
+$$A \longrightarrow \mathcal{P}\Big(\textstyle\sum_i B_i \;+\; A\Big)$$
+
+The monad is the outside call. The sum is the verdict space. The final
+summand is the **residual** — the argument returned unconsumed when the
+outside does not answer.
 
 <a id="provenance-structure" data-parent="algebra-is-kleisli-functor"></a>
 **5.3** The base category carries a **provenance structure**: every
@@ -543,6 +559,15 @@ preserved by signature morphisms.
 
 ### Two kinds of pointing
 
+<a id="two-directions-two-bases" data-parent="tower-is-a-fibration"></a>
+**6.14** Two directions run over different bases and must not be conflated.
+**Conformance** runs from a model to its theory and re-indexes
+contravariantly — the tower of [6.1](#tower-is-a-fibration).
+**Propagation** runs from a revised object to whatever depends on it and
+transports covariantly ([7.52](#target-runs-its-own-models)). Het declares
+that propagation occurs; the taxonomy of dependency is the theory's, not
+Het's ([11.21](#governs-who-not-what)).
+
 <a id="two-kinds-of-pointing" data-parent="fractal-property"></a>
 **6.2** Two distinct relations both look like "pointing," and run in
 opposite directions.
@@ -584,7 +609,7 @@ inspection); a theory extends another (a morphism in $\mathbf{Sign}$).
 
 <a id="no-laundering-along-morphisms" data-parent="gate-law"></a>
 **6.31** No morphism may launder a judgmental predicate into a decidable
-one. This is [3.54](#non-identity-not-deferrable) at the morphism level.
+one. This is [3.55](#non-identity-not-deferrable) at the morphism level.
 
 ### Termination
 
@@ -637,6 +662,11 @@ level where the judge is required. It is not a defect in $W$.
 and no global fixed-point proof.
 
 ### Self-grounding
+
+<a id="adequacy-failure-returns-residual" data-parent="adequacy-defined"></a>
+**6.55** Adequacy failure returns the residual
+([5.25](#judgmental-arrow-shape)). The argument is not consumed, and
+re-enters.
 
 <a id="self-grounding-is-a-pair" data-parent="fractal-property"></a>
 **6.6** Self-grounding is a property of a **pair**, never of one object
@@ -879,7 +909,7 @@ rule optimizes only among arrows that have already survived that filter.
 Het is the filter; HetOpt is the optimization.
 
 <a id="cut-lands-no-later" data-parent="filter-then-optimize"></a>
-**8.31** It lands no later: non-identity cannot move to HetOpt ([3.54](#non-identity-not-deferrable)).
+**8.31** It lands no later: non-identity cannot move to HetOpt ([3.55](#non-identity-not-deferrable)).
 
 <a id="cut-lands-no-earlier" data-parent="filter-then-optimize"></a>
 **8.32** It lands no earlier: Het has no $V$ anywhere, HetOpt has $V$
@@ -968,7 +998,7 @@ declared predicates.
 
 <a id="any-is-specified-argmin-is-the-seam" data-parent="dispatch-is-two-operations"></a>
 **10.23** Returning *any* qualifying judge is not a decision deferred; it
-is what Het specifies ([3.55](#no-preference-among-judges)). The minimal-judge rule replaces
+is what Het specifies ([3.56](#no-preference-among-judges)). The minimal-judge rule replaces
 *any* with *argmin*, and that substitution is the seam where HetOpt lands
 ([8.22](#v-applies-to-conforming-sets)).
 
@@ -1181,3 +1211,9 @@ exit. The bound belongs to HetOpt.
 <a id="stated-as-limit-not-closed" data-parent="no-bound-on-reentry"></a>
 **12.4** It is stated as a limit rather than closed by an eviction rule,
 which would be a worth-law under another name.
+
+<a id="guarded-reentry-is-eviction" data-parent="no-bound-on-reentry"></a>
+**12.5** A host that injects a termination guard on re-entry has declared
+the bound Het declines to declare. Re-entry is an **unguarded** return to
+the authoring position; a guarded one is an eviction rule under another
+name.
