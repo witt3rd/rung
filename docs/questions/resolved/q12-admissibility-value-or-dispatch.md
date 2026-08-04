@@ -3,6 +3,8 @@ id: q12
 status: resolved
 depends_on:
   - {on: q11, kind: premise}
+affects:
+  - {target: q14, kind: premise}
 ---
 
 # Q12 — Does admissibility constrain the value, or the dispatch? *(resolved)*
