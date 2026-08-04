@@ -122,6 +122,8 @@ lowercased) containing:
   error: String }`.
 - **`must_progress<T: PartialEq>(before: &T, after: &T)`** — the recovery guard
   (G8).
+- **`must_be_bound_to<A: Provenanced, R: Role>(argument: &A, licence:
+  &::rung::Qualified<R>)`** — the token-binding guard (G13).
 - **Transition and recover functions** (when an `impl` block is present) — one
   `pub fn` per transition/recover, expanded from the corresponding body *inside*
   the module. A forward transition returns its target rung; a branching transition
@@ -132,7 +134,9 @@ lowercased) containing:
   - **`#[judgmental(R)]`:** `pub fn active(spec: Spec, q: ::rung::Qualified<R>)
     -> Active` — a second parameter, taken by value. Its name comes from the
     body's *second* closure input (`active = |spec, q| { .. }`) when there is
-    one; otherwise it is bound to `_q` and consumed unread.
+    one; otherwise it is bound to `_q` and consumed unread. The body is preceded
+    by the injected binding prologue `must_be_bound_to(&spec.payload, &q);`
+    (G13), so the source rung's payload MUST implement `::rung::Provenanced`.
 
 Inside body expressions, rung/verdict names resolve unqualified; payload types
 resolve from the surrounding scope (`use super::*`).
@@ -199,11 +203,41 @@ Each guarantee is normative and names its conformance test.
   judgmental transition cannot be called without an outside, and a decidable one
   has no parameter an outside could enter through
   ([`decidable-cannot-consult-pool`](rung-het-propositions.md#decidable-cannot-consult-pool)).
-  **This makes the signature honest, not the arrow admissible** — see §5.
+  **This makes the signature honest; G13 is what binds the token to an
+  argument** — see §5 for what neither secures.
   *Conformance: `gate_markers.rs::judgmental_transition_takes_a_qualified_token`
   (the emitted `fn` is coerced to a `fn` pointer of the exact expected type), and
   the `tests/ui/` `trybuild` cases: `gate_missing_token` → E0061,
   `gate_forged_token` → E0451.*
+- **G13 — Token binding.** The macro MUST prefix every `#[judgmental(R)]`
+  transition body with `must_be_bound_to(&<source>.payload, &<token>)`, which
+  panics unless the token's recorded `π(a)` equals the source rung payload's.
+  The body cannot skip it, exactly as it cannot skip G8's `must_progress`, and
+  for the same reason: the body is the domain's, so a guarantee the body could
+  omit is not a guarantee. This requires the source rung's payload to implement
+  `::rung::Provenanced` — without `π(a)` there is nothing to measure.
+
+  A `Qualified<R>` records the argument it was measured against alongside the
+  principal, and `Qualified::admit` is the one gate that spends it. The seal
+  (G12) closes *fabrication* — nobody can write a token. G13 closes *transfer* —
+  nobody can spend an honestly-earned token on an argument it was never measured
+  against, which is the act
+  [`disjointness-against-argument`](rung-het-propositions.md#disjointness-against-argument)
+  forbids and the pair
+  [`non-identity-by-construction`](rung-het-propositions.md#non-identity-by-construction)
+  requires the token to witness.
+
+  It panics rather than returning an error because a marked transition's return
+  type is the *domain's* declaration; there is no `Err` variant to route a
+  refusal through, and a P0 violation is not a recoverable step outcome. The
+  library-level consumers that do own their return type — `rung_het::dispose`,
+  `theory!`'s `settle` — return `TokenNotBound` instead.
+  *Conformance:
+  `gate_markers.rs::the_injected_prologue_refuses_a_transferred_token_the_body_never_reads`
+  (the ladder's judgmental body never mentions its token, and a transferred
+  token is refused anyway), and
+  `rung-het/tests/token_binding.rs::{dispose_refuses_a_token_minted_against_the_model,
+  settle_refuses_a_token_minted_against_a_different_model}`.*
 
 ---
 
@@ -223,12 +257,17 @@ Explicitly out of scope. The macro does **not** enforce:
   no-drop needs language-level linear types.
 - **Liveness beyond the guard.** G8 catches an identical-token stall loop; it does
   not prove general forward progress.
-- **Gate-faithfulness.** G12 secures the signature, and nothing beyond it. Three
-  named limits:
-  - *The token is unbound.* `Qualified<R>` records the principal and forgets the
-    argument it was measured against, so a licence earned against one argument can
-    be spent on another. Sealing the constructor closes fabrication, not transfer
-    ([`non-identity-by-construction`](rung-het-propositions.md#non-identity-by-construction)).
+- **Gate-faithfulness.** G12 secures the signature and G13 secures the argument.
+  Neither secures the value an arrow *returns*, and two of Het's four gates have
+  no signature at all. Four named limits:
+  - *Two gates are unimplemented.* `#[authorial]` and `#[conditional(..)]` are
+    parse-time refusals, not encodings. Gate-faithfulness is a condition on
+    **every** operation of an algebra, so an algebra with an authorial arrow
+    cannot state it here at all.
+  - *The returned value is unconstrained.* G13 checks `π(p) ∩ π(a) = ∅` on the
+    way in. Admissibility as Het states it also constrains what comes out —
+    `π(f(a)) ∩ π(a) = ∅` — which is a property of the body, and so inherits
+    transition-body correctness whole.
   - *Decidable is not pure.* The unmarked signature excludes Het's outside — the
     principal pool — and is silent about clocks, files, and networks
     ([`purity-not-secured`](rung-het-propositions.md#purity-not-secured)).
@@ -236,8 +275,9 @@ Explicitly out of scope. The macro does **not** enforce:
     nothing to constrain and is inert, exactly as G2's seal is
     ([`freeness-enforced-only-with-bodies`](rung-ct-propositions.md#freeness-enforced-only-with-bodies)).
 
-  Whether closing the first of these would amount to gate-faithfulness is itself
-  unargued: [Q11](questions/open/q11-gate-faithfulness.md) remains open.
+  Whether G12 + G13 amount to gate-faithfulness is argued — and answered *no* —
+  in [Q11](questions/open/q11-gate-faithfulness.md), which stays open on the
+  first two limits above.
 
 ---
 

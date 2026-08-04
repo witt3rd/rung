@@ -50,13 +50,41 @@ CURATED = {
         "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
     ),
     "non-identity-by-construction": (
-        "deferred",
-        "GAP — the token is unforgeable but UNBOUND. `rung-het`'s `Qualified<R>` "
-        "records the principal and its provenance and forgets the argument it was "
-        "measured against (`rung/src/lib.rs:312-318`), so a token earned against "
-        "one argument can be spent on another. Sealing the constructor closes "
-        "fabrication, not transfer. Binding the token is the substrate rewrite's job.",
-        "—",
+        "enforced",
+        "G12 + G13. The token witnesses the **pair** this proposition names: "
+        "`Qualified<R>` records the principal AND `π(a)`, the argument "
+        "disjointness was measured against, and `Qualified::admit` is the one "
+        "gate that spends it. The seal closes *fabrication* — there is no public "
+        "constructor, `Pool::qualify_for` is the only mint. The binding closes "
+        "*transfer* — a licence earned against one argument is refused anywhere "
+        "else, as `TokenNotBound` from `dispose` and `settle`, and as the "
+        "macro-injected prologue on a `#[judgmental(R)]` transition, which a body "
+        "can no more skip than it can skip G8's `must_progress`. Deleting the "
+        "`admit` call turns the cited test red. NOT enforced: the *returned* "
+        "value. `π(f(a)) ∩ π(a) = ∅` is a body property and inherits SPEC §5.",
+        "rung-het/tests/token_binding.rs::dispose_refuses_a_token_minted_against_the_model",
+    ),
+    "disjointness-against-argument": (
+        "enforced",
+        "G13. Disjointness is measured against the argument, and the token now "
+        "remembers WHICH argument, so spending it elsewhere is a refusal rather "
+        "than an unobservable mistake. `dispose` admits a token only against the "
+        "**proposal**; `settle` only against the **model**. Until the binding "
+        "landed this proposition was satisfied only by the caller passing the "
+        "right reference — `qualify_for` was a pure alias for `qualify` and "
+        "nothing downstream could tell the two apart.",
+        "rung-het/tests/token_binding.rs::settle_refuses_a_token_minted_against_a_different_model",
+    ),
+    "argument-governs": (
+        "enforced",
+        "G13, at the point where the two readings come apart. A judge that "
+        "authored a Proposal is disjoint from the MODEL by construction, so a "
+        "model-relative mint would admit it to rule on its own work; the cited "
+        "test performs exactly that laundering, with a token minted honestly "
+        "against the model, and `dispose` refuses it. `Pool::qualify` is now the "
+        "`audit` reading of `qualify_for`, where π(a) = π(M) — one filter, and "
+        "which name the caller used is a comment rather than the check.",
+        "rung-het/tests/token_binding.rs::dispose_refuses_a_token_minted_against_the_model",
     ),
     "non-identity-before-dispatch": (
         "expressible",
@@ -227,13 +255,21 @@ CURATED = {
     ),
     "gate-faithful": (
         "deferred",
-        "Q11 (gate-faithfulness, open) — HALF built. `ladder!` now takes "
-        "`#[judgmental(Role)]`, so an algebra CAN declare which arrows are "
-        "judgmental and the declaration is a signature rather than a promise. "
-        "What remains is the other half: the qualifying token records the "
-        "principal and forgets the argument it was measured against, so it is "
-        "unforgeable but unbound and admissibility is still unchecked. Whether "
-        "the two halves together are gate-faithfulness is itself unargued.",
+        "Q11 (gate-faithfulness, open) — BOTH halves of Q11's table are now "
+        "built, and they are not this proposition. The signature is honest "
+        "(G12) and the token is bound to its argument (G13), so no judgmental "
+        "arrow can be traversed except by a principal drawn from "
+        "P_judg(φ, a) for the very `a` — P0 closed. That is the *input* side. "
+        "This proposition is stated through "
+        "{#admissibility-subcategories}, whose condition is "
+        "π(f(a)) ∩ π(a) = ∅ — a constraint on what the arrow RETURNS, which no "
+        "signature reaches and which inherits SPEC §5, transition-body "
+        "correctness. Two further blockers: `#[authorial]` and "
+        "`#[conditional(..)]` are parse-time refusals, so an algebra with an "
+        "authorial operation cannot state gate-faithfulness here at all; and "
+        "`decidable` still does not factor through η, only past 𝒫 "
+        "({#purity-not-secured}). Argued in the question file, with its "
+        "falsifier.",
         "docs/questions/open/q11-gate-faithfulness.md",
     ),
     "mod-only-gate-faithful": (

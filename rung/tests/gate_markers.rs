@@ -153,6 +153,70 @@ fn judgmental_transition_takes_a_qualified_token() {
     }
 }
 
+// ── 1b. the injected prologue (G13) — a body cannot skip the binding ────────
+//
+// The second half of Q11. G12 makes the *signature* honest; it does not make
+// the *arrow* admissible, because a token minted against one argument could be
+// spent on another. The macro therefore injects the binding check as a prologue
+// — the same discipline it applies to `must_progress` for G8 — so the check
+// cannot live in the body and the body cannot skip it.
+//
+// The ladder below is the adversarial case: its judgmental body **never
+// mentions the token**. It binds it to `_q` and returns. Under G12 alone this
+// arrow is "judgmental" and discharges nothing at all.
+
+#[derive(Clone, PartialEq)]
+struct Draft(&'static str);
+
+impl Provenanced for Draft {
+    fn provenance(&self) -> Prov {
+        Prov::of([self.0])
+    }
+}
+
+ladder!(Blind {
+    Manuscript(Draft)
+        => #[judgmental(Reviewer)] Reviewed(u32)
+        => { Filed }
+} impl {
+    // No `q` in sight. Whatever this body proves, it is not that a qualified
+    // outside was consulted about *this* manuscript.
+    reviewed = |_manuscript, _q| { Reviewed::new(0) },
+    step     = |_reviewed| { Ok(StepOutcome::Filed(Filed::new())) },
+});
+
+#[test]
+fn a_body_that_ignores_the_token_still_gets_the_binding_check() {
+    // The licence is measured against the very manuscript it is spent on.
+    let pool = pool();
+    let manuscript = Draft("drafter");
+    let licence: Qualified<Reviewer> = pool
+        .qualify_for(&manuscript)
+        .expect("rita is disjoint from the drafter");
+
+    let reviewed = blind::reviewed(blind::Manuscript::new(manuscript), licence);
+    assert_eq!(reviewed.payload, 0);
+}
+
+#[test]
+#[should_panic(expected = "this qualifying token was minted against a different argument")]
+fn the_injected_prologue_refuses_a_transferred_token_the_body_never_reads() {
+    // Everything here is honestly obtained. `rita` really did pass both filters
+    // against `someone-else`'s draft — the token is not forged, and the arrow's
+    // signature is satisfied. What it was never measured against is the
+    // manuscript it is about to license judgment on.
+    let pool = pool();
+    let elsewhere = Draft("someone-else");
+    let transferred: Qualified<Reviewer> = pool
+        .qualify_for(&elsewhere)
+        .expect("rita is disjoint from someone-else");
+
+    let manuscript = blind::Manuscript::new(Draft("drafter"));
+
+    // The body would accept this without a murmur. The prologue does not.
+    let _ = blind::reviewed(manuscript, transferred);
+}
+
 // ── 2–6. the refusals ───────────────────────────────────────────────────────
 //
 // One `trybuild::TestCases` per case, so a failure names the test that broke
@@ -185,11 +249,23 @@ fn conditional_is_refused_and_names_the_open_question() {
     trybuild::TestCases::new().compile_fail("tests/ui/gate_conditional_unsupported.rs");
 }
 
-// ── what these tests do not establish ───────────────────────────────────────
+// ── what these tests do and do not establish ────────────────────────────────
 //
-// Every test above is about the *signature*. None of them shows that a
-// transition marked judgmental is judgmentally admissible: the token records
-// the principal and forgets the argument it was measured against, so a licence
-// earned against one argument can be spent on another. That is the unbound-token
-// gap (non-identity-by-construction), and it is the second half of Q11, whose
-// note lives under docs/questions/open/. Nothing here closes it.
+// The trybuild cases and the `fn`-pointer coercion are about the *signature*
+// (G12): a judgmental transition cannot be called without a token, a decidable
+// one has no parameter a token could enter through, and the token cannot be
+// forged. `the_injected_prologue_refuses_a_transferred_token_the_body_never_reads`
+// is about the *argument* (G13): the token records `π(a)` and the macro-injected
+// prologue admits it only there, so a licence earned against one argument
+// cannot be spent on another even by a body that never looks at it
+// (non-identity-by-construction, disjointness-against-argument).
+//
+// What is still not established is that (G12 ∧ G13) = gate-faithfulness. Three
+// things remain outside: `#[authorial]` and `#[conditional(..)]` are refused
+// rather than implemented, so two of Het's four gates have no signature at all;
+// the *verdict* a judgmental body returns is unconstrained, so admissibility of
+// the returned value (`π(f(a)) ∩ π(a) = ∅`) is a body property and inherits Q1's
+// limit whole; and a decidable transition may still reach a clock or a socket,
+// because the decidable signature excludes only Het's outside
+// (purity-not-secured). The argument, and what would falsify it, is in Q11's
+// note under docs/questions/open/.

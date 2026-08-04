@@ -614,6 +614,25 @@ fn check(ladder: &Ladder) -> Result<(), String> {
 
 // ── code generator ──────────────────────────────────────────────────────────
 
+/// The identifier a closure input binds, for use in an *expression* position.
+///
+/// `arg_pat` splices a closure input into a parameter list, where `spec: Spec`
+/// is legal. An injected prologue needs the binding alone. Falls back to
+/// `default` when the input is absent or is not a plain (possibly typed)
+/// identifier — the same fallback the parameter list uses, so the two agree.
+fn pat_binding(input: Option<&syn::Pat>, default: &str) -> Ident {
+    fn ident_of(p: &syn::Pat) -> Option<Ident> {
+        match p {
+            syn::Pat::Ident(pi) => Some(pi.ident.clone()),
+            syn::Pat::Type(pt) => ident_of(&pt.pat),
+            _ => None,
+        }
+    }
+    input
+        .and_then(ident_of)
+        .unwrap_or_else(|| Ident::new(default, proc_macro2::Span::call_site()))
+}
+
 fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     let mod_name = format_ident!("{}", ladder.name.to_string().to_lowercase());
     let mod_vis = quote! { pub };
@@ -871,6 +890,19 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             other => quote! { { #other } },
         }
     };
+    // The closure body's *statements*, for splicing after an injected prologue.
+    // A block body contributes its statements directly (rather than nesting a
+    // block inside the fn body, which would trip `unused_braces` when the body
+    // is a single expression); anything else contributes itself as the tail.
+    let fn_body_stmts = |c: &syn::ExprClosure| -> proc_macro2::TokenStream {
+        match &*c.body {
+            syn::Expr::Block(eb) => {
+                let stmts = &eb.block.stmts;
+                quote! { #(#stmts)* }
+            }
+            other => quote! { #other },
+        }
+    };
 
     // The gate parameter, appended to a marked transition's signature.
     //
@@ -904,6 +936,32 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         }
     };
 
+    // The **injected gate prologue** (SPEC.md G13) — the second half of Q11.
+    //
+    // `gate_param` above makes the *signature* honest: a judgmental transition
+    // cannot be called without a token. It does not make the *arrow* admissible,
+    // because the token could have been minted against some other argument.
+    // Het's disjointness-against-argument requires `π(p) ∩ π(a) = ∅` for the very
+    // `a` the operation is applied to, so the token has to be admitted against
+    // the source rung's payload before the body runs.
+    //
+    // The body is the DOMAIN's, so the check cannot live there — a body that
+    // simply never looked at its token would discharge nothing and nothing could
+    // notice. The macro therefore injects it as a prologue, exactly as it injects
+    // `must_progress` around a recover body for G8, and for the same reason: a
+    // guarantee a body can skip is not a guarantee.
+    //
+    // This is what makes `#[judgmental(R)]` require the source rung's payload to
+    // be `::rung::Provenanced` — without `π(a)` there is nothing to measure.
+    let gate_prologue = |t: &Transition, closure: &syn::ExprClosure| -> proc_macro2::TokenStream {
+        if t.gate_role.is_none() {
+            return quote! {};
+        }
+        let arg = pat_binding(closure.inputs.first(), "__arg");
+        let q = pat_binding(closure.inputs.iter().nth(1), "_q");
+        quote! { must_be_bound_to(&#arg.payload, &#q); }
+    };
+
     let logic = if has_bodies {
         let transition_fns: Vec<_> = ladder
             .transitions
@@ -913,8 +971,17 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 let from = &t.from_rung;
                 let b = body_for(&name.to_string())?;
                 let pat = arg_pat(&b.closure);
-                let body = fn_body(&b.closure);
                 let gate_param = gate_param(t, &b.closure);
+                let prologue = gate_prologue(t, &b.closure);
+                // Unmarked: emit byte-for-byte what was emitted before markers
+                // existed (SPEC.md G12). Marked: prologue first, then the body's
+                // statements — the body cannot run ahead of the check (G13).
+                let body = if t.gate_role.is_none() {
+                    fn_body(&b.closure)
+                } else {
+                    let stmts = fn_body_stmts(&b.closure);
+                    quote! { { #prologue #stmts } }
+                };
                 if let Some(ref to) = t.to_rung {
                     Some(quote! {
                         pub fn #name(#pat: #from #gate_param) -> #to #body
@@ -987,6 +1054,39 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 before != after,
                 "recovery made no progress: the recovered value equals its source \
                  (SPEC.md G8 — infinite-stall guard)"
+            );
+        }
+
+        /// Token-binding guard (SPEC.md G13). A `#[judgmental(R)]` transition is
+        /// licensed by a token that was measured against **one** argument; this
+        /// refuses it anywhere else.
+        ///
+        /// Het disjointness-against-argument states the non-identity condition
+        /// as `π(p) ∩ π(a) = ∅` for the very `a` the operation is applied to.
+        /// The seal on `Qualified` closes fabrication — nobody can write a
+        /// token. It does not close *transfer*: a token earned honestly against
+        /// one argument could be spent on another, which is the act the
+        /// proposition forbids.
+        ///
+        /// The macro injects the call at the head of every marked transition, so
+        /// a body cannot skip it — the same discipline as `must_progress`, and
+        /// panicking for the same reason: the transition's return type is the
+        /// domain's declaration, so there is no `Err` variant to route a refusal
+        /// through. A P0 violation is not a recoverable step outcome.
+        #[allow(dead_code)]
+        pub fn must_be_bound_to<A, R>(argument: &A, licence: &::rung::Qualified<R>)
+        where
+            A: ::rung::Provenanced,
+            R: ::rung::Role,
+        {
+            assert!(
+                licence.is_bound_to(argument),
+                "P0: this qualifying token was minted against a different argument \
+                 (minted against {:?}, applied to {:?}); disjointness is measured \
+                 against the argument the operation is applied to — SPEC.md G13, \
+                 rung-het-propositions.md#disjointness-against-argument",
+                licence.argument_provenance(),
+                ::rung::Provenanced::provenance(argument),
             );
         }
     };
