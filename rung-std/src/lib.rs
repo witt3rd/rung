@@ -195,6 +195,15 @@ pub struct LlmConfig {
     /// - **All other models** — silently ignored.
     pub reasoning_level: Option<String>,
 
+    /// Request structured/JSON output from the provider (OpenAI-compatible
+    /// endpoints only — sent as `response_format: {"type": "json_object"}`).
+    ///
+    /// Off by default: forcing `response_format` breaks tool calling and
+    /// free-text responses on models that lack structured-output support
+    /// (e.g. some OpenRouter providers return 400). Opt in only when the caller
+    /// genuinely needs a JSON-schema-validated object back.
+    pub structured_outputs: bool,
+
     /// Optional streaming-side-channel listener.
     ///
     /// When `Some`, the HTTP response is read as SSE and each event is
@@ -214,6 +223,7 @@ impl std::fmt::Debug for LlmConfig {
             .field("max_tokens", &self.max_tokens)
             .field("temperature", &self.temperature)
             .field("reasoning_level", &self.reasoning_level)
+            .field("structured_outputs", &self.structured_outputs)
             .field(
                 "stream_listener",
                 if self.stream_listener.is_some() {
@@ -917,6 +927,87 @@ fn map_openai_finish_reason(s: Option<&str>) -> StopReason {
     }
 }
 
+/// Convert our abstraction messages to the OpenAI/OpenRouter `/v1/chat/completions`
+/// wire format.
+///
+/// The OpenAI wire format differs from Anthropic's content-block shape:
+/// - assistant `tool_use` blocks become a `tool_calls` field on the assistant
+///   message (with `arguments` as a JSON-encoded string).
+/// - `tool_result` blocks become their own `role: "tool"` messages carrying
+///   `tool_call_id`.
+/// - plain `Text` messages pass through with the role verbatim.
+/// - `Image` blocks become OpenAI `image_url` content parts.
+///
+/// Without this mapping, tool results are sent as Anthropic-shaped content
+/// blocks that OpenAI-compatible endpoints do not recognize as fulfilled tool
+/// calls — the model re-invokes the tool forever instead of answering.
+fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
+    let mut out: Vec<serde_json::Value> = Vec::new();
+    for msg in messages {
+        match &msg.content {
+            MessageContent::Text(text) => {
+                out.push(serde_json::json!({"role": msg.role, "content": text}));
+            }
+            MessageContent::Blocks(blocks) => {
+                let mut text_parts: Vec<serde_json::Value> = Vec::new();
+                let mut tool_calls: Vec<serde_json::Value> = Vec::new();
+                let mut emitted_tool_result = false;
+                for block in blocks {
+                    match block {
+                        MessageContentBlock::Text { text } => {
+                            text_parts.push(serde_json::json!({"type": "text", "text": text}));
+                        }
+                        MessageContentBlock::Image { source } => {
+                            let url = format!("data:{};base64,{}", source.media_type, source.data);
+                            text_parts.push(serde_json::json!({
+                                "type": "image_url",
+                                "image_url": { "url": url }
+                            }));
+                        }
+                        MessageContentBlock::ToolUse { id, name, input } => {
+                            tool_calls.push(serde_json::json!({
+                                "id": id,
+                                "type": "function",
+                                "function": {
+                                    "name": name,
+                                    "arguments": input.to_string(),
+                                }
+                            }));
+                        }
+                        MessageContentBlock::ToolResult {
+                            tool_use_id,
+                            content,
+                        } => {
+                            out.push(serde_json::json!({
+                                "role": "tool",
+                                "tool_call_id": tool_use_id,
+                                "content": content,
+                            }));
+                            emitted_tool_result = true;
+                        }
+                    }
+                }
+
+                // Tool results become their own messages above; nothing more to
+                // add for a pure tool-result message.
+                if !tool_calls.is_empty() {
+                    let mut assistant = serde_json::json!({"role": "assistant"});
+                    if text_parts.is_empty() {
+                        assistant["content"] = serde_json::Value::Null;
+                    } else {
+                        assistant["content"] = serde_json::json!(text_parts);
+                    }
+                    assistant["tool_calls"] = serde_json::json!(tool_calls);
+                    out.push(assistant);
+                } else if !emitted_tool_result {
+                    out.push(serde_json::json!({"role": msg.role, "content": text_parts}));
+                }
+            }
+        }
+    }
+    out
+}
+
 /// OpenAI-compatible `/v1/chat/completions` wire format.
 ///
 /// Handles both non-streaming JSON and SSE streaming (some endpoints stream
@@ -932,9 +1023,14 @@ fn raw_call_openai(
     let mut body = serde_json::json!({
         "model": config.model,
         "max_tokens": config.max_tokens,
-        "messages": messages,
-        "response_format": {"type": "json_object"},
+        "messages": openai_messages(messages),
     });
+
+    // Structured output is opt-in only — forcing `response_format` here breaks
+    // tool calls and free-text on providers that lack JSON-mode support.
+    if config.structured_outputs {
+        body["response_format"] = serde_json::json!({"type": "json_object"});
+    }
 
     if !tools.is_empty() {
         body["tools"] = serde_json::json!(
@@ -1248,3 +1344,91 @@ ladder!(LlmCall {
         Pending::new(req, carry)
     },
 });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tool_use(id: &str, name: &str, input: serde_json::Value) -> MessageContentBlock {
+        MessageContentBlock::ToolUse {
+            id: id.into(),
+            name: name.into(),
+            input,
+        }
+    }
+
+    fn tool_result(id: &str, content: &str) -> MessageContentBlock {
+        MessageContentBlock::ToolResult {
+            tool_use_id: id.into(),
+            content: content.into(),
+        }
+    }
+
+    #[test]
+    fn openai_messages_plain_text_passes_through() {
+        let msgs = vec![ChatMessage::system("sys"), ChatMessage::user("hello")];
+        let out = openai_messages(&msgs);
+        assert_eq!(
+            out,
+            vec![
+                serde_json::json!({"role": "system", "content": "sys"}),
+                serde_json::json!({"role": "user", "content": "hello"}),
+            ]
+        );
+    }
+
+    #[test]
+    fn openai_messages_tool_use_becomes_tool_calls() {
+        let assistant = ChatMessage::assistant_with_blocks(vec![tool_use(
+            "t1",
+            "list_files",
+            serde_json::json!({"path": "."}),
+        )]);
+        let out = openai_messages(&[assistant]);
+        assert_eq!(out.len(), 1);
+        let m = &out[0];
+        assert_eq!(m["role"], "assistant");
+        assert_eq!(m["content"], serde_json::Value::Null);
+        assert_eq!(m["tool_calls"][0]["id"], "t1");
+        assert_eq!(m["tool_calls"][0]["type"], "function");
+        assert_eq!(m["tool_calls"][0]["function"]["name"], "list_files");
+        assert_eq!(
+            m["tool_calls"][0]["function"]["arguments"],
+            serde_json::json!("{\"path\":\".\"}")
+        );
+    }
+
+    #[test]
+    fn openai_messages_tool_result_becomes_tool_role() {
+        let result = ChatMessage::user_with_blocks(vec![tool_result("t1", "Cargo.toml, src/")]);
+        let out = openai_messages(&[result]);
+        assert_eq!(
+            out,
+            vec![serde_json::json!({
+                "role": "tool",
+                "tool_call_id": "t1",
+                "content": "Cargo.toml, src/"
+            })]
+        );
+    }
+
+    #[test]
+    fn openai_messages_round_trip_tool_conversation() {
+        let msgs = vec![
+            ChatMessage::user("What files are here?"),
+            ChatMessage::assistant_with_blocks(vec![tool_use(
+                "t1",
+                "list_files",
+                serde_json::json!({"path": "."}),
+            )]),
+            ChatMessage::user_with_blocks(vec![tool_result("t1", "Cargo.toml, src/")]),
+        ];
+        let out = openai_messages(&msgs);
+        assert_eq!(out.len(), 3);
+        assert_eq!(out[0]["role"], "user");
+        assert_eq!(out[1]["role"], "assistant");
+        assert_eq!(out[1]["tool_calls"][0]["id"], "t1");
+        assert_eq!(out[2]["role"], "tool");
+        assert_eq!(out[2]["tool_call_id"], "t1");
+    }
+}
