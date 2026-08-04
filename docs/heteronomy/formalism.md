@@ -1007,9 +1007,9 @@ the object at `audit`, the Proposal at `dispose`. Reading $\pi(M)$ in its
 place is the error [3.52](#argument-governs) excludes.
 
 <a id="conformance-half-needs-no-judge" data-parent="dispatch-is-two-operations"></a>
-**10.22** Both conjuncts read only the four predicates of 3.21. The
-conformance half requires no judge to test: it is set operations over
-declared predicates.
+**10.22** Both conjuncts read only the four predicates of
+[3.21](#supplier-interface). The conformance half requires no judge to
+test: it is set operations over declared predicates.
 
 <a id="any-is-specified-argmin-is-the-seam" data-parent="dispatch-is-two-operations"></a>
 **10.23** Returning *any* qualifying judge is not a decision deferred; it
@@ -1081,8 +1081,8 @@ and the host language's type system separates them:
 <a id="decidable-cannot-consult-pool" data-parent="decidable-is-a-total-predicate"></a>
 **11.32** A decidable sentence therefore *cannot* consult $\mathcal{P}$: no
 parameter admits a principal, and the qualifying token has no constructor
-outside 3.5. The prohibition is not a rule the author is asked to respect;
-it is a term that cannot be written.
+outside [3.5](#judgmental-qualifying-set). The prohibition is not a rule
+the author is asked to respect; it is a term that cannot be written.
 
 <a id="mismarking-is-not-a-false-claim" data-parent="decidable-is-a-total-predicate"></a>
 **11.33** Mis-marking is likewise not a claim that could be false. Marking a
