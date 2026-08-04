@@ -1,4 +1,23 @@
-# rung — The ladder the macro declares
+//! `rung-props.md`, encoded.
+//!
+//! **Generated once** from `docs/rung-props.md` by `docs/_migrate.py`, and the
+//! source of truth from then on. The markdown is rendered from this; where the
+//! two disagree, this is right and the markdown is stale.
+//!
+//! Every proposition arrives as [`Kind::Rationale`], which is not a claim that
+//! they are all arguments — it is the absence of a claim. Markdown does not
+//! record what kind a proposition is, so the migration does not invent one. The
+//! triage into signature, decidable and judgmental is a reading, done
+//! deliberately, and it is the work this encoding exists to make possible.
+
+use crate::{Doctrine, Element, Kind, Prop};
+
+/// The doctrine `docs/rung-props.md` is rendered from.
+pub fn doctrine() -> Doctrine {
+    Doctrine {
+        file: "rung-props.md".into(),
+        elements: vec![
+        Element::Verbatim(r#"# rung — The ladder the macro declares
 
 **Status: normative.** This document states what `ladder!` accepts, what it
 emits, and what it guarantees. It records no history and names no reviewer; how
@@ -42,16 +61,27 @@ in `rung-std`. Those bind design decisions and carry no conformance test.
 
 ## 1 · Grammar
 
-<a id="declaration-is-a-block"></a>
-**1** A `ladder!` invocation is a **declaration block**, optionally followed by
+"#.into()),
+        Element::Prop(Prop {
+            slug: "declaration-is-a-block".into(),
+            parent: None,
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"A `ladder!` invocation is a **declaration block**, optionally followed by
 an inline `impl` block supplying the transition logic.
 
 ```
 ladder!( Name { <declaration> } [ impl { <bodies> } ] )
 ```
 
-<a id="declaration-grammar" data-parent="declaration-is-a-block"></a>
-**1.1** The declaration MUST match:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "declaration-grammar".into(),
+            parent: Some("declaration-is-a-block".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r##"The declaration MUST match:
 
 ```
 declaration := [ carry ] rung ( "=>" [gate] rung )* "=>" [gate] "{" verdict ( "|" verdict )* "}" [ recover ] [ resume ]
@@ -81,38 +111,68 @@ rung as a live token; a recoverable verdict carries its source rung and hands
 off to a guarded recover function.
 
 A `resume` edge is the adjoint of the **residual**, and its `#[authorial(R)]`
-marker is **not optional** — see [G16](#g16-the-residual-channel).
+marker is **not optional** — see {#g16-the-residual-channel}.
 
-<a id="bodies-grammar" data-parent="declaration-is-a-block"></a>
-**1.2** The inline `impl` block, when present, MUST match:
+"##.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "bodies-grammar".into(),
+            parent: Some("declaration-is-a-block".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"The inline `impl` block, when present, MUST match:
 
 ```
 bodies := ( ident "=" closure [ "," | ";" ] )*        -- one per transition/recover fn
 closure := "|" pat "|" ( block | expr )
 ```
 
-<a id="transition-naming" data-parent="declaration-is-a-block"></a>
-**1.3** A forward transition (`A => B`) is **named after its target** rung,
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "transition-naming".into(),
+            parent: Some("declaration-is-a-block".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"A forward transition (`A => B`) is **named after its target** rung,
 lowercased (`B` ⇒ `b`). The branching transition (`A => { .. }`) is named
 `step`. A recover function is named by its `recover` edge. Inline body names
-MUST match these ([2](#macro-must-reject), rules 9–10).
+MUST match these ({#macro-must-reject}, rules 9–10).
 
-<a id="marker-annotates-the-target" data-parent="declaration-is-a-block"></a>
-**1.4** A gate marker **annotates the transition's target**, because that is
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "marker-annotates-the-target".into(),
+            parent: Some("declaration-is-a-block".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"A gate marker **annotates the transition's target**, because that is
 what the transition is named after. A marker on a rung marks the forward
 transition producing it; a marker on the verdict block marks `step`.
 
-<a id="at-most-one-marker" data-parent="marker-annotates-the-target"></a>
-**1.41** A transition carries **at most one** marker. Het's gates are
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "at-most-one-marker".into(),
+            parent: Some("marker-annotates-the-target".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"A transition carries **at most one** marker. Het's gates are
 alternatives, not a set
-([2.1](rung-het-props.md#four-gates)). An unmarked transition
+({#four-gates}). An unmarked transition
 reads as *decidable* and is emitted exactly as it was before markers existed
-([G12](#g12-gate-marked-signature)).
+({#g12-gate-marked-signature}).
 
-<a id="two-markers-implemented" data-parent="marker-annotates-the-target"></a>
-**1.42** Two of Het's four gates are implemented, and they are the two that
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "two-markers-implemented".into(),
+            parent: Some("marker-annotates-the-target".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"Two of Het's four gates are implemented, and they are the two that
 dispatch to an outside — in **opposite directions**
-([3.61](rung-het-props.md#judgment-refuses-authorship-requires)):
+({#judgment-refuses-authorship-requires}):
 
 | marker | emitted second parameter | filter |
 |---|---|---|
@@ -120,34 +180,53 @@ dispatch to an outside — in **opposite directions**
 | `#[authorial(R)]` | `::rung::Authorized<'_, R>` | `capable(p, role(o)) ∧ standing(p, M)` |
 
 One pool, two filters
-([3.4](rung-het-props.md#one-pool-two-filters)); the
+({#one-pool-two-filters}); the
 marker selects the predicate, not the pool. The two share their left conjunct
 and take opposite second conjuncts, so the two tokens are different types and
 neither can be passed where the other is asked for
-([G12](#g12-gate-marked-signature), [G14](#g14-the-authorial-gate)).
+({#g12-gate-marked-signature}, {#g14-the-authorial-gate}).
 
-<a id="conditional-marker-refused" data-parent="marker-annotates-the-target"></a>
-**1.43** `#[conditional(..)]` MUST be a `compile_error!`. It classifies per
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "conditional-marker-refused".into(),
+            parent: Some("marker-annotates-the-target".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"`#[conditional(..)]` MUST be a `compile_error!`. It classifies per
 model, one level up
-([2.53](rung-het-props.md#classifier-one-level-up)),
+({#classifier-one-level-up}),
 and `ladder!`'s checks run at expansion time against a single declaration; see
 [Q11](questions/open/q11-gate-faithfulness.md).
 
-<a id="marker-without-role-refused" data-parent="marker-annotates-the-target"></a>
-**1.44** Either implemented marker written **without a role** MUST be a
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "marker-without-role-refused".into(),
+            parent: Some("marker-annotates-the-target".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"Either implemented marker written **without a role** MUST be a
 `compile_error!`. A judgmental role that is not named cannot resolve a judge
-([2.3](rung-het-props.md#judgmental-declares-role)),
+({#judgmental-declares-role}),
 and an authorial marker naming none can witness only the right conjunct of
-[3.6](rung-het-props.md#authorial-qualifying-set),
+{#authorial-qualifying-set},
 which would make the competence filter decorative. In both cases there is no
 signature to emit.
 
----
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
 
 ## 2 · Static semantics
 
-<a id="macro-must-reject"></a>
-**2** The macro MUST reject, with a `compile_error!` pointing at the violation,
+"#.into()),
+        Element::Prop(Prop {
+            slug: "macro-must-reject".into(),
+            parent: None,
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"The macro MUST reject, with a `compile_error!` pointing at the violation,
 any ladder in which:
 
 | # | Rule |
@@ -164,53 +243,102 @@ any ladder in which:
 | 10 | *(inline bodies present)* a transition/recover function has no body |
 | 11 | a `resume` edge names an undeclared rung; carries no `#[authorial(R)]` marker, or a `#[judgmental(..)]` one; or resumes from a rung that no `#[judgmental(R)]` forward transition can suspend |
 
-<a id="structural-rules-mirror-the-reference-checker" data-parent="macro-must-reject"></a>
-**2.1** Rules 1–8 are structural and mirror the Python reference checker
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "structural-rules-mirror-the-reference-checker".into(),
+            parent: Some("macro-must-reject".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Rules 1–8 are structural and mirror the Python reference checker
 (`.archive/python-poc/rung/checker.py`, verified in sync).
 
-<a id="body-rules-need-an-impl-block" data-parent="macro-must-reject"></a>
-**2.2** Rules 9–10 apply **only** when an `impl` block is present.
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "body-rules-need-an-impl-block".into(),
+            parent: Some("macro-must-reject".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"Rules 9–10 apply **only** when an `impl` block is present.
 
-<a id="resume-rules-are-g2" data-parent="macro-must-reject"></a>
-**2.3** Rule 11's three clauses are one clause: a resume edge is emitted
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "resume-rules-are-g2".into(),
+            parent: Some("macro-must-reject".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Rule 11's three clauses are one clause: a resume edge is emitted
 *inside* the module, so every way of declaring one that nothing gates, or that
-nothing can reach, is [G2](#g2-sealed-construction) with a door in it. The
+nothing can reach, is {#g2-sealed-construction} with a door in it. The
 marker clause is the sharpest — an unmarked spine transition reads as
-*decidable* ([1.41](#at-most-one-marker)), and there is no decidable reading of
+*decidable* ({#at-most-one-marker}), and there is no decidable reading of
 an arrow that writes a rung
-([6.552](rung-het-props.md#resumption-is-authorial)).
+({#resumption-is-authorial}).
 
-<a id="extension-refusals-are-pinned" data-parent="macro-must-reject"></a>
-**2.4** The payload (rule 3), continue-target (rule 3), and `Failed(Rung)`
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "extension-refusals-are-pinned".into(),
+            parent: Some("macro-must-reject".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"The payload (rule 3), continue-target (rule 3), and `Failed(Rung)`
 (rule 8) extensions are each pinned by a `trybuild` case —
 `spec_refusals.rs::a_recoverable_verdict_cannot_declare_a_payload`,
 `::a_continue_arm_target_must_be_a_declared_rung`, and
 `::a_failed_source_rung_must_be_declared`, whose committed `.stderr` snapshots
 hold the macro's exact message. Each also appears as a `compile_fail` doctest in
 `rung/src/lib.rs`, which documents the refusal but does not assert its
-diagnostic ([6.1](#compile-fail-asserts-only-non-compilation)).
+diagnostic ({#compile-fail-asserts-only-non-compilation}).
 
----
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
 
 ## 3 · Emitted artifacts
 
-<a id="emitted-module"></a>
-**3** For a ladder `Name`, the macro emits a module `name` (the ladder name,
+"#.into()),
+        Element::Prop(Prop {
+            slug: "emitted-module".into(),
+            parent: None,
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"For a ladder `Name`, the macro emits a module `name` (the ladder name,
 lowercased) containing the artifacts below.
 
-<a id="emitted-carry" data-parent="emitted-module"></a>
-**3.1** **`Carry`** — if a `carry` block is present:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "emitted-carry".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**`Carry`** — if a `carry` block is present:
 `#[derive(Clone, Debug)] pub struct Carry { pub <field>: <type>, .. }`.
 
-<a id="emitted-rung-structs" data-parent="emitted-module"></a>
-**3.2** **One struct per rung** — sealed and thread-bound:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "emitted-rung-structs".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**One struct per rung** — sealed and thread-bound:
 `pub struct R { _seal: (), _not_send: PhantomData<*const ()>, carry: Carry, pub
 payload: P }`, `#[must_use]`. With a constructor `R::new(payload, carry)` and an
 accessor `pub fn carry(&self) -> &Carry`. Constructor visibility follows
-[G2](#g2-sealed-construction).
+{#g2-sealed-construction}.
 
-<a id="emitted-verdict-structs" data-parent="emitted-module"></a>
-**3.3** **One struct per verdict** — sealed and thread-bound, `#[must_use]`:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "emitted-verdict-structs".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**One struct per verdict** — sealed and thread-bound, `#[must_use]`:
 
 - terminal marker: fields `{ _seal, _not_send }`, `new()`.
 - terminal with payload `V(P)`: adds `payload: P`; `new(payload)`,
@@ -219,226 +347,383 @@ accessor `pub fn carry(&self) -> &Carry`. Constructor visibility follows
   `.into_source()`.
 - a continue arm emits **no** verdict struct (its outcome carries a live rung).
 
-<a id="emitted-suspended" data-parent="emitted-module"></a>
-**3.4** **`Suspended<Prev>`** — `#[must_use] pub struct Suspended<Prev> { pub
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "emitted-suspended".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**`Suspended<Prev>`** — `#[must_use] pub struct Suspended<Prev> { pub
 token: Prev, pub raised: ::rung::Raised }`, with a hand-written `Debug` that
 prints the reference and not the token. Emitted **only** when the ladder has a
 `#[judgmental(R)]` forward transition or a `resume` edge, so that an unmarked
-ladder's emission is unchanged ([G12](#g12-gate-marked-signature)'s
+ladder's emission is unchanged ({#g12-gate-marked-signature}'s
 compatibility clause).
 
-It is **not** [3.6](#emitted-failed) widened. `Failed` carries an error
+It is **not** {#emitted-failed} widened. `Failed` carries an error
 string, and routing a raised reference through one would make the theory's
 identity for a raised matter indistinguishable from an error message; `Failed`
 is also emitted for every ladder, so widening it would break the compatibility
 clause outright. What the two share is the *shape*, `Result<_, Carrier<from>>`.
 
-<a id="suspended-reports-what-it-awaits" data-parent="emitted-suspended"></a>
-**3.41** The macro MUST also emit `impl<Prev> ::rung::Awaiting for
-Suspended<Prev>`, returning the carried [3.4](#emitted-suspended)
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "suspended-reports-what-it-awaits".into(),
+            parent: Some("emitted-suspended".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"The macro MUST also emit `impl<Prev> ::rung::Awaiting for
+Suspended<Prev>`, returning the carried {#emitted-suspended}
 unchanged. A run reports what it awaits **itself**, so that a holder of many
 suspended runs can ask each the same question without naming its module.
 
 The fields are already `pub`, so this adds no access. What it adds is that the
 reference cannot be supplied *about* a run by whoever holds it. A holder keyed
 by a caller-passed reference can be told a run awaits a matter it never raised —
-the same fabrication [G16](#g16-the-residual-channel) forecloses one
+the same fabrication {#g16-the-residual-channel} forecloses one
 level down by deriving evidence from the `Raised` rather than accepting it
 alongside. Reading it off the run leaves no parameter to lie through.
 
 Het requires nothing further of the reference here: the trait hands back the
 theory's value and declares no ordering, comparison or well-formedness over it
-([3.2](rung-het-props.md#pool-is-opaque)).
+({#pool-is-opaque}).
 
-<a id="emitted-step-outcome" data-parent="emitted-module"></a>
-**3.5** **`StepOutcome`** — `#[must_use] pub enum` with one variant per verdict
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "emitted-step-outcome".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**`StepOutcome`** — `#[must_use] pub enum` with one variant per verdict
 of the branching transition. A continue arm's variant carries its **target
 rung**; every other variant carries its **verdict struct**.
 
-<a id="emitted-failed" data-parent="emitted-module"></a>
-**3.6** **`Failed<Prev>`** — `#[must_use] pub struct Failed<Prev> { pub token:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "emitted-failed".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**`Failed<Prev>`** — `#[must_use] pub struct Failed<Prev> { pub token:
 Prev, pub error: String }`.
 
-<a id="emitted-guards" data-parent="emitted-module"></a>
-**3.7** The guards the injected prologues call:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "emitted-guards".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"The guards the injected prologues call:
 
 - **`must_progress<T: PartialEq>(before: &T, after: &T)`** — the recovery guard
-  ([G8](#g8-recovery-progress)).
+  ({#g8-recovery-progress}).
 - **`must_be_bound_to<A: Provenanced, R: Role>(argument: &A, licence:
   &::rung::Qualified<R>)`** — the token-binding guard
-  ([G13](#g13-token-binding)).
+  ({#g13-token-binding}).
 - **`must_hold_standing_over<A: Situated, R: Role>(subject: &A, pen:
   &::rung::Authorized<'_, R>)`** — the standing guard
-  ([G14](#g14-the-authorial-gate)). Emitted **only** when the ladder carries an
+  ({#g14-the-authorial-gate}). Emitted **only** when the ladder carries an
   `#[authorial(R)]` marker **or a `resume` edge**, so that an unmarked or
   judgmental ladder's emission is unchanged
-  ([G12](#g12-gate-marked-signature)'s compatibility clause).
+  ({#g12-gate-marked-signature}'s compatibility clause).
 - **`must_answer_the_raised(raised: &::rung::Raised, evidence:
   &::rung::Terminated)`** — the terminal guard
-  ([G16](#g16-the-residual-channel)). Emitted under the same condition as
-  [3.4](#emitted-suspended).
+  ({#g16-the-residual-channel}). Emitted under the same condition as
+  {#emitted-suspended}.
 
-<a id="emitted-functions" data-parent="emitted-module"></a>
-**3.8** **Transition and recover functions** (when an `impl` block is present) —
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "emitted-functions".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Transition and recover functions** (when an `impl` block is present) —
 one `pub fn` per transition/recover, expanded from the corresponding body
 *inside* the module. A forward transition returns its target rung; a branching
 transition returns `Result<StepOutcome, Failed<from>>`; a recover function
 returns its target rung. Omitting the `impl` block yields a type-only
 declaration (no functions).
 
-<a id="unmarked-signature" data-parent="emitted-functions"></a>
-**3.81** **Unmarked:** `pub fn active(spec: Spec) -> Active`.
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "unmarked-signature".into(),
+            parent: Some("emitted-functions".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Unmarked:** `pub fn active(spec: Spec) -> Active`.
 
-<a id="judgmental-signature" data-parent="emitted-functions"></a>
-**3.82** **`#[judgmental(R)]`:** `pub fn active(spec: Spec, q:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-signature".into(),
+            parent: Some("emitted-functions".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**`#[judgmental(R)]`:** `pub fn active(spec: Spec, q:
 ::rung::Qualified<R>) -> Active` — a second parameter, taken by value. Its name
 comes from the body's *second* closure input (`active = |spec, q| { .. }`) when
 there is one; otherwise it is bound to `_q` and consumed unread. The body is
 preceded by the injected binding prologue `must_be_bound_to(&spec.payload, &q);`
-([G13](#g13-token-binding)), so the source rung's payload MUST implement
+({#g13-token-binding}), so the source rung's payload MUST implement
 `::rung::Provenanced`.
 
-<a id="judgmental-outcome-bound" data-parent="emitted-functions"></a>
-**3.83** A **forward** `#[judgmental(R)]` transition is also *followed* by the
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "judgmental-outcome-bound".into(),
+            parent: Some("emitted-functions".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"A **forward** `#[judgmental(R)]` transition is also *followed* by the
 injected outcome epilogue `must_derive_from_judge(&out.payload, &judge_prov);`
-([G15](#g15-outcome-provenance)), so the *target* rung's payload MUST implement
+({#g15-outcome-provenance}), so the *target* rung's payload MUST implement
 `::rung::Provenanced` as well as the source's. A branching judgmental
 transition gets the prologue and no epilogue.
 
-<a id="resume-signature" data-parent="emitted-functions"></a>
-**3.84** **`resume`:** `pub fn revive(s: Suspended<Posed>, evidence:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "resume-signature".into(),
+            parent: Some("emitted-functions".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**`resume`:** `pub fn revive(s: Suspended<Posed>, evidence:
 ::rung::Terminated, pen: ::rung::Authorized<'_, R>) -> Posed`. The second and
 third parameter names come from the body's second and third closure inputs when
 there are any; otherwise they are `_evidence` and `_pen` and are consumed
 unread. Two prologues are injected — `must_hold_standing_over(&s.token.payload,
 &pen)` and `must_answer_the_raised(&s.raised, &evidence)` — so the source rung's
 payload MUST implement `::rung::Situated`. **No `must_progress`**
-([G16](#g16-the-residual-channel)).
+({#g16-the-residual-channel}).
 
-<a id="authorial-signature" data-parent="emitted-functions"></a>
-**3.85** **`#[authorial(R)]`:** `pub fn revised(filed: Filed, pen:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "authorial-signature".into(),
+            parent: Some("emitted-functions".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**`#[authorial(R)]`:** `pub fn revised(filed: Filed, pen:
 ::rung::Authorized<'_, R>) -> Revised` — a second parameter, taken by value. Its
 name comes from the body's *second* closure input when there is one; otherwise
 it is bound to `_pen` and consumed unread. The body is preceded by the injected
 standing prologue `must_hold_standing_over(&filed.payload, &pen);`
-([G14](#g14-the-authorial-gate)), so the source rung's payload MUST implement
+({#g14-the-authorial-gate}), so the source rung's payload MUST implement
 `::rung::Situated`.
 
-<a id="body-name-resolution" data-parent="emitted-module"></a>
-**3.9** Inside body expressions, rung/verdict names resolve unqualified;
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "body-name-resolution".into(),
+            parent: Some("emitted-module".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"Inside body expressions, rung/verdict names resolve unqualified;
 payload types resolve from the surrounding scope (`use super::*`).
 
----
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
 
 ## 4 · Guarantees
 
-<a id="guarantees" data-numbering="G"></a>
-**4** Each guarantee is normative and **names the conformance test that fails
+"#.into()),
+        Element::Prop(Prop {
+            slug: "guarantees".into(),
+            parent: None,
+            kind: Kind::Signature,
+            numbering: Some('G'),
+            prose: r#"Each guarantee is normative and **names the conformance test that fails
 if the implementation stops honoring it**. Guarantees delegated to the Rust
 compiler are marked *(rustc)*.
 
-<a id="g1-linear-consumption" data-parent="guarantees"></a>
-**G1** **Linear consumption.** A transition consumes its input rung by value;
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g1-linear-consumption".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Linear consumption.** A transition consumes its input rung by value;
 using a rung after it is moved MUST be a compile error. *(rustc — move
 semantics.)*
 
-<a id="g2-sealed-construction" data-parent="guarantees"></a>
-**G2** **Sealed construction.** A rung MUST NOT be constructible by struct
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g2-sealed-construction".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Sealed construction.** A rung MUST NOT be constructible by struct
 literal outside its module (`_seal` is private). When an `impl` block is
 present, only the **entry** rung's `new` is public; every other rung's `new` is
 module-private, so no code outside the module can mint a mid-ladder rung.
 Categorically this is not merely a fabrication guard: it enforces that a *verb
 cannot occupy object-position* — a state is reached only by traversing an arrow,
 never fabricated to hold an arrow's result (see
-[1.3](rung-ct-props.md#the-law)). That enforcement reaches exactly
+{#the-law}). That enforcement reaches exactly
 as far as this guarantee does: a type-only declaration publishes every
 constructor, and is freely generated by convention only (see
-[1.41](rung-ct-props.md#freeness-enforced-only-with-bodies)).
+{#freeness-enforced-only-with-bodies}).
 *Conformance: `spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624`
 — a `trybuild` case whose committed `.stderr` pins **E0624, associated function
 `new` is private**, as the sole error. The `rung/src/lib.rs` compile_fail
 doctest shows the same refusal in rustdoc but does not assert the code
-([6.1](#compile-fail-asserts-only-non-compilation)).*
+({#compile-fail-asserts-only-non-compilation}).*
 
-<a id="g3-one-token-one-thread" data-parent="guarantees"></a>
-**G3** **One token, one thread.** Every rung and verdict MUST be `!Send +
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g3-one-token-one-thread".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**One token, one thread.** Every rung and verdict MUST be `!Send +
 !Sync` (via `PhantomData<*const ()>`), so a shared `Arc`/`&` cannot carry it
 across a thread boundary. *Conformance:
 `compile_pass.rs::test_rungs_are_not_send_or_sync` (rungs and verdicts).*
 
-<a id="g4-no-silent-drop" data-parent="guarantees"></a>
-**G4** **No silent drop.** Every rung, verdict, `StepOutcome`, and `Failed` MUST
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g4-no-silent-drop".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**No silent drop.** Every rung, verdict, `StepOutcome`, and `Failed` MUST
 be `#[must_use]`. Dropping a token in statement position is a warning — an error
 under `#![deny(unused_must_use)]`. *Conformance:
 `spec_refusals.rs::dropping_a_verdict_under_deny_must_use_is_an_error` — a
 `trybuild` case whose committed `.stderr` pins the denied `unused_must_use` lint
 and the macro's contract-specific note. The `rung/src/lib.rs` must_use
 compile_fail doctest documents it but does not assert the diagnostic
-([6.1](#compile-fail-asserts-only-non-compilation)). (Escapable by `mem::forget`
-/ `let _ =` — see [5.4](#drop-proofing-beyond-the-lint).)*
+({#compile-fail-asserts-only-non-compilation}). (Escapable by `mem::forget`
+/ `let _ =` — see {#drop-proofing-beyond-the-lint}.)*
 
-<a id="g5-carry-immutability" data-parent="guarantees"></a>
-**G5** **Carry immutability.** `Carry` MUST be a private field exposed only
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g5-carry-immutability".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Carry immutability.** `Carry` MUST be a private field exposed only
 through `&Carry`; a transition body cannot mutate it. *Conformance:
 `compile_pass.rs::test_carry_accessor_exists`.*
 
-<a id="g6-exhaustive-outcomes" data-parent="guarantees"></a>
-**G6** **Exhaustive outcomes.** `StepOutcome` is an enum; every match site MUST
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g6-exhaustive-outcomes".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Exhaustive outcomes.** `StepOutcome` is an enum; every match site MUST
 handle all variants. *(rustc — enum exhaustiveness.)*
 
-<a id="g7-recover-pairing" data-parent="guarantees"></a>
-**G7** **Recover pairing.** Every recoverable verdict has a matching recover
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g7-recover-pairing".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Recover pairing.** Every recoverable verdict has a matching recover
 function and vice versa; terminal verdicts have none
-([2](#macro-must-reject), rules 4–7). *(macro — static checks.)*
+({#macro-must-reject}, rules 4–7). *(macro — static checks.)*
 
-<a id="g8-recovery-progress" data-parent="guarantees"></a>
-**G8** **Recovery progress.** The macro MUST wrap every *verdict* recover body
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g8-recovery-progress".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Recovery progress.** The macro MUST wrap every *verdict* recover body
 with `must_progress`, comparing the source rung's payload to the produced rung's
 payload and panicking if equal. The body cannot skip it. Requires the shared
 payload type be `Clone + PartialEq`. *Conformance:
 `end_to_end.rs::recover_guard_is_auto_injected` (panics with no explicit call).*
 
-<a id="g9-error-path-recovery" data-parent="guarantees"></a>
-**G9** **Error-path recovery.** A `recover { .. : Failed(R) => R }` function
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g9-error-path-recovery".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Error-path recovery.** A `recover { .. : Failed(R) => R }` function
 receives the `Failed` and returns the next rung. No progress guard is injected
 (a retry may reuse the token). *Conformance:
 `end_to_end.rs::recovers_from_the_failed_error_path`.*
 
-<a id="g10-continue-arms" data-parent="guarantees"></a>
-**G10** **Continue arms.** A `V -> R` arm makes `step` build the next rung
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g10-continue-arms".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Continue arms.** A `V -> R` arm makes `step` build the next rung
 inline; `StepOutcome::V` carries that rung directly — no recover function, no
 guard, no source. *Conformance:
 `end_to_end.rs::continue_arm_loops_without_a_recover_fn`.*
 
-<a id="g11-terminal-payloads" data-parent="guarantees"></a>
-**G11** **Terminal payloads.** A `V(P)` terminal verdict returns a value through
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g11-terminal-payloads".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Terminal payloads.** A `V(P)` terminal verdict returns a value through
 the verdict, read via `.payload()` / `.into_payload()`. *Conformance:
 `end_to_end.rs::drives_to_convergence` asserts the returned payload.*
 
-<a id="g12-gate-marked-signature" data-parent="guarantees"></a>
-**G12** **Gate-marked signature.** A `#[judgmental(R)]` transition MUST take a
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g12-gate-marked-signature".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Gate-marked signature.** A `#[judgmental(R)]` transition MUST take a
 second parameter of type `::rung::Qualified<R>`, by value; an unmarked
 transition MUST emit byte-for-byte what it emitted before markers existed. Two
 gates are therefore two *signatures*, separated by the host's type system rather
 than by a convention someone keeps
-([11.31](rung-het-props.md#two-signatures-not-two-fragments)).
+({#two-signatures-not-two-fragments}).
 `Qualified` has no public constructor — `Pool::qualify` is the only mint — so a
 judgmental transition cannot be called without an outside, and a decidable one
 has no parameter an outside could enter through
-([11.32](rung-het-props.md#decidable-cannot-consult-pool)).
-**This makes the signature honest; [G13](#g13-token-binding) is what binds the
-token to an argument** — see [5.7](#gate-faithfulness-not-secured) for what
+({#decidable-cannot-consult-pool}).
+**This makes the signature honest; {#g13-token-binding} is what binds the
+token to an argument** — see {#gate-faithfulness-not-secured} for what
 neither secures. *Conformance:
 `gate_markers.rs::judgmental_transition_takes_a_qualified_token` (the emitted
 `fn` is coerced to a `fn` pointer of the exact expected type), and the
 `tests/ui/` `trybuild` cases: `gate_missing_token` → E0061, `gate_forged_token`
 → E0451.*
 
-<a id="g13-token-binding" data-parent="guarantees"></a>
-**G13** **Token binding.** The macro MUST prefix every `#[judgmental(R)]`
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g13-token-binding".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Token binding.** The macro MUST prefix every `#[judgmental(R)]`
 transition body with `must_be_bound_to(&<source>.payload, &<token>)`, which
 panics unless the token's recorded `π(a)` equals the source rung payload's. The
-body cannot skip it, exactly as it cannot skip [G8](#g8-recovery-progress)'s
+body cannot skip it, exactly as it cannot skip {#g8-recovery-progress}'s
 `must_progress`, and for the same reason: the body is the domain's, so a
 guarantee the body could omit is not a guarantee. This requires the source
 rung's payload to implement `::rung::Provenanced` — without `π(a)` there is
@@ -446,12 +731,12 @@ nothing to measure.
 
 A `Qualified<R>` records the argument it was measured against alongside the
 principal, and `Qualified::admit` is the one gate that spends it. The seal
-([G12](#g12-gate-marked-signature)) closes *fabrication* — nobody can write a
+({#g12-gate-marked-signature}) closes *fabrication* — nobody can write a
 token. G13 closes *transfer* — nobody can spend an honestly-earned token on an
 argument it was never measured against, which is the act
-[3.51](rung-het-props.md#disjointness-against-argument)
+{#disjointness-against-argument}
 forbids and the pair
-[3.54](rung-het-props.md#non-identity-by-construction)
+{#non-identity-by-construction}
 requires the token to witness.
 
 It panics rather than returning an error because a marked transition's return
@@ -465,8 +750,14 @@ is refused anyway), and
 `rung-het/tests/token_binding.rs::{dispose_refuses_a_token_minted_against_the_model,
 settle_refuses_a_token_minted_against_a_different_model}`.*
 
-<a id="g14-the-authorial-gate" data-parent="guarantees"></a>
-**G14** **The authorial gate.** An `#[authorial(R)]` transition MUST take a
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g14-the-authorial-gate".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**The authorial gate.** An `#[authorial(R)]` transition MUST take a
 second parameter of type `::rung::Authorized<'_, R>`, by value, and the macro
 MUST prefix its body with `must_hold_standing_over(&<source>.payload, &<pen>)`,
 which panics unless the pen's container equals the source rung payload's. This
@@ -474,33 +765,33 @@ requires the source rung's payload to implement `::rung::Situated` — without a
 container there is nothing standing could be held over. Unmarked and
 `#[judgmental(R)]` emission is unchanged.
 
-**G14 is not [G12](#g12-gate-marked-signature)+[G13](#g13-token-binding) with a
+**G14 is not {#g12-gate-marked-signature}+{#g13-token-binding} with a
 different token name, and an implementation that made it one would satisfy every
 clause above while enforcing nothing.** The two gates run over one pool and
 select opposite predicates
-([3.4](rung-het-props.md#one-pool-two-filters)):
+({#one-pool-two-filters}):
 
 | | judgmental | authorial |
 |---|---|---|
-| qualifying set | [3.5](rung-het-props.md#judgmental-qualifying-set) | [3.6](rung-het-props.md#authorial-qualifying-set) |
+| qualifying set | {#judgmental-qualifying-set} | {#authorial-qualifying-set} |
 | second conjunct | `π(p) ∩ π(a) = ∅` — **disjointness** | `standing(p, M)` — **standing** |
 | reading | you did **not** author this | this is **yours to revise** |
 | admissibility | `π(f(a)) ∩ π(a) = ∅` | `π(f(a)) ⊆ π(p) ∧ standing(p, a)` |
 
 Provenance overlap is what disqualifies a judge and what an author needs
-([3.62](rung-het-props.md#provenance-overlap-is-the-point)),
+({#provenance-overlap-is-the-point}),
 so a principal that passes one filter has, on that evidence, said nothing about
 the other and typically fails it
-([3.61](rung-het-props.md#judgment-refuses-authorship-requires)).
+({#judgment-refuses-authorship-requires}).
 `Pool::authorize` MUST therefore check **both** conjuncts of
-[3.6](rung-het-props.md#authorial-qualifying-set):
+{#authorial-qualifying-set}:
 standing alone mints no pen. It refuses on the judgmental branch of
-[3.63](rung-het-props.md#standing-conditional-gated)
+{#standing-conditional-gated}
 rather than guessing — closing that branch needs a judge, terminating at depth
 one
-([3.64](rung-het-props.md#standing-terminates-at-depth-one)),
+({#standing-terminates-at-depth-one}),
 whose own qualification is non-identity relative to the **author**
-([3.65](rung-het-props.md#standing-judge-disjoint-from-author)).
+({#standing-judge-disjoint-from-author}).
 
 The pen is borrowed-lifetime rather than consumed-and-gone in the library
 (`Proposal::remedy`, `enact` take `&Authorized`): standing is not spent by a
@@ -524,8 +815,14 @@ injected prologue reddens the prologue test. And the `tests/ui/` `trybuild`
 cases: `gate_authorial_missing_pen` → E0061, `gate_forged_pen` → E0451,
 `gate_authorial_no_role` → the macro's `compile_error!`.*
 
-<a id="g15-outcome-provenance" data-parent="guarantees"></a>
-**G15** **Outcome provenance.** The macro MUST follow every `#[judgmental(R)]`
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g15-outcome-provenance".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**Outcome provenance.** The macro MUST follow every `#[judgmental(R)]`
 **forward** transition body with `must_derive_from_judge(&<out>.payload,
 &<π(p) snapshot>)`, which panics unless the returned payload's provenance is
 contained in the qualifying principal's. This requires the *target* rung's
@@ -535,18 +832,18 @@ consumes the licence; and the body runs inside an immediately-invoked closure,
 so a `return` in it cannot step over the check. Unmarked, `#[authorial(R)]` and
 *branching* judgmental emission is unchanged.
 
-[G13](#g13-token-binding) constrains the arrow's **argument**; this constrains
+{#g13-token-binding} constrains the arrow's **argument**; this constrains
 its **outcome**, and they are the two halves of
-[5.41](rung-het-props.md#admissibility-subcategories). Without G15 a body may
+{#admissibility-subcategories}. Without G15 a body may
 hold an honest licence, bound to the very argument it is applied to, and hand
 that argument straight back out — the constant arrow
-[5.4](rung-het-props.md#constant-arrow-hazard) names, expressed as a ladder.
+{#constant-arrow-hazard} names, expressed as a ladder.
 
 **It asserts containment, not disjointness, and that is the point.** With G13
 having just re-established $\pi(p) \cap \pi(a) = \emptyset$ for this argument,
 $\pi(f(a)) \subseteq \pi(p)$ entails
 $\pi(f(a)) \cap \pi(a) = \emptyset$
-([5.42](rung-het-props.md#judgment-provenance-is-the-judges)). A disjointness
+({#judgment-provenance-is-the-judges}). A disjointness
 epilogue on top would assert the conclusion of a derivation whose premises are
 both enforced. Containment is also the half a lying body cannot satisfy by
 stamping: `::rung::Judgment` has no constructor outside `rung`, so a payload
@@ -555,8 +852,8 @@ whose $\pi$ derives from one carries a provenance its producer did not choose.
 **Forward transitions only.** A branching judgmental transition returns a sum
 whose recoverable and continue arms carry the argument onward by design —
 re-entry rather than laundering
-([7.44](rung-het-props.md#reproposal-carries-the-chain)) — so which arms are
-*outcomes* in the sense of [5.41](rung-het-props.md#admissibility-subcategories)
+({#reproposal-carries-the-chain}) — so which arms are
+*outcomes* in the sense of {#admissibility-subcategories}
 is unsettled, and the epilogue does not guess. Recorded as an open limit in
 `docs/questions/open/q11-gate-faithfulness.md`.
 
@@ -568,8 +865,14 @@ reddens it) and
 outcome is built on the judge's `Judgment`; minting that `Judgment` with the
 argument's provenance instead of the judge's reddens it).*
 
-<a id="g16-the-residual-channel" data-parent="guarantees"></a>
-**G16** **The residual channel, and the arrow back.** A `#[judgmental(R)]`
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "g16-the-residual-channel".into(),
+            parent: Some("guarantees".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**The residual channel, and the arrow back.** A `#[judgmental(R)]`
 **forward** transition MUST return `Result<Next, Suspended<Prev>>`, so that a
 dispatch which cannot be settled now can hand the argument back **unconsumed**
 together with the opaque reference to what was raised. A `resume` edge MUST take
@@ -580,37 +883,37 @@ judgmental emission is unchanged.
 
 **This adds no summand.** The residual is the final `+ A` Het's judgmental
 arrow already carries
-([5.25](rung-het-props.md#judgmental-arrow-shape)), and a
+({#judgmental-arrow-shape}), and a
 judge that exists and has not answered is adequacy **undischarged**, which
-[6.55](rung-het-props.md#adequacy-failure-returns-residual) already returns as
+{#adequacy-failure-returns-residual} already returns as
 that residual. What G16 supplies is the *channel*: before it, a forward
 judgmental transition returned its target rung and had nowhere to put the
 argument, so a theory whose principal could not answer yet had no term for
 saying so — the suspension existed in the formalism and not in the language.
 
 **The pen is forced, not chosen.** Resuming produces a rung of this ladder, and
-[G2](#g2-sealed-construction) seals that construction against everything outside
+{#g2-sealed-construction} seals that construction against everything outside
 the module. The edge must therefore be emitted *inside* the module — and an
 edge inside the seal that any caller may invoke is the seal with a door in it.
 So resumption dispatches through the authorial filter
-([6.552](rung-het-props.md#resumption-is-authorial)): capability and standing
+({#resumption-is-authorial}): capability and standing
 over the container the subject sits in, the same shape as `enact`. The judge
 that ruled on the raised matter cannot be the principal that resumes — it
 qualified by provenance-disjointness, which is what denies it standing
-([3.62](rung-het-props.md#provenance-overlap-is-the-point)).
+({#provenance-overlap-is-the-point}).
 
-**The absent guard is the point.** [G8](#g8-recovery-progress) exists because a
+**The absent guard is the point.** {#g8-recovery-progress} exists because a
 recover edge that returns its own source is an infinite stall. A resume edge
 that returns its own source is the *normal case*: the argument was never
 consumed, the raised matter took another round, and nothing about the subject
 should have changed. A progress guard here would refuse the shape rather than a
 bug, and would be the bound Het declines to declare
-([12.5](rung-het-props.md#guarded-reentry-is-eviction)).
+({#guarded-reentry-is-eviction}).
 
 **What it does not promise.** Termination. A raised matter that never terminates
 yields no `Terminated`, and the arrow stays suspended
-([6.5521](rung-het-props.md#resumption-needs-a-terminal)). Nor does it survive
-process death — see [5.6](#suspension-is-in-process-only).
+({#resumption-needs-a-terminal}). Nor does it survive
+process death — see {#suspension-is-in-process-only}.
 
 *Conformance: `suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed`
 (the emitted `fn` is coerced to a `fn` pointer of the exact expected type, and
@@ -626,125 +929,216 @@ anyway — deleting the injected `must_hold_standing_over` reddens it);
 `trybuild` cases: `resume_without_a_pen` → the macro's `compile_error!`,
 `resume_missing_pen` → E0061.*
 
----
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
 
 ## 5 · Non-guarantees
 
-<a id="non-guarantees"></a>
-**5** Explicitly out of scope. The macro does **not** enforce the following, and
+"#.into()),
+        Element::Prop(Prop {
+            slug: "non-guarantees".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Explicitly out of scope. The macro does **not** enforce the following, and
 a claim that it does has no standing.
 
-<a id="transition-body-correctness" data-parent="non-guarantees"></a>
-**5.1** **Transition-body correctness.** The type proves a transition *ran*, not
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "transition-body-correctness".into(),
+            parent: Some("non-guarantees".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Transition-body correctness.** The type proves a transition *ran*, not
 that its logic was valid — the boundary between typestate and formal
 verification.
 
-<a id="cross-crate-provenance" data-parent="non-guarantees"></a>
-**5.2** **Cross-crate provenance.** A rung crossing a crate boundary is trusted,
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "cross-crate-provenance".into(),
+            parent: Some("non-guarantees".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Cross-crate provenance.** A rung crossing a crate boundary is trusted,
 like any Rust public API. Sealing this needs a sub-crate per ladder.
 
-<a id="same-module-fabrication" data-parent="non-guarantees"></a>
-**5.3** **Same-module / entry fabrication.** [G2](#g2-sealed-construction) stops
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "same-module-fabrication".into(),
+            parent: Some("non-guarantees".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Same-module / entry fabrication.** {#g2-sealed-construction} stops
 *external* fabrication; code inside the generated module, and the public entry
 constructor, can still build rungs — the module-boundary limit Rust always has.
 
-<a id="drop-proofing-beyond-the-lint" data-parent="non-guarantees"></a>
-**5.4** **Drop-proofing beyond the lint.** [G4](#g4-no-silent-drop) is
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "drop-proofing-beyond-the-lint".into(),
+            parent: Some("non-guarantees".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Drop-proofing beyond the lint.** {#g4-no-silent-drop} is
 `#[must_use]`, which `mem::forget`, `let _ = token;`, or burying the token in a
 dropped container all bypass. True no-drop needs language-level linear types.
 
-<a id="liveness-beyond-the-guard" data-parent="non-guarantees"></a>
-**5.5** **Liveness beyond the guard.** [G8](#g8-recovery-progress) catches an
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "liveness-beyond-the-guard".into(),
+            parent: Some("non-guarantees".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Liveness beyond the guard.** {#g8-recovery-progress} catches an
 identical-token stall loop; it does not prove general forward progress.
 
-<a id="suspension-is-in-process-only" data-parent="non-guarantees"></a>
-**5.6** **Suspension does not survive process death.**
-[G16](#g16-the-residual-channel) suspends and resumes **in one process**: a
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "suspension-is-in-process-only".into(),
+            parent: Some("non-guarantees".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Suspension does not survive process death.**
+{#g16-the-residual-channel} suspends and resumes **in one process**: a
 driver may hold a `Suspended<Prev>` in memory for as long as it likes, and that
 is the whole of the claim. Writing one to disk and reconstituting it later is
 not supported and is not merely unimplemented — a rung read back from bytes is a
 mid-ladder rung nobody traversed to, which is exactly what
-[G2](#g2-sealed-construction) exists to refuse. Resumption being authorial
+{#g2-sealed-construction} exists to refuse. Resumption being authorial
 answers *who may* revive a run; it says nothing about *how a token survives
 serialization*. Filed as
 [Q13](questions/open/q13-suspension-across-process-death.md), and related to
-[5.2](#cross-crate-provenance).
+{#cross-crate-provenance}.
 
-<a id="gate-faithfulness-not-secured" data-parent="non-guarantees"></a>
-**5.7** **Gate-faithfulness.** [G12](#g12-gate-marked-signature) secures the
-judgmental signature, [G13](#g13-token-binding) its argument,
-[G14](#g14-the-authorial-gate) both halves of the authorial gate's *input*, and
-[G15](#g15-outcome-provenance) the judgmental *outcome* of a forward
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "gate-faithfulness-not-secured".into(),
+            parent: Some("non-guarantees".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Gate-faithfulness.** {#g12-gate-marked-signature} secures the
+judgmental signature, {#g13-token-binding} its argument,
+{#g14-the-authorial-gate} both halves of the authorial gate's *input*, and
+{#g15-outcome-provenance} the judgmental *outcome* of a forward
 transition. What is still not secured is the outcome everywhere else, and one
 of Het's four gates still has no signature.
 
-<a id="one-gate-unimplemented" data-parent="gate-faithfulness-not-secured"></a>
-**5.71** *One gate is unimplemented.* `#[conditional(..)]` is a parse-time
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "one-gate-unimplemented".into(),
+            parent: Some("gate-faithfulness-not-secured".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"*One gate is unimplemented.* `#[conditional(..)]` is a parse-time
 refusal, not an encoding. Gate-faithfulness is a condition on **every** operation
 of an algebra, so an algebra with a conditional arrow cannot state it here at
 all.
 
-<a id="returned-value-unconstrained" data-parent="gate-faithfulness-not-secured"></a>
-**5.72** *The returned value is constrained judgmentally, and only there.* This
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "returned-value-unconstrained".into(),
+            parent: Some("gate-faithfulness-not-secured".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"*The returned value is constrained judgmentally, and only there.* This
 non-guarantee used to read "the returned value is unconstrained," and it was
 exact: `Prov::contained_in` existed and no guarantee called it. Two now do.
 `theory!`'s `settle` takes a sealed `Judgment` rather than a `Verdict` and
-refuses `π(f(a)) ⊄ π(p)`; [G15](#g15-outcome-provenance) injects the same check
+refuses `π(f(a)) ⊄ π(p)`; {#g15-outcome-provenance} injects the same check
 as an epilogue on a forward judgmental transition. Disjointness —
-[5.41](rung-het-props.md#admissibility-subcategories)'s judgmental clause — is
+{#admissibility-subcategories}'s judgmental clause — is
 not checked because it is entailed
-([5.42](rung-het-props.md#judgment-provenance-is-the-judges)).
+({#judgment-provenance-is-the-judges}).
 
-The residue is stated at [5.721](#outward-conditions-remaining) rather than
+The residue is stated at {#outward-conditions-remaining} rather than
 absorbed into a claim that the outward side is closed. It is not.
 
-<a id="outward-conditions-remaining" data-parent="returned-value-unconstrained"></a>
-**5.721** *Two outward conditions remain.* First, the **authorial** one:
-[5.41](rung-het-props.md#admissibility-subcategories) states the authorial
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "outward-conditions-remaining".into(),
+            parent: Some("returned-value-unconstrained".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"*Two outward conditions remain.* First, the **authorial** one:
+{#admissibility-subcategories} states the authorial
 clause as `π(f(a)) ⊆ π(p) ∧ standing(p, a)`, and
-[G14](#g14-the-authorial-gate) secures the standing conjunct on the way in
+{#g14-the-authorial-gate} secures the standing conjunct on the way in
 while leaving the containment conjunct on the way out entirely to the body —
-the same shape as [G13](#g13-token-binding)'s gap, on the second gate. Second,
+the same shape as {#g13-token-binding}'s gap, on the second gate. Second,
 **branching** judgmental transitions take the prologue and no epilogue, because
 a branching outcome is a sum whose recoverable and continue arms carry the
 argument onward by design
-([7.44](rung-het-props.md#reproposal-carries-the-chain)), and which of those
-arms is an *outcome* in [5.41](rung-het-props.md#admissibility-subcategories)'s
-sense is not settled. Both inherit [5.1](#transition-body-correctness) whole,
+({#reproposal-carries-the-chain}), and which of those
+arms is an *outcome* in {#admissibility-subcategories}'s
+sense is not settled. Both inherit {#transition-body-correctness} whole,
 as the whole outward side used to.
 
-<a id="decidable-is-not-pure" data-parent="gate-faithfulness-not-secured"></a>
-**5.73** *Decidable is not pure.* The unmarked signature excludes Het's outside
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "decidable-is-not-pure".into(),
+            parent: Some("gate-faithfulness-not-secured".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"*Decidable is not pure.* The unmarked signature excludes Het's outside
 — the principal pool — and is silent about clocks, files, and networks
-([11.42](rung-het-props.md#purity-not-secured)).
+({#purity-not-secured}).
 
-<a id="type-only-marker-is-inert" data-parent="gate-faithfulness-not-secured"></a>
-**5.74** *A type-only declaration emits no transitions,* so a marker on one has
-nothing to constrain and is inert, exactly as [G2](#g2-sealed-construction)'s
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "type-only-marker-is-inert".into(),
+            parent: Some("gate-faithfulness-not-secured".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"*A type-only declaration emits no transitions,* so a marker on one has
+nothing to constrain and is inert, exactly as {#g2-sealed-construction}'s
 seal is
-([1.41](rung-ct-props.md#freeness-enforced-only-with-bodies)).
+({#freeness-enforced-only-with-bodies}).
 
-<a id="gate-faithfulness-answered-no" data-parent="gate-faithfulness-not-secured"></a>
-**5.75** Whether [G12](#g12-gate-marked-signature) +
-[G13](#g13-token-binding) + [G14](#g14-the-authorial-gate) +
-[G15](#g15-outcome-provenance) amount to gate-faithfulness is argued — and
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "gate-faithfulness-answered-no".into(),
+            parent: Some("gate-faithfulness-not-secured".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Whether {#g12-gate-marked-signature} +
+{#g13-token-binding} + {#g14-the-authorial-gate} +
+{#g15-outcome-provenance} amount to gate-faithfulness is argued — and
 answered *no* — in [Q11](questions/open/q11-gate-faithfulness.md), which stays
-open on [5.71](#one-gate-unimplemented) and, in its narrowed form,
-[5.721](#outward-conditions-remaining).
+open on {#one-gate-unimplemented} and, in its narrowed form,
+{#outward-conditions-remaining}.
 
-<a id="a-cycle-through-an-authorial-act-cannot-close" data-parent="non-guarantees"></a>
-**5.8** **A cycle that must pass through an authorial act cannot close inside
-one `ladder!`.** [1.1](#declaration-grammar) declares a **linear spine** with
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "a-cycle-through-an-authorial-act-cannot-close".into(),
+            parent: Some("non-guarantees".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**A cycle that must pass through an authorial act cannot close inside
+one `ladder!`.** {#declaration-grammar} declares a **linear spine** with
 backward continue arms. A continue arm's target rung is built *inline by
-`step`* ([G10](#g10-continue-arms)), so every arm of the branching transition is
+`step`* ({#g10-continue-arms}), so every arm of the branching transition is
 authored by whoever holds that transition's token. Where `step` is
 `#[judgmental(R)]`, an arm returning to the ladder's **entry** rung would
 therefore have the judge produce the revised subject — the amendment
-[7.42](rung-het-props.md#no-amending-disposition) forbids.
+{#no-amending-disposition} forbids.
 
 The audit–rectify pass is the case. Het states that `enact` is what makes the
 pass an **endofunctor** rather than a one-way funnel into a verdict
-([7.5](rung-het-props.md#enact-makes-an-endofunctor)); `rung-het`'s
+({#enact-makes-an-endofunctor}); `rung-het`'s
 `het_pass!` therefore stops one arrow short, with `Accept` terminal and
 carrying a licence, and `enact` a **separate** authorial arrow consuming that
 licence and a pen. The loop closes by **composition** — feeding `enact`'s
@@ -756,19 +1150,32 @@ completed sub-ladder run — which is the shape that would let the composite be
 declared rather than driven — is
 [Q4](questions/open/q4-composition-nested-ladders.md), open.
 
----
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
 
 ## 6 · Conformance
 
-<a id="conformance-suite"></a>
-**6** The conformance suite is `rung/tests/` and the doctests in
+"#.into()),
+        Element::Prop(Prop {
+            slug: "conformance-suite".into(),
+            parent: None,
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"The conformance suite is `rung/tests/` and the doctests in
 `rung/src/lib.rs`. A change that violates any guarantee above MUST break at
 least the cited test. The README's Getting Started example is itself a run
 doctest (via `include_str!`), so the documented public API cannot silently drift
 from the macro.
 
-<a id="compile-fail-asserts-only-non-compilation" data-parent="conformance-suite"></a>
-**6.1** **A `compile_fail` doctest does not verify the error code.** rustdoc
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "compile-fail-asserts-only-non-compilation".into(),
+            parent: Some("conformance-suite".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**A `compile_fail` doctest does not verify the error code.** rustdoc
 ignores the `E0NNN` in a fence such as `compile_fail,E0999`, and E0999 does not
 exist — the block passes. So a `compile_fail` doctest asserts exactly one thing:
 *this did not compile*. It cannot tell the refusal it was written for from a
@@ -776,16 +1183,28 @@ typo, an unresolved import, a missing `main` (E0601), or a name that fell out of
 scope when rustdoc wrapped the snippet in a `fn main` of its own. Adding the code
 annotation does not fix this; nothing reads it.
 
-<a id="no-guarantee-cites-a-compile-fail-doctest" data-parent="conformance-suite"></a>
-**6.2** Consequently **no guarantee may cite a `compile_fail` doctest as its
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "no-guarantee-cites-a-compile-fail-doctest".into(),
+            parent: Some("conformance-suite".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"Consequently **no guarantee may cite a `compile_fail` doctest as its
 conformance test.** Refusals are pinned by `trybuild` cases in `rung/tests/ui/`,
 which diff the full rendered stderr against a committed `.stderr` snapshot, so
 the code and the message are both part of the assertion. The doctests are kept
 alongside — they are the documentation, and a reader meets the refusal in
 rustdoc — but they are the illustration, not the evidence.
 
-<a id="two-silent-doctest-traps" data-parent="conformance-suite"></a>
-**6.3** Two further traps, both found in this repo and both silent:
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "two-silent-doctest-traps".into(),
+            parent: Some("conformance-suite".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"Two further traps, both found in this repo and both silent:
 
 - A doctest with no `fn main` is wrapped in one by rustdoc, so `struct` and
   `macro_rules!` items land in a function body. A `ladder!`-generated `mod` then
@@ -796,25 +1215,44 @@ rustdoc — but they are the illustration, not the evidence.
   are private, so a "cannot be forged" example with a stale field list keeps
   passing after the seal is removed. Name every field.
 
-<a id="a-refusal-test-that-cannot-fail" data-parent="conformance-suite"></a>
-**6.4** **A refusal test that cannot fail is not a guarantee.** The way to
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "a-refusal-test-that-cannot-fail".into(),
+            parent: Some("conformance-suite".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**A refusal test that cannot fail is not a guarantee.** The way to
 establish that a case can fail is to make the guarded thing legal and watch the
 case go red.
 
----
+"#.into(),
+        }),
+        Element::Verbatim(r#"---
 
 ## 7 · Design judgments
 
-<a id="design-judgments" data-numbering="J"></a>
-**7** The propositions above are settled by the macro, by rustc, or by a named
+"#.into()),
+        Element::Prop(Prop {
+            slug: "design-judgments".into(),
+            parent: None,
+            kind: Kind::Rationale,
+            numbering: Some('J'),
+            prose: r#"The propositions above are settled by the macro, by rustc, or by a named
 test. The judgments below are not: **no machine decides them.** They govern how
 rung is *used* — where a ladder should stop, and what earns a place in
 `rung-std`. They are earned through use rather than derived from first
 principles; amend them when a new case does not fit, but amend them
 deliberately, as a ruling on the record.
 
-<a id="j1-where-the-tower-bottoms-out" data-parent="design-judgments"></a>
-**J1** **Where does the tower bottom out?** A rung ladder should terminate where
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "j1-where-the-tower-bottoms-out".into(),
+            parent: Some("design-judgments".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**Where does the tower bottom out?** A rung ladder should terminate where
 **structural enforcement stops buying correctness gains**.
 
 The floor of a tower is not defined by the line between "our code" and "a
@@ -842,8 +1280,14 @@ to prevent below it; `reqwest` already handles the I/O correctly. The ladder
 above (`LlmCall`) is where states live: the counter check, the attempt in flight,
 the terminal verdicts. That is the right floor.
 
-<a id="j2-what-belongs-in-rung-std" data-parent="design-judgments"></a>
-**J2** **What belongs in rung-std?** A ladder belongs in `rung-std` when it
+"#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "j2-what-belongs-in-rung-std".into(),
+            parent: Some("design-judgments".into()),
+            kind: Kind::Rationale,
+            numbering: None,
+            prose: r#"**What belongs in rung-std?** A ladder belongs in `rung-std` when it
 satisfies two conditions:
 
 1. **It recurs across unrelated domains.** Independent projects would otherwise
@@ -879,3 +1323,8 @@ Worked examples:
 - An audit ladder written against one project's own schema **does not belong** —
   it carries domain vocabulary (that project's verdict kinds, its boundary
   conditions) that is meaningful only to garden-ladders.
+"#.into(),
+        }),
+        ],
+    }
+}

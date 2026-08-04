@@ -480,6 +480,32 @@ impl Raised {
     }
 }
 
+/// A suspended run, reporting what it awaits.
+///
+/// Implemented by the `Suspended<Prev>` every `ladder!` emits
+/// (`suspended-reports-what-it-awaits`), so that a driver holding suspensions
+/// from several ladders can ask each one the same question without naming its
+/// module.
+///
+/// # Why a trait and not a field read
+///
+/// `Suspended`'s fields are already `pub`, so a driver *could* read
+/// `s.raised` directly and store it beside the run. The difference is who says
+/// what a run awaits. Under a field read, a park is told the reference by its
+/// caller, and a caller that passes the wrong one parks a run under a matter it
+/// never raised — a fabrication of exactly the kind [`Terminated::of`] exists to
+/// prevent one level down. Under this trait the park reads the reference *off
+/// the run*, and there is no parameter through which it could be told
+/// otherwise.
+///
+/// Het requires nothing of the reference here either: this hands back the
+/// theory's [`Raised`] unchanged, and offers no ordering, comparison or
+/// well-formedness over it (`pool-is-opaque`).
+pub trait Awaiting {
+    /// What this run is waiting on.
+    fn awaiting(&self) -> &Raised;
+}
+
 /// Evidence that a raised matter reached a terminal.
 ///
 /// What the resume edge is gated on. A suspended run awaits *the terminal of

@@ -177,6 +177,111 @@ module-private, so no outside code can fabricate a mid-ladder token. Omit the
   crossing a crate boundary is trusted, like any Rust API). See
   [the non-guarantees](docs/rung-props.md#non-guarantees) for the full list.
 
+## The other half: theories, judgment, and questions
+
+Everything above declares **arrows** — the legal moves. The second half of the
+system declares **sentences**: claims about a model that can be true or false.
+That's `theory!`, and it's what `rung-het` and `rung-std` are built on.
+
+A sentence comes in one of two kinds, and the difference is the whole point:
+
+- **decidable** — a machine can settle it. `decidable ids_are_unique = |qs|
+  qs.duplicate_ids().is_empty();` No outside needed, no one to ask.
+- **judgmental** — settling it needs someone outside. Not just anyone: someone
+  with the competence the sentence names, who **did not write the thing being
+  judged**. That second condition is structural, not advisory — a judge whose
+  provenance overlaps the subject's cannot be qualified, so a verdict on your own
+  work is a value you cannot construct.
+
+### Audit, and rectify
+
+Every theory has an **audit** half: sentences evaluated over a model. That's it —
+sorts, sentences, and someone to ask when a sentence is judgmental.
+
+The **rectify** half is optional. A theory that governs something *editable* also
+declares an edit vocabulary and runs the audit-rectify pass: `audit → propose →
+dispose → enact`, where proposing is authorial (you need standing over the thing)
+and disposing is judgmental (the judge must be disjoint from the proposal).
+`rung_std::questions` does both. `rung_std::principals` is audit-only — it has
+sentences and no edits, and that's a complete theory, not a half-finished one.
+
+### Anywhere you ask an outside, you might get a question back
+
+This is the part worth internalising early, because it shapes everything
+downstream. When you consult a principal, the answer is a verdict **or** a
+matter it raised instead — *"I can't settle this until something else is
+settled."* That isn't an error path. It's the ordinary case for anything hard,
+and it's why the loop is a loop.
+
+A raised question is opaque to rung. It's a string the theory chose — an issue
+number, a filename, whatever — and rung never parses it, orders it, or asks
+whether it's well-formed. It carries it from the principal that raised it to the
+edge that resumes on it, and nothing else.
+
+Deferral happens in the pool, at the moment of consultation. So it can happen to
+**any** judgmental sentence in any theory, pass or no pass.
+
+### What's left holding the work while you wait
+
+Three shapes, and they differ in whether there's anything to hold:
+
+| where the question arose | what's left waiting | held by |
+|---|---|---|
+| a judgmental *forward* transition in a ladder | the argument, handed back unconsumed as `Suspended<Prev>` | [`rung_std::driver::Park`](rung-std/src/driver.rs) |
+| a judgmental *branching* transition | nothing — no residual channel here | — |
+| a `theory!` sentence | nothing consumed; a sentence borrows its model | re-consult later |
+
+Only the first case has a linear token that would be lost if dropped, which is
+why it's the one with a residual channel and a park. `Park` holds suspended runs
+and releases each one when evidence arrives that *its* matter terminated.
+
+It is deliberately stupid. No ordering, no priority, no depth cap, no timeout, no
+bound on how many times a run may suspend and resume. Every one of those is a
+judgment about which work matters more or how long an answer may take, and rung
+declines to make it — that belongs to whatever sits above. A question may take
+ten rounds or never terminate, and the park's job is to make that **visible**,
+not to resolve it.
+
+It also can't resume anything: it hands the run back, and the ladder's own
+pen-gated resume edge does the resuming. And it's in-memory only — whether a
+suspended run can survive process death at all is
+[Q13](docs/questions/open/q13-suspension-across-process-death.md), open.
+
+### Questions about questions are just more questions
+
+Here's the part that makes the whole thing hold together.
+
+Questions are themselves governed by a theory — `rung_std::questions`, written in
+this DSL, with an edit vocabulary and a lifecycle ladder. So auditing the
+questions can raise a question. And *that* question is a subject of the same
+theory you were already in.
+
+The recursion doesn't climb. It lands back where it started.
+
+That sounds like a curiosity and is actually the load-bearing fact, because it
+means **the nesting is type-stable**. One `Park` serves depth 1 and depth 40
+alike. If each nested question ascended a level, a depth-*n* suspension would
+need a type indexed by *n*, and "unbounded depth" would be not merely unbounded
+but impossible to write down — you'd be forced into either a cap (a judgment
+about which work matters least) or type erasure (throwing away the seal that
+makes any of this worth doing).
+
+It's why nesting can be *normal* rather than exceptional. Answering one question
+routinely raises another: Q11 raised Q12, and Q12 took a dependency back on Q11.
+That's not a cycle and not a fault — it's what thinking looks like — so the
+theory distinguishes it from deadlock rather than flagging it. Only a cycle in
+`gate` edges, where each question is *blocked by* the next, is a real stuck
+state, because no answer anywhere can free it.
+
+Being a subject of your own theory is not a paradox here. A theory is
+**self-governing** — its own decidable sentences audit it — but not
+**self-closing**: its judgmental sentences still need an outside. The regress
+stops on a decidable well-formedness check that needs no theory to run.
+
+Fuller treatment in [`docs/rung-het-props.md`](docs/rung-het-props.md);
+[`docs/composition-notes.md`](docs/composition-notes.md) sketches where this is
+going.
+
 ## How rung is specified and verified
 
 The documents are not commentary on the implementation — they are part of how it
@@ -198,11 +303,15 @@ in notes and not in props is not a claim rung makes.
 
 ### The conventions the props files follow
 
-- **Identity is the slug, not the number.** A proposition is anchored
-  `<a id="g2-sealed-construction" data-parent="guarantees">`. Its decimal number
-  is *derived* from the anchor, its `data-parent`, and document order — so
-  inserting, removing, or reparenting a proposition cannot break a reference.
-  `docs/_props.py fmt` recomputes every number and link text.
+- **The `*-props.md` files are generated.** Their source is
+  [`rung-doctrine/`](rung-doctrine/), and they are written by
+  `cargo run -p rung-doctrine --bin render`. Editing one directly does nothing —
+  the next render restores it, and CI fails if the two disagree.
+- **Identity is the slug, not the number.** A proposition declares a slug and a
+  parent; its decimal number is *computed at render time* from its place in the
+  tree and appears nowhere in the source. So there is no number to go stale and
+  no link text to disagree with its target — inserting, removing or reparenting
+  a proposition cannot break a reference, because nothing anywhere stores one.
 - **One slug space across all three documents.** A reference naming another file
   crosses into it; where a claim here touches one there, it links rather than
   restates. That is what lets a categorical proposition cite the guarantee it is

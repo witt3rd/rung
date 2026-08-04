@@ -32,7 +32,6 @@ against the union. A reference into another document names the file:
     the floor is fixed [6.4](rung-ct-props.md#tower-floor)
 
     ./_props.py check    exit 1 on any integrity failure; changes nothing
-    ./_props.py fmt      recompute every number and link text in place
     ./_props.py cited    exit 1 if Rust source cites a slug that is not a proposition
 """
 
@@ -143,6 +142,13 @@ def strip_math(line):
 
 def rewrite(lines, props, universe=None):
     """Return new lines with numbers and link texts recomputed.
+
+    **Nothing writes these any more.** The documents are generated from
+    `rung-doctrine/src/`, and this exists so `check` can compare — an
+    independent second implementation of the numbering, built from the rendered
+    markdown rather than from the encoding. Two derivations agreeing on all 380
+    numbers is a stronger statement than either alone, which is why this is kept
+    rather than deleted along with the writer it used to serve.
 
     `props` are this document's propositions; `universe` is every proposition
     of every document, against which a reference's link text is resolved.
@@ -343,6 +349,20 @@ def cited():
 
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
+
+    # `fmt` is retired, and is named here rather than falling through to
+    # `check`. Silently checking when someone asked to renumber would report
+    # success for work that did not happen — and the work no longer exists to
+    # do, because these documents are written by `render`.
+    if cmd == "fmt":
+        print("`fmt` is retired. These documents are generated from "
+              "rung-doctrine/src/;\nnumbers are derived at render time and "
+              "there is nothing here to renumber.\n\n"
+              "  cargo run -p rung-doctrine --bin render", file=sys.stderr)
+        return 2
+    if cmd not in ("check", "cited"):
+        print(f"unknown command `{cmd}` — expected `check` or `cited`", file=sys.stderr)
+        return 2
     if cmd == "cited":
         return cited()
 
@@ -368,33 +388,23 @@ def main():
         print(f"\n{len(errs)} problem(s)", file=sys.stderr)
         return 1
 
-    stale, wrote, total, nroots = [], [], 0, 0
+    stale, total, nroots = [], 0, 0
     for path, lines, props in recs:
         total += len(props)
         nroots += len(roots_of[path.name])
         new = rewrite(lines, props, universe)
         if new == lines:
             continue
-        if cmd == "fmt":
-            path.write_text("\n".join(new))
-            wrote.append((path.name, sum(1 for p in props if p.old != p.num)))
-        else:
-            moved = [f"  {path.name}: L{p.line}: #{p.slug} is numbered {p.old}, "
-                     f"should be {p.num}" for p in props if p.old != p.num]
-            stale += moved or [f"  {path.name}: link texts are stale"]
+        moved = [f"  {path.name}: L{p.line}: #{p.slug} is numbered {p.old}, "
+                 f"should be {p.num}" for p in props if p.old != p.num]
+        stale += moved or [f"  {path.name}: link texts are stale"]
 
     n = len(recs)
-    if cmd == "fmt":
-        if wrote:
-            print("; ".join(f"{d}: renumbered {k} proposition(s)" for d, k in wrote)
-                  + f" — {total} total")
-        else:
-            print(f"{total} propositions, {nroots} roots, {n} document(s) — already current")
-        return 0
-
     if stale:
         print("\n".join(stale), file=sys.stderr)
-        print("\nrun ./_props.py fmt", file=sys.stderr)
+        print("\nThese documents are generated. Fix the encoding in "
+              "rung-doctrine/src/ and run:\n"
+              "  cargo run -p rung-doctrine --bin render", file=sys.stderr)
         return 1
 
     print(f"ok — {total} propositions, {nroots} roots across {n} document(s), "

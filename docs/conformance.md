@@ -32,17 +32,17 @@ formalism requires.
 
 | document | propositions | verdicts |
 |---|---|---|
-| [`rung-props.md`](rung-props.md) | 69 | 50 enforced · 17 out-of-scope · 2 parked |
+| [`rung-props.md`](rung-props.md) | 70 | 51 enforced · 17 out-of-scope · 2 parked |
 | [`rung-ct-props.md`](rung-ct-props.md) | 108 | 18 enforced · 1 expressible · 89 out-of-scope |
 | [`rung-het-props.md`](rung-het-props.md) | 202 | 37 enforced · 12 expressible · 148 out-of-scope · 5 parked |
 
-**Total.** 379 propositions across 3 documents.
+**Total.** 380 propositions across 3 documents.
 
 ## rung — the ladder language
 
 The guarantees name their own conformance tests, so those rows are **derived from the document**, not curated here. Every other proposition — the grammar, the static-semantics rules, the emitted artifacts, the non-guarantees, the conformance discipline, the design judgments — is curated in `_ledger.py`. A proposition added to the document and to neither place lands as `unclassified`, which fails `check`: a new normative claim cannot enter without a verdict.
 
-**Counts.** 50 enforced · 17 out-of-scope · 2 parked · 69 total.
+**Counts.** 51 enforced · 17 out-of-scope · 2 parked · 70 total.
 
 ### Grammar
 
@@ -77,6 +77,7 @@ The guarantees name their own conformance tests, so those rows are **derived fro
 | [3.2](rung-props.md#emitted-rung-structs) | `emitted-rung-structs` | `enforced` | The seal and the thread-binding, which are the two clauses a host can lose silently. The cited test uses autoref specialization to assert `!Send` for rungs *and* verdicts; the `_seal` field is what `spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624` pins. Constructor visibility follows [G2](rung-props.md#g2-sealed-construction). | rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync |
 | [3.3](rung-props.md#emitted-verdict-structs) | `emitted-verdict-structs` | `enforced` | All three shapes in one run: `Exhausted::new()` is the bare terminal marker, `Converged(Report)` is a terminal carrying a payload read back out through `.payload()`, and `Iterating => Active` is a recoverable verdict built from its source rung and unwrapped with `.into_source()`. The fourth clause — that a continue arm emits **no** verdict struct — is `end_to_end.rs::continue_arm_loops_without_a_recover_fn`. | rung/tests/end_to_end.rs::drives_to_convergence |
 | [3.4](rung-props.md#emitted-suspended) | `emitted-suspended` | `enforced` | The residual channel as a type. The cited test coerces the emitted `fn` to a `fn` pointer of the exact expected type — `fn(Posed, Qualified<Adjudicator>) -> Result<Answered, Suspended<Posed>>` — so dropping the summand from the return type is a compile error at that line rather than a silently weaker signature, and it then reads the unconsumed token back out and finds the very argument. Emission is CONDITIONAL, which is what keeps [G12](rung-props.md#g12-gate-marked-signature)'s compatibility clause true: an unmarked ladder emits no `Suspended` and its module is byte-identical. | rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed |
+| [3.41](rung-props.md#suspended-reports-what-it-awaits) | `suspended-reports-what-it-awaits` | `enforced` | The emitted `impl ::rung::Awaiting for Suspended<Prev>` is what lets a holder read what a run awaits off the run instead of being told. The cited suite parks suspensions from a real ladder and matches them by that trait alone; deleting the impl from the macro's emission makes the whole file fail to compile with `Suspended<Filed>: Awaiting is not satisfied`, because `Park<S>` is bounded on it. That the bound carries the claim — rather than a `raised` field read a holder could have done anyway — is the content of the proposition. | rung-std/tests/driver.rs::a_parked_run_is_released_by_its_evidence_and_resumes_to_a_terminal |
 | [3.5](rung-props.md#emitted-step-outcome) | `emitted-step-outcome` | `enforced` | The clause that distinguishes `StepOutcome` from an ordinary verdict enum: a continue arm's variant carries a **live target rung**, not a verdict marker. The cited test reassigns that rung straight back into the driver, with no recover function and no guard in between. | rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn |
 | [3.6](rung-props.md#emitted-failed) | `emitted-failed` | `enforced` | The cited test takes the error path and reads both fields back — the unconsumed `token` and the `error` string — which is what makes `Failed<Prev>` a recovery vehicle rather than a discarded value. | rung/tests/end_to_end.rs::recovers_from_the_failed_error_path |
 | [3.7](rung-props.md#emitted-guards) | `emitted-guards` | `enforced` | `must_progress` is the one an author cannot see: the cited ladder's recover body contains no call to it and panics anyway, because the macro wrapped the body ([G8](rung-props.md#g8-recovery-progress)). The other two guards are pinned the same way, at `gate_markers.rs::a_body_that_ignores_the_token_still_gets_the_binding_check` and `::a_body_that_ignores_the_pen_still_gets_the_standing_check`. | rung/tests/end_to_end.rs::recover_guard_is_auto_injected |

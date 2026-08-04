@@ -7,7 +7,7 @@
 //!
 //! This one does. Its sort is a **question file in this repository**, its models
 //! are read off disk at test time from `docs/questions/**/*.md`, and every
-//! decidable sentence is evaluated against all fourteen of them. If a sentence is
+//! decidable sentence is evaluated against all fifteen of them. If a sentence is
 //! wrong about the real thing the suite says so
 //! (`the_real_questions_report_their_outbound_edge_drift`) rather than being
 //! relaxed until it agrees.
@@ -18,7 +18,7 @@
 //! lifecycle ladder now live in `rung-std` and are filled by two carriers — this
 //! one and a synthetic decision docket in
 //! `rung-std/tests/questions_theory.rs`. What remains below is the part that is
-//! genuinely rung's: a [`Scheme`], a directory, fourteen files, and the results.
+//! genuinely rung's: a [`Scheme`], a directory, fifteen files, and the results.
 //!
 //! Het declares the slots (`het-declares-the-slots`); a theory fills them
 //! (`theory-declares-four-things`); and a *carrier* is what a theory is
@@ -153,20 +153,21 @@ fn pool() -> Pool<Person> {
 /// The questions are read, not invented. If this count drifts, every audit
 /// below is silently weaker, so it is pinned.
 #[test]
-fn the_fourteen_questions_are_read_from_disk() {
+fn the_fifteen_questions_are_read_from_disk() {
     let r = load();
     let ids: Vec<&str> = r.questions.iter().map(|q| q.id.as_str()).collect();
     assert_eq!(
         ids,
         [
-            "q1", "q10", "q11", "q12", "q13", "q14", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9"
+            "q1", "q10", "q11", "q12", "q13", "q14", "q15", "q2", "q3", "q4", "q5", "q6", "q7",
+            "q8", "q9"
         ],
-        "docs/questions/ holds fourteen questions; an audit over zero of them proves nothing"
+        "docs/questions/ holds fifteen questions; an audit over zero of them proves nothing"
     );
 }
 
 #[test]
-fn every_per_question_decidable_sentence_holds_over_all_fourteen_questions() {
+fn every_per_question_decidable_sentence_holds_over_all_fifteen_questions() {
     let r = load();
     let mut violations: Vec<String> = Vec::new();
 

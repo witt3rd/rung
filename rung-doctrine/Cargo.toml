@@ -1,0 +1,14 @@
+[package]
+name = "rung-doctrine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "rung's normative doctrine, encoded — the source the prose is rendered from"
+
+[dependencies]
+rung = { path = "../rung" }
+rung-het = { path = "../rung-het" }
+
+[dev-dependencies]
+rung-std = { path = "../rung-std" }
