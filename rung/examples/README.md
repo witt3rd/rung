@@ -39,12 +39,14 @@ You will meet that rule as four different refusals: a sealed constructor (L1), a
 progress guard (L2), an error edge that hands the token back (L3), and a model
 that may pick an edge but not mint a state (L4). They are the same rule each
 time. Only after you've felt it four times is it worth naming — it's the
-free-category axiom, and [`docs/RUNG-CT.md`](../../docs/RUNG-CT.md) names it.
+free-category axiom, and
+[`docs/rung-ct-propositions.md`](../../docs/rung-ct-propositions.md) names it.
 
 **The category theory is deliberately not a prerequisite.** The law in this
 library was discovered from the inside — a compiler refusal came first, the
 theory named it afterward. The lessons reproduce that order on purpose. Read
-RUNG-CT when you're curious *why* it works, not before you can use it.
+the propositions when you're curious *why* it works, not before you can use
+it; [`docs/RUNG-CT.md`](../../docs/RUNG-CT.md) records how they were found.
 
 ## Where it ends
 

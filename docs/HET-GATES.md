@@ -21,7 +21,8 @@ The claim this crate tests:
 
 ## Why it belongs in rung
 
-`RUNG-CT.md` one-relation already states the law rung enforces: *a verb can only live on
+[The law](rung-ct-propositions.md#the-law) already states what rung enforces: *a
+verb can only live on
 a morphism, never inside an object* — enforced by sealed constructors (G2). That
 law was **found from the inside**: an attempt to fold an LLM verdict into a
 ladder tried to construct the next state to hold the verdict, and the sealed

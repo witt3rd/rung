@@ -24,7 +24,8 @@
 //!
 //! ## Why this belongs in rung
 //!
-//! `RUNG-CT.md` one-relation states the law rung already enforces: *a verb can only live
+//! `rung-ct-propositions.md` states the law rung already enforces (`the-law`):
+//! *a verb can only live
 //! on a morphism, never inside an object* — enforced by sealed constructors
 //! (SPEC.md G2). Het's gate law is the same move on a second axis: **an outside
 //! call can only live on a judgmental arrow.** Same mechanism — seal the

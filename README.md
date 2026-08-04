@@ -168,8 +168,11 @@ module-private, so no outside code can fabricate a mid-ladder token. Omit the
 - [`docs/questions/`](docs/questions/) — the open-question registry: the
   frontier for advancing the language (deepen vs grow). See
   [`INTAKE.md`](docs/questions/INTAKE.md) for how a question enters it.
-- [`docs/RUNG-CT.md`](docs/RUNG-CT.md) — category theory correspondence
-  (free category, indexed monad, dagger, linear logic)
+- [`docs/rung-ct-propositions.md`](docs/rung-ct-propositions.md) — **normative**
+  category-theoretic account: what a `ladder` declaration *is* (free category,
+  coproduct, indexed monad, Prism, dagger, affine substrate, opfibration)
+- [`docs/RUNG-CT.md`](docs/RUNG-CT.md) — the informative half: how that account
+  was derived, the Q7/Q9/Q10 resolution records, and the corrections register
 
 Historical, non-normative background is archived under
 [`docs/.archive/`](docs/.archive/) — the design record (`RUNG-RS.md`), the

@@ -37,7 +37,8 @@ CURATED = {
         "enforced",
         "G2 sealed construction. This proposition *is* rung's founding refusal: "
         "an attempt to fold a live verdict into the next state was rejected by the "
-        "sealed constructor (RUNG-CT, 'The law'). The algebra runs its own decidable "
+        "sealed constructor — [the law](rung-ct-propositions.md#the-law). The "
+        "algebra runs its own decidable "
         "step; it cannot construct the state that holds a judgmental outcome.",
         "rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624",
     ),
@@ -177,9 +178,11 @@ CURATED = {
     "judgmental-arrow-shape": (
         "enforced",
         "The `+ A` residual is `Failed<Prev> { token, error }` — the unconsumed "
-        "argument handed back. RUNG-CT §6.1 names this the Prism's residual and is "
-        "why the error structure is not a Kleisli arrow; the monad `P` layers on the "
-        "forward pass, which §6.1 explicitly permits.",
+        "argument handed back. rung-CT names it the Prism's residual "
+        "([residual-is-the-optics-residual](rung-ct-propositions.md#residual-is-the-optics-residual)) "
+        "and is why the error structure is not a Kleisli arrow; the monad `P` layers "
+        "on the forward pass, which rung-CT explicitly permits "
+        "([effects-layer-on-the-forward-pass](rung-ct-propositions.md#effects-layer-on-the-forward-pass)).",
         "rung/tests/compile_pass.rs::test_failed_type",
     ),
     "adequacy-failure-returns-residual": (
@@ -231,14 +234,17 @@ CURATED = {
     # ── structural correspondences worth recording ───────────────────────
     "fractal-property": (
         "expressible",
-        "RUNG-CT §10 — the composite Grothendieck opfibration, resolved by Q10. The "
-        "correspondence is proved; no registry hierarchy is built.",
+        "The composite Grothendieck opfibration "
+        "([opfibrations-compose](rung-ct-propositions.md#opfibrations-compose)), "
+        "resolved by Q10. The correspondence is proved; no registry hierarchy is built.",
         "docs/questions/resolved/q10-fractal-registry-hierarchy.md",
     ),
     "two-directions-two-bases": (
         "expressible",
         "Conformance is Het's fibration (Mod: Sign^op → Cat, contravariant). "
-        "Propagation is RUNG-CT §10's opfibration (pushforward, opcartesian). "
+        "Propagation is rung-CT's opfibration, pushforward and opcartesian "
+        "([conformance-and-propagation-run-over-different-bases]"
+        "(rung-ct-propositions.md#conformance-and-propagation-run-over-different-bases)). "
         "Different bases at adjacent levels — not opposite orientations of one tower.",
         "—",
     ),

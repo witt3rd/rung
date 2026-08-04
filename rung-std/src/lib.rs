@@ -32,7 +32,8 @@
 //!   — no caller can fabricate a terminal outcome. The sealed constructor is not
 //!   merely a fabrication guard; it is the free-category axiom: a verb (the HTTP
 //!   call) lives on the arrow (`step`'s body), never in object-position
-//!   (constructing a verdict from outside) — see `docs/RUNG-CT.md` §1.
+//!   (constructing a verdict from outside) — see `docs/rung-ct-propositions.md`,
+//!   `the-law`.
 //!
 //! - **G7/G9 (recover pairing — error-path semantics).** The single recover edge
 //!   `retry: Failed(Pending) => Pending` is an **error-path** recovery (SPEC.md G9):
@@ -1207,7 +1208,7 @@ ladder!(LlmCall {
                 },
             )));
         }
-        // The verb lives HERE, on the arrow (RUNG-CT §1 law): a single blocking
+        // The verb lives HERE, on the arrow (`the-law`): a single blocking
         // HTTP POST. A state cannot call an endpoint — only a transition can.
         match raw_call(&pending.payload.config, &pending.payload.messages, &pending.payload.tools) {
             Ok(response) => Ok(StepOutcome::Success(Success::new(response))),
