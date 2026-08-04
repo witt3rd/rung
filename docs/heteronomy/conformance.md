@@ -152,7 +152,7 @@ formalism requires.
 | [5.51](formalism.md#mod-only-gate-faithful) | `mod-only-gate-faithful` | `deferred` | GAP — no question filed. Follows gate-faithful. | — |
 | [5.52](formalism.md#refusal-at-model-category) | `refusal-at-model-category` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [5.53](formalism.md#condition-propagates-by-reindexing) | `condition-propagates-by-reindexing` | `out-of-scope` | mathematics of the institution — no host obligation | — |
-| [5.6](formalism.md#object-defined) | `object-defined` | `out-of-scope` | mathematics of the institution — no host obligation | — |
+| [5.6](formalism.md#subject-defined) | `subject-defined` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [5.61](formalism.md#decidable-runs-pure) | `decidable-runs-pure` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [5.62](formalism.md#judgmental-runs-kleisli) | `judgmental-runs-kleisli` | `out-of-scope` | mathematics of the institution — no host obligation | — |
 | [5.63](formalism.md#self-governing-not-self-closing) | `self-governing-not-self-closing` | `enforced` | G2 sealed construction. This proposition *is* rung's founding refusal: an attempt to fold a live verdict into the next state was rejected by the sealed constructor (RUNG-CT, 'The law'). The algebra runs its own decidable step; it cannot construct the state that holds a judgmental outcome. | rung/src/lib.rs — compile_fail doctest, external `Active::new` → E0624 |

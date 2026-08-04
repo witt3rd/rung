@@ -92,7 +92,7 @@ fixes how its satisfaction is computed.
 |---|---|
 | `decidable` | $M \models \varphi$ is machine-checked. Standard equational logic. |
 | `judgmental` | $M \models \varphi$ dispatches to a **judge** — an inhabitant of the principal pool $\mathcal{P}$. The judge's verdict *is* the satisfaction outcome. |
-| `authorial` | The operation *transforms* the object rather than classifying it, or produces new content about it. It dispatches to an **author**, also from $\mathcal{P}$, holding standing over the object. |
+| `authorial` | The operation *transforms* the subject rather than classifying it, or produces new content about it. It dispatches to an **author**, also from $\mathcal{P}$, holding standing over the subject. |
 | `conditional` | Whether satisfaction is decidable depends on the specific algebra. The condition is classified one level up ([2.5](#conditional-names-classifier)). |
 
 <a id="no-other-gate-value" data-parent="four-gates"></a>
@@ -179,7 +179,7 @@ four predicates.
 | predicate | arity | gate | what $\models$ needs it for |
 |---|---|---|---|
 | $\mathsf{capable}$ | $\mathcal{P} \times \mathsf{Role} \to \mathsf{Bool}$ | decidable | competence filter — can this principal play the role the sentence declares ([2.3](#judgmental-declares-role))? |
-| $\pi$ | $X \to \mathsf{Prov}$, for $X$ a principal or an object | decidable | provenance tags; both filters read it |
+| $\pi$ | $X \to \mathsf{Prov}$, for $X$ a principal or an subject | decidable | provenance tags; both filters read it |
 | $\mathsf{standing}$ | $\mathcal{P} \times S \to \mathsf{Bool}$ | conditional | authorial filter ([3.6](#authorial-qualifying-set)); classified one level up |
 | $\varepsilon$ | $\mathcal{P} \to [4.6](#epsilon-reported-with-verdict)) |
 
@@ -198,7 +198,7 @@ second way — not as a sort, but as a stipulated content.
 **3.24** $\mathsf{capable}$ is used at exactly one arity,
 $\mathcal{P} \times \mathsf{Role}$, everywhere in Het. Its second
 argument is $\mathsf{role}(\varphi)$ or $\mathsf{role}(o)$ — the role the
-*sentence* or *operation* declares — never the sentence or object itself.
+*sentence* or *operation* declares — never the sentence or subject itself.
 A supplier of $\mathcal{P}$ cannot be asked to inspect Het's sentences; it
 does not have them.
 
@@ -233,7 +233,7 @@ $$\mathcal{P}_{\text{judg}}(\varphi, a) = \{\, p \in \mathcal{P} : \mathsf{capab
 applied to**, not against the model in general.
 
 <a id="argument-governs" data-parent="judgmental-qualifying-set"></a>
-**3.52** Where the argument is the object under audit, $\pi(a) = \pi(M)$
+**3.52** Where the argument is the subject under audit, $\pi(a) = \pi(M)$
 and the two readings coincide. Where the argument is a Proposal, its
 provenance is its author's ([7.24](#proposal-provenance-is-authors)) and the author need not be the model.
 The argument governs.
@@ -297,8 +297,8 @@ provenance-disjointness.
 
 <a id="standing-judge-disjoint-from-author" data-parent="authorial-qualifying-set"></a>
 **3.65** That disjointness is relative to the **author**, not to the
-audited object. The judge ruling *"does this principal have standing over
-that object?"* must not be that principal.
+audited subject. The judge ruling *"does this principal have standing over
+that subject?"* must not be that principal.
 
 <a id="two-escalation-triggers" data-parent="authorial-qualifying-set"></a>
 **3.66** Two escalation triggers exist and are not the same.
@@ -503,28 +503,28 @@ selection rule.
 condition propagates through the fibration. Re-indexing cannot invent a
 common author that did not already exist.
 
-### Objects
+### Subjects
 
-<a id="object-defined" data-parent="algebra-is-kleisli-functor"></a>
-**5.6** An **object** is an inhabitant of a carrier set $M(S)$ — a
+<a id="subject-defined" data-parent="algebra-is-kleisli-functor"></a>
+**5.6** An **subject** is an inhabitant of a carrier set $M(S)$ — a
 specific datum, an element sitting in the algebra's interpretation of a
 sort.
 
-<a id="decidable-runs-pure" data-parent="object-defined"></a>
-**5.61** A decidable operation on an object runs as a pure morphism: its
+<a id="decidable-runs-pure" data-parent="subject-defined"></a>
+**5.61** A decidable operation on an subject runs as a pure morphism: its
 result is computed inside the algebra, with no outside.
 
-<a id="judgmental-runs-kleisli" data-parent="object-defined"></a>
-**5.62** A judgmental operation on an object runs as a Kleisli morphism:
+<a id="judgmental-runs-kleisli" data-parent="subject-defined"></a>
+**5.62** A judgmental operation on an subject runs as a Kleisli morphism:
 it emits an outside call, and the outcome is obtained only when the
 outside answers.
 
-<a id="self-governing-not-self-closing" data-parent="object-defined"></a>
-**5.63** An object is therefore **self-governing** — its own algebra runs
+<a id="self-governing-not-self-closing" data-parent="subject-defined"></a>
+**5.63** An subject is therefore **self-governing** — its own algebra runs
 its decidable audit — but **not self-closing**: its judgmental
 dispositions require the monad's outside.
 
-<a id="autopoiesis-made-precise" data-parent="object-defined"></a>
+<a id="autopoiesis-made-precise" data-parent="subject-defined"></a>
 **5.64** That is autopoiesis without self-loop degeneracy, made precise.
 
 ---
@@ -532,7 +532,7 @@ dispositions require the monad's outside.
 ## 6 · The tower
 
 <a id="fractal-property"></a>
-**6** An algebra whose carrier contains objects that themselves carry
+**6** An algebra whose carrier contains subjects that themselves carry
 signature declarations **becomes a theory at the next level**, with its
 own fiber of algebras below.
 
@@ -568,7 +568,7 @@ preserved by signature morphisms.
 **6.14** Two directions run over different bases and must not be conflated.
 **Conformance** runs from a model to its theory and re-indexes
 contravariantly — the tower of [6.1](#tower-is-a-fibration).
-**Propagation** runs from a revised object to whatever depends on it and
+**Propagation** runs from a revised subject to whatever depends on it and
 transports covariantly ([7.52](#target-runs-its-own-models)). Het declares
 that propagation occurs; the taxonomy of dependency is the theory's, not
 Het's ([11.21](#governs-who-not-what)).
@@ -674,7 +674,7 @@ and no global fixed-point proof.
 re-enters.
 
 <a id="self-grounding-is-a-pair" data-parent="fractal-property"></a>
-**6.6** Self-grounding is a property of a **pair**, never of one object
+**6.6** Self-grounding is a property of a **pair**, never of one member
 alone.
 
 <a id="het-self-grounding-condition" data-parent="self-grounding-is-a-pair"></a>
@@ -748,11 +748,11 @@ whose authorship.
 | a violation is found | `audit` | decidable, or judgmental per $\varphi$ | nobody, or a judge disjoint from $M$ | Verdict |
 | the Proponent answers | `propose` | **authorial** | an author with standing over $x$ | Proposal |
 | the Opponent rules | `dispose` | judgmental | a judge disjoint from **the Proposal** | Disposition |
-| the Proponent applies it | `enact` | authorial | an author with standing over $x$ | the revised object |
+| the Proponent applies it | `enact` | authorial | an author with standing over $x$ | the revised subject |
 
 <a id="propose-is-authorial" data-parent="the-pass"></a>
 **7.21** `propose` is **authorial**. Answering a verdict is the
-Proponent's move, and producing content about an object is authorship,
+Proponent's move, and producing content about an subject is authorship,
 which requires standing over it ([3.6](#authorial-qualifying-set)).
 
 <a id="judgmental-propose-swaps-roles" data-parent="the-pass"></a>
@@ -779,7 +779,7 @@ principal $p$. Without this, [3.5](#judgmental-qualifying-set) cannot be evaluat
 | | means | licenses |
 |---|---|---|
 | `remedy` | *"the verdict stands; here is the fix"* | `enact` on acceptance |
-| `dispute` | *"the verdict is wrong; the object stands as authored"* | nothing to enact |
+| `dispute` | *"the verdict is wrong; the subject stands as authored"* | nothing to enact |
 
 <a id="dispute-is-still-judged" data-parent="proposal-vocabulary"></a>
 **7.31** A `dispute` is still judged. The Opponent rules on it exactly as
@@ -794,7 +794,7 @@ they dispute, in order to obtain a vehicle for disputing it.
 ### The Disposition vocabulary
 
 <a id="remedy-carries-an-edit" data-parent="proposal-vocabulary"></a>
-**7.33** A `remedy` carries an **edit** — what would be done to the object.
+**7.33** A `remedy` carries an **edit** — what would be done to the subject.
 The edits are the theory's, not Het's ([11.12](#edit-required-not-typed)); Het requires only that a
 remedy name one, and that `enact` apply it.
 
@@ -804,10 +804,10 @@ remedy name one, and that `enact` apply it.
 | | terminal | affirming | who acts next |
 |---|---|---|---|
 | `accept` | ✓ | ✓ | the author enacts |
-| `reject-diagnosis` | ✓ | ✗ | nobody — the audit was wrong; the object stands |
+| `reject-diagnosis` | ✓ | ✗ | nobody — the audit was wrong; the subject stands |
 | `reject-remedy` | ✗ | ✗ | the author re-proposes, carrying the reason |
 | `defer` | ✗ | ✗ | a prerequisite is required first |
-| `raises-questions` | ✗ | ✗ | the auditor clarifies; the object re-enters |
+| `raises-questions` | ✗ | ✗ | the auditor clarifies; the subject re-enters |
 
 <a id="disposition-is-a-ruling" data-parent="disposition-vocabulary"></a>
 **7.41** A Disposition is a **ruling, not a revision**. Something must
@@ -816,9 +816,9 @@ apply it, and that something is an author with standing ([3.6](#authorial-qualif
 <a id="no-amending-disposition" data-parent="disposition-vocabulary"></a>
 **7.42** No Disposition amends a Proposal. A judge that amends is
 *transforming*, not classifying; and being provenance-disjoint from the
-object ([3.5](#judgmental-qualifying-set)), it cannot hold standing over a modification it has just
+subject ([3.5](#judgmental-qualifying-set)), it cannot hold standing over a modification it has just
 authored ([3.6](#authorial-qualifying-set)). Any amending variant would require one principal to
-satisfy two opposite conditions on one object.
+satisfy two opposite conditions on one subject.
 
 <a id="reason-is-not-an-edit" data-parent="disposition-vocabulary"></a>
 **7.43** `reject-remedy` may carry a **reason**, which is advisory prose
@@ -842,7 +842,7 @@ one-way funnel into a verdict.
 not guarantee the edit lands.
 
 <a id="target-runs-its-own-models" data-parent="enact-makes-an-endofunctor"></a>
-**7.52** Where the revised object enters another governed container,
+**7.52** Where the revised subject enters another governed container,
 **that container's own $\models$ runs** — the pass composed with itself
 under [6](#fractal-property) — and may refuse it.
 
@@ -993,7 +993,7 @@ $$\mathsf{dispatch} = \text{any member of } \text{qualifying}$$
 
 <a id="dispatch-argument-is-the-argument" data-parent="dispatch-is-two-operations"></a>
 **10.21** $a$ is **the argument the operation is applied to** ([3.51](#disjointness-against-argument)) —
-the object at `audit`, the Proposal at `dispose`. Reading $\pi(M)$ in its
+the subject at `audit`, the Proposal at `dispose`. Reading $\pi(M)$ in its
 place is the error [3.52](#argument-governs) excludes.
 
 <a id="conformance-half-needs-no-judge" data-parent="dispatch-is-two-operations"></a>
@@ -1113,85 +1113,90 @@ built on a host that supplies them inherits the guarantee for free.
 Terms not listed here are not part of the formalism. An encoding that
 introduces one has drifted.
 
+**The `in rung` column is the dictionary** between this document's vocabulary
+and the host's. Plain = exists today. *Italic* = agreed, not yet built. `—` =
+no surface counterpart, because the term is mathematics of the institution and
+nothing in a host answers to it.
+
 ### The institution
 
-| term | symbol | meaning | prop |
-|---|---|---|---|
-| **signature** | $\Sigma$ | a theory declaration: sorts, operation symbols with arities, gate markers, and the laws the theory declares | [1.3](#signature-declares) |
-| **signature category** | $\mathbf{Sign}$ | the category of signatures; objects are theories, morphisms are signature morphisms | [1.11](#sign-category) |
-| **sentence** | $\varphi$ | an element of $\mathsf{Sen}(\Sigma)$; a claim over the signature, carrying a gate marker | [1.12](#sen-functor), [2](#gate-marker-required) |
-| **sentence functor** | $\mathsf{Sen}$ | $\mathbf{Sign} \to \mathbf{Set}$ | [1.12](#sen-functor) |
-| **algebra**, **model** | $M$ | an interpretation of a signature; here a functor $T \to \mathbf{Kl}(\mathcal{P})$ | [1.13](#mod-functor), [5](#algebra-is-kleisli-functor) |
-| **model functor** | $\mathsf{Mod}$ | $\mathbf{Sign}^{\text{op}} \to \mathbf{Cat}$ | [1.13](#mod-functor) |
-| **satisfaction relation** | $\models$ | the mechanism testing an algebra against a sentence; the locus of the entire extension | [1](#one-relation), [1.31](#extension-is-in-models) |
-| **satisfaction condition** | | truth is invariant under change of notation; the institution's only axiom | [1.2](#satisfaction-condition), [4.3](#satisfaction-condition-relaxed) |
-| **signature morphism** | $\sigma$ | a structure-preserving map of signatures; translates sentences forward and algebras backward | [1.11](#sign-category), [6.24](#declaration-is-not-a-morphism) |
-| **re-indexing** | $\mathsf{Mod}(\sigma)$ | transport of algebras along a signature morphism | [6.1](#tower-is-a-fibration) |
-| **sort** | $S$ | a type declared by the signature, interpreted as a carrier $M(S)$ | [1.3](#signature-declares) |
-| **object** | $x : M(S)$ | an inhabitant of a carrier — a specific datum under judgment | [5.6](#object-defined) |
-| **conformance declaration** | | the up-pointing edge on a model: "this population interprets that law" | [6.2](#two-kinds-of-pointing), [6.22](#declaration-on-models-only) |
+| term | symbol | in rung | meaning | prop |
+|---|---|---|---|---|
+| **signature** | $\Sigma$ | `ladder!` decl | a theory declaration: sorts, operation symbols with arities, gate markers, and the laws the theory declares | [1.3](#signature-declares) |
+| **signature category** | $\mathbf{Sign}$ | — | the category of signatures; objects are theories, morphisms are signature morphisms | [1.11](#sign-category) |
+| **sentence** | $\varphi$ | *`theory!` sentence* | an element of $\mathsf{Sen}(\Sigma)$; a claim over the signature, carrying a gate marker | [1.12](#sen-functor), [2](#gate-marker-required) |
+| **sentence functor** | $\mathsf{Sen}$ | — | $\mathbf{Sign} \to \mathbf{Set}$ | [1.12](#sen-functor) |
+| **algebra**, **model** | $M$ | — | an interpretation of a signature; here a functor $T \to \mathbf{Kl}(\mathcal{P})$ | [1.13](#mod-functor), [5](#algebra-is-kleisli-functor) |
+| **model functor** | $\mathsf{Mod}$ | — | $\mathbf{Sign}^{\text{op}} \to \mathbf{Cat}$ | [1.13](#mod-functor) |
+| **satisfaction relation** | $\models$ | — | the mechanism testing an algebra against a sentence; the locus of the entire extension | [1](#one-relation), [1.31](#extension-is-in-models) |
+| **satisfaction condition** | | — | truth is invariant under change of notation; the institution's only axiom | [1.2](#satisfaction-condition), [4.3](#satisfaction-condition-relaxed) |
+| **signature morphism** | $\sigma$ | — | a structure-preserving map of signatures; translates sentences forward and algebras backward | [1.11](#sign-category), [6.24](#declaration-is-not-a-morphism) |
+| **re-indexing** | $\mathsf{Mod}(\sigma)$ | — | transport of algebras along a signature morphism | [6.1](#tower-is-a-fibration) |
+| **sort** | $S$ | rung payload type | a type declared by the signature, interpreted as a carrier $M(S)$ | [1.3](#signature-declares) |
+| **subject** | $x : M(S)$ | payload | an inhabitant of a carrier — a specific datum under judgment | [5.6](#subject-defined) |
+| **conformance declaration** | | — | the up-pointing edge on a model: "this population interprets that law" | [6.2](#two-kinds-of-pointing), [6.22](#declaration-on-models-only) |
 
 ### Judgment
 
-| term | symbol | meaning | prop |
-|---|---|---|---|
-| **gate marker** | | the annotation fixing a sentence's or operation's satisfaction mechanism | [2](#gate-marker-required) |
-| **decidable** | | satisfaction is machine-checked by standard equational logic | [2.1](#four-gates) |
-| **judgmental** | | satisfaction dispatches to a judge; the verdict *is* the outcome | [2.1](#four-gates) |
-| **authorial** | | the operation transforms rather than classifies; dispatches to an author | [2.1](#four-gates), [3.6](#authorial-qualifying-set) |
-| **conditional** | | decidability depends on the algebra; classified one level up | [2.1](#four-gates), [2.5](#conditional-names-classifier) |
-| **competence role** | $\mathsf{Role}$ | what a judgmental sentence needs done; declared pointwise by the sentence | [2.3](#judgmental-declares-role) |
-| **principal pool** | $\mathcal{P}$ | the pool dispatched to by non-decidable gates. **A parameter of $\models$, never a sort** | [3](#pool-is-parameter) |
-| **judge** | | a principal filtered by capability and non-identity; renders a verdict | [3.5](#judgmental-qualifying-set) |
-| **author** | | a principal filtered by capability and standing; enacts a ruling | [3.6](#authorial-qualifying-set) |
-| **standing** | | an author holds stewardship of what it enacts on. Conditional-gated | [3.6](#authorial-qualifying-set), [3.63](#standing-conditional-gated) |
-| **non-identity** | | a judge must not be the author of what it judges. Decidable; enforced before dispatch | [3.5](#judgmental-qualifying-set), [3.53](#non-identity-before-dispatch) |
-| **belonging predicate** | | a predicate deciding whether a principal qualifies at all: capability, non-identity, standing | [3.3](#three-belonging-predicates) |
-| **qualifying set** | | the principals surviving the gate's belonging predicates. Het's output | [3.5](#judgmental-qualifying-set), [3.6](#authorial-qualifying-set), [10.2](#dispatch-is-two-operations) |
-| **kind** | $K_i$ | a partition of $\mathcal{P}$ by substrate. The supplier's, not Het's | [3.23](#nothing-further-required), [9.2](#composite-kinds) |
-| **cost tier** | | ordering on principals by resource consumption. **HetOpt** | [3.31](#ordering-is-hetopts), [8.22](#v-applies-to-conforming-sets) |
-| **minimal-judge rule** | | select the cheapest qualifying judge, breaking ties by lowest $\varepsilon$. **HetOpt** | [8.22](#v-applies-to-conforming-sets) |
-| **minimal-author rule** | | select the cheapest principal with standing, escalating when it cannot close. **HetOpt** | [3.66](#two-escalation-triggers), [8.22](#v-applies-to-conforming-sets) |
-| **renaming-robustness** | $\varepsilon$ | tolerated verdict drift under signature morphisms. Reported in Het; a criterion in HetOpt | [3.32](#epsilon-declared-not-ranked), [4.6](#epsilon-reported-with-verdict) |
-| **adequacy** | | that *a* qualifying non-identical judge exists and returns a verdict. Judgmental, discharged where invoked | [6.5](#adequacy-defined) |
-| **gate law** | | gate markers may be preserved or increased along morphisms, never laundered downward | [6.3](#gate-law) |
+| term | symbol | in rung | meaning | prop |
+|---|---|---|---|---|
+| **gate marker** | | *`#[…]` on a rung* | the annotation fixing a sentence's or operation's satisfaction mechanism | [2](#gate-marker-required) |
+| **decidable** | | *unmarked transition* | satisfaction is machine-checked by standard equational logic | [2.1](#four-gates) |
+| **judgmental** | | *`#[judgmental(R)]`* | satisfaction dispatches to a judge; the verdict *is* the outcome | [2.1](#four-gates) |
+| **authorial** | | *`#[authorial]`* | the operation transforms rather than classifies; dispatches to an author | [2.1](#four-gates), [3.6](#authorial-qualifying-set) |
+| **conditional** | | *`#[conditional(φ)]`* | decidability depends on the algebra; classified one level up | [2.1](#four-gates), [2.5](#conditional-names-classifier) |
+| **competence role** | $\mathsf{Role}$ | `Role` | what a judgmental sentence needs done; declared pointwise by the sentence | [2.3](#judgmental-declares-role) |
+| **principal pool** | $\mathcal{P}$ | `Pool` (supplied) | the pool dispatched to by non-decidable gates. **A parameter of $\models$, never a sort** | [3](#pool-is-parameter) |
+| **judge** | | `Qualified<R>` | a principal filtered by capability and non-identity; renders a verdict | [3.5](#judgmental-qualifying-set) |
+| **author** | | `Authorized` | a principal filtered by capability and standing; enacts a ruling | [3.6](#authorial-qualifying-set) |
+| **standing** | | — | an author holds stewardship of what it enacts on. Conditional-gated | [3.6](#authorial-qualifying-set), [3.63](#standing-conditional-gated) |
+| **non-identity** | | — | a judge must not be the author of what it judges. Decidable; enforced before dispatch | [3.5](#judgmental-qualifying-set), [3.53](#non-identity-before-dispatch) |
+| **belonging predicate** | | — | a predicate deciding whether a principal qualifies at all: capability, non-identity, standing | [3.3](#three-belonging-predicates) |
+| **qualifying set** | | — | the principals surviving the gate's belonging predicates. Het's output | [3.5](#judgmental-qualifying-set), [3.6](#authorial-qualifying-set), [10.2](#dispatch-is-two-operations) |
+| **kind** | $K_i$ | — | a partition of $\mathcal{P}$ by substrate. The supplier's, not Het's | [3.23](#nothing-further-required), [9.2](#composite-kinds) |
+| **cost tier** | | — | ordering on principals by resource consumption. **HetOpt** | [3.31](#ordering-is-hetopts), [8.22](#v-applies-to-conforming-sets) |
+| **minimal-judge rule** | | — | select the cheapest qualifying judge, breaking ties by lowest $\varepsilon$. **HetOpt** | [8.22](#v-applies-to-conforming-sets) |
+| **minimal-author rule** | | — | select the cheapest principal with standing, escalating when it cannot close. **HetOpt** | [3.66](#two-escalation-triggers), [8.22](#v-applies-to-conforming-sets) |
+| **renaming-robustness** | $\varepsilon$ | — | tolerated verdict drift under signature morphisms. Reported in Het; a criterion in HetOpt | [3.32](#epsilon-declared-not-ranked), [4.6](#epsilon-reported-with-verdict) |
+| **adequacy** | | — | that *a* qualifying non-identical judge exists and returns a verdict. Judgmental, discharged where invoked | [6.5](#adequacy-defined) |
+| **gate law** | | — | gate markers may be preserved or increased along morphisms, never laundered downward | [6.3](#gate-law) |
 
 ### Semantics
 
-| term | symbol | meaning | prop |
-|---|---|---|---|
-| **Kleisli category** | $\mathbf{Kl}(\mathcal{P})$ | where algebras land; judgmental and authorial operations are Kleisli arrows, decidable ones factor through $\eta$ | [5](#algebra-is-kleisli-functor) |
-| **admissibility sub-categories** | $\mathbf{Kl}_{\text{judg}}$, $\mathbf{Kl}_{\text{auth}}$ | gate-selected restrictions: provenance-disjoint versus containment-plus-standing | [5.41](#admissibility-subcategories) |
-| **provenance** | $\pi_X$ | a map to provenance tags, carried by every object; strict under $\eta$ and $\mu$ | [5.3](#provenance-structure), [5.32](#monad-is-provenance-strict) |
-| **gate-faithful** | | an algebra whose decidable operations are pure, judgmental ones judgmentally-admissible, authorial ones authorially-admissible | [5.5](#gate-faithful) |
-| **fibration** | | the Grothendieck construction over the category of theories | [6.1](#tower-is-a-fibration) |
-| **fractal property** | | an algebra carrying its own signature declaration becomes a theory at the next level | [6](#fractal-property) |
-| **well-formedness predicate** | $W$ | the decidable shape-check on signatures on which the tower terminates | [6.4](#tower-floor) |
+| term | symbol | in rung | meaning | prop |
+|---|---|---|---|---|
+| **Kleisli category** | $\mathbf{Kl}(\mathcal{P})$ | — | where algebras land; judgmental and authorial operations are Kleisli arrows, decidable ones factor through $\eta$ | [5](#algebra-is-kleisli-functor) |
+| **admissibility sub-categories** | $\mathbf{Kl}_{\text{judg}}$, $\mathbf{Kl}_{\text{auth}}$ | — | gate-selected restrictions: provenance-disjoint versus containment-plus-standing | [5.41](#admissibility-subcategories) |
+| **provenance** | $\pi_X$ | `Provenanced` | a map to provenance tags, carried by every object; strict under $\eta$ and $\mu$ | [5.3](#provenance-structure), [5.32](#monad-is-provenance-strict) |
+| **gate-faithful** | | *emitted signature* | an algebra whose decidable operations are pure, judgmental ones judgmentally-admissible, authorial ones authorially-admissible | [5.5](#gate-faithful) |
+| **fibration** | | — | the Grothendieck construction over the category of theories | [6.1](#tower-is-a-fibration) |
+| **fractal property** | | — | an algebra carrying its own signature declaration becomes a theory at the next level | [6](#fractal-property) |
+| **well-formedness predicate** | $W$ | — | the decidable shape-check on signatures on which the tower terminates | [6.4](#tower-floor) |
 
 ### Verdicts, worth, and the two formalisms
 
-| term | symbol | meaning | prop |
-|---|---|---|---|
-| **verdict** | | a judge's answer; the satisfaction outcome for a judgmental sentence | [2.1](#four-gates) |
-| **verdict space** | | the space verdicts inhabit — $[0,1]$, a simplex $\Delta^n$, a strategy lattice | [4](#verdict-space-with-metric), [4.2](#typical-verdict-spaces) |
-| **metric** | $d$ | distance on the verdict space. **Measures** drift; symmetric | [4](#verdict-space-with-metric), [4.5](#metric-measures-not-ranks) |
-| **worth-law**, **valuation** | $V$ | a quantale whose order **ranks** a conforming set. **HetOpt only** | [8](#het-settles-hetopt-orders), [8.22](#v-applies-to-conforming-sets) |
-| **belonging**, **conformance** | $\chi$ | the objecthood predicate: what a candidate must satisfy to be a conforming algebra | [8](#het-settles-hetopt-orders) |
-| **Het** | | judgmental institution + gate-marked $\models$ + metric verdict space. Settles belonging | [8](#het-settles-hetopt-orders) |
-| **HetOpt** | | Het + $V$. Orders what belongs — qualifying judges and conforming candidates alike | [8](#het-settles-hetopt-orders) |
+| term | symbol | in rung | meaning | prop |
+|---|---|---|---|---|
+| **verdict** | | `Verdict` | a judge's answer; the satisfaction outcome for a judgmental sentence | [2.1](#four-gates) |
+| **verdict space** | | — | the space verdicts inhabit — $[0,1]$, a simplex $\Delta^n$, a strategy lattice | [4](#verdict-space-with-metric), [4.2](#typical-verdict-spaces) |
+| **metric** | $d$ | — | distance on the verdict space. **Measures** drift; symmetric | [4](#verdict-space-with-metric), [4.5](#metric-measures-not-ranks) |
+| **worth-law**, **valuation** | $V$ | — | a quantale whose order **ranks** a conforming set. **HetOpt only** | [8](#het-settles-hetopt-orders), [8.22](#v-applies-to-conforming-sets) |
+| **belonging**, **conformance** | $\chi$ | — | the belonging predicate: what a candidate must satisfy to be a conforming algebra | [8](#het-settles-hetopt-orders) |
+| **Het** | | — | judgmental institution + gate-marked $\models$ + metric verdict space. Settles belonging | [8](#het-settles-hetopt-orders) |
+| **HetOpt** | | — | Het + $V$. Orders what belongs — qualifying judges and conforming candidates alike | [8](#het-settles-hetopt-orders) |
 
 ### The game
 
-| term | meaning | prop |
-|---|---|---|
-| **Proponent** | the candidate algebra, asserting $M \models \varphi$ | [7.1](#proponent-and-opponent) |
-| **Opponent** | the environment; may query the judge as oracle | [7.1](#proponent-and-opponent) |
-| **winning strategy** | what satisfaction amounts to: the Proponent has one | [7](#satisfaction-is-a-game) |
-| **audit** | a violation is found; produces a Verdict | [7.2](#the-pass) |
-| **propose** | the Proponent answers; authorial; produces a Proposal | [7.2](#the-pass), [7.21](#propose-is-authorial) |
-| **dispose** | the Opponent rules; judgmental; produces a Disposition | [7.2](#the-pass) |
-| **enact** | the Proponent applies a terminal-and-affirming Disposition; produces the revised object | [7.2](#the-pass), [7.5](#enact-makes-an-endofunctor) |
-| **panel** | $\models$ with more than one judge; the game with an enlarged oracle-move set | [7.6](#panels) |
+| term | in rung | meaning | prop |
+|---|---|---|---|
+| **Proponent** | — | the candidate algebra, asserting $M \models \varphi$ | [7.1](#proponent-and-opponent) |
+| **Opponent** | — | the environment; may query the judge as oracle | [7.1](#proponent-and-opponent) |
+| **winning strategy** | — | what satisfaction amounts to: the Proponent has one | [7](#satisfaction-is-a-game) |
+| **audit** | transition | a violation is found; produces a Verdict | [7.2](#the-pass) |
+| **propose** | transition | the Proponent answers; authorial; produces a Proposal | [7.2](#the-pass), [7.21](#propose-is-authorial) |
+| **dispose** | branching transition | the Opponent rules; judgmental; produces a Disposition | [7.2](#the-pass) |
+| **enact** | transition | the Proponent applies a terminal-and-affirming Disposition; produces the revised subject | [7.2](#the-pass), [7.5](#enact-makes-an-endofunctor) |
+| **panel** | — | $\models$ with more than one judge; the game with an enlarged oracle-move set | [7.6](#panels) |
 
 ---
 
@@ -1202,10 +1207,10 @@ introduces one has drifted.
 
 <a id="reentry-never-terminates" data-parent="no-bound-on-reentry"></a>
 **12.1** If no acceptable remedy exists, `reject-remedy` re-enters
-forever ([7.4](#disposition-vocabulary)) and the object never leaves the loop.
+forever ([7.4](#disposition-vocabulary)) and the subject never leaves the loop.
 
 <a id="answers-are-worth-shaped" data-parent="no-bound-on-reentry"></a>
-**12.2** Het cannot close this. The available answers — evict the object,
+**12.2** Het cannot close this. The available answers — evict the subject,
 bound the attempts, or accept non-conformance as declared debt — are all
 worth-shaped, and [8.21](#het-declares-no-worth-law) forbids a Het theory from declaring a worth-law.
 
