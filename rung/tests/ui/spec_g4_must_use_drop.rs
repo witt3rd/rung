@@ -1,4 +1,4 @@
-//! SPEC.md G4 — no silent drop.
+//! rung-props.md G4 — no silent drop.
 //!
 //! Every generated token carries `#[must_use]`. Rust types are affine, so move
 //! semantics give "consumed at most once"; `#[must_use]` supplies the other

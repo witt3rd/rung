@@ -2,7 +2,7 @@
 //!
 //! ## What this is
 //!
-//! Het (see `witt3rd/heteronomy`, here as `docs/rung-het-propositions.md`)
+//! Het (see `witt3rd/heteronomy`, here as `docs/rung-het-props.md`)
 //! extends institution theory at exactly one point: the satisfaction relation `M ⊨ φ`. Every
 //! sentence carries a **gate marker** fixing *how* satisfaction is computed:
 //!
@@ -25,10 +25,10 @@
 //!
 //! ## Why this belongs in rung
 //!
-//! `rung-ct-propositions.md` states the law rung already enforces (`the-law`):
+//! `rung-ct-props.md` states the law rung already enforces (`the-law`):
 //! *a verb can only live
 //! on a morphism, never inside an object* — enforced by sealed constructors
-//! (SPEC.md G2). Het's gate law is the same move on a second axis: **an outside
+//! (rung-props.md G2). Het's gate law is the same move on a second axis: **an outside
 //! call can only live on a judgmental arrow.** Same mechanism — seal the
 //! capability, hand it only to the arrow licensed to hold it.
 //!
@@ -68,7 +68,7 @@
 //!
 //! ## The gate law, as compile errors
 //!
-//! rung's own discipline (SPEC.md fractal-property): a guarantee that no test can break is
+//! rung's own discipline (rung-props.md fractal-property): a guarantee that no test can break is
 //! not a guarantee. Each case below is a `compile_fail` doctest — if the
 //! enforcement is ever weakened, the example starts compiling and the test
 //! fails.
@@ -126,7 +126,7 @@
 //!
 //! ### A `Qualified` token cannot be fabricated
 //!
-//! The seal (rung SPEC.md G2, applied to the capability rather than the rung).
+//! The seal (rung rung-props.md G2, applied to the capability rather than the rung).
 //! If this compiled, P0 would be a convention.
 //!
 //! The literal must name **every** field of `Qualified`, including
@@ -211,7 +211,7 @@
 //!
 //! Deliberately partial. Implemented: the `decidable`, `judgmental` and
 //! `authorial` gates, both filters over the one pool, and `role(φ)` / `role(o)`.
-//! The authorial gate reaches `ladder!` as `#[authorial(Role)]` (rung SPEC.md
+//! The authorial gate reaches `ladder!` as `#[authorial(Role)]` (rung rung-props.md
 //! G14), which emits an `Authorized<'_, Role>` pen and a standing prologue the
 //! body cannot skip. Not implemented: the `conditional` gate (classified one
 //! level up, and the first place Het has not decided what the encoding needs),

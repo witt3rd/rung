@@ -16,7 +16,7 @@ Not every uncertainty. File it when **all three** hold:
 
 1. **It has a resolution condition.** You can state what would count as an answer — even roughly. *"Which monad do effectful bodies live in?"* qualifies (Q7 — answerable against the categorical literature); *"I wonder about effects"* does not.
 2. **Something rests on it, or will.** It blocks, gates, or grounds real downstream work. Q7 gated the blocking-client decision; Q9 grounds RUNG-CT's Level 1. If nothing waits on it, it's a musing, not a tracked bet.
-3. **It would otherwise evaporate.** If it's already captured somewhere load-bearing — a `SPEC.md` guarantee, a `RUNG-CT.md` section — don't duplicate it. The registry is for the ones that would be lost.
+3. **It would otherwise evaporate.** If it's already captured somewhere load-bearing — a `rung-props.md` guarantee, a `RUNG-CT.md` section — don't duplicate it. The registry is for the ones that would be lost.
 
 If it doesn't clear all three, it's not rejected — it's just not a *registry* item yet. A one-line note elsewhere is fine.
 
@@ -32,7 +32,7 @@ This is what rung has that a capture-only registry does not: a principled genera
 ## The procedure
 
 1. **Name it as a question** — one sentence, as sharp as you can make it now. Sharpness can improve later; vagueness at intake is allowed, but the *shape* must be a question, not a topic.
-2. **Assign the next Q-number.** rung's IDs are stable `qN` anchors, cited from `RUNG-CT.md`, `SPEC.md`, and other question files. Take the next free integer; **never renumber an existing one.**
+2. **Assign the next Q-number.** rung's IDs are stable `qN` anchors, cited from `RUNG-CT.md`, `rung-props.md`, and other question files. Take the next free integer; **never renumber an existing one.**
 3. **Pick the folder** (folder is status):
    - `open/` — unresolved, actively ours to push.
    - `blocked/` — waiting on something outside this project (a language feature, an upstream dependency). Name what with a `gate` edge.

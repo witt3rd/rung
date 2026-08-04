@@ -9,7 +9,7 @@
 //! The intended diagnostic is **E0451** — a private field in a struct literal.
 //! Every field is named: an incomplete literal fails with E0063 whether or not
 //! the fields are private, so it would keep failing with the seal removed and
-//! would assert nothing (SPEC.md §6).
+//! would assert nothing (rung-props.md §6).
 
 use rung::ladder;
 use std::marker::PhantomData;

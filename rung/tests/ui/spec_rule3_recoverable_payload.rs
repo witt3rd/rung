@@ -1,4 +1,4 @@
-//! SPEC.md §2 rule 3 — a recoverable verdict cannot declare a payload.
+//! rung-props.md §2 rule 3 — a recoverable verdict cannot declare a payload.
 //!
 //! A terminal verdict may carry a result (`Converged(Report)`), so a run
 //! returns a value *through* the verdict. A recoverable verdict may not: it

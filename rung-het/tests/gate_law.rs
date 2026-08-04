@@ -1,6 +1,6 @@
 //! Conformance tests for `rung-het` — Het's gate law as a type property.
 //!
-//! Following rung's own discipline (SPEC.md fractal-property): every guarantee names the test
+//! Following rung's own discipline (rung-props.md fractal-property): every guarantee names the test
 //! that fails if the implementation stops honoring it. The tests that matter
 //! most here are the **negative** ones — a gate that never fires on a
 //! deliberate violation is not a gate.

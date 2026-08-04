@@ -14,7 +14,7 @@ use rung::ladder;
 struct LoopState;
 
 // An `#[authorial(R)]` transition admits its pen only over the container the
-// subject sits in (SPEC.md G14), so the source rung's payload must name one.
+// subject sits in (rung-props.md G14), so the source rung's payload must name one.
 // Supplied here so that the ONLY error in this file is the one it exists to pin.
 struct SpecData;
 impl rung::Situated for SpecData {

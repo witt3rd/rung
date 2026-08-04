@@ -4,6 +4,11 @@
 It records no history, cites no artifact, and names no reviewer. Every claim is
 stated once, in one place, and referred to elsewhere by number.
 
+**One exception, deliberate.** The appendix is a record of claims this
+account once made and has since withdrawn. It is not part of the numbered
+tree and states nothing this document asserts — it exists because a
+superseded claim that leaves no trace comes back.
+
 The numbering is a tree. A proposition `n.m` is a remark on `n`; `n.mm` is a
 remark on `n.m`. Interior propositions are the conjunction of their children.
 Leaves are single checkable claims.
@@ -17,7 +22,7 @@ break a reference — run `./_props.py fmt` and the numbering follows.
 proposition out of order with its parent, or a number that has gone stale.
 
 **Two documents, one slug space.** A reference whose target names
-`rung-het-propositions.md` points into Het's formalism. Where a claim here
+`rung-het-props.md` points into Het's formalism. Where a claim here
 touches one there, it links rather than restates.
 
 **G-numbers.** `G1`–`G14` name the guarantees of the ladder specification. This
@@ -60,7 +65,7 @@ traversing an arrow.
 <a id="law-is-the-second-axis-of-one-refusal" data-parent="the-law"></a>
 **1.33** The law is one axis of a refusal Het states on another: an algebra runs
 its own decidable step and cannot construct the state that holds a judgmental
-outcome ([5.63](rung-het-propositions.md#self-governing-not-self-closing)).
+outcome ([5.63](rung-het-props.md#self-governing-not-self-closing)).
 
 <a id="category-is-freely-generated" data-parent="ladder-declares-a-category"></a>
 **1.4** The category is **freely generated** by the declared arrows. Between two
@@ -133,7 +138,7 @@ live rung, not a verdict. Nothing has left the category.
 **2.23** The **residual summand** is the final `+ A`: the input object returned
 unconsumed when the transition does not answer. It is the same residual Het's
 judgmental arrow carries
-([5.25](rung-het-propositions.md#judgmental-arrow-shape)).
+([5.25](rung-het-props.md#judgmental-arrow-shape)).
 
 <a id="elimination-is-exhaustive" data-parent="branching-is-a-coproduct"></a>
 **2.3** Elimination is **exhaustive** (`G6`): a morphism out of the coproduct
@@ -147,9 +152,9 @@ vocabulary can be *closed*.
 
 <a id="closed-vocabularies-rest-on-this" data-parent="elimination-is-exhaustive"></a>
 **2.32** Every "exactly $n$" claim of a declared vocabulary — Het's four gates
-([2.1](rung-het-propositions.md#four-gates)), its two Proposals
-([7.3](rung-het-propositions.md#proposal-vocabulary)), its five Dispositions
-([7.4](rung-het-propositions.md#disposition-vocabulary)) — is enforceable
+([2.1](rung-het-props.md#four-gates)), its two Proposals
+([7.3](rung-het-props.md#proposal-vocabulary)), its five Dispositions
+([7.4](rung-het-props.md#disposition-vocabulary)) — is enforceable
 exactly because it is a coproduct, and enforced by
 [2.31](#adding-a-summand-breaks-every-eliminator).
 
@@ -270,9 +275,9 @@ accumulates one*; it is not a claim that one is accumulated.
 <a id="trace-is-not-authorship-provenance" data-parent="trace-is-a-writer-monad"></a>
 **5.5** A trace is **not provenance**. A trace records which arrows ran.
 Provenance is a map to authorship tags
-([5.3](rung-het-propositions.md#provenance-structure)), and it is disjointness
+([5.3](rung-het-props.md#provenance-structure)), and it is disjointness
 of *those* that decides whether a judge may rule
-([3.5](rung-het-propositions.md#judgmental-qualifying-set)). The two are
+([3.5](rung-het-props.md#judgmental-qualifying-set)). The two are
 unrelated structures, and neither substitutes for the other.
 
 ---
@@ -309,7 +314,7 @@ effectful transition is a strong monad $T$ on match:
 $$A \longrightarrow T\Big(\textstyle\sum_i B_i \;+\; A\Big)$$
 
 This is the same shape Het gives a judgmental operation
-([5](rung-het-propositions.md#algebra-is-kleisli-functor)), with $T$ the
+([5](rung-het-props.md#algebra-is-kleisli-functor)), with $T$ the
 principal monad.
 
 <a id="strength-carries-linearity" data-parent="effects-layer-on-the-forward-pass"></a>
@@ -380,7 +385,7 @@ forward progress.
 because a caller may handle a returned residual itself; unguarded, because a
 re-entry after an unanswered call may legitimately reuse the argument — the same
 licence Het grants a returned residual
-([6.55](rung-het-propositions.md#adequacy-failure-returns-residual)).
+([6.55](rung-het-props.md#adequacy-failure-returns-residual)).
 
 <a id="terminal-verdicts-have-no-adjoint" data-parent="the-dagger-is-partial-and-contractive"></a>
 **7.5** A terminal verdict has **no adjoint**. It is an absorbing object, and
@@ -518,12 +523,12 @@ judgmental marker, $\mathsf{Authorized}$ for the authorial one. That is a
 constraint on *who may traverse the arrow*.
 
 Het's admissibility sub-categories
-([5.41](rung-het-propositions.md#admissibility-subcategories)) are defined
+([5.41](rung-het-props.md#admissibility-subcategories)) are defined
 instead by a condition on $f(a)$ — what the arrow **returns** — and the two
 gates take opposite conditions there: disjointness from the argument for
 $\mathbf{Kl}_{\text{judg}}$, provenance containment plus standing for
 $\mathbf{Kl}_{\text{auth}}$. Both restrict the *same* Kleisli category
-([5.43](rung-het-propositions.md#one-monad)), so this is one boundary crossed
+([5.43](rung-het-props.md#one-monad)), so this is one boundary crossed
 twice and not two separate gaps.
 
 Membership of either sub-category is therefore a property of the body, which is
@@ -547,7 +552,7 @@ adding a check to the construction.
 form a **free base category**; subjects-in-states over it form a **Grothendieck
 opfibration** $p : E \to B$. A governed subject is one that carries its own
 signature, and so is a theory at the next level
-([6](rung-het-propositions.md#fractal-property)).
+([6](rung-het-props.md#fractal-property)).
 
 <a id="fibre-is-a-ladder" data-parent="dependency-structure-is-an-opfibration"></a>
 **11.1** The **fibre over a subject is exactly that subject's ladder** — the
@@ -580,15 +585,15 @@ outside.
 
 <a id="edge-taxonomy-is-the-theorys" data-parent="edge-type-selects-the-pushforward"></a>
 **11.221** **The taxonomy is the governing theory's**, declared by it exactly as
-an edit vocabulary is ([11.12](rung-het-propositions.md#edit-required-not-typed)).
+an edit vocabulary is ([11.12](rung-het-props.md#edit-required-not-typed)).
 This document states that an edge type selects a pushforward; it never
 enumerates the types, for the reason
-[11.21](rung-het-propositions.md#governs-who-not-what) gives.
+[11.21](rung-het-props.md#governs-who-not-what) gives.
 
 <a id="strict-and-advisory-are-the-gate" data-parent="edge-type-selects-the-pushforward"></a>
 **11.222** The load-bearing split among edge types — obligatory against advisory,
 *this breaks* against *check whether this breaks* — is the **gate marker**
-([2.1](rung-het-propositions.md#four-gates)) at this level. A strict edge
+([2.1](rung-het-props.md#four-gates)) at this level. A strict edge
 propagates decidably; an advisory edge requires a ruling. It is not a second
 taxonomy laid over the gates; it is the gates, read one level up.
 
@@ -647,7 +652,7 @@ conformance. Conformance runs from a model to its theory and re-indexes
 contravariantly; propagation runs from a revised subject to its dependents and
 transports covariantly. They are adjacent levels over different bases, not two
 orientations of one tower
-([6.14](rung-het-propositions.md#two-directions-two-bases)).
+([6.14](rung-het-props.md#two-directions-two-bases)).
 
 ---
 
@@ -686,19 +691,19 @@ protects, or is marked a limit. A claim that is neither has no standing.
 
 *Not a proposition. No slug, no number, no place in the tree.* These are claims
 earlier revisions of this account made and which do not survive into it. Each
-was checked against `rung-macro/src/lib.rs`, `SPEC.md`, or the test suite. A
+was checked against `rung-macro/src/lib.rs`, `rung-props.md`, or the test suite. A
 withdrawn claim that leaves no trace comes back, so it is recorded here rather
 than deleted.
 
 | withdrawn claim | what is true | evidence |
 |---|---|---|
 | "the compiler refuses **any** out-of-category construction" | only with an inline `impl` block; a type-only declaration publishes every constructor | `rung-macro/src/lib.rs` — `ctor_vis` |
-| two example ladders, `Designed/Claimed/Active` and `Spec/Active` | one running example; the earlier two were mutually incompatible **and both ungrammatical** — the verdict block is mandatory | `SPEC.md` §1 grammar |
-| a forward transition is named `design: Designed → Claimed` | named after its **target**, lowercased — so `claimed`, or `active`. The branching transition is always `step` | `SPEC.md` §1; `rung-macro/src/lib.rs` |
+| two example ladders, `Designed/Claimed/Active` and `Spec/Active` | one running example; the earlier two were mutually incompatible **and both ungrammatical** — the verdict block is mandatory | `rung-props.md` §1 grammar |
+| a forward transition is named `design: Designed → Claimed` | named after its **target**, lowercased — so `claimed`, or `active`. The branching transition is always `step` | `rung-props.md` §1; `rung-macro/src/lib.rs` |
 | the carry is "structurally shared (duplicated by reference)" | copied **by value** into each object's own `carry` field | `rung-macro/src/lib.rs` — `carry: Carry` field + ctor init |
 | the carry satisfies comonad coassociativity | not enforced — a body supplies the successor's carry and may change it, and the running example's `iterate` decrements `budget` | `rung/tests/end_to_end.rs` |
 | `f† ∘ f ≠ id` (on tokens) | the guard compares **payloads**, never tokens; a token comparison would be vacuous | `rung-macro/src/lib.rs` — `must_progress(&__before, &__after.payload)` |
-| G4 covers "every rung and verdict type" | also `StepOutcome` and `Failed` | `SPEC.md` G4; `rung-macro/src/lib.rs` |
+| G4 covers "every rung and verdict type" | also `StepOutcome` and `Failed` | `rung-props.md` G4; `rung-macro/src/lib.rs` |
 | the coproduct diagram's injection arrows | injections point **into** the coproduct; elimination is the unique morphism out. The ASCII diagram had them reversed, and the diagram is dropped rather than redrawn | — |
-| the verification table omitted G3, G10, G11 | all three are in [10.1](#guarantees-carry-categorical-content); G3 has a real categorical reading — one token cannot be driven by two threads | `SPEC.md` G3/G10/G11 |
+| the verification table omitted G3, G10, G11 | all three are in [10.1](#guarantees-carry-categorical-content); G3 has a real categorical reading — one token cannot be driven by two threads | `rung-props.md` G3/G10/G11 |
 | "resolves on the reviews" stated as a claim inside the theory | an epistemic-status claim about a document, not a claim about the category; it has no place in a normative account and is dropped | — |

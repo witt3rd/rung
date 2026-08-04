@@ -243,7 +243,7 @@ fn the_injected_prologue_refuses_a_transferred_token_the_body_never_reads() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// The authorial gate (SPEC.md G14) — the OTHER filter over the SAME pool
+// The authorial gate (rung-props.md G14) — the OTHER filter over the SAME pool
 // ════════════════════════════════════════════════════════════════════════════
 //
 // Everything below is the mirror of everything above, and the mirror is not a

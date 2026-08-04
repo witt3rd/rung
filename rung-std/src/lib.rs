@@ -32,11 +32,11 @@
 //!   — no caller can fabricate a terminal outcome. The sealed constructor is not
 //!   merely a fabrication guard; it is the free-category axiom: a verb (the HTTP
 //!   call) lives on the arrow (`step`'s body), never in object-position
-//!   (constructing a verdict from outside) — see `docs/rung-ct-propositions.md`,
+//!   (constructing a verdict from outside) — see `docs/rung-ct-props.md`,
 //!   `the-law`.
 //!
 //! - **G7/G9 (recover pairing — error-path semantics).** The single recover edge
-//!   `retry: Failed(Pending) => Pending` is an **error-path** recovery (SPEC.md G9):
+//!   `retry: Failed(Pending) => Pending` is an **error-path** recovery (rung-props.md G9):
 //!   it re-enters with the *unconsumed token* handed back in `Failed`, and it is
 //!   deliberately **unguarded** — a retry after a transient network failure may
 //!   legitimately re-send the *identical* request. This is the mirror of Lesson 2's
@@ -126,7 +126,7 @@ pub enum ContentBlock {
 /// The full structured response from one LLM call.
 ///
 /// `#[must_use]` follows the same no-silent-drop idiom rung emits on every
-/// verdict token (SPEC.md G4): a response dropped silently loses both the
+/// verdict token (rung-props.md G4): a response dropped silently loses both the
 /// model's output and the token-usage accounting. Carrying the attribute here
 /// on a non-token result type makes the pattern visible to readers.
 #[must_use = "LlmResponse carries the model's output and usage; dropping it silently loses both — handle it"]
@@ -1286,9 +1286,9 @@ ladder!(LlmCall {
           | LlmError(LlmFailure)
       }
 
-    // Error-path recovery (SPEC.md G9): `Failed(Pending)` hands the *unconsumed*
+    // Error-path recovery (rung-props.md G9): `Failed(Pending)` hands the *unconsumed*
     // token back, so `retry` re-enters with the live request. Unlike a verdict
-    // recover (`Stalled => Active`, SPEC.md G8), this edge is **unguarded** —
+    // recover (`Stalled => Active`, rung-props.md G8), this edge is **unguarded** —
     // a retry after a transient error may legitimately re-send the identical
     // request. The external bound is `attempts_remaining`, which the recover
     // edge decrements so the ladder cannot retry forever.

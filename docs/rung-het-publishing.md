@@ -152,7 +152,7 @@ Listed so you can tell us what is missing rather than what we already have.
 
 ## 4. The theorem inventory — the biggest structural problem
 
-`docs/rung-het-propositions.md` is written as a **specification**: MUST / MUST
+`docs/rung-het-props.md` is written as a **specification**: MUST / MUST
 NOT, numbered normative requirements N1–N43. That is the right form for governing
 an implementation and the wrong form for a paper.
 
@@ -281,13 +281,13 @@ these three.
 
 | file | what it is |
 |---|---|
-| `docs/rung-het-propositions.md` | **Normative.** The specification. Start here; §1–§5 carry the mathematics, §7 states the Het/HetOpt cut. |
-| `docs/heteronomy/institutional_judgment.md` | **Development archaeology, not normative.** How the formalism was derived, including the reasoning that was later corrected. Useful for seeing what was tried and abandoned. §7 is the quantitative-satisfaction derivation. |
+| `docs/rung-het-props.md` | **Normative.** The specification. Start here; §1–§5 carry the mathematics, §7 states the Het/HetOpt cut. |
+| `docs/rung-het-notes.md` | **Development archaeology, not normative.** How the formalism was derived, including the reasoning that was later corrected. Useful for seeing what was tried and abandoned. §7 is the quantitative-satisfaction derivation. |
 | `het/theory.yaml` | Het encoded in its own encoding — the pass (`audit → propose → dispose → enact`) as a signature with gate-marked sentences. |
 | `spec/het-theory.schema.json` | The decidable floor. Deliberately an ordinary JSON Schema, deliberately *not* self-encoded — this is what closes the regress. |
 | `GAPS.md` | Open problems, honestly kept. |
 
-A caution on `docs/rung-het-propositions.md`: it changed materially on
+A caution on `docs/rung-het-props.md`: it changed materially on
 2026-08-03. Five rulings landed that day (the doctrine/schema separation, the opacity of `𝒫`,
 retirement of the theory-level conformance edge, relocation of
 signature-claims out of the sentence language, and requiring an equation on

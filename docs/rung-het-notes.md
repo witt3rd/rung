@@ -1,6 +1,6 @@
-# Institutional Judgment
+# Het — notes
 
-> **Status: development archaeology. Not normative.**
+> **Informative. Not normative.**
 >
 > This is the working document in which Het was derived — the exploration
 > of institution theory, intensional type theory, game semantics, and the
@@ -9,17 +9,18 @@
 > arrived at*, including alternatives considered and rejected.
 >
 > **The normative statement is
-> [`rung-het-propositions.md`](../rung-het-propositions.md).** Where the two
-> disagree, `rung-het-propositions.md` governs.
+> [`rung-het-props.md`](rung-het-props.md).** Where the two
+> disagree, `rung-het-props.md` governs. A claim stated here and not
+> there is not a claim rung makes.
 >
-> Two things here remain load-bearing and are cited as such:
+> **§11, the Glossary**, is the one part still cited as vocabulary. Earlier
+> revisions of this header claimed `spec/check.py` CHECK 3 enforced it; that
+> is not so — CHECK 3 checks retired nouns against `*/theory.yaml` and never
+> reads this file. Nothing enforces the Glossary today.
 >
-> - **§11, the Glossary** — the official vocabulary, including the closing
->   *"Not part of the formalism"* table. `spec/check.py` CHECK 3 enforces it.
-> - **The derivations** — `het/theory.yaml` and `principals/theory.yaml`
->   cite specific sections as provenance for individual sentences. Those
->   citations point *here* deliberately: they record the reasoning, not the
->   requirement. The requirement is in `rung-het-propositions.md`.
+> Provenance citations in `witt3rd/heteronomy`'s `het/theory.yaml` and
+> `principals/theory.yaml` name sections of this document. They point here
+> deliberately: they record the reasoning, not the requirement.
 
 ## 1. The Wall
 

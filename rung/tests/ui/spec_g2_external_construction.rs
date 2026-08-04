@@ -1,4 +1,4 @@
-//! SPEC.md G2 — no external fabrication.
+//! rung-props.md G2 — no external fabrication.
 //!
 //! With an inline `impl { .. }` block, only the *entry* rung's `new` is public;
 //! every downstream rung's constructor is private to the generated module. So a

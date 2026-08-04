@@ -1,4 +1,4 @@
-//! SPEC.md §2 rule 8 — a `Failed(Rung)` source rung must be declared.
+//! rung-props.md §2 rule 8 — a `Failed(Rung)` source rung must be declared.
 //!
 //! `recover { name: Failed(Active) => Active }` recovers from the error path:
 //! it takes the unconsumed token back out of `Err(Failed { .. })` and produces

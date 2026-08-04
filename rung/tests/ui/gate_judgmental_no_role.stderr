@@ -1,4 +1,4 @@
-error: `#[judgmental]` must name the competence role it requires — write `#[judgmental(Role)]`. A judgmental operation declares the role needed to discharge it (rung-het-propositions.md#judgmental-declares-role); an unnamed role cannot resolve a judge, so there is no signature to emit.
+error: `#[judgmental]` must name the competence role it requires — write `#[judgmental(Role)]`. A judgmental operation declares the role needed to discharge it (rung-het-props.md#judgmental-declares-role); an unnamed role cannot resolve a judge, so there is no signature to emit.
   --> tests/ui/gate_judgmental_no_role.rs:16:23
    |
 16 |     Spec(SpecData) => #[judgmental] Active(LoopState) => { Done }

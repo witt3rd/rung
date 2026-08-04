@@ -10,7 +10,7 @@ struct SpecData;
 struct LoopState;
 
 // A `#[judgmental(R)]` transition admits its token only against the argument it
-// was measured against (SPEC.md G13), so the source rung's payload must carry a
+// was measured against (rung-props.md G13), so the source rung's payload must carry a
 // provenance. Supplied here so that the ONLY error in this file is the one it
 // exists to pin.
 impl rung::Provenanced for SpecData {

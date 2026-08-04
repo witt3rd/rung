@@ -44,7 +44,7 @@
 //! instead of on `unused_must_use` — a green test asserting nothing. The
 //! diagnostic itself is pinned by
 //! `spec_refusals.rs::dropping_a_verdict_under_deny_must_use_is_an_error`,
-//! because rustdoc does not check the error code (§6 of SPEC.md).
+//! because rustdoc does not check the error code (§6 of rung-props.md).
 //!
 //! ```compile_fail
 //! #![deny(unused_must_use)]
@@ -61,7 +61,7 @@
 //! fn main() {}
 //! ```
 //!
-//! ## No external fabrication (SPEC.md G2)
+//! ## No external fabrication (rung-props.md G2)
 //!
 //! With an inline `impl { .. }` block, only the *entry* rung has a public
 //! constructor — every downstream rung's `new` is module-private, so no outside
@@ -209,7 +209,7 @@ impl Prov {
     /// Not read by [`Pool::authorize`], which filters on *capability and
     /// standing* (authorial-qualifying-set) — the condition on the **input**.
     /// The containment condition constrains what an authorial arrow returns,
-    /// which is a body property; see SPEC.md §5.
+    /// which is a body property; see rung-props.md §5.
     pub fn contained_in(&self, other: &Prov) -> bool {
         self.0.is_subset(&other.0)
     }
@@ -347,7 +347,7 @@ impl std::error::Error for QualifyError {}
 /// This is the crate's load-bearing type. It has no public constructor: the
 /// only way to obtain one is [`Pool::qualify_for`], which runs the competence
 /// filter and the non-identity filter and refuses on either. Sealed exactly as
-/// rung seals its rungs (SPEC.md G2), and for the same categorical reason — a
+/// rung seals its rungs (rung-props.md G2), and for the same categorical reason — a
 /// capability that could be fabricated in object-position is not a capability.
 ///
 /// A judgmental sentence's body must **consume** one to return. So:
@@ -480,7 +480,7 @@ impl std::fmt::Display for TokenNotBound {
             "P0: {}'s `{}` licence was minted against provenance {:?} and is being \
              spent on an argument with provenance {:?}; disjointness is measured \
              against the argument the operation is applied to \
-             (rung-het-propositions.md#disjointness-against-argument)",
+             (rung-het-props.md#disjointness-against-argument)",
             self.principal, self.role, self.minted_against, self.applied_to
         )
     }
@@ -789,12 +789,12 @@ pub enum StandingGate {
 ///
 /// The authorial counterpart to [`Qualified`], and sealed for the same reason:
 /// a capability that can be fabricated in object-position is not a capability
-/// (rung SPEC.md G2). [`Pool::authorize`] is the only mint.
+/// (rung rung-props.md G2). [`Pool::authorize`] is the only mint.
 ///
 /// An `Authorized` is what `propose` and `enact` require — the two authorial
 /// operations of the pass (propose-is-authorial) — and what an
 /// `#[authorial(R)]` `ladder!` transition takes as its second parameter
-/// (SPEC.md G14). Without one there is no term for "author something about this
+/// (rung-props.md G14). Without one there is no term for "author something about this
 /// object."
 ///
 /// # The pen witnesses a **pair**, and it is not the judge's pair

@@ -10,7 +10,7 @@ depends_on:
 **Status:** OPEN
 
 **Question.** Het requires every algebra in `Mod(Σ)` to be **gate-faithful**
-([`gate-faithful`](../../rung-het-propositions.md#gate-faithful)): every decidable operation factors
+([`gate-faithful`](../../rung-het-props.md#gate-faithful)): every decidable operation factors
 through `η`, every judgmental one is a judgmentally-admissible Kleisli arrow,
 every authorial one an authorially-admissible one. A ladder declaration carries
 **no gate marker**, so an algebra cannot say which of its transitions are
@@ -24,7 +24,7 @@ it?**
 The question is not "should `ladder!` take a marker." That much is settled: a
 marker emits a different transition signature, and mis-marking then fails to
 typecheck rather than being a promise someone keeps
-(`rung-het-propositions.md#mismarking-is-not-a-false-claim`). The open part is
+(`rung-het-props.md#mismarking-is-not-a-false-claim`). The open part is
 that **gate-faithfulness as Het states it is a property of the interpretation,
 not of the declaration.**
 
@@ -36,9 +36,9 @@ halves again for it:
 
 | half | what would close it | status |
 |---|---|---|
-| the signature is honest | a gate marker; a decidable position admits no principal parameter | **built** — SPEC.md G12 |
-| the arrow is admissible | the qualifying token is constructible only by the filter, and is **bound** to the argument it was measured against | **built** — SPEC.md G13 |
-| both halves, for the *authorial* gate | a pen minted only by the standing filter, admitted only over the container the subject sits in | **built** — SPEC.md G14 |
+| the signature is honest | a gate marker; a decidable position admits no principal parameter | **built** — rung-props.md G12 |
+| the arrow is admissible | the qualifying token is constructible only by the filter, and is **bound** to the argument it was measured against | **built** — rung-props.md G13 |
+| both halves, for the *authorial* gate | a pen minted only by the standing filter, admitted only over the container the subject sits in | **built** — rung-props.md G14 |
 
 All three are now built. The conjunction is **not** gate-faithfulness. The
 argument is below, and G14 did not change it — it widened the row it did not
@@ -67,8 +67,8 @@ its subject sits in. So a pen earned honestly over one container is refused
 everywhere else.
 
 **What that is.** It is P0, completely:
-[`non-identity-before-dispatch`](../../rung-het-propositions.md#non-identity-before-dispatch)
-and [`non-identity-by-construction`](../../rung-het-propositions.md#non-identity-by-construction)
+[`non-identity-before-dispatch`](../../rung-het-props.md#non-identity-before-dispatch)
+and [`non-identity-by-construction`](../../rung-het-props.md#non-identity-by-construction)
 now hold as type-and-runtime facts rather than as caller discipline. No
 judgmental arrow can be traversed except by a principal drawn from
 $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
@@ -76,9 +76,9 @@ $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
 **Why that is not gate-faithfulness.**
 
 1. **Admissibility constrains the arrow's *output*, and this constrains its
-   *input*.** [`gate-faithful`](../../rung-het-propositions.md#gate-faithful) is
+   *input*.** [`gate-faithful`](../../rung-het-props.md#gate-faithful) is
    stated through
-   [`admissibility-subcategories`](../../rung-het-propositions.md#admissibility-subcategories),
+   [`admissibility-subcategories`](../../rung-het-props.md#admissibility-subcategories),
    which defines the judgmental sub-category as
    $\mathbf{Kl}_{\text{judg}}(\mathcal{P}) = \{ f : \pi(f(a)) \cap \pi(a) = \emptyset \}$.
    That is a condition on $f(a)$ — the value returned. G12 and G13 together
@@ -89,9 +89,9 @@ $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
    exactly what the "Relationship to other questions" section warned.
 
 2. **One of the four gates has no encoding at all** — down from two.
-   `#[authorial(Role)]` is implemented (SPEC.md G14): it emits an
+   `#[authorial(Role)]` is implemented (rung-props.md G14): it emits an
    `Authorized<'_, Role>` pen, `Pool::authorize` runs **both** conjuncts of
-   [`authorial-qualifying-set`](../rung-het-propositions.md#authorial-qualifying-set),
+   [`authorial-qualifying-set`](../../rung-het-props.md#authorial-qualifying-set),
    and a macro-injected prologue admits the pen only over the container the
    subject sits in. So an algebra with an authorial operation can now state the
    property — for that operation's *input*. `#[conditional(..)]` remains a
@@ -100,23 +100,23 @@ $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
 
    Two things this did **not** do, and they are why the blocker is half-closed
    rather than closed. It did not touch blocker (1): the authorial half of
-   [`admissibility-subcategories`](../rung-het-propositions.md#admissibility-subcategories)
+   [`admissibility-subcategories`](../../rung-het-props.md#admissibility-subcategories)
    is `π(f(a)) ⊆ π(p) ∧ standing(p, a)`, and G14 secures the standing conjunct
    on the way *in* while leaving the containment conjunct on the way *out*
    entirely to the body — the same shape as G13's gap, on the second gate.
    `Prov::contained_in` exists and no guarantee calls it. And it did not close
    the *conditional* branch of
-   [`standing-conditional-gated`](../rung-het-propositions.md#standing-conditional-gated):
+   [`standing-conditional-gated`](../../rung-het-props.md#standing-conditional-gated):
    where provenance containment does not settle standing,
    `Pool::authorize` returns `AuthorizeError::StandingIsJudgmental` rather than
    minting a pen. That refusal is honest and is tested, but Het says a judge
    rules there
-   ([`standing-terminates-at-depth-one`](../rung-het-propositions.md#standing-terminates-at-depth-one)),
+   ([`standing-terminates-at-depth-one`](../../rung-het-props.md#standing-terminates-at-depth-one)),
    and rung has no term for that dispatch.
 
 3. **`decidable` still does not factor through $\eta$.** The unmarked signature
    excludes $\mathcal{P}$ and nothing else
-   ([`purity-not-secured`](../../rung-het-propositions.md#purity-not-secured)). A
+   ([`purity-not-secured`](../../rung-het-props.md#purity-not-secured)). A
    decidable transition may read a clock. "Factors through $\eta$" is strictly
    stronger than "cannot reach the pool."
 
@@ -181,7 +181,7 @@ building more.
    difficulty is real and is surfaced, not dissolved.
 3. **`conditional` has no static reading at all.** Het's fourth gate classifies
    per model, one level up
-   (`rung-het-propositions.md#classifier-one-level-up`). rung's checks run at
+   (`rung-het-props.md#classifier-one-level-up`). rung's checks run at
    expansion time against a declaration. This is the first place Het's
    per-model classification meets rung's static checking, and the two do not
    obviously meet.
@@ -190,7 +190,7 @@ building more.
    typecheck in that position. But "cannot launder" is weaker than "is
    faithful": a decidable transition may still reach a clock, a file, or a
    network, because the decidable signature excludes only *Het's* outside
-   (`rung-het-propositions.md#purity-not-secured`).
+   (`rung-het-props.md#purity-not-secured`).
 
 ## Why it matters
 
@@ -210,12 +210,12 @@ prospective.
 
 G14 moved six rows off `out-of-scope`/`expressible` onto `enforced`, each with a
 mutation that reddens a named test:
-[`one-pool-two-filters`](../rung-het-propositions.md#one-pool-two-filters),
-[`authorial-qualifying-set`](../rung-het-propositions.md#authorial-qualifying-set),
-[`judgment-refuses-authorship-requires`](../rung-het-propositions.md#judgment-refuses-authorship-requires),
-[`provenance-overlap-is-the-point`](../rung-het-propositions.md#provenance-overlap-is-the-point),
-[`authorial-declares-standing`](../rung-het-propositions.md#authorial-declares-standing),
-and [`standing-conditional-gated`](../rung-het-propositions.md#standing-conditional-gated).
+[`one-pool-two-filters`](../../rung-het-props.md#one-pool-two-filters),
+[`authorial-qualifying-set`](../../rung-het-props.md#authorial-qualifying-set),
+[`judgment-refuses-authorship-requires`](../../rung-het-props.md#judgment-refuses-authorship-requires),
+[`provenance-overlap-is-the-point`](../../rung-het-props.md#provenance-overlap-is-the-point),
+[`authorial-declares-standing`](../../rung-het-props.md#authorial-declares-standing),
+and [`standing-conditional-gated`](../../rung-het-props.md#standing-conditional-gated).
 It moved `gate-faithful` not at all, which is the honest measure of the
 distance: six propositions about *who may act* are now machine-checked, and the
 proposition about *what an arrow returns* is exactly where it was.

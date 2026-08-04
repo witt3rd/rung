@@ -12,12 +12,24 @@ is the stable slug:
 
     reopens the regress [6.4](#tower-floor) closes
 
+A root may declare `data-numbering="X"`, in which case its children are
+numbered `X1..Xn` — flat rather than concatenated — instead of `n.1..n.m`:
+
+    <a id="guarantees" data-numbering="G"></a>
+    <a id="g2-sealed-construction" data-parent="guarantees"></a>
+    **G2** **Sealed construction.** A rung MUST NOT be constructible ...
+
+The number is still derived: the letter is the root's, the index is document
+order. Use it only where a label is already cited from outside the documents
+(rung's `G1`-`G14` are named in Rust comments and in trybuild test filenames,
+so renumbering them would break citations a slug cannot carry).
+
 There may be several normative documents (see DOC_NAMES). **Numbering is per
 document** — each numbers its roots from 1 independently — but **slugs are
 global**: a slug is unique across the whole set, and a reference resolves
 against the union. A reference into another document names the file:
 
-    the floor is fixed [6.4](rung-ct-propositions.md#tower-floor)
+    the floor is fixed [6.4](rung-ct-props.md#tower-floor)
 
     ./_props.py check    exit 1 on any integrity failure; changes nothing
     ./_props.py fmt      recompute every number and link text in place
@@ -31,7 +43,11 @@ from pathlib import Path
 # The normative proposition documents, in the order they are checked. A name
 # that is not on disk yet is skipped, so a second document can be added here
 # before it is written.
-DOC_NAMES = ("rung-het-propositions.md", "rung-ct-propositions.md")
+DOC_NAMES = (
+    "rung-props.md",
+    "rung-het-props.md",
+    "rung-ct-props.md",
+)
 
 
 def docs():
@@ -40,19 +56,25 @@ def docs():
     return [p for p in (here / n for n in DOC_NAMES) if p.exists()]
 
 
-ANCHOR = re.compile(r'^<a id="([a-z0-9-]+)"(?: data-parent="([a-z0-9-]+)")?></a>$')
-PROP = re.compile(r"^\*\*(\d+(?:\.\d+)?)\*\*")
+ANCHOR = re.compile(
+    r'^<a id="([a-z0-9-]+)"'
+    r'(?: data-parent="([a-z0-9-]+)")?'
+    r'(?: data-numbering="([A-Z])")?></a>$'
+)
+# A number is derived: either decimal (1, 1.2, 1.23) or, under a root that
+# declares `data-numbering`, that root's letter followed by an index (G1, G14).
+PROP = re.compile(r"^\*\*([A-Z]?\d+(?:\.\d+)?)\*\*")
 HEADING = re.compile(r"^## (?:\d+(?:\.\d+)? · )?(.*)$")
 REF = re.compile(r"\[([^\]]*)\]\(([A-Za-z0-9._-]*)#([a-z0-9-]+)\)")
 MATH = re.compile(r"\$\$.*?\$\$|\$[^$]*\$")
 
 
 class Prop:
-    __slots__ = ("slug", "parent", "line", "old", "num", "kids", "doc")
+    __slots__ = ("slug", "parent", "line", "old", "num", "kids", "doc", "label")
 
-    def __init__(self, slug, parent, line, old, doc=""):
+    def __init__(self, slug, parent, line, old, doc="", label=None):
         self.slug, self.parent, self.line, self.old = slug, parent, line, old
-        self.num, self.kids, self.doc = None, [], doc
+        self.num, self.kids, self.doc, self.label = None, [], doc, label
 
 
 def parse(lines, doc=""):
@@ -62,7 +84,7 @@ def parse(lines, doc=""):
         m = ANCHOR.match(line)
         if not m:
             continue
-        slug, parent = m.group(1), m.group(2)
+        slug, parent, label = m.group(1), m.group(2), m.group(3)
         nxt = lines[i + 1] if i + 1 < len(lines) else ""
         p = PROP.match(nxt)
         if not p:
@@ -72,7 +94,7 @@ def parse(lines, doc=""):
             errs.append(f"L{i+1}: duplicate id #{slug} (first at L{seen[slug]})")
             continue
         seen[slug] = i + 1
-        props.append(Prop(slug, parent, i + 1, p.group(1), doc))
+        props.append(Prop(slug, parent, i + 1, p.group(1), doc, label))
     return props, errs
 
 
@@ -95,6 +117,12 @@ def build(props):
 
     def number(node, num, depth):
         node.num = num
+        # A labelled root numbers its children `X1..Xn` — a flat scheme, so the
+        # past-9 ambiguity the concatenating scheme has does not arise.
+        if node.label:
+            for i, kid in enumerate(node.kids, 1):
+                number(kid, f"{node.label}{i}", 0)
+            return
         if len(node.kids) > 9:
             errs.append(
                 f"L{node.line}: #{node.slug} has {len(node.kids)} children; the "
@@ -205,7 +233,7 @@ RETIRED_TERMS = {
 }
 
 # Normative documents the vocabulary ban covers, beyond the proposition set.
-ALSO_NORMATIVE = ("SPEC.md",)
+ALSO_NORMATIVE = ("rung-props.md",)
 
 
 def retired_terms():

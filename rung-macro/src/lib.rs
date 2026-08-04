@@ -4,7 +4,7 @@
 //! module (rung/verdict structs, the `StepOutcome` enum, and — with an inline
 //! `impl { .. }` block — the transition/recover functions). The borrow checker
 //! enforces linear consumption; the macro enforces structural correctness.
-//! See `SPEC.md` for the normative rules.
+//! See `rung-props.md` for the normative rules.
 
 use proc_macro::TokenStream;
 use quote::{ToTokens, format_ident, quote};
@@ -52,7 +52,7 @@ struct Transition {
     // None if branching (has verdicts instead)
     to_rung: Option<Ident>,
     verdicts: Vec<Verdict>,
-    /// The gate marker on this transition's *target*, if any (SPEC.md §1).
+    /// The gate marker on this transition's *target*, if any (rung-props.md §1).
     ///
     /// `None` ⇒ unmarked, which reads as *decidable* and emits byte-for-byte
     /// what it emitted before markers existed.
@@ -82,7 +82,7 @@ enum Gate {
 /// Parse the optional gate marker in front of a transition target.
 ///
 /// The marker annotates the **target** rung, because a forward transition is
-/// named after its target (SPEC.md §1, "Transition naming"):
+/// named after its target (rung-props.md §1, "Transition naming"):
 ///
 /// ```text
 /// Spec(SpecData)
@@ -103,7 +103,7 @@ fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Gate>> {
         return Err(syn::Error::new(
             attrs[1].span(),
             "a transition carries at most one gate marker: Het's four gates are \
-             alternatives, not a set (see rung-het-propositions.md#four-gates)",
+             alternatives, not a set (see rung-het-props.md#four-gates)",
         ));
     }
     let attr = &attrs[0];
@@ -122,7 +122,7 @@ fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Gate>> {
                 attr.span(),
                 "`#[judgmental]` must name the competence role it requires — write \
                  `#[judgmental(Role)]`. A judgmental operation declares the role \
-                 needed to discharge it (rung-het-propositions.md#judgmental-declares-role); \
+                 needed to discharge it (rung-het-props.md#judgmental-declares-role); \
                  an unnamed role cannot resolve a judge, so there is no signature \
                  to emit.",
             )),
@@ -133,9 +133,9 @@ fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Gate>> {
                 attr.span(),
                 "`#[authorial]` must name the competence role it requires — write \
                  `#[authorial(Role)]`. An authorial operation declares a standing \
-                 predicate (rung-het-propositions.md#authorial-declares-standing), and \
+                 predicate (rung-het-props.md#authorial-declares-standing), and \
                  its qualifying set is a conjunction — capable(p, role(o)) AND \
-                 standing(p, M) (rung-het-propositions.md#authorial-qualifying-set). A \
+                 standing(p, M) (rung-het-props.md#authorial-qualifying-set). A \
                  marker naming no role can witness only the right conjunct, and a pen \
                  that witnessed standing alone would make the competence filter \
                  decorative.",
@@ -145,7 +145,7 @@ fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Gate>> {
             attr.span(),
             "`#[conditional(..)]` is not yet supported — it is the one gate of the \
              four that `ladder!` does not implement. Het classifies a conditional \
-             gate per model, one level up (rung-het-propositions.md#classifier-one-level-up), \
+             gate per model, one level up (rung-het-props.md#classifier-one-level-up), \
              while `ladder!`'s checks run at expansion time against a single \
              declaration; the two do not yet meet. `#[judgmental(Role)]` and \
              `#[authorial(Role)]` are implemented. This is what remains of Q11's \
@@ -344,7 +344,7 @@ impl Parse for Ladder {
                     ));
                 }
             } else {
-                // Spine: `rung ( "=>" rung )* "=>" "{" verdicts "}"` (SPEC.md §1).
+                // Spine: `rung ( "=>" rung )* "=>" "{" verdicts "}"` (rung-props.md §1).
                 // Parse the first rung, then loop over forward hops until a verdict
                 // block terminates the spine. Each hop `=> Next` adds a rung and a
                 // forward transition named after its target (lowercased); a `=> { .. }`
@@ -692,7 +692,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             let name = &r.name;
             let payload = &r.payload_type;
             let is_entry = entry_name.as_deref() == Some(&name.to_string());
-            // Constructor visibility (SPEC.md G2):
+            // Constructor visibility (rung-props.md G2):
             //   - With an inline `impl { .. }` block, transition bodies live INSIDE
             //     the module, so only the *entry* rung needs a public constructor
             //     (to start a run). Every downstream rung's `new` is module-private —
@@ -723,14 +723,14 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 // or `&#name` cannot cross a thread boundary, so two threads can never
                 // drive a transition on the same logical token. Rust's move semantics
                 // enforce one-consumer for owned values; this closes the shared-reference
-                // hole (SPEC.md G3). Constructed inside the module alongside `_seal`.
+                // hole (rung-props.md G3). Constructed inside the module alongside `_seal`.
                 //
                 // `#[must_use]`: Rust types are affine (may be silently dropped), but the
                 // linear-token contract is "consumed *exactly* once". Move semantics give
                 // "at most once"; this attribute guards "at least once" — dropping a live
                 // rung without advancing it or returning it in a `Failed` is a warning
                 // (an error under `#![deny(unused_must_use)]`). Closes the no-silent-drop
-                // half of linearity without waiting on language-level linear types (SPEC.md §5).
+                // half of linearity without waiting on language-level linear types (rung-props.md §5).
                 #[must_use = "a rung token must be consumed by a transition or returned in a Failed; dropping it silently abandons the ladder run"]
                 pub struct #name {
                     _seal: (),
@@ -765,7 +765,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     };
 
     // ── Verdict structs (sealed, !Send, constructible) ───────────────────
-    // Verdicts are outcome tokens, held to the same seal as rungs (SPEC.md G3):
+    // Verdicts are outcome tokens, held to the same seal as rungs (rung-props.md G3):
     // private `_seal` + `_not_send: PhantomData<*const ()>`.
     // A *recoverable* verdict additionally carries the rung it was produced from
     // (`source`), so its recover edge has the full prior context to re-enter with —
@@ -775,7 +775,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         .iter()
         .flat_map(|t| {
             let from_rung = t.from_rung.clone();
-            // Verdict constructors follow the same SPEC.md G2 visibility rule as rungs:
+            // Verdict constructors follow the same rung-props.md G2 visibility rule as rungs:
             // module-private when transition bodies are inline (they build verdicts
             // in-module), `pub` for a type-only declaration.
             let vctor_vis = if has_bodies { quote! {} } else { quote! { pub } };
@@ -893,8 +893,8 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     // ── Transition + recover bodies (inline `impl { .. }` form) ──────────
     // When an `impl { .. }` block is present, the transition/recover bodies expand
     // as `pub fn`s INSIDE the module. Because they live inside the seal boundary,
-    // they use the now-private constructors (no external fabrication, SPEC.md G2) and the
-    // macro wraps each recover body with the progress guard (SPEC.md G8 enforced, not by
+    // they use the now-private constructors (no external fabrication, rung-props.md G2) and the
+    // macro wraps each recover body with the progress guard (rung-props.md G8 enforced, not by
     // convention). There is no `Transitions` trait — one API surface.
     let body_for =
         |n: &str| -> Option<&TransitionBody> { ladder.bodies.iter().find(|b| b.name == n) };
@@ -976,7 +976,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         }
     };
 
-    // The **injected gate prologue** (SPEC.md G13 judgmental, G14 authorial).
+    // The **injected gate prologue** (rung-props.md G13 judgmental, G14 authorial).
     //
     // `gate_param` above makes the *signature* honest: a marked transition
     // cannot be called without its token. It does not make the *arrow*
@@ -1032,7 +1032,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 let gate_param = gate_param(t, &b.closure);
                 let prologue = gate_prologue(t, &b.closure);
                 // Unmarked: emit byte-for-byte what was emitted before markers
-                // existed (SPEC.md G12). Marked: prologue first, then the body's
+                // existed (rung-props.md G12). Marked: prologue first, then the body's
                 // statements — the body cannot run ahead of the check (G13).
                 let body = if t.gate.is_none() {
                     fn_body(&b.closure)
@@ -1073,7 +1073,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                         pub fn #name(#pat: #param) -> #ret #body
                     }
                 } else {
-                    // Verdict recovery: auto-inject the progress guard (SPEC.md G8). The body
+                    // Verdict recovery: auto-inject the progress guard (rung-props.md G8). The body
                     // is used as the initializer of `__after`, so a `{ .. }` body isn't
                     // double-wrapped. `#pat` is the parameter; the snapshot borrows it
                     // before the body consumes it.
@@ -1095,7 +1095,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         quote! {}
     };
 
-    // ── recovery-progress guard (SPEC.md G8) ──────────────────────
+    // ── recovery-progress guard (rung-props.md G8) ──────────────────────
     let progress_helper = quote! {
         /// Recovery-progress guard. A recover edge must make forward progress; a
         /// recover that returns a token identical to the one it received is an
@@ -1111,11 +1111,11 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             assert!(
                 before != after,
                 "recovery made no progress: the recovered value equals its source \
-                 (SPEC.md G8 — infinite-stall guard)"
+                 (rung-props.md G8 — infinite-stall guard)"
             );
         }
 
-        /// Token-binding guard (SPEC.md G13). A `#[judgmental(R)]` transition is
+        /// Token-binding guard (rung-props.md G13). A `#[judgmental(R)]` transition is
         /// licensed by a token that was measured against **one** argument; this
         /// refuses it anywhere else.
         ///
@@ -1141,15 +1141,15 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 licence.is_bound_to(argument),
                 "P0: this qualifying token was minted against a different argument \
                  (minted against {:?}, applied to {:?}); disjointness is measured \
-                 against the argument the operation is applied to — SPEC.md G13, \
-                 rung-het-propositions.md#disjointness-against-argument",
+                 against the argument the operation is applied to — rung-props.md G13, \
+                 rung-het-props.md#disjointness-against-argument",
                 licence.argument_provenance(),
                 ::rung::Provenanced::provenance(argument),
             );
         }
     };
 
-    // The authorial guard (SPEC.md G14), emitted **only** for a ladder that
+    // The authorial guard (rung-props.md G14), emitted **only** for a ladder that
     // actually carries an `#[authorial(R)]` marker.
     //
     // Conditional, unlike `must_progress` and `must_be_bound_to`, for one
@@ -1163,17 +1163,17 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         .any(|t| matches!(t.gate, Some(Gate::Authorial(_))))
     {
         quote! {
-            /// Standing guard (SPEC.md G14). An `#[authorial(R)]` transition is
+            /// Standing guard (rung-props.md G14). An `#[authorial(R)]` transition is
             /// licensed by a pen that was minted over **one** container; this
             /// refuses it anywhere else.
             ///
             /// The authorial mirror of `must_be_bound_to`, and the mirror of a
             /// mirror: the judgmental guard refuses a principal that is too
             /// close to the subject, this one refuses a principal that is too
-            /// far from it (rung-het-propositions.md#judgment-refuses-authorship-requires).
+            /// far from it (rung-het-props.md#judgment-refuses-authorship-requires).
             /// Het's authorial qualifying set is
             /// `capable(p, role(o)) ∧ standing(p, M)`
-            /// (rung-het-propositions.md#authorial-qualifying-set); `Pool::authorize`
+            /// (rung-het-props.md#authorial-qualifying-set); `Pool::authorize`
             /// settles both conjuncts, but it settles the second against the
             /// container it was *asked* about. Nothing in the signature says
             /// that container is the one this subject sits in.
@@ -1197,8 +1197,8 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                     pen.authorizes(subject),
                     "standing: this pen authorizes `{}` and is being spent on a \
                      subject sitting in `{}`; authorship requires standing over \
-                     the very container the subject is in — SPEC.md G14, \
-                     rung-het-propositions.md#authorial-qualifying-set",
+                     the very container the subject is in — rung-props.md G14, \
+                     rung-het-props.md#authorial-qualifying-set",
                     pen.over(),
                     ::rung::Situated::container(subject),
                 );

@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-DOC = HERE / "rung-het-propositions.md"
+DOC = HERE / "rung-het-props.md"
 LEDGER = HERE / "conformance.md"
 ROOT = HERE.parent
 
@@ -37,7 +37,7 @@ CURATED = {
         "enforced",
         "G2 sealed construction. This proposition *is* rung's founding refusal: "
         "an attempt to fold a live verdict into the next state was rejected by the "
-        "sealed constructor — [the law](rung-ct-propositions.md#the-law). The "
+        "sealed constructor — [the law](rung-ct-props.md#the-law). The "
         "algebra runs its own decidable "
         "step; it cannot construct the state that holds a judgmental outcome.",
         "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624",
@@ -217,10 +217,10 @@ CURATED = {
         "enforced",
         "The `+ A` residual is `Failed<Prev> { token, error }` — the unconsumed "
         "argument handed back. rung-CT names it the Prism's residual "
-        "([residual-is-the-optics-residual](rung-ct-propositions.md#residual-is-the-optics-residual)) "
+        "([residual-is-the-optics-residual](rung-ct-props.md#residual-is-the-optics-residual)) "
         "and is why the error structure is not a Kleisli arrow; the monad `P` layers "
         "on the forward pass, which rung-CT explicitly permits "
-        "([effects-layer-on-the-forward-pass](rung-ct-propositions.md#effects-layer-on-the-forward-pass)).",
+        "([effects-layer-on-the-forward-pass](rung-ct-props.md#effects-layer-on-the-forward-pass)).",
         "rung/tests/compile_pass.rs::test_failed_type",
     ),
     "adequacy-failure-returns-residual": (
@@ -287,7 +287,7 @@ CURATED = {
     "fractal-property": (
         "expressible",
         "The composite Grothendieck opfibration "
-        "([opfibrations-compose](rung-ct-propositions.md#opfibrations-compose)), "
+        "([opfibrations-compose](rung-ct-props.md#opfibrations-compose)), "
         "resolved by Q10. The correspondence is proved; no registry hierarchy is built.",
         "docs/questions/resolved/q10-fractal-registry-hierarchy.md",
     ),
@@ -296,7 +296,7 @@ CURATED = {
         "Conformance is Het's fibration (Mod: Sign^op → Cat, contravariant). "
         "Propagation is rung-CT's opfibration, pushforward and opcartesian "
         "([conformance-and-propagation-run-over-different-bases]"
-        "(rung-ct-propositions.md#conformance-and-propagation-run-over-different-bases)). "
+        "(rung-ct-props.md#conformance-and-propagation-run-over-different-bases)). "
         "Different bases at adjacent levels — not opposite orientations of one tower.",
         "—",
     ),
@@ -399,56 +399,206 @@ CURATED = {
 }
 
 
-def props():
-    lines = DOC.read_text().split("\n")
-    out = []
+def parse(path):
+    """Return [(num, slug, section, body)] for one propositions document."""
+    lines = path.read_text().split("\n")
+    out, section = [], ""
     for i, line in enumerate(lines):
+        if line.startswith("## "):
+            section = re.sub(r"^## (?:[\dA-Z.]+ · )?", "", line).strip()
+            continue
         m = re.match(r'^<a id="([a-z0-9-]+)"', line)
-        if m:
-            n = re.match(r"^\*\*([\d.]+)\*\*", lines[i + 1])
-            out.append((n.group(1), m.group(1)))
+        if not m:
+            continue
+        n = re.match(r"^\*\*([A-Z]?[\d.]+)\*\*", lines[i + 1])
+        if not n:
+            continue
+        # the proposition's body runs to the next anchor or heading
+        body = []
+        for nxt in lines[i + 1:]:
+            if re.match(r'^<a id="', nxt) or nxt.startswith("## "):
+                break
+            body.append(nxt)
+        out.append((n.group(1), m.group(1), section, "\n".join(body)))
     return out
 
 
-SECTIONS = {
-    "1": "The relation", "2": "The gate", "3": "The pool", "4": "The verdict",
-    "5": "The semantics", "6": "The tower", "7": "The game", "8": "The cut",
-    "9": "Composition", "10": "Evaluation", "11": "The surface", "12": "The limit",
-}
+TEST_REF = re.compile(r"\b([\w./-]+\.rs)::(\w+)")
+
+
+def resolve_test_path(name):
+    """A guarantee names its test by bare filename; the ledger cites the path."""
+    if "/" in name:
+        return name
+    hits = [p for p in ROOT.rglob(name) if "target" not in p.parts]
+    return str(hits[0].relative_to(ROOT)) if len(hits) == 1 else name
+
+
+def derive_from_body(num, slug, body):
+    """rung's own propositions carry their conformance in the text.
+
+    A guarantee that names a test is `enforced` and cites it; one delegated to
+    rustc is `enforced` and says so. Everything else is `unclassified` — which
+    is the point: an unclassified row is a proposition no test is known to
+    protect, and the count is a worklist rather than a reassurance.
+    """
+    if "*(rustc" in body:
+        return ("enforced", "delegated to the Rust compiler.", "(rustc)")
+    m = TEST_REF.search(body)
+    if m and "Conformance" in body:
+        return (
+            "enforced",
+            f"stated at [{num}](rung-props.md#{slug}), which names its own test.",
+            f"{resolve_test_path(m.group(1))}::{m.group(2)}",
+        )
+    return ("unclassified", "no test is known to protect this proposition.", "—")
+
+
+def guarantee_index():
+    """`G2` -> (slug, conformance) read from rung-props.md.
+
+    The CT account says of itself that every claim either names a guarantee a
+    test protects, or is marked a limit. This is the lookup that makes the
+    first half of that checkable rather than asserted.
+    """
+    path = HERE / "rung-props.md"
+    if not path.exists():
+        return {}
+    out = {}
+    for num, slug, _, body in parse(path):
+        if not re.fullmatch(r"G\d+", num):
+            continue
+        verdict, _, conf = derive_from_body(num, slug, body)
+        out[num] = (slug, conf if verdict == "enforced" else "—")
+    return out
+
+
+GUARANTEES = None
+
+
+def derive_ct(num, slug, body):
+    """A CT proposition that names a guarantee inherits that guarantee's test."""
+    global GUARANTEES
+    if GUARANTEES is None:
+        GUARANTEES = guarantee_index()
+    named = [g for g in re.findall(r"\bG(\d{1,2})\b", body) if f"G{g}" in GUARANTEES]
+    if not named:
+        return ("out-of-scope", "mathematics of the category — no host obligation", "—")
+    labels = sorted({f"G{g}" for g in named}, key=lambda g: int(g[1:]))
+    links = ", ".join(f"[{g}](rung-props.md#{GUARANTEES[g][0]})" for g in labels)
+    confs = [GUARANTEES[g][1] for g in labels if GUARANTEES[g][1] not in ("—",)]
+    return (
+        "enforced",
+        f"the categorical content of {links}; that guarantee's test is what fails.",
+        confs[0] if confs else "(rustc)",
+    )
+
+
+DOCS = (
+    {
+        "file": "rung-props.md",
+        "heading": "rung — the ladder language",
+        "blurb": (
+            "The guarantees name their own conformance tests, so those rows are "
+            "**derived from the document**, not curated here. Every other "
+            "proposition — the grammar, the static-semantics rules, the emitted "
+            "artifacts — is `unclassified` until someone names a test for it."
+        ),
+        "default": ("unclassified", "no test is known to protect this proposition.", "—"),
+        "curated": {},
+        "derive": derive_from_body,
+    },
+    {
+        "file": "rung-ct-props.md",
+        "heading": "rung-CT — the category",
+        "blurb": (
+            "**The default is `out-of-scope`.** Most propositions state the "
+            "mathematics of the category and impose no obligation on any host; "
+            "the ones that do bind name a guarantee, and that guarantee's row "
+            "under rung above carries the test. Read a bare `out-of-scope` as "
+            "*\"no claim made\"*, not as *\"checked and found irrelevant\"*."
+        ),
+        "default": ("out-of-scope", "mathematics of the category — no host obligation", "—"),
+        "curated": {},
+        "derive": derive_ct,
+    },
+    {
+        "file": "rung-het-props.md",
+        "heading": "Het — the formalism",
+        "blurb": (
+            "**No Het theory is currently expressed as a `ladder!`.** `rung-het` "
+            "has empty `[dependencies]` and zero occurrences of `ladder!`; its "
+            "guarantees come from hand-rolled sealed structs. Every `enforced` "
+            "row below therefore names the rung guarantee that **will** apply "
+            "once the pass is a ladder — not one in force today.\n\n"
+            "**The default is `out-of-scope`.** Most propositions state the "
+            "structure of the institution and impose no obligation on any host. "
+            "Only rows that name a mechanism have been curated; the rest are "
+            "marked by that rule, not by inspection. Read a bare `out-of-scope` "
+            "as *\"no claim made\"*, not as *\"checked and found irrelevant\"*."
+        ),
+        "default": DEFAULT,
+        "curated": CURATED,
+        "derive": None,
+    },
+)
+
+VERDICTS = VERDICTS | {"unclassified"}
 
 
 def render():
-    """Return (text, tally, rows). Pure: `gen` writes it, `check` diffs it."""
-    rows = props()
-    num_of = dict((slug, num) for num, slug in rows)
+    """Return (text, tally, total). Pure: `gen` writes it, `check` diffs it."""
     tally = {v: 0 for v in VERDICTS}
-    body = []
-    cur = None
-    for num, slug in rows:
-        top = num.split(".")[0]
-        if top != cur:
-            cur = top
-            body.append(f"\n### {top} · {SECTIONS[top]}\n")
-            body.append("| prop | slug | verdict | mechanism | conformance |")
-            body.append("|---|---|---|---|---|")
-        verdict, mech, conf = CURATED.get(slug, DEFAULT)
-        # an unresolvable {#slug} is left verbatim for `check` to report
-        mech = CITE.sub(
-            lambda m: f"[{num_of[m.group(1)]}](rung-het-propositions.md#{m.group(1)})"
-            if m.group(1) in num_of
-            else m.group(0),
-            mech,
-        )
-        tally[verdict] += 1
-        body.append(
-            f"| [{num}](rung-het-propositions.md#{slug}) | `{slug}` | `{verdict}` | {mech} | {conf} |"
+    total = 0
+    parts, summary = [], []
+
+    for spec in DOCS:
+        path = HERE / spec["file"]
+        if not path.exists():
+            continue
+        rows = parse(path)
+        num_of = {slug: num for num, slug, _, _ in rows}
+        sub = {v: 0 for v in VERDICTS}
+        body, cur = [], None
+
+        for num, slug, section, text in rows:
+            if section != cur:
+                cur = section
+                body.append(f"\n### {section}\n")
+                body.append("| prop | slug | verdict | mechanism | conformance |")
+                body.append("|---|---|---|---|---|")
+            if slug in spec["curated"]:
+                verdict, mech, conf = spec["curated"][slug]
+            elif spec["derive"]:
+                verdict, mech, conf = spec["derive"](num, slug, text)
+            else:
+                verdict, mech, conf = spec["default"]
+            # an unresolvable {#slug} is left verbatim for `check` to report
+            mech = CITE.sub(
+                lambda m: f"[{num_of[m.group(1)]}]({spec['file']}#{m.group(1)})"
+                if m.group(1) in num_of
+                else m.group(0),
+                mech,
+            )
+            tally[verdict] += 1
+            sub[verdict] += 1
+            total += 1
+            body.append(
+                f"| [{num}]({spec['file']}#{slug}) | `{slug}` | `{verdict}` | {mech} | {conf} |"
+            )
+
+        counts = " · ".join(f"{n} {v}" for v, n in sorted(sub.items()) if n)
+        summary.append(f"| [`{spec['file']}`]({spec['file']}) | {len(rows)} | {counts} |")
+        parts.append(
+            f"\n## {spec['heading']}\n\n{spec['blurb']}\n\n"
+            f"**Counts.** {counts} · {len(rows)} total.\n" + "\n".join(body)
         )
 
-    head = f"""# Het — Conformance
+    head = f"""# Conformance
 
-**Status: not normative.**
-[`rung-het-propositions.md`](rung-het-propositions.md) governs. This ledger
-records where each of its propositions is enforced, and where it is not.
+**Status: not normative.** The three `*-propositions.md` documents govern. This
+ledger records where each of their propositions is enforced, and where it is
+not.
 
 Rows are keyed on the proposition's **slug**, not its number, so the ledger
 survives every renumbering. Generated by `./_ledger.py gen`; verified by
@@ -462,27 +612,12 @@ cannot cite a file that does not exist, and this text cannot be edited by hand.
 | `expressible` | encodable in a ladder; rung proves it ran, not that it was right |
 | `deferred` | blocked on a named open question, or on a named gap |
 | `collides` | contradicts a rung guarantee — must be empty |
-| `out-of-scope` | mathematics of the institution; nothing for a host to enforce |
+| `out-of-scope` | mathematics of the account; nothing for a host to enforce |
+| `unclassified` | no verdict recorded — a worklist entry, not a clean bill |
 
-**No Het theory is currently expressed as a `ladder!`.** `rung-het` has empty
-`[dependencies]` and zero occurrences of `ladder!`; its guarantees come from
-hand-rolled sealed structs. Every `enforced` row below therefore names the rung
-guarantee that **will** apply once the pass is a ladder — not one in force
-today. The mechanism underneath is bespoke until the substrate rewrite lands.
-
-**The default is `out-of-scope`.** Most propositions state the structure of the
-institution and impose no obligation on any host. Only rows that name a
-mechanism have been curated; the rest are marked by that rule, not by
-inspection. Read a bare `out-of-scope` as *"no claim made"*, not as *"checked
-and found irrelevant"*.
-
-**Counts.** {tally['enforced']} enforced · {tally['expressible']} expressible ·
-{tally['deferred']} deferred · {tally['collides']} collides ·
-{tally['out-of-scope']} out-of-scope · {len(rows)} total.
-
-## What rung guarantees that Het does not state
-
-The join is not onto. Two rung guarantees have no proposition:
+**The join is not onto, in either direction.** A proposition may have no test,
+and a guarantee may have no proposition. Two guarantees have no Het
+proposition at all:
 
 - **G1, linear consumption.** An argument is consumed by the arrow that acts on
   it. Het says an object is transformed, never that the prior object is spent.
@@ -490,8 +625,14 @@ The join is not onto. Two rung guarantees have no proposition:
 
 Neither is a defect; both are places where the host is stricter than the
 formalism requires.
+
+| document | propositions | verdicts |
+|---|---|---|
+{chr(10).join(summary)}
+
+**Total.** {total} propositions across {len(summary)} documents.
 """
-    return head + "\n".join(body) + "\n", tally, len(rows)
+    return head + "\n".join(parts) + "\n", tally, total
 
 
 def gen():
@@ -503,12 +644,22 @@ def gen():
 def check():
     errs = []
     text, _, _ = render()
-    listed = re.findall(r"^\| \[[\d.]+\]\(rung-het-propositions\.md#([a-z0-9-]+)\) \| `([a-z0-9-]+)` \| `([a-z-]+)` \|",
-                        text, re.M)
-    all_slugs = [s for _, s in props()]
+    all_slugs, curated_all = set(), {}
+    for spec in DOCS:
+        path = HERE / spec["file"]
+        if not path.exists():
+            continue
+        for _, slug, _, _ in parse(path):
+            all_slugs.add(slug)
+        for slug, row in spec["curated"].items():
+            curated_all[slug] = (spec["file"], row)
 
+    listed = re.findall(
+        r"^\| \[[A-Z]?[\d.]+\]\(([\w.-]+)#([a-z0-9-]+)\) \| `([a-z0-9-]+)` \| `([a-z-]+)` \|",
+        text, re.M,
+    )
     seen = {}
-    for href, slug, verdict in listed:
+    for _, href, slug, verdict in listed:
         if href != slug:
             errs.append(f"row `{slug}`: link target #{href} does not match the slug")
         if verdict not in VERDICTS:
@@ -517,48 +668,49 @@ def check():
 
     for slug, n in seen.items():
         if slug not in all_slugs:
-            errs.append(f"row `{slug}`: not a proposition of rung-het-propositions.md")
+            errs.append(f"row `{slug}`: not a proposition of any governing document")
         if n > 1:
             errs.append(f"row `{slug}`: listed {n} times")
     for slug in all_slugs:
         if slug not in seen:
             errs.append(f"proposition `{slug}` is not classified in the ledger")
 
-    for slug in CURATED:
+    for slug, (doc, (verdict, mech, conf)) in curated_all.items():
         if slug not in all_slugs:
             errs.append(f"CURATED names `{slug}`, which is not a proposition")
-
-    for slug, (_, mech, _) in CURATED.items():
         for m in CITE.finditer(mech):
             if m.group(1) not in all_slugs:
-                errs.append(
-                    f"row `{slug}`: cites {{#{m.group(1)}}}, which is not a proposition"
-                )
+                errs.append(f"row `{slug}`: cites {{#{m.group(1)}}}, which is not a proposition")
         for m in re.finditer(r"(?<![\w.#/§-])(\d{1,2}\.\d{1,2})(?![\w-]|\.\d)", mech):
             errs.append(
                 f"row `{slug}`: bare number {m.group(1)} — write it as {{#slug}}, "
                 f"which survives renumbering"
             )
 
-    for slug, (verdict, _, conf) in CURATED.items():
-        if conf == "—":
-            if verdict == "enforced":
+    # every cited test must exist. `(rustc)` and `—` cite no file by design.
+    for _, _, slug, verdict in listed:
+        pass
+    for line in text.split("\n"):
+        m = re.match(r"^\| \[[A-Z]?[\d.]+\]\([\w.-]+#([a-z0-9-]+)\) \| `[a-z0-9-]+` \| `([a-z-]+)` \| .* \| (.+) \|$", line)
+        if not m:
+            continue
+        slug, verdict, conf = m.group(1), m.group(2), m.group(3).strip()
+        if conf in ("—", "(rustc)"):
+            if verdict == "enforced" and conf == "—":
                 errs.append(f"row `{slug}`: `enforced` must cite a conformance test")
             continue
-        # `path::symbol` cites a test fn; anything else cites a file plus prose
-        m = re.match(r"^(\S+?)::(\w+)$", conf)
-        path, sym = (m.group(1), m.group(2)) if m else (conf.split(" ")[0], None)
+        t = re.match(r"^(\S+?)::(\w+)$", conf)
+        path, sym = (t.group(1), t.group(2)) if t else (conf.split(" ")[0], None)
         target = ROOT / path
         if not target.exists():
             errs.append(f"row `{slug}`: cites {path}, which does not exist")
         elif sym and not re.search(rf"\bfn {re.escape(sym)}\b", target.read_text()):
             errs.append(f"row `{slug}`: {path} has no fn {sym}")
 
-    collides = [s for _, s, v in listed if v == "collides"]
-    for slug in collides:
-        errs.append(f"row `{slug}`: verdict `collides` — an unresolved contradiction")
+    for _, _, slug, verdict in listed:
+        if verdict == "collides":
+            errs.append(f"row `{slug}`: verdict `collides` — an unresolved contradiction")
 
-    # the file on disk is generated output; the only source is CURATED
     on_disk = LEDGER.read_text() if LEDGER.exists() else None
     if on_disk is None:
         errs.append("conformance.md does not exist — run ./_ledger.py gen")

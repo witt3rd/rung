@@ -1,6 +1,6 @@
-# RUNG-CT — how the category was found
+# rung-CT — notes
 
-> **Status: development archaeology. Not normative.**
+> **Informative. Not normative.**
 >
 > This is the working document in which rung's categorical account was
 > derived — the discovery that a `ladder` declaration *is* a free category,
@@ -10,8 +10,8 @@
 > each question, and the claims that had to be withdrawn.
 >
 > **The normative statement is
-> [`rung-ct-propositions.md`](rung-ct-propositions.md).** Where the two
-> disagree, `rung-ct-propositions.md` governs. A claim stated here and not
+> [`rung-ct-props.md`](rung-ct-props.md).** Where the two
+> disagree, `rung-ct-props.md` governs. A claim stated here and not
 > there is not a claim rung makes.
 >
 > Two things here remain load-bearing and are cited as such:
@@ -49,12 +49,12 @@ the transition body, the only place a verb can be.
 That episode is the whole reason the categorical account is taken seriously
 here. The theory did not predict the refusal; the refusal was hit first, and the
 theory was what explained it. It is normative as
-[the law](rung-ct-propositions.md#the-law), and it is what
-`SPEC.md` G2 and `conformance.md` cite by name.
+[the law](rung-ct-props.md#the-law), and it is what
+`rung-props.md` G2 and `conformance.md` cite by name.
 
 The same refusal appears on a second axis in Het — an algebra runs its own
 decidable step but cannot construct the state that holds a judgmental outcome
-([`self-governing-not-self-closing`](rung-het-propositions.md#self-governing-not-self-closing)).
+([`self-governing-not-self-closing`](rung-het-props.md#self-governing-not-self-closing)).
 Het's gate law and rung's law are one move made twice: seal the capability, hand
 it only to the arrow licensed to hold it.
 
@@ -97,7 +97,7 @@ Reading it as a category presentation:
 | `iterate: Iterating => Active` | the backward edge — the dagger, guarded |
 | `carry { budget }` | the product factor carried by every object |
 
-The naming rule is `SPEC.md` §1: a forward transition is named after its
+The naming rule is `rung-props.md` §1: a forward transition is named after its
 **target** rung lowercased; the branching transition is always `step`. Earlier
 revisions wrote `design: Designed → Claimed`, which no ladder ever emits.
 
@@ -116,13 +116,13 @@ below.
 ## 3. Where each proposition came from
 
 A short derivation index. The claim itself lives in
-`rung-ct-propositions.md`; this is where it came from.
+`rung-ct-props.md`; this is where it came from.
 
 | propositions | origin |
 |---|---|
 | the free category, the law | the sealed-constructor refusal, §1 |
 | the coproduct | the observation that a verdict variant addition breaks every `match` — i.e. that exhaustiveness is a universal property, not a lint |
-| the product / carry | `carry` was designed as a correlation-key channel; the product reading came afterwards and immediately exposed [3.41](rung-ct-propositions.md#constancy-is-not-enforced) as a limit, not a law |
+| the product / carry | `carry` was designed as a correlation-key channel; the product reading came afterwards and immediately exposed [3.41](rung-ct-props.md#constancy-is-not-enforced) as a limit, not a law |
 | the indexed monad | the type of a transition function, read with its endpoints as indices |
 | the writer / trace | the Python reference interpreter (`.archive/python-poc/rung/interpreter.py`) accumulates one; the macro does not |
 | the Prism | **Q7**, §4 |
@@ -173,11 +173,11 @@ backward edge can.
 **Two consequences, both now normative.**
 
 - G8 is the contraction, not a defect
-  ([`verdict-dagger-is-contractive`](rung-ct-propositions.md#verdict-dagger-is-contractive)).
+  ([`verdict-dagger-is-contractive`](rung-ct-props.md#verdict-dagger-is-contractive)).
   A Prism's Build pass need not be involutive; the progress guard makes it
   *contractive*, which is why `f†† = f` is deliberately broken.
 - Effects layer on the forward pass
-  ([`effects-layer-on-the-forward-pass`](rung-ct-propositions.md#effects-layer-on-the-forward-pass)).
+  ([`effects-layer-on-the-forward-pass`](rung-ct-props.md#effects-layer-on-the-forward-pass)).
   Async is `T = Future`, a strong commutative monad — tensorial strength
   `A ⊗ T(B) → T(A ⊗ B)` is exactly what proves linearity survives `.await`. A
   generative body is a Markov kernel, an affine probability monad in Fritz's
@@ -227,13 +227,13 @@ Survives` — which the base delivers rigidly. Collapsing that coproduct is the
 target's own Level-0 work. And because every fibre is a free category, the target
 retains *vertical* morphisms of its own; lifts evaluate against its current
 state. Normative as
-[`advisory-lift-lands-in-a-coproduct`](rung-ct-propositions.md#advisory-lift-lands-in-a-coproduct)
+[`advisory-lift-lands-in-a-coproduct`](rung-ct-props.md#advisory-lift-lands-in-a-coproduct)
 and
-[`same-coproduct-at-both-levels`](rung-ct-propositions.md#same-coproduct-at-both-levels).
+[`same-coproduct-at-both-levels`](rung-ct-props.md#same-coproduct-at-both-levels).
 
 **Edge types as pushforwards.** The operative registry consequence is
 `EDGES.md`; the taxonomy is the registry's, not the formalism's
-([`edge-type-selects-the-pushforward`](rung-ct-propositions.md#edge-type-selects-the-pushforward)).
+([`edge-type-selects-the-pushforward`](rung-ct-props.md#edge-type-selects-the-pushforward)).
 
 | edge type | what the pushforward does |
 |---|---|
@@ -276,17 +276,17 @@ opfibrations" collapses into one unified opcartesian structure.
 Three consequences, all confirmed by review and all now normative:
 
 - **It is an iteration of Level 1, not a Level 2**
-  ([`iteration-not-a-second-level`](rung-ct-propositions.md#iteration-not-a-second-level)).
+  ([`iteration-not-a-second-level`](rung-ct-props.md#iteration-not-a-second-level)).
   Opfibrations are 1-cells in **Cat** and compose by ordinary functor
   composition. The reserved Level-2 slot in `_map.md` stays **vacant** — filling
   it needs a genuine 2-cell *between* fibrations (a schema migration, a topology
   remap), which nesting does not introduce.
 - **Obligation-transport is scale-invariant**
-  ([`transport-is-scale-invariant`](rung-ct-propositions.md#transport-is-scale-invariant)).
+  ([`transport-is-scale-invariant`](rung-ct-props.md#transport-is-scale-invariant)).
   Optics compose (Capucci–Hedges; Spivak's *Poly*), so `_reach.py` and its
   typed-exposure successor cross domain boundaries with **zero modification**.
 - **Horizontal ≅ vertical**
-  ([`horizontal-and-vertical-coincide`](rung-ct-propositions.md#horizontal-and-vertical-coincide)).
+  ([`horizontal-and-vertical-coincide`](rung-ct-props.md#horizontal-and-vertical-coincide)).
   Under the Grothendieck construction the indexed hierarchy flattens into a
   single total graph; sibling edges and domain-implication edges lift
   identically.
@@ -319,18 +319,18 @@ and the same rule for verdicts. Without an inline `impl` block, `has_bodies` is
 false and **every constructor is `pub`** — a type-only declaration publishes the
 whole category to external construction, and no diagnostic fires.
 
-`SPEC.md` G2's phrasing was already careful about this ("*When an `impl` block is
+`rung-props.md` G2's phrasing was already careful about this ("*When an `impl` block is
 present*, only the entry rung's `new` is public"); this document's was not. The
 resolution is a pair: freeness is claimed
-([`category-is-freely-generated`](rung-ct-propositions.md#category-is-freely-generated)),
+([`category-is-freely-generated`](rung-ct-props.md#category-is-freely-generated)),
 and the reach of its enforcement is stated as a limit
-([`freeness-enforced-only-with-bodies`](rung-ct-propositions.md#freeness-enforced-only-with-bodies)),
+([`freeness-enforced-only-with-bodies`](rung-ct-props.md#freeness-enforced-only-with-bodies)),
 with the entry constructor and the module boundary as the two further
 qualifications.
 
 ### 7.2 Continue arms are objects in the coproduct
 
-Continue arms (`V -> R`, `SPEC.md` G10) were absent from every earlier revision
+Continue arms (`V -> R`, `rung-props.md` G10) were absent from every earlier revision
 of this document. They are not a variant of the dagger. The account:
 
 A continue arm's summand carries an **object of the category**, not a verdict
@@ -339,21 +339,21 @@ deferred to the coproduct — the morphism into the target rung is taken on the
 forward pass; which summand was taken is what the eliminator learns.
 
 It needs no backward edge because **it never leaves the category**: nothing to
-return from, and no round trip for a contraction to shrink. `SPEC.md` §2 rule 4
+return from, and no round trip for a contraction to shrink. `rung-props.md` §2 rule 4
 exempting continue arms from recover-pairing is not a special case; it is this.
 
 Two consequences follow, and both were missing:
 
 - the branching coproduct is **heterogeneous** — verdict summands, object
   summands, and the residual are three different kinds of thing
-  ([`coproduct-is-heterogeneous`](rung-ct-propositions.md#coproduct-is-heterogeneous));
+  ([`coproduct-is-heterogeneous`](rung-ct-props.md#coproduct-is-heterogeneous));
 - there are **three shapes of loop-back and only two are daggers**
-  ([`three-shapes-of-loop-back`](rung-ct-propositions.md#three-shapes-of-loop-back)).
+  ([`three-shapes-of-loop-back`](rung-ct-props.md#three-shapes-of-loop-back)).
 
 ### 7.3 "Provenance" was two concepts sharing a word
 
 This document used *provenance* for the execution trace.
-`rung-het-propositions.md` uses it for **authorship tags**, whose disjointness is
+`rung-het-props.md` uses it for **authorship tags**, whose disjointness is
 what decides non-identity — Het's P0, the thing the whole formalism exists to
 enforce. Unrelated concepts, one word, across two documents in the same slug
 space.
@@ -361,7 +361,7 @@ space.
 rung's own type is already called `Trace`. The execution sense is renamed to
 **trace** throughout both halves of RUNG-CT, and the distinction is stated
 normatively rather than left to the reader
-([`trace-is-not-authorship-provenance`](rung-ct-propositions.md#trace-is-not-authorship-provenance)).
+([`trace-is-not-authorship-provenance`](rung-ct-props.md#trace-is-not-authorship-provenance)).
 
 Het's usage is unchanged, and the `Provenanced` trait in `rung-het` is
 **deliberately not renamed** — that is the authorship sense and it is correct.
@@ -371,20 +371,20 @@ Het's usage is unchanged, and the `Provenanced` trait in `rung-het` is
 ## 8. Corrections register
 
 Claims the earlier revisions of this document made, which do not survive into
-the normative half. Each was checked against `rung-macro/src/lib.rs`, `SPEC.md`,
+the normative half. Each was checked against `rung-macro/src/lib.rs`, `rung-props.md`,
 or the test suite.
 
 | withdrawn claim | what is true | evidence |
 |---|---|---|
 | "the compiler refuses **any** out-of-category construction" | only with an inline `impl` block; a type-only declaration publishes every constructor | `rung-macro/src/lib.rs` — `ctor_vis` |
-| two example ladders, `Designed/Claimed/Active` and `Spec/Active` | one running example (§2); the earlier two were mutually incompatible **and both ungrammatical** — the verdict block is mandatory | `SPEC.md` §1 grammar |
-| a forward transition is named `design: Designed → Claimed` | named after its **target**, lowercased — so `claimed`, or in the running example `active`. The branching transition is always `step` | `SPEC.md` §1; `rung-macro/src/lib.rs` |
+| two example ladders, `Designed/Claimed/Active` and `Spec/Active` | one running example (§2); the earlier two were mutually incompatible **and both ungrammatical** — the verdict block is mandatory | `rung-props.md` §1 grammar |
+| a forward transition is named `design: Designed → Claimed` | named after its **target**, lowercased — so `claimed`, or in the running example `active`. The branching transition is always `step` | `rung-props.md` §1; `rung-macro/src/lib.rs` |
 | the carry is "structurally shared (duplicated by reference)" | copied **by value** into each object's own `carry` field | `rung-macro/src/lib.rs` — `carry: Carry` field + ctor init |
 | the carry satisfies comonad coassociativity | not enforced — a body supplies the successor's carry and may change it, and the running example's `iterate` decrements `budget` | `rung/tests/end_to_end.rs` |
 | `f† ∘ f ≠ id` (on tokens) | the guard compares **payloads**, never tokens; a token comparison would be vacuous | `rung-macro/src/lib.rs` — `must_progress(&__before, &__after.payload)` |
-| G4 covers "every rung and verdict type" | also `StepOutcome` and `Failed` | `SPEC.md` G4; `rung-macro/src/lib.rs` |
+| G4 covers "every rung and verdict type" | also `StepOutcome` and `Failed` | `rung-props.md` G4; `rung-macro/src/lib.rs` |
 | the coproduct diagram's injection arrows | injections point **into** the coproduct; elimination is the unique morphism out. The ASCII diagram had them reversed, and the diagram is dropped rather than redrawn | — |
-| the verification table omitted G3, G10, G11 | all three are in [10.1](rung-ct-propositions.md#guarantees-carry-categorical-content); G3 has a real categorical reading — one token cannot be driven by two threads | `SPEC.md` G3/G10/G11 |
+| the verification table omitted G3, G10, G11 | all three are in [10.1](rung-ct-props.md#guarantees-carry-categorical-content); G3 has a real categorical reading — one token cannot be driven by two threads | `rung-props.md` G3/G10/G11 |
 | §10 "resolves on the reviews" as a claim inside the theory | an epistemic-status claim about a document, not a claim about the category. It belongs here (§6), not there | — |
 
 ---

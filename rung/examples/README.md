@@ -40,13 +40,14 @@ progress guard (L2), an error edge that hands the token back (L3), and a model
 that may pick an edge but not mint a state (L4). They are the same rule each
 time. Only after you've felt it four times is it worth naming — it's the
 free-category axiom, and
-[`docs/rung-ct-propositions.md`](../../docs/rung-ct-propositions.md) names it.
+[`docs/rung-ct-props.md`](../../docs/rung-ct-props.md) names it.
 
 **The category theory is deliberately not a prerequisite.** The law in this
 library was discovered from the inside — a compiler refusal came first, the
 theory named it afterward. The lessons reproduce that order on purpose. Read
 the propositions when you're curious *why* it works, not before you can use
-it; [`docs/RUNG-CT.md`](../../docs/RUNG-CT.md) records how they were found.
+it; [`docs/rung-ct-notes.md`](../../docs/rung-ct-notes.md) records how they
+were found.
 
 ## Where it ends
 
