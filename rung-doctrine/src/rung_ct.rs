@@ -32,13 +32,18 @@ The numbering is a tree. A proposition `n.m` is a remark on `n`; `n.mm` is a
 remark on `n.m`. Interior propositions are the conjunction of their children.
 Leaves are single checkable claims.
 
-**Numbers are derived, not authored.** A proposition's identity is the slug in
-the anchor above it; its place in the tree is `data-parent`; its order is
-document order. The decimal number and every reference to it are generated from
-those three. Inserting, removing, or reparenting a proposition therefore cannot
-break a reference — run `./_props.py fmt` and the numbering follows.
-`./_props.py check` fails on a duplicate slug, a dangling parent or reference, a
-proposition out of order with its parent, or a number that has gone stale.
+**This document is generated.** Its source is
+`rung-doctrine/src/rung_ct.rs`, and it is written by
+`cargo run -p rung-doctrine --bin render`. Editing it here does not change what
+it says; the next render restores this text. Where the two differ, the encoding
+is right and this file is stale — CI checks exactly that.
+
+**Numbers are derived, not authored.** A proposition's identity is its slug;
+its place in the tree is its declared parent; its order is declaration order.
+The decimal number and every reference to it are computed at render time and
+appear nowhere in the source, so inserting, removing or reparenting a
+proposition cannot break a reference and cannot leave a number stale — there is
+no number to leave.
 
 **Two documents, one slug space.** A reference whose target names
 `rung-het-props.md` points into Het's formalism. Where a claim here

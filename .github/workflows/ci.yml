@@ -28,6 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: generated documents match their encoding
+        run: cargo run -q -p rung-doctrine --bin render -- --check
       - name: proposition numbering and references
         run: docs/_props.py check
       - name: conformance ledger coverage
