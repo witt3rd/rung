@@ -26,6 +26,11 @@ impl Role for Author {
 // ── a population, declared as a driver would read it ────────────────────────
 
 const POPULATION: &str = r#"
+providers:
+  - name: somewhere
+    base_url: https://example.invalid/v1
+    api_key_env: EXAMPLE_KEY
+
 roles:
   - name: judge
     requires: [reasoning, structured-outputs]
@@ -40,7 +45,7 @@ principals:
     capabilities: [reasoning, structured-outputs, code-generation, file-editing]
     standing: [docs]
     authored: []
-    backing: {via: model, model: some-model}
+    backing: {via: model, provider: somewhere, model: some-model}
 
   # An agent wielding tools that does NOT declare structured outputs, so it is
   # not a judge — being an agent buys it nothing.
@@ -49,7 +54,7 @@ principals:
     capabilities: [reasoning, code-generation, file-editing, web-research]
     standing: [docs]
     authored: [a-thing-it-wrote]
-    backing: {via: agent, model: some-model, tools: [edit, search]}
+    backing: {via: agent, provider: somewhere, model: some-model, tools: [edit, search]}
 
   # Reachable, but declares only reasoning.
   - id: a-person

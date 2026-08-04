@@ -9,7 +9,7 @@
 
 use rung::Verdict;
 use rung_driver::oracle_llm::read_reply;
-use rung_driver::{Answer, Population};
+use rung_driver::{Answer, Backing, Population, Unreachable, resolve};
 
 fn verdict(text: &str) -> Option<Verdict> {
     match read_reply(text) {
@@ -206,4 +206,139 @@ fn the_model_principals_provenance_is_still_a_placeholder() {
     // would have to look like: something that actually disqualifies.
     let human = p.by_id("donald").expect("declared");
     assert!(!human.authored.is_empty());
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 4 · Providers — many endpoints, and no secret in the file
+// ════════════════════════════════════════════════════════════════════════════
+
+/// Several providers, and each principal resolves to its own.
+#[test]
+fn each_principal_resolves_to_the_provider_that_serves_it() {
+    let p = population();
+    assert!(
+        p.providers.len() >= 2,
+        "a population spanning one provider proves nothing"
+    );
+
+    let judge = p.by_id("opus-judge").unwrap();
+    let other = p.by_id("gpt-judge").unwrap();
+    assert_ne!(
+        judge.backing.provider(),
+        other.backing.provider(),
+        "the two judges share an endpoint; a second family was the point"
+    );
+}
+
+/// **No credential is declared anywhere.** The population names environment
+/// variables; a schema that could hold a key would eventually hold one, and
+/// this file is in the repository.
+#[test]
+fn the_population_names_credentials_and_never_holds_one() {
+    let text = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("docs/population.yaml"),
+    )
+    .unwrap();
+
+    // Round-tripping proves the schema, not just this file: if `Provider` ever
+    // gained a literal-secret field, serializing would surface it here.
+    let round = serde_yaml::to_string(&population()).unwrap();
+    for hay in [text.as_str(), round.as_str()] {
+        for banned in ["api_key:", "apikey", "sk-", "secret:"] {
+            assert!(
+                !hay.to_lowercase().contains(banned),
+                "the population carries something shaped like a credential: {banned}"
+            );
+        }
+    }
+    for pr in &population().providers {
+        assert!(!pr.api_key_env.is_empty(), "{} names no variable", pr.name);
+    }
+}
+
+/// A missing credential **raises**; it does not refute the claim.
+///
+/// The distinction is the whole reason `Unreachable` exists: a claim reported
+/// as `NonConforming` because an environment variable was unset would be
+/// refuted by a configuration mistake, and nothing would say so.
+#[test]
+fn a_missing_credential_is_unreachable_and_not_a_verdict() {
+    let p = population();
+    let backing = Backing::Model {
+        provider: "anthropic".into(),
+        model: "claude-opus-4-6".into(),
+    };
+
+    // The variable this population names is almost certainly unset in CI, and
+    // that must not read as a judgment either way.
+    match resolve(&p, &backing) {
+        Err(Unreachable::NoCredential { provider, env }) => {
+            assert_eq!(provider, "anthropic");
+            assert_eq!(env, "ANTHROPIC_API_KEY");
+        }
+        // If a key IS present the resolution succeeds, and that is fine — what
+        // must never happen is a verdict coming out of a config fault.
+        Ok(config) => {
+            assert_eq!(config.base_url, "https://api.anthropic.com/v1");
+            assert!(!config.api_key.is_empty());
+        }
+        Err(other) => panic!("expected a credential fault, got {other}"),
+    }
+}
+
+/// A backing naming a provider nobody declared is unreachable, and `check`
+/// reports it before any dispatch is attempted.
+#[test]
+fn an_undeclared_provider_is_caught_before_dispatch() {
+    let mut p = population();
+    assert!(matches!(
+        resolve(
+            &p,
+            &Backing::Model {
+                provider: "nowhere".into(),
+                model: "m".into()
+            }
+        ),
+        Err(Unreachable::NoSuchProvider(_))
+    ));
+
+    p.principals[1].backing = Backing::Model {
+        provider: "nowhere".into(),
+        model: "m".into(),
+    };
+    assert!(
+        p.check()
+            .iter()
+            .any(|e| matches!(e, rung_driver::ConfigError::UnknownProvider { .. })),
+        "an unreachable principal was not reported"
+    );
+}
+
+/// A principal answering out of band is not served by a model, and saying so is
+/// not an error — it is the human, and this oracle is not the route to them.
+#[test]
+fn an_out_of_band_principal_is_not_reachable_by_a_model() {
+    let p = population();
+    assert!(matches!(
+        resolve(&p, &Backing::Outside),
+        Err(Unreachable::NotServedByAModel)
+    ));
+    assert_eq!(p.by_id("donald").unwrap().backing, Backing::Outside);
+}
+
+/// Per-provider settings are honoured, so one endpoint's limits are not
+/// silently applied to another's.
+#[test]
+fn provider_settings_are_per_provider() {
+    let p = population();
+    let anthropic = p.provider("anthropic").expect("declared");
+    let openrouter = p.provider("openrouter").expect("declared");
+    assert_eq!(anthropic.max_tokens, Some(4096));
+    assert_eq!(
+        openrouter.max_tokens, None,
+        "unset means the default, not 4096"
+    );
 }

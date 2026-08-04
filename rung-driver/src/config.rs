@@ -40,6 +40,36 @@ pub enum Kind {
     Human,
 }
 
+/// A place models are served from, and how to reach it.
+///
+/// Declared per provider rather than once, because a population routinely
+/// spans several: two judges from different families is the point of having
+/// two, and different families are usually different endpoints with different
+/// credentials.
+///
+/// ## No secret lives here
+///
+/// A provider names the **environment variable** its credential is read from,
+/// never the credential. This file is checked into a repository, and a schema
+/// with a `api_key` field is an invitation to paste one in — the sort of thing
+/// that is nobody's decision and everybody's problem. Supply the value however
+/// you like (a shell, `direnv`, a secret manager); the declaration only says
+/// what to look for.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Provider {
+    pub name: String,
+    /// Endpoint base, without trailing slash.
+    pub base_url: String,
+    /// The environment variable holding the credential.
+    pub api_key_env: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_secs: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_level: Option<String>,
+}
+
 /// How a principal answers when it is consulted.
 ///
 /// Declared separately from capabilities on purpose: *what* a principal can do
@@ -48,10 +78,14 @@ pub enum Kind {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "via", rename_all = "kebab-case")]
 pub enum Backing {
-    /// One blocking model call.
-    Model { model: String },
+    /// One blocking model call, at a named provider.
+    Model { provider: String, model: String },
     /// An agentic turn: drive a model, dispatch tools, iterate.
-    Agent { model: String, tools: Vec<String> },
+    Agent {
+        provider: String,
+        model: String,
+        tools: Vec<String>,
+    },
     /// Answers out of band. A person, or anything else that is asked by some
     /// route this driver does not own. The default: a principal nobody wired up
     /// has not been wired up, and says so rather than being assumed reachable.
@@ -62,7 +96,15 @@ pub enum Backing {
 impl Backing {
     pub fn model(&self) -> Option<&str> {
         match self {
-            Self::Model { model } | Self::Agent { model, .. } => Some(model),
+            Self::Model { model, .. } | Self::Agent { model, .. } => Some(model),
+            Self::Outside => None,
+        }
+    }
+
+    /// Which provider serves this principal, if any.
+    pub fn provider(&self) -> Option<&str> {
+        match self {
+            Self::Model { provider, .. } | Self::Agent { provider, .. } => Some(provider),
             Self::Outside => None,
         }
     }
@@ -110,6 +152,8 @@ pub struct RoleSpec {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Population {
     #[serde(default)]
+    pub providers: Vec<Provider>,
+    #[serde(default)]
     pub roles: Vec<RoleSpec>,
     #[serde(default)]
     pub principals: Vec<PrincipalSpec>,
@@ -130,6 +174,15 @@ pub enum ConfigError {
         id: String,
         capability: String,
     },
+    /// A principal names a provider nobody declared. A real fault: it can never
+    /// be reached, and the failure would otherwise appear only at dispatch.
+    UnknownProvider {
+        id: String,
+        provider: String,
+    },
+    DuplicateProvider {
+        name: String,
+    },
 }
 
 impl std::fmt::Display for ConfigError {
@@ -139,6 +192,12 @@ impl std::fmt::Display for ConfigError {
             Self::DuplicateRole { name } => write!(f, "role `{name}` is declared twice"),
             Self::Unused { id, capability } => {
                 write!(f, "`{id}` declares `{capability}`, which no role requires")
+            }
+            Self::UnknownProvider { id, provider } => {
+                write!(f, "`{id}` is served by `{provider}`, which is not declared")
+            }
+            Self::DuplicateProvider { name } => {
+                write!(f, "provider `{name}` is declared twice")
             }
         }
     }
@@ -155,6 +214,10 @@ impl Population {
 
     pub fn by_id(&self, id: &str) -> Option<&PrincipalSpec> {
         self.principals.iter().find(|p| p.id == id)
+    }
+
+    pub fn provider(&self, name: &str) -> Option<&Provider> {
+        self.providers.iter().find(|p| p.name == name)
     }
 
     /// Faults, all of them.
@@ -175,6 +238,25 @@ impl Population {
                 });
             }
             roles.push(&r.name);
+        }
+        let mut provs: Vec<&str> = Vec::new();
+        for pr in &self.providers {
+            if provs.contains(&pr.name.as_str()) {
+                errs.push(ConfigError::DuplicateProvider {
+                    name: pr.name.clone(),
+                });
+            }
+            provs.push(&pr.name);
+        }
+        for p in &self.principals {
+            if let Some(name) = p.backing.provider()
+                && self.provider(name).is_none()
+            {
+                errs.push(ConfigError::UnknownProvider {
+                    id: p.id.clone(),
+                    provider: name.to_string(),
+                });
+            }
         }
         let wanted: Vec<&str> = self
             .roles

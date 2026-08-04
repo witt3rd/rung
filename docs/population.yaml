@@ -15,6 +15,33 @@
 # needing `file-editing`, and an agent that never declared `structured-outputs`
 # does not fill one needing it.
 
+# Where models are served from. A population routinely spans several: two
+# judges from different families is the point of having two, and different
+# families are different endpoints with different credentials.
+#
+# NO SECRET LIVES HERE. A provider names the environment variable its
+# credential is read from, never the credential. This file is in the
+# repository, and a schema with an `api_key` field is an invitation to paste
+# one in. Supply the value however you like — a shell, direnv, a secret
+# manager; the declaration only says what to look for.
+providers:
+  - name: anthropic
+    base_url: https://api.anthropic.com/v1
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 4096
+
+  - name: openai
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    max_tokens: 4096
+
+  # One endpoint fronting many families, for when procurement is done by
+  # shopping rather than by picking. Cost lives out here, before a pool
+  # exists — never in the filter.
+  - name: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+
 roles:
   # Rules on whether a proposition is a claim at all, as against signature or
   # rationale. The triage proposes this; only an editor settles it.
@@ -72,7 +99,7 @@ principals:
     capabilities: [reasoning, structured-outputs, web-research]
     standing: []
     authored: []
-    backing: {via: model, model: claude-opus-4-6}
+    backing: {via: model, provider: anthropic, model: claude-opus-4-6}
 
   # A second judge, deliberately from a different family. Two judges that share
   # a lineage share its blind spots, and non-identity does not notice.
@@ -81,7 +108,7 @@ principals:
     capabilities: [reasoning, structured-outputs]
     standing: []
     authored: []
-    backing: {via: model, model: gpt-5}
+    backing: {via: model, provider: openai, model: gpt-5}
 
   # ── the author ───────────────────────────────────────────────────────────
   #
@@ -96,5 +123,6 @@ principals:
     authored: []
     backing:
       via: agent
+      provider: anthropic
       model: claude-opus-4-6
       tools: [read, edit, search]

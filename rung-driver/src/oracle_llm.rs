@@ -26,59 +26,74 @@
 //! to the pool and non-identity is applied per dispatch; by the time `ask` is
 //! called those are settled and this only carries the reply.
 
-use crate::config::Backing;
+use crate::config::{Backing, Population};
 use crate::principal::{Answer, Oracle};
 use rung::Raised;
 use rung_std::llm::{
     ChatMessage, ContentBlock, DEFAULT_MAX_ATTEMPTS, LlmConfig, LlmRequest, LlmResponse, llmcall,
 };
 
-/// How to reach a provider. One config serves a whole population; the model is
-/// taken per principal from its [`Backing`].
-#[derive(Clone, Debug)]
-pub struct Endpoint {
-    pub base_url: String,
-    pub api_key: String,
-    pub timeout_secs: u64,
-    pub max_tokens: u32,
-    /// Provider-specific reasoning hint, passed through untouched.
-    pub reasoning_level: Option<String>,
+/// Why a principal could not be reached.
+///
+/// Every one of these becomes a **raised matter**, never a verdict. Nothing was
+/// judged, and a configuration fault reported as `NonConforming` would refute a
+/// claim on the strength of a missing environment variable.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Unreachable {
+    /// Declared as answering out of band. This oracle is not that route.
+    NotServedByAModel,
+    /// The backing names a provider the population does not declare.
+    NoSuchProvider(String),
+    /// The provider is declared and its credential is not in the environment.
+    NoCredential { provider: String, env: String },
 }
 
-impl Endpoint {
-    /// Read an endpoint from the environment.
-    ///
-    /// Returns `None` when no key is set, and the caller should then wire an
-    /// oracle that raises rather than substituting one that agrees.
-    pub fn from_env() -> Option<Self> {
-        let api_key = std::env::var("RUNG_API_KEY").ok()?;
-        Some(Self {
-            base_url: std::env::var("RUNG_BASE_URL")
-                .unwrap_or_else(|_| "https://api.anthropic.com/v1".into()),
-            api_key,
-            timeout_secs: 120,
-            max_tokens: 2048,
-            reasoning_level: std::env::var("RUNG_REASONING").ok(),
-        })
-    }
-
-    fn config_for(&self, model: &str) -> LlmConfig {
-        LlmConfig {
-            base_url: self.base_url.clone(),
-            api_key: self.api_key.clone(),
-            model: model.to_string(),
-            timeout_secs: self.timeout_secs,
-            max_tokens: self.max_tokens,
-            // Judging is not a place for sampling variety.
-            temperature: Some(0.0),
-            reasoning_level: self.reasoning_level.clone(),
-            // The reply is three fixed forms read by `read_reply`, not a
-            // schema. Asking the provider to enforce one would move the
-            // strictness somewhere this crate cannot check it.
-            structured_outputs: false,
-            stream_listener: None,
+impl std::fmt::Display for Unreachable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotServedByAModel => write!(f, "not-served-by-a-model"),
+            Self::NoSuchProvider(p) => write!(f, "no-such-provider:{p}"),
+            Self::NoCredential { provider, env } => {
+                write!(f, "no-credential:{provider}:{env}")
+            }
         }
     }
+}
+
+/// Resolve a principal's backing into a request configuration.
+///
+/// The credential is read from the environment **here**, at use, by the name
+/// the provider declared. It is never held in the population and never stored
+/// on this type, so a config file cannot carry one and a debug print cannot
+/// leak one.
+pub fn resolve(population: &Population, backing: &Backing) -> Result<LlmConfig, Unreachable> {
+    let (Some(name), Some(model)) = (backing.provider(), backing.model()) else {
+        return Err(Unreachable::NotServedByAModel);
+    };
+    let provider = population
+        .provider(name)
+        .ok_or_else(|| Unreachable::NoSuchProvider(name.to_string()))?;
+
+    let api_key = std::env::var(&provider.api_key_env).map_err(|_| Unreachable::NoCredential {
+        provider: name.to_string(),
+        env: provider.api_key_env.clone(),
+    })?;
+
+    Ok(LlmConfig {
+        base_url: provider.base_url.clone(),
+        api_key,
+        model: model.to_string(),
+        timeout_secs: provider.timeout_secs.unwrap_or(120),
+        max_tokens: provider.max_tokens.unwrap_or(2048),
+        // Judging is not a place for sampling variety.
+        temperature: Some(0.0),
+        reasoning_level: provider.reasoning_level.clone(),
+        // The reply is three fixed forms read by `read_reply`, not a schema.
+        // Asking the provider to enforce one would move the strictness
+        // somewhere this crate cannot check it.
+        structured_outputs: false,
+        stream_listener: None,
+    })
 }
 
 /// What a principal is asked, and how its reply is read.
@@ -117,18 +132,21 @@ impl Prompt for Adjudicate {
     }
 }
 
-/// An oracle that puts the matter to a model.
+/// An oracle that puts the matter to whichever provider serves the principal.
+///
+/// One oracle serves a whole population: each principal's backing names its
+/// provider, and the endpoint and credential are resolved per dispatch.
 pub struct ModelOracle<P: Prompt> {
-    endpoint: Endpoint,
+    population: Population,
     prompt: P,
     /// Reference used when a matter is raised without the model naming one.
     reference: String,
 }
 
 impl<P: Prompt> ModelOracle<P> {
-    pub fn new(endpoint: Endpoint, prompt: P, reference: impl Into<String>) -> Self {
+    pub fn new(population: Population, prompt: P, reference: impl Into<String>) -> Self {
         Self {
-            endpoint,
+            population,
             prompt,
             reference: reference.into(),
         }
@@ -144,15 +162,13 @@ impl<P: Prompt> ModelOracle<P> {
 
 impl<P: Prompt> Oracle for ModelOracle<P> {
     fn ask(&self, id: &str, backing: &Backing, matter: &str) -> Answer {
-        let Some(model) = backing.model() else {
-            // Declared as reachable out of band. This oracle is not that route.
-            return self.raise(matter, "not-reachable-by-model");
+        let config = match resolve(&self.population, backing) {
+            Ok(c) => c,
+            // A configuration fault is a matter raised, not a claim refuted.
+            Err(why) => return self.raise(matter, why),
         };
 
-        let request = LlmRequest::new(
-            self.endpoint.config_for(model),
-            vec![ChatMessage::user(self.prompt.ask(id, matter))],
-        );
+        let request = LlmRequest::new(config, vec![ChatMessage::user(self.prompt.ask(id, matter))]);
 
         let mut pending = llmcall::Pending::new(
             request,

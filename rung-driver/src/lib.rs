@@ -33,8 +33,8 @@ pub mod config;
 pub mod oracle_llm;
 pub mod principal;
 
-pub use config::{Backing, ConfigError, Kind, Population, PrincipalSpec, RoleSpec};
-pub use oracle_llm::{Adjudicate, Endpoint, ModelOracle, Prompt};
+pub use config::{Backing, ConfigError, Kind, Population, PrincipalSpec, Provider, RoleSpec};
+pub use oracle_llm::{Adjudicate, ModelOracle, Prompt, Unreachable, resolve};
 pub use principal::{Answer, Configured, Oracle, Unwired, population_pool};
 
 /// Re-exported so a driver has one import for holding suspended runs.
