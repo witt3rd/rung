@@ -559,6 +559,7 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
             ("ids_are_unique", "decidable"),
             ("every_declared_kind_is_lived", "decidable"),
             ("affects_mirrors_inbound", "decidable"),
+            ("gate_edges_are_acyclic", "decidable"),
         ]
     );
     assert_eq!(
@@ -570,11 +571,102 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
     );
     // `Sen(Σ)` for the theory is a hand-written concatenation, because
     // `theory!` declares one sort per invocation.
-    assert_eq!(sentences().len(), 12);
+    assert_eq!(sentences().len(), 13);
     for (name, gate) in sentences() {
         assert!(
             matches!(gate, "decidable" | "judgmental"),
             "sentence `{name}` carries unknown gate `{gate}`"
         );
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// Gate acyclicity — a deadlock is not a slow answer
+// ═════════════════════════════════════════════════════════════════════════
+
+/// Build a docket from inline frontmatter, so a shape can be stated directly.
+fn shaped(files: &[(&str, &str, &str)]) -> Questions {
+    let parsed = files
+        .iter()
+        .map(|(dir, stem, text)| {
+            Question::parse(DOCKET, text, dir, stem).expect("the frontmatter is well formed")
+        })
+        .collect();
+    Questions::new(DOCKET, parsed)
+}
+
+#[test]
+fn a_gate_cycle_is_a_deadlock_and_the_sentence_refuses_it() {
+    // d1 blocked by d2, d2 blocked by d1. Neither can move, and no ruling
+    // changes that — it is not a slow answer, it is a deadlock.
+    let qs = shaped(&[
+        (
+            "blocked",
+            "d1-a",
+            "---\nid: d1\nstatus: blocked\ndepends_on:\n  - {on: d2, kind: gate}\n---\nx\n",
+        ),
+        (
+            "blocked",
+            "d2-b",
+            "---\nid: d2\nstatus: blocked\ndepends_on:\n  - {on: d1, kind: gate}\n---\nx\n",
+        ),
+    ]);
+
+    let cycles = qs.gate_cycles();
+    assert_eq!(
+        cycles.len(),
+        1,
+        "one cycle, reported once, not once per entry"
+    );
+    let members: std::collections::BTreeSet<&str> = cycles[0].iter().map(String::as_str).collect();
+    assert_eq!(members, ["d1", "d2"].into_iter().collect());
+
+    assert!(
+        matches!(
+            questions::gate_edges_are_acyclic::holds(&qs).verdict(),
+            rung::Verdict::NonConforming { .. }
+        ),
+        "a gate cycle must not be conforming"
+    );
+}
+
+#[test]
+fn nesting_is_not_a_cycle_a_premise_up_and_a_gate_down() {
+    // The shape this repository's own Q11 and Q12 have. Answering d1 raised d2;
+    // d2's framing rests on d1 (premise, upward); d1 waits on d2's answer
+    // (gate, downward). Two edges, opposite directions, different kinds.
+    //
+    // A naive any-edge acyclicity check calls this a loop and is wrong: it is
+    // what healthy nesting looks like, and flagging it would make the sentence
+    // fire on every question that ever raised another.
+    let qs = shaped(&[
+        (
+            "open",
+            "d1-parent",
+            "---\nid: d1\nstatus: open\ndepends_on:\n  - {on: d2, kind: gate}\naffects:\n  - {target: d2, kind: premise}\n---\nx\n",
+        ),
+        (
+            "open",
+            "d2-raised-while-answering-d1",
+            "---\nid: d2\nstatus: open\ndepends_on:\n  - {on: d1, kind: premise}\naffects:\n  - {target: d1, kind: gate}\n---\nx\n",
+        ),
+    ]);
+
+    assert!(
+        qs.gate_cycles().is_empty(),
+        "premise-up + gate-down is nesting, not a deadlock; got {:?}",
+        qs.gate_cycles()
+    );
+    assert!(matches!(
+        questions::gate_edges_are_acyclic::holds(&qs).verdict(),
+        rung::Verdict::Conforming
+    ));
+}
+
+#[test]
+fn the_docket_has_no_gate_cycle() {
+    assert!(matches!(
+        questions::gate_edges_are_acyclic::holds(&docket()).verdict(),
+        rung::Verdict::Conforming
+    ));
 }
