@@ -26,8 +26,8 @@
 //! assertion was relaxed; two were added at each site.
 
 use rung_het::{
-    Authorized, Disposition, Pool, Principal, Proposal, Prov, Provenanced, Role, Steward, Verdict,
-    dispose, theory,
+    Authorized, Consulted, Disposition, Pool, Principal, Proposal, Prov, Provenanced, Response,
+    Role, Steward, Verdict, dispose, theory,
 };
 
 #[derive(Clone)]
@@ -76,8 +76,8 @@ impl Principal for P {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 impl Steward for P {
@@ -183,7 +183,14 @@ fn settle_refuses_a_token_minted_against_a_different_model() {
         .qualify::<Reviewer>(&augurs)
         .expect("forge is disjoint from augur's doc");
 
-    let judgment = principal("forge", &["forge"], &[]).judgment("is_constitutive");
+    // `judgment` is the sealed form and may DEFER — a principal that has not
+    // answered has no Judgment to hand over (suspension-is-the-residual). This
+    // one answers.
+    let Consulted::Rendered(judgment) =
+        principal("forge", &["forge"], &[]).judgment("is_constitutive")
+    else {
+        panic!("forge answers when asked");
+    };
     let refused = doc::is_constitutive::settle(&forges, token, judgment).expect_err(
         "P0: forge settled a judgmental sentence on its own document \
          with a licence minted against another",

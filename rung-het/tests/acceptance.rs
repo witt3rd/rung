@@ -249,8 +249,8 @@ impl Principal for Person {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 

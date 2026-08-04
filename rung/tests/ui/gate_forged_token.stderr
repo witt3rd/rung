@@ -1,21 +1,20 @@
 error[E0451]: fields `_seal`, `_not_send`, `principal_id`, `principal_prov`, `argument_prov`, `judgment` and `_role` of struct `Qualified` are private
-  --> tests/ui/gate_forged_token.rs:74:9
+  --> tests/ui/gate_forged_token.rs:80:9
    |
-73 |     let forged: rung::Qualified<Reviewer> = rung::Qualified {
+79 |     let forged: rung::Qualified<Reviewer> = rung::Qualified {
    |                                             --------------- in this type
-74 |         _seal: (),
+80 |         _seal: (),
    |         ^^^^^ private field
-75 |         _not_send: PhantomData,
+81 |         _not_send: PhantomData,
    |         ^^^^^^^^^ private field
-76 |         principal_id: String::from("nobody"),
+82 |         principal_id: String::from("nobody"),
    |         ^^^^^^^^^^^^ private field
-77 |         principal_prov: rung::Prov::empty(),
+83 |         principal_prov: rung::Prov::empty(),
    |         ^^^^^^^^^^^^^^ private field
 ...
-80 |         argument_prov: rung::Prov::empty(),
+86 |         argument_prov: rung::Prov::empty(),
    |         ^^^^^^^^^^^^^ private field
-81 |         // Honestly obtained, and no help at all.
-82 |         judgment: Nobody.judgment("reviewer"),
+87 |         judgment: answer,
    |         ^^^^^^^^ private field
-83 |         _role: PhantomData,
+88 |         _role: PhantomData,
    |         ^^^^^ private field

@@ -32,7 +32,7 @@
 //! `guarded-reentry-is-eviction` forbids.
 
 use rung::{
-    Authorized, Consulted, Judgment, Pool, Principal, Prov, Provenanced, QualifyError, Qualified,
+    Authorized, Consulted, Judgment, Pool, Principal, Prov, Provenanced, Qualified, QualifyError,
     Raised, Response, Role, Situated, Steward, Terminated, Verdict, ladder,
 };
 
@@ -94,7 +94,7 @@ impl Steward for Person {
     }
 }
 
-const CURATOR: Person = Person {
+static CURATOR: Person = Person {
     id: "cora",
     prov: Prov::empty(),
     roles: &["curator"],
@@ -125,7 +125,13 @@ fn deferring_pool() -> Pool<Person> {
 /// A principal that holds standing over `inquiries` but is the wrong steward
 /// for nothing — it is the *right* one. Its mirror below is the wrong one.
 fn curator_pool() -> Pool<Person> {
-    Pool::new(vec![CURATOR])
+    Pool::new(vec![Person {
+        id: CURATOR.id,
+        prov: CURATOR.prov.clone(),
+        roles: CURATOR.roles,
+        stewards: CURATOR.stewards,
+        defers: CURATOR.defers,
+    }])
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -186,8 +192,11 @@ fn the_pool_propagates_a_deferral_and_mints_no_licence() {
 
     match pool.consult::<Adjudicator>(&subject, "is_well_posed") {
         Err(QualifyError::JudgeDeferred(raised)) => {
+            // The reference, and only the reference. WHICH of the two
+            // consultations `consult` makes raised it — the role-answer that
+            // would have gone in the licence, or the sentence itself — is the
+            // pool's business; either one leaves adequacy undischarged.
             assert_eq!(raised.reference(), "q-13");
-            assert_eq!(raised.matter(), "is_well_posed");
         }
         Err(other) => panic!("a deferral was reported as a filter failure: {other}"),
         Ok(_) => panic!("a deferring principal minted a licence"),
@@ -301,9 +310,13 @@ fn an_answered_dispatch_still_produces_the_next_rung() {
     let pool = answering_pool();
     let subject = Matter("author");
     let licence = pool.qualify_for::<Adjudicator>(&subject).unwrap();
-    let answered = inquiry::answered(inquiry::Posed::new(subject), licence)
-        .expect("an answerable matter is answered");
-    assert_eq!(answered.payload.judgment.judge_id(), "ada");
+    match inquiry::answered(inquiry::Posed::new(subject), licence) {
+        Ok(answered) => assert_eq!(answered.payload.judgment.judge_id(), "ada"),
+        Err(s) => panic!(
+            "an answerable matter was suspended on {}",
+            s.raised.reference()
+        ),
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════

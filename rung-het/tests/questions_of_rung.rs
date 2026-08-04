@@ -102,8 +102,11 @@ impl Principal for Person {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, matter: &str) -> Verdict {
-        Verdict::conforming(!self.dissents, format!("`{matter}` does not hold"))
+    fn rule(&self, matter: &str) -> Response {
+        Response::Rendered(Verdict::conforming(
+            !self.dissents,
+            format!("`{matter}` does not hold"),
+        ))
     }
 }
 impl Steward for Person {

@@ -26,8 +26,8 @@
 //! error code and the message text are both part of the assertion.
 
 use rung::{
-    AuthorizeError, Authorized, Judgment, Pool, Principal, Prov, Provenanced, Qualified, Role,
-    Situated, Steward, Verdict, ladder,
+    AuthorizeError, Authorized, Judgment, Pool, Principal, Prov, Provenanced, Qualified, Response,
+    Role, Situated, Steward, Verdict, ladder,
 };
 
 // ── a role, a principal, and a pool ─────────────────────────────────────────
@@ -70,8 +70,8 @@ impl Principal for Person {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 
@@ -129,7 +129,8 @@ ladder!(Review {
 } impl {
     active = |_spec, q| {
         assert_eq!(q.role_name(), "reviewer");
-        Active::new(LoopState { judgment: q.into_judgment(), rounds: 0 })
+        // The residual channel is present and unused: this judge answers.
+        Ok(Active::new(LoopState { judgment: q.into_judgment(), rounds: 0 }))
     },
     step = |active, q| {
         assert_eq!(q.role_name(), "judge");
@@ -177,7 +178,10 @@ fn judgmental_transition_takes_a_qualified_token() {
     // a `fn` pointer of the exact expected type fails to compile if the second
     // parameter is absent, extra, or of another type — so this line is what goes
     // red if the macro stops emitting the gate parameter.
-    let active_fn: fn(review::Spec, Qualified<Reviewer>) -> review::Active = review::active;
+    let active_fn: fn(
+        review::Spec,
+        Qualified<Reviewer>,
+    ) -> Result<review::Active, review::Suspended<review::Spec>> = review::active;
     let step_fn: fn(
         review::Active,
         Qualified<Judge>,
@@ -191,7 +195,7 @@ fn judgmental_transition_takes_a_qualified_token() {
     let licence: Qualified<Reviewer> = pool.qualify(&spec).expect("rita qualifies as reviewer");
     assert_eq!(licence.principal_id(), "rita");
 
-    let active = active_fn(review::Spec::new(spec), licence);
+    let active = active_fn(review::Spec::new(spec), licence).expect("rita answers");
     assert_eq!(active.payload.rounds, 0);
 
     // Each dispatch re-runs the filter: the licence above was consumed by value.
@@ -255,7 +259,7 @@ ladder!(Blind {
 } impl {
     // No `q` in sight. Whatever this body proves, it is not that a qualified
     // outside was consulted about *this* manuscript.
-    reviewed = |_manuscript, _q| { Reviewed::new(Tally(0)) },
+    reviewed = |_manuscript, _q| { Ok(Reviewed::new(Tally(0))) },
     step     = |_reviewed| { Ok(StepOutcome::Filed(Filed::new())) },
 });
 
@@ -268,7 +272,8 @@ fn a_body_that_ignores_the_token_still_gets_the_binding_check() {
         .qualify_for(&manuscript)
         .expect("rita is disjoint from the drafter");
 
-    let reviewed = blind::reviewed(blind::Manuscript::new(manuscript), licence);
+    let reviewed =
+        blind::reviewed(blind::Manuscript::new(manuscript), licence).expect("rita answers");
     assert_eq!(reviewed.payload.0, 0);
 }
 
@@ -682,7 +687,7 @@ fn a_judgmental_arrow_may_not_return_the_provenance_it_judged() {
         .expect("rita is disjoint from the drafter");
 
     let argument = spec.provenance();
-    let active = review::active(review::Spec::new(spec), licence);
+    let active = review::active(review::Spec::new(spec), licence).expect("rita answers");
 
     assert!(
         !active.payload.provenance().overlaps(&argument),
@@ -720,7 +725,7 @@ ladder!(Launder {
         => { Filed }
 } impl {
     // c_j : a ↦ η(j), with j drawn from the argument itself.
-    repeated = |heard, _q| { Repeated::new(heard.payload) },
+    repeated = |heard, _q| { Ok(Repeated::new(heard.payload)) },
     step     = |_repeated| { Ok(StepOutcome::Filed(Filed::new())) },
 });
 

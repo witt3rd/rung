@@ -14,7 +14,7 @@
 //! the impl, not a runtime guard refusing a value. Anything else (E0277,
 //! E0407, a parse error) would mean this file guards nothing.
 
-use rung::{Principal, Prov, Provenanced, Verdict};
+use rung::{Principal, Prov, Provenanced, Response, Verdict};
 
 struct Universal;
 
@@ -28,8 +28,8 @@ impl Principal for Universal {
     fn authored(&self) -> Prov {
         Prov::empty()
     }
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 

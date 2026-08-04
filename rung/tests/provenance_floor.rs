@@ -24,7 +24,7 @@
 //! the structural one: it is what makes the other two properties of the *type
 //! system* rather than of a convention every implementor is trusted to keep.
 
-use rung::{Pool, Principal, Prov, Provenanced, QualifyError, Role, Verdict};
+use rung::{Pool, Principal, Prov, Provenanced, QualifyError, Response, Role, Verdict};
 
 #[derive(Clone, Copy)]
 struct Reviewer;
@@ -49,8 +49,8 @@ impl Principal for Newcomer {
     fn authored(&self) -> Prov {
         Prov::empty()
     }
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 
@@ -67,8 +67,8 @@ impl Principal for Veteran {
     fn authored(&self) -> Prov {
         Prov::of(["folio", "annex"])
     }
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 

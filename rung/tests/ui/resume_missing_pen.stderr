@@ -1,0 +1,22 @@
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+  --> tests/ui/resume_missing_pen.rs:63:18
+   |
+63 |     let _posed = demo::revive(suspended, evidence);
+   |                  ^^^^^^^^^^^^--------------------- argument #3 of type `Authorized<'_, Curator>` is missing
+   |
+note: function defined here
+  --> tests/ui/resume_missing_pen.rs:50:14
+   |
+48 | / ladder!(Demo {
+49 | |     Posed(Matter) => #[judgmental(Adjudicator)] Answered(Finding) => { Closed }
+50 | |     resume { revive: #[authorial(Curator)] Suspended(Posed) => Posed }
+   | |              ^^^^^^
+51 | | } impl {
+...  |
+54 | |     revive   = |s| { s.token },
+55 | | });
+   | |__-
+help: provide the argument
+   |
+63 |     let _posed = demo::revive(suspended, evidence, /* Authorized<'_, Curator> */);
+   |                                                  +++++++++++++++++++++++++++++++

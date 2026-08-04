@@ -35,7 +35,7 @@
 //! establish anything about running the seats concurrently; that is still Q5.
 
 use rung_het::{
-    Disposition, Pool, Principal, Proposal, Prov, Role, Ruling, Steward, Verdict, dispose,
+    Disposition, Pool, Principal, Proposal, Prov, Response, Role, Ruling, Steward, Verdict, dispose,
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -83,8 +83,8 @@ impl Principal for Person {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 

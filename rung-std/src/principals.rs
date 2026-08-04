@@ -83,7 +83,7 @@
 //!    `principals_theory.rs::role_is_not_kind_and_the_two_axes_are_independent`
 //!    rather than dressed as `decidable` sentences with nothing to decide.
 
-use rung::{Principal, Prov, Provenanced, Role, Steward, Verdict, theory};
+use rung::{Principal, Prov, Provenanced, Response, Role, Steward, Verdict, theory};
 use std::collections::{BTreeMap, BTreeSet};
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -374,8 +374,8 @@ impl Principal for PrincipalDecl {
     }
 
     /// The oracle. The verdict is the outside's, not the caller's.
-    fn rule(&self, _matter: &str) -> Verdict {
-        Verdict::Conforming
+    fn rule(&self, _matter: &str) -> Response {
+        Response::Rendered(Verdict::Conforming)
     }
 }
 

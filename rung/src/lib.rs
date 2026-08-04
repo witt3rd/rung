@@ -181,7 +181,7 @@ impl Prov {
     ///
     /// [`Pool::qualify`] therefore **refuses** to admit anyone against a model
     /// whose provenance is empty; see [`QualifyError::ModelHasNoProvenance`].
-    pub fn empty() -> Self {
+    pub const fn empty() -> Self {
         Self(BTreeSet::new())
     }
 
@@ -371,10 +371,21 @@ pub trait Principal {
     /// the supplying theory rather than by Het (nothing-further-required). The
     /// principal is asked, and answers.
     ///
-    /// This method is **not** the seal. Its return is a bare `Verdict`, which
-    /// anyone can write. [`judgment`](Principal::judgment) is the sealed form, and
-    /// it is what `settle` accepts.
-    fn rule(&self, matter: &str) -> Verdict;
+    /// This method is **not** the seal. Its return carries a bare [`Verdict`],
+    /// which anyone can write. [`judgment`](Principal::judgment) is the sealed
+    /// form, and it is what `settle` accepts.
+    ///
+    /// # It may defer
+    ///
+    /// The return is a [`Response`], not a `Verdict`, because a principal that
+    /// cannot answer *now* must be able to answer *later*. That is not a new
+    /// construct: `adequacy-defined` makes adequacy *"a qualifying judge exists
+    /// **and** returns a verdict"*, so a judge that exists and has not answered
+    /// is adequacy **undischarged**, and `adequacy-failure-returns-residual`
+    /// says that returns the residual — the argument unconsumed, re-entering.
+    /// The deferral is the `+ A` of `judgmental-arrow-shape`, reached from the
+    /// principal's side.
+    fn rule(&self, matter: &str) -> Response;
 
     /// **The seal** — the oracle's answer, stamped with the judge's provenance.
     ///
@@ -395,13 +406,180 @@ pub trait Principal {
     /// - **the verdict comes from the oracle.** `self.rule(matter)` is called
     ///   here, so there is no seam at which a caller's verdict could be
     ///   substituted for the principal's.
-    fn judgment(&self, matter: &str) -> Judgment {
-        Judgment {
-            _seal: (),
-            judge_id: self.id().to_string(),
-            judge_prov: self.provenance(),
-            matter: matter.to_string(),
-            verdict: self.rule(matter),
+    /// - **a deferral cannot mint one.** When the oracle raises a matter
+    ///   instead of answering, there is no verdict to seal, and the sealed form
+    ///   says so ([`Consulted::Deferred`]) rather than manufacturing one. A
+    ///   `Judgment` built around a verdict nobody gave is `constant-arrow-hazard`
+    ///   with the judge's name on it, and that it was *this* judge's silence
+    ///   makes it worse, not better.
+    fn judgment(&self, matter: &str) -> Consulted {
+        match self.rule(matter) {
+            Response::Rendered(verdict) => Consulted::Rendered(Judgment {
+                _seal: (),
+                judge_id: self.id().to_string(),
+                judge_prov: self.provenance(),
+                matter: matter.to_string(),
+                verdict,
+            }),
+            Response::Deferred(raised) => Consulted::Deferred(raised),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// The deferral — the residual, reached from the principal's side
+// ─────────────────────────────────────────────────────────────────────────
+
+/// An **opaque** reference to a matter a principal raised instead of answering.
+///
+/// # Why opaque
+///
+/// `pool-is-opaque`: Het never names a principal substrate, never enumerates
+/// kinds, and never inspects an inhabitant. The identity of a question an
+/// inhabitant raised sits on the same side of that line. A theory that supplies
+/// `𝒫` names its own questions — an issue number, a lifecycle subject id, a
+/// filename — and Het has no predicate over any of them. So this type carries
+/// two strings and offers nothing that reads them: no ordering, no
+/// well-formedness, no registry of live references. Het transports it from the
+/// principal that raised it to the edge that resumes on it, and that is all.
+///
+/// Making it a type rather than a bare `String` is not a claim to interpret it.
+/// It is what lets [`Terminated`] be *derived* from it, so that evidence cannot
+/// name a reference nobody raised.
+///
+/// # Publicly constructible, unlike [`Qualified`]
+///
+/// This is the theory's value, not a capability. A principal writes one to say
+/// *"I have not answered; here is what I raised."* Nothing is authorized by
+/// holding one — the authorization is on the resume edge
+/// (`resumption-is-authorial`), where an [`Authorized`] pen is required.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Raised {
+    reference: String,
+    matter: String,
+}
+
+impl Raised {
+    /// `reference` is the supplying theory's name for what was raised;
+    /// `matter` is the sentence or role the principal was asked about.
+    pub fn new(reference: impl Into<String>, matter: impl Into<String>) -> Self {
+        Self {
+            reference: reference.into(),
+            matter: matter.into(),
+        }
+    }
+
+    /// The theory's name for what was raised. Read by the theory; never by Het.
+    pub fn reference(&self) -> &str {
+        &self.reference
+    }
+
+    /// The sentence or role the principal was asked about.
+    pub fn matter(&self) -> &str {
+        &self.matter
+    }
+}
+
+/// Evidence that a raised matter reached a terminal.
+///
+/// What the resume edge is gated on. A suspended run awaits *the terminal of
+/// the run it raised*, so the evidence is derived from the [`Raised`] rather
+/// than written beside it — there is no constructor that names a reference
+/// nobody raised, and [`answers`](Terminated::answers) refuses evidence from
+/// some other raised matter at the edge itself.
+///
+/// The terminal's name is the theory's, like the reference: `resolved`,
+/// `dissolved`, `abandoned` are a lifecycle's vocabulary, and Het requires
+/// nothing of it (`nothing-further-required`). Het requires only that a
+/// terminal was *reached*, because that is the condition the outer arrow was
+/// waiting on.
+///
+/// **It is not a promise of termination.** `no-bound-on-reentry` is a stated
+/// limit and this does not close it: a run that never terminates produces no
+/// `Terminated`, and the outer arrow stays suspended, visibly.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Terminated {
+    reference: String,
+    terminal: String,
+}
+
+impl Terminated {
+    /// Evidence that **this** raised matter terminated.
+    pub fn of(raised: &Raised, terminal: impl Into<String>) -> Self {
+        Self {
+            reference: raised.reference.clone(),
+            terminal: terminal.into(),
+        }
+    }
+
+    /// The reference this evidence is about.
+    pub fn reference(&self) -> &str {
+        &self.reference
+    }
+
+    /// The terminal the raised run reached, named by the supplying theory.
+    pub fn terminal(&self) -> &str {
+        &self.terminal
+    }
+
+    /// Whether this evidence is about **this** raised matter.
+    ///
+    /// The mirror of [`Qualified::is_bound_to`] and [`Authorized::authorizes`],
+    /// and there for the same reason: a value that proves *something*
+    /// terminated proves nothing about the run this arrow is waiting on.
+    #[must_use]
+    pub fn answers(&self, raised: &Raised) -> bool {
+        self.reference == raised.reference
+    }
+}
+
+/// What an oracle said when asked — a verdict, or a matter it raised instead.
+///
+/// The unsealed form, returned by [`Principal::rule`]. Two summands and not
+/// three: the deferral **is** the residual of `judgmental-arrow-shape`, not a
+/// further variant beside it (`suspension-is-the-residual`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[must_use = "a Response is what an outside said; dropping it discards the answer or the deferral"]
+pub enum Response {
+    /// The outside answered.
+    Rendered(Verdict),
+    /// The outside did not answer, and raised this instead.
+    Deferred(Raised),
+}
+
+/// The **sealed** form of [`Response`] — what [`Principal::judgment`] returns.
+///
+/// The asymmetry between the two variants is the seal. `Rendered` carries a
+/// [`Judgment`], which has no constructor outside this crate; `Deferred`
+/// carries only the theory's own [`Raised`]. There is no method here that turns
+/// one into the other, no `unwrap_or`, and no `From<Raised> for Judgment` — a
+/// matter that was raised instead of answered cannot be presented as an answer,
+/// which is `constant-arrow-hazard` closed on the side where the judge is real
+/// and the verdict is not.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[must_use = "a consultation is what an outside said; dropping it discards the judgment or the deferral"]
+pub enum Consulted {
+    /// The outside answered, and the answer is sealed with its provenance.
+    Rendered(Judgment),
+    /// The outside did not answer, and raised this instead.
+    Deferred(Raised),
+}
+
+impl Consulted {
+    /// The judgment, if there is one. `None` is a deferral, and there is no
+    /// other way to read one as an answer.
+    pub fn judgment(&self) -> Option<&Judgment> {
+        match self {
+            Self::Rendered(j) => Some(j),
+            Self::Deferred(_) => None,
+        }
+    }
+
+    /// What was raised, if the outside deferred.
+    pub fn raised(&self) -> Option<&Raised> {
+        match self {
+            Self::Rendered(_) => None,
+            Self::Deferred(r) => Some(r),
         }
     }
 }
@@ -593,6 +771,24 @@ pub enum QualifyError {
     ModelHasNoProvenance,
     /// No principal in the pool survived both filters.
     PoolExhausted { considered: usize },
+    /// The qualifying principal **did not answer**, and raised this instead.
+    ///
+    /// **Not a filter failure.** Every other variant here says the qualifying
+    /// set was empty, or empty for a reason. This one says it was *not*: a
+    /// principal was capable, was disjoint from the argument, and was asked —
+    /// and adequacy is *"a qualifying judge exists **and** returns a verdict"*
+    /// (`adequacy-defined`), so a judge that exists and has not answered leaves
+    /// adequacy undischarged. `adequacy-failure-returns-residual` returns that
+    /// as the residual, with the argument unconsumed — which it is: the pool
+    /// borrows its argument and mints nothing.
+    ///
+    /// **The pool does not try the next principal.** `no-preference-among-judges`
+    /// forbids preferring among qualifying judges, and re-dispatching past one
+    /// that raised a matter is a preference — the cheapest possible one, and
+    /// worth-shaped, so it belongs to HetOpt and not here
+    /// ([`Pool::qualify_for`] takes *any* member, and having taken one, reports
+    /// what it said).
+    JudgeDeferred(Raised),
 }
 
 impl std::fmt::Display for QualifyError {
@@ -612,6 +808,14 @@ impl std::fmt::Display for QualifyError {
             Self::PoolExhausted { considered } => {
                 write!(f, "no qualifying principal among {considered} considered")
             }
+            Self::JudgeDeferred(raised) => write!(
+                f,
+                "the qualifying judge raised `{}` when asked about `{}` and has not \
+                 answered; adequacy is undischarged, not failed \
+                 (rung-het-props.md#adequacy-defined)",
+                raised.reference(),
+                raised.matter()
+            ),
         }
     }
 }
@@ -851,16 +1055,22 @@ impl<P: Principal> Pool<P> {
         argument: &dyn Provenanced,
     ) -> Result<Qualified<R>, QualifyError> {
         let (p, arg_prov, p_prov) = self.select::<R>(argument)?;
+        // The outside is asked here, and only here. `R::NAME` is the matter:
+        // the principal is asked what it says in the role it was selected for,
+        // about the argument the filter measured it against. It may raise a
+        // matter instead, and then there is no licence — a `Qualified` carries
+        // the outside's answer and there is not one yet.
+        let judgment = match p.judgment(R::NAME) {
+            Consulted::Rendered(j) => j,
+            Consulted::Deferred(raised) => return Err(QualifyError::JudgeDeferred(raised)),
+        };
         Ok(Qualified {
             _seal: (),
             _not_send: PhantomData,
             principal_id: p.id().to_string(),
             principal_prov: p_prov,
             argument_prov: arg_prov,
-            // The outside is asked here, and only here. `R::NAME` is the matter:
-            // the principal is asked what it says in the role it was selected
-            // for, about the argument the filter measured it against.
-            judgment: p.judgment(R::NAME),
+            judgment,
             _role: PhantomData,
         })
     }
@@ -889,16 +1099,28 @@ impl<P: Principal> Pool<P> {
         matter: &str,
     ) -> Result<(Qualified<R>, Judgment), QualifyError> {
         let (p, arg_prov, p_prov) = self.select::<R>(argument)?;
+        // Two consultations, two chances to raise a matter, and either one
+        // suspends the dispatch: the sentence is not settled if the principal
+        // has not spoken on it, and a licence whose role-answer was deferred
+        // records nothing about the outside at all.
+        let role_answer = match p.judgment(R::NAME) {
+            Consulted::Rendered(j) => j,
+            Consulted::Deferred(raised) => return Err(QualifyError::JudgeDeferred(raised)),
+        };
+        let judgment = match p.judgment(matter) {
+            Consulted::Rendered(j) => j,
+            Consulted::Deferred(raised) => return Err(QualifyError::JudgeDeferred(raised)),
+        };
         let licence = Qualified {
             _seal: (),
             _not_send: PhantomData,
             principal_id: p.id().to_string(),
             principal_prov: p_prov,
             argument_prov: arg_prov,
-            judgment: p.judgment(R::NAME),
+            judgment: role_answer,
             _role: PhantomData,
         };
-        Ok((licence, p.judgment(matter)))
+        Ok((licence, judgment))
     }
 
     /// The filter itself — `{ p ∈ 𝒫 : capable(p, role) ∧ π(p) ∩ π(a) = ∅ }`,

@@ -10,7 +10,7 @@ note: function defined here
 38 | / ladder!(Demo {
 39 | |     Spec(SpecData) => #[judgmental(Reviewer)] Active(LoopState) => { Done }
 40 | | } impl {
-41 | |     active = |_spec, _q| { Active::new(LoopState) },
+41 | |     active = |_spec, _q| { Ok(Active::new(LoopState)) },
 42 | |     step   = |_active|  { Ok(StepOutcome::Done(Done::new())) },
 43 | | });
    | |__^
