@@ -1,0 +1,18 @@
+error[E0451]: fields `_seal`, `_not_send`, `principal_id`, `principal_prov`, `over` and `_role` of struct `Authorized` are private
+  --> tests/ui/gate_forged_pen.rs:41:9
+   |
+40 |     let forged: rung::Authorized<'_, Curator> = rung::Authorized {
+   |                                                 ---------------- in this type
+41 |         _seal: (),
+   |         ^^^^^ private field
+42 |         _not_send: PhantomData,
+   |         ^^^^^^^^^ private field
+43 |         principal_id: String::from("nobody"),
+   |         ^^^^^^^^^^^^ private field
+44 |         principal_prov: rung::Prov::empty(),
+   |         ^^^^^^^^^^^^^^ private field
+...
+48 |         over: "cabinet",
+   |         ^^^^ private field
+49 |         _role: PhantomData,
+   |         ^^^^^ private field

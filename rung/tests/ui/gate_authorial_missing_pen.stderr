@@ -1,0 +1,21 @@
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+  --> tests/ui/gate_authorial_missing_pen.rs:41:19
+   |
+41 |     let _active = demo::active(spec);
+   |                   ^^^^^^^^^^^^------ argument #2 of type `Authorized<'_, Curator>` is missing
+   |
+note: function defined here
+  --> tests/ui/gate_authorial_missing_pen.rs:32:1
+   |
+32 | / ladder!(Demo {
+33 | |     Spec(SpecData) => #[authorial(Curator)] Active(LoopState) => { Done }
+34 | | } impl {
+35 | |     active = |_spec, _pen| { Active::new(LoopState) },
+36 | |     step   = |_active|  { Ok(StepOutcome::Done(Done::new())) },
+37 | | });
+   | |__^
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: provide the argument
+   |
+41 |     let _active = demo::active(spec, /* Authorized<'_, Curator> */);
+   |                                    ++++++++++++++++++++++++++++++++
