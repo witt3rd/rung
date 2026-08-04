@@ -115,7 +115,7 @@ fn dispose_refuses_a_token_minted_against_the_model() {
     let pool = Pool::new(vec![principal("academy", &["academy"], &["cabinet"])]);
     let academy = principal("academy", &["academy"], &["cabinet"]);
 
-    let pen: Authorized<'_> = pool.authorize(&academy, "cabinet").expect("standing");
+    let pen: Authorized<'_, Reviewer> = pool.authorize(&academy, "cabinet").expect("standing");
     let proposal: Proposal<&'static str> = Proposal::remedy(&pen, "obj", "widen-the-budget");
 
     // Honest route: refused, as it must be.
@@ -244,7 +244,7 @@ fn a_principal_with_no_provenance_is_refused() {
     // The incidental guard, pinned so that relaxing the model-side rule cannot
     // silently open the proposal path too.
     let ghost = principal("ghost", &[], &["cabinet"]);
-    let pen: Authorized<'_> = pool.authorize(&ghost, "cabinet").expect("standing");
+    let pen: Authorized<'_, Reviewer> = pool.authorize(&ghost, "cabinet").expect("standing");
     let proposal: Proposal<&'static str> = Proposal::remedy(&pen, "obj", "edit");
     assert!(pool.qualify_for::<Reviewer>(&proposal).is_err());
 }

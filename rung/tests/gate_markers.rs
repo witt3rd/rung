@@ -466,8 +466,8 @@ fn standing_alone_is_not_a_pen_and_disjointness_never_becomes_one() {
     //
     // The stranger is capable of the role and provenance-disjoint from the
     // sheet, so it passes the judgmental filter outright. Under a gate that was
-    // judgmental-with-a-different-token-name, that would be the whole test and
-    // the stranger would walk away with a pen.
+    // the judgmental one with the token renamed, that would be the whole test
+    // and the stranger would walk away with a pen.
     let stranger = stranger();
     let as_judge: Qualified<Curator> = pool
         .qualify_for(&sheet)
@@ -496,9 +496,8 @@ fn standing_alone_is_not_a_pen_and_disjointness_never_becomes_one() {
     //
     // The curator holds the pen and is refused as a judge of the very same
     // sheet. One pool, two filters, opposite answers (one-pool-two-filters).
-    let curator = curator();
     assert!(
-        pool.authorize::<Curator, _>(&curator, "cabinet").is_ok(),
+        pool.authorize::<Curator, _>(&curator(), "cabinet").is_ok(),
         "the curator stewards the cabinet"
     );
     let only_curator = Pool::new(vec![curator()]);

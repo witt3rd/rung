@@ -10,7 +10,7 @@ depends_on:
 **Status:** OPEN
 
 **Question.** Het requires every algebra in `Mod(Σ)` to be **gate-faithful**
-([`gate-faithful`](../rung-het-propositions.md#gate-faithful)): every decidable operation factors
+([`gate-faithful`](../../rung-het-propositions.md#gate-faithful)): every decidable operation factors
 through `η`, every judgmental one is a judgmentally-admissible Kleisli arrow,
 every authorial one an authorially-admissible one. A ladder declaration carries
 **no gate marker**, so an algebra cannot say which of its transitions are
@@ -31,15 +31,18 @@ not of the declaration.**
 Admissibility is a condition on provenance at the point of use —
 `π(f(a)) ∩ π(a) = ∅` — which is about the values an arrow actually returns, not
 about its type. So a marker makes the *signature* honest. It does not make the
-*arrow* admissible. Two halves:
+*arrow* admissible. Two halves — and, once a second gate exists, the same two
+halves again for it:
 
 | half | what would close it | status |
 |---|---|---|
 | the signature is honest | a gate marker; a decidable position admits no principal parameter | **built** — SPEC.md G12 |
 | the arrow is admissible | the qualifying token is constructible only by the filter, and is **bound** to the argument it was measured against | **built** — SPEC.md G13 |
+| both halves, for the *authorial* gate | a pen minted only by the standing filter, admitted only over the container the subject sits in | **built** — SPEC.md G14 |
 
-Both halves are now built. The conjunction is **not** gate-faithfulness. The
-argument is below.
+All three are now built. The conjunction is **not** gate-faithfulness. The
+argument is below, and G14 did not change it — it widened the row it did not
+close.
 
 ## Does half one + half two = gate-faithfulness? No.
 
@@ -47,7 +50,7 @@ This section discharges the standing complaint that nobody had argued it either
 way. The answer is no, and the reason is that the table above mislabels its
 second row: what G13 delivers is not "the arrow is admissible."
 
-**What was built.** `Qualified<R>` records the principal *and* `π(a)`, the
+**What was built.** For the judgmental gate: `Qualified<R>` records the principal *and* `π(a)`, the
 provenance of the argument disjointness was measured against. `Qualified::admit`
 is the only gate that spends it, and every consumer runs it: `dispose` against
 the Proposal, `theory!`'s `settle` against the model, and — for a
@@ -55,9 +58,17 @@ the Proposal, `theory!`'s `settle` against the model, and — for a
 on the G8 `must_progress` precedent. So a licence earned honestly against one
 argument is refused everywhere else.
 
+For the authorial gate, the same shape with the opposite predicate:
+`Authorized<'a, R>` records the principal *and* the container standing was
+measured over, `Pool::authorize` is the only mint and runs
+`capable(p, role(o)) ∧ standing(p, M)`, and an `#[authorial(R)]` transition
+carries a macro-injected prologue that admits the pen only over the container
+its subject sits in. So a pen earned honestly over one container is refused
+everywhere else.
+
 **What that is.** It is P0, completely:
-[`non-identity-before-dispatch`](../rung-het-propositions.md#non-identity-before-dispatch)
-and [`non-identity-by-construction`](../rung-het-propositions.md#non-identity-by-construction)
+[`non-identity-before-dispatch`](../../rung-het-propositions.md#non-identity-before-dispatch)
+and [`non-identity-by-construction`](../../rung-het-propositions.md#non-identity-by-construction)
 now hold as type-and-runtime facts rather than as caller discipline. No
 judgmental arrow can be traversed except by a principal drawn from
 $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
@@ -65,9 +76,9 @@ $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
 **Why that is not gate-faithfulness.**
 
 1. **Admissibility constrains the arrow's *output*, and this constrains its
-   *input*.** [`gate-faithful`](../rung-het-propositions.md#gate-faithful) is
+   *input*.** [`gate-faithful`](../../rung-het-propositions.md#gate-faithful) is
    stated through
-   [`admissibility-subcategories`](../rung-het-propositions.md#admissibility-subcategories),
+   [`admissibility-subcategories`](../../rung-het-propositions.md#admissibility-subcategories),
    which defines the judgmental sub-category as
    $\mathbf{Kl}_{\text{judg}}(\mathcal{P}) = \{ f : \pi(f(a)) \cap \pi(a) = \emptyset \}$.
    That is a condition on $f(a)$ — the value returned. G12 and G13 together
@@ -77,23 +88,43 @@ $\mathcal{P}_{\text{judg}}(\varphi, a)$ for the very $a$ it is applied to.
    here. That is Q1's territory, and this question inherits it whole — which is
    exactly what the "Relationship to other questions" section warned.
 
-2. **Two of the four gates have no encoding at all.** `#[authorial]` and
-   `#[conditional(..)]` are parse-time refusals. Gate-faithfulness quantifies
-   over *every* operation of an algebra, so an algebra with an authorial
-   operation cannot state the property here, let alone satisfy it. The `enact`
-   path in `rung-het` takes an `Authorized` pen, but it is hand-rolled: no
-   marker emits it, and nothing checks that an authorial arrow is the only place
-   it appears.
+2. **One of the four gates has no encoding at all** — down from two.
+   `#[authorial(Role)]` is implemented (SPEC.md G14): it emits an
+   `Authorized<'_, Role>` pen, `Pool::authorize` runs **both** conjuncts of
+   [`authorial-qualifying-set`](../rung-het-propositions.md#authorial-qualifying-set),
+   and a macro-injected prologue admits the pen only over the container the
+   subject sits in. So an algebra with an authorial operation can now state the
+   property — for that operation's *input*. `#[conditional(..)]` remains a
+   parse-time refusal, and gate-faithfulness quantifies over *every* operation,
+   so an algebra with a conditional operation still cannot state it here at all.
+
+   Two things this did **not** do, and they are why the blocker is half-closed
+   rather than closed. It did not touch blocker (1): the authorial half of
+   [`admissibility-subcategories`](../rung-het-propositions.md#admissibility-subcategories)
+   is `π(f(a)) ⊆ π(p) ∧ standing(p, a)`, and G14 secures the standing conjunct
+   on the way *in* while leaving the containment conjunct on the way *out*
+   entirely to the body — the same shape as G13's gap, on the second gate.
+   `Prov::contained_in` exists and no guarantee calls it. And it did not close
+   the *conditional* branch of
+   [`standing-conditional-gated`](../rung-het-propositions.md#standing-conditional-gated):
+   where provenance containment does not settle standing,
+   `Pool::authorize` returns `AuthorizeError::StandingIsJudgmental` rather than
+   minting a pen. That refusal is honest and is tested, but Het says a judge
+   rules there
+   ([`standing-terminates-at-depth-one`](../rung-het-propositions.md#standing-terminates-at-depth-one)),
+   and rung has no term for that dispatch.
 
 3. **`decidable` still does not factor through $\eta$.** The unmarked signature
    excludes $\mathcal{P}$ and nothing else
-   ([`purity-not-secured`](../rung-het-propositions.md#purity-not-secured)). A
+   ([`purity-not-secured`](../../rung-het-propositions.md#purity-not-secured)). A
    decidable transition may read a clock. "Factors through $\eta$" is strictly
    stronger than "cannot reach the pool."
 
 So the ledger keeps `gate-faithful` as `deferred`, with the blocker restated:
 not "the token is unbound" — that is fixed — but (1) the returned value, (2) the
-two unimplemented gates, (3) purity.
+one remaining unimplemented gate, (3) purity. Blocker (2) was two gates and is
+now one; blockers (1) and (3) are untouched, and (1) got *wider*, because there
+are now two admissibility conditions on the way out rather than one.
 
 ### What would falsify this argument
 
@@ -111,8 +142,15 @@ Any one of these would close the question or collapse a blocker:
   judgmental transition's target payload derived $\pi$ structurally rather than
   by the body's construction, blocker (1) becomes checkable by the same
   prologue trick applied on the way out. This is worth trying and has not been.
-- **`#[authorial]` and `#[conditional(..)]` implemented,** which removes (2)
-  outright.
+- ~~**`#[authorial]` and `#[conditional(..)]` implemented,** which removes (2)
+  outright.~~ **Half done.** `#[authorial(Role)]` is built (G14) and verified by
+  mutation: dropping the capability conjunct from `Pool::authorize` reddens
+  `gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one`,
+  and stubbing the injected standing prologue reddens
+  `::the_injected_prologue_refuses_a_pen_for_another_container_the_body_never_reads`.
+  What remains of this falsifier is `#[conditional(..)]`, which is hard for the
+  reason given under "What makes it hard" below and is not a matter of more
+  building.
 - **An effect discipline on decidable bodies,** which removes (3).
 
 Blocker (1) is the load-bearing one, and it is the one that is not a matter of
@@ -130,11 +168,17 @@ building more.
    emits — for a check that is decidable at runtime anyway. The type does not
    have to hold the fact; it has to make the check unskippable, which is what
    the injected prologue does.
-2. **`authorial` needs a third signature, and standing is per-call.** Standing is
-   conditional-gated (`rung-het-propositions.md#standing-conditional-gated`):
-   decidable where provenance containment settles it, judgmental otherwise. A
-   static marker cannot express "decidable in this model, judgmental in that
-   one."
+2. ~~**`authorial` needs a third signature, and standing is per-call.**~~
+   **Answered, in the only way available.** The third signature exists —
+   `fn t(prev, pen: Authorized<'_, R>)` — and the marker does *not* try to
+   express "decidable in this model, judgmental in that one." It cannot, and it
+   does not have to: standing is settled **per call** by `Pool::authorize`, at
+   the point where a concrete principal and a concrete container are both in
+   hand. The static marker declares only that this arrow needs a pen; which
+   branch of the conditional gate the pen came through is a runtime fact the
+   pen's existence records. Where the judgmental branch fires, `authorize`
+   refuses and names it rather than pretending the marker settled it — so the
+   difficulty is real and is surfaced, not dissolved.
 3. **`conditional` has no static reading at all.** Het's fourth gate classifies
    per model, one level up
    (`rung-het-propositions.md#classifier-one-level-up`). rung's checks run at
@@ -163,6 +207,18 @@ guarantee that makes a proposition hold — but no Het theory is expressed as a
 ladder, so none of those guarantees currently applies to any Het code. Gate
 markers are the step that makes the ledger's central column true rather than
 prospective.
+
+G14 moved six rows off `out-of-scope`/`expressible` onto `enforced`, each with a
+mutation that reddens a named test:
+[`one-pool-two-filters`](../rung-het-propositions.md#one-pool-two-filters),
+[`authorial-qualifying-set`](../rung-het-propositions.md#authorial-qualifying-set),
+[`judgment-refuses-authorship-requires`](../rung-het-propositions.md#judgment-refuses-authorship-requires),
+[`provenance-overlap-is-the-point`](../rung-het-propositions.md#provenance-overlap-is-the-point),
+[`authorial-declares-standing`](../rung-het-propositions.md#authorial-declares-standing),
+and [`standing-conditional-gated`](../rung-het-propositions.md#standing-conditional-gated).
+It moved `gate-faithful` not at all, which is the honest measure of the
+distance: six propositions about *who may act* are now machine-checked, and the
+proposition about *what an arrow returns* is exactly where it was.
 
 ## Relationship to other questions
 
@@ -196,4 +252,5 @@ mechanism.
 3. ~~Only then ask whether (1) + (2) is what Het means by gate-faithful.~~
    **Asked and answered: no.** See "Does half one + half two = gate-faithfulness?"
    above, with its falsifiers. The question stays open on step 2's second clause
-   and on the two unimplemented gates.
+   — now doubled, since the authorial gate has an outward condition of its own
+   — and on the one remaining unimplemented gate.

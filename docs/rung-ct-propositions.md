@@ -20,7 +20,7 @@ proposition out of order with its parent, or a number that has gone stale.
 `rung-het-propositions.md` points into Het's formalism. Where a claim here
 touches one there, it links rather than restates.
 
-**G-numbers.** `G1`–`G11` name the guarantees of the ladder specification. This
+**G-numbers.** `G1`–`G14` name the guarantees of the ladder specification. This
 document says what each guarantee *means* categorically; it never restates what
 the guarantee requires. The specification is the normative statement of the
 guarantee; this document is the normative statement of the category.
@@ -506,6 +506,31 @@ document adds to it:
 | freeness of a type-only declaration | no bodies, so no seal to enforce it ([1.41](#freeness-enforced-only-with-bodies)) |
 | recovery well-foundedness | a runtime guard, not a proof ([7.33](#contraction-is-a-runtime-guard)) |
 | exactly-once consumption | a lint, and escapable ([8.22](#lint-is-escapable)) |
+| gate admissibility of a marked arrow | the guarantees constrain the domain; the sub-category condition is on the codomain ([10.21](#gate-guarantees-constrain-the-domain-not-the-arrow)) |
+
+<a id="gate-guarantees-constrain-the-domain-not-the-arrow" data-parent="what-is-not-verified"></a>
+**10.21** The gate guarantees are the sharpest instance of this boundary, and
+the reason they have no row in
+[10.1](#guarantees-carry-categorical-content). `G12`–`G14` of the specification
+put a capability token in a marked transition's **domain** and refuse it unless
+the filter minted it against this very subject — $\mathsf{Qualified}$ for the
+judgmental marker, $\mathsf{Authorized}$ for the authorial one. That is a
+constraint on *who may traverse the arrow*.
+
+Het's admissibility sub-categories
+([5.41](rung-het-propositions.md#admissibility-subcategories)) are defined
+instead by a condition on $f(a)$ — what the arrow **returns** — and the two
+gates take opposite conditions there: disjointness from the argument for
+$\mathbf{Kl}_{\text{judg}}$, provenance containment plus standing for
+$\mathbf{Kl}_{\text{auth}}$. Both restrict the *same* Kleisli category
+([5.43](rung-het-propositions.md#one-monad)), so this is one boundary crossed
+twice and not two separate gaps.
+
+Membership of either sub-category is therefore a property of the body, which is
+[9.4](#proof-is-of-traversal-not-correctness) exactly. Guarantees on the domain
+do not compose into a guarantee on the codomain, and adding a third such
+guarantee did not change that — which is the whole content of
+[Q11](questions/open/q11-gate-faithfulness.md)'s answer.
 
 <a id="boundary-is-typestate-not-verification" data-parent="verification-boundary"></a>
 **10.3** The boundary between the two tables is the boundary between
@@ -654,3 +679,26 @@ construction exists to remove.
 **12.4** The correspondence is **falsifiable in the construction, not in the
 prose**. Every claim here either names a guarantee that a conformance test
 protects, or is marked a limit. A claim that is neither has no standing.
+
+---
+
+## Appendix · Withdrawn claims
+
+*Not a proposition. No slug, no number, no place in the tree.* These are claims
+earlier revisions of this account made and which do not survive into it. Each
+was checked against `rung-macro/src/lib.rs`, `SPEC.md`, or the test suite. A
+withdrawn claim that leaves no trace comes back, so it is recorded here rather
+than deleted.
+
+| withdrawn claim | what is true | evidence |
+|---|---|---|
+| "the compiler refuses **any** out-of-category construction" | only with an inline `impl` block; a type-only declaration publishes every constructor | `rung-macro/src/lib.rs` — `ctor_vis` |
+| two example ladders, `Designed/Claimed/Active` and `Spec/Active` | one running example; the earlier two were mutually incompatible **and both ungrammatical** — the verdict block is mandatory | `SPEC.md` §1 grammar |
+| a forward transition is named `design: Designed → Claimed` | named after its **target**, lowercased — so `claimed`, or `active`. The branching transition is always `step` | `SPEC.md` §1; `rung-macro/src/lib.rs` |
+| the carry is "structurally shared (duplicated by reference)" | copied **by value** into each object's own `carry` field | `rung-macro/src/lib.rs` — `carry: Carry` field + ctor init |
+| the carry satisfies comonad coassociativity | not enforced — a body supplies the successor's carry and may change it, and the running example's `iterate` decrements `budget` | `rung/tests/end_to_end.rs` |
+| `f† ∘ f ≠ id` (on tokens) | the guard compares **payloads**, never tokens; a token comparison would be vacuous | `rung-macro/src/lib.rs` — `must_progress(&__before, &__after.payload)` |
+| G4 covers "every rung and verdict type" | also `StepOutcome` and `Failed` | `SPEC.md` G4; `rung-macro/src/lib.rs` |
+| the coproduct diagram's injection arrows | injections point **into** the coproduct; elimination is the unique morphism out. The ASCII diagram had them reversed, and the diagram is dropped rather than redrawn | — |
+| the verification table omitted G3, G10, G11 | all three are in [10.1](#guarantees-carry-categorical-content); G3 has a real categorical reading — one token cannot be driven by two threads | `SPEC.md` G3/G10/G11 |
+| "resolves on the reviews" stated as a claim inside the theory | an epistemic-status claim about a document, not a claim about the category; it has no place in a normative account and is dropped | — |

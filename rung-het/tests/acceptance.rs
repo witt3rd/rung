@@ -101,6 +101,19 @@ impl Role for Taxonomist {
     const NAME: &'static str = "taxonomist";
 }
 
+/// The **authorial** competence — `role(o)` for an object of the cabinet.
+///
+/// A separate role from `Taxonomist`, and separately held: the authorial
+/// qualifying set is `capable(p, role(o)) ∧ standing(p, M)`
+/// (authorial-qualifying-set), so competence is required of an author exactly as
+/// it is of a judge. The two conjunctions share their left half and disagree on
+/// their right (one-pool-two-filters).
+#[derive(Clone, Copy)]
+pub struct Curator;
+impl Role for Curator {
+    const NAME: &'static str = "curator";
+}
+
 /// The cabinet's edit vocabulary — **declared by this theory, not by Het**.
 ///
 /// edit-required-not-typed: Het requires a remedy name an edit and does not say what edits are.
@@ -257,7 +270,7 @@ fn cabinet_of(specimens: Vec<Specimen>) -> Cabinet {
 const CURATOR: Person = Person {
     id: "curator",
     prov: &["curator"],
-    roles: &[],
+    roles: &["curator"],
     stewards: &["cabinet", "fieldbook"],
 };
 
@@ -324,7 +337,7 @@ fn the_pass_runs_end_to_end_as_a_chain_of_principals() {
 
     // ── propose: AUTHORIAL (the-pass) — standing, not disjointness ───────────
     let pen = pool
-        .authorize(&CURATOR, "cabinet")
+        .authorize::<Curator, _>(&CURATOR, "cabinet")
         .expect("the curator holds standing over the cabinet");
     let relocation = Proposal::remedy(&pen, "s3", CabinetEdit::Relocate { to: "fieldbook" });
 
@@ -384,12 +397,12 @@ fn a_judge_may_not_dispose_on_a_proposal_it_authored() {
     const INSIDER: Person = Person {
         id: "academy",
         prov: &["academy"],
-        roles: &["taxonomist"],
+        roles: &["taxonomist", "curator"],
         stewards: &["cabinet"],
     };
     let pool = Pool::new(vec![INSIDER]);
 
-    let pen = pool.authorize(&INSIDER, "cabinet").unwrap();
+    let pen = pool.authorize::<Curator, _>(&INSIDER, "cabinet").unwrap();
     let p = Proposal::remedy(&pen, "s1", CabinetEdit::Amend { note: "mount it" });
 
     // Disjoint from the cabinet — would have passed the old check.
@@ -418,7 +431,7 @@ fn an_author_may_dispute_a_verdict_without_first_authoring_a_remedy() {
     // An author who believed the audit simply wrong had to first author a
     // remedy for the diagnosis they disputed, to obtain a vehicle to dispute it.
     let pool = outside_pool();
-    let pen = pool.authorize(&CURATOR, "cabinet").unwrap();
+    let pen = pool.authorize::<Curator, _>(&CURATOR, "cabinet").unwrap();
 
     // The edit type must still be named: a dispute proposes no edit, but it is
     // a Proposal of THIS theory, and the theory has one edit vocabulary (edit-required-not-typed).
@@ -450,7 +463,7 @@ fn reject_remedy_is_non_terminal_and_the_reason_reaches_the_author() {
     // carrying a REASON — advisory prose, not an edit. That distinction is what
     // keeps the judge inside the judgmental gate (reason-is-not-an-edit).
     let pool = outside_pool();
-    let pen = pool.authorize(&CURATOR, "cabinet").unwrap();
+    let pen = pool.authorize::<Curator, _>(&CURATOR, "cabinet").unwrap();
 
     let first = Proposal::remedy(&pen, "s2", CabinetEdit::Remove);
     let q = pool.qualify_for::<Taxonomist>(&first).unwrap();

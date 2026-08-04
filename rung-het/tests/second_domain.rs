@@ -49,6 +49,17 @@ impl Role for Triager {
     const NAME: &'static str = "triager";
 }
 
+/// The **authorial** competence for this domain — `role(o)`.
+///
+/// Distinct from `Triager`, and required of an author in its own right: the
+/// authorial qualifying set is a conjunction (authorial-qualifying-set), so
+/// standing over the tracker settles only its right half.
+#[derive(Clone, Copy)]
+pub struct Maintainer;
+impl Role for Maintainer {
+    const NAME: &'static str = "maintainer";
+}
+
 /// **This theory's edits.** Not Het's, and not the cabinet's.
 ///
 /// edit-required-not-typed. `WontFix` is the case that makes the point: it closes an issue
@@ -124,7 +135,7 @@ impl Steward for Dev {
 const MAINTAINER: Dev = Dev {
     id: "maintainer",
     prov: &["maintainer"],
-    roles: &[],
+    roles: &["maintainer"],
     stewards: &["tracker"],
 };
 
@@ -193,7 +204,9 @@ fn a_domain_with_entirely_different_edits_runs_the_same_pass() {
     .expect("the licence was minted against this very argument");
 
     // propose — authorial, and the edit is THIS theory's
-    let pen = p.authorize(&MAINTAINER, "tracker").unwrap();
+    let pen = p
+        .authorize::<Maintainer, _>(&MAINTAINER, "tracker")
+        .unwrap();
     let proposal = Proposal::remedy(
         &pen,
         "i2",
@@ -221,7 +234,9 @@ fn wont_fix_closes_an_issue_that_remains_non_conforming() {
     // and whether the result was admitted, never what the act meant.
     let mut trk = tracker();
     let p = pool();
-    let pen = p.authorize(&MAINTAINER, "tracker").unwrap();
+    let pen = p
+        .authorize::<Maintainer, _>(&MAINTAINER, "tracker")
+        .unwrap();
 
     let proposal = Proposal::remedy(
         &pen,
@@ -285,7 +300,7 @@ fn a_pen_for_one_territory_does_not_authorize_another() {
     const CURATOR_ELSEWHERE: Dev = Dev {
         id: "curator",
         prov: &["curator"],
-        roles: &[],
+        roles: &["maintainer"],
         stewards: &["cabinet"], // NOT the tracker
     };
 
@@ -294,12 +309,14 @@ fn a_pen_for_one_territory_does_not_authorize_another() {
 
     // A well-formed pen — for somewhere else.
     let wrong_pen = p
-        .authorize(&CURATOR_ELSEWHERE, "cabinet")
+        .authorize::<Maintainer, _>(&CURATOR_ELSEWHERE, "cabinet")
         .expect("the curator does hold standing over the cabinet");
 
     // A ruling that affirms. Nothing about it is defective.
     let maintainer_pool = pool();
-    let right_pen = maintainer_pool.authorize(&MAINTAINER, "tracker").unwrap();
+    let right_pen = maintainer_pool
+        .authorize::<Maintainer, _>(&MAINTAINER, "tracker")
+        .unwrap();
     let proposal = Proposal::remedy(&right_pen, "i2", TriageEdit::Reprioritize { to: 1 });
     let qd = maintainer_pool.qualify_for::<Triager>(&proposal).unwrap();
     let ruling = dispose(&proposal, qd, Disposition::Accept)

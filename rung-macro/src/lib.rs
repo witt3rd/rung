@@ -54,14 +54,29 @@ struct Transition {
     verdicts: Vec<Verdict>,
     /// The gate marker on this transition's *target*, if any (SPEC.md §1).
     ///
-    /// `Some(role)` ⇒ `#[judgmental(role)]`: the transition takes a second
-    /// parameter, `::rung::Qualified<role>`, and so cannot be called without a
-    /// token minted by the pool. `None` ⇒ unmarked, which reads as *decidable*
-    /// and emits byte-for-byte what it emitted before markers existed.
+    /// `None` ⇒ unmarked, which reads as *decidable* and emits byte-for-byte
+    /// what it emitted before markers existed.
     ///
-    /// The other two gates never reach here — `#[authorial]` and
-    /// `#[conditional(..)]` are refused at parse time.
-    gate_role: Option<Type>,
+    /// The fourth gate never reaches here — `#[conditional(..)]` is refused at
+    /// parse time.
+    gate: Option<Gate>,
+}
+
+/// A gate marker, and the competence role it declares.
+///
+/// Two variants rather than one with a token-type field, because the two gates
+/// are not one mechanism parameterized by a name. They select **opposite**
+/// conditions over one pool (one-pool-two-filters): the judgmental filter
+/// demands provenance disjointness from the argument, the authorial filter
+/// demands capability plus standing over the container the subject sits in
+/// (authorial-qualifying-set, judgment-refuses-authorship-requires). They
+/// therefore emit different parameter types *and* different prologues, and
+/// nothing downstream may treat one as a spelling of the other.
+enum Gate {
+    /// `#[judgmental(R)]` — the transition takes `::rung::Qualified<R>`.
+    Judgmental(Type),
+    /// `#[authorial(R)]` — the transition takes `::rung::Authorized<'_, R>`.
+    Authorial(Type),
 }
 
 /// Parse the optional gate marker in front of a transition target.
@@ -73,10 +88,13 @@ struct Transition {
 /// Spec(SpecData)
 ///   => #[judgmental(Reviewer)] Active(LoopState)
 ///   => #[judgmental(Judge)] { Converged(Report) | Stalled => Active }
+///
+/// Filed(Sheet)
+///   => #[authorial(Curator)] Revised(Sheet)
 /// ```
 ///
-/// Returns the declared competence role, or `None` when unmarked.
-fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Type>> {
+/// Returns the gate and its declared competence role, or `None` when unmarked.
+fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Gate>> {
     if !input.peek(Token![#]) {
         return Ok(None);
     }
@@ -92,14 +110,14 @@ fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Type>> {
     let Some(gate) = attr.path().get_ident().map(|i| i.to_string()) else {
         return Err(syn::Error::new(
             attr.span(),
-            "unknown gate marker; the only marker `ladder!` implements is \
-             `#[judgmental(Role)]`",
+            "unknown gate marker; the markers `ladder!` implements are \
+             `#[judgmental(Role)]` and `#[authorial(Role)]`",
         ));
     };
 
     match gate.as_str() {
         "judgmental" => match &attr.meta {
-            syn::Meta::List(list) => Ok(Some(list.parse_args::<Type>()?)),
+            syn::Meta::List(list) => Ok(Some(Gate::Judgmental(list.parse_args::<Type>()?))),
             _ => Err(syn::Error::new(
                 attr.span(),
                 "`#[judgmental]` must name the competence role it requires — write \
@@ -109,30 +127,37 @@ fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Type>> {
                  to emit.",
             )),
         },
-        "authorial" => Err(syn::Error::new(
-            attr.span(),
-            "`#[authorial]` is not yet supported. The authorial gate needs a third \
-             signature — an `Authorized` pen over a declared standing predicate \
-             (rung-het-propositions.md#authorial-declares-standing) — and standing is \
-             conditional-gated, so it is settled per call rather than per declaration \
-             (rung-het-propositions.md#standing-conditional-gated). Only \
-             `#[judgmental(Role)]` is implemented. See \
-             docs/questions/open/q11-gate-faithfulness.md.",
-        )),
+        "authorial" => match &attr.meta {
+            syn::Meta::List(list) => Ok(Some(Gate::Authorial(list.parse_args::<Type>()?))),
+            _ => Err(syn::Error::new(
+                attr.span(),
+                "`#[authorial]` must name the competence role it requires — write \
+                 `#[authorial(Role)]`. An authorial operation declares a standing \
+                 predicate (rung-het-propositions.md#authorial-declares-standing), and \
+                 its qualifying set is a conjunction — capable(p, role(o)) AND \
+                 standing(p, M) (rung-het-propositions.md#authorial-qualifying-set). A \
+                 marker naming no role can witness only the right conjunct, and a pen \
+                 that witnessed standing alone would make the competence filter \
+                 decorative.",
+            )),
+        },
         "conditional" => Err(syn::Error::new(
             attr.span(),
-            "`#[conditional(..)]` is not yet supported. Het classifies a conditional \
+            "`#[conditional(..)]` is not yet supported — it is the one gate of the \
+             four that `ladder!` does not implement. Het classifies a conditional \
              gate per model, one level up (rung-het-propositions.md#classifier-one-level-up), \
              while `ladder!`'s checks run at expansion time against a single \
-             declaration; the two do not yet meet. This is the open half of Q11 — \
-             see docs/questions/open/q11-gate-faithfulness.md.",
+             declaration; the two do not yet meet. `#[judgmental(Role)]` and \
+             `#[authorial(Role)]` are implemented. This is what remains of Q11's \
+             second blocker — see docs/questions/open/q11-gate-faithfulness.md.",
         )),
         other => Err(syn::Error::new(
             attr.span(),
             format!(
-                "unknown gate marker `{other}`; the only marker `ladder!` implements \
-                 is `#[judgmental(Role)]`. An unmarked transition reads as \
-                 `decidable` and takes no qualifying token."
+                "unknown gate marker `{other}`; the markers `ladder!` implements \
+                 are `#[judgmental(Role)]` and `#[authorial(Role)]`. An unmarked \
+                 transition reads as `decidable` and takes neither a qualifying \
+                 token nor a pen."
             ),
         )),
     }
@@ -338,7 +363,7 @@ impl Parse for Ladder {
 
                     // The gate marker sits between the `=>` and the target it
                     // annotates — which is also the transition it names.
-                    let gate_role = parse_gate_marker(&content)?;
+                    let gate = parse_gate_marker(&content)?;
 
                     if content.peek(syn::token::Brace) {
                         // Verdict branching terminates the spine. It is markable
@@ -350,7 +375,7 @@ impl Parse for Ladder {
                             from_rung: cur_name.clone(),
                             to_rung: None,
                             verdicts,
-                            gate_role,
+                            gate,
                         });
                         break;
                     }
@@ -369,7 +394,7 @@ impl Parse for Ladder {
                         from_rung: cur_name.clone(),
                         to_rung: Some(next_name.clone()),
                         verdicts: vec![],
-                        gate_role,
+                        gate,
                     });
                     cur_name = next_name;
                 }
@@ -918,48 +943,81 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     // could admit one. Mis-marking is then not a claim that could be false; it
     // is a signature the compiler either accepts or does not.
     //
+    // For `#[authorial(R)]` it is `::rung::Authorized<'_, R>` — a **different
+    // type**, not the same token renamed. The two gates are opposite conditions
+    // over one pool (one-pool-two-filters), so the two signatures are as
+    // separate from each other as either is from the unmarked one: a pen cannot
+    // be passed where a licence is asked for, or the reverse, and rustc says so
+    // without knowing what either word means.
+    //
     // The token's name comes from the body's *second* closure input when there
     // is one (`active = |spec, q| { .. }`), so a body can read the judge off it;
-    // otherwise it is bound to `_q` and consumed unread.
+    // otherwise it is bound to `_q` (judgmental) or `_pen` (authorial) and
+    // consumed unread.
     let gate_param = |t: &Transition, closure: &syn::ExprClosure| -> proc_macro2::TokenStream {
-        match &t.gate_role {
-            Some(role) => {
-                let qpat = closure
-                    .inputs
-                    .iter()
-                    .nth(1)
-                    .map(|p| quote! { #p })
-                    .unwrap_or(quote! { _q });
+        let named = |default: proc_macro2::TokenStream| {
+            closure
+                .inputs
+                .iter()
+                .nth(1)
+                .map(|p| quote! { #p })
+                .unwrap_or(default)
+        };
+        match &t.gate {
+            Some(Gate::Judgmental(role)) => {
+                let qpat = named(quote! { _q });
                 quote! { , #qpat: ::rung::Qualified<#role> }
+            }
+            Some(Gate::Authorial(role)) => {
+                let ppat = named(quote! { _pen });
+                quote! { , #ppat: ::rung::Authorized<'_, #role> }
             }
             None => quote! {},
         }
     };
 
-    // The **injected gate prologue** (SPEC.md G13) — the second half of Q11.
+    // The **injected gate prologue** (SPEC.md G13 judgmental, G14 authorial).
     //
-    // `gate_param` above makes the *signature* honest: a judgmental transition
-    // cannot be called without a token. It does not make the *arrow* admissible,
-    // because the token could have been minted against some other argument.
-    // Het's disjointness-against-argument requires `π(p) ∩ π(a) = ∅` for the very
-    // `a` the operation is applied to, so the token has to be admitted against
-    // the source rung's payload before the body runs.
+    // `gate_param` above makes the *signature* honest: a marked transition
+    // cannot be called without its token. It does not make the *arrow*
+    // admissible, because the token could have been minted against something
+    // else entirely.
     //
-    // The body is the DOMAIN's, so the check cannot live there — a body that
+    // The two gates measure "something else" differently, and this is the whole
+    // asymmetry rather than a detail of it:
+    //
+    //   judgmental  disjointness-against-argument — `π(p) ∩ π(a) = ∅` for the
+    //               very `a` the operation is applied to. The token records
+    //               `π(a)`; the prologue admits it only against the source
+    //               rung's payload. Requires `::rung::Provenanced`.
+    //
+    //   authorial   authorial-qualifying-set — `standing(p, M)` over the very
+    //               container the subject sits in. The pen records `over`; the
+    //               prologue admits it only over the source rung payload's own
+    //               container. Requires `::rung::Situated`.
+    //
+    // Neither is the other with a word swapped: one refuses a principal for
+    // being too close to the subject, the other refuses it for being too far
+    // (judgment-refuses-authorship-requires).
+    //
+    // The body is the DOMAIN's, so neither check can live there — a body that
     // simply never looked at its token would discharge nothing and nothing could
     // notice. The macro therefore injects it as a prologue, exactly as it injects
     // `must_progress` around a recover body for G8, and for the same reason: a
     // guarantee a body can skip is not a guarantee.
-    //
-    // This is what makes `#[judgmental(R)]` require the source rung's payload to
-    // be `::rung::Provenanced` — without `π(a)` there is nothing to measure.
     let gate_prologue = |t: &Transition, closure: &syn::ExprClosure| -> proc_macro2::TokenStream {
-        if t.gate_role.is_none() {
-            return quote! {};
-        }
         let arg = pat_binding(closure.inputs.first(), "__arg");
-        let q = pat_binding(closure.inputs.iter().nth(1), "_q");
-        quote! { must_be_bound_to(&#arg.payload, &#q); }
+        match &t.gate {
+            None => quote! {},
+            Some(Gate::Judgmental(_)) => {
+                let q = pat_binding(closure.inputs.iter().nth(1), "_q");
+                quote! { must_be_bound_to(&#arg.payload, &#q); }
+            }
+            Some(Gate::Authorial(_)) => {
+                let pen = pat_binding(closure.inputs.iter().nth(1), "_pen");
+                quote! { must_hold_standing_over(&#arg.payload, &#pen); }
+            }
+        }
     };
 
     let logic = if has_bodies {
@@ -976,7 +1034,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
                 // Unmarked: emit byte-for-byte what was emitted before markers
                 // existed (SPEC.md G12). Marked: prologue first, then the body's
                 // statements — the body cannot run ahead of the check (G13).
-                let body = if t.gate_role.is_none() {
+                let body = if t.gate.is_none() {
                     fn_body(&b.closure)
                 } else {
                     let stmts = fn_body_stmts(&b.closure);
@@ -1091,6 +1149,65 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
         }
     };
 
+    // The authorial guard (SPEC.md G14), emitted **only** for a ladder that
+    // actually carries an `#[authorial(R)]` marker.
+    //
+    // Conditional, unlike `must_progress` and `must_be_bound_to`, for one
+    // reason: G12's compatibility clause says an unmarked or judgmental ladder
+    // emits byte-for-byte what it emitted before. An unconditional helper would
+    // change every existing module's emission and break that clause for no
+    // benefit — nothing in an unmarked ladder can call it.
+    let standing_helper = if ladder
+        .transitions
+        .iter()
+        .any(|t| matches!(t.gate, Some(Gate::Authorial(_))))
+    {
+        quote! {
+            /// Standing guard (SPEC.md G14). An `#[authorial(R)]` transition is
+            /// licensed by a pen that was minted over **one** container; this
+            /// refuses it anywhere else.
+            ///
+            /// The authorial mirror of `must_be_bound_to`, and the mirror of a
+            /// mirror: the judgmental guard refuses a principal that is too
+            /// close to the subject, this one refuses a principal that is too
+            /// far from it (rung-het-propositions.md#judgment-refuses-authorship-requires).
+            /// Het's authorial qualifying set is
+            /// `capable(p, role(o)) ∧ standing(p, M)`
+            /// (rung-het-propositions.md#authorial-qualifying-set); `Pool::authorize`
+            /// settles both conjuncts, but it settles the second against the
+            /// container it was *asked* about. Nothing in the signature says
+            /// that container is the one this subject sits in.
+            ///
+            /// The seal on `Authorized` closes fabrication — nobody can write a
+            /// pen. It does not close *misdirection*: a pen earned honestly over
+            /// one container could be spent on a subject in another, which is a
+            /// write no one authorized.
+            ///
+            /// Injected at the head of every marked transition, so a body cannot
+            /// skip it, and panicking for the same reason `must_be_bound_to`
+            /// does: the transition's return type is the domain's declaration,
+            /// so there is no `Err` variant to route a refusal through.
+            #[allow(dead_code)]
+            pub fn must_hold_standing_over<A, R>(subject: &A, pen: &::rung::Authorized<'_, R>)
+            where
+                A: ::rung::Situated,
+                R: ::rung::Role,
+            {
+                assert!(
+                    pen.authorizes(subject),
+                    "standing: this pen authorizes `{}` and is being spent on a \
+                     subject sitting in `{}`; authorship requires standing over \
+                     the very container the subject is in — SPEC.md G14, \
+                     rung-het-propositions.md#authorial-qualifying-set",
+                    pen.over(),
+                    ::rung::Situated::container(subject),
+                );
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     // ── assemble module ─────────────────────────────────────────────────
     quote! {
         #mod_vis mod #mod_name {
@@ -1101,6 +1218,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
             #failed_type
             #verdict_enum
             #progress_helper
+            #standing_helper
             #logic
         }
     }

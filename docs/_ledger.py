@@ -98,11 +98,14 @@ CURATED = {
     # ── the surface: two gates are two signatures ────────────────────────
     "two-signatures-not-two-fragments": (
         "enforced",
-        "`ladder!` gate markers. `#[judgmental(R)]` on a rung emits "
-        "`fn t(prev, q: Qualified<R>)`; unmarked emits `fn t(prev)`. The two "
-        "gates differ in the arity of the emitted transition, and the host's "
-        "type system separates them with no knowledge of Het.",
-        "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token",
+        "`ladder!` gate markers, now three signatures rather than two. Unmarked "
+        "emits `fn t(prev)`; `#[judgmental(R)]` emits "
+        "`fn t(prev, q: Qualified<R>)`; `#[authorial(R)]` emits "
+        "`fn t(prev, pen: Authorized<'_, R>)`. The gates differ in the ARITY and "
+        "the TYPE of the emitted transition, so a pen cannot be passed where a "
+        "licence is asked for or the reverse, and the host's type system separates "
+        "all three with no knowledge of Het.",
+        "rung/tests/gate_markers.rs::authorial_transition_takes_an_authorized_pen",
     ),
     "decidable-cannot-consult-pool": (
         "enforced",
@@ -255,8 +258,8 @@ CURATED = {
     ),
     "gate-faithful": (
         "deferred",
-        "Q11 (gate-faithfulness, open) — BOTH halves of Q11's table are now "
-        "built, and they are not this proposition. The signature is honest "
+        "Q11 (gate-faithfulness, open) — all three rows of Q11's table are now "
+        "built, and none of them is this proposition. The signature is honest "
         "(G12) and the token is bound to its argument (G13), so no judgmental "
         "arrow can be traversed except by a principal drawn from "
         "P_judg(φ, a) for the very `a` — P0 closed. That is the *input* side. "
@@ -264,9 +267,11 @@ CURATED = {
         "{#admissibility-subcategories}, whose condition is "
         "π(f(a)) ∩ π(a) = ∅ — a constraint on what the arrow RETURNS, which no "
         "signature reaches and which inherits SPEC §5, transition-body "
-        "correctness. Two further blockers: `#[authorial]` and "
-        "`#[conditional(..)]` are parse-time refusals, so an algebra with an "
-        "authorial operation cannot state gate-faithfulness here at all; and "
+        "correctness — and G14 added the authorial gate on the same "
+        "input side, so it moved no part of THIS row. Two further blockers, one "
+        "now smaller: `#[conditional(..)]` remains a parse-time refusal, so an "
+        "algebra with a conditional operation cannot state gate-faithfulness here "
+        "at all (`#[authorial(Role)]` is implemented as of G14); and "
         "`decidable` still does not factor through η, only past 𝒫 "
         "({#purity-not-secured}). Argued in the question file, with its "
         "falsifier.",
@@ -303,10 +308,73 @@ CURATED = {
         "rung/tests/compile_pass.rs::test_carry_accessor_exists",
     ),
     "one-pool-two-filters": (
-        "expressible",
-        "Both filters produce tokens over one pool; the gate selects the predicate. "
-        "rung sees two differently-typed tokens and nothing else.",
-        "—",
+        "enforced",
+        "G14, and this is the row G14 exists for. One `Pool` mints both tokens; "
+        "the gate marker on a `ladder!` transition selects which filter runs, not "
+        "which pool is consulted. `#[judgmental(R)]` emits `Qualified<R>` and runs "
+        "capability + disjointness; `#[authorial(R)]` emits `Authorized<'_, R>` and "
+        "runs capability + standing. The cited test drives the same three principals "
+        "through both filters over one subject and asserts they DISAGREE. Dropping "
+        "the capability conjunct from `Pool::authorize` turns it red.",
+        "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one",
+    ),
+    "authorial-qualifying-set": (
+        "enforced",
+        "G14. `Pool::authorize::<R>` is the only mint for `Authorized` and checks "
+        "BOTH conjuncts — `capable(p, role(o))` then `standing(p, M)`. Standing "
+        "alone mints nothing: the cited test hands it a steward of the container "
+        "who is capable of nothing and requires `AuthorizeError::NotCapable`. "
+        "NOT enforced: the outcome condition of "
+        "{#admissibility-subcategories}, `π(f(a)) ⊆ π(p)`, which is a body property "
+        "and inherits SPEC §5.",
+        "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one",
+    ),
+    "judgment-refuses-authorship-requires": (
+        "enforced",
+        "G12 + G14 together, which is the only way this proposition can be shown: "
+        "it is a claim about two filters, so one filter cannot witness it. The "
+        "cited test asserts both directions over one subject — a principal that "
+        "PASSES the judgmental filter (capable, provenance-disjoint) is refused a "
+        "pen, and the principal that HOLDS the pen is refused as a judge of the "
+        "very subject it stewards. An authorial gate built as the judgmental gate "
+        "with its token renamed passes every other gate test and fails this one.",
+        "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one",
+    ),
+    "provenance-overlap-is-the-point": (
+        "enforced",
+        "G12 + G14, read as the reason the two filters must disagree. The cited "
+        "test's subject is authored by the principal that stewards its container, "
+        "so the overlap that disqualifies the curator as a judge is the same fact "
+        "that makes it the author. Weakening either second conjunct — disjointness "
+        "in `qualify_for`, standing in `authorize` — turns the test red, because "
+        "the two assertions are about the same principal and the same subject.",
+        "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one",
+    ),
+    "authorial-declares-standing": (
+        "enforced",
+        "G14. `#[authorial]` with no role is a `compile_error!` — the qualifying "
+        "set is a conjunction and a marker naming no role can witness only its "
+        "right half — and the pen that IS emitted carries the container standing "
+        "was measured over. The macro then injects "
+        "`must_hold_standing_over(&src.payload, &pen)` ahead of the body, so the "
+        "declared predicate is consulted whether or not the body mentions it: the "
+        "cited ladder's body never does. Stubbing the prologue to a no-op turns it "
+        "red. This is what makes a marked transition's source payload have to be "
+        "`Situated` — without a container there is nothing standing could be over.",
+        "rung/tests/gate_markers.rs::the_injected_prologue_refuses_a_pen_for_another_container_the_body_never_reads",
+    ),
+    "standing-conditional-gated": (
+        "enforced",
+        "`Pool::classify_standing` + `AuthorizeError::StandingIsJudgmental`. What "
+        "is enforced is the REFUSAL TO GUESS: where containment does not settle "
+        "standing, `authorize` returns the judgmental branch as an error rather "
+        "than minting a pen, and the cited test requires that variant by name. "
+        "NOT enforced, and not closable here: the branch itself. Closing it needs "
+        "a judge, terminating at depth one ({#standing-terminates-at-depth-one}) "
+        "and disjoint from the AUTHOR ({#standing-judge-disjoint-from-author}); "
+        "rung has no term for that dispatch and inventing a ruling would be worse "
+        "than surfacing the gap.",
+        "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one",
     ),
 
     # ── explicitly rung's own non-guarantees ─────────────────────────────

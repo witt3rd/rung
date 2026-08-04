@@ -18,4 +18,4 @@ note: function defined here
 help: provide the argument
    |
 41 |     let _active = demo::active(spec, /* Authorized<'_, Curator> */);
-   |                                    ++++++++++++++++++++++++++++++++
+   |                                    +++++++++++++++++++++++++++++++

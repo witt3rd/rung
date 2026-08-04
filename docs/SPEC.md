@@ -27,7 +27,8 @@ declaration := [ carry ] rung ( "=>" [gate] rung )* "=>" [gate] "{" verdict ( "|
 carry       := "carry" "{" ( ident ":" type )  ( "," ident ":" type )* "}"
 rung        := Ident "(" type ")"                     -- name + payload type
 
-gate        := "#" "[" "judgmental" "(" type ")" "]"  -- competence role
+gate        := "#" "[" "judgmental" "(" type ")" "]"  -- competence role, judgmental
+             | "#" "[" "authorial"  "(" type ")" "]"  -- competence role, authorial
 
 verdict     := Ident                                  -- terminal marker
              | Ident "(" type ")"                     -- terminal carrying a result payload
@@ -56,17 +57,39 @@ rung as a live token; a recoverable verdict carries its source rung and hands of
 to a guarded recover function.
 
 **Gate markers.** A marker annotates the transition's *target*, because that is
-what the transition is named after. `#[judgmental(R)]` on a rung marks the
-forward transition producing it; `#[judgmental(R)]` on the verdict block marks
-`step`. An unmarked transition reads as *decidable* and is emitted exactly as it
-was before markers existed (G12). The marker is out of Het's four gates
-([`four-gates`](rung-het-propositions.md#four-gates)); of those, only
-`judgmental` is implemented. `#[authorial]` and `#[conditional(..)]` are
-`compile_error!` — see [Q11](questions/open/q11-gate-faithfulness.md) — and
-`#[judgmental]` with no role is likewise refused
-([`judgmental-declares-role`](rung-het-propositions.md#judgmental-declares-role):
-a role that is not named cannot resolve a judge, so there is no signature to
-emit).
+what the transition is named after. A marker on a rung marks the forward
+transition producing it; a marker on the verdict block marks `step`. A
+transition carries **at most one** marker: Het's gates are alternatives, not a
+set ([`four-gates`](rung-het-propositions.md#four-gates)). An unmarked
+transition reads as *decidable* and is emitted exactly as it was before markers
+existed (G12).
+
+Two of Het's four gates are implemented, and they are the two that dispatch to
+an outside — in **opposite directions**
+([`judgment-refuses-authorship-requires`](rung-het-propositions.md#judgment-refuses-authorship-requires)):
+
+| marker | emitted second parameter | filter |
+|---|---|---|
+| `#[judgmental(R)]` | `::rung::Qualified<R>` | `capable(p, role(φ)) ∧ π(p) ∩ π(a) = ∅` |
+| `#[authorial(R)]` | `::rung::Authorized<'_, R>` | `capable(p, role(o)) ∧ standing(p, M)` |
+
+One pool, two filters
+([`one-pool-two-filters`](rung-het-propositions.md#one-pool-two-filters)); the
+marker selects the predicate, not the pool. The two share their left conjunct
+and take opposite second conjuncts, so the two tokens are different types and
+neither can be passed where the other is asked for (G12, G14).
+
+`#[conditional(..)]` remains a `compile_error!` — it classifies per model, one
+level up ([`classifier-one-level-up`](rung-het-propositions.md#classifier-one-level-up)),
+and `ladder!`'s checks run at expansion time against a single declaration; see
+[Q11](questions/open/q11-gate-faithfulness.md). Either implemented marker
+written **without a role** is likewise refused: a judgmental role that is not
+named cannot resolve a judge
+([`judgmental-declares-role`](rung-het-propositions.md#judgmental-declares-role)),
+and an authorial marker that names none can witness only the right conjunct of
+[`authorial-qualifying-set`](rung-het-propositions.md#authorial-qualifying-set),
+which would make the competence filter decorative. In both cases there is no
+signature to emit.
 
 ---
 
@@ -130,6 +153,10 @@ lowercased) containing:
   (G8).
 - **`must_be_bound_to<A: Provenanced, R: Role>(argument: &A, licence:
   &::rung::Qualified<R>)`** — the token-binding guard (G13).
+- **`must_hold_standing_over<A: Situated, R: Role>(subject: &A, pen:
+  &::rung::Authorized<'_, R>)`** — the standing guard (G14). Emitted **only**
+  when the ladder carries an `#[authorial(R)]` marker, so that an unmarked or
+  judgmental ladder's emission is unchanged (G12's compatibility clause).
 - **Transition and recover functions** (when an `impl` block is present) — one
   `pub fn` per transition/recover, expanded from the corresponding body *inside*
   the module. A forward transition returns its target rung; a branching transition
@@ -143,6 +170,13 @@ lowercased) containing:
     one; otherwise it is bound to `_q` and consumed unread. The body is preceded
     by the injected binding prologue `must_be_bound_to(&spec.payload, &q);`
     (G13), so the source rung's payload MUST implement `::rung::Provenanced`.
+  - **`#[authorial(R)]`:** `pub fn revised(filed: Filed, pen:
+    ::rung::Authorized<'_, R>) -> Revised` — a second parameter, taken by value.
+    Its name comes from the body's *second* closure input when there is one;
+    otherwise it is bound to `_pen` and consumed unread. The body is preceded by
+    the injected standing prologue `must_hold_standing_over(&filed.payload,
+    &pen);` (G14), so the source rung's payload MUST implement
+    `::rung::Situated`.
 
 Inside body expressions, rung/verdict names resolve unqualified; payload types
 resolve from the surrounding scope (`use super::*`).
@@ -251,6 +285,63 @@ Each guarantee is normative and names its conformance test.
   token is refused anyway), and
   `rung-het/tests/token_binding.rs::{dispose_refuses_a_token_minted_against_the_model,
   settle_refuses_a_token_minted_against_a_different_model}`.*
+- **G14 — The authorial gate.** An `#[authorial(R)]` transition MUST take a
+  second parameter of type `::rung::Authorized<'_, R>`, by value, and the macro
+  MUST prefix its body with `must_hold_standing_over(&<source>.payload, &<pen>)`,
+  which panics unless the pen's container equals the source rung payload's. This
+  requires the source rung's payload to implement `::rung::Situated` — without a
+  container there is nothing standing could be held over. Unmarked and
+  `#[judgmental(R)]` emission is unchanged.
+
+  **G14 is not G12+G13 with a different token name, and an implementation that
+  made it one would satisfy every clause above while enforcing nothing.** The
+  two gates run over one pool and select opposite predicates
+  ([`one-pool-two-filters`](rung-het-propositions.md#one-pool-two-filters)):
+
+  | | judgmental | authorial |
+  |---|---|---|
+  | qualifying set | [`judgmental-qualifying-set`](rung-het-propositions.md#judgmental-qualifying-set) | [`authorial-qualifying-set`](rung-het-propositions.md#authorial-qualifying-set) |
+  | second conjunct | `π(p) ∩ π(a) = ∅` — **disjointness** | `standing(p, M)` — **standing** |
+  | reading | you did **not** author this | this is **yours to revise** |
+  | admissibility | `π(f(a)) ∩ π(a) = ∅` | `π(f(a)) ⊆ π(p) ∧ standing(p, a)` |
+
+  Provenance overlap is what disqualifies a judge and what an author needs
+  ([`provenance-overlap-is-the-point`](rung-het-propositions.md#provenance-overlap-is-the-point)),
+  so a principal that passes one filter has, on that evidence, said nothing
+  about the other and typically fails it
+  ([`judgment-refuses-authorship-requires`](rung-het-propositions.md#judgment-refuses-authorship-requires)).
+  `Pool::authorize` MUST therefore check **both** conjuncts of
+  [`authorial-qualifying-set`](rung-het-propositions.md#authorial-qualifying-set):
+  standing alone mints no pen. It refuses on the judgmental branch of
+  [`standing-conditional-gated`](rung-het-propositions.md#standing-conditional-gated)
+  rather than guessing — closing that branch needs a judge, terminating at
+  depth one
+  ([`standing-terminates-at-depth-one`](rung-het-propositions.md#standing-terminates-at-depth-one)),
+  whose own qualification is non-identity relative to the **author**
+  ([`standing-judge-disjoint-from-author`](rung-het-propositions.md#standing-judge-disjoint-from-author)).
+
+  The pen is borrowed-lifetime rather than consumed-and-gone in the library
+  (`Proposal::remedy`, `enact` take `&Authorized`): standing is not spent by a
+  single act, unlike a judgment licence, which is spent because each dispatch
+  re-runs the filter against a different argument. A `ladder!` transition takes
+  the pen by value only because a transition consumes its inputs; nothing was
+  spent, and the same principal may mint another on the next rung.
+
+  *Conformance: `gate_markers.rs::authorial_transition_takes_an_authorized_pen`
+  (the emitted `fn` is coerced to a `fn` pointer of the exact expected type, and
+  the ladder drives end to end);
+  `::the_injected_prologue_refuses_a_pen_for_another_container_the_body_never_reads`
+  (the ladder's authorial body never mentions its pen, and a pen minted over
+  another container is refused anyway);
+  `::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one` — **the
+  asymmetry test**: a steward that is not capable of the declared role is
+  refused, a principal that qualifies as a *judge* of the subject gets no pen,
+  and the principal that does hold the pen is refused as a judge of the same
+  subject. Dropping the capability conjunct from `Pool::authorize` reddens it;
+  stubbing the injected prologue reddens the prologue test. And the
+  `tests/ui/` `trybuild` cases: `gate_authorial_missing_pen` → E0061,
+  `gate_forged_pen` → E0451, `gate_authorial_no_role` → the macro's
+  `compile_error!`.*
 
 ---
 
@@ -270,17 +361,22 @@ Explicitly out of scope. The macro does **not** enforce:
   no-drop needs language-level linear types.
 - **Liveness beyond the guard.** G8 catches an identical-token stall loop; it does
   not prove general forward progress.
-- **Gate-faithfulness.** G12 secures the signature and G13 secures the argument.
-  Neither secures the value an arrow *returns*, and two of Het's four gates have
-  no signature at all. Four named limits:
-  - *Two gates are unimplemented.* `#[authorial]` and `#[conditional(..)]` are
-    parse-time refusals, not encodings. Gate-faithfulness is a condition on
-    **every** operation of an algebra, so an algebra with an authorial arrow
-    cannot state it here at all.
-  - *The returned value is unconstrained.* G13 checks `π(p) ∩ π(a) = ∅` on the
-    way in. Admissibility as Het states it also constrains what comes out —
-    `π(f(a)) ∩ π(a) = ∅` — which is a property of the body, and so inherits
-    transition-body correctness whole.
+- **Gate-faithfulness.** G12 secures the judgmental signature, G13 its argument,
+  G14 both halves for the authorial gate. None secures the value an arrow
+  *returns*, and one of Het's four gates still has no signature. Four named
+  limits:
+  - *One gate is unimplemented.* `#[conditional(..)]` is a parse-time refusal,
+    not an encoding. Gate-faithfulness is a condition on **every** operation of
+    an algebra, so an algebra with a conditional arrow cannot state it here at
+    all.
+  - *The returned value is unconstrained.* G13 checks `π(p) ∩ π(a) = ∅` and G14
+    checks standing, both on the way **in**. Admissibility as Het states it also
+    constrains what comes **out** —
+    [`admissibility-subcategories`](rung-het-propositions.md#admissibility-subcategories)
+    gives `π(f(a)) ∩ π(a) = ∅` judgmentally and `π(f(a)) ⊆ π(p)` authorially —
+    which is a property of the body, and so inherits transition-body
+    correctness whole. `Prov::contained_in` exists and no guarantee calls it;
+    that is the honest measure of the gap.
   - *Decidable is not pure.* The unmarked signature excludes Het's outside — the
     principal pool — and is silent about clocks, files, and networks
     ([`purity-not-secured`](rung-het-propositions.md#purity-not-secured)).
@@ -288,9 +384,9 @@ Explicitly out of scope. The macro does **not** enforce:
     nothing to constrain and is inert, exactly as G2's seal is
     ([`freeness-enforced-only-with-bodies`](rung-ct-propositions.md#freeness-enforced-only-with-bodies)).
 
-  Whether G12 + G13 amount to gate-faithfulness is argued — and answered *no* —
-  in [Q11](questions/open/q11-gate-faithfulness.md), which stays open on the
-  first two limits above.
+  Whether G12 + G13 + G14 amount to gate-faithfulness is argued — and answered
+  *no* — in [Q11](questions/open/q11-gate-faithfulness.md), which stays open on
+  the first two limits above.
 
 ---
 

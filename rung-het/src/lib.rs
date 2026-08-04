@@ -9,7 +9,8 @@
 //! | gate | how `M ⊨ φ` is settled |
 //! |---|---|
 //! | `decidable` | machine-checked. A pure function of the model. |
-//! | `judgmental` | dispatched to a **principal** — an outside. Its verdict *is* the outcome. |
+//! | `judgmental` | dispatched to a **principal** the model did **not** author. Its verdict *is* the outcome. |
+//! | `authorial` | dispatched to a principal that holds **standing** over the subject. It transforms rather than classifies. |
 //!
 //! This crate makes that distinction a property of the **type**, not of a
 //! convention. The load-bearing claim:
@@ -208,11 +209,15 @@
 //! # fn main() {}
 //! ```
 //!
-//! Deliberately partial. Implemented: the `decidable` and `judgmental` gates,
-//! the non-identity filter, `role(φ)`. Not implemented: the `authorial` gate
-//! (standing rather than disjointness), the `conditional` gate (classified one
+//! Deliberately partial. Implemented: the `decidable`, `judgmental` and
+//! `authorial` gates, both filters over the one pool, and `role(φ)` / `role(o)`.
+//! The authorial gate reaches `ladder!` as `#[authorial(Role)]` (rung SPEC.md
+//! G14), which emits an `Authorized<'_, Role>` pen and a standing prologue the
+//! body cannot skip. Not implemented: the `conditional` gate (classified one
 //! level up, and the first place Het has not decided what the encoding needs),
-//! the verdict metric `d`, and `ε`. See `docs/HET-GATES.md`.
+//! the verdict metric `d`, and `ε`. The gap between Het's gate-faithfulness
+//! requirement and what a marker can deliver is tracked as Q11, under
+//! `docs/questions/open/`.
 
 // The principal pool, its two filters, and the capability tokens they mint now
 // live in `rung` — the `ladder!` macro's gate markers emit `::rung::Qualified`,
@@ -221,7 +226,7 @@
 // every path below (`rung_het::Pool`, `rung_het::Qualified`, ..) still resolves.
 pub use rung::{
     AuthorizeError, Authorized, Pool, Principal, Prov, Provenanced, Qualified, QualifyError, Role,
-    StandingGate, Steward, TokenNotBound,
+    Situated, StandingGate, Steward, TokenNotBound,
 };
 
 /// A judgmental sentence, and the role it requires.
@@ -317,7 +322,7 @@ impl<E> Provenanced for Proposal<E> {
 
 impl<E: Clone> Proposal<E> {
     /// *"The verdict stands; here is the fix."*
-    pub fn remedy(pen: &Authorized<'_>, object: &'static str, edit: E) -> Self {
+    pub fn remedy<R: Role>(pen: &Authorized<'_, R>, object: &'static str, edit: E) -> Self {
         Self {
             object,
             author: pen.principal_id().to_string(),
@@ -333,7 +338,11 @@ impl<E: Clone> Proposal<E> {
     /// Still judged. The author does not overturn a verdict by asserting it —
     /// a dispute goes to `dispose` exactly as a remedy does, and the Opponent
     /// rules on the dispute itself.
-    pub fn dispute(pen: &Authorized<'_>, object: &'static str, grounds: &'static str) -> Self {
+    pub fn dispute<R: Role>(
+        pen: &Authorized<'_, R>,
+        object: &'static str,
+        grounds: &'static str,
+    ) -> Self {
         Self {
             object,
             author: pen.principal_id().to_string(),
@@ -352,7 +361,12 @@ impl<E: Clone> Proposal<E> {
     ///
     /// Takes the pen again because standing must still hold: an author who lost
     /// stewardship between attempts may not continue.
-    pub fn reproposed(&self, pen: &Authorized<'_>, ruling: &Ruling<E>, edit: E) -> Self {
+    pub fn reproposed<R: Role>(
+        &self,
+        pen: &Authorized<'_, R>,
+        ruling: &Ruling<E>,
+        edit: E,
+    ) -> Self {
         let mut reasons = self.prior_reasons.clone();
         if let Some(r) = ruling.reason() {
             reasons.push(r.to_string());
@@ -801,10 +815,10 @@ pub trait Applies<E> {
 ///
 /// **The library performs no edit.** It cannot: it does not know what the
 /// theory's edits are. That is 11.2, and it is the whole shape of the split.
-pub fn enact<E, W>(
+pub fn enact<E, W, R: Role>(
     world: &mut W,
     ruling: &Ruling<E>,
-    pen: &Authorized<'_>,
+    pen: &Authorized<'_, R>,
 ) -> Result<Enacted, EnactError>
 where
     W: Applies<E>,

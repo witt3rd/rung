@@ -150,9 +150,10 @@ pub use rung_macro::ladder;
 // Het's outside — the principal pool, the two admissibility filters, and the
 // sealed capability tokens they mint. These live here rather than in `rung-het`
 // because the `ladder!` macro's gate markers emit them: a `#[judgmental(R)]`
-// transition takes a `::rung::Qualified<R>`, so the type must be reachable from
-// the crate the macro's users already depend on. `rung-het` re-exports every
-// item below, so it remains their documented home.
+// transition takes a `::rung::Qualified<R>` and an `#[authorial(R)]` one takes
+// a `::rung::Authorized<'_, R>`, so the types must be reachable from the crate
+// the macro's users already depend on. `rung-het` re-exports every item below,
+// so it remains their documented home.
 
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
@@ -200,10 +201,15 @@ impl Prov {
 
     /// Whether every tag of `self` is also in `other` — `π(self) ⊆ π(other)`.
     ///
-    /// The *authorial* condition (Het admissibility-subcategories). Unused here: the authorial gate is
-    /// out of scope for this crate. Present because the asymmetry is the point
-    /// — judgment demands disjointness, authorship demands containment — and
-    /// omitting the second makes the first look like the only option.
+    /// The *authorial* condition on the **outcome** (Het
+    /// admissibility-subcategories): `π(f(a)) ⊆ π(p)`. The asymmetry is the
+    /// point — judgment demands disjointness, authorship demands containment —
+    /// and omitting the second makes the first look like the only option.
+    ///
+    /// Not read by [`Pool::authorize`], which filters on *capability and
+    /// standing* (authorial-qualifying-set) — the condition on the **input**.
+    /// The containment condition constrains what an authorial arrow returns,
+    /// which is a body property; see SPEC.md §5.
     pub fn contained_in(&self, other: &Prov) -> bool {
         self.0.is_subset(&other.0)
     }
@@ -213,9 +219,40 @@ impl Prov {
     }
 }
 
-/// A thing that carries provenance. Objects and principals both do.
+/// A thing that carries provenance. Subjects and principals both do.
 pub trait Provenanced {
     fn provenance(&self) -> Prov;
+}
+
+/// A thing that sits in a named container — what standing is held **over**.
+///
+/// The authorial counterpart to [`Provenanced`], and the reason there are two
+/// traits rather than one. The two filters read two different coordinates of
+/// the same subject (one-pool-two-filters):
+///
+/// | filter | coordinate | condition |
+/// |---|---|---|
+/// | judgmental | `π(a)` — who wrote it | `π(p) ∩ π(a) = ∅`, **disjointness** |
+/// | authorial | the container it sits in | `capable(p, role(o)) ∧ standing(p, ·)` |
+///
+/// [`Pool::authorize`] mints a pen *over a named container*
+/// (authorial-qualifying-set); this trait is how a subject says which container
+/// that must be. Without it the pen is decorative — an author with standing
+/// over one container could revise a subject sitting in another, and nothing
+/// could notice.
+///
+/// **Why not reuse "contained".** Het already uses containment for
+/// `π(outcome) ⊆ π(p)` (admissibility-subcategories) — a relation between
+/// *provenance sets*, on the way **out** of an arrow. Container membership is a
+/// different relation, on the way **in**. Naming them both "containment" would
+/// merge two conditions the formalism keeps apart, so this one is *situated*:
+/// the subject is somewhere, and standing is held over that somewhere.
+pub trait Situated {
+    /// The container this subject sits in, as named in a standing predicate.
+    ///
+    /// The name is the supplying theory's, not Het's, exactly as
+    /// [`Steward::has_standing`]'s is (nothing-further-required).
+    fn container(&self) -> &str;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -587,27 +624,59 @@ impl<P: Principal> Pool<P> {
         }
     }
 
-    /// Mint an [`Authorized`] pen — the authorial filter.
+    /// Mint an [`Authorized`] pen — the authorial filter, **both conjuncts**.
     ///
     /// ```text
-    /// P_auth(o, M) = { p ∈ P : capable(p, role(o)) ∧ standing(p, M) }
+    /// P_auth(o, M) = { p ∈ 𝒫 : capable(p, role(o)) ∧ standing(p, M) }
     /// ```
     ///
-    /// The mirror of [`Pool::qualify`]: that one demands the principal did
-    /// **not** author the argument; this one demands the object is theirs to
-    /// revise. Judgment refuses the audited party; authorship requires standing
-    /// over it (authorial-declares-standing).
+    /// The mirror of [`Pool::qualify_for`], and the mirror is not a rename.
+    /// Both filters run over the *same* pool and both open with the *same*
+    /// competence test; they differ in the second conjunct, and the two second
+    /// conjuncts are opposites (one-pool-two-filters):
+    ///
+    /// | filter | second conjunct |
+    /// |---|---|
+    /// | judgmental | `π(p) ∩ π(a) = ∅` — you did **not** author this |
+    /// | authorial | `standing(p, M)` — this is **yours to revise** |
+    ///
+    /// Judgment refuses the audited party; authorship requires standing over it
+    /// (judgment-refuses-authorship-requires). A principal that qualifies as a
+    /// judge of a subject has, on that evidence, said nothing whatever about
+    /// its standing over it — and typically the reverse, since the author of a
+    /// candidate *is* the party under audit
+    /// (provenance-overlap-is-the-point).
+    ///
+    /// **The competence conjunct is not optional.** `role(o)` is what an
+    /// authorial operation needs *done*, exactly as `role(φ)` is for a
+    /// judgmental one; dropping it would mint a pen for anyone who holds
+    /// standing, however unable to exercise it, and the declared role would be
+    /// enforced in name only. This is the conjunct
+    /// `gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one`
+    /// exists to defend.
     ///
     /// Refuses on the judgmental branch rather than guessing. When containment
-    /// does not settle standing, Het says a judge must rule on it — and this
-    /// engine cannot invent that ruling. Surfacing
-    /// [`AuthorizeError::StandingIsJudgmental`] is the honest outcome; closing
-    /// it requires the outside.
-    pub fn authorize<'a, S: Steward>(
+    /// does not settle standing, Het says a judge must rule on it
+    /// (standing-conditional-gated) — and this engine cannot invent that
+    /// ruling. Surfacing [`AuthorizeError::StandingIsJudgmental`] is the honest
+    /// outcome; closing it requires the outside, terminating at depth one
+    /// (standing-terminates-at-depth-one), and that judge's own qualification
+    /// is plain non-identity relative to the **author**
+    /// (standing-judge-disjoint-from-author).
+    pub fn authorize<'a, R: Role, S: Steward>(
         &self,
         principal: &'a S,
         over: &'a str,
-    ) -> Result<Authorized<'a>, AuthorizeError> {
+    ) -> Result<Authorized<'a, R>, AuthorizeError> {
+        // Competence first — the conjunct both filters share, and the one that
+        // reads only the declared interface.
+        if !principal.capable(R::NAME) {
+            return Err(AuthorizeError::NotCapable {
+                principal: principal.id().to_string(),
+                role: R::NAME,
+            });
+        }
+
         match self.classify_standing(principal, over) {
             StandingGate::Decidable => Ok(Authorized {
                 _seal: (),
@@ -615,6 +684,7 @@ impl<P: Principal> Pool<P> {
                 principal_id: principal.id().to_string(),
                 principal_prov: principal.provenance(),
                 over,
+                _role: PhantomData,
             }),
             StandingGate::Judgmental => Err(AuthorizeError::StandingIsJudgmental {
                 principal: principal.id().to_string(),
@@ -654,6 +724,18 @@ pub trait Steward: Principal {
 /// Why authorization was refused.
 #[derive(Debug, PartialEq, Eq)]
 pub enum AuthorizeError {
+    /// `capable(p, role(o)) = false` — the competence filter, which the
+    /// authorial gate shares with the judgmental one
+    /// (authorial-qualifying-set).
+    ///
+    /// Standing without competence is not authorship. A principal may hold
+    /// stewardship over a container and still be unable to do the thing the
+    /// object needs done; the qualifying set is a **conjunction**, and this is
+    /// the left conjunct failing.
+    NotCapable {
+        principal: String,
+        role: &'static str,
+    },
     /// The principal holds no standing over this container.
     NoStanding { principal: String, over: String },
     /// Standing is judgmental in this model and a judge must rule on it first.
@@ -668,6 +750,11 @@ pub enum AuthorizeError {
 impl std::fmt::Display for AuthorizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::NotCapable { principal, role } => write!(
+                f,
+                "{principal} is not capable of role `{role}`; standing without \
+                 competence is not authorship (authorial-qualifying-set)"
+            ),
             Self::NoStanding { principal, over } => {
                 write!(f, "{principal} holds no standing over `{over}`")
             }
@@ -697,31 +784,62 @@ pub enum StandingGate {
     Judgmental,
 }
 
-/// Proof that a principal holds standing to author over a named container.
+/// Proof that a principal is capable of role `R` **and** holds standing to
+/// author over a named container.
 ///
 /// The authorial counterpart to [`Qualified`], and sealed for the same reason:
 /// a capability that can be fabricated in object-position is not a capability
 /// (rung SPEC.md G2). [`Pool::authorize`] is the only mint.
 ///
 /// An `Authorized` is what `propose` and `enact` require — the two authorial
-/// operations of the pass (propose-is-authorial). Without one there is no term for "author
-/// something about this object."
+/// operations of the pass (propose-is-authorial) — and what an
+/// `#[authorial(R)]` `ladder!` transition takes as its second parameter
+/// (SPEC.md G14). Without one there is no term for "author something about this
+/// object."
 ///
-/// Borrowed rather than owned: authorship is not spent by a single act. An
-/// author with standing may propose, be rejected, and re-propose (reproposal-carries-the-chain) — the
+/// # The pen witnesses a **pair**, and it is not the judge's pair
+///
+/// [`Qualified`] records the principal and `π(a)`, the provenance disjointness
+/// was measured against. This records the principal and `over` — the container
+/// standing was measured against. Same shape, opposite content, because the two
+/// filters read opposite conditions over one pool
+/// (one-pool-two-filters, judgment-refuses-authorship-requires). A pen that
+/// recorded only the principal would be unforgeable but **unbound**: it would
+/// prove someone holds standing somewhere, not that they hold it *here*, and it
+/// could be earned over one container and spent on another. [`over`](Self::over)
+/// and [`authorizes`](Self::authorizes) close that, exactly as
+/// `argument_provenance` and `admit` close it on the judgmental side.
+///
+/// # Parameterized by the role
+///
+/// `R` is `role(o)`, the competence the object needs (authorial-qualifying-set).
+/// It is a type parameter rather than a field for the same reason it is one on
+/// [`Qualified`]: a pen minted for one competence is not the pen another
+/// operation asks for, and rustc — which has never heard of Het — is what says
+/// so.
+///
+/// # Borrowed, not owned
+///
+/// Authorship is not spent by a single act. An author with standing may
+/// propose, be rejected, and re-propose (reproposal-carries-the-chain) — the
 /// standing did not lapse. This is the deliberate asymmetry with [`Qualified`],
 /// which *is* consumed: a judgment licence is spent on one sentence, because
-/// each dispatch must re-run the filter against a different argument.
+/// each dispatch must re-run the filter against a different argument. The
+/// library's own authorial operations (`Proposal::remedy`, `enact`) therefore
+/// take `&Authorized`. A `ladder!` transition takes one by value, because a
+/// transition consumes its inputs — but nothing was spent, and the same
+/// principal may mint another from the pool on the next rung.
 #[must_use = "an Authorized pen is a licence to author; dropping it discards the standing"]
-pub struct Authorized<'a> {
+pub struct Authorized<'a, R: Role> {
     _seal: (),
     _not_send: PhantomData<*const ()>,
     principal_id: String,
     principal_prov: Prov,
     over: &'a str,
+    _role: PhantomData<R>,
 }
 
-impl<'a> Authorized<'a> {
+impl<R: Role> Authorized<'_, R> {
     /// The authoring principal's id — for the receipt, and for provenance.
     pub fn principal_id(&self) -> &str {
         &self.principal_id
@@ -736,11 +854,33 @@ impl<'a> Authorized<'a> {
     pub fn over(&self) -> &str {
         self.over
     }
+
+    /// `role(o)` — the competence this pen witnesses.
+    pub fn role_name(&self) -> &'static str {
+        R::NAME
+    }
+
+    /// Whether this pen authorizes writing to **this** subject's container.
+    ///
+    /// The authorial mirror of [`Qualified::is_bound_to`]. Standing was settled
+    /// against one container; the only subjects this pen licenses are the ones
+    /// sitting in it. A pen spent elsewhere is a write nobody was authorized to
+    /// make, whatever the ruling said.
+    #[must_use]
+    pub fn authorizes(&self, subject: &dyn Situated) -> bool {
+        self.over == subject.container()
+    }
 }
 
-impl std::fmt::Debug for Authorized<'_> {
+impl<R: Role> std::fmt::Debug for Authorized<'_, R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Authorized({} over `{}`)", self.principal_id, self.over)
+        write!(
+            f,
+            "Authorized<{}>({} over `{}`)",
+            R::NAME,
+            self.principal_id,
+            self.over
+        )
     }
 }
 
