@@ -41,6 +41,7 @@
 //! verbatim blocks until it round-tripped would show up there as a number
 //! going the wrong way.
 
+pub mod governed;
 pub mod rung_ct;
 
 use std::collections::BTreeMap;
@@ -51,7 +52,7 @@ use std::fmt::Write as _;
 // ════════════════════════════════════════════════════════════════════════════
 
 /// What a proposition is, and therefore what it must supply.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Kind {
     /// A claim a machine settles, naming the `theory!` sentence that carries
     /// its body.
@@ -60,9 +61,9 @@ pub enum Kind {
     /// sentence behind it is a promise someone keeps, which is the thing this
     /// encoding exists to abolish. `sentence` is checked against the declared
     /// sentences of the theory that owns it.
-    Decidable { sentence: &'static str },
+    Decidable { sentence: String },
     /// A claim needing an outside. Carries the competence role required.
-    Judgmental { role: &'static str },
+    Judgmental { role: String },
     /// Declares part of the signature — a sort, an operation. Not a claim
     /// about a model, so it has no gate.
     Signature,
@@ -95,16 +96,16 @@ impl Kind {
 #[derive(Clone, Debug)]
 pub struct Prop {
     /// Stable identity. Every reference names this and never a number.
-    pub slug: &'static str,
+    pub slug: String,
     /// The proposition this is a remark on. `None` makes it a root.
-    pub parent: Option<&'static str>,
+    pub parent: Option<String>,
     pub kind: Kind,
     /// A root may number its children flat under a letter (`G1`, `J2`) rather
     /// than by concatenation.
     pub numbering: Option<char>,
     /// The prose, with `{#slug}` where a reference goes. The reference's text
     /// is generated, so a reference cannot display a number that has moved.
-    pub prose: &'static str,
+    pub prose: String,
 }
 
 /// A piece of a document, in order.
@@ -112,7 +113,7 @@ pub struct Prop {
 pub enum Element {
     /// Reproduced exactly, claiming nothing: a preamble, a heading, an
     /// appendix. Counted by [`Doctrine::coverage`].
-    Verbatim(&'static str),
+    Verbatim(String),
     /// A proposition, rendered with its derived number.
     Prop(Prop),
 }
@@ -122,7 +123,7 @@ pub enum Element {
 pub struct Doctrine {
     /// The file this renders to, and the name references from other documents
     /// use to reach it.
-    pub file: &'static str,
+    pub file: String,
     pub elements: Vec<Element>,
 }
 
@@ -148,13 +149,13 @@ impl Doctrine {
     /// with the separator only at the first level. A root declaring a letter
     /// numbers its children flat under it, so a labelled subtree reads
     /// `G1..Gn` and the past-9 ambiguity of concatenation does not arise.
-    pub fn numbers(&self) -> BTreeMap<&'static str, String> {
+    pub fn numbers(&self) -> BTreeMap<String, String> {
         let props: Vec<&Prop> = self.props().collect();
-        let known: Vec<&str> = props.iter().map(|p| p.slug).collect();
+        let known: Vec<&str> = props.iter().map(|p| p.slug.as_str()).collect();
         let mut kids: BTreeMap<&str, Vec<&Prop>> = BTreeMap::new();
         let mut roots: Vec<&Prop> = Vec::new();
         for p in &props {
-            match p.parent {
+            match p.parent.as_deref() {
                 None => roots.push(p),
                 Some(q) if known.contains(&q) => kids.entry(q).or_default().push(p),
                 Some(_) => {}
@@ -173,10 +174,10 @@ fn walk(
     num: &str,
     depth: usize,
     kids: &BTreeMap<&str, Vec<&Prop>>,
-    out: &mut BTreeMap<&'static str, String>,
+    out: &mut BTreeMap<String, String>,
 ) {
-    out.insert(node.slug, num.to_string());
-    let Some(children) = kids.get(node.slug) else {
+    out.insert(node.slug.clone(), num.to_string());
+    let Some(children) = kids.get(node.slug.as_str()) else {
         return;
     };
     if let Some(letter) = node.numbering {
@@ -214,8 +215,7 @@ impl Resolver {
     /// Add every proposition of a doctrine.
     pub fn with_doctrine(mut self, d: &Doctrine) -> Self {
         for (slug, num) in d.numbers() {
-            self.entries
-                .insert(slug.to_string(), (d.file.to_string(), num));
+            self.entries.insert(slug, (d.file.clone(), num));
         }
         self
     }
@@ -269,26 +269,26 @@ impl Doctrine {
         let mut errs = Vec::new();
         let mut seen: Vec<&str> = Vec::new();
         for p in self.props() {
-            if seen.contains(&p.slug) {
+            if seen.contains(&p.slug.as_str()) {
                 errs.push(RenderError::DuplicateSlug {
-                    slug: p.slug.to_string(),
+                    slug: p.slug.clone(),
                 });
             }
-            seen.push(p.slug);
+            seen.push(&p.slug);
         }
         for p in self.props() {
-            if let Some(parent) = p.parent
+            if let Some(parent) = p.parent.as_deref()
                 && self.by_slug(parent).is_none()
             {
                 errs.push(RenderError::DanglingParent {
-                    slug: p.slug.to_string(),
+                    slug: p.slug.clone(),
                     parent: parent.to_string(),
                 });
             }
-            for slug in references(p.prose) {
+            for slug in references(&p.prose) {
                 if r.get(&slug).is_none() {
                     errs.push(RenderError::UnresolvedReference {
-                        in_prop: p.slug.to_string(),
+                        in_prop: p.slug.clone(),
                         slug,
                     });
                 }
@@ -309,7 +309,7 @@ impl Doctrine {
             match element {
                 Element::Verbatim(text) => out.push_str(text),
                 Element::Prop(p) => {
-                    let attrs = match (p.parent, p.numbering) {
+                    let attrs = match (p.parent.as_deref(), p.numbering) {
                         (Some(q), Some(l)) => {
                             format!(" data-parent=\"{q}\" data-numbering=\"{l}\"")
                         }
@@ -317,9 +317,9 @@ impl Doctrine {
                         (None, Some(l)) => format!(" data-numbering=\"{l}\""),
                         (None, None) => String::new(),
                     };
-                    let num = numbers.get(p.slug).map_or("?", String::as_str);
+                    let num = numbers.get(&p.slug).map_or("?", String::as_str);
                     let _ = write!(out, "<a id=\"{}\"{attrs}></a>\n**{num}** ", p.slug);
-                    out.push_str(&expand(p.prose, self.file, r));
+                    out.push_str(&expand(&p.prose, &self.file, r));
                 }
             }
         }

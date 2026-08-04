@@ -8,6 +8,7 @@ description = "rung's normative doctrine, encoded — the source the prose is re
 
 [dependencies]
 rung = { path = "../rung" }
+rung-het = { path = "../rung-het" }
 
 [dev-dependencies]
 rung-std = { path = "../rung-std" }

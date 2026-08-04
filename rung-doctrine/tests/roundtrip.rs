@@ -128,7 +128,7 @@ fn every_derived_number_matches_the_document() {
 
     let mut wrong = Vec::new();
     for (slug, num) in &derived {
-        match on_disk.get(*slug) {
+        match on_disk.get(slug.as_str()) {
             Some(shown) if shown == num => {}
             Some(shown) => wrong.push(format!("  #{slug}: derives {num}, document shows {shown}")),
             None => wrong.push(format!(
@@ -231,9 +231,9 @@ fn every_decidable_proposition_names_a_declared_sentence() {
 
     let mut checked = 0;
     for p in rung_ct::doctrine().props() {
-        if let Kind::Decidable { sentence } = p.kind {
+        if let Kind::Decidable { sentence } = &p.kind {
             assert!(
-                declared.contains(&sentence),
+                declared.contains(&sentence.as_str()),
                 "#{} names sentence `{sentence}`, which no theory declares. \
                  Declared: {declared:?}",
                 p.slug
@@ -258,7 +258,7 @@ fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
     use rung_doctrine::Kind;
     let mut n = 0;
     for p in rung_ct::doctrine().props() {
-        if let Kind::Judgmental { role } = p.kind {
+        if let Kind::Judgmental { role } = &p.kind {
             assert_eq!(role, "category-theorist", "#{}", p.slug);
             n += 1;
         }
@@ -272,7 +272,7 @@ fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
 fn only_claims_carry_a_gate() {
     use rung_doctrine::Kind;
     for p in rung_ct::doctrine().props() {
-        match p.kind {
+        match &p.kind {
             Kind::Signature | Kind::Rationale => assert!(!p.kind.is_a_claim(), "#{}", p.slug),
             Kind::Decidable { .. } | Kind::Judgmental { .. } => {
                 assert!(p.kind.is_a_claim(), "#{}", p.slug)

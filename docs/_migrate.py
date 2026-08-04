@@ -88,18 +88,18 @@ def migrate(path):
     out = []
     for e in elements:
         if e[0] == "verbatim":
-            out.append(f"        Element::Verbatim({rust_str(chr(10).join(e[1]) + chr(10))}),")
+            out.append(f"        Element::Verbatim({rust_str(chr(10).join(e[1]) + chr(10))}.into()),")
         else:
             _, slug, parent, letter, body = e
             prose = "\n".join(body) + "\n"
-            parent_r = f'Some("{parent}")' if parent else "None"
+            parent_r = f'Some("{parent}".into())' if parent else "None"
             letter_r = f"Some('{letter}')" if letter else "None"
             out.append("        Element::Prop(Prop {")
-            out.append(f'            slug: "{slug}",')
+            out.append(f'            slug: "{slug}".into(),')
             out.append(f"            parent: {parent_r},")
             out.append("            kind: Kind::Rationale,")
             out.append(f"            numbering: {letter_r},")
-            out.append(f"            prose: {rust_str(deref(prose))},")
+            out.append(f"            prose: {rust_str(deref(prose))}.into(),")
             out.append("        }),")
 
     n_props = sum(1 for e in elements if e[0] == "prop")
@@ -122,7 +122,7 @@ use crate::{{Doctrine, Element, Kind, Prop}};
 /// The categorical account of what a `ladder` declaration is.
 pub fn doctrine() -> Doctrine {{
     Doctrine {{
-        file: "{path.name}",
+        file: "{path.name}".into(),
         elements: vec![
 {body}
         ],
