@@ -1,0 +1,232 @@
+//! **The bet.** Render the encoded doctrine and compare it, byte for byte, to
+//! the document checked into `docs/`.
+//!
+//! Everything downstream rests on this one test. If the encoding is lossless
+//! the markdown can stop being the source of truth and become a build artifact;
+//! if it is not, nothing else is safe to attempt. It is deliberately the
+//! harshest available check — not "the propositions survive", not "the
+//! references resolve", but *the file is the same file*.
+//!
+//! It also fails cheaply, which is the point of doing it first.
+
+use rung_doctrine::{Element, Resolver, rung_ct};
+use std::path::PathBuf;
+
+fn docs() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("rung-doctrine sits in the workspace")
+        .join("docs")
+}
+
+/// Numbers for slugs that live in documents not yet encoded.
+///
+/// `rung-ct-props.md` refers into `rung-het-props.md` and `rung-props.md`,
+/// which are still prose. Their numbers are read out of them — the same
+/// derivation, applied to a document that has not migrated yet. As each is
+/// encoded this shrinks, and when the last one lands it is empty.
+fn resolver() -> Resolver {
+    let mut r = Resolver::new().with_doctrine(&rung_ct::doctrine());
+    for file in ["rung-props.md", "rung-het-props.md"] {
+        let text = std::fs::read_to_string(docs().join(file)).expect("a governing document");
+        for (slug, number) in numbers_of(&text) {
+            r.with_external(&slug, file, &number);
+        }
+    }
+    r
+}
+
+/// Read `(slug, number)` straight off a prose document. Migration scaffolding:
+/// it reads the number a document *displays* rather than deriving it, which is
+/// exactly the thing being abolished — and is why this function disappears when
+/// the last document is encoded.
+fn numbers_of(text: &str) -> Vec<(String, String)> {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut out = Vec::new();
+    for (i, line) in lines.iter().enumerate() {
+        let Some(rest) = line.strip_prefix("<a id=\"") else {
+            continue;
+        };
+        let Some((slug, _)) = rest.split_once('"') else {
+            continue;
+        };
+        let Some(next) = lines.get(i + 1) else {
+            continue;
+        };
+        let Some(rest) = next.strip_prefix("**") else {
+            continue;
+        };
+        let Some((num, _)) = rest.split_once("**") else {
+            continue;
+        };
+        out.push((slug.to_string(), num.to_string()));
+    }
+    out
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+
+/// The whole bet, in one assertion.
+#[test]
+fn the_encoded_doctrine_renders_the_document_byte_for_byte() {
+    let d = rung_ct::doctrine();
+    let r = resolver();
+
+    let faults = d.check(&r);
+    assert!(
+        faults.is_empty(),
+        "the encoding does not resolve:\n{}",
+        faults
+            .iter()
+            .map(|e| format!("  {e}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+
+    let rendered = d.render(&r).expect("checked above");
+    let on_disk = std::fs::read_to_string(docs().join("rung-ct-props.md")).expect("the document");
+
+    if rendered != on_disk {
+        // A byte diff over 731 lines is unreadable; report the first divergence
+        // with enough context to act on.
+        let a: Vec<&str> = rendered.lines().collect();
+        let b: Vec<&str> = on_disk.lines().collect();
+        let at = a
+            .iter()
+            .zip(b.iter())
+            .position(|(x, y)| x != y)
+            .unwrap_or(a.len().min(b.len()));
+        panic!(
+            "rendered output differs from docs/rung-ct-props.md\n\
+             first divergence at line {}\n\
+             rendered: {:?}\n\
+             on disk:  {:?}\n\
+             ({} lines rendered, {} on disk)",
+            at + 1,
+            a.get(at),
+            b.get(at),
+            a.len(),
+            b.len()
+        );
+    }
+}
+
+/// Numbers are **derived**, and the derivation agrees with what the document
+/// displays for every proposition in it.
+///
+/// The round trip above would catch a wrong number too, but this says which
+/// one, which is the difference between a failing test and a usable one.
+#[test]
+fn every_derived_number_matches_the_document() {
+    let d = rung_ct::doctrine();
+    let derived = d.numbers();
+    let on_disk: std::collections::BTreeMap<String, String> = numbers_of(
+        &std::fs::read_to_string(docs().join("rung-ct-props.md")).expect("the document"),
+    )
+    .into_iter()
+    .collect();
+
+    let mut wrong = Vec::new();
+    for (slug, num) in &derived {
+        match on_disk.get(*slug) {
+            Some(shown) if shown == num => {}
+            Some(shown) => wrong.push(format!("  #{slug}: derives {num}, document shows {shown}")),
+            None => wrong.push(format!(
+                "  #{slug}: derived {num}, absent from the document"
+            )),
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "{} number(s) disagree:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+    println!("\n  {} numbers, all derived\n", derived.len());
+}
+
+/// No proposition stores a number, and no prose contains a rendered link.
+///
+/// This is what makes renumbering impossible to get wrong rather than merely
+/// checked: there is no number in the source to go stale, and no link text to
+/// disagree with its target. A migration that left `[1.31](#...)` in a body
+/// would round-trip perfectly and reintroduce exactly the problem being
+/// removed — so it is asserted separately.
+#[test]
+fn the_source_holds_no_number_and_no_rendered_link() {
+    let d = rung_ct::doctrine();
+    let mut offenders = Vec::new();
+    for p in d.props() {
+        if p.prose.contains("](#") || p.prose.contains("-props.md#") {
+            offenders.push(format!("  #{}: prose holds a rendered link", p.slug));
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "{} proposition(s) hold a link that should be a reference:\n{}",
+        offenders.len(),
+        offenders.join("\n")
+    );
+}
+
+/// How much of the document is structured, as against carried verbatim.
+///
+/// Reported rather than asserted at a threshold: the number's job is to be
+/// *visible* while the migration proceeds. A round trip achieved by widening
+/// the verbatim blocks would show up here as this going down, which a green
+/// tick would not reveal.
+#[test]
+fn coverage_is_reported() {
+    let d = rung_ct::doctrine();
+    let c = d.coverage();
+    println!(
+        "\n  rung-ct-props.md — {} propositions, {:.1}% structured\n  \
+         ({} bytes structured, {} bytes verbatim)\n",
+        c.props,
+        c.fraction() * 100.0,
+        c.structured_bytes,
+        c.verbatim_bytes
+    );
+    assert!(c.props > 100, "the propositions did not survive migration");
+}
+
+/// Every proposition arrived as `Rationale`, and that is the absence of a
+/// classification rather than a claim that they are all arguments.
+///
+/// Pinned so the triage — the actual work this encoding exists to enable — is
+/// visible as it happens rather than being something a reader must diff for.
+#[test]
+fn the_triage_has_not_begun() {
+    use rung_doctrine::Kind;
+    let d = rung_ct::doctrine();
+    let mut by_kind = std::collections::BTreeMap::new();
+    for p in d.props() {
+        *by_kind.entry(p.kind.name()).or_insert(0usize) += 1;
+    }
+    println!("\n  kinds: {by_kind:?}\n");
+    assert_eq!(
+        by_kind.get("rationale").copied().unwrap_or(0),
+        d.props().count(),
+        "the triage has started; update this test to record where it has got to"
+    );
+    assert!(d.props().all(|p| !p.kind.is_a_claim()));
+    assert!(matches!(
+        d.props().next().map(|p| p.kind),
+        Some(Kind::Rationale)
+    ));
+}
+
+/// The verbatim escape hatch carries what a document has beyond propositions —
+/// title, preamble, section headings, the appendix — and nothing else.
+#[test]
+fn verbatim_blocks_carry_only_non_propositional_matter() {
+    let d = rung_ct::doctrine();
+    for e in &d.elements {
+        if let Element::Verbatim(t) = e {
+            assert!(
+                !t.contains("\n**1."),
+                "a verbatim block contains what looks like a numbered proposition"
+            );
+        }
+    }
+}
