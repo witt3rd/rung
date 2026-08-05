@@ -1,4 +1,4 @@
-# rung ⚒️
+# rung 🪜
 
 A type ladder where the state machine *is* the type system.
 
