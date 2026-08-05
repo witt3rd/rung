@@ -142,6 +142,27 @@ impl Doctrine {
             .collect()
     }
 
+    /// Propositions owed a proof, with what is owed.
+    ///
+    /// The work queue, as a list. An audit that reports this is telling an
+    /// author what to write.
+    pub fn owed(&self) -> Vec<(String, String)> {
+        self.props()
+            .filter_map(|p| match &p.kind {
+                Kind::Owed { why } => Some((p.slug.clone(), why.clone())),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Propositions marked `Owed` that do not say what is owed.
+    pub fn owed_without_a_reason(&self) -> Vec<String> {
+        self.props()
+            .filter(|p| matches!(&p.kind, Kind::Owed { why } if why.is_empty()))
+            .map(|p| p.slug.clone())
+            .collect()
+    }
+
     /// Propositions marked `Judgmental` with no role named.
     pub fn judgmental_without_a_role(&self) -> Vec<String> {
         self.props()
@@ -174,6 +195,11 @@ theory!(doctrine for Doctrine {
     decidable every_judgmental_names_a_role = |d: &Doctrine|
         d.judgmental_without_a_role().is_empty();
 
+    // An owed proof says what is owed. "Nothing establishes this" is not a
+    // work item; "the conditional gate is unimplemented" is.
+    decidable every_owed_proof_says_what_is_owed = |d: &Doctrine|
+        d.owed_without_a_reason().is_empty();
+
     // Whether the sentence / signature / rationale partition is adequate at
     // all. A claim about the classification, so applying it cannot settle it.
     judgmental partition_is_adequate: Editor;
@@ -193,7 +219,7 @@ theory!(proposition for Prop {
     // Signature and rationale carry no gate, because neither is a claim.
     decidable only_claims_carry_a_gate = |p: &Prop| match &p.kind {
         Kind::Signature | Kind::Rationale => !p.kind.is_a_claim(),
-        Kind::Decidable { .. } | Kind::Judgmental { .. } => p.kind.is_a_claim(),
+        Kind::Decidable { .. } | Kind::Judgmental { .. } | Kind::Owed { .. } => p.kind.is_a_claim(),
     };
 
     // Whether this is a claim about a model at all. Not computable: it is a

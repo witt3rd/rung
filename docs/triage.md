@@ -17,10 +17,22 @@ anyone is of it. It is a claim about *what would settle it*:
 
 | kind | settled by | count |
 |---|---|---:|
-| **decidable** | a proof — a test that fails when it is violated | **108** |
-| **rationale** | nothing — it argues, or records a limit | **159** |
+| **decidable** | a proof — a test that fails when it is violated | **113** |
+| **rationale** | nothing — it argues, or records a limit | **151** |
 | **signature** | nothing — it declares vocabulary | **64** |
 | **judgmental** | a principal; nothing else can | **49** |
+| **owed** | decidable in principle; nothing establishes it **yet** | **3** |
+
+Per document:
+
+| | n | decidable | signature | rationale | judgmental | owed |
+|---|---:|---:|---:|---:|---:|---:|
+| `rung-props.md` | 70 | **58 (83%)** | 0 | 9 | **0** | 3 |
+| `rung-ct-props.md` | 108 | 19 | 32 | 35 | 22 | 0 |
+| `rung-het-props.md` | 202 | 38 | 32 | 105 | 27 | 0 |
+
+The macro specification is 83% proven with **no judgmental propositions at
+all**, which is what a document about an artifact should look like.
 
 ### The criterion, and the redo it forced
 
@@ -260,3 +272,63 @@ with a definition and then argues, or opens with an argument and then declares.
 Which is a reason the section above is the right shape: the classification is a
 **proposal**, and 50 propositions are now marked as claims a mathematician could
 refute by someone who is not one.
+
+
+---
+
+## 10 · Non-guarantees are provable, and `owed` is not `judgmental`
+
+Two things came out of writing `rung/tests/non_guarantees.rs`.
+
+### A limit is proven by exercising it
+
+I had filed all fifteen of `rung-props.md` §5 as rationale, reasoning that a
+claim something is *not* enforced has no satisfying model. Wrong.
+
+**A non-guarantee is proven by a test that exercises the gap.** `G4` is
+`#[must_use]` and escapable, so the proof is a test that escapes it three ways
+under `deny(unused_must_use)`. `G8` catches identical-token stalls but not
+general non-progress, so the proof is a hundred rounds of guard-satisfying
+motion that converges on nothing. A body may be wrong, so the proof is a ladder
+whose `doubled` transition subtracts.
+
+These fail when the system gets **stronger** — the opposite direction from every
+other test in the suite, and the only place where a green run is the interesting
+outcome. That matters in both directions: a stated limit nothing checks is
+either quietly closed while the document goes on disclaiming it, or built upon
+by someone it closes underneath.
+
+Six §5 propositions moved to decidable this way; a seventh already had a test
+nobody had cited.
+
+**One of them taught us something.** Clippy refuses `mem::forget` on a token,
+because the token implements no `Drop` — so forgetting it is identical to
+dropping it. There is no destructor to skip, because a rung does nothing on the
+way out. That is §5.4 stated from the other side, and it was discovered by
+writing the test rather than by reading the proposition.
+
+### `owed` is the work queue
+
+Three propositions are decidable in principle with nothing establishing them.
+Filing those as `judgmental` would hide work behind a word meaning something
+else, and route it to a judge who cannot help:
+
+| proposition | why owed |
+|---|---|
+| `cross-crate-provenance` | needs a fixture crate — the claim is about a boundary |
+| `one-gate-unimplemented` | **unimplemented** — `#[conditional(..)]` is a refusal, not an encoding |
+| `outward-conditions-remaining` | **unimplemented** — the authorial containment conjunct is left to the body |
+
+Two of those are not waiting on anyone's judgment. They are waiting on code that
+does not exist.
+
+That distinction is the one that makes the doctrine capable of *driving*
+anything. A judgmental proposition asks a principal a question. An **owed** one
+tells an author what to build — and an audit that reports the queue is the
+doctrine doing work rather than describing it.
+
+The count is 3 only because `rung-props.md` was the document worked through.
+`rung-het-props.md`'s 105 rationale certainly hide more, and the interesting
+subset is the unimplemented one: the conditional gate, panels, HetOpt. Nothing
+there is undecidable. It is unbuilt, which is a different word with a different
+remedy.

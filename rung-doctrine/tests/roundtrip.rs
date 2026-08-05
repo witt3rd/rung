@@ -237,10 +237,11 @@ fn the_corpus_triage_is_recorded() {
         }
     }
     println!("\n  corpus triage: {by_kind:?}\n");
-    assert_eq!(by_kind.get("decidable").copied(), Some(108));
-    assert_eq!(by_kind.get("rationale").copied(), Some(159));
+    assert_eq!(by_kind.get("decidable").copied(), Some(113));
+    assert_eq!(by_kind.get("rationale").copied(), Some(151));
     assert_eq!(by_kind.get("signature").copied(), Some(64));
     assert_eq!(by_kind.get("judgmental").copied(), Some(49));
+    assert_eq!(by_kind.get("owed").copied(), Some(3));
     assert_eq!(by_kind.values().sum::<usize>(), 380);
 }
 
@@ -392,7 +393,7 @@ fn only_claims_carry_a_gate() {
     {
         match &p.kind {
             Kind::Signature | Kind::Rationale => assert!(!p.kind.is_a_claim(), "#{}", p.slug),
-            Kind::Decidable { .. } | Kind::Judgmental { .. } => {
+            Kind::Decidable { .. } | Kind::Judgmental { .. } | Kind::Owed { .. } => {
                 assert!(p.kind.is_a_claim(), "#{}", p.slug)
             }
         }
@@ -452,5 +453,30 @@ fn no_document_depends_on_a_number_read_off_a_page() {
     assert_eq!(
         on_disk, encoded,
         "a governing document exists that nothing generates"
+    );
+}
+
+/// **The work queue.**
+///
+/// A proposition decidable in principle with nothing establishing it is
+/// `Owed`, not `Judgmental`. The distinction is what keeps a judge from being
+/// handed work no judge can do: `one-gate-unimplemented` is not waiting on a
+/// mathematician, it is waiting on `#[conditional]`.
+///
+/// This prints the queue. An audit that reports it is telling an author what
+/// to write — which is the only form in which the doctrine drives the
+/// implementation rather than describing it.
+#[test]
+fn the_owed_proofs_are_the_work_queue() {
+    let mut queue = Vec::new();
+    for d in &all() {
+        for (slug, why) in d.owed() {
+            queue.push(format!("  #{slug}\n      {why}"));
+        }
+    }
+    println!("\n  owed ({}):\n{}\n", queue.len(), queue.join("\n"));
+    assert!(
+        !queue.is_empty(),
+        "an empty queue would mean every decidable proposition is proven"
     );
 }
