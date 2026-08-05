@@ -10,7 +10,7 @@ imposes no obligation.
 > a suspension outcome and a resumption edge — is `G16`, with
 > `rung_std::driver::Park` holding suspended runs. **Item 2** — the human and
 > the outside expert as principals — is half done: `rung-driver` builds a pool
-> from `docs/population.yaml` and reaches models, but no judgment has been
+> from `population.yaml` and reaches models, but no judgment has been
 > dispatched, because what provenance a model carries is
 > [Q14](../questions/open/q14-model-principal-provenance.md), open.
 >

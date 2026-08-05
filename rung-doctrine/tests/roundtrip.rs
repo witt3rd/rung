@@ -843,3 +843,93 @@ fn no_proof_names_an_ignored_test() {
         parked.join("\n")
     );
 }
+
+/// **Every markdown link in the repository's own documents resolves.**
+///
+/// Nothing checked this until now. `_props.py check` validates *proposition*
+/// references and `render --check` validates generation; neither walks a link.
+///
+/// The gap shipped: moving `docs/questions/` to `questions/` left five links in
+/// the generated props documents pointing at a directory that no longer
+/// existed. Every gate passed. It was found by a throwaway script written for
+/// an unrelated docs cleanup, which is not a system for finding anything.
+///
+/// Anchors are not followed — only that the file at the other end is there.
+#[test]
+fn every_markdown_link_in_the_repository_resolves() {
+    let r = root();
+    let mut files: Vec<std::path::PathBuf> = vec![r.join("README.md")];
+    for dir in ["docs", "questions", "judgments", "rung/examples"] {
+        collect_md(&r.join(dir), &mut files);
+    }
+
+    let mut broken = Vec::new();
+    for f in &files {
+        let Ok(text) = std::fs::read_to_string(f) else {
+            continue;
+        };
+        let parent = f.parent().expect("a file has a parent");
+        for target in links(&text) {
+            if !parent.join(&target).exists() {
+                broken.push(format!(
+                    "  {} -> {target}",
+                    f.strip_prefix(&r).unwrap_or(f).display()
+                ));
+            }
+        }
+    }
+    assert!(
+        broken.is_empty(),
+        "{} broken link(s):\n{}",
+        broken.len(),
+        broken.join("\n")
+    );
+    println!("\n  {} documents, every link resolves\n", files.len());
+}
+
+fn collect_md(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            collect_md(&p, out);
+        } else if p.extension().is_some_and(|x| x == "md") {
+            out.push(p);
+        }
+    }
+}
+
+/// Relative link targets that name a file. External URLs and bare anchors are
+/// skipped — there is nothing local to check.
+fn links(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    while i + 1 < bytes.len() {
+        if bytes[i] != b']' || bytes[i + 1] != b'(' {
+            i += 1;
+            continue;
+        }
+        let Some(close) = text[i + 2..].find(')').map(|o| i + 2 + o) else {
+            break;
+        };
+        let target = &text[i + 2..close];
+        i = close + 1;
+        let path = target.split('#').next().unwrap_or("");
+        if path.is_empty() || path.contains("://") || path.starts_with('/') {
+            continue;
+        }
+        // Only the kinds this repository actually links to; a bare word in
+        // parentheses after a bracket is prose, not a link.
+        if [".md", ".rs", ".yaml", ".py", ".toml", ".stderr"]
+            .iter()
+            .any(|e| path.ends_with(e))
+            || path.ends_with('/')
+        {
+            out.push(path.to_string());
+        }
+    }
+    out
+}

@@ -43,7 +43,7 @@ judgment records            0
 
 **What exists and works.** The doctrine is data; four documents are generated
 from it and CI refuses a hand edit. The audit arm runs and attributes results
-per proposition. `rung-driver` builds a `Pool` from `docs/population.yaml`,
+per proposition. `rung-driver` builds a `Pool` from `population.yaml`,
 filters by capability, and reaches models through `rung_std::llm`. `judgments/`
 has a schema whose every check is exercised against a bad record.
 `rung_std::driver::Park` holds suspended runs.
@@ -70,7 +70,7 @@ a model principal carries. Until it is settled:
 The second is the dangerous reading. It would show up as 47 propositions
 settling smoothly and mean nothing.
 
-`docs/population.yaml` declares empty `authored` for every model, which *is* the
+`population.yaml` declares empty `authored` for every model, which *is* the
 per-invocation reading. A test pins the placeholder so it cannot ship quietly,
 and names itself as the thing to change when the ruling lands.
 

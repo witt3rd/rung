@@ -116,9 +116,9 @@ fn population() -> Population {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join("docs/population.yaml"),
+            .join("population.yaml"),
     )
-    .expect("docs/population.yaml");
+    .expect("population.yaml");
     Population::from_yaml(&text).expect("the population parses")
 }
 
@@ -239,7 +239,7 @@ fn the_population_names_credentials_and_never_holds_one() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join("docs/population.yaml"),
+            .join("population.yaml"),
     )
     .unwrap();
 

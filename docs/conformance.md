@@ -609,7 +609,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 173 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 174 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -649,12 +649,13 @@ look shorter than it is.
 - `the_collection_is_empty_and_says_so`
 - `the_tier_records_whether_a_ruling_can_be_audited`
 
-**`rung-doctrine/tests/roundtrip.rs`** — 21 unclaimed
+**`rung-doctrine/tests/roundtrip.rs`** — 22 unclaimed
 
 - `coverage_is_reported`
 - `every_derived_number_matches_the_document`
 - `every_encoded_doctrine_renders_its_document_byte_for_byte`
 - `every_judgmental_proposition_names_the_role_that_could_settle_it`
+- `every_markdown_link_in_the_repository_resolves`
 - `every_proposition_in_the_corpus_carries_a_kind`
 - `hand_written_counts_in_prose_match_the_doctrine`
 - `mechanism_prose_cites_by_slug_and_every_citation_resolves`
