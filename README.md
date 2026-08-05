@@ -331,12 +331,11 @@ in notes and not in props is not a claim rung makes.
 [`docs/conformance.md`](docs/conformance.md) is **generated, never written**. It
 joins every proposition in all three documents to where it is enforced — and,
 more usefully, records where it is *not*. Verdicts are `enforced`,
-`expressible`, `deferred`, `collides`, `out-of-scope`, and `unclassified`.
+`expressible`, `parked`, and `out-of-scope`.
 
 The join is deliberately **not** one-to-one, in either direction: a proposition
-may have no test, and a guarantee may have no proposition. `unclassified` exists
-so an unproven claim reads as a worklist entry rather than a clean bill, and
-`collides` — a claim that contradicts a guarantee — must stay empty.
+may have no test, and a guarantee may have no proposition. `parked` exists so an
+unproven claim reads as a worklist entry rather than a clean bill.
 
 ### What runs in CI
 
@@ -345,7 +344,8 @@ so an unproven claim reads as a worklist entry rather than a clean bill, and
 | `cargo test --workspace` | a guarantee that stopped holding |
 | `docs/_props.py check` | a duplicate slug, a dangling reference, a stale number, a retired term |
 | `docs/_props.py cited` | a Rust comment citing a proposition that no longer exists |
-| `docs/_ledger.py check` | an unclassified-away proposition, a hand-edited ledger, an `enforced` row whose test does not exist |
+| `docs/_ledger.py check` | a hand-edited ledger, an `enforced` row whose test does not exist |
+| `cargo run -p rung-doctrine --bin render -- --check` | a hand-edited `*-props.md` — they are generated |
 
 `_ledger.py check` regenerates the ledger and diffs it against disk, so
 `conformance.md` cannot be edited by hand and a new proposition cannot be added
@@ -364,6 +364,93 @@ without receiving a verdict.
   ([6.4](docs/rung-props.md#a-refusal-test-that-cannot-fail)). The way to
   establish that a case *can* fail is to make the guarded thing legal and watch
   it go red.
+
+## Bootstrapping
+
+The `*-props.md` files are generated from [`rung-doctrine/`](rung-doctrine/), so
+the doctrine is data. That is only useful because of what the data says about
+each proposition: **what kind of authority could settle it.**
+
+### Five kinds, and they are not a status field
+
+| kind | discharged by | count |
+|---|---|---:|
+| **decidable** | a proof — a test that fails when the proposition is violated | 113 |
+| **judgmental** | a principal, **disjoint** from what it judges | 49 |
+| **owed** | an author, with **standing** over it | 3 |
+| **signature** | nobody — it declares vocabulary | 64 |
+| **rationale** | nobody — it argues, or records a limit | 151 |
+
+The two middle rows are the point. They route to **structurally exclusive**
+principals: judgment requires `π(p) ∩ π(a) = ∅` (*you did not write this*),
+authorship requires `standing(p, M)` (*you have authority over this*). Opposite
+conjuncts of one filter, so no principal is both for the same thing.
+
+Which means the classification is not a taxonomy someone invented. It falls out
+of **who is permitted to act**, and a proposition's kind is therefore also its
+routing.
+
+### `owed` is "nobody yet"; `judgmental` is "nobody ever"
+
+A status field can say *not implemented*. What it cannot say is that the two go
+to different people with different powers.
+
+```text
+one-gate-unimplemented   →  #[conditional(..)] is a parse-time refusal,
+                            not an encoding
+```
+
+That is not waiting on a mathematician. It is waiting on code that does not
+exist. Filing it `judgmental` would spend the scarcest resource in the system —
+a qualified outside — on work no judge can do.
+
+So: **a judgmental proposition asks a principal a question; an owed one tells an
+author what to build.** A test prints the queue.
+
+### A limit is proven by exercising it
+
+The non-guarantees ([§5](docs/rung-props.md#non-guarantees)) look unprovable — a
+claim that something is *not* enforced has no satisfying model. It has a proof
+anyway: a test that **exercises the gap**.
+
+`G4` is `#[must_use]` and escapable, so the proof escapes it three ways under
+`deny(unused_must_use)`. `G8` catches identical-token stalls but not general
+non-progress, so the proof is a hundred guard-satisfying rounds converging on
+nothing.
+
+These fail when the system gets **stronger** — the only tests here for which a
+red run is good news. That matters in both directions: a specification that
+*understates* its guarantees is as wrong as one that overstates them, and a limit
+someone builds on can close underneath them silently.
+
+### What "bootstrap" means, and does not
+
+Not that the doctrine is *stored* in rung's own format. That is
+self-**describing**, and it is what the encoding above achieves.
+
+Bootstrapping is self-**hosting**: rung's own development running through
+[the audit-rectify pass](docs/rung-het-props.md#the-pass). A real audit finding
+a real defect, an author proposing a fix, a judge disposing of it — with each
+step requiring someone who could not have made the previous one.
+
+**That has not happened yet.** Zero judgments have been settled and zero owed
+items discharged. The mechanism exists — [`rung-driver`](rung-driver/) builds a
+pool from [`docs/population.yaml`](docs/population.yaml), the pass is a ladder,
+edits are typed and verified against the source an author actually wrote — and
+it has never run on anything that mattered.
+
+Two things stand in the way, and only one is work:
+
+- **[Q14](docs/questions/open/q14-model-principal-provenance.md)** — what
+  provenance a model principal carries. Until it is ruled on, a model judge
+  either qualifies for nothing or qualifies vacuously.
+- **[Q15](docs/questions/open/q15-does-the-pass-suspend.md)** — the pass
+  disposes through a *branching* transition, which has no residual channel, so
+  it cannot wait for a question it raised.
+
+The honest measure of this project is not 380 propositions encoded or 239 tests
+passing. It is **how many defects in rung were found and fixed by the loop
+rather than by a person**. That number is zero.
 
 ## Further reading
 
