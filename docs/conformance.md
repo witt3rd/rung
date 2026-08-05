@@ -599,3 +599,241 @@ unsettled. Where it is blank, nobody has written one down.
 fail is another. A test that cannot fail is not a proof, and the mutation that
 demonstrates one is recorded in prose rather than counted here. Nor does anything
 check that a cited proof is *apt* for the proposition citing it.
+
+---
+
+## The gap, both ways
+
+The join is not onto in either direction, and each direction is a queue.
+
+| direction | meaning | tells an author to | count |
+|---|---|---|---:|
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 161 |
+
+The second is the sharper one. A test guarding a real property the documents never
+state is a guarantee this project makes and cannot account for — and one day someone
+reads it as incidental and deletes it, because nothing says otherwise.
+
+Not filtered by crate: some of these test the tooling and will never cite a
+proposition. Excluding them by name would be the quiet narrowing that makes a queue
+look shorter than it is.
+
+**`rung-doctrine/tests/governed.rs`** — 9 unclaimed
+
+- `a_proposition_cannot_become_its_own_parent`
+- `an_edit_to_the_real_doctrine_shows_up_where_it_should_and_nowhere_else`
+- `an_editor_that_does_more_than_the_edit_is_caught`
+- `every_sentence_can_fail`
+- `only_structural_edits_renumber`
+- `reclassifying_refuses_a_gate_with_no_filler`
+- `reparenting_renumbers_with_no_number_to_update`
+- `retiring_is_refused_when_it_would_break_the_document`
+- `the_real_doctrine_satisfies_every_decidable_sentence`
+
+**`rung-doctrine/tests/roundtrip.rs`** — 19 unclaimed
+
+- `coverage_is_reported`
+- `every_derived_number_matches_the_document`
+- `every_encoded_doctrine_renders_its_document_byte_for_byte`
+- `every_judgmental_proposition_names_the_role_that_could_settle_it`
+- `every_proposition_in_the_corpus_carries_a_kind`
+- `hand_written_counts_in_prose_match_the_doctrine`
+- `mechanism_prose_cites_by_slug_and_every_citation_resolves`
+- `no_document_depends_on_a_number_read_off_a_page`
+- `only_claims_carry_a_gate`
+- `proofs_that_claim_no_proposition_are_counted`
+- `the_corpus_triage_is_recorded`
+- `the_curated_mechanism_prose_survived`
+- `the_owed_proofs_are_the_work_queue`
+- `the_proven_fraction_of_the_decidable_fragment_is_reported`
+- `the_record_lists_every_proposition_once`
+- `the_source_holds_no_number_and_no_rendered_link`
+- `the_test_scan_includes_this_very_test`
+- `the_triage_is_recorded`
+- `verbatim_blocks_carry_only_non_propositional_matter`
+
+**`rung-driver/tests/oracle.rs`** — 16 unclaimed
+
+- `a_bare_failure_still_carries_a_reason`
+- `a_missing_credential_is_unreachable_and_not_a_verdict`
+- `an_out_of_band_principal_is_not_reachable_by_a_model`
+- `an_undeclared_provider_is_caught_before_dispatch`
+- `declining_to_rule_is_not_a_claim_failing`
+- `each_principal_resolves_to_the_provider_that_serves_it`
+- `hedging_is_not_a_verdict`
+- `leading_whitespace_is_tolerated`
+- `provider_settings_are_per_provider`
+- `the_author_may_write_the_source_and_not_the_rendering`
+- `the_declared_judges_and_authors_are_disjoint_sets`
+- `the_model_principals_provenance_is_still_a_placeholder`
+- `the_population_names_credentials_and_never_holds_one`
+- `the_repositorys_population_parses_and_is_well_formed`
+- `the_three_declared_forms_are_read`
+- `trailing_prose_after_the_first_line_is_ignored`
+
+**`rung-driver/tests/population.rs`** — 12 unclaimed
+
+- `a_capability_no_role_requires_is_reported`
+- `a_capable_principal_is_still_refused_for_what_it_authored`
+- `a_duplicate_declaration_is_reported`
+- `a_population_round_trips_through_yaml`
+- `a_role_is_filled_by_whoever_declares_what_it_requires`
+- `a_role_requiring_nothing_admits_everyone`
+- `an_undeclared_role_admits_nobody`
+- `an_unwired_oracle_defers_rather_than_agreeing`
+- `backing_decides_nothing`
+- `capability_alone_does_not_authorize_a_write`
+- `kind_decides_nothing`
+- `the_driver_offers_no_way_to_prefer_one_qualifying_principal`
+
+**`rung-het/tests/acceptance.rs`** — 4 unclaimed
+
+- `a_judge_may_not_dispose_on_a_proposal_it_authored`
+- `an_author_may_dispute_a_verdict_without_first_authoring_a_remedy`
+- `het_places_no_bound_on_re_entry`
+- `reject_remedy_is_non_terminal_and_the_reason_reaches_the_author`
+
+**`rung-het/tests/gate_law.rs`** — 19 unclaimed
+
+- `a_judgment_rendered_by_another_principal_is_refused`
+- `a_judgmental_verdict_may_be_non_conforming`
+- `a_settled_receipt_carries_the_judges_provenance`
+- `an_empty_pool_qualifies_no_one`
+- `an_exhausted_pool_reports_exhaustion_not_the_last_failure`
+- `competence_is_filtered_before_provenance_matters`
+- `decidable_sentence_reports_its_own_failure_reason`
+- `decidable_sentence_settles_without_any_principal`
+- `disjointness_and_containment_are_different_conditions`
+- `empty_provenance_overlaps_nothing`
+- `every_sentence_carries_a_gate_from_the_declared_vocabulary`
+- `judgmental_sentence_records_the_principal_that_settled_it`
+- `p0_admits_a_judge_with_disjoint_provenance`
+- `p0_is_not_vacuous_when_the_model_claims_no_author`
+- `p0_refuses_a_judge_who_authored_the_material`
+- `p0_refuses_on_partial_overlap_not_only_identity`
+- `qualification_walks_the_pool_and_takes_any_survivor`
+- `the_theory_exposes_its_sentences_with_their_gates`
+- `the_verdict_comes_from_the_oracle_and_not_from_the_caller`
+
+**`rung-het/tests/panel.rs`** — 3 unclaimed
+
+- `a_judgmental_arrow_returns_a_set_and_not_a_value`
+- `a_panel_cannot_weaken_the_opponent`
+- `a_panel_is_the_pass_with_more_than_one_judge`
+
+**`rung-het/tests/pass_ladder.rs`** — 4 unclaimed
+
+- `a_token_minted_against_the_model_is_refused_at_dispose`
+- `calling_dispose_without_a_token_is_e0061`
+- `calling_propose_without_a_pen_is_e0061`
+- `proposing_carries_classification_only`
+
+**`rung-het/tests/questions_of_rung.rs`** — 10 unclaimed
+
+- `a_blocked_question_re_enters_at_gathered_rather_than_terminating`
+- `every_internal_dependency_in_the_real_files_resolves`
+- `every_per_question_decidable_sentence_holds_over_all_fifteen_questions`
+- `no_question_is_blocked_on_itself`
+- `p0_refuses_the_curator_as_a_judge_of_this_repositorys_own_questions`
+- `resolved_runs_its_own_law_on_a_write_the_ruling_already_authorized`
+- `standing_over_a_folder_can_be_refused_with_nowhere_to_appeal`
+- `the_fifteen_questions_are_read_from_disk`
+- `the_lifecycle_ladder_runs_the_authorial_and_judgmental_gates_in_turn`
+- `the_real_questions_report_their_outbound_edge_drift`
+
+**`rung-het/tests/second_domain.rs`** — 5 unclaimed
+
+- `a_domain_with_entirely_different_edits_runs_the_same_pass`
+- `a_pen_for_one_territory_does_not_authorize_another`
+- `p0_holds_here_too_without_the_library_knowing_the_domain`
+- `the_pass_is_indifferent_to_which_vocabulary_it_carries`
+- `wont_fix_closes_an_issue_that_remains_non_conforming`
+
+**`rung-std/tests/driver.rs`** — 8 unclaimed
+
+- `a_matter_that_never_terminates_leaves_its_run_parked_and_named`
+- `any_reference_the_theory_names_is_matched_and_none_is_parsed`
+- `depth_is_unbounded_and_every_parked_run_is_visible`
+- `every_terminal_releases_alike_and_the_park_reads_none_of_them`
+- `evidence_for_an_unparked_matter_releases_nothing_and_disturbs_nothing`
+- `evidence_releases_the_run_it_answers_and_not_the_one_parked_first`
+- `one_terminal_releases_every_run_that_awaits_it`
+- `the_same_run_parks_and_resumes_without_bound`
+
+**`rung-std/tests/principals_theory.rs`** — 11 unclaimed
+
+- `a_kind_fixes_its_identity_fields_and_a_principal_missing_one_is_refused`
+- `a_principal_that_declares_no_epsilon_is_not_well_formed`
+- `capability_is_a_mechanical_comparison_and_a_claimed_role_is_not_an_earned_one`
+- `cost_is_declared_per_kind_and_epsilon_per_principal`
+- `every_decidable_sentence_holds_over_both_rosters`
+- `nothing_further_than_the_declared_interface_crosses_into_rung`
+- `one_pool_two_filters_over_the_same_roster`
+- `p0_refuses_a_principal_as_the_examiner_of_its_own_competence_claim`
+- `the_kind_partition_is_ruled_on_by_an_outside_and_not_computed`
+- `the_library_names_no_role_or_principal_of_either_roster`
+- `the_theory_exposes_its_sentences_with_their_gates`
+
+**`rung-std/tests/questions_theory.rs`** — 16 unclaimed
+
+- `a_gate_cycle_is_a_deadlock_and_the_sentence_refuses_it`
+- `a_parked_question_re_enters_at_gathered_rather_than_terminating`
+- `a_pen_for_one_folder_does_not_author_a_question_in_another`
+- `a_ruling_on_one_exposure_does_not_carry_to_another`
+- `a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on`
+- `every_declared_edge_kind_has_a_lived_instance_in_the_docket`
+- `every_per_question_sentence_holds_over_the_whole_docket`
+- `nesting_is_not_a_cycle_a_premise_up_and_a_gate_down`
+- `p0_refuses_the_curator_as_a_judge_of_the_questions_it_filed`
+- `the_docket_has_no_dangling_dependency_and_no_duplicate_id`
+- `the_docket_has_no_gate_cycle`
+- `the_docket_parses_into_six_questions_with_a_disjoint_id_space`
+- `the_docket_reports_its_own_outbound_edge_drift`
+- `the_done_pile_runs_its_own_law_on_a_write_the_ruling_already_authorized`
+- `the_theory_exposes_its_sentences_with_their_gates`
+- `the_two_paths_differ_in_arity_not_in_convention`
+
+**`rung/tests/compile_pass.rs`** — 1 unclaimed
+
+- `test_verdict_enum`
+
+**`rung/tests/end_to_end.rs`** — 3 unclaimed
+
+- `exhausts_budget_when_target_unreachable`
+- `long_spine_registers_every_hop`
+- `must_progress_guard_panics_on_no_progress`
+
+**`rung/tests/gate_markers.rs`** — 6 unclaimed
+
+- `a_body_that_ignores_the_pen_still_gets_the_standing_check`
+- `a_body_that_ignores_the_token_still_gets_the_binding_check`
+- `a_judgmental_arrow_may_not_return_the_provenance_it_judged`
+- `an_authorized_pen_cannot_be_constructed_outside_the_pool`
+- `authorial_without_a_role_is_refused`
+- `calling_an_authorial_transition_without_a_pen_is_e0061`
+
+**`rung/tests/provenance_floor.rs`** — 4 unclaimed
+
+- `a_hand_written_provenanced_impl_for_a_principal_is_a_coherence_error`
+- `a_principal_can_never_present_an_empty_provenance`
+- `a_principals_provenance_always_contains_its_identity`
+- `the_newcomer_is_no_longer_disjoint_from_its_own_work`
+
+**`rung/tests/spec_refusals.rs`** — 8 unclaimed
+
+- `a_continue_arm_target_must_be_a_declared_rung`
+- `a_failed_source_rung_must_be_declared`
+- `a_recover_edge_must_name_a_declared_verdict`
+- `a_recover_edges_target_must_be_a_declared_rung`
+- `a_recover_target_must_be_a_declared_rung`
+- `a_terminal_verdict_may_not_carry_a_recover_edge`
+- `an_impl_block_missing_a_body_is_refused`
+- `an_impl_body_that_names_no_transition_is_refused`
+
+**`rung/tests/suspension.rs`** — 3 unclaimed
+
+- `an_answered_dispatch_still_produces_the_next_rung`
+- `calling_resume_without_a_pen_is_e0061`
+- `resume_refuses_a_pen_over_another_container`
+

@@ -452,3 +452,50 @@ pub fn expand_refs(prose: &str, file: &str, r: &Resolver) -> String {
     out.push_str(rest);
     out
 }
+
+/// Every `#[test] fn` in the workspace, as `path::name`.
+///
+/// Scanned rather than declared, so a test cannot avoid the count by not being
+/// listed anywhere. That matters: the number this feeds — proofs claiming no
+/// proposition — only means something if nothing can quietly stay out of it.
+pub fn workspace_tests(root: &std::path::Path) -> Vec<String> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<String>, root: &std::path::Path) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for e in entries.flatten() {
+            let p = e.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if p.is_dir() {
+                if !matches!(name, "target" | ".git" | ".claude") {
+                    walk(&p, out, root);
+                }
+            } else if name.ends_with(".rs") && p.components().any(|c| c.as_os_str() == "tests") {
+                let Ok(text) = std::fs::read_to_string(&p) else {
+                    continue;
+                };
+                let rel = p.strip_prefix(root).unwrap_or(&p).display().to_string();
+                let mut saw_attr = false;
+                for line in text.lines() {
+                    let t = line.trim();
+                    if t.starts_with("#[test]") {
+                        saw_attr = true;
+                    } else if saw_attr && let Some(rest) = t.strip_prefix("fn ") {
+                        let f: String = rest
+                            .chars()
+                            .take_while(|c| c.is_alphanumeric() || *c == '_')
+                            .collect();
+                        out.push(format!("{rel}::{f}"));
+                        saw_attr = false;
+                    } else if saw_attr && !t.starts_with('#') && !t.is_empty() {
+                        saw_attr = false;
+                    }
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(root, &mut out, root);
+    out.sort();
+    out
+}

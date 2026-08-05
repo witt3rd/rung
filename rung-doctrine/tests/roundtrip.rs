@@ -12,6 +12,13 @@
 use rung_doctrine::{Doctrine, Element, Resolver, rung, rung_ct, rung_het};
 use std::path::PathBuf;
 
+fn root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("rung-doctrine sits in the workspace")
+        .to_path_buf()
+}
+
 fn docs() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -510,7 +517,8 @@ fn the_owed_proofs_are_the_work_queue() {
 #[test]
 fn the_conformance_record_is_rendered_from_the_doctrine() {
     let r = resolver();
-    let rendered = rung_doctrine::conformance::render(&all(), &r);
+    let tests = rung_doctrine::workspace_tests(&root());
+    let rendered = rung_doctrine::conformance::render(&all(), &r, &tests);
     let on_disk = std::fs::read_to_string(docs().join("conformance.md")).expect("the record");
     assert_eq!(
         rendered, on_disk,
@@ -525,7 +533,8 @@ fn the_conformance_record_is_rendered_from_the_doctrine() {
 #[test]
 fn the_record_lists_every_proposition_once() {
     let r = resolver();
-    let rendered = rung_doctrine::conformance::render(&all(), &r);
+    let tests = rung_doctrine::workspace_tests(&root());
+    let rendered = rung_doctrine::conformance::render(&all(), &r, &tests);
     for d in &all() {
         for p in d.props() {
             let key = format!("| `{}` |", p.slug);
@@ -679,4 +688,49 @@ fn hand_written_counts_in_prose_match_the_doctrine() {
          conformance.md is generated and has one"
     );
     let _ = Kind::Rationale;
+}
+
+/// **The queue that points the other way.**
+///
+/// `Kind::Owed` is a proposition with no proof. This is a proof with no
+/// proposition — and it is the sharper number, because a test guarding a real
+/// property the documents never state is a guarantee this project makes and
+/// cannot account for. One day someone reads it as incidental and deletes it,
+/// and nothing said otherwise.
+///
+/// Reported, not asserted at a threshold. Its job is to be visible and to go
+/// down.
+#[test]
+fn proofs_that_claim_no_proposition_are_counted() {
+    let tests = rung_doctrine::workspace_tests(&root());
+    let loose = rung_doctrine::conformance::unclaimed(&all(), &tests);
+    let owed: usize = all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+        .filter(|p| matches!(p.kind, rung_doctrine::Kind::Owed { .. }))
+        .count();
+
+    println!(
+        "\n  the gap, both ways\n    \
+         owed      (proposition, no proof) : {owed}\n    \
+         unclaimed (proof, no proposition) : {}\n    \
+         of {} tests in the workspace\n",
+        loose.len(),
+        tests.len()
+    );
+    assert!(!tests.is_empty(), "the scan found no tests at all");
+}
+
+/// The scan cannot be evaded. Every `#[test] fn` in the workspace is counted,
+/// including the ones in this file — a test that could stay out of its own
+/// census would make the census meaningless.
+#[test]
+fn the_test_scan_includes_this_very_test() {
+    let tests = rung_doctrine::workspace_tests(&root());
+    assert!(
+        tests
+            .iter()
+            .any(|t| t.ends_with("::the_test_scan_includes_this_very_test")),
+        "the scan missed itself"
+    );
 }

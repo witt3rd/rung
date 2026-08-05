@@ -87,7 +87,9 @@ fn main() {
 
     // The conformance record is a VIEW of the same doctrines — kind and proof
     // come from the encoding, so the join lives in one place.
-    let record = rung_doctrine::conformance::render(&doctrines, &resolver);
+    let root = docs().parent().expect("the workspace root").to_path_buf();
+    let tests = rung_doctrine::workspace_tests(&root);
+    let record = rung_doctrine::conformance::render(&doctrines, &resolver, &tests);
     write_or_report(&docs().join("conformance.md"), &record, check, &mut stale);
 
     if check && !stale.is_empty() {
