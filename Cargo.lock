@@ -757,6 +757,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rung-fixture"
+version = "0.1.0"
+dependencies = [
+ "rung",
+ "trybuild",
+]
+
+[[package]]
 name = "rung-het"
 version = "0.1.0"
 dependencies = [

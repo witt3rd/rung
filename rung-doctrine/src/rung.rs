@@ -1009,7 +1009,7 @@ verification.
         Element::Prop(Prop {
             slug: "cross-crate-provenance".into(),
             parent: Some("non-guarantees".into()),
-            kind: Kind::Owed { why: "a fixture crate is needed: the claim is about a rung crossing a crate boundary".into() },
+            kind: Kind::Decidable { proof: "rung-fixture/tests/consumer.rs::a_consumer_cannot_tell_a_real_order_from_an_invented_one".into() },
             numbering: None,
             prose: r#"**Cross-crate provenance.** A rung crossing a crate boundary is trusted,
 like any Rust public API. Sealing this needs a sub-crate per ladder.

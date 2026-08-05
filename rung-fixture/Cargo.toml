@@ -1,0 +1,14 @@
+[package]
+name = "rung-fixture"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A ladder declared in one crate and consumed from another, to pin what a crate boundary does and does not carry"
+publish = false
+
+[dependencies]
+rung = { path = "../rung" }
+
+[dev-dependencies]
+trybuild = "1"

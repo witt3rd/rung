@@ -1,0 +1,15 @@
+error[E0624]: associated function `new` is private
+ --> tests/ui/consumer_fabricates.rs:5:41
+  |
+5 |       let _ = rung_fixture::work::Active::new(rung_fixture::Receipt { processed: 99 });
+  |                                           ^^^ private associated function
+  |
+ ::: src/lib.rs
+  |
+  | / ladder!(Work {
+  | |     Placed(Order) => Active(Receipt) => { Settled(Receipt) }
+  | | } impl {
+... |
+  | |     step = |active| { Ok(StepOutcome::Settled(Settled::new(active.payload))) },
+  | | });
+  | |__- private associated function defined here

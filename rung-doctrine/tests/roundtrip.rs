@@ -244,11 +244,11 @@ fn the_corpus_triage_is_recorded() {
         }
     }
     println!("\n  corpus triage: {by_kind:?}\n");
-    assert_eq!(by_kind.get("decidable").copied(), Some(124));
+    assert_eq!(by_kind.get("decidable").copied(), Some(125));
     assert_eq!(by_kind.get("rationale").copied(), Some(147));
     assert_eq!(by_kind.get("signature").copied(), Some(59));
     assert_eq!(by_kind.get("judgmental").copied(), Some(47));
-    assert_eq!(by_kind.get("owed").copied(), Some(3));
+    assert_eq!(by_kind.get("owed").copied(), Some(2));
     assert_eq!(by_kind.values().sum::<usize>(), 380);
 }
 
