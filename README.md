@@ -445,7 +445,7 @@ step requiring someone who could not have made the previous one.
 
 **That has not happened yet.** Zero judgments have been settled and zero owed
 items discharged. The mechanism exists — [`rung-driver`](rung-driver/) builds a
-pool from [`docs/population.yaml`](docs/population.yaml), the pass is a ladder,
+pool from [`population.yaml`](population.yaml), the pass is a ladder,
 edits are typed and verified against the source an author actually wrote — and
 it has never run on anything that mattered.
 
