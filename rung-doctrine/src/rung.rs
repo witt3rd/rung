@@ -568,7 +568,7 @@ payload types resolve from the surrounding scope (`use super::*`).
         Element::Prop(Prop {
             slug: "guarantees".into(),
             parent: None,
-            kind: Kind::Decidable { proof: "(rustc)".into() },
+            kind: Kind::Decidable { proof: "rung-doctrine/tests/roundtrip.rs::every_guarantee_names_a_proof".into() },
             numbering: Some('G'),
             prose: r#"Each guarantee is normative and **names the conformance test that fails
 if the implementation stops honoring it**. Guarantees delegated to the Rust
@@ -580,7 +580,7 @@ compiler are marked *(rustc)*.
         Element::Prop(Prop {
             slug: "g1-linear-consumption".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Decidable { proof: "(rustc)".into() },
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::using_a_rung_after_a_transition_consumed_it_is_e0382".into() },
             numbering: None,
             prose: r#"**Linear consumption.** A transition consumes its input rung by value;
 using a rung after it is moved MUST be a compile error. *(rustc — move
@@ -660,7 +660,7 @@ through `&Carry`; a transition body cannot mutate it. *Conformance:
         Element::Prop(Prop {
             slug: "g6-exhaustive-outcomes".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Decidable { proof: "(rustc)".into() },
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::a_match_missing_a_step_outcome_summand_is_e0004".into() },
             numbering: None,
             prose: r#"**Exhaustive outcomes.** `StepOutcome` is an enum; every match site MUST
 handle all variants. *(rustc — enum exhaustiveness.)*

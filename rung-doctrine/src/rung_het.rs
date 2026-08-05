@@ -836,7 +836,7 @@ valuation, and belongs to HetOpt ({#het-settles-hetopt-orders}).
         Element::Prop(Prop {
             slug: "epsilon-reported-with-verdict".into(),
             parent: Some("verdict-space-with-metric".into()),
-            kind: Kind::Decidable { proof: "rung-het/tests/gate_law.rs::two_judges_of_differing_confidence_report_differing_verdicts".into() },
+            kind: Kind::Owed { why: "the test exists and is #[ignore]d: `Settled` does not yet carry an error bar, so nothing runs".into() },
             numbering: None,
             prose: r#"$\varepsilon$ is reported alongside the verdict — an honest error
 bar.

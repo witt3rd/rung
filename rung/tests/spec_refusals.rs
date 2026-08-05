@@ -112,3 +112,28 @@ fn an_impl_block_missing_a_body_is_refused() {
     // rung-props.md §2 rule 10 — no gaps.
     trybuild::TestCases::new().compile_fail("tests/ui/spec_rule10_missing_body.rs");
 }
+
+// ── The two the compiler was trusted to handle ──────────────────────────────
+//
+// `G1` and `G6` were carried as proven by `(rustc)` — the compiler enforces
+// them, so no test was written. That is not a proof by this repository's own
+// standard: nothing failed when they were violated, because nothing tried.
+//
+// Both are the same shape as the refusals above, and both were writable the
+// whole time.
+
+/// **G1.** A transition consumes its input by value; using the rung afterwards
+/// is `E0382`. If the macro emitted `&self`, or rungs became `Copy`, this
+/// would compile.
+#[test]
+fn using_a_rung_after_a_transition_consumed_it_is_e0382() {
+    trybuild::TestCases::new().compile_fail("tests/ui/g1_use_after_move.rs");
+}
+
+/// **G6.** `StepOutcome` is an enum and elimination is exhaustive; a match
+/// missing a summand is `E0004`. This is what makes every "exactly n" claim of
+/// a declared vocabulary hold — adding a summand breaks every eliminator.
+#[test]
+fn a_match_missing_a_step_outcome_summand_is_e0004() {
+    trybuild::TestCases::new().compile_fail("tests/ui/g6_non_exhaustive_match.rs");
+}

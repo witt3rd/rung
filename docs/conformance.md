@@ -79,13 +79,13 @@ unsettled. Where it is blank, nobody has written one down.
 
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
-| [4](rung-props.md#guarantees) | `guarantees` | `decidable` | — | `(rustc)` |
-| [G1](rung-props.md#g1-linear-consumption) | `g1-linear-consumption` | `decidable` | — | `(rustc)` |
+| [4](rung-props.md#guarantees) | `guarantees` | `decidable` | — | `rung-doctrine/tests/roundtrip.rs::every_guarantee_names_a_proof` |
+| [G1](rung-props.md#g1-linear-consumption) | `g1-linear-consumption` | `decidable` | — | `rung/tests/spec_refusals.rs::using_a_rung_after_a_transition_consumed_it_is_e0382` |
 | [G2](rung-props.md#g2-sealed-construction) | `g2-sealed-construction` | `decidable` | — | `rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624` |
 | [G3](rung-props.md#g3-one-token-one-thread) | `g3-one-token-one-thread` | `decidable` | — | `rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync` |
 | [G4](rung-props.md#g4-no-silent-drop) | `g4-no-silent-drop` | `decidable` | — | `rung/tests/spec_refusals.rs::dropping_a_verdict_under_deny_must_use_is_an_error` |
 | [G5](rung-props.md#g5-carry-immutability) | `g5-carry-immutability` | `decidable` | — | `rung/tests/compile_pass.rs::test_carry_accessor_exists` |
-| [G6](rung-props.md#g6-exhaustive-outcomes) | `g6-exhaustive-outcomes` | `decidable` | — | `(rustc)` |
+| [G6](rung-props.md#g6-exhaustive-outcomes) | `g6-exhaustive-outcomes` | `decidable` | — | `rung/tests/spec_refusals.rs::a_match_missing_a_step_outcome_summand_is_e0004` |
 | [G7](rung-props.md#g7-recover-pairing) | `g7-recover-pairing` | `decidable` | Rules 4–7, one `trybuild` case each. The cited one is the first direction (a recoverable verdict with no edge); `::a_recover_edges_target_must_be_a_declared_rung`, `::a_terminal_verdict_may_not_carry_a_recover_edge` and `::a_recover_edge_must_name_a_declared_verdict` are the rest. This guarantee said *(macro — static checks.)* and named no test, so it was the one guarantee of the fourteen with nothing behind it. | `rung/tests/spec_refusals.rs::a_recoverable_verdict_without_a_recover_edge_is_refused` |
 | [G8](rung-props.md#g8-recovery-progress) | `g8-recovery-progress` | `decidable` | — | `rung/tests/end_to_end.rs::recover_guard_is_auto_injected` |
 | [G9](rung-props.md#g9-error-path-recovery) | `g9-error-path-recovery` | `decidable` | — | `rung/tests/end_to_end.rs::recovers_from_the_failed_error_path` |
@@ -139,7 +139,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-het-props.md`
 
-**Counts.** 49 decidable · 25 judgmental · 101 rationale · 27 signature · 202 total.
+**Counts.** 48 decidable · 25 judgmental · 1 owed · 101 rationale · 27 signature · 202 total.
 
 ### The relation
 
@@ -221,7 +221,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [4.4](rung-het-props.md#metric-carried-by-verdict-space) | `metric-carried-by-verdict-space` | `rationale` | — | — |
 | [4.5](rung-het-props.md#metric-measures-not-ranks) | `metric-measures-not-ranks` | `rationale` | — | — |
 | [4.51](rung-het-props.md#order-as-preference-is-hetopts) | `order-as-preference-is-hetopts` | `rationale` | — | — |
-| [4.6](rung-het-props.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `decidable` | GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ([4.11](rung-het-props.md#boolean-breaks-satisfaction)). The cited test is the gap as an assertion: two judges settle the same sentence with the same polarity, one barely persuaded and one certain, and the two verdicts are the same object. Deleting the `#[ignore]` reports whether an error bar has reached the caller. | `rung-het/tests/gate_law.rs::two_judges_of_differing_confidence_report_differing_verdicts` |
+| [4.6](rung-het-props.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `owed` | GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ([4.11](rung-het-props.md#boolean-breaks-satisfaction)). The cited test is the gap as an assertion: two judges settle the same sentence with the same polarity, one barely persuaded and one certain, and the two verdicts are the same object. Deleting the `#[ignore]` reports whether an error bar has reached the caller. | **owed** — the test exists and is #[ignore]d: `Settled` does not yet carry an error bar, so nothing runs |
 | [4.7](rung-het-props.md#translation-invariance-is-candidates-burden) | `translation-invariance-is-candidates-burden` | `rationale` | — | — |
 
 ### The semantics
@@ -407,7 +407,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-ct-props.md`
 
-**Counts.** 19 decidable · 22 judgmental · 35 rationale · 32 signature · 108 total.
+**Counts.** 18 decidable · 22 judgmental · 36 rationale · 32 signature · 108 total.
 
 ### The category
 
@@ -425,7 +425,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [1.411](rung-ct-props.md#entry-constructor-is-public) | `entry-constructor-is-public` | `signature` | — | — |
 | [1.412](rung-ct-props.md#module-boundary-is-the-limit) | `module-boundary-is-the-limit` | `rationale` | — | — |
 | [1.5](rung-ct-props.md#well-typed-program-is-a-functor) | `well-typed-program-is-a-functor` | `signature` | — | — |
-| [1.6](rung-ct-props.md#composition-consumes) | `composition-consumes` | `decidable` | — | `(rustc)` |
+| [1.6](rung-ct-props.md#composition-consumes) | `composition-consumes` | `decidable` | — | `rung/tests/spec_refusals.rs::using_a_rung_after_a_transition_consumed_it_is_e0382` |
 | [1.61](rung-ct-props.md#intermediate-survives-only-as-a-record) | `intermediate-survives-only-as-a-record` | `rationale` | — | — |
 
 ### Branching is a coproduct
@@ -439,7 +439,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [2.21](rung-ct-props.md#verdict-summand) | `verdict-summand` | `signature` | — | — |
 | [2.22](rung-ct-props.md#continue-summand-carries-an-object) | `continue-summand-carries-an-object` | `signature` | — | — |
 | [2.23](rung-ct-props.md#residual-summand) | `residual-summand` | `decidable` | The `+ A` is emitted. A judgmental forward transition returns `Result<Next, Suspended<Prev>>` and the `Suspended` carries the INPUT OBJECT unconsumed, which is what this proposition says the summand is — the cited test reads the very argument back out of it. This row was `out-of-scope` while the residual existed only as `Failed`'s error string, which carries no object the caller handed in and no identity for what went unanswered. Emitting `#to` instead of the `Result` is type-valid at the macro and turns the cited test red at its `fn`-pointer coercion. | `rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed` |
-| [2.3](rung-ct-props.md#elimination-is-exhaustive) | `elimination-is-exhaustive` | `decidable` | — | `(rustc)` |
+| [2.3](rung-ct-props.md#elimination-is-exhaustive) | `elimination-is-exhaustive` | `decidable` | — | `rung/tests/spec_refusals.rs::a_match_missing_a_step_outcome_summand_is_e0004` |
 | [2.31](rung-ct-props.md#adding-a-summand-breaks-every-eliminator) | `adding-a-summand-breaks-every-eliminator` | `rationale` | — | — |
 | [2.32](rung-ct-props.md#closed-vocabularies-rest-on-this) | `closed-vocabularies-rest-on-this` | `rationale` | — | — |
 | [2.4](rung-ct-props.md#continue-arm-is-an-ordinary-generating-morphism) | `continue-arm-is-an-ordinary-generating-morphism` | `signature` | — | — |
@@ -501,7 +501,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [7](rung-ct-props.md#the-dagger-is-partial-and-contractive) | `the-dagger-is-partial-and-contractive` | `judgmental` | — | *awaits a* `category-theorist` |
 | [7.1](rung-ct-props.md#three-shapes-of-loop-back) | `three-shapes-of-loop-back` | `decidable` | — | `rung/tests/end_to_end.rs::recover_guard_is_auto_injected` |
 | [7.11](rung-ct-props.md#only-a-departure-can-be-a-return) | `only-a-departure-can-be-a-return` | `rationale` | — | — |
-| [7.2](rung-ct-props.md#verdict-dagger-is-mandatory) | `verdict-dagger-is-mandatory` | `decidable` | — | `(rustc)` |
+| [7.2](rung-ct-props.md#verdict-dagger-is-mandatory) | `verdict-dagger-is-mandatory` | `decidable` | — | `rung/tests/spec_refusals.rs::a_recoverable_verdict_without_a_recover_edge_is_refused` |
 | [7.3](rung-ct-props.md#verdict-dagger-is-contractive) | `verdict-dagger-is-contractive` | `decidable` | — | `rung/tests/end_to_end.rs::recover_guard_is_auto_injected` |
 | [7.31](rung-ct-props.md#contraction-is-on-the-payload) | `contraction-is-on-the-payload` | `signature` | — | — |
 | [7.32](rung-ct-props.md#well-foundedness-over-symmetry) | `well-foundedness-over-symmetry` | `rationale` | — | — |
@@ -539,7 +539,7 @@ unsettled. Where it is blank, nobody has written one down.
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
 | [10](rung-ct-props.md#verification-boundary) | `verification-boundary` | `rationale` | — | — |
-| [10.1](rung-ct-props.md#guarantees-carry-categorical-content) | `guarantees-carry-categorical-content` | `decidable` | — | `(rustc)` |
+| [10.1](rung-ct-props.md#guarantees-carry-categorical-content) | `guarantees-carry-categorical-content` | `rationale` | — | — |
 | [10.2](rung-ct-props.md#what-is-not-verified) | `what-is-not-verified` | `rationale` | — | — |
 | [10.21](rung-ct-props.md#gate-guarantees-constrain-the-domain-not-the-arrow) | `gate-guarantees-constrain-the-domain-not-the-arrow` | `decidable` | — | `rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token` |
 | [10.3](rung-ct-props.md#boundary-is-typestate-not-verification) | `boundary-is-typestate-not-verification` | `rationale` | — | — |
@@ -588,10 +588,10 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 125 |
+| `decidable` | 123 |
 | `judgmental` | 47 |
-| `owed` | 2 |
-| `rationale` | 147 |
+| `owed` | 3 |
+| `rationale` | 148 |
 | `signature` | 59 |
 | **total** | **380** |
 
@@ -608,8 +608,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 156 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 158 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -631,7 +631,7 @@ look shorter than it is.
 - `retiring_is_refused_when_it_would_break_the_document`
 - `the_real_doctrine_satisfies_every_decidable_sentence`
 
-**`rung-doctrine/tests/roundtrip.rs`** — 19 unclaimed
+**`rung-doctrine/tests/roundtrip.rs`** — 21 unclaimed
 
 - `coverage_is_reported`
 - `every_derived_number_matches_the_document`
@@ -641,6 +641,8 @@ look shorter than it is.
 - `hand_written_counts_in_prose_match_the_doctrine`
 - `mechanism_prose_cites_by_slug_and_every_citation_resolves`
 - `no_document_depends_on_a_number_read_off_a_page`
+- `no_proof_names_an_ignored_test`
+- `no_proposition_leans_on_the_compiler_without_a_case`
 - `only_claims_carry_a_gate`
 - `proofs_that_claim_no_proposition_are_counted`
 - `the_corpus_triage_is_recorded`
