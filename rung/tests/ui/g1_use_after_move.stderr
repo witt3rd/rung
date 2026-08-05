@@ -1,0 +1,32 @@
+error[E0382]: use of moved value: `start`
+  --> tests/ui/g1_use_after_move.rs:21:32
+   |
+18 |     let start = work::Start::new(Spec);
+   |         ----- move occurs because `start` has type `work::Start`, which does not implement the `Copy` trait
+19 |     let _first = work::active(start);
+   |                               ----- value moved here
+20 |     // `start` was consumed by the arrow above.
+21 |     let _second = work::active(start);
+   |                                ^^^^^ value used here after move
+   |
+note: consider changing this parameter type in function `active` to borrow instead if owning the value isn't necessary
+  --> tests/ui/g1_use_after_move.rs:11:5
+   |
+10 | / ladder!(Work {
+11 | |     Start(Spec) => Active(Job) => { Done }
+   | |     ^^^^^ this parameter takes ownership of the value
+12 | | } impl {
+13 | |     active = |_start| { Active::new(Job) },
+14 | |     step = |_active| { Ok(StepOutcome::Done(Done::new())) },
+15 | | });
+   | |__- in this function
+note: if `work::Start` implemented `Clone`, you could clone the value
+  --> tests/ui/g1_use_after_move.rs:10:1
+   |
+10 | / ladder!(Work {
+11 | |     Start(Spec) => Active(Job) => { Done }
+   | |_________^ consider implementing `Clone` for this type
+...
+19 |       let _first = work::active(start);
+   |                                 ----- you could clone this value
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)

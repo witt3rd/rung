@@ -207,7 +207,7 @@ function — and the host's type checker enforces that it respects composition.
         Element::Prop(Prop {
             slug: "composition-consumes".into(),
             parent: Some("ladder-declares-a-category".into()),
-            kind: Kind::Decidable { proof: "(rustc)".into() },
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::using_a_rung_after_a_transition_consumed_it_is_e0382".into() },
             numbering: None,
             prose: r#"Composition is **linear** (`G1`): the intermediate object is consumed.
 Composition is not sequencing; it is resource consumption.
@@ -316,7 +316,7 @@ judgmental arrow carries
         Element::Prop(Prop {
             slug: "elimination-is-exhaustive".into(),
             parent: Some("branching-is-a-coproduct".into()),
-            kind: Kind::Decidable { proof: "(rustc)".into() },
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::a_match_missing_a_step_outcome_summand_is_e0004".into() },
             numbering: None,
             prose: r#"Elimination is **exhaustive** (`G6`): a morphism out of the coproduct
 must be defined on every injection. Exhaustiveness is not a lint; it is the
@@ -794,7 +794,7 @@ nothing that stayed can return.
         Element::Prop(Prop {
             slug: "verdict-dagger-is-mandatory".into(),
             parent: Some("the-dagger-is-partial-and-contractive".into()),
-            kind: Kind::Decidable { proof: "(rustc)".into() },
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::a_recoverable_verdict_without_a_recover_edge_is_refused".into() },
             numbering: None,
             prose: r#"The dagger is **total on recoverable verdicts** (`G7`): each has an
 adjoint and each adjoint has a verdict. The pairing is checked, not trusted.
@@ -1106,7 +1106,7 @@ verifies the **content of a morphism**.
         Element::Prop(Prop {
             slug: "guarantees-carry-categorical-content".into(),
             parent: Some("verification-boundary".into()),
-            kind: Kind::Decidable { proof: "(rustc)".into() },
+            kind: Kind::Rationale,
             numbering: None,
             prose: r#"Each guarantee has a categorical reading, and the reading is what this
 document adds to it:

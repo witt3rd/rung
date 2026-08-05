@@ -244,11 +244,11 @@ fn the_corpus_triage_is_recorded() {
         }
     }
     println!("\n  corpus triage: {by_kind:?}\n");
-    assert_eq!(by_kind.get("decidable").copied(), Some(125));
-    assert_eq!(by_kind.get("rationale").copied(), Some(147));
+    assert_eq!(by_kind.get("decidable").copied(), Some(123));
+    assert_eq!(by_kind.get("rationale").copied(), Some(148));
     assert_eq!(by_kind.get("signature").copied(), Some(59));
     assert_eq!(by_kind.get("judgmental").copied(), Some(47));
-    assert_eq!(by_kind.get("owed").copied(), Some(2));
+    assert_eq!(by_kind.get("owed").copied(), Some(3));
     assert_eq!(by_kind.values().sum::<usize>(), 380);
 }
 
@@ -732,5 +732,114 @@ fn the_test_scan_includes_this_very_test() {
             .iter()
             .any(|t| t.ends_with("::the_test_scan_includes_this_very_test")),
         "the scan missed itself"
+    );
+}
+
+/// **Every guarantee names a proof** (`guarantees`).
+///
+/// The guarantees are the propositions a host must satisfy, and the root says
+/// each one names the conformance test that fails if it stops holding. That is
+/// a claim about the *record*, and it is checkable here.
+///
+/// It also closes the last `(rustc)` citation. Seven propositions were carried
+/// as proven by "the compiler enforces this" — true, and not a proof: nothing
+/// failed when they were violated, because nothing tried. Five got `trybuild`
+/// cases or a test that already existed uncited, one was reclassified, and this
+/// is the seventh.
+#[test]
+fn every_guarantee_names_a_proof() {
+    use rung_doctrine::Kind;
+    let d = rung::doctrine();
+    let guarantees: Vec<&rung_doctrine::Prop> = d
+        .props()
+        .filter(|p| p.parent.as_deref() == Some("guarantees"))
+        .collect();
+    assert!(
+        guarantees.len() >= 16,
+        "expected G1..G16, found {}",
+        guarantees.len()
+    );
+    let unproven: Vec<&str> = guarantees
+        .iter()
+        .filter(|p| !matches!(p.kind, Kind::Decidable { .. }))
+        .map(|p| p.slug.as_str())
+        .collect();
+    assert!(
+        unproven.is_empty(),
+        "{} guarantee(s) name no proof: {unproven:?}",
+        unproven.len()
+    );
+}
+
+/// **No proposition is proven by `(rustc)`.**
+///
+/// "The compiler enforces this" is a claim that a proof would be redundant,
+/// not a proof. By the criterion this repository uses — a proof is a test that
+/// fails when the proposition is violated — it establishes nothing, because
+/// nothing tries the thing that ought to be refused.
+///
+/// Every one of the seven turned out to be writable, and four became ordinary
+/// `trybuild` cases in an afternoon.
+#[test]
+fn no_proposition_leans_on_the_compiler_without_a_case() {
+    use rung_doctrine::Kind;
+    let leaning: Vec<&str> = all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+        .filter(|p| matches!(&p.kind, Kind::Decidable { proof } if proof == "(rustc)"))
+        .map(|p| Box::leak(p.slug.clone().into_boxed_str()) as &str)
+        .collect();
+    assert!(
+        leaning.is_empty(),
+        "{} proposition(s) cite `(rustc)`, which cannot fail: {leaning:?}",
+        leaning.len()
+    );
+}
+
+/// **No proof names a test that does not run.**
+///
+/// A `#[ignore]`d test cannot fail, so it is not a proof — the same reason
+/// `(rustc)` is not one. This is a static check: it reads the attribute rather
+/// than running the suite, so it catches the mistake at `cargo test` speed
+/// instead of waiting for an audit.
+///
+/// It was written because the sweep made exactly this error — citing
+/// `two_judges_of_differing_confidence_report_differing_verdicts`, which is
+/// parked until `Settled` carries an error bar. The audit caught it; this
+/// catches the next one sooner.
+#[test]
+fn no_proof_names_an_ignored_test() {
+    use rung_doctrine::Kind;
+    let mut parked = Vec::new();
+    for p in all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+    {
+        let Kind::Decidable { proof } = &p.kind else {
+            continue;
+        };
+        let Some((file, func)) = proof.rsplit_once("::") else {
+            continue;
+        };
+        let Ok(text) = std::fs::read_to_string(root().join(file)) else {
+            continue;
+        };
+        let Some(at) = text.find(&format!("fn {func}(")) else {
+            continue;
+        };
+        // The attributes sit immediately above the fn. Slice by lines rather
+        // than bytes — these files carry box-drawing characters, and a byte
+        // offset lands inside one.
+        let upto: Vec<&str> = text[..at].lines().collect();
+        let head = upto[upto.len().saturating_sub(12)..].join("\n");
+        if head.contains("#[ignore") {
+            parked.push(format!("  #{}: {proof} is #[ignore]d", p.slug));
+        }
+    }
+    assert!(
+        parked.is_empty(),
+        "{} proposition(s) name a test that does not run:\n{}",
+        parked.len(),
+        parked.join("\n")
     );
 }
