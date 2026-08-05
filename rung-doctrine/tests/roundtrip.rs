@@ -244,10 +244,10 @@ fn the_corpus_triage_is_recorded() {
         }
     }
     println!("\n  corpus triage: {by_kind:?}\n");
-    assert_eq!(by_kind.get("decidable").copied(), Some(113));
-    assert_eq!(by_kind.get("rationale").copied(), Some(151));
-    assert_eq!(by_kind.get("signature").copied(), Some(64));
-    assert_eq!(by_kind.get("judgmental").copied(), Some(49));
+    assert_eq!(by_kind.get("decidable").copied(), Some(124));
+    assert_eq!(by_kind.get("rationale").copied(), Some(147));
+    assert_eq!(by_kind.get("signature").copied(), Some(59));
+    assert_eq!(by_kind.get("judgmental").copied(), Some(47));
     assert_eq!(by_kind.get("owed").copied(), Some(3));
     assert_eq!(by_kind.values().sum::<usize>(), 380);
 }
@@ -399,7 +399,7 @@ fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
             n += 1;
         }
     }
-    assert_eq!(n, 49);
+    assert_eq!(n, 47);
 }
 
 /// Signature and rationale carry no gate, and that is structural: neither is a
