@@ -19,7 +19,7 @@
 //!    `Result<T, String>` — `Failed<Pending>` carries the unconsumed `Pending`
 //!    rung itself. That is what makes re-entry possible at all: the recover edge
 //!    receives a live token, not a corpse. (This is also *why* it isn't a monad;
-//!    see `docs/questions/resolved/q7-…` if you want that rabbit hole.)
+//!    see `questions/resolved/q7-…` if you want that rabbit hole.)
 //!
 //! 2. **The error path is deliberately *unguarded*.** Compare Lesson 2: a
 //!    recoverable verdict (`Stalled => Active`) is wrapped in a progress guard

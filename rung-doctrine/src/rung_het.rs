@@ -300,7 +300,7 @@ classifier reopens the regress {#tower-floor} closes.
         Element::Prop(Prop {
             slug: "conditional-partitions-fiber".into(),
             parent: Some("conditional-names-classifier".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"A conditional gate partitions the fiber $\mathsf{Mod}(\Sigma)$:
 
@@ -312,7 +312,7 @@ $$\mathsf{Mod}_{\mathsf{dec}}(\Sigma, \varphi) \quad\text{and}\quad \mathsf{Mod}
         Element::Prop(Prop {
             slug: "classifier-one-level-up".into(),
             parent: Some("conditional-names-classifier".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"For every conditional sentence $\varphi$ of $\Sigma$ there exists
 a classifying sentence in the theory one level up,
@@ -329,7 +329,7 @@ $$M \in \mathsf{Mod}_{\mathsf{dec}}(\Sigma, \varphi) \iff M \models_{\Sigma^\upa
         Element::Prop(Prop {
             slug: "decidability-expressible-internally".into(),
             parent: Some("conditional-names-classifier".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The predicate *"$\varphi$ is decidable in this algebra"* is
 therefore expressible inside the ambient institution. The two sub-classes
@@ -372,7 +372,7 @@ sort of the signature.
         Element::Prop(Prop {
             slug: "internalizing-outside-collapses".into(),
             parent: Some("pool-not-a-sort".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"A signature that declares $\mathcal{P}$ as a sort has
 internalized the outside. The ontological separation collapses and
@@ -754,7 +754,7 @@ information, and sensitivity to surface features such as naming.
         Element::Prop(Prop {
             slug: "boolean-breaks-satisfaction".into(),
             parent: Some("judges-are-stochastic".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Under Boolean satisfaction the satisfaction condition ({#satisfaction-condition})
 breaks: renaming a sort changes the verdict.
@@ -776,7 +776,7 @@ $\Delta^n$, or a strategy lattice.
         Element::Prop(Prop {
             slug: "satisfaction-condition-relaxed".into(),
             parent: Some("verdict-space-with-metric".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The satisfaction condition is relaxed from strict equivalence to
 a **distance bound**:
@@ -865,7 +865,7 @@ survives renaming ({#satisfaction-is-a-game}).
         Element::Prop(Prop {
             slug: "algebra-is-kleisli-functor".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"An algebra is a functor into the Kleisli category of the principal
 monad:
@@ -884,7 +884,7 @@ $$M : T \to \mathbf{Kl}(\mathcal{P})$$
         Element::Prop(Prop {
             slug: "not-a-set-functor".into(),
             parent: Some("algebra-is-kleisli-functor".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"An algebra cannot be a functor into $\mathbf{Set}$.
 
@@ -962,7 +962,7 @@ that the algebra could not generate alone.*
         Element::Prop(Prop {
             slug: "kleisli-composition-interleaves".into(),
             parent: Some("monad-reading".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Composing pure morphisms with judgmental ones is Kleisli
 composition. This is why the fragments interleave without collapsing.
@@ -1016,7 +1016,7 @@ to a discrete category of provenance tags.
         Element::Prop(Prop {
             slug: "monad-is-provenance-strict".into(),
             parent: Some("provenance-structure".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"$\mathcal{P}$ is **provenance-strict**:
 
@@ -1046,7 +1046,7 @@ the interpretation.
         Element::Prop(Prop {
             slug: "admissibility-subcategories".into(),
             parent: Some("constant-arrow-hazard".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Judgmental and authorial arrows therefore inhabit their
 respective admissibility sub-categories:
@@ -1118,7 +1118,7 @@ containment plus standing.
         Element::Prop(Prop {
             slug: "one-monad".into(),
             parent: Some("constant-arrow-hazard".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Both are sub-categories of the **same** $\mathbf{Kl}(\mathcal{P})$.
 Distinct monads would mean distinct principal pools, which {#one-pool-two-filters} does not
@@ -1155,7 +1155,7 @@ judgmentally-admissible Kleisli arrow, and every `authorial` operation is
 an authorially-admissible Kleisli arrow.
 
 "#.into(),
-            mechanism: r#"Q11 (gate-faithfulness, open), with **one** blocker rather than two. Blocker (1) — the returned value — has CLOSED, and it closed by derivation rather than by an epilogue guard on the condition itself. R2 obliges a judgmental outcome to carry its judge's provenance ({#judgment-provenance-is-the-judges}): `Judgment` is sealed, `Principal::judgment` is the only mint and calls the oracle `Principal::rule`, and π(f(a)) ⊆ π(p) is asserted where a `Judgment` is spent — by `theory!`'s `settle` and by G15's injected epilogue. With G13 already enforcing π(p) ∩ π(a) = ∅, {#admissibility-subcategories}'s judgmental clause is a THEOREM of two enforced facts, so nothing calls `Prov::overlaps` on the way out and nothing should. What is left of blocker (1) is narrower and is recorded as such: the authorial outward conjunct and branching judgmental arms ([5.621](rung-props.md#outward-conditions-remaining)). Blocker (2) STANDS and is why this row does not move: `#[conditional(..)]` is a parse-time refusal, gate-faithfulness quantifies over EVERY operation, and an algebra with a conditional operation therefore cannot state this proposition here at all. The cited test is that blocker made runnable — it asks the macro to accept a conditional marker, and deleting its `#[ignore]` reports whether it does. Purity was a third blocker and is CLOSED on received advisory input: η is 𝒫's unit, so "factors through η" IS 𝒫-purity and never claimed absolute purity; that a decidable body may read a clock is {#purity-not-secured}, a limit already stated. Argued with its falsifiers at `docs/questions/open/q11-gate-faithfulness.md`."#.into(),
+            mechanism: r#"Q11 (gate-faithfulness, open), with **one** blocker rather than two. Blocker (1) — the returned value — has CLOSED, and it closed by derivation rather than by an epilogue guard on the condition itself. R2 obliges a judgmental outcome to carry its judge's provenance ({#judgment-provenance-is-the-judges}): `Judgment` is sealed, `Principal::judgment` is the only mint and calls the oracle `Principal::rule`, and π(f(a)) ⊆ π(p) is asserted where a `Judgment` is spent — by `theory!`'s `settle` and by G15's injected epilogue. With G13 already enforcing π(p) ∩ π(a) = ∅, {#admissibility-subcategories}'s judgmental clause is a THEOREM of two enforced facts, so nothing calls `Prov::overlaps` on the way out and nothing should. What is left of blocker (1) is narrower and is recorded as such: the authorial outward conjunct and branching judgmental arms ([5.621](rung-props.md#outward-conditions-remaining)). Blocker (2) STANDS and is why this row does not move: `#[conditional(..)]` is a parse-time refusal, gate-faithfulness quantifies over EVERY operation, and an algebra with a conditional operation therefore cannot state this proposition here at all. The cited test is that blocker made runnable — it asks the macro to accept a conditional marker, and deleting its `#[ignore]` reports whether it does. Purity was a third blocker and is CLOSED on received advisory input: η is 𝒫's unit, so "factors through η" IS 𝒫-purity and never claimed absolute purity; that a decidable body may read a clock is {#purity-not-secured}, a limit already stated. Argued with its falsifiers at `questions/open/q11-gate-faithfulness.md`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "mod-only-gate-faithful".into(),
@@ -1184,7 +1184,7 @@ selection rule.
         Element::Prop(Prop {
             slug: "condition-propagates-by-reindexing".into(),
             parent: Some("gate-faithful".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Because provenance re-indexes along signature morphisms, the
 condition propagates through the fibration. Re-indexing cannot invent a
@@ -1260,19 +1260,19 @@ dispositions require the monad's outside.
         Element::Prop(Prop {
             slug: "fractal-property".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"An algebra whose carrier contains subjects that themselves carry
 signature declarations **becomes a theory at the next level**, with its
 own fiber of algebras below.
 
 "#.into(),
-            mechanism: r#"The composite Grothendieck opfibration ([opfibrations-compose](rung-ct-props.md#opfibrations-compose)), resolved by Q10 (`docs/questions/resolved/`). The correspondence is proved and no hierarchy is built — which leaves the property itself needing a run, and the cited test is one: the pass composed with itself at a container boundary, where the destination's own law is what refuses a write the source's judge already authorized ({#target-runs-its-own-models})."#.into(),
+            mechanism: r#"The composite Grothendieck opfibration ([opfibrations-compose](rung-ct-props.md#opfibrations-compose)), resolved by Q10 (`questions/resolved/`). The correspondence is proved and no hierarchy is built — which leaves the property itself needing a run, and the cited test is one: the pass composed with itself at a container boundary, where the destination's own law is what refuses a write the source's judge already authorized ({#target-runs-its-own-models})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "tower-is-a-fibration".into(),
             parent: Some("fractal-property".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The tower is a **fibered category** — the Grothendieck
 construction over the category of theories.
@@ -1303,7 +1303,7 @@ is available.
         Element::Prop(Prop {
             slug: "kleisli-iterates".into(),
             parent: Some("tower-is-a-fibration".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The Kleisli construction iterates: the same algebra becomes the
 theory whose satisfaction relation tests algebras one level below.
@@ -1360,7 +1360,7 @@ opposite directions.
         Element::Prop(Prop {
             slug: "pointings-are-duals".into(),
             parent: Some("two-kinds-of-pointing".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The two are duals of one edge. The up-pointing declaration is
 what the satisfaction-checker walks to find the theory to test against;
@@ -1786,7 +1786,7 @@ mis-filing, not an omission** — the emptiness is the diagnostic.
         Element::Prop(Prop {
             slug: "satisfaction-is-a-game".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Satisfaction is a two-player game. A sentence is satisfied iff the
 **Proponent** has a winning strategy.
@@ -2040,7 +2040,7 @@ objection, and nothing downstream could detect it.
         Element::Prop(Prop {
             slug: "enact-makes-an-endofunctor".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"`enact` is what makes the pass an **endofunctor** rather than a
 one-way funnel into a verdict.
@@ -2130,7 +2130,7 @@ $$\textbf{HetOpt} = \textbf{Het} + V$$
         Element::Prop(Prop {
             slug: "metric-and-preference-same-furniture".into(),
             parent: Some("het-settles-hetopt-orders".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Metric and preference are the same categorical furniture read two
 ways. A metric space *is* a category enriched over
@@ -2186,7 +2186,7 @@ minimal-judge rule.
         Element::Prop(Prop {
             slug: "valuation-instantiated-twice".into(),
             parent: Some("cut-at-valuation".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"One piece of machinery, two levels — {#fractal-property} applied to valuation.
 Judge selection and candidate ranking are not two features but one:
@@ -2249,7 +2249,7 @@ the HetOpt fiber by re-indexing.
         Element::Prop(Prop {
             slug: "enrichment-base-is-the-metric".into(),
             parent: Some("hetopt-is-a-theory-extension".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"In HetOpt the enrichment base $V$ **is** the metric $d$, and the
 fibers become $V$-enriched. In Het the verdict space carries $d$ alone.
@@ -2276,7 +2276,7 @@ the composite is again a judgmental institution.
         Element::Prop(Prop {
             slug: "composite-monad".into(),
             parent: Some("composition-is-closed".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"$\mathcal{P}_{1+2} = \mathcal{P}_1 + \mathcal{P}_2$, provenance
 preserved componentwise.
@@ -2287,7 +2287,7 @@ preserved componentwise.
         Element::Prop(Prop {
             slug: "non-identity-extends-to-composite".into(),
             parent: Some("composite-monad".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The non-identity restriction extends to the composite Kleisli
 category.
@@ -2319,7 +2319,7 @@ component qualifying sets, each still filtered by non-identity.
         Element::Prop(Prop {
             slug: "adequacy-composes".into(),
             parent: Some("composition-is-closed".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The composite qualifying set is non-empty whenever either
 component's was. Adequacy composes.

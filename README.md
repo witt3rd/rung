@@ -245,7 +245,7 @@ not to resolve it.
 It also can't resume anything: it hands the run back, and the ladder's own
 pen-gated resume edge does the resuming. And it's in-memory only — whether a
 suspended run can survive process death at all is
-[Q13](docs/questions/open/q13-suspension-across-process-death.md), open.
+[Q13](questions/open/q13-suspension-across-process-death.md), open.
 
 ### Questions about questions are just more questions
 
@@ -386,7 +386,7 @@ each proposition: **what kind of authority could settle it.**
 | kind | discharged by | count |
 |---|---|---:|
 | **decidable** | a proof — a test that fails when the proposition is violated | 123 |
-| **judgmental** | a principal, **disjoint** from what it judges | 47 |
+| **judgmental** | a principal, **disjoint** from what it judges — ruling recorded in [`judgments/`](judgments/) | 47 |
 | **owed** | an author, with **standing** over it | 3 |
 | **signature** | nobody — it declares vocabulary | 59 |
 | **rationale** | nobody — it argues, or records a limit | 148 |
@@ -451,10 +451,10 @@ it has never run on anything that mattered.
 
 Two things stand in the way, and only one is work:
 
-- **[Q14](docs/questions/open/q14-model-principal-provenance.md)** — what
+- **[Q14](questions/open/q14-model-principal-provenance.md)** — what
   provenance a model principal carries. Until it is ruled on, a model judge
   either qualifies for nothing or qualifies vacuously.
-- **[Q15](docs/questions/open/q15-does-the-pass-suspend.md)** — the pass
+- **[Q15](questions/open/q15-does-the-pass-suspend.md)** — the pass
   disposes through a *branching* transition, which has no residual channel, so
   it cannot wait for a question it raised.
 
@@ -464,10 +464,10 @@ rather than by a person**. That number is zero.
 
 ## Further reading
 
-- [`docs/questions/`](docs/questions/) — the open questions: the frontier
+- [`questions/`](questions/) — the open questions: the frontier
   for advancing the language (deepen vs grow). A question resolves only when its
   answer lands in a normative surface. See
-  [`INTAKE.md`](docs/questions/INTAKE.md) for how one enters. The questions are
+  [`INTAKE.md`](questions/INTAKE.md) for how one enters. The questions are
   themselves governed by a Het theory written in the DSL
   ([`rung-std/src/questions.rs`](rung-std/src/questions.rs)), which declares the
   typed dependency vocabulary; `rung-het/tests/questions_of_rung.rs` evaluates

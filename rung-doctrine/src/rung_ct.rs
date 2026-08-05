@@ -455,7 +455,7 @@ another's.
         Element::Prop(Prop {
             slug: "copying-is-what-makes-it-cartesian".into(),
             parent: Some("carry-is-copied-per-object".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The copy *is* the cartesian diagonal $\Delta : C \to C \times C$. A
 factor that could not be duplicated would not be cartesian, and duplication is
@@ -467,7 +467,7 @@ exactly what {#carry-factor-is-unrestricted} licenses.
         Element::Prop(Prop {
             slug: "carry-is-a-comonadic-context".into(),
             parent: Some("carry-is-a-product-factor".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The carry reads as a **graded comonadic context**: the grade is the
 object's position in the ladder, and the counit is $\pi_2$.
@@ -497,7 +497,7 @@ is not a guarantee of the construction.
         Element::Prop(Prop {
             slug: "ladder-is-an-indexed-monad".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The ladder as a whole is an **indexed monad**. A value of $M\,i\,j\,A$ is a
 computation that starts at object $i$, ends at object $j$, and yields $A$.
@@ -532,7 +532,7 @@ forbidden by a check; it is **unrepresentable** — the consequence of
         Element::Prop(Prop {
             slug: "monad-laws-hold-by-construction".into(),
             parent: Some("ladder-is-an-indexed-monad".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The monad laws hold by construction. They require no separate proof
 because the only compositions that exist are those the declaration generates.
@@ -560,7 +560,7 @@ those types, not an artifact alongside them.
         Element::Prop(Prop {
             slug: "trace-is-a-writer-monad".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"An accumulated record of which arrows ran is a **trace**, and it is the
 output of a **writer monad**.
@@ -571,7 +571,7 @@ output of a **writer monad**.
         Element::Prop(Prop {
             slug: "trace-is-a-free-monoid".into(),
             parent: Some("trace-is-a-writer-monad".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"A trace is the **free monoid** on trace entries: an empty trace and
 concatenation, associative, with the empty trace as unit. Nothing about a trace
@@ -583,7 +583,7 @@ depends on what an entry says.
         Element::Prop(Prop {
             slug: "graded-writer".into(),
             parent: Some("trace-is-a-writer-monad".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Composed with {#ladder-is-an-indexed-monad}, the full type is a
 **graded writer**: the grade tracks the pair of objects, the writer accumulates
@@ -639,7 +639,7 @@ unrelated structures, and neither substitutes for the other.
         Element::Prop(Prop {
             slug: "transition-is-a-prism".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"A branching transition is a **Prism** — a dependent optic — presented as a
 forward/backward pair.
@@ -685,7 +685,7 @@ what the shape requires.
         Element::Prop(Prop {
             slug: "not-a-monad".into(),
             parent: Some("transition-is-a-prism".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The structure is **not a monad**. Compose $f : A \to B + A$ with
 $g : B \to C + B$: a failing $g$ hands back $B$, while the composite's domain is
@@ -714,7 +714,7 @@ principal monad.
         Element::Prop(Prop {
             slug: "strength-carries-linearity".into(),
             parent: Some("effects-layer-on-the-forward-pass".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Tensorial strength $A \otimes T(B) \to T(A \otimes B)$ is what proves
 linearity survives suspension. A monad without strength cannot carry a linear
@@ -738,7 +738,7 @@ distributive law, and neither subsumes the other.
         Element::Prop(Prop {
             slug: "generative-body-is-a-kernel".into(),
             parent: Some("effects-layer-on-the-forward-pass".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"A generative transition body is a **Markov kernel** — an affine
 probability monad on the forward pass. It is an instance of
@@ -755,7 +755,7 @@ probability monad on the forward pass. It is an instance of
         Element::Prop(Prop {
             slug: "the-dagger-is-partial-and-contractive".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The category's dagger is **partial**: an adjoint $f^\dagger$ exists only
 where a backward edge declares one.
@@ -927,7 +927,7 @@ dagger the involution is not merely unverified but **deliberately broken** by
         Element::Prop(Prop {
             slug: "substrate-is-affine".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"The host substrate implements **affine logic** — linear logic without the
 requirement to use exactly once — and that is what the category's linearity
@@ -1033,7 +1033,7 @@ linear substrate would make it exact; an affine one admits the approximation
         Element::Prop(Prop {
             slug: "types-are-propositions".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Under Curry–Howard an object is a **proposition** and a path through the
 category is a **proof** of it.
@@ -1202,7 +1202,7 @@ adding a check to the construction.
         Element::Prop(Prop {
             slug: "dependency-structure-is-an-opfibration".into(),
             parent: None,
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"**Governed subjects** and the declared dependency morphisms between them
 form a **free base category**; subjects-in-states over it form a **Grothendieck
@@ -1244,7 +1244,7 @@ arrow.
         Element::Prop(Prop {
             slug: "typed-edge-is-an-opcartesian-lift".into(),
             parent: Some("dependency-structure-is-an-opfibration".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"A typed edge is an **opcartesian lift**. A state change at the source
 transports *forward* along the edge by a pushforward functor between fibres.
@@ -1289,7 +1289,7 @@ enumerates the types, for the reason
 {#governs-who-not-what} gives.
 
 "#.into(),
-            mechanism: r#"The edge vocabulary is declared by the governing theory, not by the formalism — neither `rung` nor `rung-het` has an edge type, and `EdgeKind` lives in `rung-std::questions`, the theory that governs bodies of questions, exactly where an edit vocabulary sits (`edit-required-not-typed`). Moving the theory out of a test and into a library sharpened the row without changing its verdict: the taxonomy is now demonstrably neither the formalism's NOR one carrier's, because two carriers with disjoint id spaces and disjoint edge sets fill the same seven kinds — rung's `docs/questions/` and a synthetic decision docket. What the cited test pins is the **lived-instance** discipline, now a decidable sentence of the theory (`every_declared_kind_is_lived`) rather than prose: a kind stays in the vocabulary only while some question in the set under audit uses it, and deleting the sentence turns a test red in BOTH carriers. STILL NOT enforced, and the reason is unchanged: what would have to fail is a crate BELOW the theory naming an edge type, and no test can fail for code that was never written. The location is a choice this theory makes; the test protects the discipline, not the choice."#.into(),
+            mechanism: r#"The edge vocabulary is declared by the governing theory, not by the formalism — neither `rung` nor `rung-het` has an edge type, and `EdgeKind` lives in `rung-std::questions`, the theory that governs bodies of questions, exactly where an edit vocabulary sits (`edit-required-not-typed`). Moving the theory out of a test and into a library sharpened the row without changing its verdict: the taxonomy is now demonstrably neither the formalism's NOR one carrier's, because two carriers with disjoint id spaces and disjoint edge sets fill the same seven kinds — rung's `questions/` and a synthetic decision docket. What the cited test pins is the **lived-instance** discipline, now a decidable sentence of the theory (`every_declared_kind_is_lived`) rather than prose: a kind stays in the vocabulary only while some question in the set under audit uses it, and deleting the sentence turns a test red in BOTH carriers. STILL NOT enforced, and the reason is unchanged: what would have to fail is a crate BELOW the theory naming an edge type, and no test can fail for code that was never written. The location is a choice this theory makes; the test protects the discipline, not the choice."#.into(),
         }),
         Element::Prop(Prop {
             slug: "strict-and-advisory-are-the-gate".into(),
@@ -1308,7 +1308,7 @@ taxonomy laid over the gates; it is the gates, read one level up.
         Element::Prop(Prop {
             slug: "advisory-lift-lands-in-a-coproduct".into(),
             parent: Some("dependency-structure-is-an-opfibration".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"An **advisory lift does not break functoriality.** It does not land in
 the target's objects; it lands in a **coproduct** — *review required* plus
@@ -1346,7 +1346,7 @@ functoriality holds over the total space rather than in spite of it.
         Element::Prop(Prop {
             slug: "edges-are-dependent-optics".into(),
             parent: Some("dependency-structure-is-an-opfibration".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"A dependency edge is a **dependent optic**: covariant forward transport
 of a state change, contravariant backward query of exposure. The backward pass's
@@ -1370,7 +1370,7 @@ which kind — and a count of reachable subjects is its Boolean shadow.
         Element::Prop(Prop {
             slug: "opfibrations-compose".into(),
             parent: Some("dependency-structure-is-an-opfibration".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Opfibrations **compose**. A map from governed subjects to the theories
 that govern them is itself an opfibration, and its composite with $p$ is a
@@ -1382,7 +1382,7 @@ single opfibration over the whole tower.
         Element::Prop(Prop {
             slug: "iteration-not-a-second-level".into(),
             parent: Some("opfibrations-compose".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Composing is an **iteration of one level, not the arrival of a second**.
 Opfibrations are 1-cells and compose as such. A genuine second level needs a
@@ -1395,7 +1395,7 @@ nesting does not supply.
         Element::Prop(Prop {
             slug: "transport-is-scale-invariant".into(),
             parent: Some("opfibrations-compose".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Because optics compose, obligation-transport is **scale-invariant**. A
 traversal of the backward pass need not know whether an edge crosses a domain
@@ -1407,7 +1407,7 @@ boundary; the same pass runs at every scale.
         Element::Prop(Prop {
             slug: "horizontal-and-vertical-coincide".into(),
             parent: Some("opfibrations-compose".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Judgmental { role: "category-theorist".into(), ruling: None },
             numbering: None,
             prose: r#"Under the Grothendieck construction the hierarchy flattens: a
 sibling-to-sibling edge and a domain-to-parent edge are both generating

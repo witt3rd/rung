@@ -12,12 +12,12 @@ affects:
 **Status:** OPEN
 
 **Question.** A judgmental dispatch is now suspendable
-([`G16`](../../rung-props.md#g16-the-residual-channel)): a principal that cannot
+([`G16`](../../docs/rung-props.md#g16-the-residual-channel)): a principal that cannot
 answer raises a matter, the transition returns `Result<Next, Suspended<Prev>>`
 with the argument unconsumed, and a resume edge revives the run when the raised
 matter terminates. All of that happens **in one process** — a driver holds the
 `Suspended<Prev>` in memory, and that is the whole of the claim
-([`5.7`](../../rung-props.md#suspension-is-in-process-only)).
+([`5.7`](../../docs/rung-props.md#suspension-is-in-process-only)).
 
 A raised matter that takes months is not an odd case; it is the motivating one.
 So:
@@ -27,10 +27,10 @@ So:
 
 ## The collision, stated precisely
 
-[`G2`](../../rung-props.md#g2-sealed-construction) says a rung MUST NOT be
+[`G2`](../../docs/rung-props.md#g2-sealed-construction) says a rung MUST NOT be
 constructible outside its module, and says why: not as a fabrication guard but
 because *a verb cannot occupy object-position*
-([`the-law`](../../rung-ct-props.md#the-law)). A state is reached **only by
+([`the-law`](../../docs/rung-ct-props.md#the-law)). A state is reached **only by
 traversing an arrow**, never fabricated to hold an arrow's result.
 
 Deserialization is fabrication by that definition. `serde` reading a
@@ -51,10 +51,10 @@ The three obvious moves each fail for the same reason:
 
 ## What `resumption-is-authorial` does and does not answer
 
-The resume edge is gated on an [`Authorized`](../../rung-props.md#resume-signature)
+The resume edge is gated on an [`Authorized`](../../docs/rung-props.md#resume-signature)
 pen because reviving a suspended run *constructs a rung*, and G2 seals that from
 outside the module
-([`resumption-is-authorial`](../../rung-het-props.md#resumption-is-authorial)).
+([`resumption-is-authorial`](../../docs/rung-het-props.md#resumption-is-authorial)).
 It is tempting to read that as already settling this question: put a pen on the
 deserializer too, and reconstitution becomes just another authorial act.
 
@@ -69,9 +69,9 @@ Across process death there is no such object. A pen would authorize a principal
 to **assert** that a run reached rung *R*, with no arrow anywhere in the current
 process that reached it. That is a stronger power than any authorial operation
 Het describes: `enact` transforms a subject that exists
-([`enact-makes-an-endofunctor`](../../rung-het-props.md#enact-makes-an-endofunctor)),
+([`enact-makes-an-endofunctor`](../../docs/rung-het-props.md#enact-makes-an-endofunctor)),
 and standing is held *over a container*
-([`authorial-qualifying-set`](../../rung-het-props.md#authorial-qualifying-set)),
+([`authorial-qualifying-set`](../../docs/rung-het-props.md#authorial-qualifying-set)),
 not over the past.
 
 So: **the authority half is answered and the representation half is open.** Any
@@ -118,7 +118,7 @@ Not a serialization format. The shape of an answer would have to be one of:
   process boundary may simply be outside. Then the answer is that a driver
   persists *the theory's own* record — the `Raised` reference, which is opaque
   and already the theory's
-  ([`raised-reference-is-opaque`](../../rung-het-props.md#raised-reference-is-opaque))
+  ([`raised-reference-is-opaque`](../../docs/rung-het-props.md#raised-reference-is-opaque))
   — and re-enters the ladder from the top on restart, replaying rather than
   resuming.
 

@@ -385,7 +385,7 @@ fn the_proven_fraction_of_the_decidable_fragment_is_reported() {
 /// The precedent is lived rather than assumed. Q7 (transitions are Prisms),
 /// Q9 (the dependency structure is an opfibration) and Q10 (opfibrations
 /// compose) were each settled by outside expert review, and the reviews are in
-/// `docs/questions/resolved/_evidence/`. These 23 are the claims of that kind.
+/// `questions/resolved/_evidence/`. These 23 are the claims of that kind.
 #[test]
 fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
     use rung_doctrine::Kind;
@@ -394,7 +394,7 @@ fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
         .iter()
         .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
     {
-        if let Kind::Judgmental { role } = &p.kind {
+        if let Kind::Judgmental { role, .. } = &p.kind {
             assert_eq!(role, "category-theorist", "#{}", p.slug);
             n += 1;
         }

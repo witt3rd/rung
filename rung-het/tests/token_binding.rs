@@ -250,7 +250,7 @@ fn settle_refuses_a_token_minted_against_a_different_model() {
 #[ignore = "presumes a doctrinal decision gated to the repo owner: whether \
             judgmental-qualifying-set should refuse a principal declaring \
             π(p) = ∅ (the mirror of ModelHasNoProvenance). Het as written \
-            admits it. See docs/questions/open/q11-gate-faithfulness.md."]
+            admits it. See questions/open/q11-gate-faithfulness.md."]
 fn a_principal_with_no_provenance_is_refused() {
     let pool = Pool::new(vec![principal("ghost", &[], &["cabinet"])]);
 
