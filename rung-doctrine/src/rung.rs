@@ -65,7 +65,7 @@ in `rung-std`. Those bind design decisions and carry no conformance test.
         Element::Prop(Prop {
             slug: "declaration-is-a-block".into(),
             parent: None,
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"A `ladder!` invocation is a **declaration block**, optionally followed by
 an inline `impl` block supplying the transition logic.
@@ -79,7 +79,7 @@ ladder!( Name { <declaration> } [ impl { <bodies> } ] )
         Element::Prop(Prop {
             slug: "declaration-grammar".into(),
             parent: Some("declaration-is-a-block".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_module_exists".into() },
             numbering: None,
             prose: r##"The declaration MUST match:
 
@@ -118,7 +118,7 @@ marker is **not optional** — see {#g16-the-residual-channel}.
         Element::Prop(Prop {
             slug: "bodies-grammar".into(),
             parent: Some("declaration-is-a-block".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"The inline `impl` block, when present, MUST match:
 
@@ -132,7 +132,7 @@ closure := "|" pat "|" ( block | expr )
         Element::Prop(Prop {
             slug: "transition-naming".into(),
             parent: Some("declaration-is-a-block".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"A forward transition (`A => B`) is **named after its target** rung,
 lowercased (`B` ⇒ `b`). The branching transition (`A => { .. }`) is named
@@ -144,7 +144,7 @@ MUST match these ({#macro-must-reject}, rules 9–10).
         Element::Prop(Prop {
             slug: "marker-annotates-the-target".into(),
             parent: Some("declaration-is-a-block".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token".into() },
             numbering: None,
             prose: r#"A gate marker **annotates the transition's target**, because that is
 what the transition is named after. A marker on a rung marks the forward
@@ -155,7 +155,7 @@ transition producing it; a marker on the verdict block marks `step`.
         Element::Prop(Prop {
             slug: "at-most-one-marker".into(),
             parent: Some("marker-annotates-the-target".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::two_markers_on_one_transition_are_refused".into() },
             numbering: None,
             prose: r#"A transition carries **at most one** marker. Het's gates are
 alternatives, not a set
@@ -168,7 +168,7 @@ reads as *decidable* and is emitted exactly as it was before markers existed
         Element::Prop(Prop {
             slug: "two-markers-implemented".into(),
             parent: Some("marker-annotates-the-target".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::authorial_transition_takes_an_authorized_pen".into() },
             numbering: None,
             prose: r#"Two of Het's four gates are implemented, and they are the two that
 dispatch to an outside — in **opposite directions**
@@ -191,7 +191,7 @@ neither can be passed where the other is asked for
         Element::Prop(Prop {
             slug: "conditional-marker-refused".into(),
             parent: Some("marker-annotates-the-target".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::conditional_is_refused_and_names_the_open_question".into() },
             numbering: None,
             prose: r#"`#[conditional(..)]` MUST be a `compile_error!`. It classifies per
 model, one level up
@@ -204,7 +204,7 @@ and `ladder!`'s checks run at expansion time against a single declaration; see
         Element::Prop(Prop {
             slug: "marker-without-role-refused".into(),
             parent: Some("marker-annotates-the-target".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::judgmental_without_a_role_is_refused".into() },
             numbering: None,
             prose: r#"Either implemented marker written **without a role** MUST be a
 `compile_error!`. A judgmental role that is not named cannot resolve a judge
@@ -224,7 +224,7 @@ signature to emit.
         Element::Prop(Prop {
             slug: "macro-must-reject".into(),
             parent: None,
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::a_duplicate_carry_field_is_refused".into() },
             numbering: None,
             prose: r#"The macro MUST reject, with a `compile_error!` pointing at the violation,
 any ladder in which:
@@ -258,7 +258,7 @@ any ladder in which:
         Element::Prop(Prop {
             slug: "body-rules-need-an-impl-block".into(),
             parent: Some("macro-must-reject".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_module_exists".into() },
             numbering: None,
             prose: r#"Rules 9–10 apply **only** when an `impl` block is present.
 
@@ -267,7 +267,7 @@ any ladder in which:
         Element::Prop(Prop {
             slug: "resume-rules-are-g2".into(),
             parent: Some("macro-must-reject".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_resume_edge_without_an_authorial_marker_is_refused".into() },
             numbering: None,
             prose: r#"Rule 11's three clauses are one clause: a resume edge is emitted
 *inside* the module, so every way of declaring one that nothing gates, or that
@@ -282,7 +282,7 @@ an arrow that writes a rung
         Element::Prop(Prop {
             slug: "extension-refusals-are-pinned".into(),
             parent: Some("macro-must-reject".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::a_recoverable_verdict_cannot_declare_a_payload".into() },
             numbering: None,
             prose: r#"The payload (rule 3), continue-target (rule 3), and `Failed(Rung)`
 (rule 8) extensions are each pinned by a `trybuild` case —
@@ -303,7 +303,7 @@ diagnostic ({#compile-fail-asserts-only-non-compilation}).
         Element::Prop(Prop {
             slug: "emitted-module".into(),
             parent: None,
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_module_exists".into() },
             numbering: None,
             prose: r#"For a ladder `Name`, the macro emits a module `name` (the ladder name,
 lowercased) containing the artifacts below.
@@ -313,7 +313,7 @@ lowercased) containing the artifacts below.
         Element::Prop(Prop {
             slug: "emitted-carry".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_carry_accessor_exists".into() },
             numbering: None,
             prose: r#"**`Carry`** — if a `carry` block is present:
 `#[derive(Clone, Debug)] pub struct Carry { pub <field>: <type>, .. }`.
@@ -323,7 +323,7 @@ lowercased) containing the artifacts below.
         Element::Prop(Prop {
             slug: "emitted-rung-structs".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync".into() },
             numbering: None,
             prose: r#"**One struct per rung** — sealed and thread-bound:
 `pub struct R { _seal: (), _not_send: PhantomData<*const ()>, carry: Carry, pub
@@ -336,7 +336,7 @@ accessor `pub fn carry(&self) -> &Carry`. Constructor visibility follows
         Element::Prop(Prop {
             slug: "emitted-verdict-structs".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"**One struct per verdict** — sealed and thread-bound, `#[must_use]`:
 
@@ -352,7 +352,7 @@ accessor `pub fn carry(&self) -> &Carry`. Constructor visibility follows
         Element::Prop(Prop {
             slug: "emitted-suspended".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed".into() },
             numbering: None,
             prose: r#"**`Suspended<Prev>`** — `#[must_use] pub struct Suspended<Prev> { pub
 token: Prev, pub raised: ::rung::Raised }`, with a hand-written `Debug` that
@@ -372,7 +372,7 @@ clause outright. What the two share is the *shape*, `Result<_, Carrier<from>>`.
         Element::Prop(Prop {
             slug: "suspended-reports-what-it-awaits".into(),
             parent: Some("emitted-suspended".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-std/tests/driver.rs::a_parked_run_is_released_by_its_evidence_and_resumes_to_a_terminal".into() },
             numbering: None,
             prose: r#"The macro MUST also emit `impl<Prev> ::rung::Awaiting for
 Suspended<Prev>`, returning the carried {#emitted-suspended}
@@ -395,7 +395,7 @@ theory's value and declares no ordering, comparison or well-formedness over it
         Element::Prop(Prop {
             slug: "emitted-step-outcome".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn".into() },
             numbering: None,
             prose: r#"**`StepOutcome`** — `#[must_use] pub enum` with one variant per verdict
 of the branching transition. A continue arm's variant carries its **target
@@ -406,7 +406,7 @@ rung**; every other variant carries its **verdict struct**.
         Element::Prop(Prop {
             slug: "emitted-failed".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::recovers_from_the_failed_error_path".into() },
             numbering: None,
             prose: r#"**`Failed<Prev>`** — `#[must_use] pub struct Failed<Prev> { pub token:
 Prev, pub error: String }`.
@@ -416,7 +416,7 @@ Prev, pub error: String }`.
         Element::Prop(Prop {
             slug: "emitted-guards".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::recover_guard_is_auto_injected".into() },
             numbering: None,
             prose: r#"The guards the injected prologues call:
 
@@ -441,7 +441,7 @@ Prev, pub error: String }`.
         Element::Prop(Prop {
             slug: "emitted-functions".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"**Transition and recover functions** (when an `impl` block is present) —
 one `pub fn` per transition/recover, expanded from the corresponding body
@@ -455,7 +455,7 @@ declaration (no functions).
         Element::Prop(Prop {
             slug: "unmarked-signature".into(),
             parent: Some("emitted-functions".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"**Unmarked:** `pub fn active(spec: Spec) -> Active`.
 
@@ -464,7 +464,7 @@ declaration (no functions).
         Element::Prop(Prop {
             slug: "judgmental-signature".into(),
             parent: Some("emitted-functions".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token".into() },
             numbering: None,
             prose: r#"**`#[judgmental(R)]`:** `pub fn active(spec: Spec, q:
 ::rung::Qualified<R>) -> Active` — a second parameter, taken by value. Its name
@@ -479,7 +479,7 @@ preceded by the injected binding prologue `must_be_bound_to(&spec.payload, &q);`
         Element::Prop(Prop {
             slug: "judgmental-outcome-bound".into(),
             parent: Some("emitted-functions".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render".into() },
             numbering: None,
             prose: r#"A **forward** `#[judgmental(R)]` transition is also *followed* by the
 injected outcome epilogue `must_derive_from_judge(&out.payload, &judge_prov);`
@@ -492,7 +492,7 @@ transition gets the prologue and no epilogue.
         Element::Prop(Prop {
             slug: "resume-signature".into(),
             parent: Some("emitted-functions".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_suspension_resumes_through_the_authorial_edge".into() },
             numbering: None,
             prose: r#"**`resume`:** `pub fn revive(s: Suspended<Posed>, evidence:
 ::rung::Terminated, pen: ::rung::Authorized<'_, R>) -> Posed`. The second and
@@ -508,7 +508,7 @@ payload MUST implement `::rung::Situated`. **No `must_progress`**
         Element::Prop(Prop {
             slug: "authorial-signature".into(),
             parent: Some("emitted-functions".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::authorial_transition_takes_an_authorized_pen".into() },
             numbering: None,
             prose: r#"**`#[authorial(R)]`:** `pub fn revised(filed: Filed, pen:
 ::rung::Authorized<'_, R>) -> Revised` — a second parameter, taken by value. Its
@@ -523,7 +523,7 @@ standing prologue `must_hold_standing_over(&filed.payload, &pen);`
         Element::Prop(Prop {
             slug: "body-name-resolution".into(),
             parent: Some("emitted-module".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"Inside body expressions, rung/verdict names resolve unqualified;
 payload types resolve from the surrounding scope (`use super::*`).
@@ -538,7 +538,7 @@ payload types resolve from the surrounding scope (`use super::*`).
         Element::Prop(Prop {
             slug: "guarantees".into(),
             parent: None,
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "(rustc)".into() },
             numbering: Some('G'),
             prose: r#"Each guarantee is normative and **names the conformance test that fails
 if the implementation stops honoring it**. Guarantees delegated to the Rust
@@ -549,7 +549,7 @@ compiler are marked *(rustc)*.
         Element::Prop(Prop {
             slug: "g1-linear-consumption".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "(rustc)".into() },
             numbering: None,
             prose: r#"**Linear consumption.** A transition consumes its input rung by value;
 using a rung after it is moved MUST be a compile error. *(rustc — move
@@ -560,7 +560,7 @@ semantics.)*
         Element::Prop(Prop {
             slug: "g2-sealed-construction".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624".into() },
             numbering: None,
             prose: r#"**Sealed construction.** A rung MUST NOT be constructible by struct
 literal outside its module (`_seal` is private). When an `impl` block is
@@ -584,7 +584,7 @@ doctest shows the same refusal in rustdoc but does not assert the code
         Element::Prop(Prop {
             slug: "g3-one-token-one-thread".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync".into() },
             numbering: None,
             prose: r#"**One token, one thread.** Every rung and verdict MUST be `!Send +
 !Sync` (via `PhantomData<*const ()>`), so a shared `Arc`/`&` cannot carry it
@@ -596,7 +596,7 @@ across a thread boundary. *Conformance:
         Element::Prop(Prop {
             slug: "g4-no-silent-drop".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::dropping_a_verdict_under_deny_must_use_is_an_error".into() },
             numbering: None,
             prose: r#"**No silent drop.** Every rung, verdict, `StepOutcome`, and `Failed` MUST
 be `#[must_use]`. Dropping a token in statement position is a warning — an error
@@ -613,7 +613,7 @@ compile_fail doctest documents it but does not assert the diagnostic
         Element::Prop(Prop {
             slug: "g5-carry-immutability".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_carry_accessor_exists".into() },
             numbering: None,
             prose: r#"**Carry immutability.** `Carry` MUST be a private field exposed only
 through `&Carry`; a transition body cannot mutate it. *Conformance:
@@ -624,7 +624,7 @@ through `&Carry`; a transition body cannot mutate it. *Conformance:
         Element::Prop(Prop {
             slug: "g6-exhaustive-outcomes".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "(rustc)".into() },
             numbering: None,
             prose: r#"**Exhaustive outcomes.** `StepOutcome` is an enum; every match site MUST
 handle all variants. *(rustc — enum exhaustiveness.)*
@@ -634,7 +634,7 @@ handle all variants. *(rustc — enum exhaustiveness.)*
         Element::Prop(Prop {
             slug: "g7-recover-pairing".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::a_recoverable_verdict_without_a_recover_edge_is_refused".into() },
             numbering: None,
             prose: r#"**Recover pairing.** Every recoverable verdict has a matching recover
 function and vice versa; terminal verdicts have none
@@ -645,7 +645,7 @@ function and vice versa; terminal verdicts have none
         Element::Prop(Prop {
             slug: "g8-recovery-progress".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::recover_guard_is_auto_injected".into() },
             numbering: None,
             prose: r#"**Recovery progress.** The macro MUST wrap every *verdict* recover body
 with `must_progress`, comparing the source rung's payload to the produced rung's
@@ -658,7 +658,7 @@ payload type be `Clone + PartialEq`. *Conformance:
         Element::Prop(Prop {
             slug: "g9-error-path-recovery".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::recovers_from_the_failed_error_path".into() },
             numbering: None,
             prose: r#"**Error-path recovery.** A `recover { .. : Failed(R) => R }` function
 receives the `Failed` and returns the next rung. No progress guard is injected
@@ -670,7 +670,7 @@ receives the `Failed` and returns the next rung. No progress guard is injected
         Element::Prop(Prop {
             slug: "g10-continue-arms".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn".into() },
             numbering: None,
             prose: r#"**Continue arms.** A `V -> R` arm makes `step` build the next rung
 inline; `StepOutcome::V` carries that rung directly — no recover function, no
@@ -682,7 +682,7 @@ guard, no source. *Conformance:
         Element::Prop(Prop {
             slug: "g11-terminal-payloads".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"**Terminal payloads.** A `V(P)` terminal verdict returns a value through
 the verdict, read via `.payload()` / `.into_payload()`. *Conformance:
@@ -693,7 +693,7 @@ the verdict, read via `.payload()` / `.into_payload()`. *Conformance:
         Element::Prop(Prop {
             slug: "g12-gate-marked-signature".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token".into() },
             numbering: None,
             prose: r#"**Gate-marked signature.** A `#[judgmental(R)]` transition MUST take a
 second parameter of type `::rung::Qualified<R>`, by value; an unmarked
@@ -718,7 +718,7 @@ neither secures. *Conformance:
         Element::Prop(Prop {
             slug: "g13-token-binding".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::the_injected_prologue_refuses_a_transferred_token_the_body_never_reads".into() },
             numbering: None,
             prose: r#"**Token binding.** The macro MUST prefix every `#[judgmental(R)]`
 transition body with `must_be_bound_to(&<source>.payload, &<token>)`, which
@@ -755,7 +755,7 @@ settle_refuses_a_token_minted_against_a_different_model}`.*
         Element::Prop(Prop {
             slug: "g14-the-authorial-gate".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::authorial_transition_takes_an_authorized_pen".into() },
             numbering: None,
             prose: r#"**The authorial gate.** An `#[authorial(R)]` transition MUST take a
 second parameter of type `::rung::Authorized<'_, R>`, by value, and the macro
@@ -820,7 +820,7 @@ cases: `gate_authorial_missing_pen` → E0061, `gate_forged_pen` → E0451,
         Element::Prop(Prop {
             slug: "g15-outcome-provenance".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render".into() },
             numbering: None,
             prose: r#"**Outcome provenance.** The macro MUST follow every `#[judgmental(R)]`
 **forward** transition body with `must_derive_from_judge(&<out>.payload,
@@ -870,7 +870,7 @@ argument's provenance instead of the judge's reddens it).*
         Element::Prop(Prop {
             slug: "g16-the-residual-channel".into(),
             parent: Some("guarantees".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed".into() },
             numbering: None,
             prose: r#"**The residual channel, and the arrow back.** A `#[judgmental(R)]`
 **forward** transition MUST return `Result<Next, Suspended<Prev>>`, so that a
@@ -1035,7 +1035,7 @@ of Het's four gates still has no signature.
         Element::Prop(Prop {
             slug: "one-gate-unimplemented".into(),
             parent: Some("gate-faithfulness-not-secured".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::conditional_is_refused_and_names_the_open_question".into() },
             numbering: None,
             prose: r#"*One gate is unimplemented.* `#[conditional(..)]` is a parse-time
 refusal, not an encoding. Gate-faithfulness is a condition on **every** operation
@@ -1047,7 +1047,7 @@ all.
         Element::Prop(Prop {
             slug: "returned-value-unconstrained".into(),
             parent: Some("gate-faithfulness-not-secured".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render".into() },
             numbering: None,
             prose: r#"*The returned value is constrained judgmentally, and only there.* This
 non-guarantee used to read "the returned value is unconstrained," and it was
@@ -1099,7 +1099,7 @@ as the whole outward side used to.
         Element::Prop(Prop {
             slug: "type-only-marker-is-inert".into(),
             parent: Some("gate-faithfulness-not-secured".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::a_marker_on_a_type_only_declaration_is_inert".into() },
             numbering: None,
             prose: r#"*A type-only declaration emits no transitions,* so a marker on one has
 nothing to constrain and is inert, exactly as {#g2-sealed-construction}'s
@@ -1160,7 +1160,7 @@ declared rather than driven — is
         Element::Prop(Prop {
             slug: "conformance-suite".into(),
             parent: None,
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "docs/_ledger.py".into() },
             numbering: None,
             prose: r#"The conformance suite is `rung/tests/` and the doctests in
 `rung/src/lib.rs`. A change that violates any guarantee above MUST break at
@@ -1188,7 +1188,7 @@ annotation does not fix this; nothing reads it.
         Element::Prop(Prop {
             slug: "no-guarantee-cites-a-compile-fail-doctest".into(),
             parent: Some("conformance-suite".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "docs/_ledger.py".into() },
             numbering: None,
             prose: r#"Consequently **no guarantee may cite a `compile_fail` doctest as its
 conformance test.** Refusals are pinned by `trybuild` cases in `rung/tests/ui/`,

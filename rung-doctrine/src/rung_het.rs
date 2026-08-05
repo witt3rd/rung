@@ -229,7 +229,7 @@ to discharge it.
         Element::Prop(Prop {
             slug: "role-not-kind".into(),
             parent: Some("judgmental-declares-role".into()),
-            kind: Kind::Decidable { sentence: "roles_are_earned".into() },
+            kind: Kind::Decidable { proof: "rung-std/tests/principals_theory.rs::role_is_not_kind_and_the_two_axes_are_independent".into() },
             numbering: None,
             prose: r#"A role, not a kind. Kind is what a principal is made of, and
 belongs to whatever supplies $\mathcal{P}$ ({#nothing-further-required}). Role is what the
@@ -251,7 +251,7 @@ is what lets $\models$ resolve a judge.
         Element::Prop(Prop {
             slug: "authorial-declares-standing".into(),
             parent: Some("gate-marker-required".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::the_injected_prologue_refuses_a_pen_for_another_container_the_body_never_reads".into() },
             numbering: None,
             prose: r#"An authorial operation declares a **standing predicate**.
 
@@ -368,7 +368,7 @@ substrate, never enumerates kinds, and never inspects an inhabitant.
         Element::Prop(Prop {
             slug: "supplier-interface".into(),
             parent: Some("pool-is-opaque".into()),
-            kind: Kind::Decidable { sentence: "identity_fields_are_declared".into() },
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Het requires only that whatever supplies $\mathcal{P}$ exposes
 four predicates.
@@ -463,7 +463,7 @@ all. All three are Het's.
         Element::Prop(Prop {
             slug: "ordering-is-hetopts".into(),
             parent: Some("three-belonging-predicates".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-std/tests/principals_theory.rs::the_qualifying_set_is_not_ordered_by_cost".into() },
             numbering: None,
             prose: r#"$\varepsilon$ and cost tier support **ordering** among those
 that qualify. Ordering is HetOpt's ({#het-settles-hetopt-orders}).
@@ -473,7 +473,7 @@ that qualify. Ordering is HetOpt's ({#het-settles-hetopt-orders}).
         Element::Prop(Prop {
             slug: "epsilon-declared-not-ranked".into(),
             parent: Some("three-belonging-predicates".into()),
-            kind: Kind::Decidable { sentence: "epsilon_is_declared".into() },
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"Het requires $\varepsilon$ be declared so the verdict can carry
 its error bar. Het never reads it as a preference.
@@ -483,7 +483,7 @@ its error bar. Het never reads it as a preference.
         Element::Prop(Prop {
             slug: "one-pool-two-filters".into(),
             parent: Some("pool-is-parameter".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one".into() },
             numbering: None,
             prose: r#"There is **one pool and two filters**. The gate marker selects
 which qualification predicate applies, not which pool is consulted.
@@ -508,7 +508,7 @@ $$\mathcal{P}_{\text{judg}}(\varphi, a) = \{\, p \in \mathcal{P} : \mathsf{capab
         Element::Prop(Prop {
             slug: "disjointness-against-argument".into(),
             parent: Some("judgmental-qualifying-set".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/token_binding.rs::settle_refuses_a_token_minted_against_a_different_model".into() },
             numbering: None,
             prose: r#"Disjointness is measured against **the argument the operation is
 applied to**, not against the model in general.
@@ -518,7 +518,7 @@ applied to**, not against the model in general.
         Element::Prop(Prop {
             slug: "argument-governs".into(),
             parent: Some("judgmental-qualifying-set".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/token_binding.rs::dispose_refuses_a_token_minted_against_the_model".into() },
             numbering: None,
             prose: r#"Where the argument is the subject under audit, $\pi(a) = \pi(M)$
 and the two readings coincide. Where the argument is a Proposal, its
@@ -541,7 +541,7 @@ the decidable fragment.
         Element::Prop(Prop {
             slug: "non-identity-by-construction".into(),
             parent: Some("judgmental-qualifying-set".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/token_binding.rs::dispose_refuses_a_token_minted_against_the_model".into() },
             numbering: None,
             prose: r#"Non-identity is discharged by the **construction of the qualifying
 token**, not by a check inside a dispatching body. The token witnesses a
@@ -570,7 +570,7 @@ self-certifying, which is the failure this formalism exists to refuse.
         Element::Prop(Prop {
             slug: "no-preference-among-judges".into(),
             parent: Some("judgmental-qualifying-set".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-std/tests/principals_theory.rs::every_member_of_the_qualifying_set_is_a_well_formed_dispatch".into() },
             numbering: None,
             prose: r#"Het dispatches to *a* qualifying judge. It does not tier, cost,
 or prefer among qualifying judges. Any of them yields a well-formed
@@ -583,7 +583,7 @@ verdict, reported with its own $\varepsilon$.
         Element::Prop(Prop {
             slug: "authorial-qualifying-set".into(),
             parent: Some("pool-is-parameter".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one".into() },
             numbering: None,
             prose: r#"An authorial operation dispatches to an author drawn from its
 qualifying set:
@@ -595,7 +595,7 @@ $$\mathcal{P}_{\text{auth}}(o, M) = \{\, p \in \mathcal{P} : \mathsf{capable}(p,
         Element::Prop(Prop {
             slug: "judgment-refuses-authorship-requires".into(),
             parent: Some("authorial-qualifying-set".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one".into() },
             numbering: None,
             prose: r#"Judgment classifies; authorship transforms. Both require an
 outside, in opposite directions.
@@ -607,7 +607,7 @@ outside, in opposite directions.
         Element::Prop(Prop {
             slug: "provenance-overlap-is-the-point".into(),
             parent: Some("authorial-qualifying-set".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one".into() },
             numbering: None,
             prose: r#"Non-identity excludes exactly the arrows authorship needs: the
 author of a candidate *is* the party under audit, and enacting a remedy
@@ -619,7 +619,7 @@ defect.
         Element::Prop(Prop {
             slug: "standing-conditional-gated".into(),
             parent: Some("authorial-qualifying-set".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one".into() },
             numbering: None,
             prose: r#"Standing is conditional-gated. It is **decidable** when
 provenance containment settles it, $\pi(\text{outcome}) \subseteq \pi(p)$,
@@ -903,7 +903,7 @@ composition. This is why the fragments interleave without collapsing.
         Element::Prop(Prop {
             slug: "judgmental-arrow-shape".into(),
             parent: Some("monad-reading".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_failed_type".into() },
             numbering: None,
             prose: r#"A judgmental operation has the shape
 
@@ -956,7 +956,7 @@ $\eta$ never invents a new author; $\mu$ propagates the outermost author.
         Element::Prop(Prop {
             slug: "constant-arrow-hazard".into(),
             parent: Some("algebra-is-kleisli-functor".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624".into() },
             numbering: None,
             prose: r#"Nothing in the plain Kleisli construction prevents $M$ from
 sending a judgmental operation to a **constant** arrow
@@ -1144,7 +1144,7 @@ outside answers.
         Element::Prop(Prop {
             slug: "self-governing-not-self-closing".into(),
             parent: Some("subject-defined".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624".into() },
             numbering: None,
             prose: r#"An subject is therefore **self-governing** — its own algebra runs
 its decidable audit — but **not self-closing**: its judgmental
@@ -1397,7 +1397,7 @@ pool is non-empty.
         Element::Prop(Prop {
             slug: "adequacy-defined".into(),
             parent: Some("fractal-property".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::the_pool_propagates_a_deferral_and_mints_no_licence".into() },
             numbering: None,
             prose: r#"Adequacy lives one level below, inside the theories that actually
 invoke judges. For a judgmental sentence $\varphi$ of a theory $T$:
@@ -1450,7 +1450,7 @@ and no global fixed-point proof.
         Element::Prop(Prop {
             slug: "adequacy-failure-returns-residual".into(),
             parent: Some("adequacy-defined".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::recovers_from_the_failed_error_path".into() },
             numbering: None,
             prose: r#"Adequacy failure returns the residual
 ({#judgmental-arrow-shape}). The argument is not consumed, and
@@ -1461,7 +1461,7 @@ re-enters.
         Element::Prop(Prop {
             slug: "suspension-is-the-residual".into(),
             parent: Some("adequacy-failure-returns-residual".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed".into() },
             numbering: None,
             prose: r#"A judge that **exists and has not answered** is one of the two ways
 {#adequacy-defined} fails, and it is the interesting one. Adequacy is a
@@ -1480,7 +1480,7 @@ what changes is that the residual now carries **what** is being awaited.
         Element::Prop(Prop {
             slug: "raised-reference-is-opaque".into(),
             parent: Some("suspension-is-the-residual".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::the_raised_reference_is_carried_and_never_interpreted".into() },
             numbering: None,
             prose: r#"The identity of the raised matter is **opaque** to Het, for the
 reason {#pool-is-opaque} gives. Het never inspects an inhabitant of
@@ -1495,7 +1495,7 @@ whatever ({#nothing-further-required}).
         Element::Prop(Prop {
             slug: "deferral-is-not-a-verdict".into(),
             parent: Some("suspension-is-the-residual".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_deferral_is_not_a_judgment".into() },
             numbering: None,
             prose: r#"A deferral **is not a verdict**, and no operation converts one into
 one. A judge that raised a matter has said nothing about the sentence, so a
@@ -1509,7 +1509,7 @@ and it is the *answer* that does not exist.
         Element::Prop(Prop {
             slug: "no-preference-after-a-deferral".into(),
             parent: Some("suspension-is-the-residual".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::the_pool_propagates_a_deferral_and_mints_no_licence".into() },
             numbering: None,
             prose: r#"A theory MAY dispatch again, and the pool does not do it for it.
 Walking on to the next qualifying judge because the first raised a matter is a
@@ -1522,7 +1522,7 @@ to HetOpt ({#het-settles-hetopt-orders}).
         Element::Prop(Prop {
             slug: "resumption-is-authorial".into(),
             parent: Some("adequacy-failure-returns-residual".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_suspension_resumes_through_the_authorial_edge".into() },
             numbering: None,
             prose: r#"Resuming a suspended dispatch is **authorial**, not judgmental.
 
@@ -1545,7 +1545,7 @@ held by two principals, and that is the shape rather than an inconvenience.
         Element::Prop(Prop {
             slug: "resumption-needs-a-terminal".into(),
             parent: Some("resumption-is-authorial".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::resume_refuses_evidence_from_another_raised_matter".into() },
             numbering: None,
             prose: r#"Resumption is gated on the raised matter having reached a
 **terminal**, and on that terminal being the one **this** dispatch awaits. What
@@ -1562,7 +1562,7 @@ no evidence, and the outer arrow stays suspended — **visibly**, which is what
         Element::Prop(Prop {
             slug: "resumption-is-unguarded".into(),
             parent: Some("resumption-is-authorial".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::the_same_suspension_resumes_twice_with_no_progress_guard".into() },
             numbering: None,
             prose: r#"Re-entry through a resumption is **unguarded**. A raised matter may
 take any number of rounds, and a host that bounded them would have declared the
@@ -1711,7 +1711,7 @@ contest is itself a move ({#proposal-vocabulary}).
         Element::Prop(Prop {
             slug: "the-pass".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-het/tests/pass_ladder.rs::the_pass_runs_end_to_end_as_a_ladder".into() },
             numbering: None,
             prose: r#"The audit-rectify pass is the game in operation — a chain of
 principals, each acting on what the previous one produced. The gate says
@@ -1815,7 +1815,7 @@ they dispute, in order to obtain a vehicle for disputing it.
         Element::Prop(Prop {
             slug: "remedy-carries-an-edit".into(),
             parent: Some("proposal-vocabulary".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-het/tests/pass_ladder.rs::the_pass_runs_end_to_end_as_a_ladder".into() },
             numbering: None,
             prose: r#"A `remedy` carries an **edit** — what would be done to the subject.
 The edits are the theory's, not Het's ({#edit-required-not-typed}); Het requires only that a
@@ -1826,7 +1826,7 @@ remedy name one, and that `enact` apply it.
         Element::Prop(Prop {
             slug: "disposition-vocabulary".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-het/tests/acceptance.rs::the_disposition_vocabulary_is_exactly_the_five_that_survive_the_gate".into() },
             numbering: None,
             prose: r#"A Disposition is one of exactly five.
 
@@ -1843,7 +1843,7 @@ remedy name one, and that `enact` apply it.
         Element::Prop(Prop {
             slug: "disposition-is-a-ruling".into(),
             parent: Some("disposition-vocabulary".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624".into() },
             numbering: None,
             prose: r#"A Disposition is a **ruling, not a revision**. Something must
 apply it, and that something is an author with standing ({#authorial-qualifying-set}).
@@ -1853,7 +1853,7 @@ apply it, and that something is an author with standing ({#authorial-qualifying-
         Element::Prop(Prop {
             slug: "no-amending-disposition".into(),
             parent: Some("disposition-vocabulary".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/pass_ladder.rs::a_chain_cannot_be_read_for_an_edit".into() },
             numbering: None,
             prose: r#"No Disposition amends a Proposal. A judge that amends is
 *transforming*, not classifying; and being provenance-disjoint from the
@@ -1878,7 +1878,7 @@ reason in hand.
         Element::Prop(Prop {
             slug: "reproposal-carries-the-chain".into(),
             parent: Some("disposition-vocabulary".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/pass_ladder.rs::reject_remedy_re_enters_with_no_progress_guard".into() },
             numbering: None,
             prose: r#"A re-proposal carries the chain of prior dispositions and their
 reasons. Without them an author can cycle indefinitely on the same
@@ -1901,7 +1901,7 @@ one-way funnel into a verdict.
         Element::Prop(Prop {
             slug: "licence-is-not-guarantee".into(),
             parent: Some("enact-makes-an-endofunctor".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals".into() },
             numbering: None,
             prose: r#"A terminal-and-affirming Disposition licenses `enact`; it does
 not guarantee the edit lands.
@@ -2001,7 +2001,7 @@ application of it.
         Element::Prop(Prop {
             slug: "het-declares-no-worth-law".into(),
             parent: Some("cut-at-valuation".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-std/tests/principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon".into() },
             numbering: None,
             prose: r#"A Het theory declares no worth-law $V$, and does not declare the
 minimal-judge rule.
@@ -2355,7 +2355,7 @@ on the model**. Het names no logical fragment.
         Element::Prop(Prop {
             slug: "two-signatures-not-two-fragments".into(),
             parent: Some("decidable-is-a-total-predicate".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::authorial_transition_takes_an_authorized_pen".into() },
             numbering: None,
             prose: r#"The two gates are not two fragments. They are two **signatures**,
 and the host language's type system separates them:
@@ -2370,7 +2370,7 @@ and the host language's type system separates them:
         Element::Prop(Prop {
             slug: "decidable-cannot-consult-pool".into(),
             parent: Some("decidable-is-a-total-predicate".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::a_qualified_token_cannot_be_constructed_outside_the_pool".into() },
             numbering: None,
             prose: r#"A decidable sentence therefore *cannot* consult $\mathcal{P}$: no
 parameter admits a principal, and the qualifying token has no constructor
@@ -2382,7 +2382,7 @@ the author is asked to respect; it is a term that cannot be written.
         Element::Prop(Prop {
             slug: "mismarking-is-not-a-false-claim".into(),
             parent: Some("decidable-is-a-total-predicate".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::calling_a_judgmental_transition_without_a_token_is_e0061".into() },
             numbering: None,
             prose: r#"Mis-marking is likewise not a claim that could be false. Marking a
 sentence `decidable` gives it the decidable signature. A body needing an
@@ -2393,7 +2393,7 @@ outside will not typecheck in that position.
         Element::Prop(Prop {
             slug: "signature-replaces-fragment-membership".into(),
             parent: Some("decidable-is-a-total-predicate".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::calling_a_judgmental_transition_without_a_token_is_e0061".into() },
             numbering: None,
             prose: r#"This replaces fragment-membership as the mechanism of
 gate-honesty. A chosen fragment is a constraint someone must check; a
@@ -2547,7 +2547,7 @@ nothing in a host answers to it.
         Element::Prop(Prop {
             slug: "no-bound-on-reentry".into(),
             parent: None,
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/pass_ladder.rs::reject_remedy_re_enters_with_no_progress_guard".into() },
             numbering: None,
             prose: r#"Het places **no bound on re-entry**.
 
@@ -2597,7 +2597,7 @@ which would be a worth-law under another name.
         Element::Prop(Prop {
             slug: "guarded-reentry-is-eviction".into(),
             parent: Some("no-bound-on-reentry".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn".into() },
             numbering: None,
             prose: r#"A host that injects a termination guard on re-entry has declared
 the bound Het declines to declare. Re-entry is an **unguarded** return to

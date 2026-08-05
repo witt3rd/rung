@@ -131,13 +131,13 @@ impl Doctrine {
         false
     }
 
-    /// Propositions marked `Decidable` with no sentence named.
+    /// Propositions marked `Decidable` with no proof named.
     ///
     /// The marker's whole content is that a body exists; an empty name is the
     /// promise-someone-keeps failure, in the one place it could still occur.
-    pub fn decidable_without_a_sentence(&self) -> Vec<String> {
+    pub fn decidable_without_a_proof(&self) -> Vec<String> {
         self.props()
-            .filter(|p| matches!(&p.kind, Kind::Decidable { sentence } if sentence.is_empty()))
+            .filter(|p| matches!(&p.kind, Kind::Decidable { proof } if proof.is_empty()))
             .map(|p| p.slug.clone())
             .collect()
     }
@@ -168,8 +168,8 @@ theory!(doctrine for Doctrine {
     // needs a filler has one. The macro refuses the alternative when a sentence
     // is *written*; these are propositions carrying a marker as data, where it
     // could still go missing.
-    decidable every_decidable_names_a_sentence = |d: &Doctrine|
-        d.decidable_without_a_sentence().is_empty();
+    decidable every_decidable_names_a_proof = |d: &Doctrine|
+        d.decidable_without_a_proof().is_empty();
 
     decidable every_judgmental_names_a_role = |d: &Doctrine|
         d.judgmental_without_a_role().is_empty();
@@ -267,10 +267,10 @@ impl Applies<DoctrineEdit> for Doctrine {
                 }
             }
             DoctrineEdit::Reclassify { to } => {
-                if matches!(to, Kind::Decidable { sentence } if sentence.is_empty()) {
+                if matches!(to, Kind::Decidable { proof } if proof.is_empty()) {
                     return Err(EnactError::TargetRefused {
                         target: self.file.clone(),
-                        reason: "a decidable proposition must name the sentence carrying its body"
+                        reason: "a decidable proposition must name the proof that establishes it"
                             .into(),
                     });
                 }

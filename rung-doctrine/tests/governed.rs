@@ -52,7 +52,7 @@ fn the_real_doctrine_satisfies_every_decidable_sentence() {
         doctrine_theory::slugs_are_unique::holds(&d),
         doctrine_theory::every_parent_resolves::holds(&d),
         doctrine_theory::every_reference_resolves::holds(&d),
-        doctrine_theory::every_decidable_names_a_sentence::holds(&d),
+        doctrine_theory::every_decidable_names_a_proof::holds(&d),
         doctrine_theory::every_judgmental_names_a_role::holds(&d),
     ] {
         assert!(
@@ -95,11 +95,11 @@ fn every_sentence_can_fail() {
     let mut d = small();
     if let Element::Prop(p) = &mut d.elements[0] {
         p.kind = Kind::Decidable {
-            sentence: String::new(),
+            proof: String::new(),
         };
     }
     assert!(!holds(
-        &doctrine_theory::every_decidable_names_a_sentence::holds(&d)
+        &doctrine_theory::every_decidable_names_a_proof::holds(&d)
     ));
 
     let mut d = small();
@@ -146,7 +146,7 @@ fn reclassifying_refuses_a_gate_with_no_filler() {
             "zeta-root",
             &DoctrineEdit::Reclassify {
                 to: Kind::Decidable {
-                    sentence: String::new()
+                    proof: String::new()
                 }
             }
         )

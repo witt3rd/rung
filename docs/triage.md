@@ -15,12 +15,47 @@ the files are right.
 A proposition's kind is **not** a claim about how important it is or how sure
 anyone is of it. It is a claim about *what would settle it*:
 
-| kind | settled by | `rung` | `rung-het` | `rung-ct` | all |
-|---|---|---:|---:|---:|---:|
-| **signature** | nothing — it declares vocabulary | 46 | 38 | 41 | **125** |
-| **rationale** | nothing — it argues, or records a limit | 24 | 134 | 41 | **199** |
-| **judgmental** | a mathematician | 0 | 27 | 23 | **50** |
-| **decidable** | a sentence, run over a model | 0 | 3 | 3 | **6** |
+| kind | settled by | count |
+|---|---|---:|
+| **decidable** | a proof — a test that fails when it is violated | **108** |
+| **rationale** | nothing — it argues, or records a limit | **159** |
+| **signature** | nothing — it declares vocabulary | **64** |
+| **judgmental** | a principal; nothing else can | **49** |
+
+### The criterion, and the redo it forced
+
+The first pass asked *"can a machine compute this from a data structure?"* and,
+finding no such structure, answered **signature** 125 times. That was the wrong
+question. Most of what rung guarantees is about an **implementation**, and an
+implementation is checked by running something against it — not by evaluating a
+closure over a value.
+
+The right question:
+
+> A proposition is **decidable** iff a proof exists that fails when the
+> proposition is violated — and that failure has been demonstrated.
+
+Under it the decidable fragment went from 6 to 108, drawing 64 from signature
+and 40 from rationale. `G3` is the clean example: *"every rung and verdict MUST
+be `!Send + !Sync`"* looked unencodable, and `rung/tests/compile_pass.rs` has
+settled it by autoref specialization the whole time.
+
+A proof takes three forms, all decidable and all checked to resolve: a named
+test, `(rustc)` where violating it does not build, or a checker.
+
+### Two things the redo revealed
+
+**Forty propositions I called rationale are the sharpest claims in the corpus.**
+`deferral-is-not-a-verdict`, `no-bound-on-reentry`, `resumption-is-authorial`,
+`decidable-cannot-consult-pool` — each is phrased as a clarification (*"X is
+measured against A, never against B"*) and each has a test. Reading a
+clarification as commentary was a systematic error of the first pass.
+
+**The judgmental fragment barely moved: 50 → 49.** Only
+`verdict-dagger-is-contractive` turned out to have a proof. That is the result
+worth having: the propositions that need judgment were correctly identified, and
+they need it because *nothing else can settle them* — not because nobody has got
+round to writing a test.
 
 Signature and rationale carry no gate, and that is structural rather than
 conventional: neither is a claim that could be satisfied, so there is nothing
@@ -185,7 +220,36 @@ Not more, deliberately. Several other propositions are *established* by tests �
 but a test is not a sentence, and marking them decidable would name a body that
 does not exist.
 
-## 8 · The limit of this reading
+## 8 · What "decidable" does not yet mean
+
+Naming a proof is clause one. Clause two — that the proof has been **seen to
+fail** — is where the number turns:
+
+    decidable                                     108
+    with a demonstrated failure                    12   (11%)
+    naming a proof nobody has watched fail         96
+
+A test that cannot fail is not a proof. This repository has a proposition
+saying so (`a-refusal-test-that-cannot-fail`) and a mutation discipline that
+practises it — but the demonstration is recorded in the ledger's prose for
+twelve propositions, and the other ninety-six name a test whose ability to
+redden is an assumption.
+
+That is not a claim the ninety-six are unproven. Most were probably mutated when
+they were written and nobody wrote it down. It is a claim that **the record
+cannot tell the difference**, which is the same thing from the outside.
+
+There is a second, deeper gap. A proof is cited by a person who also chose which
+proposition it establishes, and nothing checks the citation is **apt**. That is
+`establishes_what_it_cites`, judgmental and unsettled — and it is the reason
+some of those forty rationale-to-decidable moves may be the *ledger* being
+generous rather than the reading being wrong. `sealing-is-the-axiom-not-a-guard`
+cites a test that proves sealing; whether sealing *is the axiom* is not what the
+test shows.
+
+Which is the honest shape: 108 decidable, 12 demonstrated, 0 apt-checked.
+
+## 9 · The limit of this reading
 
 The rung-ct triage was made by reading each proposition. **These 272 were
 classified from each proposition's leading claim** — the sentence that says what
