@@ -19,7 +19,7 @@
 //! domain projects with no caller-specific knowledge embedded. This is the
 //! second block admitted on the same test, and it earns it on three counts:
 //!
-//! 1. **Two carriers already fill it.** rung's own `docs/questions/` tree, read
+//! 1. **Two carriers already fill it.** rung's own `questions/` tree, read
 //!    off disk by `rung-het/tests/questions_of_rung.rs`, and a synthetic decision
 //!    docket with a disjoint id space, a disjoint edge set and a different
 //!    lifecycle path, in `rung-std/tests/questions_theory.rs`. A theory with one

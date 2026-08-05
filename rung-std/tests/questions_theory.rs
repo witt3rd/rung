@@ -2,14 +2,14 @@
 //!
 //! This file exists to make the library's genericity checkable rather than
 //! asserted. Its carrier is an architecture-decision docket that shares nothing
-//! with rung's own `docs/questions/`:
+//! with rung's own `questions/`:
 //!
 //! | | rung's questions | this docket |
 //! |---|---|---|
 //! | ids | `q1 … q11` | `d1 … d6` |
 //! | id prefix | `q` | `d` |
 //! | namespace | `rung-questions` | `atlas-decisions` |
-//! | container | `docs/questions` | `specs/decisions` |
+//! | container | `questions` | `specs/decisions` |
 //! | roles held by | `forge` / `external-reviewer` | `atlas-bot` / `guild-reviewer` |
 //! | edges | five unacknowledged of five | three unacknowledged of five |
 //! | lifecycle path | resolved, and blocked re-entry | parked re-entry |

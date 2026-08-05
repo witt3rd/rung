@@ -649,7 +649,7 @@ fn two_markers_on_one_transition_are_refused() {
 // body property and inherits Q1's limit whole; and a decidable transition may
 // still reach a clock or a socket, because the decidable signature excludes
 // only Het's outside (purity-not-secured). The argument, and what would falsify
-// it, is in Q11's note under docs/questions/open/.
+// it, is in Q11's note under questions/open/.
 
 // ── the gap, as a test rather than as a paragraph ───────────────────────────
 
@@ -775,7 +775,7 @@ fn the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render() {
             admissibility-subcategories, the conjunct G14 left to the body — \
             has no epilogue, and neither does a branching judgmental \
             transition. This is what remains of Q11's blocker (1); see \
-            docs/questions/open/q11-gate-faithfulness.md. Unpark by deleting \
+            questions/open/q11-gate-faithfulness.md. Unpark by deleting \
             this attribute once an authorial epilogue exists."]
 #[should_panic(expected = "\u{3c0}(f(a)) \u{2284} \u{3c0}(p)")]
 fn an_authorial_arrow_may_not_return_a_provenance_its_author_does_not_hold() {
@@ -822,7 +822,7 @@ fn an_authorial_arrow_may_not_return_a_provenance_its_author_does_not_hold() {
             encoding. Gate-faithfulness quantifies over EVERY operation of an \
             algebra (rung-het-props.md#gate-faithful), so an algebra with a \
             conditional operation cannot state it here. This is Q11's blocker \
-            (2); see docs/questions/open/q11-gate-faithfulness.md. Unpark by \
+            (2); see questions/open/q11-gate-faithfulness.md. Unpark by \
             deleting this attribute once the macro accepts the marker."]
 fn a_conditional_marker_has_a_signature() {
     trybuild::TestCases::new().pass("tests/ui/gate_conditional_unsupported.rs");

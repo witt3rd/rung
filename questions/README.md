@@ -1,4 +1,4 @@
-# docs/questions/ — The Open-Question Registry for rung
+# questions/ — The Open-Question Registry for rung
 
 *A question is a bet that some resolution will hold. This is where each one lives until it does.*
 
@@ -11,7 +11,7 @@ This is the `outer-loop/bets/` and `augur/genesis/meta/questions/` pattern, appl
 ## Folder is status
 
 ```
-docs/questions/
+questions/
   open/       — unresolved. actively awaiting an answer, and ours to push.
   parked/     — a known mechanism exists, but the cost isn't worth paying yet (YAGNI).
   blocked/    — depends on something outside this project (e.g. a language feature).

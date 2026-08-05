@@ -1,4 +1,4 @@
-//! **This repository governs itself.** rung's own `docs/questions/`, audited by
+//! **This repository governs itself.** rung's own `questions/`, audited by
 //! the library theory in [`rung_std::questions`].
 //!
 //! The four domains that came before this one were fixtures: a soul document, a
@@ -6,7 +6,7 @@
 //! library. None of them governed anything that exists.
 //!
 //! This one does. Its sort is a **question file in this repository**, its models
-//! are read off disk at test time from `docs/questions/**/*.md`, and every
+//! are read off disk at test time from `questions/**/*.md`, and every
 //! decidable sentence is evaluated against all fifteen of them. If a sentence is
 //! wrong about the real thing the suite says so
 //! (`the_real_questions_report_their_outbound_edge_drift`) rather than being
@@ -52,7 +52,7 @@ use std::path::{Path, PathBuf};
 /// the nine decidable sentences, the three roles, the ladder — is the library's.
 const RUNG: Scheme = Scheme {
     namespace: "rung-questions",
-    root: "docs/questions",
+    root: "questions",
     id_prefix: "q",
 };
 
@@ -60,10 +60,10 @@ fn questions_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("rung-het sits in the workspace")
-        .join("docs/questions")
+        .join("questions")
 }
 
-/// Walk `docs/questions/**/*.md`. `_`-prefixed files and `_evidence/` are
+/// Walk `questions/**/*.md`. `_`-prefixed files and `_evidence/` are
 /// skipped by the library's loader — exactly what `_reach.py` skips, so the two
 /// agree on what a node is.
 fn load() -> Questions {
@@ -121,7 +121,7 @@ const CURATOR: Person = Person {
     id: "forge",
     prov: &["rung-questions"],
     roles: &["curator"],
-    stewards: &["open", "blocked", "parked", "docs/questions"],
+    stewards: &["open", "blocked", "parked", "questions"],
     dissents: false,
 };
 
@@ -162,7 +162,7 @@ fn the_fifteen_questions_are_read_from_disk() {
             "q1", "q10", "q11", "q12", "q13", "q14", "q15", "q2", "q3", "q4", "q5", "q6", "q7",
             "q8", "q9"
         ],
-        "docs/questions/ holds fifteen questions; an audit over zero of them proves nothing"
+        "questions/ holds fifteen questions; an audit over zero of them proves nothing"
     );
 }
 
@@ -317,7 +317,7 @@ fn every_declared_edge_kind_has_a_lived_instance_on_disk() {
         );
         assert!(
             !users.is_empty(),
-            "`{}` is declared but nothing in docs/questions/ uses it — a speculative \
+            "`{}` is declared but nothing in questions/ uses it — a speculative \
              edge type, which is what the lived-instance rule forbids",
             kind.name()
         );
@@ -528,7 +528,7 @@ fn the_lifecycle_ladder_runs_the_authorial_and_judgmental_gates_in_turn() {
     let gathered = questionlifecycle::gathered(questionlifecycle::Open::new(q1), pen);
     assert_eq!(
         gathered.payload.sources,
-        vec!["docs/questions/open/q1-transition-body-correctness.md".to_string()]
+        vec!["questions/open/q1-transition-body-correctness.md".to_string()]
     );
 
     let pen = pen_over(&p, &CURATOR, "open").unwrap();
@@ -585,7 +585,7 @@ fn resolved_runs_its_own_law_on_a_write_the_ruling_already_authorized() {
     let mut r = load();
     let p = pool();
 
-    let pen = pen_over(&p, &CURATOR, "docs/questions").expect("the curator stewards the tree");
+    let pen = pen_over(&p, &CURATOR, "questions").expect("the curator stewards the tree");
 
     let proposal = Proposal::remedy(&pen, "q5", QuestionEdit::Relocate { to: "resolved" });
     let judge = p

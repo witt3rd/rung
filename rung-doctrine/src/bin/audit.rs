@@ -100,7 +100,21 @@ fn main() {
                         .or_default()
                         .push(format!("{}  ({proof})", p.slug));
                 }
-                Kind::Judgmental { role } => unsettled.push((p.slug.clone(), role.clone())),
+                // A judgmental proposition with a ruling is SETTLED — by a
+                // principal, not by a run. The audit reports it and does not
+                // re-litigate it; nothing here can check the reasoning.
+                Kind::Judgmental {
+                    role,
+                    ruling: Some(rec),
+                } => {
+                    by_outcome
+                        .entry("settled by a principal")
+                        .or_default()
+                        .push(format!("{}  ({role}, judgments/{rec})", p.slug));
+                }
+                Kind::Judgmental { role, ruling: None } => {
+                    unsettled.push((p.slug.clone(), role.clone()))
+                }
                 Kind::Owed { why } => {
                     by_outcome
                         .entry("owed")
@@ -133,6 +147,7 @@ fn main() {
     println!("    violated         {}", n("VIOLATED"));
     println!("    did not run      {}", n("not run"));
     println!("    proof missing    {}", n("proof missing"));
+    println!("  settled by a judge {}", n("settled by a principal"));
     println!("  owed               {}", n("owed"));
     println!(
         "  unsettled          {}   (need a principal)",

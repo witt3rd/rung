@@ -558,7 +558,7 @@ re-entry rather than laundering
 ([7.44](rung-het-props.md#reproposal-carries-the-chain)) — so which arms are
 *outcomes* in the sense of [5.41](rung-het-props.md#admissibility-subcategories)
 is unsettled, and the epilogue does not guess. Recorded as an open limit in
-`docs/questions/open/q11-gate-faithfulness.md`.
+`questions/open/q11-gate-faithfulness.md`.
 
 *Conformance:
 `gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render`

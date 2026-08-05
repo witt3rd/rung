@@ -83,7 +83,7 @@ The precedent here is lived, not assumed. **Q7** (transitions are Prisms, not
 Kleisli arrows), **Q9** (the dependency structure is a Grothendieck
 opfibration) and **Q10** (the opfibration iterates) were each resolved by
 outside expert review, and the reviews are in
-`docs/questions/resolved/_evidence/`. Q7's resolution *overturned* the account
+`questions/resolved/_evidence/`. Q7's resolution *overturned* the account
 that preceded it. These 23 are the propositions of that kind — the ones where
 being wrong is a live possibility with a history.
 

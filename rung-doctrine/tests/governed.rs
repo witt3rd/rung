@@ -107,6 +107,7 @@ fn every_sentence_can_fail() {
     if let Element::Prop(p) = &mut d.elements[0] {
         p.kind = Kind::Judgmental {
             role: String::new(),
+            ruling: None,
         };
     }
     assert!(!holds(
@@ -158,7 +159,8 @@ fn reclassifying_refuses_a_gate_with_no_filler() {
             "zeta-root",
             &DoctrineEdit::Reclassify {
                 to: Kind::Judgmental {
-                    role: String::new()
+                    role: String::new(),
+                    ruling: None,
                 }
             }
         )
@@ -171,6 +173,7 @@ fn reclassifying_refuses_a_gate_with_no_filler() {
         &DoctrineEdit::Reclassify {
             to: Kind::Judgmental {
                 role: "editor".into(),
+                ruling: None,
             },
         },
     )

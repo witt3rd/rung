@@ -152,7 +152,7 @@ fn parse_gate_marker(input: ParseStream) -> syn::Result<Option<Gate>> {
              while `ladder!`'s checks run at expansion time against a single \
              declaration; the two do not yet meet. `#[judgmental(Role)]` and \
              `#[authorial(Role)]` are implemented. This is what remains of Q11's \
-             second blocker — see docs/questions/open/q11-gate-faithfulness.md.",
+             second blocker — see questions/open/q11-gate-faithfulness.md.",
         )),
         other => Err(syn::Error::new(
             attr.span(),
@@ -1260,7 +1260,7 @@ fn emit(ladder: &Ladder) -> proc_macro2::TokenStream {
     // no-bound-on-reentry). A containment epilogue there would refuse the
     // re-entry rather than the hazard, and which of those arms counts as an
     // "outcome" in the sense of `admissibility-subcategories` is not settled.
-    // Recorded as a limit in docs/questions/open/q11-gate-faithfulness.md
+    // Recorded as a limit in questions/open/q11-gate-faithfulness.md
     // rather than guessed at here.
     let has_epilogue =
         |t: &Transition| matches!(t.gate, Some(Gate::Judgmental(_))) && t.to_rung.is_some();

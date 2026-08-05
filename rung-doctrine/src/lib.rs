@@ -43,6 +43,7 @@
 
 pub mod conformance;
 pub mod governed;
+pub mod judgment;
 pub mod rung;
 pub mod rung_ct;
 pub mod rung_het;
@@ -100,8 +101,20 @@ pub enum Kind {
     /// This is the work queue. An audit finds these; an author discharges them
     /// by writing the test, or by writing the thing the test would run against.
     Owed { why: String },
-    /// A claim needing an outside. Carries the competence role required.
-    Judgmental { role: String },
+    /// A claim needing an outside. Carries the competence role required, and
+    /// the **ruling** that settled it, once one exists.
+    ///
+    /// `None` is the honest state for anything nobody has judged. It is not a
+    /// defect and not a gap in the theory — it is a proposition waiting for a
+    /// principal, and the audit reports it as unsettled rather than counting it
+    /// against the corpus.
+    ///
+    /// The ruling names a record in `judgments/`. What such a record can and
+    /// cannot establish is in [`judgment`].
+    Judgmental {
+        role: String,
+        ruling: Option<String>,
+    },
     /// Declares part of the signature — a sort, an operation. Not a claim
     /// about a model, so it has no gate.
     Signature,

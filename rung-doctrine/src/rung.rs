@@ -900,7 +900,7 @@ re-entry rather than laundering
 ({#reproposal-carries-the-chain}) — so which arms are
 *outcomes* in the sense of {#admissibility-subcategories}
 is unsettled, and the epilogue does not guess. Recorded as an open limit in
-`docs/questions/open/q11-gate-faithfulness.md`.
+`questions/open/q11-gate-faithfulness.md`.
 
 *Conformance:
 `gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render`
@@ -1212,7 +1212,7 @@ declared rather than driven — is
 [Q4](questions/open/q4-composition-nested-ladders.md), open.
 
 "#.into(),
-            mechanism: r#"A limit on the DECLARATION, recorded rather than worked around. `ladder!` declares a linear spine with backward continue arms, and a continue arm's target rung is built inline by `step` ([G10](rung-props.md#g10-continue-arms)) — by whoever holds that transition's token. An `Accept -> Governed` arm on the pass would therefore have the JUDGE produce the revised subject, which {#no-amending-disposition} forbids. So `enact` sits outside the branching transition and the loop of {#enact-makes-an-endofunctor} closes by composition, not inside one declaration. The cited test is the shape as built: `Accept` is terminal and carries a `Licence`, and the run leaves the ladder to enact. Expressing the composite as a declaration is Q4 (`docs/questions/open/q4-composition-nested-ladders.md`), open — nothing here is claimed to close it."#.into(),
+            mechanism: r#"A limit on the DECLARATION, recorded rather than worked around. `ladder!` declares a linear spine with backward continue arms, and a continue arm's target rung is built inline by `step` ([G10](rung-props.md#g10-continue-arms)) — by whoever holds that transition's token. An `Accept -> Governed` arm on the pass would therefore have the JUDGE produce the revised subject, which {#no-amending-disposition} forbids. So `enact` sits outside the branching transition and the loop of {#enact-makes-an-endofunctor} closes by composition, not inside one declaration. The cited test is the shape as built: `Accept` is terminal and carries a `Licence`, and the run leaves the ladder to enact. Expressing the composite as a declaration is Q4 (`questions/open/q4-composition-nested-ladders.md`), open — nothing here is claimed to close it."#.into(),
         }),
         Element::Verbatim(r#"---
 

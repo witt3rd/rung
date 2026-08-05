@@ -32,7 +32,7 @@ Four things exist that did not when the Python was written.
 | `rung_std::questions` | **a theory over markdown files in this repo, with two carriers** |
 
 The fourth is the one that matters. `rung-het/tests/questions_of_rung.rs` reads
-`docs/questions/**/*.md` off disk at test time and evaluates every decidable
+`questions/**/*.md` off disk at test time and evaluates every decidable
 sentence against all twelve. The method is not speculative: it is running, in
 CI, over this repository's own documents.
 
@@ -48,7 +48,7 @@ the theory's own reckoning. What is missing is one adapter, not a design.
 
 ```
 rung-std/src/questions.rs           the theory   — sorts, sentences, roles, edits, lifecycle
-rung-het/tests/questions_of_rung.rs carrier one  — rung's own docs/questions/, read off disk
+rung-het/tests/questions_of_rung.rs carrier one  — rung's own questions/, read off disk
 rung-std/tests/questions_theory.rs  carrier two  — a synthetic docket, disjoint id space
 ```
 

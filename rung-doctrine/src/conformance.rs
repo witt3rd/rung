@@ -78,7 +78,10 @@ fn meaning(kind: &str) -> &'static str {
 fn proof_of(p: &Prop) -> String {
     match &p.kind {
         Kind::Decidable { proof } => format!("`{proof}`"),
-        Kind::Judgmental { role } => format!("*awaits a* `{role}`"),
+        Kind::Judgmental { role, ruling: None } => format!("*awaits a* `{role}`"),
+        Kind::Judgmental {
+            ruling: Some(r), ..
+        } => format!("`judgments/{r}`"),
         Kind::Owed { why } => format!("**owed** — {why}"),
         _ => "—".to_string(),
     }

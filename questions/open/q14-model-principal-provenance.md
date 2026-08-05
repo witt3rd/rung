@@ -94,7 +94,7 @@ Any two of the three are easy. All three is the question.
   about**, and that unease is the substance of this question rather than an
   objection to be waved off.
 - **A ruling that models are never admissible judges.** Coherent, honest, and it
-  voids [bootstrap](../../bootstrap.md) Stage 5 outright — the judgmental
+  voids [bootstrap](../../docs/bootstrap.md) Stage 5 outright — the judgmental
   fragment then stays declared-and-unsettled at corpus scale indefinitely. That
   is an acceptable answer; it is not a non-answer.
 - **A ruling that P0 constrains the artifact, not the principal.** Disqualify on
@@ -105,7 +105,7 @@ Any two of the three are easy. All three is the question.
 
 ## What rests on it
 
-[`bootstrap.md`](../../bootstrap.md) Stage 5 — a model as judge — is gated on
+[`bootstrap.md`](../../docs/bootstrap.md) Stage 5 — a model as judge — is gated on
 this outright, and Stage 5 is what makes the judgmental fragment tractable at
 corpus scale. Without an answer, Stage 4's census of unsettled judgmental
 sentences is accurate and **permanent**: a precise, unmovable record of work no
@@ -129,7 +129,7 @@ and neither is continuous either. Any answer should say which `Kind`s it covers.
 
 ## State
 
-- **2026-08-04** — Filed. Raised by the [bootstrap proposal](../../bootstrap.md)
+- **2026-08-04** — Filed. Raised by the [bootstrap proposal](../../docs/bootstrap.md)
   §8 stage 5, which names it as an open question it raises and does not answer.
   Filed separately rather than left inline, on the reasoning that a proposal's
   own admission of a hole is exactly the thing that evaporates when the proposal

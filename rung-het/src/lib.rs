@@ -217,7 +217,7 @@
 //! level up, and the first place Het has not decided what the encoding needs),
 //! the verdict metric `d`, and `ε`. The gap between Het's gate-faithfulness
 //! requirement and what a marker can deliver is tracked as Q11, under
-//! `docs/questions/open/`.
+//! `questions/open/`.
 
 // The principal pool, its two filters, and the capability tokens they mint now
 // live in `rung` — the `ladder!` macro's gate markers emit `::rung::Qualified`,

@@ -166,7 +166,7 @@ impl Doctrine {
     /// Propositions marked `Judgmental` with no role named.
     pub fn judgmental_without_a_role(&self) -> Vec<String> {
         self.props()
-            .filter(|p| matches!(&p.kind, Kind::Judgmental { role } if role.is_empty()))
+            .filter(|p| matches!(&p.kind, Kind::Judgmental { role, .. } if role.is_empty()))
             .map(|p| p.slug.clone())
             .collect()
     }
@@ -300,7 +300,7 @@ impl Applies<DoctrineEdit> for Doctrine {
                             .into(),
                     });
                 }
-                if matches!(to, Kind::Judgmental { role } if role.is_empty()) {
+                if matches!(to, Kind::Judgmental { role, .. } if role.is_empty()) {
                     return Err(EnactError::TargetRefused {
                         target: self.file.clone(),
                         reason: "a judgmental proposition must name the role that settles it"
