@@ -609,7 +609,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 174 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 175 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -707,6 +707,10 @@ look shorter than it is.
 - `capability_alone_does_not_authorize_a_write`
 - `kind_decides_nothing`
 - `the_driver_offers_no_way_to_prefer_one_qualifying_principal`
+
+**`rung-driver/tests/rectify_questions.rs`** — 1 unclaimed
+
+- `the_seam_runs_one_audit_rectify_cycle_over_rungs_own_questions`
 
 **`rung-fixture/tests/consumer.rs`** — 4 unclaimed
 

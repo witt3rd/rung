@@ -153,14 +153,14 @@ fn the_declared_judges_and_authors_are_disjoint_sets() {
         .map(|s| s.id.as_str())
         .collect();
 
-    assert!(judges.contains(&"opus-judge"));
-    assert!(authors.contains(&"opus-author"));
+    assert!(judges.contains(&"gpt-judge"));
+    assert!(authors.contains(&"ds-maintainer"));
     assert!(
-        !authors.contains(&"opus-judge"),
+        !authors.contains(&"gpt-judge"),
         "a declared judge also fills the authoring role"
     );
     assert!(
-        !judges.contains(&"opus-author"),
+        !judges.contains(&"ds-maintainer"),
         "a declared author also fills the judging role"
     );
 }
@@ -174,7 +174,7 @@ fn the_declared_judges_and_authors_are_disjoint_sets() {
 #[test]
 fn the_author_may_write_the_source_and_not_the_rendering() {
     let p = population();
-    let author = p.by_id("opus-author").expect("declared");
+    let author = p.by_id("ds-maintainer").expect("declared");
     assert!(author.standing.iter().any(|s| s == "rung-doctrine/src"));
     assert!(
         !author.standing.iter().any(|s| s.ends_with("-props.md")),
@@ -193,7 +193,15 @@ fn the_author_may_write_the_source_and_not_the_rendering() {
 #[test]
 fn the_model_principals_provenance_is_still_a_placeholder() {
     let p = population();
-    for id in ["opus-judge", "gpt-judge", "opus-author"] {
+    for id in [
+        "opus-theorist",
+        "gpt-judge",
+        "grok-theorist",
+        "ds-maintainer",
+        "ds-curator",
+        "gpt-interrogator",
+        "gpt-adjudicator",
+    ] {
         let spec = p.by_id(id).expect("declared");
         assert!(
             spec.authored.is_empty(),
@@ -221,8 +229,8 @@ fn each_principal_resolves_to_the_provider_that_serves_it() {
         "a population spanning one provider proves nothing"
     );
 
-    let judge = p.by_id("opus-judge").unwrap();
-    let other = p.by_id("gpt-judge").unwrap();
+    let judge = p.by_id("gpt-judge").unwrap();
+    let other = p.by_id("opus-theorist").unwrap();
     assert_ne!(
         judge.backing.provider(),
         other.backing.provider(),

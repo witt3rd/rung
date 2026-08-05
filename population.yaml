@@ -60,6 +60,28 @@ roles:
   - name: maintainer
     requires: [code-generation, file-editing]
 
+  # ── the questions theory's three roles (rung_std::questions) ──────────────
+  # The same capability vocabulary as the doctrine roles above; the driver that
+  # fills these is the same one that fills those. They are declared here so the
+  # questions pass can be populated without a special case.
+  #
+  # Authorial: files questions into a status folder, gathers evidence, drafts a
+  # resolution, and rewords. It edits, so it needs `file-editing`.
+  - name: curator
+    requires: [reasoning, file-editing]
+
+  # Judgmental: `is_well_posed` — whether a question is one precise sentence,
+  # answerable in principle. Judging well-posedness calls on context beyond the
+  # file, so it needs `web-research`.
+  - name: interrogator
+    requires: [reasoning, web-research]
+
+  # Judgmental: `resolution_answers_the_question` and `survives_the_change`.
+  # The ModelOracle reads an exact HOLDS / FAILS / CANNOT-SETTLE form, so this
+  # needs `structured-outputs` for the verdict to be readable.
+  - name: adjudicator
+    requires: [reasoning, structured-outputs]
+
 principals:
   # ── the human ────────────────────────────────────────────────────────────
   #
@@ -94,35 +116,111 @@ principals:
   # decorative, so the empty list below is deliberately the conservative
   # reading's opposite and must not be shipped as-is. Anything dispatched
   # against these today should be treated as unsettled.
-  - id: opus-judge
+  #
+  # ## Procurement is shopping, and the tiers are deliberate
+  #
+  # A judgment loop runs over the corpus repeatedly, so cost is a first-class
+  # fact of this file, declared *before* the pool exactly where the pool never
+  # reads it. The ladder:
+  #
+  #   default workhorse     deepseek/deepseek-v4-flash-0731   ($0.09 / $0.18)
+  #   better reasoning      openai/gpt-5.6-luna-pro           ($0.10 / $0.60)
+  #   mix / third family    x-ai/grok-4.5                     ($2.00 / $6.00)
+  #   reserved heaviest     anthropic/claude-opus-5           ($5.00 / $25.00)
+  #
+  # Claude Opus is reserved for the one place max quality is worth its price:
+  # the categorical propositions of rung-ct-props.md, whose a ruling may
+  # overturn the account (Q7 did). It is not for routine judging.
+
+  # ── the categorical judge — the reserved heaviest lift ────────────────────
+  # `category-theorist` fills the 23 judgmental propositions of
+  # rung-ct-props.md. These are the rulings that can overturn the account, so
+  # this is where Opus's price earns its keep — and nowhere else.
+  - id: opus-theorist
     kind: llm
-    capabilities: [reasoning, structured-outputs, web-research]
+    capabilities: [reasoning, web-research, structured-outputs]
     standing: []
     authored: []
-    backing: {via: model, provider: anthropic, model: claude-opus-4-6}
+    backing: {via: model, provider: anthropic, model: claude-opus-5}
 
-  # A second judge, deliberately from a different family. Two judges that share
-  # a lineage share its blind spots, and non-identity does not notice.
+  # ── the doctrine judge — better reasoning at low cost ─────────────────────
+  # `editor` (is a proposition a claim?) and `adjudicator`. Rationale-tier
+  # judgment; Luna Pro's reasoning is enough and its price is a rounding error
+  # next to Opus's.
   - id: gpt-judge
     kind: llm
     capabilities: [reasoning, structured-outputs]
     standing: []
     authored: []
-    backing: {via: model, provider: openai, model: gpt-5}
+    backing: {via: model, provider: openai, model: gpt-5.6-luna-pro}
 
-  # ── the author ───────────────────────────────────────────────────────────
+  # ── the categorical mix — a second family for panels ─────────────────────
+  # Grok 4.5, deliberately a different family from both Opus and the GPTs, so
+  # a two-judge panel spans independent lineages (blind spots are not shared).
+  - id: grok-theorist
+    kind: llm
+    capabilities: [reasoning, web-research]
+    standing: []
+    authored: []
+    backing: {via: model, provider: openrouter, model: x-ai/grok-4.5}
+
+  # ── the doctrine author ──────────────────────────────────────────────────
   #
   # An agent, because enacting an edit means editing files. It holds standing
   # over the doctrine source and NOT over the rendered markdown: the markdown
   # is generated, so writing to it directly would put a change somewhere the
-  # next render silently discards.
-  - id: opus-author
+  # next render silently discards. Default-tier workhorse — cheap and fully
+  # capable for mechanical editing.
+  - id: ds-maintainer
     kind: agent
     capabilities: [reasoning, code-generation, file-editing]
     standing: [rung-doctrine/src]
     authored: []
     backing:
       via: agent
-      provider: anthropic
-      model: claude-opus-4-6
+      provider: openrouter
+      model: deepseek/deepseek-v4-flash-0731
       tools: [read, edit, search]
+
+  # ── the questions pass ───────────────────────────────────────────────────
+  #
+  # Same Q14 caveat as the model principals above: `authored` is the empty
+  # placeholder, so any question these settle is provisional until Q14 rules on
+  # model provenance. The roles are declared so the questions pass can be
+  # *populated*; dispatching meaningfully is gated on Q14.
+  #
+  # The curator is an agent — it edits question files, so it needs file-editing,
+  # and holds standing over the whole questions tree. DeepSeek family, so a
+  # judge from a different family (OpenAI, below) can rule on its work under P0.
+  # Reached through the openrouter endpoint (its api_key_env is
+  # OPENROUTER_API_KEY), which is how DeepSeek is procured in this setup.
+  - id: ds-curator
+    kind: agent
+    capabilities: [reasoning, file-editing]
+    standing: [questions]
+    authored: []
+    backing:
+      via: agent
+      provider: openrouter
+      model: deepseek/deepseek-v4-flash-0731
+      tools: [read, edit, search]
+
+  # The interrogator judges `is_well_posed`. OpenAI family — deliberately
+  # disjoint from the DeepSeek-backed curator, so non-identity (P0) is real
+  # rather than decorative. Luna Pro for the reasoning, not the price.
+  - id: gpt-interrogator
+    kind: llm
+    capabilities: [reasoning, web-research]
+    standing: []
+    authored: []
+    backing: {via: model, provider: openai, model: gpt-5.6-luna-pro}
+
+  # The adjudicator judges `resolution_answers_the_question` and
+  # `survives_the_change`. Same family as the interrogator (they may agree on
+  # blind spots — that is what a second *family*, not a second id, buys).
+  - id: gpt-adjudicator
+    kind: llm
+    capabilities: [reasoning, structured-outputs]
+    standing: []
+    authored: []
+    backing: {via: model, provider: openai, model: gpt-5.6-luna-pro}
