@@ -185,7 +185,7 @@ pool, the tower, the game — is bookkeeping around {#one-relation}.
         Element::Prop(Prop {
             slug: "gate-marker-required".into(),
             parent: None,
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-het/tests/gate_law.rs::every_sentence_carries_a_gate_from_the_declared_vocabulary".into() },
             numbering: None,
             prose: r#"Every sentence and every operation carries a **gate marker**, which
 fixes how its satisfaction is computed.
@@ -196,7 +196,7 @@ fixes how its satisfaction is computed.
         Element::Prop(Prop {
             slug: "four-gates".into(),
             parent: Some("gate-marker-required".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-het/tests/gate_law.rs::every_sentence_carries_a_gate_from_the_declared_vocabulary".into() },
             numbering: None,
             prose: r#"The marker is one of exactly four.
 
@@ -836,7 +836,7 @@ valuation, and belongs to HetOpt ({#het-settles-hetopt-orders}).
         Element::Prop(Prop {
             slug: "epsilon-reported-with-verdict".into(),
             parent: Some("verdict-space-with-metric".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/gate_law.rs::two_judges_of_differing_confidence_report_differing_verdicts".into() },
             numbering: None,
             prose: r#"$\varepsilon$ is reported alongside the verdict — an honest error
 bar.
@@ -940,7 +940,7 @@ decidable data embeds.
         Element::Prop(Prop {
             slug: "judgmental-is-kleisli-arrow".into(),
             parent: Some("monad-reading".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Decidable { proof: "rung-het/tests/panel.rs::a_judgmental_arrow_returns_a_set_and_not_a_value".into() },
             numbering: None,
             prose: r#"A judgmental operation is a Kleisli arrow
 $A \to \mathcal{P}(B)$.
@@ -1061,7 +1061,7 @@ $$\mathbf{Kl}_{\text{auth}}(\mathcal{P}) = \{\, f : \pi(f(a)) \subseteq \pi(p) \
         Element::Prop(Prop {
             slug: "judgment-provenance-is-the-judges".into(),
             parent: Some("constant-arrow-hazard".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/gate_law.rs::a_settled_receipt_carries_the_judges_provenance".into() },
             numbering: None,
             prose: r#"A judgmental arrow's outcome carries its **judge's** provenance:
 $\pi(f(a)) \subseteq \pi(p)$ for the principal $p$ drawn from
@@ -1917,7 +1917,7 @@ principal $p$. Without this, {#judgmental-qualifying-set} cannot be evaluated at
         Element::Prop(Prop {
             slug: "proposal-vocabulary".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-het/tests/acceptance.rs::an_author_may_dispute_a_verdict_without_first_authoring_a_remedy".into() },
             numbering: None,
             prose: r#"A Proposal is one of exactly two.
 
@@ -2013,7 +2013,7 @@ satisfy two opposite conditions on one subject.
         Element::Prop(Prop {
             slug: "reason-is-not-an-edit".into(),
             parent: Some("disposition-vocabulary".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/acceptance.rs::reject_remedy_is_non_terminal_and_the_reason_reaches_the_author".into() },
             numbering: None,
             prose: r#"`reject-remedy` may carry a **reason**, which is advisory prose
 and **not an edit**. Stating why a remedy fails is classification;
@@ -2062,7 +2062,7 @@ not guarantee the edit lands.
         Element::Prop(Prop {
             slug: "target-runs-its-own-models".into(),
             parent: Some("enact-makes-an-endofunctor".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung-het/tests/questions_of_rung.rs::resolved_runs_its_own_law_on_a_write_the_ruling_already_authorized".into() },
             numbering: None,
             prose: r#"Where the revised subject enters another governed container,
 **that container's own $\models$ runs** — the pass composed with itself
@@ -2088,7 +2088,7 @@ withhold it, and the target may refuse it.
         Element::Prop(Prop {
             slug: "panels".into(),
             parent: Some("satisfaction-is-a-game".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-het/tests/panel.rs::a_panel_is_the_pass_with_more_than_one_judge".into() },
             numbering: None,
             prose: r#"Panels are $\models$ with more than one judge — the game with an
 enlarged oracle-move set. They are not a separate construction.
@@ -2099,7 +2099,7 @@ enlarged oracle-move set. They are not a separate construction.
         Element::Prop(Prop {
             slug: "panels-cannot-weaken-the-opponent".into(),
             parent: Some("panels".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Decidable { proof: "rung-het/tests/panel.rs::a_panel_cannot_weaken_the_opponent".into() },
             numbering: None,
             prose: r#"A Proponent winning strategy in the original game remains
 winning in the composite; additional oracle answers can only strengthen
@@ -2376,7 +2376,7 @@ against $M$.
         Element::Prop(Prop {
             slug: "dispatch-is-two-operations".into(),
             parent: Some("models-defined-by-dispatch".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung-het/tests/gate_law.rs::competence_is_filtered_before_provenance_matters".into() },
             numbering: None,
             prose: r#"Dispatch is two operations, and the first is decidable:
 

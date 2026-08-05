@@ -139,7 +139,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-het-props.md`
 
-**Counts.** 38 decidable · 27 judgmental · 105 rationale · 32 signature · 202 total.
+**Counts.** 49 decidable · 25 judgmental · 101 rationale · 27 signature · 202 total.
 
 ### The relation
 
@@ -161,8 +161,8 @@ unsettled. Where it is blank, nobody has written one down.
 
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
-| [2](rung-het-props.md#gate-marker-required) | `gate-marker-required` | `signature` | — | — |
-| [2.1](rung-het-props.md#four-gates) | `four-gates` | `signature` | — | — |
+| [2](rung-het-props.md#gate-marker-required) | `gate-marker-required` | `decidable` | — | `rung-het/tests/gate_law.rs::every_sentence_carries_a_gate_from_the_declared_vocabulary` |
+| [2.1](rung-het-props.md#four-gates) | `four-gates` | `decidable` | — | `rung-het/tests/gate_law.rs::every_sentence_carries_a_gate_from_the_declared_vocabulary` |
 | [2.11](rung-het-props.md#no-other-gate-value) | `no-other-gate-value` | `signature` | — | — |
 | [2.2](rung-het-props.md#unmarked-not-wellformed) | `unmarked-not-wellformed` | `signature` | — | — |
 | [2.3](rung-het-props.md#judgmental-declares-role) | `judgmental-declares-role` | `signature` | — | — |
@@ -221,7 +221,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [4.4](rung-het-props.md#metric-carried-by-verdict-space) | `metric-carried-by-verdict-space` | `rationale` | — | — |
 | [4.5](rung-het-props.md#metric-measures-not-ranks) | `metric-measures-not-ranks` | `rationale` | — | — |
 | [4.51](rung-het-props.md#order-as-preference-is-hetopts) | `order-as-preference-is-hetopts` | `rationale` | — | — |
-| [4.6](rung-het-props.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `rationale` | GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ([4.11](rung-het-props.md#boolean-breaks-satisfaction)). The cited test is the gap as an assertion: two judges settle the same sentence with the same polarity, one barely persuaded and one certain, and the two verdicts are the same object. Deleting the `#[ignore]` reports whether an error bar has reached the caller. | — |
+| [4.6](rung-het-props.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `decidable` | GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ([4.11](rung-het-props.md#boolean-breaks-satisfaction)). The cited test is the gap as an assertion: two judges settle the same sentence with the same polarity, one barely persuaded and one certain, and the two verdicts are the same object. Deleting the `#[ignore]` reports whether an error bar has reached the caller. | `rung-het/tests/gate_law.rs::two_judges_of_differing_confidence_report_differing_verdicts` |
 | [4.7](rung-het-props.md#translation-invariance-is-candidates-burden) | `translation-invariance-is-candidates-burden` | `rationale` | — | — |
 
 ### The semantics
@@ -234,7 +234,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [5.12](rung-het-props.md#set-functor-violates-refusal) | `set-functor-violates-refusal` | `rationale` | — | — |
 | [5.2](rung-het-props.md#monad-reading) | `monad-reading` | `rationale` | — | — |
 | [5.21](rung-het-props.md#unit-is-no-outside) | `unit-is-no-outside` | `rationale` | — | — |
-| [5.22](rung-het-props.md#judgmental-is-kleisli-arrow) | `judgmental-is-kleisli-arrow` | `judgmental` | `A → 𝒫(B)` is a claim about **shape**, and the shape is exhibited directly: one argument, two qualifying judges, two different and equally well-formed Dispositions. Were `dispose` an `A → B` the second call could not disagree. The non-determinism is the outside itself — [3.56](rung-het-props.md#no-preference-among-judges) forbids Het from ranking the two. A *blocking* outside call works today; `rung-std`'s `LlmCall` ladder puts one on the arrow. Q8 constrains **how** the call is made, not whether the arrow is Kleisli. | *awaits a* `category-theorist` |
+| [5.22](rung-het-props.md#judgmental-is-kleisli-arrow) | `judgmental-is-kleisli-arrow` | `decidable` | `A → 𝒫(B)` is a claim about **shape**, and the shape is exhibited directly: one argument, two qualifying judges, two different and equally well-formed Dispositions. Were `dispose` an `A → B` the second call could not disagree. The non-determinism is the outside itself — [3.56](rung-het-props.md#no-preference-among-judges) forbids Het from ranking the two. A *blocking* outside call works today; `rung-std`'s `LlmCall` ladder puts one on the arrow. Q8 constrains **how** the call is made, not whether the arrow is Kleisli. | `rung-het/tests/panel.rs::a_judgmental_arrow_returns_a_set_and_not_a_value` |
 | [5.23](rung-het-props.md#monad-is-what-outside-adds) | `monad-is-what-outside-adds` | `rationale` | — | — |
 | [5.24](rung-het-props.md#kleisli-composition-interleaves) | `kleisli-composition-interleaves` | `judgmental` | — | *awaits a* `category-theorist` |
 | [5.25](rung-het-props.md#judgmental-arrow-shape) | `judgmental-arrow-shape` | `decidable` | The `+ A` residual is `Failed<Prev> { token, error }` — the unconsumed argument handed back. rung-CT names it the Prism's residual ([residual-is-the-optics-residual](rung-ct-props.md#residual-is-the-optics-residual)) and is why the error structure is not a Kleisli arrow; the monad `P` layers on the forward pass, which rung-CT explicitly permits ([effects-layer-on-the-forward-pass](rung-ct-props.md#effects-layer-on-the-forward-pass)). | `rung/tests/compile_pass.rs::test_failed_type` |
@@ -243,7 +243,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [5.32](rung-het-props.md#monad-is-provenance-strict) | `monad-is-provenance-strict` | `judgmental` | `carry` is the natural home for provenance: a product factor preserved across every arrow, immutable by G5. It does not carry a *principal's* provenance, which lives outside the ladder. | *awaits a* `category-theorist` |
 | [5.4](rung-het-props.md#constant-arrow-hazard) | `constant-arrow-hazard` | `decidable` | G2 sealed construction. A judgmental arrow cannot be interpreted by a constant drawn from the algebra's own carrier, because no mid-ladder rung is constructible outside its module. | `rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624` |
 | [5.41](rung-het-props.md#admissibility-subcategories) | `admissibility-subcategories` | `judgmental` | — | *awaits a* `category-theorist` |
-| [5.42](rung-het-props.md#judgment-provenance-is-the-judges) | `judgment-provenance-is-the-judges` | `rationale` | — | — |
+| [5.42](rung-het-props.md#judgment-provenance-is-the-judges) | `judgment-provenance-is-the-judges` | `decidable` | — | `rung-het/tests/gate_law.rs::a_settled_receipt_carries_the_judges_provenance` |
 | [5.43](rung-het-props.md#authorial-admissibility-stronger) | `authorial-admissibility-stronger` | `rationale` | — | — |
 | [5.44](rung-het-props.md#one-monad) | `one-monad` | `judgmental` | — | *awaits a* `category-theorist` |
 | [5.45](rung-het-props.md#gate-relative-admissibility-licensed) | `gate-relative-admissibility-licensed` | `rationale` | — | — |
@@ -315,21 +315,21 @@ unsettled. Where it is blank, nobody has written one down.
 | [7.22](rung-het-props.md#judgmental-propose-swaps-roles) | `judgmental-propose-swaps-roles` | `rationale` | — | — |
 | [7.23](rung-het-props.md#difficulty-is-not-an-outside) | `difficulty-is-not-an-outside` | `rationale` | — | — |
 | [7.24](rung-het-props.md#proposal-provenance-is-authors) | `proposal-provenance-is-authors` | `rationale` | — | — |
-| [7.3](rung-het-props.md#proposal-vocabulary) | `proposal-vocabulary` | `signature` | — | — |
+| [7.3](rung-het-props.md#proposal-vocabulary) | `proposal-vocabulary` | `decidable` | — | `rung-het/tests/acceptance.rs::an_author_may_dispute_a_verdict_without_first_authoring_a_remedy` |
 | [7.31](rung-het-props.md#dispute-is-still-judged) | `dispute-is-still-judged` | `rationale` | — | — |
 | [7.32](rung-het-props.md#dispute-is-the-only-contest) | `dispute-is-the-only-contest` | `rationale` | — | — |
 | [7.33](rung-het-props.md#remedy-carries-an-edit) | `remedy-carries-an-edit` | `decidable` | The edit is the rung payload's type, supplied by the theory, and the requirement is now a *variant shape*: an author answers through `Answer<E>`, whose `Remedy(E)` has nowhere to put the absence of an edit. A theory that let a remedy carry none would make `remedy` and `dispute` indistinguishable, and there is no term for it. Dropping the edit in `Proposal::from_chain` — type-valid, `Remedy` rewritten to `Dispute` — reddens the cited test at `rounds: left 1, right 2` (the judge has nothing to reject, so the loop it exists to exercise never runs) and `acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals` with it. The boundary itself is pinned by `acceptance.rs::an_author_may_dispute_a_verdict_without_first_authoring_a_remedy`: a dispute's `edit()` is `None`. | `rung-het/tests/pass_ladder.rs::the_pass_runs_end_to_end_as_a_ladder` |
 | [7.4](rung-het-props.md#disposition-vocabulary) | `disposition-vocabulary` | `decidable` | G6 exhaustive outcomes. `StepOutcome` is an enum, so every match site must handle all five; adding a disposition breaks every call site at compile time. The cited test pins the vocabulary itself — the five, in order, each with its terminal and affirming flags — so that the two that Het's gate boundary excludes (`accept-with-mod`, `reject-with-alternative`) cannot return without the assertion changing. | `rung-het/tests/acceptance.rs::the_disposition_vocabulary_is_exactly_the_five_that_survive_the_gate` |
 | [7.41](rung-het-props.md#disposition-is-a-ruling) | `disposition-is-a-ruling` | `decidable` | G2. `dispose` returns a verdict; only the separately-declared authorial arrow produces the revised object. A ruling cannot construct what it rules on. | `rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624` |
 | [7.42](rung-het-props.md#no-amending-disposition) | `no-amending-disposition` | `decidable` | G2 plus G10, and the second half is what the pass added. A judge's arrow has no constructor for the authored object — but a continue arm's target rung is built INLINE by `step`, i.e. by the judge, so the pass's re-entry rung is the one place an amendment could have arrived. Its payload is therefore `Chain`: a concrete, non-generic record of an id, a container, a count and prose, with no edit and no type parameter one could hide in. The cited `trybuild` case pins the E0599 that reading an edit off it produces; giving `Chain` an `edit` accessor — type-valid, the library still compiles — turns it red on a diff. | `rung-het/tests/pass_ladder.rs::a_chain_cannot_be_read_for_an_edit` |
-| [7.43](rung-het-props.md#reason-is-not-an-edit) | `reason-is-not-an-edit` | `rationale` | — | — |
+| [7.43](rung-het-props.md#reason-is-not-an-edit) | `reason-is-not-an-edit` | `decidable` | — | `rung-het/tests/acceptance.rs::reject_remedy_is_non_terminal_and_the_reason_reaches_the_author` |
 | [7.44](rung-het-props.md#reproposal-carries-the-chain) | `reproposal-carries-the-chain` | `decidable` | The chain rides in the rung payload and there is no other route to a re-proposal: the pass's authorial transition builds its Proposal from the `Chain` the continue arm handed back, so an author cannot drop it by omission. The cited test rejects the identical remedy five times and reads all five reasons off the sixth chain. Deleting the push in `Chain::reentered` — type-valid — turns it red at `left: 0, right: 5`, and `acceptance.rs::reject_remedy_is_non_terminal_and_the_reason_reaches_the_author` with it. Without the chain an author can cycle on one objection and nothing downstream can tell. NOTE: this is exactly what would make a G8 progress guard vacuous — a strictly growing chain never compares equal — which is why re-entry must not use a guarded edge ([12.5](rung-het-props.md#guarded-reentry-is-eviction)). | `rung-het/tests/pass_ladder.rs::reject_remedy_re_enters_with_no_progress_guard` |
 | [7.5](rung-het-props.md#enact-makes-an-endofunctor) | `enact-makes-an-endofunctor` | `judgmental` | The loop closes, and it closes by COMPOSITION rather than inside the declaration — which is the honest reading and is now recorded as a non-guarantee ([5.8](rung-props.md#a-cycle-through-an-authorial-act-cannot-close)). `ladder!` declares a linear spine with backward continue arms, and a continue arm's target is built inline by `step`, so an `Accept -> Governed` arm would have the judge apply the edit ([7.42](rung-het-props.md#no-amending-disposition)). `Accept` is therefore terminal and carries a `Licence`; `enact` is a separate authorial arrow consuming that licence and a pen, and what comes out is audited again. The cited test closes the loop that way: the relocated specimen lands in the fieldbook and the fieldbook's own decidable sentence is run over the result. STILL `expressible`, and the reason is not shyness — no single `ladder!` declaration is an endofunctor, and saying otherwise would be a claim no mutation could falsify. Declaring the composite is Q4, open. rung enforces that the edit ran, not that it was right (SPEC §5), and the edit itself is the theory's ([11.12](rung-het-props.md#edit-required-not-typed)). | *awaits a* `category-theorist` |
 | [7.51](rung-het-props.md#licence-is-not-guarantee) | `licence-is-not-guarantee` | `decidable` | A `Licence<E>` is now a type, minted only from an affirming `Ruling` and consumed by `enact` — so the pass's `Accept` arm carries PERMISSION rather than a revised subject. Permission is all it is: `enact` still checks the pen against `Applies::territory` and hands the domain's own refusal back untouched. Making `enact` swallow `Applies::apply`'s error — type-valid, `world.apply(..)?` to `let _ = world.apply(..)` — turns the cited test red where it requires the fieldbook to refuse a write the cabinet's judge already accepted. The two failure points are [7.53](rung-het-props.md#enact-has-two-failure-points). | `rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals` |
-| [7.52](rung-het-props.md#target-runs-its-own-models) | `target-runs-its-own-models` | `rationale` | The write-guard exists and fires. `enact` checks the pen against `Applies::territory` and hands `EnactError::TargetRefused` back untouched, so a destination may decline a write its own judge already authorized: in the cited test the relocation is accepted by a qualified judge, refused by the fieldbook for want of a locality, and the source container is left unchanged. The target's law is the **theory's** — the library cannot know what admits a specimen — so rung secures the seam and the standing, not the law. `second_domain.rs::a_pen_for_one_territory_does_not_authorize_another` pins the standing half. What stays with Q4 is expressing the composite as a ladder inside a ladder; the boundary itself no longer waits on it. | — |
+| [7.52](rung-het-props.md#target-runs-its-own-models) | `target-runs-its-own-models` | `decidable` | The write-guard exists and fires. `enact` checks the pen against `Applies::territory` and hands `EnactError::TargetRefused` back untouched, so a destination may decline a write its own judge already authorized: in the cited test the relocation is accepted by a qualified judge, refused by the fieldbook for want of a locality, and the source container is left unchanged. The target's law is the **theory's** — the library cannot know what admits a specimen — so rung secures the seam and the standing, not the law. `second_domain.rs::a_pen_for_one_territory_does_not_authorize_another` pins the standing half. What stays with Q4 is expressing the composite as a ladder inside a ladder; the boundary itself no longer waits on it. | `rung-het/tests/questions_of_rung.rs::resolved_runs_its_own_law_on_a_write_the_ruling_already_authorized` |
 | [7.53](rung-het-props.md#enact-has-two-failure-points) | `enact-has-two-failure-points` | `rationale` | — | — |
-| [7.6](rung-het-props.md#panels) | `panels` | `signature` | A panel is `⊨` with more than one judge, and the proposition says it is **not a separate construction** — so the encoding must not add one. It does not: a seat is a pool of one principal, each seat mints its own licence against the very same argument, and the cited test convenes three of them with nothing `rung-het` does not already export. The combination rule is the theory's, exactly as its edits are ([11.12](rung-het-props.md#edit-required-not-typed)); putting a `panel()` primitive in the library would legislate a rule Het does not have. What stays with Q5 is running the seats **at the same time** — latency, which is HetOpt's ([cut-at-valuation](rung-het-props.md#cut-at-valuation)), not Het's. | — |
-| [7.61](rung-het-props.md#panels-cannot-weaken-the-opponent) | `panels-cannot-weaken-the-opponent` | `judgmental` | The observable form of the claim: the same Proponent move, the same first oracle answer, plus two more — and the seat that played in the original game answers identically in the composite. Added answers may take affirmation away and never grant it, so the Proponent's winning set under the panel is contained in its winning set against any single seat. rung proves the rulings were reached through qualified licences, not that unanimity is the right combination rule ([7.6](rung-het-props.md#panels)). | *awaits a* `category-theorist` |
+| [7.6](rung-het-props.md#panels) | `panels` | `decidable` | A panel is `⊨` with more than one judge, and the proposition says it is **not a separate construction** — so the encoding must not add one. It does not: a seat is a pool of one principal, each seat mints its own licence against the very same argument, and the cited test convenes three of them with nothing `rung-het` does not already export. The combination rule is the theory's, exactly as its edits are ([11.12](rung-het-props.md#edit-required-not-typed)); putting a `panel()` primitive in the library would legislate a rule Het does not have. What stays with Q5 is running the seats **at the same time** — latency, which is HetOpt's ([cut-at-valuation](rung-het-props.md#cut-at-valuation)), not Het's. | `rung-het/tests/panel.rs::a_panel_is_the_pass_with_more_than_one_judge` |
+| [7.61](rung-het-props.md#panels-cannot-weaken-the-opponent) | `panels-cannot-weaken-the-opponent` | `decidable` | The observable form of the claim: the same Proponent move, the same first oracle answer, plus two more — and the seat that played in the original game answers identically in the composite. Added answers may take affirmation away and never grant it, so the Proponent's winning set under the panel is contained in its winning set against any single seat. rung proves the rulings were reached through qualified licences, not that unanimity is the right combination rule ([7.6](rung-het-props.md#panels)). | `rung-het/tests/panel.rs::a_panel_cannot_weaken_the_opponent` |
 
 ### The cut
 
@@ -365,7 +365,7 @@ unsettled. Where it is blank, nobody has written one down.
 |---|---|---|---|---|
 | [10](rung-het-props.md#models-defined-by-dispatch) | `models-defined-by-dispatch` | `signature` | — | — |
 | [10.1](rung-het-props.md#run-over-every-sentence) | `run-over-every-sentence` | `rationale` | — | — |
-| [10.2](rung-het-props.md#dispatch-is-two-operations) | `dispatch-is-two-operations` | `signature` | — | — |
+| [10.2](rung-het-props.md#dispatch-is-two-operations) | `dispatch-is-two-operations` | `decidable` | — | `rung-het/tests/gate_law.rs::competence_is_filtered_before_provenance_matters` |
 | [10.21](rung-het-props.md#dispatch-argument-is-the-argument) | `dispatch-argument-is-the-argument` | `rationale` | — | — |
 | [10.22](rung-het-props.md#conformance-half-needs-no-judge) | `conformance-half-needs-no-judge` | `rationale` | — | — |
 | [10.23](rung-het-props.md#any-is-specified-argmin-is-the-seam) | `any-is-specified-argmin-is-the-seam` | `rationale` | — | — |
@@ -588,14 +588,240 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 113 |
-| `judgmental` | 49 |
+| `decidable` | 124 |
+| `judgmental` | 47 |
 | `owed` | 3 |
-| `rationale` | 151 |
-| `signature` | 64 |
+| `rationale` | 147 |
+| `signature` | 59 |
 | **total** | **380** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
 demonstrates one is recorded in prose rather than counted here. Nor does anything
 check that a cited proof is *apt* for the proposition citing it.
+
+---
+
+## The gap, both ways
+
+The join is not onto in either direction, and each direction is a queue.
+
+| direction | meaning | tells an author to | count |
+|---|---|---|---:|
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 152 |
+
+The second is the sharper one. A test guarding a real property the documents never
+state is a guarantee this project makes and cannot account for — and one day someone
+reads it as incidental and deletes it, because nothing says otherwise.
+
+Not filtered by crate: some of these test the tooling and will never cite a
+proposition. Excluding them by name would be the quiet narrowing that makes a queue
+look shorter than it is.
+
+**`rung-doctrine/tests/governed.rs`** — 9 unclaimed
+
+- `a_proposition_cannot_become_its_own_parent`
+- `an_edit_to_the_real_doctrine_shows_up_where_it_should_and_nowhere_else`
+- `an_editor_that_does_more_than_the_edit_is_caught`
+- `every_sentence_can_fail`
+- `only_structural_edits_renumber`
+- `reclassifying_refuses_a_gate_with_no_filler`
+- `reparenting_renumbers_with_no_number_to_update`
+- `retiring_is_refused_when_it_would_break_the_document`
+- `the_real_doctrine_satisfies_every_decidable_sentence`
+
+**`rung-doctrine/tests/roundtrip.rs`** — 19 unclaimed
+
+- `coverage_is_reported`
+- `every_derived_number_matches_the_document`
+- `every_encoded_doctrine_renders_its_document_byte_for_byte`
+- `every_judgmental_proposition_names_the_role_that_could_settle_it`
+- `every_proposition_in_the_corpus_carries_a_kind`
+- `hand_written_counts_in_prose_match_the_doctrine`
+- `mechanism_prose_cites_by_slug_and_every_citation_resolves`
+- `no_document_depends_on_a_number_read_off_a_page`
+- `only_claims_carry_a_gate`
+- `proofs_that_claim_no_proposition_are_counted`
+- `the_corpus_triage_is_recorded`
+- `the_curated_mechanism_prose_survived`
+- `the_owed_proofs_are_the_work_queue`
+- `the_proven_fraction_of_the_decidable_fragment_is_reported`
+- `the_record_lists_every_proposition_once`
+- `the_source_holds_no_number_and_no_rendered_link`
+- `the_test_scan_includes_this_very_test`
+- `the_triage_is_recorded`
+- `verbatim_blocks_carry_only_non_propositional_matter`
+
+**`rung-driver/tests/oracle.rs`** — 16 unclaimed
+
+- `a_bare_failure_still_carries_a_reason`
+- `a_missing_credential_is_unreachable_and_not_a_verdict`
+- `an_out_of_band_principal_is_not_reachable_by_a_model`
+- `an_undeclared_provider_is_caught_before_dispatch`
+- `declining_to_rule_is_not_a_claim_failing`
+- `each_principal_resolves_to_the_provider_that_serves_it`
+- `hedging_is_not_a_verdict`
+- `leading_whitespace_is_tolerated`
+- `provider_settings_are_per_provider`
+- `the_author_may_write_the_source_and_not_the_rendering`
+- `the_declared_judges_and_authors_are_disjoint_sets`
+- `the_model_principals_provenance_is_still_a_placeholder`
+- `the_population_names_credentials_and_never_holds_one`
+- `the_repositorys_population_parses_and_is_well_formed`
+- `the_three_declared_forms_are_read`
+- `trailing_prose_after_the_first_line_is_ignored`
+
+**`rung-driver/tests/population.rs`** — 12 unclaimed
+
+- `a_capability_no_role_requires_is_reported`
+- `a_capable_principal_is_still_refused_for_what_it_authored`
+- `a_duplicate_declaration_is_reported`
+- `a_population_round_trips_through_yaml`
+- `a_role_is_filled_by_whoever_declares_what_it_requires`
+- `a_role_requiring_nothing_admits_everyone`
+- `an_undeclared_role_admits_nobody`
+- `an_unwired_oracle_defers_rather_than_agreeing`
+- `backing_decides_nothing`
+- `capability_alone_does_not_authorize_a_write`
+- `kind_decides_nothing`
+- `the_driver_offers_no_way_to_prefer_one_qualifying_principal`
+
+**`rung-het/tests/acceptance.rs`** — 2 unclaimed
+
+- `a_judge_may_not_dispose_on_a_proposal_it_authored`
+- `het_places_no_bound_on_re_entry`
+
+**`rung-het/tests/gate_law.rs`** — 16 unclaimed
+
+- `a_judgment_rendered_by_another_principal_is_refused`
+- `a_judgmental_verdict_may_be_non_conforming`
+- `an_empty_pool_qualifies_no_one`
+- `an_exhausted_pool_reports_exhaustion_not_the_last_failure`
+- `decidable_sentence_reports_its_own_failure_reason`
+- `decidable_sentence_settles_without_any_principal`
+- `disjointness_and_containment_are_different_conditions`
+- `empty_provenance_overlaps_nothing`
+- `judgmental_sentence_records_the_principal_that_settled_it`
+- `p0_admits_a_judge_with_disjoint_provenance`
+- `p0_is_not_vacuous_when_the_model_claims_no_author`
+- `p0_refuses_a_judge_who_authored_the_material`
+- `p0_refuses_on_partial_overlap_not_only_identity`
+- `qualification_walks_the_pool_and_takes_any_survivor`
+- `the_theory_exposes_its_sentences_with_their_gates`
+- `the_verdict_comes_from_the_oracle_and_not_from_the_caller`
+
+**`rung-het/tests/pass_ladder.rs`** — 4 unclaimed
+
+- `a_token_minted_against_the_model_is_refused_at_dispose`
+- `calling_dispose_without_a_token_is_e0061`
+- `calling_propose_without_a_pen_is_e0061`
+- `proposing_carries_classification_only`
+
+**`rung-het/tests/questions_of_rung.rs`** — 9 unclaimed
+
+- `a_blocked_question_re_enters_at_gathered_rather_than_terminating`
+- `every_internal_dependency_in_the_real_files_resolves`
+- `every_per_question_decidable_sentence_holds_over_all_fifteen_questions`
+- `no_question_is_blocked_on_itself`
+- `p0_refuses_the_curator_as_a_judge_of_this_repositorys_own_questions`
+- `standing_over_a_folder_can_be_refused_with_nowhere_to_appeal`
+- `the_fifteen_questions_are_read_from_disk`
+- `the_lifecycle_ladder_runs_the_authorial_and_judgmental_gates_in_turn`
+- `the_real_questions_report_their_outbound_edge_drift`
+
+**`rung-het/tests/second_domain.rs`** — 5 unclaimed
+
+- `a_domain_with_entirely_different_edits_runs_the_same_pass`
+- `a_pen_for_one_territory_does_not_authorize_another`
+- `p0_holds_here_too_without_the_library_knowing_the_domain`
+- `the_pass_is_indifferent_to_which_vocabulary_it_carries`
+- `wont_fix_closes_an_issue_that_remains_non_conforming`
+
+**`rung-std/tests/driver.rs`** — 8 unclaimed
+
+- `a_matter_that_never_terminates_leaves_its_run_parked_and_named`
+- `any_reference_the_theory_names_is_matched_and_none_is_parsed`
+- `depth_is_unbounded_and_every_parked_run_is_visible`
+- `every_terminal_releases_alike_and_the_park_reads_none_of_them`
+- `evidence_for_an_unparked_matter_releases_nothing_and_disturbs_nothing`
+- `evidence_releases_the_run_it_answers_and_not_the_one_parked_first`
+- `one_terminal_releases_every_run_that_awaits_it`
+- `the_same_run_parks_and_resumes_without_bound`
+
+**`rung-std/tests/principals_theory.rs`** — 11 unclaimed
+
+- `a_kind_fixes_its_identity_fields_and_a_principal_missing_one_is_refused`
+- `a_principal_that_declares_no_epsilon_is_not_well_formed`
+- `capability_is_a_mechanical_comparison_and_a_claimed_role_is_not_an_earned_one`
+- `cost_is_declared_per_kind_and_epsilon_per_principal`
+- `every_decidable_sentence_holds_over_both_rosters`
+- `nothing_further_than_the_declared_interface_crosses_into_rung`
+- `one_pool_two_filters_over_the_same_roster`
+- `p0_refuses_a_principal_as_the_examiner_of_its_own_competence_claim`
+- `the_kind_partition_is_ruled_on_by_an_outside_and_not_computed`
+- `the_library_names_no_role_or_principal_of_either_roster`
+- `the_theory_exposes_its_sentences_with_their_gates`
+
+**`rung-std/tests/questions_theory.rs`** — 16 unclaimed
+
+- `a_gate_cycle_is_a_deadlock_and_the_sentence_refuses_it`
+- `a_parked_question_re_enters_at_gathered_rather_than_terminating`
+- `a_pen_for_one_folder_does_not_author_a_question_in_another`
+- `a_ruling_on_one_exposure_does_not_carry_to_another`
+- `a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on`
+- `every_declared_edge_kind_has_a_lived_instance_in_the_docket`
+- `every_per_question_sentence_holds_over_the_whole_docket`
+- `nesting_is_not_a_cycle_a_premise_up_and_a_gate_down`
+- `p0_refuses_the_curator_as_a_judge_of_the_questions_it_filed`
+- `the_docket_has_no_dangling_dependency_and_no_duplicate_id`
+- `the_docket_has_no_gate_cycle`
+- `the_docket_parses_into_six_questions_with_a_disjoint_id_space`
+- `the_docket_reports_its_own_outbound_edge_drift`
+- `the_done_pile_runs_its_own_law_on_a_write_the_ruling_already_authorized`
+- `the_theory_exposes_its_sentences_with_their_gates`
+- `the_two_paths_differ_in_arity_not_in_convention`
+
+**`rung/tests/compile_pass.rs`** — 1 unclaimed
+
+- `test_verdict_enum`
+
+**`rung/tests/end_to_end.rs`** — 3 unclaimed
+
+- `exhausts_budget_when_target_unreachable`
+- `long_spine_registers_every_hop`
+- `must_progress_guard_panics_on_no_progress`
+
+**`rung/tests/gate_markers.rs`** — 6 unclaimed
+
+- `a_body_that_ignores_the_pen_still_gets_the_standing_check`
+- `a_body_that_ignores_the_token_still_gets_the_binding_check`
+- `a_judgmental_arrow_may_not_return_the_provenance_it_judged`
+- `an_authorized_pen_cannot_be_constructed_outside_the_pool`
+- `authorial_without_a_role_is_refused`
+- `calling_an_authorial_transition_without_a_pen_is_e0061`
+
+**`rung/tests/provenance_floor.rs`** — 4 unclaimed
+
+- `a_hand_written_provenanced_impl_for_a_principal_is_a_coherence_error`
+- `a_principal_can_never_present_an_empty_provenance`
+- `a_principals_provenance_always_contains_its_identity`
+- `the_newcomer_is_no_longer_disjoint_from_its_own_work`
+
+**`rung/tests/spec_refusals.rs`** — 8 unclaimed
+
+- `a_continue_arm_target_must_be_a_declared_rung`
+- `a_failed_source_rung_must_be_declared`
+- `a_recover_edge_must_name_a_declared_verdict`
+- `a_recover_edges_target_must_be_a_declared_rung`
+- `a_recover_target_must_be_a_declared_rung`
+- `a_terminal_verdict_may_not_carry_a_recover_edge`
+- `an_impl_block_missing_a_body_is_refused`
+- `an_impl_body_that_names_no_transition_is_refused`
+
+**`rung/tests/suspension.rs`** — 3 unclaimed
+
+- `an_answered_dispatch_still_produces_the_next_rung`
+- `calling_resume_without_a_pen_is_e0061`
+- `resume_refuses_a_pen_over_another_container`
+
