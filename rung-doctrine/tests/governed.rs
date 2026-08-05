@@ -25,6 +25,7 @@ fn prop(slug: &str, parent: Option<&str>, prose: &str) -> Element {
         kind: Kind::Rationale,
         numbering: None,
         prose: format!("{prose}\n\n"),
+        mechanism: String::new(),
     })
 }
 

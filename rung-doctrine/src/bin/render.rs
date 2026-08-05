@@ -85,6 +85,11 @@ fn main() {
         write_or_report(&path, &rendered, check, &mut stale);
     }
 
+    // The conformance record is a VIEW of the same doctrines — kind and proof
+    // come from the encoding, so the join lives in one place.
+    let record = rung_doctrine::conformance::render(&doctrines, &resolver);
+    write_or_report(&docs().join("conformance.md"), &record, check, &mut stale);
+
     if check && !stale.is_empty() {
         eprintln!(
             "\n{} document(s) differ from their encoding:\n{}\n\n\

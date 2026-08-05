@@ -283,6 +283,19 @@ fn every_decidable_proposition_names_a_proof_that_resolves() {
         if proof == "(rustc)" {
             continue; // the compiler is the proof; there is no file to open
         }
+        // A proof may not be a doctest. rustdoc ignores the error code in a
+        // `compile_fail,E0999` fence — and E0999 does not exist — so such a
+        // test asserts exactly one thing, *this did not compile*, and cannot
+        // tell the refusal it was written for from a typo. Ported from the
+        // retired `_ledger.py`, which is the only reason the rule survived
+        // deleting it (`no-guarantee-cites-a-compile-fail-doctest`).
+        if proof.contains("/src/") {
+            broken.push(format!(
+                "  #{}: {proof} — inside a crate's src/, so it is a doctest",
+                p.slug
+            ));
+            continue;
+        }
         let (path, func) = match proof.split_once("::") {
             Some((path, func)) => (path, Some(func)),
             None => (proof.as_str(), None),
@@ -478,5 +491,126 @@ fn the_owed_proofs_are_the_work_queue() {
     assert!(
         !queue.is_empty(),
         "an empty queue would mean every decidable proposition is proven"
+    );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// The conformance record
+// ════════════════════════════════════════════════════════════════════════════
+
+/// **The record is a view, and views cannot drift.**
+///
+/// `docs/conformance.md` used to be generated from a curated table that held,
+/// per proposition, a verdict and the test establishing it — the same fact the
+/// doctrine holds as `kind` and `proof`. It drifted within a day: six
+/// propositions gained proofs in the doctrine while the table kept the old
+/// citations, and nothing compared them.
+///
+/// Now it is rendered from the doctrine, so there is nothing to compare.
+#[test]
+fn the_conformance_record_is_rendered_from_the_doctrine() {
+    let r = resolver();
+    let rendered = rung_doctrine::conformance::render(&all(), &r);
+    let on_disk = std::fs::read_to_string(docs().join("conformance.md")).expect("the record");
+    assert_eq!(
+        rendered, on_disk,
+        "docs/conformance.md differs from what the doctrine renders — \
+         run `cargo run -p rung-doctrine --bin render`"
+    );
+}
+
+/// Every proposition appears exactly once, so the record cannot quietly omit
+/// one. An unlisted proposition would read as a corpus that is smaller and
+/// better-covered than it is.
+#[test]
+fn the_record_lists_every_proposition_once() {
+    let r = resolver();
+    let rendered = rung_doctrine::conformance::render(&all(), &r);
+    for d in &all() {
+        for p in d.props() {
+            let key = format!("| `{}` |", p.slug);
+            assert_eq!(
+                rendered.matches(&key).count(),
+                1,
+                "#{} appears {} times in the record",
+                p.slug,
+                rendered.matches(&key).count()
+            );
+        }
+    }
+}
+
+/// The mechanism prose survived the migration out of Python.
+///
+/// It is the one part of a conformance record a machine cannot derive — *why*
+/// a proof is the right proof — so losing it in a refactor would be losing the
+/// only curated content the record had.
+#[test]
+fn the_curated_mechanism_prose_survived() {
+    let with_prose = all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+        .filter(|p| !p.mechanism.is_empty())
+        .count();
+    println!("\n  {with_prose} propositions carry curated mechanism prose\n");
+    assert!(
+        with_prose >= 115,
+        "the Python table held 115; only {with_prose} survived"
+    );
+}
+
+/// Ported from the retired `_ledger.py`: mechanism prose must cite by slug and
+/// every citation must resolve.
+///
+/// A bare decimal in mechanism prose is the failure this whole scheme exists to
+/// remove — a number written by hand, which the next renumbering makes a lie.
+/// The prose says `{#slug}` and the number is generated, exactly as in the
+/// documents themselves.
+#[test]
+fn mechanism_prose_cites_by_slug_and_every_citation_resolves() {
+    let r = resolver();
+    let mut broken = Vec::new();
+    for p in all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+    {
+        if p.mechanism.is_empty() {
+            continue;
+        }
+        for slug in rung_doctrine::references(&p.mechanism) {
+            if r.get(&slug).is_none() {
+                broken.push(format!(
+                    "  #{}: cites {{#{slug}}}, which resolves to nothing",
+                    p.slug
+                ));
+            }
+        }
+        // A bare `1.23` outside a code span or a path.
+        for (i, _) in p.mechanism.match_indices(char::is_numeric) {
+            let rest = &p.mechanism[i..];
+            let token: String = rest
+                .chars()
+                .take_while(|c| c.is_ascii_digit() || *c == '.')
+                .collect();
+            if token.contains('.')
+                && token.matches('.').count() == 1
+                && !token.ends_with('.')
+                && p.mechanism[..i]
+                    .chars()
+                    .next_back()
+                    .is_none_or(|c| c == ' ')
+            {
+                broken.push(format!(
+                    "  #{}: bare number {token} — write it as {{#slug}}, which survives renumbering",
+                    p.slug
+                ));
+            }
+        }
+    }
+    assert!(
+        broken.is_empty(),
+        "{} mechanism fault(s):\n{}",
+        broken.len(),
+        broken.join("\n")
     );
 }

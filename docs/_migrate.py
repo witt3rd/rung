@@ -100,6 +100,7 @@ def migrate(path):
             out.append("            kind: Kind::Rationale,")
             out.append(f"            numbering: {letter_r},")
             out.append(f"            prose: {rust_str(deref(prose))}.into(),")
+            out.append('            mechanism: String::new(),')
             out.append("        }),")
 
     n_props = sum(1 for e in elements if e[0] == "prop")

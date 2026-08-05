@@ -34,7 +34,5 @@ jobs:
         run: cargo run -q -p rung-doctrine --bin render -- --check
       - name: proposition numbering and references
         run: docs/_props.py check
-      - name: conformance ledger coverage
-        run: docs/_ledger.py check
       - name: proposition citations in Rust source
         run: docs/_props.py cited
