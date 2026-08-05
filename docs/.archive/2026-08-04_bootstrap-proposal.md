@@ -1,3 +1,25 @@
+> **Archived 2026-08-05. Superseded by what it caused.**
+>
+> This proposed encoding the propositions as a theory in `rung-std`, with
+> markdown integrity — anchors, slugs, numbering — as the sentences. It was
+> acted on, and the acting corrected it twice.
+>
+> Its §4 sentences encode **none** of the 380 propositions: they state the
+> Python checker's rules, which no proposition ever made. And its §9 target
+> ("the 105 enforced rows plus the 13 expressible") named the wrong 118 — those
+> were already enforced by runs and by the compiler, and moving them into a
+> theory over parsed markdown would have weakened them.
+>
+> The deeper correction is that its subject was wrong. A doctrine's model is the
+> **implementation**, not the document. Encoding markdown integrity is document
+> maintenance; auditing rung against its own doctrine is the thing.
+>
+> What survives is in `docs/triage.md`, `rung-doctrine/`, and
+> `docs/handoff-self-hosting.md`. Kept because a superseded proposal that leaves
+> no trace comes back.
+
+---
+
 # Bootstrap — stating the theory in the theory
 
 > **Status: proposal. Not normative, not yet doctrine.** It argues for a change

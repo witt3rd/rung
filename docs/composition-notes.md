@@ -1,9 +1,26 @@
 # Theory composition — what the loop needs to run itself
 
 **Status: informative.** `rung-props.md`, `rung-ct-props.md` and
-`rung-het-props.md` govern. This note records a shape the system does not yet
-have, why it is wanted, and what would have to exist. It states no proposition
-and imposes no obligation.
+`rung-het-props.md` govern. This note records a shape the system did not have,
+why it is wanted, and what would have to exist. It states no proposition and
+imposes no obligation.
+
+> **Since written (2026-08-05).** Several of §5's requirements have landed.
+> **Item 1** — the outside supplies the verdict — was built as R2. **Item 4** —
+> a suspension outcome and a resumption edge — is `G16`, with
+> `rung_std::driver::Park` holding suspended runs. **Item 2** — the human and
+> the outside expert as principals — is half done: `rung-driver` builds a pool
+> from `docs/population.yaml` and reaches models, but no judgment has been
+> dispatched, because what provenance a model carries is
+> [Q14](../questions/open/q14-model-principal-provenance.md), open.
+>
+> **Items 3, 6 and 7 stand.** And §4's shape is now blocked on something this
+> note did not anticipate: the pass disposes through a *branching* transition,
+> which has no residual channel, so it cannot wait for a question it raised —
+> [Q15](../questions/open/q15-does-the-pass-suspend.md).
+>
+> §8's summary — *the system governs what passes through it, and the interesting
+> work passed around it* — is still the honest reading.
 
 ---
 

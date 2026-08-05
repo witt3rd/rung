@@ -131,7 +131,7 @@ neither can be passed where the other is asked for
 model, one level up
 ([2.53](rung-het-props.md#classifier-one-level-up)),
 and `ladder!`'s checks run at expansion time against a single declaration; see
-[Q11](questions/open/q11-gate-faithfulness.md).
+[Q11](../questions/open/q11-gate-faithfulness.md).
 
 <a id="marker-without-role-refused" data-parent="marker-annotates-the-target"></a>
 **1.44** Either implemented marker written **without a role** MUST be a
@@ -667,7 +667,7 @@ mid-ladder rung nobody traversed to, which is exactly what
 [G2](#g2-sealed-construction) exists to refuse. Resumption being authorial
 answers *who may* revive a run; it says nothing about *how a token survives
 serialization*. Filed as
-[Q13](questions/open/q13-suspension-across-process-death.md), and related to
+[Q13](../questions/open/q13-suspension-across-process-death.md), and related to
 [5.2](#cross-crate-provenance).
 
 <a id="gate-faithfulness-not-secured" data-parent="non-guarantees"></a>
@@ -728,7 +728,7 @@ seal is
 **5.75** Whether [G12](#g12-gate-marked-signature) +
 [G13](#g13-token-binding) + [G14](#g14-the-authorial-gate) +
 [G15](#g15-outcome-provenance) amount to gate-faithfulness is argued — and
-answered *no* — in [Q11](questions/open/q11-gate-faithfulness.md), which stays
+answered *no* — in [Q11](../questions/open/q11-gate-faithfulness.md), which stays
 open on [5.71](#one-gate-unimplemented) and, in its narrowed form,
 [5.721](#outward-conditions-remaining).
 
@@ -754,7 +754,7 @@ So `ladder!` does not express the endofunctor, and a claim that a single
 declaration is one has no standing here. Whether a rung's payload may be a
 completed sub-ladder run — which is the shape that would let the composite be
 declared rather than driven — is
-[Q4](questions/open/q4-composition-nested-ladders.md), open.
+[Q4](../questions/open/q4-composition-nested-ladders.md), open.
 
 ---
 
