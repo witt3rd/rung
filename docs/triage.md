@@ -23,16 +23,10 @@ anyone is of it. It is a claim about *what would settle it*:
 | **judgmental** | a principal; nothing else can | **49** |
 | **owed** | decidable in principle; nothing establishes it **yet** | **3** |
 
-Per document:
-
-| | n | decidable | signature | rationale | judgmental | owed |
-|---|---:|---:|---:|---:|---:|---:|
-| `rung-props.md` | 70 | **58 (83%)** | 0 | 9 | **0** | 3 |
-| `rung-ct-props.md` | 108 | 19 | 32 | 35 | 22 | 0 |
-| `rung-het-props.md` | 202 | 38 | 32 | 105 | 27 | 0 |
-
-The macro specification is 83% proven with **no judgmental propositions at
-all**, which is what a document about an artifact should look like.
+Per document, and per section: **[`conformance.md`](conformance.md)**, which is
+generated from the same encoding. It is not repeated here, because a count
+written by hand in a document is the thing this whole scheme exists to remove —
+and one written here *was* wrong by two before anybody noticed.
 
 ### The criterion, and the redo it forced
 
