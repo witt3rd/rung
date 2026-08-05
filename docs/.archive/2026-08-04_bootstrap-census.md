@@ -1,8 +1,25 @@
+> **Archived 2026-08-05. Right about its question, wrong about the question.**
+>
+> This measured the 118 enforced and expressible ledger rows and found that
+> **none is a claim about a document** — so none could move into a theory whose
+> model is the corpus. That finding was correct and it corrected the proposal.
+>
+> It then drew the wrong conclusion: that the real target was the Python's
+> integrity rules. Also too small. The right question is not *what can be
+> computed from a data structure* but *what has a proof that fails when it is
+> violated* — under which the decidable fragment went from 6 to 123, and most of
+> what this census filed as unreachable turned out to be already proven.
+>
+> Kept as the record of a measurement that was sound and a conclusion that was
+> not.
+
+---
+
 # Shape census — what the 118 rows are actually made of
 
 **Status: informative.** `rung-props.md`, `rung-ct-props.md` and
 `rung-het-props.md` govern. This note reports a measurement taken against
-[`bootstrap.md`](bootstrap.md) §9, which proposes that *"the honest target is the
+`2026-08-04_bootstrap-proposal.md` §9, which proposes that *"the honest target is the
 105 enforced rows plus the 13 expressible ones, not 379."* It states no
 proposition and imposes no obligation.
 
