@@ -8,6 +8,7 @@ description = "Configure a pool of principals and run a ladder over a subject"
 
 [dependencies]
 rung = { path = "../rung" }
+rung-het = { path = "../rung-het" }
 rung-std = { path = "../rung-std" }
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
