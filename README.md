@@ -385,9 +385,9 @@ each proposition: **what kind of authority could settle it.**
 
 | kind | discharged by | count |
 |---|---|---:|
-| **decidable** | a proof — a test that fails when the proposition is violated | 124 |
+| **decidable** | a proof — a test that fails when the proposition is violated | 125 |
 | **judgmental** | a principal, **disjoint** from what it judges | 47 |
-| **owed** | an author, with **standing** over it | 3 |
+| **owed** | an author, with **standing** over it | 2 |
 | **signature** | nobody — it declares vocabulary | 59 |
 | **rationale** | nobody — it argues, or records a limit | 147 |
 

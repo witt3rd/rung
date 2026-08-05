@@ -28,7 +28,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-props.md`
 
-**Counts.** 56 decidable · 3 owed · 11 rationale · 70 total.
+**Counts.** 57 decidable · 2 owed · 11 rationale · 70 total.
 
 ### Grammar
 
@@ -103,7 +103,7 @@ unsettled. Where it is blank, nobody has written one down.
 |---|---|---|---|---|
 | [5](rung-props.md#non-guarantees) | `non-guarantees` | `rationale` | The heading of the withdrawals. A non-guarantee states that the macro does **not** enforce something and that a claim it does has no standing; there is no obligation left for a host to discharge. Its children point at the boundary tests where a boundary exists. | — |
 | [5.1](rung-props.md#transition-body-correctness) | `transition-body-correctness` | `decidable` | The typestate/verification boundary. The type proves a transition ran; nothing here claims its logic was valid, so there is nothing to check. Every `expressible` row in this ledger inherits this limit. | `rung/tests/non_guarantees.rs::a_transition_body_may_be_wrong_and_the_macro_does_not_care` |
-| [5.2](rung-props.md#cross-crate-provenance) | `cross-crate-provenance` | `owed` | A rung crossing a crate boundary is trusted, like any Rust public API. Closing it needs a sub-crate per ladder, which is a packaging decision rather than a macro guarantee. | **owed** — a fixture crate is needed: the claim is about a rung crossing a crate boundary |
+| [5.2](rung-props.md#cross-crate-provenance) | `cross-crate-provenance` | `decidable` | A rung crossing a crate boundary is trusted, like any Rust public API. Closing it needs a sub-crate per ladder, which is a packaging decision rather than a macro guarantee. | `rung-fixture/tests/consumer.rs::a_consumer_cannot_tell_a_real_order_from_an_invented_one` |
 | [5.3](rung-props.md#same-module-fabrication) | `same-module-fabrication` | `decidable` | The module-boundary limit Rust always has. The cited test pins where the seal *does* bite — external construction is E0624 — so the withdrawal is readable as a boundary rather than as an absence. | `rung/tests/non_guarantees.rs::the_entry_constructor_and_the_module_itself_may_fabricate` |
 | [5.4](rung-props.md#drop-proofing-beyond-the-lint) | `drop-proofing-beyond-the-lint` | `decidable` | `mem::forget`, `let _ = token`, and a dropped container all bypass `#[must_use]`; true no-drop needs language-level linear types. The cited test pins the lint's actual reach, which is what is being bounded. | `rung/tests/non_guarantees.rs::a_must_use_token_can_still_be_discarded_three_ways` |
 | [5.5](rung-props.md#liveness-beyond-the-guard) | `liveness-beyond-the-guard` | `decidable` | [G8](rung-props.md#g8-recovery-progress) catches an identical-token stall; general forward progress is a halting question. The cited test exercises the guard on exactly the case it does catch, so what is being withdrawn is legible as the complement of something real. | `rung/tests/non_guarantees.rs::the_progress_guard_is_satisfied_by_motion_that_goes_nowhere` |
@@ -588,9 +588,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 124 |
+| `decidable` | 125 |
 | `judgmental` | 47 |
-| `owed` | 3 |
+| `owed` | 2 |
 | `rationale` | 147 |
 | `signature` | 59 |
 | **total** | **380** |
@@ -608,8 +608,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 152 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 156 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -686,6 +686,13 @@ look shorter than it is.
 - `capability_alone_does_not_authorize_a_write`
 - `kind_decides_nothing`
 - `the_driver_offers_no_way_to_prefer_one_qualifying_principal`
+
+**`rung-fixture/tests/consumer.rs`** — 4 unclaimed
+
+- `a_consumer_cannot_construct_a_mid_ladder_rung`
+- `a_consumer_may_place_an_order_and_drive_it`
+- `an_invented_order_settles_exactly_as_a_real_one_does`
+- `the_knowledge_exists_upstream_and_cannot_cross`
 
 **`rung-het/tests/acceptance.rs`** — 2 unclaimed
 
