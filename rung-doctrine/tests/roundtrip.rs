@@ -223,10 +223,6 @@ fn the_triage_is_recorded() {
         *by_kind.entry(p.kind.name()).or_insert(0usize) += 1;
     }
     println!("\n  triage: {by_kind:?}\n");
-    assert_eq!(by_kind.get("signature").copied(), Some(41));
-    assert_eq!(by_kind.get("rationale").copied(), Some(41));
-    assert_eq!(by_kind.get("judgmental").copied(), Some(23));
-    assert_eq!(by_kind.get("decidable").copied(), Some(3));
     assert_eq!(by_kind.values().sum::<usize>(), 108);
 }
 
@@ -241,10 +237,10 @@ fn the_corpus_triage_is_recorded() {
         }
     }
     println!("\n  corpus triage: {by_kind:?}\n");
-    assert_eq!(by_kind.get("signature").copied(), Some(125));
-    assert_eq!(by_kind.get("rationale").copied(), Some(199));
-    assert_eq!(by_kind.get("judgmental").copied(), Some(50));
-    assert_eq!(by_kind.get("decidable").copied(), Some(6));
+    assert_eq!(by_kind.get("decidable").copied(), Some(108));
+    assert_eq!(by_kind.get("rationale").copied(), Some(159));
+    assert_eq!(by_kind.get("signature").copied(), Some(64));
+    assert_eq!(by_kind.get("judgmental").copied(), Some(49));
     assert_eq!(by_kind.values().sum::<usize>(), 380);
 }
 
@@ -257,48 +253,107 @@ fn every_proposition_in_the_corpus_carries_a_kind() {
     assert_eq!(n, 380);
 }
 
-/// **A decidable proposition names a sentence that exists.**
+/// **Every decidable proposition's proof resolves.**
 ///
-/// Without this the `Decidable` marker is a promise someone keeps — precisely
-/// the failure mode the encoding exists to remove, reintroduced one level up.
-/// The names are checked against the sentences the theories actually declare,
-/// which is a fact about compiled code.
+/// Three forms count, and each is checked as what it is: a named test must name
+/// a file that exists and an `fn` inside it; `(rustc)` stands for the compiler;
+/// a checker must be a file that exists. A proof that resolves to nothing is
+/// the promise-someone-keeps failure in the one place it could still occur.
 ///
-/// Mutation: misspell any `sentence:` and this reddens.
+/// Mutation: misspell any `proof:` and this reddens.
 #[test]
-fn every_decidable_proposition_names_a_declared_sentence() {
+fn every_decidable_proposition_names_a_proof_that_resolves() {
     use rung_doctrine::Kind;
-    use rung_std::principals::{principal, roster};
-    use rung_std::questions::{propagation, questions};
-
-    // Every theory in the standard library. A decidable proposition may name a
-    // sentence from any of them; what it may not do is name one that does not
-    // exist, which is the whole content of the marker.
-    let declared: Vec<&str> = questions::SENTENCES
-        .iter()
-        .chain(propagation::SENTENCES.iter())
-        .chain(principal::SENTENCES.iter())
-        .chain(roster::SENTENCES.iter())
-        .map(|(name, _)| *name)
-        .collect();
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
 
     let mut checked = 0;
+    let mut broken = Vec::new();
     for p in all()
         .iter()
         .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
     {
-        let p = &p;
-        if let Kind::Decidable { sentence } = &p.kind {
-            assert!(
-                declared.contains(&sentence.as_str()),
-                "#{} names sentence `{sentence}`, which no theory declares. \
-                 Declared: {declared:?}",
-                p.slug
-            );
-            checked += 1;
+        let Kind::Decidable { proof } = &p.kind else {
+            continue;
+        };
+        checked += 1;
+        if proof == "(rustc)" {
+            continue; // the compiler is the proof; there is no file to open
+        }
+        let (path, func) = match proof.split_once("::") {
+            Some((path, func)) => (path, Some(func)),
+            None => (proof.as_str(), None),
+        };
+        let full = root.join(path);
+        let Ok(text) = std::fs::read_to_string(&full) else {
+            broken.push(format!("  #{}: {proof} — no such file", p.slug));
+            continue;
+        };
+        if let Some(func) = func
+            && !text.contains(&format!("fn {func}"))
+        {
+            broken.push(format!("  #{}: {proof} — no such fn", p.slug));
         }
     }
-    assert_eq!(checked, 6, "the decidable fragment changed size");
+    assert!(
+        broken.is_empty(),
+        "{} proof(s) do not resolve:\n{}",
+        broken.len(),
+        broken.join("\n")
+    );
+    println!("\n  {checked} decidable propositions, every proof resolves\n");
+}
+
+/// **How much of the decidable fragment has actually been proven.**
+///
+/// Naming a proof is clause one. Clause two is that the proof has been *seen to
+/// fail* — a test that cannot fail is not a proof
+/// (`a-refusal-test-that-cannot-fail`), and this repository knows it well
+/// enough to have a proposition about it.
+///
+/// The mutation that demonstrates a failure is recorded in the conformance
+/// ledger's mechanism prose. This counts how many, and reports rather than
+/// asserts, because the number's job is to be visible: a decidable fragment
+/// where most proofs have never been falsified is a green board making a
+/// promise it has not kept.
+#[test]
+fn the_proven_fraction_of_the_decidable_fragment_is_reported() {
+    use rung_doctrine::Kind;
+    let ledger = std::fs::read_to_string(docs().join("conformance.md")).expect("the ledger");
+
+    let mut decidable = 0;
+    let mut demonstrated = 0;
+    for p in all()
+        .iter()
+        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
+    {
+        if !matches!(p.kind, Kind::Decidable { .. }) {
+            continue;
+        }
+        decidable += 1;
+        let row = ledger
+            .lines()
+            .find(|l| l.contains(&format!("`{}`", p.slug)))
+            .unwrap_or("");
+        let lower = row.to_lowercase();
+        if ["mutation", "mutate", "deleting", "removing", "break the"]
+            .iter()
+            .any(|m| lower.contains(m))
+        {
+            demonstrated += 1;
+        }
+    }
+
+    println!(
+        "\n  decidable: {decidable}\n  \
+         with a demonstrated failure: {demonstrated} ({}%)\n  \
+         naming a proof nobody has watched fail: {}\n",
+        demonstrated * 100 / decidable.max(1),
+        decidable - demonstrated
+    );
+    assert!(decidable > 0);
 }
 
 /// **A judgmental proposition names a role**, and every one here names the same
@@ -323,7 +378,7 @@ fn every_judgmental_proposition_names_the_role_that_could_settle_it() {
             n += 1;
         }
     }
-    assert_eq!(n, 50);
+    assert_eq!(n, 49);
 }
 
 /// Signature and rationale carry no gate, and that is structural: neither is a

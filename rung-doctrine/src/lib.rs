@@ -56,14 +56,32 @@ use std::fmt::Write as _;
 /// What a proposition is, and therefore what it must supply.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Kind {
-    /// A claim a machine settles, naming the `theory!` sentence that carries
-    /// its body.
+    /// A claim a machine settles, naming **the proof**.
     ///
-    /// The name is not decoration: a proposition marked decidable with no
-    /// sentence behind it is a promise someone keeps, which is the thing this
-    /// encoding exists to abolish. `sentence` is checked against the declared
-    /// sentences of the theory that owns it.
-    Decidable { sentence: String },
+    /// The proof is a test that fails when the proposition is violated. That is
+    /// the whole criterion, and it is deliberately not *"could a machine
+    /// compute this from a data structure"* — most of what rung guarantees is
+    /// about an implementation, and an implementation is checked by running
+    /// something against it, not by evaluating a closure over a value.
+    ///
+    /// Three forms of proof, all decidable:
+    ///
+    /// | form | example |
+    /// |---|---|
+    /// | a named test | `rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync` |
+    /// | the compiler | `(rustc)` — violating it does not build |
+    /// | a checker | `docs/_ledger.py` |
+    ///
+    /// The name is not decoration: a proposition marked decidable with no proof
+    /// behind it is a promise someone keeps, which is the thing this encoding
+    /// exists to abolish. Every proof is checked to resolve.
+    ///
+    /// **What this field does not carry is whether the proof was ever seen to
+    /// fail.** A test that cannot fail is not a proof
+    /// (`a-refusal-test-that-cannot-fail`), and the mutation that demonstrates
+    /// it is recorded in the conformance ledger's mechanism prose rather than
+    /// here. That coverage is reported, and it is much lower than this count.
+    Decidable { proof: String },
     /// A claim needing an outside. Carries the competence role required.
     Judgmental { role: String },
     /// Declares part of the signature — a sort, an operation. Not a claim

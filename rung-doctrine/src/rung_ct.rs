@@ -115,7 +115,7 @@ a category, and the request is refused.
         Element::Prop(Prop {
             slug: "sealing-is-the-axiom-not-a-guard".into(),
             parent: Some("the-law".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624".into() },
             numbering: None,
             prose: r#"Sealed construction (`G2`) is therefore not merely a fabrication
 guard. It is the enforcement of what a category *is*: a state is reached only by
@@ -195,7 +195,7 @@ function — and the host's type checker enforces that it respects composition.
         Element::Prop(Prop {
             slug: "composition-consumes".into(),
             parent: Some("ladder-declares-a-category".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "(rustc)".into() },
             numbering: None,
             prose: r#"Composition is **linear** (`G1`): the intermediate object is consumed.
 Composition is not sequencing; it is resource consumption.
@@ -283,7 +283,7 @@ live rung, not a verdict. Nothing has left the category.
         Element::Prop(Prop {
             slug: "residual-summand".into(),
             parent: Some("coproduct-is-heterogeneous".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_judgmental_forward_transition_returns_the_argument_unconsumed".into() },
             numbering: None,
             prose: r#"The **residual summand** is the final `+ A`: the input object returned
 unconsumed when the transition does not answer. It is the same residual Het's
@@ -295,7 +295,7 @@ judgmental arrow carries
         Element::Prop(Prop {
             slug: "elimination-is-exhaustive".into(),
             parent: Some("branching-is-a-coproduct".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "(rustc)".into() },
             numbering: None,
             prose: r#"Elimination is **exhaustive** (`G6`): a morphism out of the coproduct
 must be defined on every injection. Exhaustiveness is not a lint; it is the
@@ -353,7 +353,7 @@ contraction to shrink ({#the-dagger-is-partial-and-contractive}).
         Element::Prop(Prop {
             slug: "continue-arm-has-no-verdict-object".into(),
             parent: Some("continue-arm-is-an-ordinary-generating-morphism".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::continue_arm_loops_without_a_recover_fn".into() },
             numbering: None,
             prose: r#"A continue arm therefore emits **no verdict object** and no adjoint
 (`G10`). A declaration that demanded one for a continue arm would be demanding
@@ -390,7 +390,7 @@ payload factor and the carry factor.
         Element::Prop(Prop {
             slug: "projection-onto-carry".into(),
             parent: Some("carry-is-a-product-factor".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_carry_accessor_exists".into() },
             numbering: None,
             prose: r#"The second projection $\pi_2$ is the only access to the carry, and it is
 read-only (`G5`). No morphism of the category mutates it in place.
@@ -710,7 +710,7 @@ where a backward edge declares one.
         Element::Prop(Prop {
             slug: "three-shapes-of-loop-back".into(),
             parent: Some("the-dagger-is-partial-and-contractive".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::recover_guard_is_auto_injected".into() },
             numbering: None,
             prose: r#"There are **three shapes of loop-back, and only two are daggers.**
 
@@ -736,7 +736,7 @@ nothing that stayed can return.
         Element::Prop(Prop {
             slug: "verdict-dagger-is-mandatory".into(),
             parent: Some("the-dagger-is-partial-and-contractive".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "(rustc)".into() },
             numbering: None,
             prose: r#"The dagger is **total on recoverable verdicts** (`G7`): each has an
 adjoint and each adjoint has a verdict. The pairing is checked, not trusted.
@@ -746,7 +746,7 @@ adjoint and each adjoint has a verdict. The pairing is checked, not trusted.
         Element::Prop(Prop {
             slug: "verdict-dagger-is-contractive".into(),
             parent: Some("the-dagger-is-partial-and-contractive".into()),
-            kind: Kind::Judgmental { role: "category-theorist".into() },
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::recover_guard_is_auto_injected".into() },
             numbering: None,
             prose: r#"The verdict dagger is **contractive, not involutive**. The round trip
 forward-then-back is required to *decrease* (`G8`), so
@@ -792,7 +792,7 @@ forward progress.
         Element::Prop(Prop {
             slug: "error-dagger-is-optional-and-unguarded".into(),
             parent: Some("the-dagger-is-partial-and-contractive".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::recovers_from_the_failed_error_path".into() },
             numbering: None,
             prose: r#"The residual's adjoint is **optional and unguarded** (`G9`). Optional,
 because a caller may handle a returned residual itself; unguarded, because a
@@ -805,7 +805,7 @@ licence Het grants a returned residual
         Element::Prop(Prop {
             slug: "resume-edge-is-the-residual-dagger".into(),
             parent: Some("error-dagger-is-optional-and-unguarded".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/suspension.rs::a_suspension_resumes_through_the_authorial_edge".into() },
             numbering: None,
             prose: r#"A **resume edge** is that adjoint, declared. It consumes the residual
 of a judgmental forward transition — the argument returned unconsumed together
@@ -898,7 +898,7 @@ be used twice; it *can* be dropped.
         Element::Prop(Prop {
             slug: "must-use-is-the-affine-approximation".into(),
             parent: Some("at-most-once-not-exactly-once".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/spec_refusals.rs::dropping_a_verdict_under_deny_must_use_is_an_error".into() },
             numbering: None,
             prose: r#"`G4` closes the second half by lint rather than by type, and it covers
 every carrier of a live token — objects, verdict objects, the branching
@@ -919,7 +919,7 @@ discard, or buried in a dropped container. The close is partial.
         Element::Prop(Prop {
             slug: "one-token-one-thread".into(),
             parent: Some("substrate-is-affine".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync".into() },
             numbering: None,
             prose: r#"Linearity is a claim about a **unique consumer**, and a shared reference
 crossing a thread boundary would supply a second. `G3` forbids it: no object of
@@ -931,7 +931,7 @@ threads.
         Element::Prop(Prop {
             slug: "move-semantics-alone-are-insufficient".into(),
             parent: Some("one-token-one-thread".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/compile_pass.rs::test_rungs_are_not_send_or_sync".into() },
             numbering: None,
             prose: r#"Move semantics alone give one consumer for an *owned* value and say
 nothing about shared references. `G3` is what makes the linearity claim hold of
@@ -988,7 +988,7 @@ assertion is discharged by the type, not by an accompanying check.
         Element::Prop(Prop {
             slug: "terminal-payload-is-the-witness".into(),
             parent: Some("types-are-propositions".into()),
-            kind: Kind::Signature,
+            kind: Kind::Decidable { proof: "rung/tests/end_to_end.rs::drives_to_convergence".into() },
             numbering: None,
             prose: r#"A terminal verdict may carry a payload (`G11`). That payload is the
 **witness** the terminal proposition asserts the existence of, returned through
@@ -1025,7 +1025,7 @@ verifies the **content of a morphism**.
         Element::Prop(Prop {
             slug: "guarantees-carry-categorical-content".into(),
             parent: Some("verification-boundary".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "(rustc)".into() },
             numbering: None,
             prose: r#"Each guarantee has a categorical reading, and the reading is what this
 document adds to it:
@@ -1070,7 +1070,7 @@ document adds to it:
         Element::Prop(Prop {
             slug: "gate-guarantees-constrain-the-domain-not-the-arrow".into(),
             parent: Some("what-is-not-verified".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::judgmental_transition_takes_a_qualified_token".into() },
             numbering: None,
             prose: r#"The gate guarantees are the sharpest instance of this boundary, and
 the reason they have no row in
@@ -1141,7 +1141,7 @@ category; that is the fractal property read in this setting.
         Element::Prop(Prop {
             slug: "declaration-names-no-foreign-object".into(),
             parent: Some("fibre-is-a-ladder".into()),
-            kind: Kind::Decidable { sentence: "every_dependency_resolves".into() },
+            kind: Kind::Signature,
             numbering: None,
             prose: r#"**A declaration names no object of another fibre.** An edge whose
 domain lies in a different fibre is not a morphism of *this* free category — it
@@ -1189,7 +1189,7 @@ outside.
         Element::Prop(Prop {
             slug: "edge-taxonomy-is-the-theorys".into(),
             parent: Some("edge-type-selects-the-pushforward".into()),
-            kind: Kind::Decidable { sentence: "every_declared_kind_is_lived".into() },
+            kind: Kind::Decidable { proof: "rung-het/tests/questions_of_rung.rs::every_declared_edge_kind_has_a_lived_instance_on_disk".into() },
             numbering: None,
             prose: r#"**The taxonomy is the governing theory's**, declared by it exactly as
 an edit vocabulary is ({#edit-required-not-typed}).
@@ -1202,7 +1202,7 @@ enumerates the types, for the reason
         Element::Prop(Prop {
             slug: "strict-and-advisory-are-the-gate".into(),
             parent: Some("edge-type-selects-the-pushforward".into()),
-            kind: Kind::Decidable { sentence: "must_reexamine".into() },
+            kind: Kind::Decidable { proof: "rung-het/tests/questions_of_rung.rs::a_strict_edge_propagates_decidably_and_an_advisory_edge_is_ruled_on".into() },
             numbering: None,
             prose: r#"The load-bearing split among edge types — obligatory against advisory,
 *this breaks* against *check whether this breaks* — is the **gate marker**
