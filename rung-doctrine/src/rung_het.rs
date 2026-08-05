@@ -64,6 +64,7 @@ $$M \models_\Sigma \varphi$$
 A model $M$ satisfies sentence $\varphi$ under signature $\Sigma$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "institution-quadruple".into(),
@@ -74,6 +75,7 @@ A model $M$ satisfies sentence $\varphi$ under signature $\Sigma$.
 $(\mathbf{Sign}, \mathsf{Sen}, \mathsf{Mod}, \models)$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "sign-category".into(),
@@ -84,6 +86,7 @@ $(\mathbf{Sign}, \mathsf{Sen}, \mathsf{Mod}, \models)$.
 morphisms are signature morphisms.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "sen-functor".into(),
@@ -94,6 +97,7 @@ morphisms are signature morphisms.
 signature its sentences.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "mod-functor".into(),
@@ -104,6 +108,7 @@ signature its sentences.
 assigns to each signature its algebras.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "satisfaction-typing".into(),
@@ -113,6 +118,7 @@ assigns to each signature its algebras.
             prose: r#"$\models_\Sigma \;\subseteq\; \lvert\mathsf{Mod}(\Sigma)\rvert \times \mathsf{Sen}(\Sigma)$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "satisfaction-condition".into(),
@@ -125,6 +131,7 @@ truth is invariant under change of notation.
 $$M \models_{\Sigma'} \mathsf{Sen}(\sigma)(\varphi) \iff \mathsf{Mod}(\sigma)(M) \models_\Sigma \varphi$$
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "signature-declares".into(),
@@ -135,6 +142,7 @@ $$M \models_{\Sigma'} \mathsf{Sen}(\sigma)(\varphi) \iff \mathsf{Mod}(\sigma)(M)
 markers, and the laws the theory declares.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "extension-is-in-models".into(),
@@ -145,6 +153,7 @@ markers, and the laws the theory declares.
 $\models$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "no-layer-above-sigma".into(),
@@ -155,6 +164,7 @@ $\models$.
 $M$, and there is one gate-dispatched $\models$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "rest-is-bookkeeping".into(),
@@ -165,6 +175,7 @@ $M$, and there is one gate-dispatched $\models$.
 pool, the tower, the game — is bookkeeping around {#one-relation}.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -180,6 +191,7 @@ pool, the tower, the game — is bookkeeping around {#one-relation}.
 fixes how its satisfaction is computed.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "four-gates".into(),
@@ -196,6 +208,7 @@ fixes how its satisfaction is computed.
 | `conditional` | Whether satisfaction is decidable depends on the specific algebra. The condition is classified one level up ({#conditional-names-classifier}). |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "no-other-gate-value".into(),
@@ -205,6 +218,7 @@ fixes how its satisfaction is computed.
             prose: r#"No other value is well-formed.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "unmarked-not-wellformed".into(),
@@ -215,6 +229,7 @@ fixes how its satisfaction is computed.
 declaration.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-declares-role".into(),
@@ -225,6 +240,7 @@ declaration.
 to discharge it.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "role-not-kind".into(),
@@ -236,6 +252,7 @@ belongs to whatever supplies $\mathcal{P}$ ({#nothing-further-required}). Role i
 sentence needs done, and only the sentence's own theory knows that.
 
 "#.into(),
+            mechanism: r#"Two axes, and a supplier that declares both is what makes their independence visible. `rung-std::principals::Kind` is substrate — the supplier's, closed, with identity fields and a tier; `Role` is what a sentence needs done and is `rung`'s type. The cited test plays one role across all four kinds and shows a kind entitled to no role it has not earned. The one apparent exception — a competence that excludes a bare model — is stated in that role's own minimum qualifications and never in the partition, which is the asymmetry this proposition names."#.into(),
         }),
         Element::Prop(Prop {
             slug: "role-declared-pointwise".into(),
@@ -247,6 +264,7 @@ sentences to competences, and none is needed: the pointwise declaration
 is what lets $\models$ resolve a judge.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "authorial-declares-standing".into(),
@@ -256,6 +274,7 @@ is what lets $\models$ resolve a judge.
             prose: r#"An authorial operation declares a **standing predicate**.
 
 "#.into(),
+            mechanism: r#"G14. `#[authorial]` with no role is a `compile_error!` — the qualifying set is a conjunction and a marker naming no role can witness only its right half — and the pen that IS emitted carries the container standing was measured over. The macro then injects `must_hold_standing_over(&src.payload, &pen)` ahead of the body, so the declared predicate is consulted whether or not the body mentions it: the cited ladder's body never does. Stubbing the prologue to a no-op turns it red. This is what makes a marked transition's source payload have to be `Situated` — without a container there is nothing standing could be over."#.into(),
         }),
         Element::Prop(Prop {
             slug: "conditional-names-classifier".into(),
@@ -265,6 +284,7 @@ is what lets $\models$ resolve a judge.
             prose: r#"A conditional operation names a **classifying sentence**.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "classifier-not-judgmental".into(),
@@ -275,6 +295,7 @@ is what lets $\models$ resolve a judge.
 classifier reopens the regress {#tower-floor} closes.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "conditional-partitions-fiber".into(),
@@ -286,6 +307,7 @@ classifier reopens the regress {#tower-floor} closes.
 $$\mathsf{Mod}_{\mathsf{dec}}(\Sigma, \varphi) \quad\text{and}\quad \mathsf{Mod}_{\mathsf{jud}}(\Sigma, \varphi)$$
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "classifier-one-level-up".into(),
@@ -302,6 +324,7 @@ such that
 $$M \in \mathsf{Mod}_{\mathsf{dec}}(\Sigma, \varphi) \iff M \models_{\Sigma^\uparrow} \mathsf{Decidable}_\Sigma(\varphi)$$
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "decidability-expressible-internally".into(),
@@ -315,6 +338,7 @@ Re-indexing transports that higher sentence, and fiber-wise uniformity is
 restored.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -333,6 +357,7 @@ sort of the signature.
 > mechanically or by delegation.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "pool-not-a-sort".into(),
@@ -342,6 +367,7 @@ sort of the signature.
             prose: r#"$\mathcal{P}$ does not appear as a sort in any signature.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "internalizing-outside-collapses".into(),
@@ -354,6 +380,7 @@ non-identity becomes unenforceable: if the judge is an element of the
 algebra, what judges the judge?
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "pool-is-opaque".into(),
@@ -364,6 +391,7 @@ algebra, what judges the judge?
 substrate, never enumerates kinds, and never inspects an inhabitant.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "supplier-interface".into(),
@@ -381,6 +409,7 @@ four predicates.
 | $\varepsilon$ | $\mathcal{P} \to {#epsilon-reported-with-verdict}) |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "interface-by-signature-inspection".into(),
@@ -392,6 +421,7 @@ arities. Conformance is signature inspection — decidable, and requiring
 no edge machinery beyond reading the declaration.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "nothing-further-required".into(),
@@ -404,6 +434,7 @@ the supplier's. Naming any of them here would internalize the outside a
 second way — not as a sort, but as a stipulated content.
 
 "#.into(),
+            mechanism: r#"The division is now observable from both sides. `rung::Principal` asks for `capable` and `id`, `Provenanced` for `π`, `Steward` for standing — and nothing anywhere in `rung` names a kind, a substrate partition, an identity field, a cost tier or a population. `rung-std::principals` names all five, because a supplier that named none of them would have supplied nothing. The cited test binds the interface at its declared arities and shows the licence that comes back out carrying an id, a provenance and a role — the kind, its required fields and its tier stay on the supplier's side of the line. What is NOT enforced: that a future `rung` stays incurious. Nothing structurally prevents the library growing a `Kind`; this row records that it has not."#.into(),
         }),
         Element::Prop(Prop {
             slug: "capable-single-arity".into(),
@@ -418,6 +449,7 @@ A supplier of $\mathcal{P}$ cannot be asked to inspect Het's sentences; it
 does not have them.
 
 "#.into(),
+            mechanism: r#"`Principal::capable(&self, role_name: &str)` — one arity, and the second argument is a NAME. A supplier keys its qualification table on that name (`rung-std::principals::RoleSpec`), because a `Role` type cannot be recovered from a string; that is the shape this proposition forces, met rather than worked around. The cited test passes a *sentence* name where a role name goes and gets `false`: a principal does not have the theory's sentences and cannot be asked to inspect them. rung proves the arity, not that any supplier's table is right."#.into(),
         }),
         Element::Prop(Prop {
             slug: "principal-provenance-floor".into(),
@@ -448,6 +480,7 @@ being `impl<P: Principal> Provenanced for P { authored().with(id()) }`;
 a hand-written `Provenanced` impl for a principal is refused by coherence.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "three-belonging-predicates".into(),
@@ -459,6 +492,7 @@ non-identity, and standing. They decide whether a principal qualifies at
 all. All three are Het's.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "ordering-is-hetopts".into(),
@@ -469,6 +503,7 @@ all. All three are Het's.
 that qualify. Ordering is HetOpt's ({#het-settles-hetopt-orders}).
 
 "#.into(),
+            mechanism: r#"Cost tier is declared — per substrate kind, in `rung-std::principals::Kind::cost_tier` — and ordered nowhere. The cited test is the direct observation: roster A is laid out so the qualifying set opens with the costliest substrate and closes with the cheapest, and `Pool::qualify_for` picks the human over the model. Under the minimal-judge rule the order inverts. Deriving `Ord` on `CostTier` and sorting the set by it in `qualifying_set` is type-valid and turns the test red at the kind sequence. This row was `out-of-scope` while nothing in the workspace declared a tier; a supplier now does, and ordering it is a thing a host can refuse to do."#.into(),
         }),
         Element::Prop(Prop {
             slug: "epsilon-declared-not-ranked".into(),
@@ -479,6 +514,7 @@ that qualify. Ordering is HetOpt's ({#het-settles-hetopt-orders}).
 its error bar. Het never reads it as a preference.
 
 "#.into(),
+            mechanism: r#"HALF HOLDS, HALF IS A GAP. *Never ranked*: `rung-std::principals` declares an `Epsilon` per principal and no accessor and no comparison exist for one, so nothing can read it as a preference; `principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon` enforces that across every source file. *Declared so the verdict can carry its error bar*: it cannot. `Settled::Judgmental` carries sentence, role, principal and verdict, and there is no field for an error bar — so the ε a supplier already declares stops at the supplier. This is a **different** gap from {#epsilon-reported-with-verdict}, which asks whether a judge's confidence is expressible at all; this one asks whether the ε that IS declared reaches the caller. Deleting the `#[ignore]` reports it."#.into(),
         }),
         Element::Prop(Prop {
             slug: "one-pool-two-filters".into(),
@@ -492,6 +528,7 @@ Distinct pools are not licensed.
 ### The judgmental filter — non-identity
 
 "#.into(),
+            mechanism: r#"G14, and this is the row G14 exists for. One `Pool` mints both tokens; the gate marker on a `ladder!` transition selects which filter runs, not which pool is consulted. `#[judgmental(R)]` emits `Qualified<R>` and runs capability + disjointness; `#[authorial(R)]` emits `Authorized<'_, R>` and runs capability + standing. The cited test drives the same three principals through both filters over one subject and asserts they DISAGREE. Dropping the capability conjunct from `Pool::authorize` turns it red."#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-qualifying-set".into(),
@@ -504,6 +541,7 @@ qualifying set:
 $$\mathcal{P}_{\text{judg}}(\varphi, a) = \{\, p \in \mathcal{P} : \mathsf{capable}(p, \mathsf{role}(\varphi)) \wedge \pi(p) \cap \pi(a) = \emptyset \,\}$$
 
 "#.into(),
+            mechanism: r#"Both conjuncts are implemented and both are tested — competence by `gate_law.rs::competence_is_filtered_before_provenance_matters`, disjointness by `::p0_refuses_a_judge_who_authored_the_material`. What is parked is the set's own **edge**. `Pool::qualify_for` refuses a model with `π(a) = ∅`, because every candidate would then pass disjointness vacuously; the mirror on the *principal's* side is unguarded, so a principal declaring `π(p) = ∅` is disjoint from everything and is a universal judge admitted by construction. Het as written admits it. Whether that is a hole or the honest consequence of the definition is a change to **this proposition**, which is why the cited test presumes an answer and is parked rather than run: the engine invented the model-side guard on its own judgment once, and inventing its mirror unasked would be the same overreach twice."#.into(),
         }),
         Element::Prop(Prop {
             slug: "disjointness-against-argument".into(),
@@ -514,6 +552,7 @@ $$\mathcal{P}_{\text{judg}}(\varphi, a) = \{\, p \in \mathcal{P} : \mathsf{capab
 applied to**, not against the model in general.
 
 "#.into(),
+            mechanism: r#"G13. Disjointness is measured against the argument, and the token now remembers WHICH argument, so spending it elsewhere is a refusal rather than an unobservable mistake. `dispose` admits a token only against the **proposal**; `settle` only against the **model**. Until the binding landed this proposition was satisfied only by the caller passing the right reference — `qualify_for` was a pure alias for `qualify` and nothing downstream could tell the two apart."#.into(),
         }),
         Element::Prop(Prop {
             slug: "argument-governs".into(),
@@ -526,6 +565,7 @@ provenance is its author's ({#proposal-provenance-is-authors}) and the author ne
 The argument governs.
 
 "#.into(),
+            mechanism: r#"G13, at the point where the two readings come apart. A judge that authored a Proposal is disjoint from the MODEL by construction, so a model-relative mint would admit it to rule on its own work; the cited test performs exactly that laundering, with a token minted honestly against the model, and `dispose` refuses it. `Pool::qualify` is now the `audit` reading of `qualify_for`, where π(a) = π(M) — one filter, and which name the caller used is a comment rather than the check."#.into(),
         }),
         Element::Prop(Prop {
             slug: "non-identity-before-dispatch".into(),
@@ -537,6 +577,7 @@ decidable — disjointness of finite provenance-tag sets — and belongs to
 the decidable fragment.
 
 "#.into(),
+            mechanism: r#"The filter is set operations over declared predicates ({#conformance-half-needs-no-judge}), and it runs **before** dispatch because dispatch has no other door: a judgmental transition called without a token is E0061, and the only mint is `Pool::qualify_for`, which refuses before it returns. The cited `trybuild` case is that refusal with its message committed. rung enforces *that the token was constructed*, never that the body computed the set correctly — SPEC §5, transition-body correctness."#.into(),
         }),
         Element::Prop(Prop {
             slug: "non-identity-by-construction".into(),
@@ -555,6 +596,7 @@ it can be earned against one argument and spent on another — which is the act
 fabrication; it does not close transfer.
 
 "#.into(),
+            mechanism: r#"G12 + G13. The token witnesses the **pair** this proposition names: `Qualified<R>` records the principal AND `π(a)`, the argument disjointness was measured against, and `Qualified::admit` is the one gate that spends it. The seal closes *fabrication* — there is no public constructor, `Pool::qualify_for` is the only mint. The binding closes *transfer* — a licence earned against one argument is refused anywhere else, as `TokenNotBound` from `dispose` and `settle`, and as the macro-injected prologue on a `#[judgmental(R)]` transition, which a body can no more skip than it can skip G8's `must_progress`. Deleting the `admit` call turns the cited test red. NOT enforced: the *returned* value. `π(f(a)) ∩ π(a) = ∅` is a body property and inherits SPEC §5."#.into(),
         }),
         Element::Prop(Prop {
             slug: "non-identity-not-deferrable".into(),
@@ -566,6 +608,7 @@ predicate, not a preference. A system that dispatches without it is
 self-certifying, which is the failure this formalism exists to refuse.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "no-preference-among-judges".into(),
@@ -579,6 +622,7 @@ verdict, reported with its own $\varepsilon$.
 ### The authorial filter — standing
 
 "#.into(),
+            mechanism: r#"The set is now **exposed as a set**, and that is what moves this row. `Pool::qualify_for` still walks the pool and returns the first survivor — candidates skipped for failing a *conjunct*, never for being ranked below another (`gate_law.rs::qualification_walks_the_pool_and_takes_any_survivor`) — but a single-survivor API could only ever IMPLY that any other survivor would have done. `rung-std::principals::qualifying_set` returns all of them, and the cited test takes each of the four in turn, mints a licence against the very same argument and settles the very same sentence: four well-formed dispatches, one per member. Truncating the set to its first member is type-valid and turns the test red at the count. The UNARGUED residue is gone with it — pool position cannot constitute an ordering over a value that carries every member."#.into(),
         }),
         Element::Prop(Prop {
             slug: "authorial-qualifying-set".into(),
@@ -591,6 +635,7 @@ qualifying set:
 $$\mathcal{P}_{\text{auth}}(o, M) = \{\, p \in \mathcal{P} : \mathsf{capable}(p, \mathsf{role}(o)) \wedge \mathsf{standing}(p, M) \,\}$$
 
 "#.into(),
+            mechanism: r#"G14. `Pool::authorize::<R>` is the only mint for `Authorized` and checks BOTH conjuncts — `capable(p, role(o))` then `standing(p, M)`. Standing alone mints nothing: the cited test hands it a steward of the container who is capable of nothing and requires `AuthorizeError::NotCapable`. NOT enforced: the outcome condition of {#admissibility-subcategories}, `π(f(a)) ⊆ π(p)`, which is a body property and inherits SPEC §5."#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgment-refuses-authorship-requires".into(),
@@ -603,6 +648,7 @@ outside, in opposite directions.
 > **Judgment refuses the audited party. Authorship requires standing over it.**
 
 "#.into(),
+            mechanism: r#"G12 + G14 together, which is the only way this proposition can be shown: it is a claim about two filters, so one filter cannot witness it. The cited test asserts both directions over one subject — a principal that PASSES the judgmental filter (capable, provenance-disjoint) is refused a pen, and the principal that HOLDS the pen is refused as a judge of the very subject it stewards. An authorial gate built as the judgmental gate with its token renamed passes every other gate test and fails this one."#.into(),
         }),
         Element::Prop(Prop {
             slug: "provenance-overlap-is-the-point".into(),
@@ -615,6 +661,7 @@ means revising one's own text. Provenance overlap is the point, not the
 defect.
 
 "#.into(),
+            mechanism: r#"G12 + G14, read as the reason the two filters must disagree. The cited test's subject is authored by the principal that stewards its container, so the overlap that disqualifies the curator as a judge is the same fact that makes it the author. Weakening either second conjunct — disjointness in `qualify_for`, standing in `authorize` — turns the test red, because the two assertions are about the same principal and the same subject."#.into(),
         }),
         Element::Prop(Prop {
             slug: "standing-conditional-gated".into(),
@@ -626,6 +673,7 @@ provenance containment settles it, $\pi(\text{outcome}) \subseteq \pi(p)$,
 and **judgmental** otherwise.
 
 "#.into(),
+            mechanism: r#"`Pool::classify_standing` + `AuthorizeError::StandingIsJudgmental`. What is enforced is the REFUSAL TO GUESS: where containment does not settle standing, `authorize` returns the judgmental branch as an error rather than minting a pen, and the cited test requires that variant by name. NOT enforced, and not closable here: the branch itself. Closing it needs a judge, terminating at depth one ({#standing-terminates-at-depth-one}) and disjoint from the AUTHOR ({#standing-judge-disjoint-from-author}); rung has no term for that dispatch and inventing a ruling would be worse than surfacing the gap."#.into(),
         }),
         Element::Prop(Prop {
             slug: "standing-terminates-at-depth-one".into(),
@@ -637,6 +685,7 @@ own qualification is plain non-identity, decidable by
 provenance-disjointness.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "standing-judge-disjoint-from-author".into(),
@@ -648,6 +697,7 @@ audited subject. The judge ruling *"does this principal have standing over
 that subject?"* must not be that principal.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "two-escalation-triggers".into(),
@@ -662,6 +712,7 @@ that subject?"* must not be that principal.
 | the minimal author cannot close it | **HetOpt** | worth-ordering says escalate |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "standing-escalation-precedes-valuation".into(),
@@ -671,6 +722,7 @@ that subject?"* must not be that principal.
             prose: r#"Standing-escalation happens before any valuation is applied.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -686,6 +738,7 @@ that subject?"* must not be that principal.
 space** carrying a **metric** $d$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "judges-are-stochastic".into(),
@@ -696,6 +749,7 @@ space** carrying a **metric** $d$.
 information, and sensitivity to surface features such as naming.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "boolean-breaks-satisfaction".into(),
@@ -706,6 +760,7 @@ information, and sensitivity to surface features such as naming.
 breaks: renaming a sort changes the verdict.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "typical-verdict-spaces".into(),
@@ -716,6 +771,7 @@ breaks: renaming a sort changes the verdict.
 $\Delta^n$, or a strategy lattice.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "satisfaction-condition-relaxed".into(),
@@ -730,6 +786,7 @@ $$d\!\left(M \models_{\Sigma'} \mathsf{Sen}(\sigma)(\varphi),\;\; \mathsf{Mod}(\
 where $\varepsilon$ bounds acceptable naming-induced drift.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "drift-within-tolerance".into(),
@@ -740,6 +797,7 @@ where $\varepsilon$ bounds acceptable naming-induced drift.
 is within tolerance if $\varepsilon = 0.15$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "metric-carried-by-verdict-space".into(),
@@ -751,6 +809,7 @@ bolted on. Without $d$ there is nothing for $\varepsilon$ to bound, and
 satisfaction falls back to Boolean.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "metric-measures-not-ranks".into(),
@@ -761,6 +820,7 @@ satisfaction falls back to Boolean.
 lie apart under renaming, and nothing about which is better.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "order-as-preference-is-hetopts".into(),
@@ -771,6 +831,7 @@ lie apart under renaming, and nothing about which is better.
 valuation, and belongs to HetOpt ({#het-settles-hetopt-orders}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "epsilon-reported-with-verdict".into(),
@@ -781,6 +842,7 @@ valuation, and belongs to HetOpt ({#het-settles-hetopt-orders}).
 bar.
 
 "#.into(),
+            mechanism: r#"GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ({#boolean-breaks-satisfaction}). The cited test is the gap as an assertion: two judges settle the same sentence with the same polarity, one barely persuaded and one certain, and the two verdicts are the same object. Deleting the `#[ignore]` reports whether an error bar has reached the caller."#.into(),
         }),
         Element::Prop(Prop {
             slug: "translation-invariance-is-candidates-burden".into(),
@@ -793,6 +855,7 @@ Proponent must name its structures clearly enough that its strategy
 survives renaming ({#satisfaction-is-a-game}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -816,6 +879,7 @@ $$M : T \to \mathbf{Kl}(\mathcal{P})$$
 | `authorial` | a morphism in $\mathbf{Kl}_{\text{auth}}(\mathcal{P})$ — an enactment by a principal with standing. Never pure. |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "not-a-set-functor".into(),
@@ -825,6 +889,7 @@ $$M : T \to \mathbf{Kl}(\mathcal{P})$$
             prose: r#"An algebra cannot be a functor into $\mathbf{Set}$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "set-functor-decides-everything".into(),
@@ -836,6 +901,7 @@ judgmental ones — to an actual function, that is, to a decision
 procedure.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "set-functor-violates-refusal".into(),
@@ -847,6 +913,7 @@ computing the very judgments the gate marker says no closed system can
 discharge on itself. That is {#non-identity-not-deferrable} violated in the semantic dimension.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "monad-reading".into(),
@@ -857,6 +924,7 @@ discharge on itself. That is {#non-identity-not-deferrable} violated in the sema
 principal."*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "unit-is-no-outside".into(),
@@ -867,6 +935,7 @@ principal."*
 decidable data embeds.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-is-kleisli-arrow".into(),
@@ -877,6 +946,7 @@ decidable data embeds.
 $A \to \mathcal{P}(B)$.
 
 "#.into(),
+            mechanism: r#"`A → 𝒫(B)` is a claim about **shape**, and the shape is exhibited directly: one argument, two qualifying judges, two different and equally well-formed Dispositions. Were `dispose` an `A → B` the second call could not disagree. The non-determinism is the outside itself — {#no-preference-among-judges} forbids Het from ranking the two. A *blocking* outside call works today; `rung-std`'s `LlmCall` ladder puts one on the arrow. Q8 constrains **how** the call is made, not whether the arrow is Kleisli."#.into(),
         }),
         Element::Prop(Prop {
             slug: "monad-is-what-outside-adds".into(),
@@ -887,6 +957,7 @@ $A \to \mathcal{P}(B)$.
 that the algebra could not generate alone.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "kleisli-composition-interleaves".into(),
@@ -899,6 +970,7 @@ composition. This is why the fragments interleave without collapsing.
 ### Provenance
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-arrow-shape".into(),
@@ -914,6 +986,7 @@ summand is the **residual** — the argument returned unconsumed when the
 outside does not answer.
 
 "#.into(),
+            mechanism: r#"The `+ A` residual is `Failed<Prev> { token, error }` — the unconsumed argument handed back. rung-CT names it the Prism's residual ([residual-is-the-optics-residual](rung-ct-props.md#residual-is-the-optics-residual)) and is why the error structure is not a Kleisli arrow; the monad `P` layers on the forward pass, which rung-CT explicitly permits ([effects-layer-on-the-forward-pass](rung-ct-props.md#effects-layer-on-the-forward-pass))."#.into(),
         }),
         Element::Prop(Prop {
             slug: "provenance-structure".into(),
@@ -928,6 +1001,7 @@ $$\pi_X : X \to \mathsf{Prov}$$
 to a discrete category of provenance tags.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "morphisms-preserve-provenance".into(),
@@ -937,6 +1011,7 @@ to a discrete category of provenance tags.
             prose: r#"Morphisms preserve or strictly externalize provenance.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "monad-is-provenance-strict".into(),
@@ -952,6 +1027,7 @@ $\eta$ never invents a new author; $\mu$ propagates the outermost author.
 ### Admissibility
 
 "#.into(),
+            mechanism: r#"`carry` is the natural home for provenance: a product factor preserved across every arrow, immutable by G5. It does not carry a *principal's* provenance, which lives outside the ladder."#.into(),
         }),
         Element::Prop(Prop {
             slug: "constant-arrow-hazard".into(),
@@ -965,6 +1041,7 @@ The selection rule never fires; self-reference has been hard-coded into
 the interpretation.
 
 "#.into(),
+            mechanism: r#"G2 sealed construction. A judgmental arrow cannot be interpreted by a constant drawn from the algebra's own carrier, because no mid-ladder rung is constructible outside its module."#.into(),
         }),
         Element::Prop(Prop {
             slug: "admissibility-subcategories".into(),
@@ -979,6 +1056,7 @@ $$\mathbf{Kl}_{\text{judg}}(\mathcal{P}) = \{\, f : \pi(f(a)) \cap \pi(a) = \emp
 $$\mathbf{Kl}_{\text{auth}}(\mathcal{P}) = \{\, f : \pi(f(a)) \subseteq \pi(p) \ \wedge\ \mathsf{standing}(p, a) \,\} \qquad \text{(the steward)}$$
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgment-provenance-is-the-judges".into(),
@@ -1022,6 +1100,7 @@ handed in as a parameter — which is what `settle` took before this proposition
 — is exactly the case the seal removes.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "authorial-admissibility-stronger".into(),
@@ -1034,6 +1113,7 @@ on it." Where judgmental demands disjointness, authorial demands
 containment plus standing.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "one-monad".into(),
@@ -1045,6 +1125,7 @@ Distinct monads would mean distinct principal pools, which {#one-pool-two-filter
 license.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "gate-relative-admissibility-licensed".into(),
@@ -1061,6 +1142,7 @@ predicate.
 ### Gate-faithfulness
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "gate-faithful".into(),
@@ -1073,6 +1155,7 @@ judgmentally-admissible Kleisli arrow, and every `authorial` operation is
 an authorially-admissible Kleisli arrow.
 
 "#.into(),
+            mechanism: r#"Q11 (gate-faithfulness, open), with **one** blocker rather than two. Blocker (1) — the returned value — has CLOSED, and it closed by derivation rather than by an epilogue guard on the condition itself. R2 obliges a judgmental outcome to carry its judge's provenance ({#judgment-provenance-is-the-judges}): `Judgment` is sealed, `Principal::judgment` is the only mint and calls the oracle `Principal::rule`, and π(f(a)) ⊆ π(p) is asserted where a `Judgment` is spent — by `theory!`'s `settle` and by G15's injected epilogue. With G13 already enforcing π(p) ∩ π(a) = ∅, {#admissibility-subcategories}'s judgmental clause is a THEOREM of two enforced facts, so nothing calls `Prov::overlaps` on the way out and nothing should. What is left of blocker (1) is narrower and is recorded as such: the authorial outward conjunct and branching judgmental arms ([5.621](rung-props.md#outward-conditions-remaining)). Blocker (2) STANDS and is why this row does not move: `#[conditional(..)]` is a parse-time refusal, gate-faithfulness quantifies over EVERY operation, and an algebra with a conditional operation therefore cannot state this proposition here at all. The cited test is that blocker made runnable — it asks the macro to accept a conditional marker, and deleting its `#[ignore]` reports whether it does. Purity was a third blocker and is CLOSED on received advisory input: η is 𝒫's unit, so "factors through η" IS 𝒫-purity and never claimed absolute purity; that a decidable body may read a clock is {#purity-not-secured}, a limit already stated. Argued with its falsifiers at `docs/questions/open/q11-gate-faithfulness.md`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "mod-only-gate-faithful".into(),
@@ -1083,6 +1166,7 @@ an authorially-admissible Kleisli arrow.
 algebras.
 
 "#.into(),
+            mechanism: r#"Follows {#gate-faithful}, and parks on the same remaining blocker: `Mod(Σ)` can consist only of gate-faithful algebras once gate-faithfulness is checkable, and it is not checkable for an algebra with a conditional operation, because such an algebra cannot be declared. The outward half that used to park this row has closed — a `theory!` declaration can no longer settle a judgmental sentence with a verdict its judge never gave ({#judgment-provenance-is-the-judges}) — which narrows the row without moving it."#.into(),
         }),
         Element::Prop(Prop {
             slug: "refusal-at-model-category".into(),
@@ -1095,6 +1179,7 @@ is enforced at the level of the model category, not as a post-hoc
 selection rule.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "condition-propagates-by-reindexing".into(),
@@ -1108,6 +1193,7 @@ common author that did not already exist.
 ### Subjects
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "subject-defined".into(),
@@ -1119,6 +1205,7 @@ specific datum, an element sitting in the algebra's interpretation of a
 sort.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "decidable-runs-pure".into(),
@@ -1129,6 +1216,7 @@ sort.
 result is computed inside the algebra, with no outside.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-runs-kleisli".into(),
@@ -1140,6 +1228,7 @@ it emits an outside call, and the outcome is obtained only when the
 outside answers.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "self-governing-not-self-closing".into(),
@@ -1151,6 +1240,7 @@ its decidable audit — but **not self-closing**: its judgmental
 dispositions require the monad's outside.
 
 "#.into(),
+            mechanism: r#"G2 sealed construction. This proposition *is* rung's founding refusal: an attempt to fold a live verdict into the next state was rejected by the sealed constructor — [the law](rung-ct-props.md#the-law). The algebra runs its own decidable step; it cannot construct the state that holds a judgmental outcome."#.into(),
         }),
         Element::Prop(Prop {
             slug: "autopoiesis-made-precise".into(),
@@ -1160,6 +1250,7 @@ dispositions require the monad's outside.
             prose: r#"That is autopoiesis without self-loop degeneracy, made precise.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -1176,6 +1267,7 @@ signature declarations **becomes a theory at the next level**, with its
 own fiber of algebras below.
 
 "#.into(),
+            mechanism: r#"The composite Grothendieck opfibration ([opfibrations-compose](rung-ct-props.md#opfibrations-compose)), resolved by Q10 (`docs/questions/resolved/`). The correspondence is proved and no hierarchy is built — which leaves the property itself needing a run, and the cited test is one: the pass composed with itself at a container boundary, where the destination's own law is what refuses a write the source's judge already authorized ({#target-runs-its-own-models})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "tower-is-a-fibration".into(),
@@ -1194,6 +1286,7 @@ construction over the category of theories.
 | $\models_T$ | fiber-wise relation: algebra × sentence → verdict |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "same-relation-every-level".into(),
@@ -1205,6 +1298,7 @@ changes is which theory's $\models$ is invoked and which principal pool
 is available.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "kleisli-iterates".into(),
@@ -1215,6 +1309,7 @@ is available.
 theory whose satisfaction relation tests algebras one level below.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "tower-semantic-every-level".into(),
@@ -1228,6 +1323,7 @@ preserved by signature morphisms.
 ### Two kinds of pointing
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "two-directions-two-bases".into(),
@@ -1243,6 +1339,7 @@ that propagation occurs; the taxonomy of dependency is the theory's, not
 Het's ({#governs-who-not-what}).
 
 "#.into(),
+            mechanism: r#"Conformance is Het's fibration (Mod: Sign^op → Cat, contravariant). Propagation is rung-CT's opfibration, pushforward and opcartesian ([conformance-and-propagation-run-over-different-bases](rung-ct-props.md#conformance-and-propagation-run-over-different-bases)). Different bases at adjacent levels — not opposite orientations of one tower. The cited test is where the two are visible at once and are not conflated: the docket's sentences are run *per question* — conformance, each model against its own theory — while drift is reported *along outbound edges*, from a revised question to whatever depended on it. One suite, two directions, and the edge set is the theory's rather than Het's ({#governs-who-not-what})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "two-kinds-of-pointing".into(),
@@ -1258,6 +1355,7 @@ opposite directions.
 | **signature morphism** | down (abstract → concrete) | the arrow selecting the structure a theory's algebras must carry — the semantic map whose existence the declaration asserts. |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "pointings-are-duals".into(),
@@ -1270,6 +1368,7 @@ the down-pointing morphism is the truth-condition the declaration claims
 to satisfy.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "declaration-on-models-only".into(),
@@ -1280,6 +1379,7 @@ to satisfy.
 theory does not carry one.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "model-without-theory-is-empty".into(),
@@ -1290,6 +1390,7 @@ theory does not carry one.
 to be measured against. There is nothing for $\models$ to evaluate.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "declaration-is-not-a-morphism".into(),
@@ -1301,6 +1402,7 @@ serve as one. Theory-to-theory morphisms are the arrows of
 $\mathbf{Sign}$ ({#sign-category}) and are constitutive of the institution.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "three-relations-not-conflated".into(),
@@ -1314,6 +1416,7 @@ inspection); a theory extends another (a morphism in $\mathbf{Sign}$).
 ### The gate law
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "gate-law".into(),
@@ -1324,6 +1427,7 @@ inspection); a theory extends another (a morphism in $\mathbf{Sign}$).
 `decidable` → `decidable` or `judgmental`; `judgmental` → `judgmental`.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "no-laundering-along-morphisms".into(),
@@ -1336,6 +1440,7 @@ one. This is {#non-identity-not-deferrable} at the morphism level.
 ### Termination
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "tower-floor".into(),
@@ -1346,6 +1451,7 @@ one. This is {#non-identity-not-deferrable} at the morphism level.
 $W$ on signatures.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "wellformedness-clauses".into(),
@@ -1361,6 +1467,7 @@ $\Sigma$ supplies $\mathcal{P}$, it declares the four predicates of {#supplier-i
 at their stated arities.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "clauses-decidable-by-inspection".into(),
@@ -1371,6 +1478,7 @@ at their stated arities.
 declaration. $W$ invokes no judge.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "floor-not-gate-marked".into(),
@@ -1382,6 +1490,7 @@ gate-marked and is not itself a Het theory; asking it to be one would ask
 the floor to stand on itself.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "w-checks-declaration-not-adequacy".into(),
@@ -1393,6 +1502,7 @@ that any concrete principal satisfies its own predicates, nor that the
 pool is non-empty.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "adequacy-defined".into(),
@@ -1405,6 +1515,7 @@ invoke judges. For a judgmental sentence $\varphi$ of a theory $T$:
 $$\mathsf{Adequate}_T(\varphi) \equiv \text{“a qualifying non-identical judge for } \varphi \text{ exists and returns a verdict”}$$
 
 "#.into(),
+            mechanism: r#"Adequacy is a CONJUNCTION — a qualifying judge exists AND returns a verdict — and the engine now has a term for each conjunct failing separately. An empty qualifying set is `QualifyError::NotCapable` / `NonIdentityViolated` / `PoolExhausted`; a judge that exists and has not answered is `QualifyError::JudgeDeferred`, which is documented as NOT a filter failure. Before the deferral there was one outcome for both and the second conjunct was unrepresentable, so the definition could not be wrong about anything. The cited test settles both halves against one argument: the deferring pool mints no licence, and an answering pool does. Collapsing `JudgeDeferred` into `PoolExhausted` is type-valid and reddens it at the `Err(other)` arm."#.into(),
         }),
         Element::Prop(Prop {
             slug: "adequacy-is-judgmental".into(),
@@ -1415,6 +1526,7 @@ $$\mathsf{Adequate}_T(\varphi) \equiv \text{“a qualifying non-identical judge 
 call exactly when an algebra of $T$ attempts to interpret $\varphi$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "adequacy-failure-is-not-a-w-defect".into(),
@@ -1425,6 +1537,7 @@ call exactly when an algebra of $T$ attempts to interpret $\varphi$.
 level where the judge is required. It is not a defect in $W$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "adequacy-asks-for-a-judge".into(),
@@ -1434,6 +1547,7 @@ level where the judge is required. It is not a defect in $W$.
             prose: r#"Adequacy asks for *a* qualifying judge, not the minimal one.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "adequacy-local-not-global".into(),
@@ -1446,6 +1560,7 @@ and no global fixed-point proof.
 ### Self-grounding
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "adequacy-failure-returns-residual".into(),
@@ -1457,6 +1572,7 @@ and no global fixed-point proof.
 re-enters.
 
 "#.into(),
+            mechanism: r#"G9 error-path recovery, `Failed(R) => R`, explicitly unguarded — a re-entry after an unanswered call may reuse the argument. G4 additionally forbids silently dropping the returned residual. A judgmental FORWARD transition now carries the same residual too ([G16](rung-props.md#g16-the-residual-channel)); the children below are that case."#.into(),
         }),
         Element::Prop(Prop {
             slug: "suspension-is-the-residual".into(),
@@ -1476,6 +1592,7 @@ raised"* rather than *"nobody answered"*. Nothing in the arrow's shape changes;
 what changes is that the residual now carries **what** is being awaited.
 
 "#.into(),
+            mechanism: r#"G16, and the whole of the claim is that it adds nothing. A judgmental forward transition returns `Result<Next, Suspended<Prev>>`, and the cited test coerces the emitted `fn` to that exact pointer type and then reads the token back out to find the very argument it passed in — unconsumed, as {#adequacy-failure-returns-residual} requires. What is new is the channel, not the summand: before it a forward judgmental transition returned its target rung and a theory whose principal could not answer yet had no term for saying so. Emitting `#to` instead of the `Result` is type-valid at the macro and turns the test red at the coercion."#.into(),
         }),
         Element::Prop(Prop {
             slug: "raised-reference-is-opaque".into(),
@@ -1491,6 +1608,7 @@ that raised it to the position that resumes on it, and has no predicate over it
 whatever ({#nothing-further-required}).
 
 "#.into(),
+            mechanism: r#"{#pool-is-opaque} reaches the raised matter. `rung::Raised` carries two strings the crate never reads — no ordering, no well-formedness, no roster of live references — and the cited test raises `¶ anything at all §` and gets it back unchanged. `Terminated::of` is the one derived constructor, which is what keeps opacity from becoming laxity: evidence is built FROM a `Raised`, so it cannot name a reference nobody raised. Adding any predicate over the reference to `rung` is type-valid and makes the cited case a refusal instead of a round trip."#.into(),
         }),
         Element::Prop(Prop {
             slug: "deferral-is-not-a-verdict".into(),
@@ -1505,6 +1623,7 @@ cannot see through, because here the judge is real and was honestly selected
 and it is the *answer* that does not exist.
 
 "#.into(),
+            mechanism: r#"The R2 seal, on the side where the judge is real and the verdict is not. `Principal::judgment` is the only mint for a `Judgment` and it calls `rule`; when `rule` defers there is no verdict, and the sealed `Consulted` says so rather than manufacturing one. There is no `From<Raised> for Judgment` and no `unwrap_or`. The mutation is the direct one: making the deferring branch of `Principal::judgment` build a `Judgment` anyway is type-valid — any verdict at all will do, which is exactly the point — and turns the cited test red at its `Rendered` arm."#.into(),
         }),
         Element::Prop(Prop {
             slug: "no-preference-after-a-deferral".into(),
@@ -1518,6 +1637,7 @@ forbids Het to have; whether it is worth doing is a worth-question and belongs
 to HetOpt ({#het-settles-hetopt-orders}).
 
 "#.into(),
+            mechanism: r#"The pool reports what the principal it selected said, and does not walk on. `Pool::consult` and `Pool::qualify_for` return `QualifyError::JudgeDeferred` carrying the reference; the cited test also shows a pool whose member answers is unaffected, so the deferral is a distinct outcome and not a new way for the FILTER to fail. Looping to the next survivor is type-valid and is a preference among qualifying judges, which {#no-preference-among-judges} forbids; it turns the cited test red at the `JudgeDeferred` arm as soon as the pool holds a second, answering principal."#.into(),
         }),
         Element::Prop(Prop {
             slug: "resumption-is-authorial".into(),
@@ -1541,6 +1661,7 @@ denies it standing ({#provenance-overlap-is-the-point}). The two roles are
 held by two principals, and that is the shape rather than an inconvenience.
 
 "#.into(),
+            mechanism: r#"G16, and it is FORCED rather than chosen. Reviving a suspended run constructs a rung, which [G2](rung-props.md#g2-sealed-construction) seals from outside the module — so the resume edge is emitted inside it, and an edge inside the seal that anyone may call is the seal with a door in it. The marker is therefore mandatory: a resume edge with no `#[authorial(R)]` is a `compile_error!` (`suspension.rs::a_resume_edge_without_an_authorial_marker_is_refused`), and calling one without its pen is E0061. The cited test drives the round trip and coerces the emitted `fn` to its exact pointer type. Deleting the injected `must_hold_standing_over` from the resume path is type-valid and reddens `::resume_refuses_a_pen_over_another_container`, where the body never mentions the pen at all."#.into(),
         }),
         Element::Prop(Prop {
             slug: "resumption-needs-a-terminal".into(),
@@ -1558,6 +1679,7 @@ no evidence, and the outer arrow stays suspended — **visibly**, which is what
 {#stated-as-limit-not-closed} asks for and all it asks for.
 
 "#.into(),
+            mechanism: r#"`must_answer_the_raised`, injected. A `Terminated` is derived from the `Raised` it is about, which closes fabrication; the guard closes TRANSFER, exactly as `must_be_bound_to` does for a licence and `must_hold_standing_over` for a pen. The cited test resumes with evidence about `q-99` and is refused. It asserts nothing about termination and must not: {#no-bound-on-reentry} stands, and a matter that never terminates yields no evidence and leaves the arrow suspended, visibly."#.into(),
         }),
         Element::Prop(Prop {
             slug: "resumption-is-unguarded".into(),
@@ -1570,6 +1692,7 @@ bound Het declines to declare — {#guarded-reentry-is-eviction} names that
 an eviction rule under another name, whatever else it is called.
 
 "#.into(),
+            mechanism: r#"The ABSENCE, pinned. The macro injects no `must_progress` on a resume edge, and the cited test suspends and resumes the same run twice with a payload that does not change — which is the normal case, not a stall: the argument was never consumed and the raised matter took another round. Injecting `must_progress` there is type-valid and reddens the test on the FIRST round, which is what makes this row an enforcement rather than an observation that nothing happened. A guard would be the bound Het declines to declare ({#guarded-reentry-is-eviction})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "self-grounding-is-a-pair".into(),
@@ -1580,6 +1703,7 @@ an eviction rule under another name, whatever else it is called.
 alone.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "het-self-grounding-condition".into(),
@@ -1590,6 +1714,7 @@ alone.
 $W$ is decidable.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "neither-stands-on-itself".into(),
@@ -1601,6 +1726,7 @@ satisfying a predicate that is not gate-marked, and the predicate is
 grounded by being an ordinary shape-check.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "first-question-is-hets-own-signature".into(),
@@ -1614,6 +1740,7 @@ to Het, but whether Het's own signature satisfies $W$. Answering it
 ### Signature-claims are not sentences
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "signature-claims-are-w-clauses".into(),
@@ -1625,6 +1752,7 @@ closed, that two axes are orthogonal, that the theory declares no
 population — are clauses of $W$, not sentences.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "sentence-needs-an-inhabitant".into(),
@@ -1636,6 +1764,7 @@ inhabitants of a carrier. A signature-claim has no such inhabitant to
 test, and walking a population cannot check it.
 
 "#.into(),
+            mechanism: r#"A signature-claim has no carrier inhabitant to test. Nothing for a host to run."#.into(),
         }),
         Element::Prop(Prop {
             slug: "empty-equation-is-a-misfiling".into(),
@@ -1647,6 +1776,7 @@ $\models$ to compute. **A decidable sentence with no equation is a
 mis-filing, not an omission** — the emptiness is the diagnostic.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -1662,6 +1792,7 @@ mis-filing, not an omission** — the emptiness is the diagnostic.
 **Proponent** has a winning strategy.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "proponent-and-opponent".into(),
@@ -1673,6 +1804,7 @@ $M \models \varphi$. The **Opponent** is the environment, which may query
 an oracle — the judge.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "decidable-games-are-bounded".into(),
@@ -1683,6 +1815,7 @@ an oracle — the judge.
 strategies: the tree is bounded and the strategy is a decision procedure.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-games-have-an-oracle".into(),
@@ -1694,6 +1827,7 @@ access: the tree may be unbounded, and the strategy involves querying the
 oracle at specific nodes.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "game-resolves-disagreement".into(),
@@ -1707,6 +1841,7 @@ contest is itself a move ({#proposal-vocabulary}).
 ### The pass
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "the-pass".into(),
@@ -1726,6 +1861,7 @@ whose authorship.
 | the Proponent applies it | `enact` | authorial | an author with standing over $x$ | the revised subject |
 
 "#.into(),
+            mechanism: r#"One `ladder!` declaration, and it is now written: `het_pass!` expands to the spine `Governed => Audited => Proposing => #[authorial(Author)] Proposed => #[judgmental(Judge)] { .. }`. The table's `gate` column is a **marker** and its `acts` column is a **parameter type**, so which principal may move is settled by rustc rather than by a driver keeping to a convention: `propose` without a pen is E0061 and `dispose` without a licence is E0061, each with its message committed as a `trybuild` snapshot. Retargeting the judgmental marker at the author's role — one token, type-valid, the library still compiles — turns the cited test red on `expected Qualified<Editor>, found Qualified<Reader>`. rung proves each move was made by one who qualified, not that the move was wise (SPEC §5). What is NOT in the declaration is `enact`: see {#a-cycle-through-an-authorial-act-cannot-close}."#.into(),
         }),
         Element::Prop(Prop {
             slug: "propose-is-authorial".into(),
@@ -1737,6 +1873,7 @@ Proponent's move, and producing content about an subject is authorship,
 which requires standing over it ({#authorial-qualifying-set}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-propose-swaps-roles".into(),
@@ -1748,6 +1885,7 @@ disjointness filter ({#judgmental-qualifying-set}), that is, to the Opponent's s
 Opponent play the Proponent's move.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "difficulty-is-not-an-outside".into(),
@@ -1760,6 +1898,7 @@ difficulty, not about whether an outside is needed. Authorship is
 required either way.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "proposal-provenance-is-authors".into(),
@@ -1773,6 +1912,7 @@ principal $p$. Without this, {#judgmental-qualifying-set} cannot be evaluated at
 ### The Proposal vocabulary
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "proposal-vocabulary".into(),
@@ -1787,6 +1927,7 @@ principal $p$. Without this, {#judgmental-qualifying-set} cannot be evaluated at
 | `dispute` | *"the verdict is wrong; the subject stands as authored"* | nothing to enact |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "dispute-is-still-judged".into(),
@@ -1797,6 +1938,7 @@ principal $p$. Without this, {#judgmental-qualifying-set} cannot be evaluated at
 on a `remedy`; an author does not overturn a verdict by asserting it.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "dispute-is-the-only-contest".into(),
@@ -1811,6 +1953,7 @@ they dispute, in order to obtain a vehicle for disputing it.
 ### The Disposition vocabulary
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "remedy-carries-an-edit".into(),
@@ -1822,6 +1965,7 @@ The edits are the theory's, not Het's ({#edit-required-not-typed}); Het requires
 remedy name one, and that `enact` apply it.
 
 "#.into(),
+            mechanism: r#"The edit is the rung payload's type, supplied by the theory, and the requirement is now a *variant shape*: an author answers through `Answer<E>`, whose `Remedy(E)` has nowhere to put the absence of an edit. A theory that let a remedy carry none would make `remedy` and `dispute` indistinguishable, and there is no term for it. Dropping the edit in `Proposal::from_chain` — type-valid, `Remedy` rewritten to `Dispute` — reddens the cited test at `rounds: left 1, right 2` (the judge has nothing to reject, so the loop it exists to exercise never runs) and `acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals` with it. The boundary itself is pinned by `acceptance.rs::an_author_may_dispute_a_verdict_without_first_authoring_a_remedy`: a dispute's `edit()` is `None`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "disposition-vocabulary".into(),
@@ -1839,6 +1983,7 @@ remedy name one, and that `enact` apply it.
 | `raises-questions` | ✗ | ✗ | the auditor clarifies; the subject re-enters |
 
 "#.into(),
+            mechanism: r#"G6 exhaustive outcomes. `StepOutcome` is an enum, so every match site must handle all five; adding a disposition breaks every call site at compile time. The cited test pins the vocabulary itself — the five, in order, each with its terminal and affirming flags — so that the two that Het's gate boundary excludes (`accept-with-mod`, `reject-with-alternative`) cannot return without the assertion changing."#.into(),
         }),
         Element::Prop(Prop {
             slug: "disposition-is-a-ruling".into(),
@@ -1849,6 +1994,7 @@ remedy name one, and that `enact` apply it.
 apply it, and that something is an author with standing ({#authorial-qualifying-set}).
 
 "#.into(),
+            mechanism: r#"G2. `dispose` returns a verdict; only the separately-declared authorial arrow produces the revised object. A ruling cannot construct what it rules on."#.into(),
         }),
         Element::Prop(Prop {
             slug: "no-amending-disposition".into(),
@@ -1862,6 +2008,7 @@ authored ({#authorial-qualifying-set}). Any amending variant would require one p
 satisfy two opposite conditions on one subject.
 
 "#.into(),
+            mechanism: r#"G2 plus G10, and the second half is what the pass added. A judge's arrow has no constructor for the authored object — but a continue arm's target rung is built INLINE by `step`, i.e. by the judge, so the pass's re-entry rung is the one place an amendment could have arrived. Its payload is therefore `Chain`: a concrete, non-generic record of an id, a container, a count and prose, with no edit and no type parameter one could hide in. The cited `trybuild` case pins the E0599 that reading an edit off it produces; giving `Chain` an `edit` accessor — type-valid, the library still compiles — turns it red on a diff."#.into(),
         }),
         Element::Prop(Prop {
             slug: "reason-is-not-an-edit".into(),
@@ -1874,6 +2021,7 @@ supplying the replacement is authorship. The author re-proposes with the
 reason in hand.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "reproposal-carries-the-chain".into(),
@@ -1887,6 +2035,7 @@ objection, and nothing downstream could detect it.
 ### Enactment
 
 "#.into(),
+            mechanism: r#"The chain rides in the rung payload and there is no other route to a re-proposal: the pass's authorial transition builds its Proposal from the `Chain` the continue arm handed back, so an author cannot drop it by omission. The cited test rejects the identical remedy five times and reads all five reasons off the sixth chain. Deleting the push in `Chain::reentered` — type-valid — turns it red at `left: 0, right: 5`, and `acceptance.rs::reject_remedy_is_non_terminal_and_the_reason_reaches_the_author` with it. Without the chain an author can cycle on one objection and nothing downstream can tell. NOTE: this is exactly what would make a G8 progress guard vacuous — a strictly growing chain never compares equal — which is why re-entry must not use a guarded edge ({#guarded-reentry-is-eviction})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "enact-makes-an-endofunctor".into(),
@@ -1897,6 +2046,7 @@ objection, and nothing downstream could detect it.
 one-way funnel into a verdict.
 
 "#.into(),
+            mechanism: r#"The loop closes, and it closes by COMPOSITION rather than inside the declaration — which is the honest reading and is now recorded as a non-guarantee ({#a-cycle-through-an-authorial-act-cannot-close}). `ladder!` declares a linear spine with backward continue arms, and a continue arm's target is built inline by `step`, so an `Accept -> Governed` arm would have the judge apply the edit ({#no-amending-disposition}). `Accept` is therefore terminal and carries a `Licence`; `enact` is a separate authorial arrow consuming that licence and a pen, and what comes out is audited again. The cited test closes the loop that way: the relocated specimen lands in the fieldbook and the fieldbook's own decidable sentence is run over the result. STILL `expressible`, and the reason is not shyness — no single `ladder!` declaration is an endofunctor, and saying otherwise would be a claim no mutation could falsify. Declaring the composite is Q4, open. rung enforces that the edit ran, not that it was right (SPEC §5), and the edit itself is the theory's ({#edit-required-not-typed})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "licence-is-not-guarantee".into(),
@@ -1907,6 +2057,7 @@ one-way funnel into a verdict.
 not guarantee the edit lands.
 
 "#.into(),
+            mechanism: r#"A `Licence<E>` is now a type, minted only from an affirming `Ruling` and consumed by `enact` — so the pass's `Accept` arm carries PERMISSION rather than a revised subject. Permission is all it is: `enact` still checks the pen against `Applies::territory` and hands the domain's own refusal back untouched. Making `enact` swallow `Applies::apply`'s error — type-valid, `world.apply(..)?` to `let _ = world.apply(..)` — turns the cited test red where it requires the fieldbook to refuse a write the cabinet's judge already accepted. The two failure points are {#enact-has-two-failure-points}."#.into(),
         }),
         Element::Prop(Prop {
             slug: "target-runs-its-own-models".into(),
@@ -1918,6 +2069,7 @@ not guarantee the edit lands.
 under {#fractal-property} — and may refuse it.
 
 "#.into(),
+            mechanism: r#"The write-guard exists and fires. `enact` checks the pen against `Applies::territory` and hands `EnactError::TargetRefused` back untouched, so a destination may decline a write its own judge already authorized: in the cited test the relocation is accepted by a qualified judge, refused by the fieldbook for want of a locality, and the source container is left unchanged. The target's law is the **theory's** — the library cannot know what admits a specimen — so rung secures the seam and the standing, not the law. `second_domain.rs::a_pen_for_one_territory_does_not_authorize_another` pins the standing half. What stays with Q4 is expressing the composite as a ladder inside a ladder; the boundary itself no longer waits on it."#.into(),
         }),
         Element::Prop(Prop {
             slug: "enact-has-two-failure-points".into(),
@@ -1931,6 +2083,7 @@ withhold it, and the target may refuse it.
 ### Panels
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "panels".into(),
@@ -1941,6 +2094,7 @@ withhold it, and the target may refuse it.
 enlarged oracle-move set. They are not a separate construction.
 
 "#.into(),
+            mechanism: r#"A panel is `⊨` with more than one judge, and the proposition says it is **not a separate construction** — so the encoding must not add one. It does not: a seat is a pool of one principal, each seat mints its own licence against the very same argument, and the cited test convenes three of them with nothing `rung-het` does not already export. The combination rule is the theory's, exactly as its edits are ({#edit-required-not-typed}); putting a `panel()` primitive in the library would legislate a rule Het does not have. What stays with Q5 is running the seats **at the same time** — latency, which is HetOpt's ([cut-at-valuation](rung-het-props.md#cut-at-valuation)), not Het's."#.into(),
         }),
         Element::Prop(Prop {
             slug: "panels-cannot-weaken-the-opponent".into(),
@@ -1952,6 +2106,7 @@ winning in the composite; additional oracle answers can only strengthen
 the Opponent.
 
 "#.into(),
+            mechanism: r#"The observable form of the claim: the same Proponent move, the same first oracle answer, plus two more — and the seat that played in the original game answers identically in the composite. Added answers may take affirmation away and never grant it, so the Proponent's winning set under the panel is contained in its winning set against any single seat. rung proves the rulings were reached through qualified licences, not that unanimity is the right combination rule ({#panels})."#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -1970,6 +2125,7 @@ $$\textbf{Het} = \text{judgmental institution} + \text{gate-marked } \models + \
 $$\textbf{HetOpt} = \textbf{Het} + V$$
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "metric-and-preference-same-furniture".into(),
@@ -1987,6 +2143,7 @@ are not the same **role**.
 | $V$ — worth-law | orders a conforming set by preference | **HetOpt** |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "cut-at-valuation".into(),
@@ -1997,6 +2154,7 @@ are not the same **role**.
 application of it.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "het-declares-no-worth-law".into(),
@@ -2007,6 +2165,7 @@ application of it.
 minimal-judge rule.
 
 "#.into(),
+            mechanism: r#"**The α cut, given teeth.** This row and {#ordering-is-hetopts} were `out-of-scope` by default and never inspected — correctly, while nothing in the workspace declared a cost tier or an ε for a worth-law to be built out of. `rung-std::principals` declares both, so the refusal is now a property a run can check: the cited test reads every line of Rust in all four crates that names a cost tier or an ε and fails on any that also sorts, compares, ranks or takes an extremum. It reads attribute lines above a hit as well, so `#[derive(.., Ord)]` on `CostTier` is caught although the derive names no cost of its own — that derive is the cheapest possible crossing of the cut and it is the mutation this test exists to see. `CostTier` and `Epsilon` independently carry no `Ord`, no `PartialOrd` and no accessor, so the minimal-judge rule of {#v-applies-to-conforming-sets} has neither a comparison nor a value to read."#.into(),
         }),
         Element::Prop(Prop {
             slug: "v-applies-to-conforming-sets".into(),
@@ -2022,6 +2181,7 @@ minimal-judge rule.
 | the conforming algebras of a theory | the declared worth-law | ranked candidates |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "valuation-instantiated-twice".into(),
@@ -2033,6 +2193,7 @@ Judge selection and candidate ranking are not two features but one:
 *conformance, then valuation*, instantiated twice.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "filter-then-optimize".into(),
@@ -2046,6 +2207,7 @@ rule optimizes only among arrows that have already survived that filter.
 Het is the filter; HetOpt is the optimization.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "cut-lands-no-later".into(),
@@ -2055,6 +2217,7 @@ Het is the filter; HetOpt is the optimization.
             prose: r#"It lands no later: non-identity cannot move to HetOpt ({#non-identity-not-deferrable}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "cut-lands-no-earlier".into(),
@@ -2067,6 +2230,7 @@ for candidates would leave *"why judges and not candidates?"* with no
 answer beyond stipulation.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "hetopt-is-a-theory-extension".into(),
@@ -2080,6 +2244,7 @@ $\textbf{Het} \hookrightarrow \textbf{HetOpt}$ carries Het-algebras into
 the HetOpt fiber by re-indexing.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "enrichment-base-is-the-metric".into(),
@@ -2090,6 +2255,7 @@ the HetOpt fiber by re-indexing.
 fibers become $V$-enriched. In Het the verdict space carries $d$ alone.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -2105,6 +2271,7 @@ fibers become $V$-enriched. In Het the verdict space carries $d$ alone.
 the composite is again a judgmental institution.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "composite-monad".into(),
@@ -2115,6 +2282,7 @@ the composite is again a judgmental institution.
 preserved componentwise.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "non-identity-extends-to-composite".into(),
@@ -2125,6 +2293,7 @@ preserved componentwise.
 category.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "composite-qualifying-set".into(),
@@ -2135,6 +2304,7 @@ category.
 component qualifying sets, each still filtered by non-identity.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "composite-kinds".into(),
@@ -2144,6 +2314,7 @@ component qualifying sets, each still filtered by non-identity.
             prose: r#"Kinds form the disjoint union $K_1 \sqcup K_2$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "adequacy-composes".into(),
@@ -2154,6 +2325,7 @@ component qualifying sets, each still filtered by non-identity.
 component's was. Adequacy composes.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "theory-combination-closed".into(),
@@ -2163,6 +2335,7 @@ component's was. Adequacy composes.
             prose: r#"Theory combination is closed.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -2187,6 +2360,7 @@ M \models_{\Sigma^\uparrow} \mathsf{Decidable}_\Sigma(\varphi) \;?\; \mathsf{che
 $$
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "run-over-every-sentence".into(),
@@ -2197,6 +2371,7 @@ $$
 against $M$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "dispatch-is-two-operations".into(),
@@ -2210,6 +2385,7 @@ $$\text{qualifying} = \{\, p \in \mathcal{P} : \mathsf{capable}(p, \mathsf{role}
 $$\mathsf{dispatch} = \text{any member of } \text{qualifying}$$
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "dispatch-argument-is-the-argument".into(),
@@ -2221,6 +2397,7 @@ the subject at `audit`, the Proposal at `dispose`. Reading $\pi(M)$ in its
 place is the error {#argument-governs} excludes.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "conformance-half-needs-no-judge".into(),
@@ -2232,6 +2409,7 @@ place is the error {#argument-governs} excludes.
 test: it is set operations over declared predicates.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "any-is-specified-argmin-is-the-seam".into(),
@@ -2244,6 +2422,7 @@ is what Het specifies ({#no-preference-among-judges}). The minimal-judge rule re
 ({#v-applies-to-conforming-sets}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -2260,6 +2439,7 @@ sorts, its edits, its sentences with their gates, and a role for each
 judgmental sentence.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "het-declares-the-slots".into(),
@@ -2272,6 +2452,7 @@ declared and under what condition it is settled; it never says what the
 content is.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "role-declared-not-enumerated".into(),
@@ -2283,6 +2464,7 @@ does not enumerate roles. `taxonomist`, `triager`, `chord-reader` are the
 theory's.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "edit-required-not-typed".into(),
@@ -2295,6 +2477,7 @@ edits are `amend | remove | relocate`, or `fix | won't-fix | duplicate |
 reprioritize`, is the theory's.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "verdict-space-required-not-fixed".into(),
@@ -2305,6 +2488,7 @@ reprioritize`, is the theory's.
 say what the space is.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "interface-required-not-populated".into(),
@@ -2315,6 +2499,7 @@ say what the space is.
 predicates ({#supplier-interface}). It does not say what a principal is made of ({#interface-by-signature-inspection}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "enact-generic-over-edit".into(),
@@ -2327,6 +2512,7 @@ Het governs only who may perform it ({#one-pool-two-filters}) and whether the re
 ({#target-runs-its-own-models}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "governs-who-not-what".into(),
@@ -2341,6 +2527,7 @@ know.
 ### The decidable fragment
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "decidable-is-a-total-predicate".into(),
@@ -2351,6 +2538,7 @@ know.
 on the model**. Het names no logical fragment.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "two-signatures-not-two-fragments".into(),
@@ -2366,6 +2554,7 @@ and the host language's type system separates them:
 | `judgmental` | $M \times \mathsf{Qualified}\langle \mathsf{role}(\varphi) \rangle \to \mathsf{Verdict}$ |
 
 "#.into(),
+            mechanism: r#"`ladder!` gate markers, now three signatures rather than two. Unmarked emits `fn t(prev)`; `#[judgmental(R)]` emits `fn t(prev, q: Qualified<R>)`; `#[authorial(R)]` emits `fn t(prev, pen: Authorized<'_, R>)`. The gates differ in the ARITY and the TYPE of the emitted transition, so a pen cannot be passed where a licence is asked for or the reverse, and the host's type system separates all three with no knowledge of Het."#.into(),
         }),
         Element::Prop(Prop {
             slug: "decidable-cannot-consult-pool".into(),
@@ -2378,6 +2567,7 @@ outside {#judgmental-qualifying-set}. The prohibition is not a rule
 the author is asked to respect; it is a term that cannot be written.
 
 "#.into(),
+            mechanism: r#"G2. The qualifying token has no constructor reachable from a decidable body, so the prohibition is a term that cannot be written rather than a rule an author is asked to respect. An unmarked transition has no parameter a token could enter through, and `Qualified` is sealed: constructing one outside `Pool::qualify` is E0451."#.into(),
         }),
         Element::Prop(Prop {
             slug: "mismarking-is-not-a-false-claim".into(),
@@ -2389,6 +2579,7 @@ sentence `decidable` gives it the decidable signature. A body needing an
 outside will not typecheck in that position.
 
 "#.into(),
+            mechanism: r#"rustc. Marking a transition judgmental gives it the judgmental signature; calling it as though it were decidable is E0061, not a promise someone broke."#.into(),
         }),
         Element::Prop(Prop {
             slug: "signature-replaces-fragment-membership".into(),
@@ -2401,6 +2592,7 @@ signature is checked by the host language's compiler, which does not know
 Het exists and cannot be persuaded.
 
 "#.into(),
+            mechanism: r#"rustc. The refusal is an arity error from a compiler that does not know Het exists and cannot be persuaded — which is the whole claim of this proposition."#.into(),
         }),
         Element::Prop(Prop {
             slug: "two-properties-not-secured".into(),
@@ -2411,6 +2603,7 @@ Het exists and cannot be persuaded.
 as limits.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "termination-not-secured".into(),
@@ -2423,6 +2616,7 @@ type proves the sentence was *evaluated as* a machine check, not that the
 check *halts*.
 
 "#.into(),
+            mechanism: r#"Matches SPEC §5 exactly — 'liveness beyond the guard'. Het and rung state the same limit independently."#.into(),
         }),
         Element::Prop(Prop {
             slug: "purity-not-secured".into(),
@@ -2435,6 +2629,7 @@ clock, a file. "Consults no outside" is exact about **Het's** outside — the
 principal pool — and silent about every other.
 
 "#.into(),
+            mechanism: r#"rung has no effect system; a decidable body may still reach the world. Het already states this as a limit rather than a guarantee."#.into(),
         }),
         Element::Prop(Prop {
             slug: "neither-limit-closed-here".into(),
@@ -2446,6 +2641,7 @@ closing {#purity-not-secured} requires an effect system. Het requires neither, a
 built on a host that supplies them inherits the guarantee for free.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -2552,6 +2748,7 @@ nothing in a host answers to it.
             prose: r#"Het places **no bound on re-entry**.
 
 "#.into(),
+            mechanism: r#"A continue arm loops with no host-imposed bound, and the pass now runs that loop: the cited test drives five identical rounds — the same edit answered by the same reason — and nothing panics, nothing evicts, and the subject is still in the loop at attempt six. Choosing a guarded edge instead would supply a bound Het declines to declare ({#guarded-reentry-is-eviction}); so would giving up quietly after three tries, which is the mutation that proves the test can fail — `assert!(chain.attempt() <= 3)` in the re-entry arm reddens it on the fourth round. `acceptance.rs::het_places_no_bound_on_re_entry` additionally pins `Disposition::REENTRY_BOUND` as `None`. Either answer would be a worth-law smuggled in under another name ({#cut-at-valuation})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "reentry-never-terminates".into(),
@@ -2562,6 +2759,7 @@ nothing in a host answers to it.
 forever ({#disposition-vocabulary}) and the subject never leaves the loop.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "answers-are-worth-shaped".into(),
@@ -2573,6 +2771,7 @@ bound the attempts, or accept non-conformance as declared debt — are all
 worth-shaped, and {#het-declares-no-worth-law} forbids a Het theory from declaring a worth-law.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "bound-belongs-to-hetopt".into(),
@@ -2583,6 +2782,7 @@ worth-shaped, and {#het-declares-no-worth-law} forbids a Het theory from declari
 exit. The bound belongs to HetOpt.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "stated-as-limit-not-closed".into(),
@@ -2593,6 +2793,7 @@ exit. The bound belongs to HetOpt.
 which would be a worth-law under another name.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "guarded-reentry-is-eviction".into(),
@@ -2604,6 +2805,7 @@ the bound Het declines to declare. Re-entry is an **unguarded** return to
 the authoring position; a guarded one is an eviction rule under another
 name.
 "#.into(),
+            mechanism: r#"G10 continue arms — 'no recover function, no guard, no source'. Re-entry must be `RejectRemedy -> Proposing`, never `RejectRemedy => Proposing`: the recoverable-verdict form injects G8's `must_progress`, which panics on no progress and is therefore an eviction rule ({#answers-are-worth-shaped}). CONSTRAINT: a continue arm's target rung is built inline by `dispose`, i.e. by the judge, so that rung's payload must be classification-only ({#no-amending-disposition}). The resume edge is the SECOND unguarded re-entry and is pinned separately by {#resumption-is-unguarded}: injecting `must_progress` there is type-valid and reddens the double-resume test on the first round."#.into(),
         }),
         ],
     }

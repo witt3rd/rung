@@ -69,6 +69,7 @@ declares the objects and the generating morphisms; the category is everything
 those generate and nothing else.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "rungs-are-objects".into(),
@@ -79,6 +80,7 @@ those generate and nothing else.
 has no verbs.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "transitions-are-morphisms".into(),
@@ -89,6 +91,7 @@ has no verbs.
 on an arrow.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "the-law".into(),
@@ -100,6 +103,7 @@ Compute, judge, call an outside, touch the world — each is a verb, and each
 belongs in a transition body, never in the construction of a state.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "verb-in-object-position-refused".into(),
@@ -111,6 +115,7 @@ been performed* asks for a morphism in object-position. No such thing exists in
 a category, and the request is refused.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "sealing-is-the-axiom-not-a-guard".into(),
@@ -122,6 +127,7 @@ guard. It is the enforcement of what a category *is*: a state is reached only by
 traversing an arrow.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "law-is-the-second-axis-of-one-refusal".into(),
@@ -133,6 +139,7 @@ its own decidable step and cannot construct the state that holds a judgmental
 outcome ({#self-governing-not-self-closing}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "category-is-freely-generated".into(),
@@ -144,6 +151,7 @@ objects there is no morphism but the composites of declared arrows; a path
 that skips a rung does not exist to be taken.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "freeness-enforced-only-with-bodies".into(),
@@ -158,6 +166,7 @@ only — external code can mint any object of the category directly, and no
 diagnostic fires.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "entry-constructor-is-public".into(),
@@ -169,6 +178,7 @@ is not a breach: it is the morphism that starts a run, and a free category with
 no way in presents nothing.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "module-boundary-is-the-limit".into(),
@@ -180,6 +190,7 @@ inside the generated module can mint any object; freeness is enforced against
 the outside, not against the module's own contents.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "well-typed-program-is-a-functor".into(),
@@ -191,6 +202,7 @@ the host's types — each object to a type, each generating morphism to a
 function — and the host's type checker enforces that it respects composition.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "composition-consumes".into(),
@@ -201,6 +213,7 @@ function — and the host's type checker enforces that it respects composition.
 Composition is not sequencing; it is resource consumption.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "intermediate-survives-only-as-a-record".into(),
@@ -211,6 +224,7 @@ Composition is not sequencing; it is resource consumption.
 It survives only as an entry in an accumulated trace ({#trace-is-a-writer-monad}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -226,6 +240,7 @@ It survives only as an entry in an accumulated trace ({#trace-is-a-writer-monad}
 construct; its universal property is elimination by exhaustive case analysis.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "shape-of-the-branching-transition".into(),
@@ -237,6 +252,7 @@ construct; its universal property is elimination by exhaustive case analysis.
 $$A \longrightarrow \textstyle\sum_i B_i \;+\; A$$
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "injections-point-into-the-coproduct".into(),
@@ -248,6 +264,7 @@ morphism *out*, determined by one morphism per injection. The two directions are
 not interchangeable: injections point in, elimination points out.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "coproduct-is-heterogeneous".into(),
@@ -258,6 +275,7 @@ not interchangeable: injections point in, elimination points out.
 kind, and the distinction is structural, not cosmetic.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "verdict-summand".into(),
@@ -269,6 +287,7 @@ a rung and has no outgoing generating morphism. It is where a run stops, or
 where it hands off to a backward edge.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "continue-summand-carries-an-object".into(),
@@ -279,6 +298,7 @@ where it hands off to a backward edge.
 live rung, not a verdict. Nothing has left the category.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "residual-summand".into(),
@@ -291,6 +311,7 @@ judgmental arrow carries
 ({#judgmental-arrow-shape}).
 
 "#.into(),
+            mechanism: r#"The `+ A` is emitted. A judgmental forward transition returns `Result<Next, Suspended<Prev>>` and the `Suspended` carries the INPUT OBJECT unconsumed, which is what this proposition says the summand is — the cited test reads the very argument back out of it. This row was `out-of-scope` while the residual existed only as `Failed`'s error string, which carries no object the caller handed in and no identity for what went unanswered. Emitting `#to` instead of the `Result` is type-valid at the macro and turns the cited test red at its `fn`-pointer coercion."#.into(),
         }),
         Element::Prop(Prop {
             slug: "elimination-is-exhaustive".into(),
@@ -302,6 +323,7 @@ must be defined on every injection. Exhaustiveness is not a lint; it is the
 universal property.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "adding-a-summand-breaks-every-eliminator".into(),
@@ -313,6 +335,7 @@ time. That breakage is the compile-time gate, and it is the whole reason a
 vocabulary can be *closed*.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "closed-vocabularies-rest-on-this".into(),
@@ -327,6 +350,7 @@ exactly because it is a coproduct, and enforced by
 {#adding-a-summand-breaks-every-eliminator}.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "continue-arm-is-an-ordinary-generating-morphism".into(),
@@ -338,6 +362,7 @@ is deferred to the coproduct. The morphism into its target rung is taken on the
 forward pass; which summand was taken is what the eliminator learns.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "continue-arm-needs-no-backward-edge".into(),
@@ -349,6 +374,7 @@ category, so there is nothing to return from — and no round trip for a
 contraction to shrink ({#the-dagger-is-partial-and-contractive}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "continue-arm-has-no-verdict-object".into(),
@@ -360,6 +386,7 @@ contraction to shrink ({#the-dagger-is-partial-and-contractive}).
 an inverse for a morphism that was never inverted.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "two-arms-two-readings".into(),
@@ -371,6 +398,7 @@ different constructions, not two spellings of one. The first leaves the
 category and returns under a guard; the second never leaves.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -386,6 +414,7 @@ category and returns under a guard; the second never leaves.
 payload factor and the carry factor.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "projection-onto-carry".into(),
@@ -396,6 +425,7 @@ payload factor and the carry factor.
 read-only (`G5`). No morphism of the category mutates it in place.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "carry-factor-is-unrestricted".into(),
@@ -407,6 +437,7 @@ consumed by the arrow that acts on it; the carry factor is unrestricted. This is
 a cartesian product sitting inside an otherwise affine category.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "carry-is-copied-per-object".into(),
@@ -419,6 +450,7 @@ built. It is not structurally shared, and no object holds a reference to
 another's.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "copying-is-what-makes-it-cartesian".into(),
@@ -430,6 +462,7 @@ factor that could not be duplicated would not be cartesian, and duplication is
 exactly what {#carry-factor-is-unrestricted} licenses.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "carry-is-a-comonadic-context".into(),
@@ -440,6 +473,7 @@ exactly what {#carry-factor-is-unrestricted} licenses.
 object's position in the ladder, and the counit is $\pi_2$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "constancy-is-not-enforced".into(),
@@ -453,6 +487,7 @@ comonadic reading is available to a ladder whose bodies preserve the carry, and
 is not a guarantee of the construction.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -468,6 +503,7 @@ is not a guarantee of the construction.
 computation that starts at object $i$, ends at object $j$, and yields $A$.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "index-alignment-is-composition".into(),
@@ -479,6 +515,7 @@ index matches. Index alignment is the free category's composition, read as a
 monad.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "unrepresentable-paths".into(),
@@ -490,6 +527,7 @@ forbidden by a check; it is **unrepresentable** — the consequence of
 {#category-is-freely-generated}.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "monad-laws-hold-by-construction".into(),
@@ -500,6 +538,7 @@ forbidden by a check; it is **unrepresentable** — the consequence of
 because the only compositions that exist are those the declaration generates.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "indexed-monad-is-a-reading".into(),
@@ -511,6 +550,7 @@ ordinary types of the generated functions; the indexed monad is a *reading* of
 those types, not an artifact alongside them.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -526,6 +566,7 @@ those types, not an artifact alongside them.
 output of a **writer monad**.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "trace-is-a-free-monoid".into(),
@@ -537,6 +578,7 @@ concatenation, associative, with the empty trace as unit. Nothing about a trace
 depends on what an entry says.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "graded-writer".into(),
@@ -548,6 +590,7 @@ depends on what an entry says.
 the trace.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "trace-is-the-proof-term".into(),
@@ -559,6 +602,7 @@ the trace.
 reached object asserts abstractly.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "trace-is-not-emitted".into(),
@@ -570,6 +614,7 @@ correspondence describes the structure a trace has *wherever a caller
 accumulates one*; it is not a claim that one is accumulated.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "trace-is-not-authorship-provenance".into(),
@@ -584,6 +629,7 @@ of *those* that decides whether a judge may rule
 unrelated structures, and neither substitutes for the other.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -599,6 +645,7 @@ unrelated structures, and neither substitutes for the other.
 forward/backward pair.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "match-is-the-forward-pass".into(),
@@ -609,6 +656,7 @@ forward/backward pair.
 {#shape-of-the-branching-transition}.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "build-is-the-backward-pass".into(),
@@ -620,6 +668,7 @@ forward/backward pair.
 Prism's build pass.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "residual-is-the-optics-residual".into(),
@@ -631,6 +680,7 @@ residual. Returning the input on failure is not an oddity of the encoding; it is
 what the shape requires.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "not-a-monad".into(),
@@ -642,6 +692,7 @@ $g : B \to C + B$: a failing $g$ hands back $B$, while the composite's domain is
 $A$. No `bind` routes $B \to A$; only an explicit backward edge can.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "effects-layer-on-the-forward-pass".into(),
@@ -658,6 +709,7 @@ This is the same shape Het gives a judgmental operation
 principal monad.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "strength-carries-linearity".into(),
@@ -669,6 +721,7 @@ linearity survives suspension. A monad without strength cannot carry a linear
 token across a suspension point.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "error-and-effect-are-orthogonal".into(),
@@ -680,6 +733,7 @@ backward pass, effect is a monad on its forward pass. They require no
 distributive law, and neither subsumes the other.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "generative-body-is-a-kernel".into(),
@@ -691,6 +745,7 @@ probability monad on the forward pass. It is an instance of
 {#effects-layer-on-the-forward-pass}, not a further construction.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -706,6 +761,7 @@ probability monad on the forward pass. It is an instance of
 where a backward edge declares one.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "three-shapes-of-loop-back".into(),
@@ -721,6 +777,7 @@ where a backward edge declares one.
 | continue arm | **no** | none (`G10`) | n/a |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "only-a-departure-can-be-a-return".into(),
@@ -732,6 +789,7 @@ where a backward edge declares one.
 nothing that stayed can return.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "verdict-dagger-is-mandatory".into(),
@@ -742,6 +800,7 @@ nothing that stayed can return.
 adjoint and each adjoint has a verdict. The pairing is checked, not trusted.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "verdict-dagger-is-contractive".into(),
@@ -753,6 +812,7 @@ forward-then-back is required to *decrease* (`G8`), so
 $f^\dagger \circ f \neq \mathrm{id}$ by construction.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "contraction-is-on-the-payload".into(),
@@ -766,6 +826,7 @@ sealed value, so an inequality on objects would be vacuous and an equality
 impossible.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "well-foundedness-over-symmetry".into(),
@@ -777,6 +838,7 @@ recovery that may return the value it received is a stall loop with a type; a
 recovery required to decrease terminates.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "contraction-is-a-runtime-guard".into(),
@@ -788,6 +850,7 @@ non-decreasing step; it does not prove decrease, and it does not prove general
 forward progress.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "error-dagger-is-optional-and-unguarded".into(),
@@ -801,6 +864,7 @@ licence Het grants a returned residual
 ({#adequacy-failure-returns-residual}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "resume-edge-is-the-residual-dagger".into(),
@@ -829,6 +893,7 @@ condition on the *principal*, not on the arrow, and so does not disturb
 and this is the second one with its adjoint written down.
 
 "#.into(),
+            mechanism: r#"[G16](rung-props.md#g16-the-residual-channel). The residual's adjoint, declared: `resume { revive: #[authorial(R)] Suspended(Rung) => Rung }`. It inherits both halves of {#error-dagger-is-optional-and-unguarded} — OPTIONAL, because a driver may hold a `Suspended` and never resume, and UNGUARDED, which `suspension.rs::the_same_suspension_resumes_twice_with_no_progress_guard` pins by resuming an unchanged payload twice. What it does not inherit is freedom of WHO may take it, and that is a condition on the principal rather than on the arrow, so {#three-shapes-of-loop-back} is undisturbed: still three shapes, with the second one's adjoint now written down."#.into(),
         }),
         Element::Prop(Prop {
             slug: "terminal-verdicts-have-no-adjoint".into(),
@@ -839,6 +904,7 @@ and this is the second one with its adjoint written down.
 declaring a backward edge from one is rejected.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "dagger-laws-are-not-verified".into(),
@@ -851,6 +917,7 @@ dagger the involution is not merely unverified but **deliberately broken** by
 {#verdict-dagger-is-contractive}.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -867,6 +934,7 @@ requirement to use exactly once — and that is what the category's linearity
 rests on.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "linear-logic-dictionary".into(),
@@ -884,6 +952,7 @@ rests on.
 | $A \oplus B$ | a coproduct ({#branching-is-a-coproduct}) |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "at-most-once-not-exactly-once".into(),
@@ -894,6 +963,7 @@ rests on.
 be used twice; it *can* be dropped.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "must-use-is-the-affine-approximation".into(),
@@ -905,6 +975,7 @@ every carrier of a live token — objects, verdict objects, the branching
 outcome, and the residual — not the objects alone.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "lint-is-escapable".into(),
@@ -915,6 +986,7 @@ outcome, and the residual — not the objects alone.
 discard, or buried in a dropped container. The close is partial.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "one-token-one-thread".into(),
@@ -927,6 +999,7 @@ the category may be shared or sent, so one token cannot be driven by two
 threads.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "move-semantics-alone-are-insufficient".into(),
@@ -938,6 +1011,7 @@ nothing about shared references. `G3` is what makes the linearity claim hold of
 the whole object, not merely of its owned form.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "true-linearity-needs-the-language".into(),
@@ -949,6 +1023,7 @@ linear substrate would make it exact; an affine one admits the approximation
 {#must-use-is-the-affine-approximation} states.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -964,6 +1039,7 @@ linear substrate would make it exact; an affine one admits the approximation
 category is a **proof** of it.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "object-asserts-its-history".into(),
@@ -974,6 +1050,7 @@ category is a **proof** of it.
 assertion is discharged by the type, not by an accompanying check.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "residual-is-a-conjunction".into(),
@@ -984,6 +1061,7 @@ assertion is discharged by the type, not by an accompanying check.
 *the argument is preserved*. Both conjuncts are carried by the one object.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "terminal-payload-is-the-witness".into(),
@@ -995,6 +1073,7 @@ assertion is discharged by the type, not by an accompanying check.
 the verdict rather than around it.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "proof-is-of-traversal-not-correctness".into(),
@@ -1006,6 +1085,7 @@ ran in a legal order. It says nothing about whether any body computed the right
 thing.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -1021,6 +1101,7 @@ thing.
 verifies the **content of a morphism**.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "guarantees-carry-categorical-content".into(),
@@ -1045,6 +1126,7 @@ document adds to it:
 | `G11` | the witness a terminal proposition carries ({#terminal-payload-is-the-witness}) |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "what-is-not-verified".into(),
@@ -1066,6 +1148,7 @@ document adds to it:
 | gate admissibility of a marked arrow | the guarantees constrain the domain; the sub-category condition is on the codomain ({#gate-guarantees-constrain-the-domain-not-the-arrow}) |
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "gate-guarantees-constrain-the-domain-not-the-arrow".into(),
@@ -1096,6 +1179,7 @@ guarantee did not change that — which is the whole content of
 [Q11](questions/open/q11-gate-faithfulness.md)'s answer.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "boundary-is-typestate-not-verification".into(),
@@ -1108,6 +1192,7 @@ guarantee did not change that — which is the whole content of
 adding a check to the construction.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -1126,6 +1211,7 @@ signature, and so is a theory at the next level
 ({#fractal-property}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "fibre-is-a-ladder".into(),
@@ -1137,6 +1223,7 @@ category of {#ladder-declares-a-category}. Each object of the base contains a
 category; that is the fractal property read in this setting.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "declaration-names-no-foreign-object".into(),
@@ -1152,6 +1239,7 @@ enters a declaration only through composition operators, never as a declared
 arrow.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "typed-edge-is-an-opcartesian-lift".into(),
@@ -1162,6 +1250,7 @@ arrow.
 transports *forward* along the edge by a pushforward functor between fibres.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "orientation-is-load-bearing".into(),
@@ -1173,6 +1262,7 @@ information flow, which is what makes the structure an **op**fibration rather
 than a fibration; reversing it changes which lifts exist.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "edge-type-selects-the-pushforward".into(),
@@ -1185,6 +1275,7 @@ the dependent's existence; a mechanical edge lifts to a state update with no
 outside.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "edge-taxonomy-is-the-theorys".into(),
@@ -1198,6 +1289,7 @@ enumerates the types, for the reason
 {#governs-who-not-what} gives.
 
 "#.into(),
+            mechanism: r#"The edge vocabulary is declared by the governing theory, not by the formalism — neither `rung` nor `rung-het` has an edge type, and `EdgeKind` lives in `rung-std::questions`, the theory that governs bodies of questions, exactly where an edit vocabulary sits (`edit-required-not-typed`). Moving the theory out of a test and into a library sharpened the row without changing its verdict: the taxonomy is now demonstrably neither the formalism's NOR one carrier's, because two carriers with disjoint id spaces and disjoint edge sets fill the same seven kinds — rung's `docs/questions/` and a synthetic decision docket. What the cited test pins is the **lived-instance** discipline, now a decidable sentence of the theory (`every_declared_kind_is_lived`) rather than prose: a kind stays in the vocabulary only while some question in the set under audit uses it, and deleting the sentence turns a test red in BOTH carriers. STILL NOT enforced, and the reason is unchanged: what would have to fail is a crate BELOW the theory naming an edge type, and no test can fail for code that was never written. The location is a choice this theory makes; the test protects the discipline, not the choice."#.into(),
         }),
         Element::Prop(Prop {
             slug: "strict-and-advisory-are-the-gate".into(),
@@ -1211,6 +1303,7 @@ propagates decidably; an advisory edge requires a ruling. It is not a second
 taxonomy laid over the gates; it is the gates, read one level up.
 
 "#.into(),
+            mechanism: r#"G12 + G2, read at the dependency level. `premise` routes to a `decidable` sentence whose `holds` takes only the model — there is no parameter a pool could enter through — and `justification` routes to a `judgmental` one whose `settle` consumes a `Qualified<Adjudicator>` that only `Pool::qualify_for` mints. The two lifts therefore differ in ARITY, not in convention, and the cited test runs both over the one real cascade (Q7's resolution) that forced typed edges. Reclassifying `justification` as strict is type-valid and turns the test red twice — at the declared gate, and again at the `Propagated::Ruled` match, where the advisory edge is found to have consulted nobody. That mutation is what establishes the row."#.into(),
         }),
         Element::Prop(Prop {
             slug: "advisory-lift-lands-in-a-coproduct".into(),
@@ -1223,6 +1316,7 @@ the target's objects; it lands in a **coproduct** — *review required* plus
 target's own work, done by its own transitions.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "same-coproduct-at-both-levels".into(),
@@ -1235,6 +1329,7 @@ branching transition honest is the structure that keeps the dependency level
 functorial; the two levels share machinery rather than resemble each other.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "vertical-morphisms-preserve-agency".into(),
@@ -1246,6 +1341,7 @@ functorial; the two levels share machinery rather than resemble each other.
 functoriality holds over the total space rather than in spite of it.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "edges-are-dependent-optics".into(),
@@ -1257,6 +1353,7 @@ of a state change, contravariant backward query of exposure. The backward pass's
 type depends on the state transported forward, which is what makes it dependent.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "exposure-is-the-backward-pass".into(),
@@ -1268,6 +1365,7 @@ along the composite optic returns a *typed exposure* — how many obligations of
 which kind — and a count of reachable subjects is its Boolean shadow.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "opfibrations-compose".into(),
@@ -1279,6 +1377,7 @@ that govern them is itself an opfibration, and its composite with $p$ is a
 single opfibration over the whole tower.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "iteration-not-a-second-level".into(),
@@ -1291,6 +1390,7 @@ Opfibrations are 1-cells and compose as such. A genuine second level needs a
 nesting does not supply.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "transport-is-scale-invariant".into(),
@@ -1302,6 +1402,7 @@ traversal of the backward pass need not know whether an edge crosses a domain
 boundary; the same pass runs at every scale.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "horizontal-and-vertical-coincide".into(),
@@ -1314,6 +1415,7 @@ morphisms of one composite base and lift identically. That, precisely, is the
 content of *"the structure is fractal."*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "conformance-and-propagation-run-over-different-bases".into(),
@@ -1328,6 +1430,7 @@ orientations of one tower
 ({#two-directions-two-bases}).
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -1344,6 +1447,7 @@ free categories, coproducts, indexed monads, daggers, or optics, and it must
 not.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "surface-is-the-programmers-model".into(),
@@ -1355,6 +1459,7 @@ modelled. The mathematics of this document is what the *construction* is
 obliged to, not what the author is obliged to write.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "same-move-as-the-substrate".into(),
@@ -1367,6 +1472,7 @@ ordinary bindings and the checker enforces the affine discipline
 the construction enforces the category.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "hiding-is-not-optional".into(),
@@ -1379,6 +1485,7 @@ then rest on the author restating it correctly — which is the failure the
 construction exists to remove.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "correspondence-is-falsifiable".into(),
@@ -1390,6 +1497,7 @@ prose**. Every claim here either names a guarantee that a conformance test
 protects, or is marked a limit. A claim that is neither has no standing.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 

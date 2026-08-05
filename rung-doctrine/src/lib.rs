@@ -41,6 +41,7 @@
 //! verbatim blocks until it round-tripped would show up there as a number
 //! going the wrong way.
 
+pub mod conformance;
 pub mod governed;
 pub mod rung;
 pub mod rung_ct;
@@ -147,6 +148,16 @@ pub struct Prop {
     /// The prose, with `{#slug}` where a reference goes. The reference's text
     /// is generated, so a reference cannot display a number that has moved.
     pub prose: String,
+    /// Why the proof establishes the claim — or, where there is no proof, what
+    /// stands in its place.
+    ///
+    /// Curated, and the one part of a conformance record a machine cannot
+    /// derive. `Kind` says *what would settle* a proposition and `proof` says
+    /// *what does*; this says **why that proof is the right one**, which is a
+    /// reading and is exactly what `establishes_what_it_cites` would rule on.
+    ///
+    /// Empty where nothing has been recorded. Uses `{#slug}` like [`Prop::prose`].
+    pub mechanism: String,
 }
 
 /// A piece of a document, in order.
@@ -360,7 +371,7 @@ impl Doctrine {
                     };
                     let num = numbers.get(&p.slug).map_or("?", String::as_str);
                     let _ = write!(out, "<a id=\"{}\"{attrs}></a>\n**{num}** ", p.slug);
-                    out.push_str(&expand(&p.prose, &self.file, r));
+                    out.push_str(&expand_refs(&p.prose, &self.file, r));
                 }
             }
         }
@@ -421,7 +432,7 @@ pub fn references(prose: &str) -> Vec<String> {
 
 /// Replace every `{#slug}` with the link a reader sees. Same-document
 /// references omit the filename, matching how the documents are written.
-fn expand(prose: &str, file: &str, r: &Resolver) -> String {
+pub fn expand_refs(prose: &str, file: &str, r: &Resolver) -> String {
     let mut out = String::new();
     let mut rest = prose;
     while let Some(i) = rest.find("{#") {

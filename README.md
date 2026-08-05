@@ -326,30 +326,40 @@ in notes and not in props is not a claim rung makes.
   by the macro, by rustc, or by a named test; §7 holds the two design judgments
   no machine decides, and they carry no conformance test on purpose.
 
-### The conformance ledger
+### The conformance record
 
-[`docs/conformance.md`](docs/conformance.md) is **generated, never written**. It
-joins every proposition in all three documents to where it is enforced — and,
-more usefully, records where it is *not*. Verdicts are `enforced`,
-`expressible`, `parked`, and `out-of-scope`.
+[`docs/conformance.md`](docs/conformance.md) is a **view of the doctrine**, not a
+second record of it. Every column but one is derived: the number from the tree,
+the kind from the encoding, the proof from `Kind::Decidable { proof }`.
 
-The join is deliberately **not** one-to-one, in either direction: a proposition
-may have no test, and a guarantee may have no proposition. `parked` exists so an
-unproven claim reads as a worklist entry rather than a clean bill.
+It was not always. Until recently the record was generated from a curated Python
+table that held, per proposition, a verdict and the test establishing it — the
+same fact the doctrine holds. The two drifted within a day, and nothing compared
+them. Rendering the record from the encoding removes the second copy rather than
+adding a check for it.
+
+The one column no machine derives is **mechanism**: *why* a proof is the right
+proof for a claim. That is a reading — `establishes_what_it_cites`, judgmental
+and unsettled — and the prose is a human's answer standing in until a judge
+gives one.
 
 ### What runs in CI
 
 | gate | what it catches |
 |---|---|
 | `cargo test --workspace` | a guarantee that stopped holding |
-| `docs/_props.py check` | a duplicate slug, a dangling reference, a stale number, a retired term |
+| `cargo run -p rung-doctrine --bin render -- --check` | a hand-edited `*-props.md` or `conformance.md` — all four are generated |
+| `docs/_props.py check` | a stale number or dangling reference, derived **independently** from the rendered markdown — a second opinion on the numbering, from the other side |
 | `docs/_props.py cited` | a Rust comment citing a proposition that no longer exists |
-| `docs/_ledger.py check` | a hand-edited ledger, an `enforced` row whose test does not exist |
-| `cargo run -p rung-doctrine --bin render -- --check` | a hand-edited `*-props.md` — they are generated |
 
-`_ledger.py check` regenerates the ledger and diffs it against disk, so
-`conformance.md` cannot be edited by hand and a new proposition cannot be added
-without receiving a verdict.
+`render --check` regenerates all four documents and diffs them against disk, so
+none can be edited by hand and a new proposition cannot be added without a kind.
+
+`_props.py` survives for exactly two jobs, and neither duplicates the encoding:
+it re-derives every number from the *rendered markdown* rather than from the
+source, which makes it an independent second implementation agreeing on all 380;
+and it checks that Rust comments citing a slug still resolve, which nothing else
+does.
 
 ### Two rules that keep the tests honest
 

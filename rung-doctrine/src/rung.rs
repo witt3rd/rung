@@ -75,6 +75,7 @@ ladder!( Name { <declaration> } [ impl { <bodies> } ] )
 ```
 
 "#.into(),
+            mechanism: r#"The macro accepts exactly this shape. The cited ladder is a declaration block followed by an inline `impl` block and is driven to a terminal verdict, so both halves of the form are exercised by a run rather than by an expansion that merely typechecks."#.into(),
         }),
         Element::Prop(Prop {
             slug: "declaration-grammar".into(),
@@ -114,6 +115,7 @@ A `resume` edge is the adjoint of the **residual**, and its `#[authorial(R)]`
 marker is **not optional** — see {#g16-the-residual-channel}.
 
 "##.into(),
+            mechanism: r#"The cited declaration uses every production of the grammar at once — a `carry` block, a multi-hop spine, a verdict block carrying a terminal marker, a recoverable verdict, and a `recover` edge. A production the parser dropped would fail to expand. The refusals that keep the grammar from accepting *more* than this are {#macro-must-reject}."#.into(),
         }),
         Element::Prop(Prop {
             slug: "bodies-grammar".into(),
@@ -128,6 +130,7 @@ closure := "|" pat "|" ( block | expr )
 ```
 
 "#.into(),
+            mechanism: r#"The cited ladder supplies three inline bodies in the `ident = closure` form, comma-separated, mixing block and expression closures. They expand into the module and are called by the driver."#.into(),
         }),
         Element::Prop(Prop {
             slug: "transition-naming".into(),
@@ -140,6 +143,7 @@ lowercased (`B` ⇒ `b`). The branching transition (`A => { .. }`) is named
 MUST match these ({#macro-must-reject}, rules 9–10).
 
 "#.into(),
+            mechanism: r#"The driver calls `opt::active`, `opt::step` and `opt::iterate` by those names — the target lowercased, `step` for the branching transition, the recover edge's own name. Renaming any of the three in the macro turns the call site into an unresolved path."#.into(),
         }),
         Element::Prop(Prop {
             slug: "marker-annotates-the-target".into(),
@@ -151,6 +155,7 @@ what the transition is named after. A marker on a rung marks the forward
 transition producing it; a marker on the verdict block marks `step`.
 
 "#.into(),
+            mechanism: r#"The cited ladder marks both markable positions — a rung, and the verdict block — and the test coerces `review::active` and `review::step` to `fn` pointers of the exact expected types. A marker that annotated the source rather than the target would put the parameter on the wrong function and both coercions would fail."#.into(),
         }),
         Element::Prop(Prop {
             slug: "at-most-one-marker".into(),
@@ -164,6 +169,7 @@ reads as *decidable* and is emitted exactly as it was before markers existed
 ({#g12-gate-marked-signature}).
 
 "#.into(),
+            mechanism: r#"A `trybuild` case with `#[judgmental(R)] #[authorial(R)]` on one transition, whose committed `.stderr` holds the macro's message. The macro has refused this since markers landed; until the case existed nothing would have noticed if it stopped."#.into(),
         }),
         Element::Prop(Prop {
             slug: "two-markers-implemented".into(),
@@ -187,6 +193,7 @@ neither can be passed where the other is asked for
 ({#g12-gate-marked-signature}, {#g14-the-authorial-gate}).
 
 "#.into(),
+            mechanism: r#"Both markers emit, and emit *different* second parameters — the cited test coerces the authorial transition to `fn(Filed, Authorized<'_, R>) -> Revised`, and `judgmental_transition_takes_a_qualified_token` does the same for `Qualified<R>`. A pen cannot be passed where a licence is asked for, which is the whole content of "two gates, two signatures"."#.into(),
         }),
         Element::Prop(Prop {
             slug: "conditional-marker-refused".into(),
@@ -200,6 +207,7 @@ and `ladder!`'s checks run at expansion time against a single declaration; see
 [Q11](questions/open/q11-gate-faithfulness.md).
 
 "#.into(),
+            mechanism: r#"A `trybuild` case whose committed `.stderr` holds the refusal, including the pointer to the open question. A `compile_fail` doctest would not have distinguished this refusal from a typo ({#compile-fail-asserts-only-non-compilation})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "marker-without-role-refused".into(),
@@ -215,6 +223,7 @@ which would make the competence filter decorative. In both cases there is no
 signature to emit.
 
 "#.into(),
+            mechanism: r#"Two `trybuild` cases, one per marker — the cited one for `#[judgmental]`, `authorial_without_a_role_is_refused` for its mirror. Both `.stderr` snapshots carry the reason, which is that there is no signature to emit rather than that the syntax is unfamiliar."#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -244,6 +253,7 @@ any ladder in which:
 | 11 | a `resume` edge names an undeclared rung; carries no `#[authorial(R)]` marker, or a `#[judgmental(..)]` one; or resumes from a rung that no `#[judgmental(R)]` forward transition can suspend |
 
 "#.into(),
+            mechanism: r#"All ten rules, each a `trybuild` case with a committed `.stderr`. Two of the ten are unreachable through the grammar rather than untested, and the suite says so where the reachable neighbour lands: rule 2 cannot be written because every rung of the spine is declared by the hop that introduces it, and rule 5's *missing recover function* clause cannot be written because one `recover` entry pushes the edge and the function together. Before these cases, seven of the ten were prose the macro happened to implement."#.into(),
         }),
         Element::Prop(Prop {
             slug: "structural-rules-mirror-the-reference-checker".into(),
@@ -254,6 +264,7 @@ any ladder in which:
 (`.archive/python-poc/rung/checker.py`, verified in sync).
 
 "#.into(),
+            mechanism: r#"A provenance note about a retired artifact. The Python checker is under `.archive/`, nothing in the workspace depends on it, and "verified in sync" records a comparison made once by hand rather than a property anything re-checks. What the note is *about* — that rules 1–8 are structural — is now pinned rule by rule under {#macro-must-reject}."#.into(),
         }),
         Element::Prop(Prop {
             slug: "body-rules-need-an-impl-block".into(),
@@ -263,6 +274,7 @@ any ladder in which:
             prose: r#"Rules 9–10 apply **only** when an `impl` block is present.
 
 "#.into(),
+            mechanism: r#"The cited declaration omits the `impl` block entirely and expands cleanly, so rules 9–10 did not fire on a ladder with no bodies to check. That they *do* fire when the block is present is `spec_refusals.rs::an_impl_body_that_names_no_transition_is_refused` and `::an_impl_block_missing_a_body_is_refused`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "resume-rules-are-g2".into(),
@@ -278,6 +290,7 @@ an arrow that writes a rung
 ({#resumption-is-authorial}).
 
 "#.into(),
+            mechanism: r#"The declaration-time refusals. The cited `trybuild` case declares a resume edge with no `#[authorial(R)]` marker and holds the macro's exact message: an edge emitted inside the seal that anyone may call is [G2](rung-props.md#g2-sealed-construction) with a door in it, so a penless resume is not a signature a caller forgot to satisfy — it is not declarable. Making the marker optional is type-valid and turns this red at the snapshot."#.into(),
         }),
         Element::Prop(Prop {
             slug: "extension-refusals-are-pinned".into(),
@@ -294,6 +307,7 @@ hold the macro's exact message. Each also appears as a `compile_fail` doctest in
 diagnostic ({#compile-fail-asserts-only-non-compilation}).
 
 "#.into(),
+            mechanism: r#"The proposition names its own three cases; this is the first of them. Each holds a committed `.stderr`, which is what makes the refusal's *message* part of the assertion rather than only its existence."#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -309,6 +323,7 @@ diagnostic ({#compile-fail-asserts-only-non-compilation}).
 lowercased) containing the artifacts below.
 
 "#.into(),
+            mechanism: r#"Every path in the cited test goes through `metricoptimization::`, the ladder name lowercased. A module emitted under another name, or not emitted, is an unresolved path."#.into(),
         }),
         Element::Prop(Prop {
             slug: "emitted-carry".into(),
@@ -319,6 +334,7 @@ lowercased) containing the artifacts below.
 `#[derive(Clone, Debug)] pub struct Carry { pub <field>: <type>, .. }`.
 
 "#.into(),
+            mechanism: r#"`test_module_exists` constructs `Carry` with both declared fields by name, which needs the struct, the field names, and their public visibility. The cited test adds the accessor: a type-level coercion that only holds if `Spec::carry(&self) -> &Carry` exists with that exact signature."#.into(),
         }),
         Element::Prop(Prop {
             slug: "emitted-rung-structs".into(),
@@ -332,6 +348,7 @@ accessor `pub fn carry(&self) -> &Carry`. Constructor visibility follows
 {#g2-sealed-construction}.
 
 "#.into(),
+            mechanism: r#"The seal and the thread-binding, which are the two clauses a host can lose silently. The cited test uses autoref specialization to assert `!Send` for rungs *and* verdicts; the `_seal` field is what `spec_refusals.rs::external_construction_of_a_mid_ladder_rung_is_e0624` pins. Constructor visibility follows [G2](rung-props.md#g2-sealed-construction)."#.into(),
         }),
         Element::Prop(Prop {
             slug: "emitted-verdict-structs".into(),
@@ -348,6 +365,7 @@ accessor `pub fn carry(&self) -> &Carry`. Constructor visibility follows
 - a continue arm emits **no** verdict struct (its outcome carries a live rung).
 
 "#.into(),
+            mechanism: r#"All three shapes in one run: `Exhausted::new()` is the bare terminal marker, `Converged(Report)` is a terminal carrying a payload read back out through `.payload()`, and `Iterating => Active` is a recoverable verdict built from its source rung and unwrapped with `.into_source()`. The fourth clause — that a continue arm emits **no** verdict struct — is `end_to_end.rs::continue_arm_loops_without_a_recover_fn`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "emitted-suspended".into(),
@@ -368,6 +386,7 @@ is also emitted for every ladder, so widening it would break the compatibility
 clause outright. What the two share is the *shape*, `Result<_, Carrier<from>>`.
 
 "#.into(),
+            mechanism: r#"The residual channel as a type. The cited test coerces the emitted `fn` to a `fn` pointer of the exact expected type — `fn(Posed, Qualified<Adjudicator>) -> Result<Answered, Suspended<Posed>>` — so dropping the summand from the return type is a compile error at that line rather than a silently weaker signature, and it then reads the unconsumed token back out and finds the very argument. Emission is CONDITIONAL, which is what keeps {#g12-gate-marked-signature}'s compatibility clause true: an unmarked ladder emits no `Suspended` and its module is byte-identical."#.into(),
         }),
         Element::Prop(Prop {
             slug: "suspended-reports-what-it-awaits".into(),
@@ -391,6 +410,7 @@ theory's value and declares no ordering, comparison or well-formedness over it
 ({#pool-is-opaque}).
 
 "#.into(),
+            mechanism: r#"The emitted `impl ::rung::Awaiting for Suspended<Prev>` is what lets a holder read what a run awaits off the run instead of being told. The cited suite parks suspensions from a real ladder and matches them by that trait alone; deleting the impl from the macro's emission makes the whole file fail to compile with `Suspended<Filed>: Awaiting is not satisfied`, because `Park<S>` is bounded on it. That the bound carries the claim — rather than a `raised` field read a holder could have done anyway — is the content of the proposition."#.into(),
         }),
         Element::Prop(Prop {
             slug: "emitted-step-outcome".into(),
@@ -402,6 +422,7 @@ of the branching transition. A continue arm's variant carries its **target
 rung**; every other variant carries its **verdict struct**.
 
 "#.into(),
+            mechanism: r#"The clause that distinguishes `StepOutcome` from an ordinary verdict enum: a continue arm's variant carries a **live target rung**, not a verdict marker. The cited test reassigns that rung straight back into the driver, with no recover function and no guard in between."#.into(),
         }),
         Element::Prop(Prop {
             slug: "emitted-failed".into(),
@@ -412,6 +433,7 @@ rung**; every other variant carries its **verdict struct**.
 Prev, pub error: String }`.
 
 "#.into(),
+            mechanism: r#"The cited test takes the error path and reads both fields back — the unconsumed `token` and the `error` string — which is what makes `Failed<Prev>` a recovery vehicle rather than a discarded value."#.into(),
         }),
         Element::Prop(Prop {
             slug: "emitted-guards".into(),
@@ -437,6 +459,7 @@ Prev, pub error: String }`.
   {#emitted-suspended}.
 
 "#.into(),
+            mechanism: r#"`must_progress` is the one an author cannot see: the cited ladder's recover body contains no call to it and panics anyway, because the macro wrapped the body ([G8](rung-props.md#g8-recovery-progress)). The other two guards are pinned the same way, at `gate_markers.rs::a_body_that_ignores_the_token_still_gets_the_binding_check` and `::a_body_that_ignores_the_pen_still_gets_the_standing_check`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "emitted-functions".into(),
@@ -451,6 +474,7 @@ returns its target rung. Omitting the `impl` block yields a type-only
 declaration (no functions).
 
 "#.into(),
+            mechanism: r#"One `pub fn` per transition and per recover edge, expanded *inside* the module: the cited bodies call `Active::new`, which is private to the module and unreachable from the test file. A body expanded outside would not compile. The type-only case — no `impl` block, no functions — is `compile_pass.rs::a_marker_on_a_type_only_declaration_is_inert`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "unmarked-signature".into(),
@@ -460,6 +484,7 @@ declaration (no functions).
             prose: r#"**Unmarked:** `pub fn active(spec: Spec) -> Active`.
 
 "#.into(),
+            mechanism: r#"The driver calls `opt::active(spec)` with one argument. An unmarked transition that grew a second parameter is E0061 at that call site — which is the same diagnostic `gate_markers.rs::calling_a_judgmental_transition_without_a_token_is_e0061` pins from the other side."#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-signature".into(),
@@ -475,6 +500,7 @@ preceded by the injected binding prologue `must_be_bound_to(&spec.payload, &q);`
 `::rung::Provenanced`.
 
 "#.into(),
+            mechanism: r#"The cited test coerces the emitted `fn` to `fn(review::Spec, Qualified<Reviewer>) -> review::Active`, so an absent, extra, or differently-typed second parameter fails to compile. The injected prologue is separately pinned by `gate_markers.rs::the_injected_prologue_refuses_a_transferred_token_the_body_never_reads`, whose ladder never reads the token."#.into(),
         }),
         Element::Prop(Prop {
             slug: "judgmental-outcome-bound".into(),
@@ -488,6 +514,7 @@ injected outcome epilogue `must_derive_from_judge(&out.payload, &judge_prov);`
 transition gets the prologue and no epilogue.
 
 "#.into(),
+            mechanism: r#"The emitted forward judgmental transition is followed by the injected outcome epilogue ([G15](rung-props.md#g15-outcome-provenance)), so its *target* payload must implement `::rung::Provenanced` as well as its source. The cited test is the epilogue firing: a body that returns its own argument does not complete. Removing the injected call from the macro reddens it; a branching judgmental transition gets no epilogue, which is why `review::step` still compiles with a `Report` payload that carries no provenance."#.into(),
         }),
         Element::Prop(Prop {
             slug: "resume-signature".into(),
@@ -504,6 +531,7 @@ payload MUST implement `::rung::Situated`. **No `must_progress`**
 ({#g16-the-residual-channel}).
 
 "#.into(),
+            mechanism: r#"Three parameters and two injected prologues. The cited test coerces the emitted resume `fn` to its exact pointer type, so the pen cannot quietly leave the signature; its siblings pin the prologues — a pen minted over another container is refused although the body never mentions it, and evidence about another raised matter resumes nothing. Deleting the injected `must_hold_standing_over` reddens `::resume_refuses_a_pen_over_another_container`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "authorial-signature".into(),
@@ -519,6 +547,7 @@ standing prologue `must_hold_standing_over(&filed.payload, &pen);`
 `::rung::Situated`.
 
 "#.into(),
+            mechanism: r#"The authorial mirror, coerced the same way to `fn(revision::Filed, Authorized<'_, Curator>) -> revision::Revised`, with the standing prologue pinned by `gate_markers.rs::the_injected_prologue_refuses_a_pen_for_another_container_the_body_never_reads`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "body-name-resolution".into(),
@@ -529,6 +558,7 @@ standing prologue `must_hold_standing_over(&filed.payload, &pen);`
 payload types resolve from the surrounding scope (`use super::*`).
 
 "#.into(),
+            mechanism: r#"The cited bodies name `Active`, `StepOutcome`, `Converged` and `Carry` unqualified, and `LoopState`/`Report` from the surrounding scope through the emitted `use super::*`. Dropping either half leaves an unresolved name at expansion."#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -545,6 +575,7 @@ if the implementation stops honoring it**. Guarantees delegated to the Rust
 compiler are marked *(rustc)*.
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g1-linear-consumption".into(),
@@ -556,6 +587,7 @@ using a rung after it is moved MUST be a compile error. *(rustc — move
 semantics.)*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g2-sealed-construction".into(),
@@ -580,6 +612,7 @@ doctest shows the same refusal in rustdoc but does not assert the code
 ({#compile-fail-asserts-only-non-compilation}).*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g3-one-token-one-thread".into(),
@@ -592,6 +625,7 @@ across a thread boundary. *Conformance:
 `compile_pass.rs::test_rungs_are_not_send_or_sync` (rungs and verdicts).*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g4-no-silent-drop".into(),
@@ -609,6 +643,7 @@ compile_fail doctest documents it but does not assert the diagnostic
 / `let _ =` — see {#drop-proofing-beyond-the-lint}.)*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g5-carry-immutability".into(),
@@ -620,6 +655,7 @@ through `&Carry`; a transition body cannot mutate it. *Conformance:
 `compile_pass.rs::test_carry_accessor_exists`.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g6-exhaustive-outcomes".into(),
@@ -630,6 +666,7 @@ through `&Carry`; a transition body cannot mutate it. *Conformance:
 handle all variants. *(rustc — enum exhaustiveness.)*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g7-recover-pairing".into(),
@@ -641,6 +678,7 @@ function and vice versa; terminal verdicts have none
 ({#macro-must-reject}, rules 4–7). *(macro — static checks.)*
 
 "#.into(),
+            mechanism: r#"Rules 4–7, one `trybuild` case each. The cited one is the first direction (a recoverable verdict with no edge); `::a_recover_edges_target_must_be_a_declared_rung`, `::a_terminal_verdict_may_not_carry_a_recover_edge` and `::a_recover_edge_must_name_a_declared_verdict` are the rest. This guarantee said *(macro — static checks.)* and named no test, so it was the one guarantee of the fourteen with nothing behind it."#.into(),
         }),
         Element::Prop(Prop {
             slug: "g8-recovery-progress".into(),
@@ -654,6 +692,7 @@ payload type be `Clone + PartialEq`. *Conformance:
 `end_to_end.rs::recover_guard_is_auto_injected` (panics with no explicit call).*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g9-error-path-recovery".into(),
@@ -666,6 +705,7 @@ receives the `Failed` and returns the next rung. No progress guard is injected
 `end_to_end.rs::recovers_from_the_failed_error_path`.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g10-continue-arms".into(),
@@ -678,6 +718,7 @@ guard, no source. *Conformance:
 `end_to_end.rs::continue_arm_loops_without_a_recover_fn`.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g11-terminal-payloads".into(),
@@ -689,6 +730,7 @@ the verdict, read via `.payload()` / `.into_payload()`. *Conformance:
 `end_to_end.rs::drives_to_convergence` asserts the returned payload.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g12-gate-marked-signature".into(),
@@ -714,6 +756,7 @@ neither secures. *Conformance:
 → E0451.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g13-token-binding".into(),
@@ -751,6 +794,7 @@ is refused anyway), and
 settle_refuses_a_token_minted_against_a_different_model}`.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g14-the-authorial-gate".into(),
@@ -816,6 +860,7 @@ cases: `gate_authorial_missing_pen` → E0061, `gate_forged_pen` → E0451,
 `gate_authorial_no_role` → the macro's `compile_error!`.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g15-outcome-provenance".into(),
@@ -866,6 +911,7 @@ outcome is built on the judge's `Judgment`; minting that `Judgment` with the
 argument's provenance instead of the judge's reddens it).*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
             slug: "g16-the-residual-channel".into(),
@@ -930,6 +976,7 @@ anyway — deleting the injected `must_hold_standing_over` reddens it);
 `resume_missing_pen` → E0061.*
 
 "#.into(),
+            mechanism: r#""#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -945,6 +992,7 @@ anyway — deleting the injected `must_hold_standing_over` reddens it);
 a claim that it does has no standing.
 
 "#.into(),
+            mechanism: r#"The heading of the withdrawals. A non-guarantee states that the macro does **not** enforce something and that a claim it does has no standing; there is no obligation left for a host to discharge. Its children point at the boundary tests where a boundary exists."#.into(),
         }),
         Element::Prop(Prop {
             slug: "transition-body-correctness".into(),
@@ -956,6 +1004,7 @@ that its logic was valid — the boundary between typestate and formal
 verification.
 
 "#.into(),
+            mechanism: r#"The typestate/verification boundary. The type proves a transition ran; nothing here claims its logic was valid, so there is nothing to check. Every `expressible` row in this ledger inherits this limit."#.into(),
         }),
         Element::Prop(Prop {
             slug: "cross-crate-provenance".into(),
@@ -966,6 +1015,7 @@ verification.
 like any Rust public API. Sealing this needs a sub-crate per ladder.
 
 "#.into(),
+            mechanism: r#"A rung crossing a crate boundary is trusted, like any Rust public API. Closing it needs a sub-crate per ladder, which is a packaging decision rather than a macro guarantee."#.into(),
         }),
         Element::Prop(Prop {
             slug: "same-module-fabrication".into(),
@@ -977,6 +1027,7 @@ like any Rust public API. Sealing this needs a sub-crate per ladder.
 constructor, can still build rungs — the module-boundary limit Rust always has.
 
 "#.into(),
+            mechanism: r#"The module-boundary limit Rust always has. The cited test pins where the seal *does* bite — external construction is E0624 — so the withdrawal is readable as a boundary rather than as an absence."#.into(),
         }),
         Element::Prop(Prop {
             slug: "drop-proofing-beyond-the-lint".into(),
@@ -988,6 +1039,7 @@ constructor, can still build rungs — the module-boundary limit Rust always has
 dropped container all bypass. True no-drop needs language-level linear types.
 
 "#.into(),
+            mechanism: r#"`mem::forget`, `let _ = token`, and a dropped container all bypass `#[must_use]`; true no-drop needs language-level linear types. The cited test pins the lint's actual reach, which is what is being bounded."#.into(),
         }),
         Element::Prop(Prop {
             slug: "liveness-beyond-the-guard".into(),
@@ -998,6 +1050,7 @@ dropped container all bypass. True no-drop needs language-level linear types.
 identical-token stall loop; it does not prove general forward progress.
 
 "#.into(),
+            mechanism: r#"[G8](rung-props.md#g8-recovery-progress) catches an identical-token stall; general forward progress is a halting question. The cited test exercises the guard on exactly the case it does catch, so what is being withdrawn is legible as the complement of something real."#.into(),
         }),
         Element::Prop(Prop {
             slug: "suspension-is-in-process-only".into(),
@@ -1017,6 +1070,7 @@ serialization*. Filed as
 {#cross-crate-provenance}.
 
 "#.into(),
+            mechanism: r#"A driver may hold a `Suspended<Prev>` in memory for as long as it likes and that is the whole of the claim. Persisting one across process death is not merely unimplemented — a rung read back from bytes is a mid-ladder rung nobody traversed to, which is what [G2](rung-props.md#g2-sealed-construction) exists to refuse, and {#resumption-is-authorial} answers WHO MAY revive a run without saying WHAT a reconstituted token is. Filed rather than guessed at."#.into(),
         }),
         Element::Prop(Prop {
             slug: "gate-faithfulness-not-secured".into(),
@@ -1031,6 +1085,7 @@ transition. What is still not secured is the outcome everywhere else, and one
 of Het's four gates still has no signature.
 
 "#.into(),
+            mechanism: r#"Narrowed, not closed. rung now checks the way **out** as well as the way in: G15 is the judgmental outcome epilogue and `settle` is its sentence-surface twin, so {#returned-value-unconstrained} no longer describes the whole outward side. What keeps this non-guarantee standing is {#one-gate-unimplemented} — one of Het's four gates has a refusal rather than an encoding — and the residue at [5.621](rung-props.md#outward-conditions-remaining). The cited test is the first of those, made runnable."#.into(),
         }),
         Element::Prop(Prop {
             slug: "one-gate-unimplemented".into(),
@@ -1043,6 +1098,7 @@ of an algebra, so an algebra with a conditional arrow cannot state it here at
 all.
 
 "#.into(),
+            mechanism: r#"The refusal itself is enforced, which is the honest reading: `#[conditional(..)]` is a parse-time `compile_error!` naming the open question, pinned by a `trybuild` snapshot. What is *not* secured is gate-faithfulness for an algebra that has a conditional operation — that algebra cannot be written here at all, and the refusal is what says so."#.into(),
         }),
         Element::Prop(Prop {
             slug: "returned-value-unconstrained".into(),
@@ -1063,6 +1119,7 @@ The residue is stated at {#outward-conditions-remaining} rather than
 absorbed into a claim that the outward side is closed. It is not.
 
 "#.into(),
+            mechanism: r#"The proposition used to read "the returned value is unconstrained", and the measure of it was that `Prov::contained_in` existed and no guarantee called it. Two guarantees call it now. G15 injects `must_derive_from_judge` after every forward `#[judgmental(R)]` body, and `theory!`'s `settle` refuses a `Judgment` whose provenance the licence does not contain. The cited test is the constant arrow as a ladder — a judgmental body that returns the argument it was handed — and deleting the injected call from the macro reddens it. The companion `::a_judgmental_arrow_may_not_return_the_provenance_it_judged` is the positive case, and minting the token's `Judgment` with the argument's provenance instead of the judge's reddens that one. What is NOT covered is stated at [5.621](rung-props.md#outward-conditions-remaining) and parked on its own test rather than folded in here."#.into(),
         }),
         Element::Prop(Prop {
             slug: "outward-conditions-remaining".into(),
@@ -1084,6 +1141,7 @@ sense is not settled. Both inherit {#transition-body-correctness} whole,
 as the whole outward side used to.
 
 "#.into(),
+            mechanism: r#"The two halves of the outward side that G15 does not reach. The authorial conjunct π(f(a)) ⊆ π(p) from {#admissibility-subcategories} is left to the body exactly as the judgmental one was before R2 — G14 secures `standing` on the way in and nothing looks on the way out — and the cited test is that arrow: an honest pen over the right container, and a revision carrying someone else's provenance. A branching judgmental transition takes the prologue and no epilogue, because its recoverable and continue arms carry the argument onward by design ({#reproposal-carries-the-chain}) and which arms are *outcomes* is unsettled; that is a question rather than a hole, and it is recorded in the same `#[ignore]` reason."#.into(),
         }),
         Element::Prop(Prop {
             slug: "decidable-is-not-pure".into(),
@@ -1095,6 +1153,7 @@ as the whole outward side used to.
 ({#purity-not-secured}).
 
 "#.into(),
+            mechanism: r#"rung has no effect system. The unmarked signature excludes Het's outside — there is no parameter a principal could enter through — and says nothing about clocks, files, or sockets. Het states the same limit independently ({#purity-not-secured})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "type-only-marker-is-inert".into(),
@@ -1107,6 +1166,7 @@ seal is
 ({#freeness-enforced-only-with-bodies}).
 
 "#.into(),
+            mechanism: r#"A declaration with no `impl` block emits no transition functions, so a marker on one has no signature to change. The cited test states that as something the compiler checks: the marked role type does **not** implement `Role`, and the declaration compiles anyway — which it could not if the marker were emitting a `Qualified<R>` parameter or a prologue."#.into(),
         }),
         Element::Prop(Prop {
             slug: "gate-faithfulness-answered-no".into(),
@@ -1121,6 +1181,7 @@ open on {#one-gate-unimplemented} and, in its narrowed form,
 {#outward-conditions-remaining}.
 
 "#.into(),
+            mechanism: r#"A claim about an argument, not about the host: it records that Q11 is open and answered *no*. The two things it stays open on are {#one-gate-unimplemented}, which is `enforced` as a refusal, and {#returned-value-unconstrained}, which is `parked`. Both carry their own row; this one carries the reasoning."#.into(),
         }),
         Element::Prop(Prop {
             slug: "a-cycle-through-an-authorial-act-cannot-close".into(),
@@ -1151,6 +1212,7 @@ declared rather than driven — is
 [Q4](questions/open/q4-composition-nested-ladders.md), open.
 
 "#.into(),
+            mechanism: r#"A limit on the DECLARATION, recorded rather than worked around. `ladder!` declares a linear spine with backward continue arms, and a continue arm's target rung is built inline by `step` ([G10](rung-props.md#g10-continue-arms)) — by whoever holds that transition's token. An `Accept -> Governed` arm on the pass would therefore have the JUDGE produce the revised subject, which {#no-amending-disposition} forbids. So `enact` sits outside the branching transition and the loop of {#enact-makes-an-endofunctor} closes by composition, not inside one declaration. The cited test is the shape as built: `Accept` is terminal and carries a `Licence`, and the run leaves the ladder to enact. Expressing the composite as a declaration is Q4 (`docs/questions/open/q4-composition-nested-ladders.md`), open — nothing here is claimed to close it."#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -1160,7 +1222,7 @@ declared rather than driven — is
         Element::Prop(Prop {
             slug: "conformance-suite".into(),
             parent: None,
-            kind: Kind::Decidable { proof: "docs/_ledger.py".into() },
+            kind: Kind::Decidable { proof: "rung-doctrine/tests/roundtrip.rs::the_conformance_record_is_rendered_from_the_doctrine".into() },
             numbering: None,
             prose: r#"The conformance suite is `rung/tests/` and the doctests in
 `rung/src/lib.rs`. A change that violates any guarantee above MUST break at
@@ -1169,6 +1231,7 @@ doctest (via `include_str!`), so the documented public API cannot silently drift
 from the macro.
 
 "#.into(),
+            mechanism: r#""A change that violates any guarantee MUST break at least the cited test" is only a claim if the citation is live. `./_ledger.py check` regenerates every row from the propositions documents and fails when a cited file is missing or a cited `fn` has been renamed away, so a guarantee cannot quietly lose its test."#.into(),
         }),
         Element::Prop(Prop {
             slug: "compile-fail-asserts-only-non-compilation".into(),
@@ -1184,11 +1247,12 @@ scope when rustdoc wrapped the snippet in a `fn main` of its own. Adding the cod
 annotation does not fix this; nothing reads it.
 
 "#.into(),
+            mechanism: r#"A fact about rustdoc — it ignores the `E0NNN` in a `compile_fail` fence — rather than an obligation on the host. What follows *from* it is {#no-guarantee-cites-a-compile-fail-doctest}, and that is enforced."#.into(),
         }),
         Element::Prop(Prop {
             slug: "no-guarantee-cites-a-compile-fail-doctest".into(),
             parent: Some("conformance-suite".into()),
-            kind: Kind::Decidable { proof: "docs/_ledger.py".into() },
+            kind: Kind::Decidable { proof: "rung-doctrine/tests/roundtrip.rs::every_decidable_proposition_names_a_proof_that_resolves".into() },
             numbering: None,
             prose: r#"Consequently **no guarantee may cite a `compile_fail` doctest as its
 conformance test.** Refusals are pinned by `trybuild` cases in `rung/tests/ui/`,
@@ -1198,6 +1262,7 @@ alongside — they are the documentation, and a reader meets the refusal in
 rustdoc — but they are the illustration, not the evidence.
 
 "#.into(),
+            mechanism: r#"`./_ledger.py check` refuses any conformance citation that points into a crate's `src/`, which is the only place a doctest can live. A row that tried to rest on a `compile_fail` fence is a ledger failure rather than a reviewer's catch. Refusals are pinned by `trybuild` cases in `rung/tests/ui/`, whose committed `.stderr` makes the message part of the assertion."#.into(),
         }),
         Element::Prop(Prop {
             slug: "two-silent-doctest-traps".into(),
@@ -1216,6 +1281,7 @@ rustdoc — but they are the illustration, not the evidence.
   passing after the seal is removed. Name every field.
 
 "#.into(),
+            mechanism: r#"Two ways to write a doctest that passes while asserting nothing. Guidance for authors of examples; the guarantees do not rest on doctests at all ({#no-guarantee-cites-a-compile-fail-doctest})."#.into(),
         }),
         Element::Prop(Prop {
             slug: "a-refusal-test-that-cannot-fail".into(),
@@ -1227,6 +1293,7 @@ establish that a case can fail is to make the guarded thing legal and watch the
 case go red.
 
 "#.into(),
+            mechanism: r#"The mutation discipline itself — make the guarded thing legal and watch the case go red. It is a rule about how evidence is produced, and no machine performs it; a checker that could would be the guarantee."#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -1246,6 +1313,7 @@ principles; amend them when a new case does not fit, but amend them
 deliberately, as a ruling on the record.
 
 "#.into(),
+            mechanism: r#"The document says of this subtree that **no machine decides them** and that they carry no conformance test. They bind design decisions — where a ladder stops, what earns a place in `rung-std` — and are amended as rulings on the record rather than checked."#.into(),
         }),
         Element::Prop(Prop {
             slug: "j1-where-the-tower-bottoms-out".into(),
@@ -1281,6 +1349,7 @@ above (`LlmCall`) is where states live: the counter check, the attempt in flight
 the terminal verdicts. That is the right floor.
 
 "#.into(),
+            mechanism: r#"A judgment about leverage: extend the tower while structural enforcement still buys correctness gains. Nothing in a run can answer it."#.into(),
         }),
         Element::Prop(Prop {
             slug: "j2-what-belongs-in-rung-std".into(),
@@ -1324,6 +1393,7 @@ Worked examples:
   it carries domain vocabulary (that project's verdict kinds, its boundary
   conditions) that is meaningful only to garden-ladders.
 "#.into(),
+            mechanism: r#"A judgment about recurrence and canonicity. A test could count dependents; it could not decide whether the canonical statement is better than a project's own derivation."#.into(),
         }),
         ],
     }
