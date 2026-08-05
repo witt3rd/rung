@@ -12,7 +12,8 @@ imposes no obligation.
 > the outside expert as principals — is half done: `rung-driver` builds a pool
 > from `population.yaml` and reaches models, but no judgment has been
 > dispatched, because what provenance a model carries is
-> [Q14](../questions/open/q14-model-principal-provenance.md), open.
+> [Q14](../questions/resolved/q14-model-principal-provenance.md), ruled (the
+> carrier is the open part).
 >
 > **Items 3, 6 and 7 stand.** And §4's shape is now blocked on something this
 > note did not anticipate: the pass disposes through a *branching* transition,

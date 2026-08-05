@@ -451,9 +451,12 @@ it has never run on anything that mattered.
 
 Two things stand in the way, and only one is work:
 
-- **[Q14](questions/open/q14-model-principal-provenance.md)** — what
-  provenance a model principal carries. Until it is ruled on, a model judge
-  either qualifies for nothing or qualifies vacuously.
+- **[Q14](questions/resolved/q14-model-principal-provenance.md)** — what
+  provenance a model principal carries. **Ruled** (stake-based π, definitional);
+  what remains open is the **carrier** — a commission-and-contribution source so
+  `authored` becomes a derived fact. Until that exists, a model judge still
+  either qualifies for nothing or qualifies vacuously under the only provenance
+  the pool can read.
 - **[Q15](questions/open/q15-does-the-pass-suspend.md)** — the pass
   disposes through a *branching* transition, which has no residual channel, so
   it cannot wait for a question it raised.
