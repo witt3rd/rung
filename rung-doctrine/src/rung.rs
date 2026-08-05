@@ -949,7 +949,7 @@ a claim that it does has no standing.
         Element::Prop(Prop {
             slug: "transition-body-correctness".into(),
             parent: Some("non-guarantees".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/non_guarantees.rs::a_transition_body_may_be_wrong_and_the_macro_does_not_care".into() },
             numbering: None,
             prose: r#"**Transition-body correctness.** The type proves a transition *ran*, not
 that its logic was valid — the boundary between typestate and formal
@@ -960,7 +960,7 @@ verification.
         Element::Prop(Prop {
             slug: "cross-crate-provenance".into(),
             parent: Some("non-guarantees".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Owed { why: "a fixture crate is needed: the claim is about a rung crossing a crate boundary".into() },
             numbering: None,
             prose: r#"**Cross-crate provenance.** A rung crossing a crate boundary is trusted,
 like any Rust public API. Sealing this needs a sub-crate per ladder.
@@ -970,7 +970,7 @@ like any Rust public API. Sealing this needs a sub-crate per ladder.
         Element::Prop(Prop {
             slug: "same-module-fabrication".into(),
             parent: Some("non-guarantees".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/non_guarantees.rs::the_entry_constructor_and_the_module_itself_may_fabricate".into() },
             numbering: None,
             prose: r#"**Same-module / entry fabrication.** {#g2-sealed-construction} stops
 *external* fabrication; code inside the generated module, and the public entry
@@ -981,7 +981,7 @@ constructor, can still build rungs — the module-boundary limit Rust always has
         Element::Prop(Prop {
             slug: "drop-proofing-beyond-the-lint".into(),
             parent: Some("non-guarantees".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/non_guarantees.rs::a_must_use_token_can_still_be_discarded_three_ways".into() },
             numbering: None,
             prose: r#"**Drop-proofing beyond the lint.** {#g4-no-silent-drop} is
 `#[must_use]`, which `mem::forget`, `let _ = token;`, or burying the token in a
@@ -992,7 +992,7 @@ dropped container all bypass. True no-drop needs language-level linear types.
         Element::Prop(Prop {
             slug: "liveness-beyond-the-guard".into(),
             parent: Some("non-guarantees".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/non_guarantees.rs::the_progress_guard_is_satisfied_by_motion_that_goes_nowhere".into() },
             numbering: None,
             prose: r#"**Liveness beyond the guard.** {#g8-recovery-progress} catches an
 identical-token stall loop; it does not prove general forward progress.
@@ -1002,7 +1002,7 @@ identical-token stall loop; it does not prove general forward progress.
         Element::Prop(Prop {
             slug: "suspension-is-in-process-only".into(),
             parent: Some("non-guarantees".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/non_guarantees.rs::a_suspension_may_be_held_across_arbitrary_intervening_work".into() },
             numbering: None,
             prose: r#"**Suspension does not survive process death.**
 {#g16-the-residual-channel} suspends and resumes **in one process**: a
@@ -1035,7 +1035,7 @@ of Het's four gates still has no signature.
         Element::Prop(Prop {
             slug: "one-gate-unimplemented".into(),
             parent: Some("gate-faithfulness-not-secured".into()),
-            kind: Kind::Decidable { proof: "rung/tests/gate_markers.rs::conditional_is_refused_and_names_the_open_question".into() },
+            kind: Kind::Owed { why: "unimplemented — #[conditional(..)] is a parse-time refusal, not an encoding".into() },
             numbering: None,
             prose: r#"*One gate is unimplemented.* `#[conditional(..)]` is a parse-time
 refusal, not an encoding. Gate-faithfulness is a condition on **every** operation
@@ -1067,7 +1067,7 @@ absorbed into a claim that the outward side is closed. It is not.
         Element::Prop(Prop {
             slug: "outward-conditions-remaining".into(),
             parent: Some("returned-value-unconstrained".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Owed { why: "unimplemented — the authorial containment conjunct is left to the body".into() },
             numbering: None,
             prose: r#"*Two outward conditions remain.* First, the **authorial** one:
 {#admissibility-subcategories} states the authorial
@@ -1088,7 +1088,7 @@ as the whole outward side used to.
         Element::Prop(Prop {
             slug: "decidable-is-not-pure".into(),
             parent: Some("gate-faithfulness-not-secured".into()),
-            kind: Kind::Rationale,
+            kind: Kind::Decidable { proof: "rung/tests/non_guarantees.rs::an_unmarked_transition_may_touch_the_world".into() },
             numbering: None,
             prose: r#"*Decidable is not pure.* The unmarked signature excludes Het's outside
 — the principal pool — and is silent about clocks, files, and networks

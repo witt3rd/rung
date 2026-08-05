@@ -82,6 +82,23 @@ pub enum Kind {
     /// it is recorded in the conformance ledger's mechanism prose rather than
     /// here. That coverage is reported, and it is much lower than this count.
     Decidable { proof: String },
+    /// **Decidable in principle, and nothing establishes it yet.**
+    ///
+    /// Distinct from every other kind, and the distinction is the point. A
+    /// proposition is not judgmental because nobody has written a test — it is
+    /// judgmental when *nothing but a principal could settle it*. Filing an
+    /// unproven claim as judgmental hides work behind a word that means
+    /// something else, and would send it to a judge who cannot help.
+    ///
+    /// Two reasons a proof can be owed, and they are not the same:
+    ///
+    /// - **untested** — the machinery exists and nobody wrote the test.
+    /// - **unimplemented** — there is nothing to test. `mod-only-gate-faithful`
+    ///   is not waiting on a mathematician; it is waiting on `#[conditional]`.
+    ///
+    /// This is the work queue. An audit finds these; an author discharges them
+    /// by writing the test, or by writing the thing the test would run against.
+    Owed { why: String },
     /// A claim needing an outside. Carries the competence role required.
     Judgmental { role: String },
     /// Declares part of the signature — a sort, an operation. Not a claim
@@ -95,6 +112,7 @@ impl Kind {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Decidable { .. } => "decidable",
+            Self::Owed { .. } => "owed",
             Self::Judgmental { .. } => "judgmental",
             Self::Signature => "signature",
             Self::Rationale => "rationale",
@@ -104,7 +122,10 @@ impl Kind {
     /// Whether this kind is a claim that could be true or false. Signature and
     /// rationale are not, which is why neither carries a gate.
     pub fn is_a_claim(&self) -> bool {
-        matches!(self, Self::Decidable { .. } | Self::Judgmental { .. })
+        matches!(
+            self,
+            Self::Decidable { .. } | Self::Judgmental { .. } | Self::Owed { .. }
+        )
     }
 }
 
