@@ -562,7 +562,7 @@ Membership of either sub-category is therefore a property of the body, which is
 [9.4](#proof-is-of-traversal-not-correctness) exactly. Guarantees on the domain
 do not compose into a guarantee on the codomain, and adding a third such
 guarantee did not change that — which is the whole content of
-[Q11](questions/open/q11-gate-faithfulness.md)'s answer.
+[Q11](../questions/open/q11-gate-faithfulness.md)'s answer.
 
 <a id="boundary-is-typestate-not-verification" data-parent="verification-boundary"></a>
 **10.3** The boundary between the two tables is the boundary between
