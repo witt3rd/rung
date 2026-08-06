@@ -40,12 +40,13 @@ fn a_folder_yields_one_subject_per_file_sorted_and_opaque() {
 
     let ids: Vec<ObjectId> = c.iter().collect::<Result<_, _>>().expect("walk is clean");
     // every question file in questions/open/
-    let expected: Vec<PathBuf> = std::fs::read_dir(&open)
+    let mut expected: Vec<PathBuf> = std::fs::read_dir(&open)
         .unwrap()
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| p.is_file() && p.extension().map(|x| x == "md").unwrap_or(false))
         .collect();
+    expected.sort(); // the carrier walks sorted; the expectation must match
     assert_eq!(ids.len(), expected.len());
     assert_eq!(
         ids,
