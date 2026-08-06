@@ -205,6 +205,95 @@ and disposing is judgmental (the judge must be disjoint from the proposal).
 `rung_std::questions` does both. `rung_std::principals` is audit-only — it has
 sentences and no edits, and that's a complete theory, not a half-finished one.
 
+### The vocabulary, on a familiar carrier
+
+The formalism's terms blur easily, and they are load-bearing, so here they are
+held apart on the most familiar carrier that exists: **GitHub issues**.
+
+- **Het** is the *theory* — the sentence-and-gate formalism itself. It declares
+  the one relation $M \models_\Sigma \varphi$ and the slots that fill it:
+  who may act, and under what condition. The normative document is literally
+  titled after it ("This document is Het."). You never say "the Het doctrine";
+  the doctrine is something else, below.
+- **A theory** is what you write *in* Het with `theory!` — the four slots filled
+  in for one domain: sorts, edits, sentences with their gates, and a role for
+  each judgmental sentence. An issue tracker's theory fixes `status` and
+  `assignee` and `label` as sorts; `close`, `reopen`, `triage` as edits;
+  `every_issue_has_a_unique_id` as a decidable sentence;
+  `this_issue_is_well_framed` as a judgmental one. `rung_std::questions` is such
+  a theory; your tracker's would be another.
+- **The carrier** is what a theory is *evaluated over* — the concrete body of
+  instances, not the theory itself. Here it is the repository's **issues**. The
+  same theory can be evaluated over any number of carriers; a theory with only
+  one carrier is a domain model wearing a library's name.
+- **A subject** is one inhabitant of the carrier — a specific issue under
+  judgment ($x : M(S)$). The issue is the subject; the pull request that would
+  resolve it is the edit a `remedy` carries.
+- **The population** is the body of *principals* a theory draws its judges and
+  authors from — the maintainers, reviewers, and bots who triage, rule, and
+  merge. A population is itself a carrier: auditing the principals (who holds
+  standing over what, who may review whom) is a theory over **that** body.
+- **Doctrine** is a word for one thing only: rung's own encoded normative
+  self-specification, the `*-props.md` documents and their `rung-doctrine/`
+  encoding. "The doctrine is data" — it is how rung specifies itself, not a
+  general name for a Het theory or a theory's contents.
+
+So, concretely: an issue **is** a subject; the issue list **is** a carrier of
+the issue theory; the reviewers and triagers **are** a population, which — when
+you audit *them* — is just another theory's carrier.
+
+### The audit-rectify cycle, and how it composes
+
+One cycle, end to end, on the issues carrier:
+
+- **audit** — a sentence is evaluated against subjects of the carrier.
+  `every_issue_has_a_unique_id` is decided by the machine;
+  `this_issue_is_well_framed` cannot be: it needs a principal.
+- **propose** — to fix a violation, an author with **standing** over the carrier
+  writes an *edit*. Standing is the authorial gate: capability alone never
+  authorizes a write, and an author without standing over the issue list is
+  refused before any proposal exists.
+- **dispose** — the proposal is put to a judge **disjoint** from both the author
+  and the subject it rules on (the judgmental gate). Disposing decides whether
+  the remedy answers the audit, not merely that an edit was proposed. The
+  judge's verdict — or its deferral — is where the cycle can fork.
+- **enact** — an accepting judge mints a licence; the author applies the edit;
+  the round-trip (the typed edit *is* the specification, and applying it proves
+  it was exactly that) closes the loop. The next audit sees the violation gone.
+
+#### Where a question comes in
+
+Two moments, and rung keeps them apart:
+
+- **A judgmental sentence** (an audit) can be **deferred**: the principal asked
+  to rule says it cannot settle until something else is settled, and answers
+  with a *question* instead of a verdict.
+- **A judgmental disposition** (inside the pass) can defer too: the judge
+  declines to dispose because it first needs some other matter settled. That is
+  the branch the pass's branching transition has no residual channel to hand
+  the token back on — which is why the pass cannot yet wait on a question it
+  raised ([Q15](questions/open/q15-does-the-pass-suspend.md)).
+
+Either way the question is opaque to rung — an issue number, a filename — and
+it lands on the edge that resumes when evidence arrives that its matter
+terminated (see "What's left holding the work while you wait").
+
+#### Cycles compose: a question is itself a carrier
+
+A raised question is a **subject** of the questions theory's carrier. Settling
+it runs *another* audit-rectify cycle — audit the question's well-formedness,
+propose a resolution, dispose, enact — over a *different* carrier (the
+question's own file), drawn from the same or another population. And that cycle
+can itself raise a question.
+
+The recursion does not climb; it lands back where it started, in the same
+theory. That is what makes the composition type-stable: **one `Park` holds a
+depth-1 wait and a depth-40 wait alike**, because a nested suspension does not
+ascend a level to a new type. Nesting is normal, not exceptional — Q11 raised
+Q12, and Q12 leaned back on Q11 — and only a cycle in `gate` edges, where each
+question is *blocked by* the next, is a real stuck state. The full argument is
+in "Questions about questions are just more questions".
+
 ### Anywhere you ask an outside, you might get a question back
 
 This is the part worth internalising early, because it shapes everything
