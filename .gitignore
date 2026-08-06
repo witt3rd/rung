@@ -2,3 +2,6 @@ __pycache__/
 .pytest_cache/
 *.pyc
 target/
+
+# Q18 state sidecar — generated per carrier
+.het/**/state/

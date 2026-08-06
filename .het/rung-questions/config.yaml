@@ -1,0 +1,8 @@
+# rung's own bootstrap — the Instance (Q18 state sidecar).
+# Paths are relative to this file (the driver resolves them against it).
+theory: rung-question
+carrier:
+  kind: folder
+  path: ../../questions
+population: ../../population.yaml
+state: ./state

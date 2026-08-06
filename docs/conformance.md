@@ -618,7 +618,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 186 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 187 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -737,6 +737,10 @@ look shorter than it is.
 - `capability_alone_does_not_authorize_a_write`
 - `kind_decides_nothing`
 - `the_driver_offers_no_way_to_prefer_one_qualifying_principal`
+
+**`rung-driver/tests/sidecar.rs`** — 1 unclaimed
+
+- `the_het_sidecar_drives_the_q18_config`
 
 **`rung-fixture/tests/consumer.rs`** — 4 unclaimed
 
