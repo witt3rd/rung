@@ -766,8 +766,8 @@ look shorter than it is.
 - `no_question_is_blocked_on_itself`
 - `p0_refuses_the_curator_as_a_judge_of_this_repositorys_own_questions`
 - `standing_over_a_folder_can_be_refused_with_nowhere_to_appeal`
-- `the_eighteen_questions_are_read_from_disk`
 - `the_lifecycle_ladder_runs_the_authorial_and_judgmental_gates_in_turn`
+- `the_nineteen_questions_are_read_from_disk`
 - `the_real_questions_report_their_outbound_edge_drift`
 
 **`rung-het/tests/second_domain.rs`** — 5 unclaimed
