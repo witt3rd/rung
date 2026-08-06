@@ -203,7 +203,9 @@ pub enum ConfigError {
     /// A principal with a `family` also declares a static `authored`. The two
     /// disagree structurally: `authored` is *derived* for a family, so a second
     /// hand-maintained copy is a latent two-sources-of-truth. Refused.
-    FamilyWithAuthored { id: String },
+    FamilyWithAuthored {
+        id: String,
+    },
 }
 
 impl std::fmt::Display for ConfigError {

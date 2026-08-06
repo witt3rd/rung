@@ -96,7 +96,11 @@ impl<O: Oracle> Configured<O> {
     /// population of models; the plain [`Configured::new`] keeps `authored` as
     /// the principal's own static declaration, which is right for a person and
     /// wrong for a discontinuous kind.
-    pub fn with_log(spec: PrincipalSpec, oracle: std::sync::Arc<O>, log: std::sync::Arc<CommissionLog>) -> Self {
+    pub fn with_log(
+        spec: PrincipalSpec,
+        oracle: std::sync::Arc<O>,
+        log: std::sync::Arc<CommissionLog>,
+    ) -> Self {
         Self {
             spec,
             oracle,

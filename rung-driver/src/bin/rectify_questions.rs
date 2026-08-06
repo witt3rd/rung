@@ -102,7 +102,10 @@ fn main() {
         // A principal with a family derives its stake from the record; a
         // principal without one (the human) carries its own genuine record.
         let prov = match &p.family {
-            Some(fam) => format!("family={fam}  ->  authored={:?}", real_log.artifacts_for(fam)),
+            Some(fam) => format!(
+                "family={fam}  ->  authored={:?}",
+                real_log.artifacts_for(fam)
+            ),
             None => format!("authored={:?}", p.authored),
         };
         println!(
@@ -204,9 +207,7 @@ fn main() {
         .iter()
         .all(|p| !real_log.has_authored(p.family.as_deref().unwrap()))
     {
-        println!(
-            "  Every model principal derives authored from commissions.yaml by family,",
-        );
+        println!("  Every model principal derives authored from commissions.yaml by family,",);
         println!("  and the record currently records no contributions, so all derived",);
         println!("  sets are open. Real (non-vacuous) dispatch begins the moment the",);
         println!("  record attributes work to a family — the mechanism is wired.");

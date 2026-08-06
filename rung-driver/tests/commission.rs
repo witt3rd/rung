@@ -11,8 +11,10 @@
 //! is *populated* is harness state, not this file's business; this file shows
 //! what the record *does* the moment it holds a genuine contribution.
 
-use rung::{Provenanced, Prov, QualifyError, Role, Situated};
-use rung_driver::{Answer, Backing, CommissionLog, ConfigError, Oracle, Population, population_pool_with_log};
+use rung::{Prov, Provenanced, QualifyError, Role, Situated};
+use rung_driver::{
+    Answer, Backing, CommissionLog, ConfigError, Oracle, Population, population_pool_with_log,
+};
 use std::sync::Arc;
 
 // ── a domain, as the driver sees it ────────────────────────────────────────
@@ -158,9 +160,8 @@ fn the_record_round_trips_through_yaml() {
 /// its own artifact would be a fabricated set — there is no other judge to
 /// fall back on.
 fn single_family_pool(family: &str) -> rung::Pool<rung_driver::Configured<Answering>> {
-    let pop = Population::from_yaml(
-        &format!(
-            r#"
+    let pop = Population::from_yaml(&format!(
+        r#"
 roles:
   - name: judge
     requires: [reasoning]
@@ -171,10 +172,14 @@ principals:
     family: {family}
     backing: {{via: outside}}
 "#
-        ),
-    )
+    ))
     .unwrap();
-    population_pool_with_log(&pop, "judge", Arc::new(Answering), Arc::new(symmetric_log()))
+    population_pool_with_log(
+        &pop,
+        "judge",
+        Arc::new(Answering),
+        Arc::new(symmetric_log()),
+    )
 }
 
 #[test]
@@ -182,7 +187,9 @@ fn a_family_cannot_judge_what_it_produced_but_can_judge_elsewhere() {
     // family-a produced artifact-of-a: refused for it, qualifying for b's.
     let a = single_family_pool("family-a");
     match a
-        .qualify_for::<Judge>(&Subject { id: "artifact-of-a" })
+        .qualify_for::<Judge>(&Subject {
+            id: "artifact-of-a",
+        })
         .unwrap_err()
     {
         QualifyError::NonIdentityViolated { principal, .. } => {
@@ -191,14 +198,18 @@ fn a_family_cannot_judge_what_it_produced_but_can_judge_elsewhere() {
         other => panic!("expected the non-identity refusal, got {other}"),
     }
     let q = a
-        .qualify_for::<Judge>(&Subject { id: "artifact-of-b" })
+        .qualify_for::<Judge>(&Subject {
+            id: "artifact-of-b",
+        })
         .expect("family-a is disjoint from family-b's work");
     assert_eq!(q.principal_id(), "family-a-judge");
 
     // Symmetric for family-b.
     let b = single_family_pool("family-b");
     match b
-        .qualify_for::<Judge>(&Subject { id: "artifact-of-b" })
+        .qualify_for::<Judge>(&Subject {
+            id: "artifact-of-b",
+        })
         .unwrap_err()
     {
         QualifyError::NonIdentityViolated { principal, .. } => {
@@ -207,7 +218,9 @@ fn a_family_cannot_judge_what_it_produced_but_can_judge_elsewhere() {
         other => panic!("expected the non-identity refusal, got {other}"),
     }
     let q = b
-        .qualify_for::<Judge>(&Subject { id: "artifact-of-a" })
+        .qualify_for::<Judge>(&Subject {
+            id: "artifact-of-a",
+        })
         .expect("family-b did not produce artifact-of-a");
     assert_eq!(q.principal_id(), "family-b-judge");
 }
@@ -251,8 +264,9 @@ principals:
 "#,
     )
     .unwrap();
-    assert!(pop
-        .check()
-        .iter()
-        .any(|e| matches!(e, ConfigError::FamilyWithAuthored { id } if id == "both")));
+    assert!(
+        pop.check()
+            .iter()
+            .any(|e| matches!(e, ConfigError::FamilyWithAuthored { id } if id == "both"))
+    );
 }
