@@ -48,7 +48,7 @@ pub use config::{Backing, ConfigError, Kind, Population, PrincipalSpec, Provider
 pub use instance::Instance;
 pub use judgment::{DispatchedJudge, DispatchedRecord};
 pub use oracle_llm::{Adjudicate, ModelOracle, Prompt, Unreachable, resolve};
-pub use pass::{CycleOutcome, Finding, run_cycle};
+pub use pass::{Audit, CycleOutcome, Finding, audit_run, run_cycle};
 pub use principal::{
     Answer, Configured, Oracle, Unwired, population_pool, population_pool_with_log,
 };

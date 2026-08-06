@@ -21,17 +21,33 @@ pub struct Finding {
     pub reason: String,
 }
 
-/// The theory's face to the engine: audit the model and propose a remedy.
+/// **Every theory's face to the engine**: it can be audited.
+///
+/// Audit-only theories (`principals` is one) implement [`Audit`] and are driven
+/// by [`audit_run`] — they see what is wrong but never fix it, because they
+/// declare no edits. Editable theories also implement [`Pass`], adding the
+/// rectify half.
+pub trait Audit {
+    /// Audit the whole model; return every defect found. A theory that can be
+    /// rectified later treats the first as the one to remedy.
+    fn audit(&self) -> Vec<Finding>;
+}
+
+/// The editable theory's face to the engine: audit + propose a remedy.
 ///
 /// A theory implementing this for its world (and [`Verify`] for its edits) can
 /// be driven by [`run_cycle`]; the engine never needs to know the theory's
 /// sorts, edits or roles.
-pub trait Pass<E>: Verify<E> {
-    /// Audit the whole model; return the first defect, if any.
-    fn audit(&self) -> Option<Finding>;
+pub trait Pass<E>: Audit + Verify<E> {
     /// An author's typed remedy for a defect. Called with the world, so a
     /// theory may consult its own model to build the edit.
     fn remedy(&self, f: &Finding) -> E;
+}
+
+/// **Audit-only mode**: run the audit and report what is wrong, without
+/// rectifying. The engine's `audit` face for any theory.
+pub fn audit_run<W: Audit>(world: &W) -> Vec<Finding> {
+    world.audit()
 }
 
 /// What a cycle produced.
@@ -62,10 +78,10 @@ pub fn run_cycle<O: Oracle, E: Clone, W, ARole: Role, JRole: Role>(
 where
     W: Pass<E>,
 {
-    let Some(finding) = world.audit() else {
+    let findings = world.audit();
+    let Some(claim) = findings.into_iter().next() else {
         return CycleOutcome::Clean;
     };
-    let claim = finding;
 
     // propose — the author, with standing, writes a typed remedy
     let pen = pool
@@ -115,10 +131,13 @@ pub fn audit(world: &Questions) -> Option<Finding> {
 
 /// The questions theory's `Pass`: audit with `affects_mirrors_inbound`, remedy
 /// by mirroring the first drift edge.
-impl Pass<rung_std::questions::QuestionEdit> for Questions {
-    fn audit(&self) -> Option<Finding> {
-        audit(self)
+impl Audit for Questions {
+    fn audit(&self) -> Vec<Finding> {
+        audit(self).into_iter().collect()
     }
+}
+
+impl Pass<rung_std::questions::QuestionEdit> for Questions {
     fn remedy(&self, _f: &Finding) -> rung_std::questions::QuestionEdit {
         use rung_std::questions::EdgeKind;
         let (target, kind) = self

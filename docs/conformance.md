@@ -618,7 +618,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 187 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 188 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -682,6 +682,10 @@ look shorter than it is.
 - `the_test_scan_includes_this_very_test`
 - `the_triage_is_recorded`
 - `verbatim_blocks_carry_only_non_propositional_matter`
+
+**`rung-driver/tests/audit_only.rs`** — 1 unclaimed
+
+- `audit_only_run_reports_without_rectifying`
 
 **`rung-driver/tests/carrier.rs`** — 10 unclaimed
 
