@@ -223,6 +223,15 @@ impl Prov {
         self.0.contains(tag)
     }
 
+    /// The members, in sorted order.
+    ///
+    /// The one route out of the set: a `dispatched` judgment record must list
+    /// the judge's provenance, so it needs to enumerate what the sealed
+    /// `Judgment` carries (`Konremoveit-withdrawal`).
+    pub fn members(&self) -> impl Iterator<Item = &str> {
+        self.0.iter().map(String::as_str)
+    }
+
     /// This provenance with one further tag — `π ∪ {tag}`.
     ///
     /// The floor's constructor. [`Principal`] has no `provenance` of its own;
