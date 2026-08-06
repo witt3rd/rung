@@ -453,10 +453,14 @@ Two things stand in the way, and only one is work:
 
 - **[Q14](questions/resolved/q14-model-principal-provenance.md)** — what
   provenance a model principal carries. **Ruled** (stake-based π, definitional);
-  what remains open is the **carrier** — a commission-and-contribution source so
-  `authored` becomes a derived fact. Until that exists, a model judge still
-  either qualifies for nothing or qualifies vacuously under the only provenance
-  the pool can read.
+  and **[Q16](questions/resolved/q16-provenance-carrier.md)** has now ruled the
+  **carrier** too: `authored(p)` is a derived fact read from a **commission
+  contribution record**, `C(f,c)`, over the active commission set. What remains
+  open is the **implementation** of that record
+  ([Q17](questions/open/q17-provenance-carrier-implementation.md)) — a source
+  the pool can actually read. Until it exists, a model judge still either
+  qualifies for nothing or qualifies vacuously under the only provenance the
+  pool can read, and `population.yaml` must not be hand-populated.
 - **[Q15](questions/open/q15-does-the-pass-suspend.md)** — the pass
   disposes through a *branching* transition, which has no residual channel, so
   it cannot wait for a question it raised.

@@ -57,7 +57,7 @@ joining the four moves. Suspension in the pass.
 
 Ordered by what blocks what, not by size.
 
-### 2.1 — Q14: ruled definitionally; the carrier is the gate now
+### 2.1 — Q14 and Q16 ruled; the carrier's implementation is the gate now
 
 [Q14](../questions/resolved/q14-model-principal-provenance.md) asked what provenance
 a model principal carries. **It is ruled** (2026-08-05): the stake-based reading
@@ -76,19 +76,28 @@ readings:
 The per-invocation reading was the dangerous one: it would have shown up as 47
 propositions settling smoothly and meant nothing.
 
-**What the ruling does not supply is the carrier.** `population.yaml` still
-declares empty `authored` for every model — now an *acknowledged, temporary
-placeholder* (the ruling refuses it as the per-invocation reading, and a test
-still pins it so it cannot ship quietly as a working configuration). The loose
-end is not the definition but the **commission-and-contribution carrier**: a
-source that turns `authored(p)` from a static declaration into a derived fact.
-Until that carrier exists, a model judge still qualifies vacuously under the
-only provenance the pool can read, and **nothing guessed is written into
-`population.yaml`**.
+**What the ruling did not supply was the carrier — and now
+[Q16](../questions/resolved/q16-provenance-carrier.md) has supplied its
+definition.** An outside ruling (2026-08-05) adopts the **commission
+contribution record** as the carrier: `authored(p) = ⋃_{c∈S} C(f,c)`, with
+`C : Family × CommissionId → P_fin(ArtifactId)`, commission boundaries harness
+state, and prior commissions entering `S` only by explicit supplier decision.
+The two forbidden shapes are refused (a guessed static list; a source needing
+its own judgment).
 
-**The escalation chain's definitional wall is cleared; its carrier wall is not.**
-A human last-resort presumes something above him, and the only candidates are
-models — but a model can only be admitted once the carrier makes its stake real.
+**What remains open is the *implementation* of that record
+([Q17](../questions/open/q17-provenance-carrier-implementation.md)).**
+`population.yaml` still declares empty `authored` for every model — an
+*acknowledged, temporary placeholder* (a test pins it so it cannot ship quietly
+as a working configuration). The loose end is not the definition but a `C` the
+pool can actually read; until it exists and is wired in, a model judge still
+qualifies vacuously under the only provenance the pool can read, and **nothing
+guessed is written into `population.yaml`**.
+
+**The escalation chain's definitional wall is cleared and so is the carrier's
+definitional wall; the implementation wall is not.** A human last-resort
+presumes something above him, and the only candidates are models — but a model
+can only be admitted once the record makes its stake real.
 
 ### 2.2 — One `dispatched` judgment record
 
@@ -204,7 +213,9 @@ machinery were not there.
 
 | | | status |
 |---|---|---|
-| Q14 | what provenance a model principal carries | **resolved** — definition ruled; carrier open |
+| Q14 | what provenance a model principal carries | **resolved** — definition ruled |
+| Q16 | what carrier makes `authored(p)` a derived fact | **resolved** — commission contribution record; implementation open (Q17) |
+| Q17 | implement the commission contribution record | open — the implementation gate |
 | Q15 | does the pass suspend, or re-enter | open |
 | Q11 | gate-faithfulness; `#[conditional]` unencoded | open |
 | Q13 | suspension across process death | open |
@@ -222,10 +233,12 @@ which is the signal to retire the proposition rather than a regression.
 
 Stated so it can be abandoned honestly rather than quietly.
 
-- **Q14 has no answer that keeps non-identity real.** Then models cannot judge
-  this corpus, the escalation chain has nothing above the human, and
-  "last-resort" is unreachable. The loop still runs for the decidable fragment;
-  the judgmental one stays declared and unsettled indefinitely.
+- **No carrier can be built that keeps non-identity real.** Q14 and Q16 have
+  ruled on the definition; if the commission contribution record Q17 builds
+  cannot be made decidable, non-vacuous and non-total at once, then models
+  cannot judge this corpus, the escalation chain has nothing above the human,
+  and "last-resort" is unreachable. The loop still runs for the decidable
+  fragment; the judgmental one stays declared and unsettled indefinitely.
 - **A code-edit round trip cannot be made to bite.** Then `enact` over the
   implementation is unverifiable, and an author agent is a code generator with
   extra ceremony.

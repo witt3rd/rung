@@ -53,7 +53,9 @@ Moving a file between folders is the lifecycle. Git history records every transi
 | Q12 | Does admissibility constrain the value an arrow returns, or the dispatch that produced it? | **resolved** — the **value**; a judgmental outcome carries its judge's provenance, and output admissibility then *derives* |
 | Q13 | Can a suspended run survive process death? (reconstituting a rung from bytes is fabricating a mid-ladder rung) | **open** — resumption-is-authorial answers *who may*, not *what the token is* |
 | Q15 | Should raising a question suspend the pass, or re-enter it? (the pass disposes through a *branching* transition, which has no residual channel) | **open** — without suspension the only way to wait is to spin, and every rule that stops a spin is worth-shaped |
-| Q14 | What provenance does a model principal carry? (`Kind::Llm` is admissible; non-identity needs a `π` for it) | **open** — per-family disqualifies nearly everything, per-invocation is vacuous |
+| Q16 | What carrier makes `authored(p)` a derived fact? | **resolved** — the **commission contribution record**; the implementation is open (Q17) |
+| Q17 | Implement the commission contribution record and wire it into the pool | **open** — the implementation gate on Stage 5 |
+| Q14 | What provenance does a model principal carry? (`Kind::Llm` is admissible; non-identity needs a `π` for it) | **resolved** — stake-based π: `authored(p) ∪ {id(p)}` |
 
 **The growth tower** (`morphisms → functors in Cat → natural transformations in Fun`) and the CT-map-as-question-generator live in `_map.md` — the category theory is the principled source of the growth questions, not an ad-hoc list.
 

@@ -754,13 +754,13 @@ look shorter than it is.
 
 - `a_blocked_question_re_enters_at_gathered_rather_than_terminating`
 - `every_internal_dependency_in_the_real_files_resolves`
-- `every_per_question_decidable_sentence_holds_over_all_fifteen_questions`
+- `every_per_question_decidable_sentence_holds_over_all_questions`
 - `no_question_is_blocked_on_itself`
 - `p0_refuses_the_curator_as_a_judge_of_this_repositorys_own_questions`
 - `standing_over_a_folder_can_be_refused_with_nowhere_to_appeal`
 - `the_lifecycle_ladder_runs_the_authorial_and_judgmental_gates_in_turn`
 - `the_real_questions_report_their_outbound_edge_drift`
-- `the_sixteen_questions_are_read_from_disk`
+- `the_seventeen_questions_are_read_from_disk`
 
 **`rung-het/tests/second_domain.rs`** — 5 unclaimed
 

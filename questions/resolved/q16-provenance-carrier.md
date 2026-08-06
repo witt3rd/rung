@@ -1,15 +1,19 @@
 ---
 id: q16
-status: open
+status: resolved
 depends_on:
   - {on: q14, kind: premise}
+  - {on: q16-ruling-commission-record, kind: evidence}
 affects:
   - {target: bootstrap-stage-5, kind: gate}
+  - {target: q17, kind: premise}
 ---
 
-# Q16 — What carrier makes `authored(p)` a derived fact? *(open)*
+# Q16 — What carrier makes `authored(p)` a derived fact? *(resolved)*
 
-**Status:** OPEN
+**Status:** RESOLVED (2026-08-05) · **Ruling:** the carrier is a **commission
+contribution record** — `authored(p) = ⋃_{c∈S} C(f,c)`. The two forbidden shapes
+are refused; the implementation of the record is the open follow-on.
 
 **Question.** Q14's ruling adopted the stake-based provenance map
 `π(p) = authored(p) ∪ {id(p)}` with `authored(p)` the commission-local set of
@@ -81,6 +85,10 @@ and `population.yaml` must not be hand-populated.
 - **[Q2](../parked/q2-cross-crate-provenance.md)** — unrelated despite the
   shared word. Q2 asks whether a *token* survives a crate boundary; this asks
   where a *principal's* stake is recorded.
+- **[Q17](../open/q17-provenance-carrier-implementation.md)** — the follow-on,
+  below. Q16's ruling settles the definition; Q17 tracks the *implementation*
+  of the record `C` and its wiring into the pool. Q16 is resolved because all
+  remaining action lives in Q17, not as a dead note in a done-pile.
 
 ## State
 
@@ -89,3 +97,16 @@ and `population.yaml` must not be hand-populated.
   rather than folded into Q14's body, because it has a distinct resolution
   condition and its own gate on Stage 5 — a bet that would otherwise evaporate
   inside a resolved question's State entry.
+- **2026-08-05** — Resolved (definitional). An outside expert's ruling adopts
+  the **commission contribution record** as the carrier: `authored(p) =
+  ⋃_{c∈S} C(f,c)`, with `C : Family × CommissionId → P_fin(ArtifactId)`,
+  commission boundaries harness state, and prior commissions entering `S` only
+  by explicit supplier decision. The two forbidden shapes (a guessed static
+  list; a source needing its own judgment) are refused. Relocating a question
+  to `resolved/` is refused without an evidence edge, so the ruling is written
+  as `questions/resolved/_evidence/q16-ruling-commission-record.md`.
+  **The implementation is open.** The record `C` does not exist yet and is not
+  wired into the pool, so model principals still read the static empty field
+  and remain capable-but-inert under P0; Stage 5 stays gated by the absence of
+  the carrier, not by any definitional ambiguity. The implementation is filed
+  as Q17, where it is scanned, rather than noted here, where it would not be.
