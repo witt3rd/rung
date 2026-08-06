@@ -32,6 +32,7 @@
 pub mod carrier;
 pub mod commission;
 pub mod config;
+pub mod instance;
 pub mod oracle_llm;
 pub mod principal;
 
@@ -42,6 +43,7 @@ pub use carrier::{
 };
 pub use commission::CommissionLog;
 pub use config::{Backing, ConfigError, Kind, Population, PrincipalSpec, Provider, RoleSpec};
+pub use instance::Instance;
 pub use oracle_llm::{Adjudicate, ModelOracle, Prompt, Unreachable, resolve};
 pub use principal::{
     Answer, Configured, Oracle, Unwired, population_pool, population_pool_with_log,
