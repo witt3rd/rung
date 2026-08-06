@@ -1,23 +1,17 @@
-//! The composed audit-rectify cycle, run by the generic driver.
+//! The composed audit-rectify engine — generic over the theory (Q19).
 //!
-//! One cycle: audit -> propose -> dispose -> enact -> **verify** (the observer
-//! reads the post-state back, not the author's word — `enact-verify`) — and,
-//! now that a [`Ruling`] carries its sealed [`Judgment`] (Q12 made true of the
-//! pass), a `tier: dispatched` record written from that seal, so the loop both
-//! runs *and* writes.
-//!
-//! This is the questions instance's wiring: `run_cycle` is concrete for the
-//! questions world so the sealed-token plumbing is typed and green. The
-//! generic `Pass<E>` trait refinement is the next step toward a fully
-//! theory-agnostic engine.
+//! The driver's one job: run `audit -> propose -> dispose -> enact -> verify`
+//! over whatever theory instantiates it. The theory fills the slots via
+//! [`Pass`]: what to audit, what remedy to propose for a defect, and (through
+//! [`Verify`]) how an observer confirms the post-state. The author and the two
+//! roles are passed in, so this file never names `Questions`, `Curator` or
+//! `Adjudicator` — that is the theory crate's business.
 
-use std::sync::Arc;
-
-use rung::{Pool, Verdict};
+use rung::{Pool, Role, Verdict};
 use rung_het::{Disposition, Proposal, Verify, dispose, enact};
-use rung_std::questions::{Adjudicator, Curator, EdgeKind, QuestionEdit, Questions, questions};
+use rung_std::questions::{Questions, questions};
 
-use crate::{Configured, DispatchedRecord, Oracle, Population};
+use crate::{Configured, DispatchedRecord, Oracle};
 
 /// A defect the audit found on one subject.
 #[derive(Debug, Clone)]
@@ -27,19 +21,17 @@ pub struct Finding {
     pub reason: String,
 }
 
-/// The audit half, for the questions world: `affects_mirrors_inbound` names a
-/// genuine, pinned defect until every internal edge is acknowledged.
-pub fn audit(world: &Questions) -> Option<Finding> {
-    let settled = questions::affects_mirrors_inbound::holds(world);
-    let Verdict::NonConforming { reason } = settled.verdict() else {
-        return None;
-    };
-    let (src, _dependent, _kind) = world.outbound_drift().first()?.clone();
-    Some(Finding {
-        subject: src,
-        sentence: "affects_mirrors_inbound".to_string(),
-        reason: reason.to_string(),
-    })
+/// The theory's face to the engine: audit the model and propose a remedy.
+///
+/// A theory implementing this for its world (and [`Verify`] for its edits) can
+/// be driven by [`run_cycle`]; the engine never needs to know the theory's
+/// sorts, edits or roles.
+pub trait Pass<E>: Verify<E> {
+    /// Audit the whole model; return the first defect, if any.
+    fn audit(&self) -> Option<Finding>;
+    /// An author's typed remedy for a defect. Called with the world, so a
+    /// theory may consult its own model to build the edit.
+    fn remedy(&self, f: &Finding) -> E;
 }
 
 /// What a cycle produced.
@@ -54,72 +46,89 @@ pub enum CycleOutcome {
     },
 }
 
-/// Run one composed audit-rectify cycle over the questions world.
+/// Run one composed audit-rectify cycle over a theory's world.
 ///
-/// `pop` is the questions-capable population, `pool` the adjudicator pool, and
-/// `oracle` the principal-facing ask. On a defect it drives
-/// propose -> dispose -> enact -> verify and returns the `dispatched` record
-/// the driver would write to `judgments/`.
-pub fn run_cycle<O: Oracle>(
-    world: &mut Questions,
-    pop: &Population,
+/// `world` implements [`Pass<E>`] for the edit type; `author` is the acting
+/// author (with, `standing` over the territory); `ARole`/`JRole` name the
+/// authorial and judgmental gates of this theory's pass; `pool` holds the
+/// principals for the judge role.
+#[allow(clippy::too_many_arguments)]
+pub fn run_cycle<O: Oracle, E: Clone, W, ARole: Role, JRole: Role>(
+    world: &mut W,
+    author: Configured<O>,
+    standing: &str,
     pool: &Pool<Configured<O>>,
-    oracle: Arc<O>,
-) -> CycleOutcome {
-    let Some(finding) = audit(world) else {
+) -> CycleOutcome
+where
+    W: Pass<E>,
+{
+    let Some(finding) = world.audit() else {
         return CycleOutcome::Clean;
     };
     let claim = finding;
 
-    // propose — an author with standing over the tree
-    let author = pop
-        .by_id("opus-author")
-        .expect("an author is declared")
-        .clone();
-    let author_cfg = Configured::new(author, oracle);
+    // propose — the author, with standing, writes a typed remedy
     let pen = pool
-        .authorize::<Curator, _>(&author_cfg, "questions")
-        .expect("the author holds standing over the tree");
+        .authorize::<ARole, _>(&author, standing)
+        .expect("the author holds standing over the territory");
+    let edit = world.remedy(&claim);
+    let proposal = Proposal::remedy(&pen, &claim.subject, edit.clone());
 
-    let (dependent, kind) = world
-        .outbound_drift()
-        .first()
-        .map(|(_s, d, k)| (d.clone(), k.clone()))
-        .expect("the pinned drift exists");
-    let edge_kind = EdgeKind::parse(&kind).expect("the drift names a declared kind");
-    let proposal = Proposal::remedy(
-        &pen,
-        &claim.subject,
-        QuestionEdit::AddEdge {
-            target: dependent.clone(),
-            kind: edge_kind,
-        },
-    );
-
-    // dispose — a judge disjoint from the proposal; the ruling seals its judgment
+    // dispose — a judge disjoint from the author; the ruling seals its judgment
     let judge = pool
-        .qualify_for::<Adjudicator>(&proposal)
-        .expect("a judge disjoint from the proposal's author");
+        .qualify_for::<JRole>(&proposal)
+        .expect("a judge disjoint from the author");
     let ruling = dispose(&proposal, judge, Disposition::Accept)
         .expect("the licence was minted against this proposal");
 
-    // enact — the author applies the edit
-    let _ = enact(world, &ruling, &pen).expect("the tree admits the mirroring");
+    // enact — the author applies the edit to the world
+    let _ = enact(world, &ruling, &pen).expect("the world admits the edit");
 
     // verify — the observer reads the post-state back, not the author's word
-    let edit = QuestionEdit::AddEdge {
-        target: dependent,
-        kind: edge_kind,
-    };
     let verified = world.confirms(&edit, &claim.subject);
 
     // the ruling's sealed judgment -> `tier: dispatched` bookkeeping
     let record = DispatchedRecord::from_judgment(
         &claim.sentence,
-        "adjudicator",
+        JRole::NAME,
         ruling.judgment(),
         "2026-08-06",
     );
 
     CycleOutcome::Rectified { verified, record }
+}
+
+/// The audit half for the questions world: `affects_mirrors_inbound` names a
+/// genuine, pinned defect until every internal edge is acknowledged.
+pub fn audit(world: &Questions) -> Option<Finding> {
+    let settled = questions::affects_mirrors_inbound::holds(world);
+    let Verdict::NonConforming { reason } = settled.verdict() else {
+        return None;
+    };
+    let (src, _d, _k) = world.outbound_drift().first()?.clone();
+    Some(Finding {
+        subject: src,
+        sentence: "affects_mirrors_inbound".to_string(),
+        reason: reason.to_string(),
+    })
+}
+
+/// The questions theory's `Pass`: audit with `affects_mirrors_inbound`, remedy
+/// by mirroring the first drift edge.
+impl Pass<rung_std::questions::QuestionEdit> for Questions {
+    fn audit(&self) -> Option<Finding> {
+        audit(self)
+    }
+    fn remedy(&self, _f: &Finding) -> rung_std::questions::QuestionEdit {
+        use rung_std::questions::EdgeKind;
+        let (target, kind) = self
+            .outbound_drift()
+            .first()
+            .map(|(_s, d, k)| (d.clone(), k.clone()))
+            .expect("the drift names a declared kind");
+        rung_std::questions::QuestionEdit::AddEdge {
+            target,
+            kind: EdgeKind::parse(&kind).expect("declared kind"),
+        }
+    }
 }

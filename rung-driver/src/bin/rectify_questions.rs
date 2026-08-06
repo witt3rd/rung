@@ -26,10 +26,11 @@
 //! a ruling, not more machinery.
 
 use rung_driver::{
-    Answer, Backing, CommissionLog, CycleOutcome, Oracle, Population, population_pool, run_cycle,
+    Answer, Backing, CommissionLog, Configured, CycleOutcome, Oracle, Population, population_pool,
+    run_cycle,
 };
 
-use rung_std::questions::{Questions, Scheme};
+use rung_std::questions::{Adjudicator, Curator, Questions, Scheme};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -135,7 +136,9 @@ fn main() {
     let pop = Population::from_yaml(QUESTIONS_POPULATION).expect("the questions population parses");
     let pool = population_pool(&pop, "adjudicator", Arc::new(Holding));
 
-    match run_cycle(&mut world, &pop, &pool, Arc::new(Holding)) {
+    let author = pop.by_id("opus-author").expect("declared").clone();
+    let author_cfg = Configured::new(author, Arc::new(Holding));
+    match run_cycle::<_, _, _, Curator, Adjudicator>(&mut world, author_cfg, "questions", &pool) {
         CycleOutcome::Clean => {
             println!("  audit: conforming — nothing to rectify. Done.");
             return;
