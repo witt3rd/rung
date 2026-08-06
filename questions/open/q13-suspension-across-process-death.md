@@ -5,6 +5,7 @@ depends_on:
   - {on: q2, kind: justification}
 affects:
   - {target: q4, kind: premise}
+  - {target: q18, kind: premise}
 ---
 
 # Q13 — Can a suspended run survive process death? *(open)*

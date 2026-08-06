@@ -153,16 +153,16 @@ fn pool() -> Pool<Person> {
 /// The questions are read, not invented. If this count drifts, every audit
 /// below is silently weaker, so it is pinned.
 #[test]
-fn the_seventeen_questions_are_read_from_disk() {
+fn the_eighteen_questions_are_read_from_disk() {
     let r = load();
     let ids: Vec<&str> = r.questions.iter().map(|q| q.id.as_str()).collect();
     assert_eq!(
         ids,
         [
-            "q1", "q10", "q11", "q12", "q13", "q14", "q15", "q16", "q17", "q2", "q3", "q4", "q5",
-            "q6", "q7", "q8", "q9"
+            "q1", "q10", "q11", "q12", "q13", "q14", "q15", "q16", "q17", "q18", "q2", "q3",
+            "q4", "q5", "q6", "q7", "q8", "q9"
         ],
-        "questions/ holds seventeen questions; an audit over zero of them proves nothing"
+        "questions/ holds eighteen questions; an audit over zero of them proves nothing"
     );
 }
 
