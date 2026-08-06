@@ -681,6 +681,11 @@ pub struct Ruling<E> {
     object: String,
     disposition: Disposition,
     judge: String,
+    /// The sealed [`Judgment`] of the judge who disposed — its provenance is
+    /// the seal's, not a field: Q12's *a judgmental outcome carries its judge's
+    /// provenance*, made true of the pass's ruling. A `dispatched` record is
+    /// written from this, and nothing can fabricate it.
+    judgment: Judgment,
     /// The edit the ruling affirms, if it affirms one.
     edit: Option<E>,
 }
@@ -707,6 +712,12 @@ impl<E> Ruling<E> {
     /// The edit this ruling licenses, if any.
     pub fn edit(&self) -> Option<&E> {
         self.edit.as_ref()
+    }
+
+    /// The sealed judgment of the judge who disposed — provenance out of the
+    /// seal, for a `dispatched` record.
+    pub fn judgment(&self) -> &Judgment {
+        &self.judgment
     }
 
     /// Take the licence out of an affirming ruling, or `None`.
@@ -833,6 +844,10 @@ pub fn dispose<R: Role, E: Clone>(
     Ok(Ruling {
         object: proposal.object().to_string(),
         judge: judge.principal_id().to_string(),
+        // The sealed judgment of the adjudicator who disposed — provenance
+        // rides out of the seal, so the ruling can substantiate a `dispatched`
+        // record and cannot fabricate one.
+        judgment: judge.judgment().clone(),
         disposition,
         edit,
     })
