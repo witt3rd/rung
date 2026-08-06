@@ -357,7 +357,7 @@ none can be edited by hand and a new proposition cannot be added without a kind.
 
 `_props.py` survives for exactly two jobs, and neither duplicates the encoding:
 it re-derives every number from the *rendered markdown* rather than from the
-source, which makes it an independent second implementation agreeing on all 380;
+source, which makes it an independent second implementation agreeing on all 388;
 and it checks that Rust comments citing a slug still resolve, which nothing else
 does.
 
@@ -385,10 +385,10 @@ each proposition: **what kind of authority could settle it.**
 
 | kind | discharged by | count |
 |---|---|---:|
-| **decidable** | a proof — a test that fails when the proposition is violated | 123 |
+| **decidable** | a proof — a test that fails when the proposition is violated | 130 |
 | **judgmental** | a principal, **disjoint** from what it judges — ruling recorded in [`judgments/`](judgments/) | 47 |
 | **owed** | an author, with **standing** over it | 3 |
-| **signature** | nobody — it declares vocabulary | 59 |
+| **signature** | nobody — it declares vocabulary | 60 |
 | **rationale** | nobody — it argues, or records a limit | 148 |
 
 The two middle rows are the point. They route to **structurally exclusive**
@@ -453,19 +453,18 @@ Two things stand in the way, and only one is work:
 
 - **[Q14](questions/resolved/q14-model-principal-provenance.md)** — what
   provenance a model principal carries. **Ruled** (stake-based π, definitional);
-  and **[Q16](questions/resolved/q16-provenance-carrier.md)** has now ruled the
-  **carrier** too: `authored(p)` is a derived fact read from a **commission
-  contribution record**, `C(f,c)`, over the active commission set. What remains
-  open is the **implementation** of that record
-  ([Q17](questions/open/q17-provenance-carrier-implementation.md)) — a source
-  the pool can actually read. Until it exists, a model judge still either
-  qualifies for nothing or qualifies vacuously under the only provenance the
-  pool can read, and `population.yaml` must not be hand-populated.
+  **[Q16](questions/resolved/q16-provenance-carrier.md)** ruled the **carrier** —
+  a commission contribution record, `C(f,c)`, over the active commission set;
+  and **[Q17](questions/resolved/q17-provenance-carrier-implementation.md)** has
+  **built** it. `authored(p)` is now a derived fact the pool reads by family
+  from `commissions.yaml` — a lookup, not a growing array. What remains is to
+  *populate* the record with real contributions (harness state; nothing is
+  guessed); until then every model's derived set is open by design.
 - **[Q15](questions/open/q15-does-the-pass-suspend.md)** — the pass
   disposes through a *branching* transition, which has no residual channel, so
   it cannot wait for a question it raised.
 
-The honest measure of this project is not 380 propositions encoded or 239 tests
+The honest measure of this project is not 388 propositions encoded or 250 tests
 passing. It is **how many defects in rung were found and fixed by the loop
 rather than by a person**. That number is zero.
 

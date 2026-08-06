@@ -102,20 +102,20 @@ principals:
 
   # ── models ───────────────────────────────────────────────────────────────
   #
-  # WARNING, and it is the whole reason this file cannot yet be used to judge
-  # this repository: `authored` below is a placeholder. Q14 (what provenance a
-  # model principal carries) is OPEN, and until it is ruled on there is no
-  # defensible value here.
+  # `authored` is NOT declared here for a model. Q14 ruled that a model's
+  # provenance is stake-based, pi(p) = authored(p) ∪ {id(p)}; Q16 ruled that
+  # the carrier is a commission contribution record; and Q17 built it. Each
+  # model below declares its stable `family` (Q14's family identifier), and the
+  # pool derives `authored(p)` from `commissions.yaml` by looking that family
+  # up at qualification time. A static `authored` list here would be a second,
+  # hand-maintained source of truth — and a growing one — so a model with a
+  # `family` must not also declare `authored` (the driver refuses it).
   #
-  #   per-family    -> every model is disqualified from nearly everything,
-  #                    because models wrote most of this corpus
-  #   per-invocation -> non-identity holds always and VACUOUSLY, and a model
-  #                    judges text it produced minutes earlier
-  #
-  # The second passes every check this system has while making the guarantee
-  # decorative, so the empty list below is deliberately the conservative
-  # reading's opposite and must not be shipped as-is. Anything dispatched
-  # against these today should be treated as unsettled.
+  # The derived set is empty today because `commissions.yaml` records no
+  # contributions yet: that is the honest "no commission recorded" state, not
+  # the refused per-invocation reading. The moment a commission records what a
+  # family produced, that family's models become non-vacuous — they cannot
+  # judge those artifacts. Until then nothing is disqualified by fiction.
   #
   # ## Procurement is shopping, and the tiers are deliberate
   #
@@ -140,7 +140,7 @@ principals:
     kind: llm
     capabilities: [reasoning, web-research, structured-outputs]
     standing: []
-    authored: []
+    family: anthropic/claude-opus-5
     backing: {via: model, provider: anthropic, model: claude-opus-5}
 
   # ── the doctrine judge — better reasoning at low cost ─────────────────────
@@ -151,7 +151,7 @@ principals:
     kind: llm
     capabilities: [reasoning, structured-outputs]
     standing: []
-    authored: []
+    family: openai/gpt-5.6-luna-pro
     backing: {via: model, provider: openai, model: gpt-5.6-luna-pro}
 
   # ── the categorical mix — a second family for panels ─────────────────────
@@ -161,7 +161,7 @@ principals:
     kind: llm
     capabilities: [reasoning, web-research]
     standing: []
-    authored: []
+    family: x-ai/grok-4.5
     backing: {via: model, provider: openrouter, model: x-ai/grok-4.5}
 
   # ── the doctrine author ──────────────────────────────────────────────────
@@ -175,7 +175,7 @@ principals:
     kind: agent
     capabilities: [reasoning, code-generation, file-editing]
     standing: [rung-doctrine/src]
-    authored: []
+    family: deepseek/deepseek-v4-flash-0731
     backing:
       via: agent
       provider: openrouter
@@ -184,10 +184,11 @@ principals:
 
   # ── the questions pass ───────────────────────────────────────────────────
   #
-  # Same Q14 caveat as the model principals above: `authored` is the empty
-  # placeholder, so any question these settle is provisional until Q14 rules on
-  # model provenance. The roles are declared so the questions pass can be
-  # *populated*; dispatching meaningfully is gated on Q14.
+  # Same provenance story as the model principals above: `authored` is derived
+  # per family from `commissions.yaml` by lookup, not declared here. The roles
+  # are declared so the questions pass can be populated; dispatching
+  # meaningfully is now gated on the commission record actually containing
+  # contributions (see the comments atop `commissions.yaml`).
   #
   # The curator is an agent — it edits question files, so it needs file-editing,
   # and holds standing over the whole questions tree. DeepSeek family, so a
@@ -198,7 +199,7 @@ principals:
     kind: agent
     capabilities: [reasoning, file-editing]
     standing: [questions]
-    authored: []
+    family: deepseek/deepseek-v4-flash-0731
     backing:
       via: agent
       provider: openrouter
@@ -212,7 +213,7 @@ principals:
     kind: llm
     capabilities: [reasoning, web-research]
     standing: []
-    authored: []
+    family: openai/gpt-5.6-luna-pro
     backing: {via: model, provider: openai, model: gpt-5.6-luna-pro}
 
   # The adjudicator judges `resolution_answers_the_question` and
@@ -222,5 +223,5 @@ principals:
     kind: llm
     capabilities: [reasoning, structured-outputs]
     standing: []
-    authored: []
+    family: openai/gpt-5.6-luna-pro
     backing: {via: model, provider: openai, model: gpt-5.6-luna-pro}

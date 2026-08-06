@@ -1,0 +1,39 @@
+# The commission contribution record — the carrier Q16 ruled on, Q17 built.
+#
+# `authored(p)` is DERIVED from this file by lookup, keyed on a principal's
+# `family` (declared in population.yaml). It is never enumerated as a growing
+# array in a principal's declaration — this record is the single source the
+# pool reads at qualification time.
+#
+#   authored(p) = \u22c3_{c in active} C(f, c)
+#
+# where C(f, c) is the set of artifacts family f produced under commission c.
+#
+# ## The two keys
+#
+# `active`: the current commission, plus any prior commissions the supplier has
+# EXPLICITLY carried forward. A newly opened commission is empty, and a prior
+# commission enters this list only by explicit decision — never automatically.
+#
+# `contributions`: C, keyed family -> commission -> [artifacts]. Each entry is
+# the harness recording a contribution that actually happened; nothing here is
+# guessed.
+#
+# ## Why this file is deliberately empty
+#
+# The Q16 ruling refuses a guessed static list: the actual per-family
+# contribution record for this corpus is untracked, and asserting entries we do
+# not know would manufacture the provenance tags the floor exists to protect.
+# So this record starts with NO contributions recorded and an empty active set
+# — the honest "no commission has been recorded yet" state. The MECHANISM is
+# fully wired: the moment a commission records a contribution for a family, a
+# model of that family derives a non-vacuous `authored` set and can no longer
+# judge those artifacts. Until then, every family's derived set is open.
+#
+# To record a contribution (harness state, not hand-authoring): name a
+# commission, add it to `active`, and list the artifacts each family produced
+# under it. A closed commission leaves `active` and its artifacts re-open to
+# later, disjoint instances of the same family unless the supplier carries it
+# forward.
+active: []
+contributions: {}

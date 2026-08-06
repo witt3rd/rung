@@ -29,13 +29,17 @@
 //! **When to stop waiting.** Parking is [`rung_std::driver::Park`]'s, and it has
 //! no timeout for the same reason.
 
+pub mod commission;
 pub mod config;
 pub mod oracle_llm;
 pub mod principal;
 
+pub use commission::CommissionLog;
 pub use config::{Backing, ConfigError, Kind, Population, PrincipalSpec, Provider, RoleSpec};
 pub use oracle_llm::{Adjudicate, ModelOracle, Prompt, Unreachable, resolve};
-pub use principal::{Answer, Configured, Oracle, Unwired, population_pool};
+pub use principal::{
+    Answer, Configured, Oracle, Unwired, population_pool, population_pool_with_log,
+};
 
 /// Re-exported so a driver has one import for holding suspended runs.
 pub use rung_std::driver::Park;

@@ -126,8 +126,25 @@ pub struct PrincipalSpec {
     /// conjunct; capability alone never authorizes a write.
     #[serde(default)]
     pub standing: Vec<String>,
+    /// The family this principal belongs to — the `f` under which the
+    /// commission record attributes its work.
+    ///
+    /// For a discontinuous kind (a model, an agent) this is Q14's **family
+    /// identifier**: the model name+version, or an agent's declared
+    /// composition. When present, `authored(p)` is **derived** from the
+    /// [`CommissionLog`](crate::CommissionLog) by looking up this family — it
+    /// is never enumerated as a growing array here. When absent (a continuous
+    /// kind, like a person), `authored` remains the principal's genuine,
+    /// declared record.
+    #[serde(default)]
+    pub family: Option<String>,
     /// `π(p)` — what this principal has authored. The judgmental filter's
     /// second conjunct, and the reason a principal cannot rule on its own work.
+    ///
+    /// For a principal with a [`family`](Self::family) this must be empty:
+    /// provenance is *derived*, so a second, hand-maintained copy would be the
+    /// exact two-sources-of-truth the carrier exists to remove
+    /// (see [`ConfigError::FamilyWithAuthored`]).
     #[serde(default)]
     pub authored: Vec<String>,
     #[serde(default = "outside")]
@@ -183,6 +200,10 @@ pub enum ConfigError {
     DuplicateProvider {
         name: String,
     },
+    /// A principal with a `family` also declares a static `authored`. The two
+    /// disagree structurally: `authored` is *derived* for a family, so a second
+    /// hand-maintained copy is a latent two-sources-of-truth. Refused.
+    FamilyWithAuthored { id: String },
 }
 
 impl std::fmt::Display for ConfigError {
@@ -199,6 +220,10 @@ impl std::fmt::Display for ConfigError {
             Self::DuplicateProvider { name } => {
                 write!(f, "provider `{name}` is declared twice")
             }
+            Self::FamilyWithAuthored { id } => write!(
+                f,
+                "`{id}` declares both `family` and a static `authored`; authored is                  derived from the commission record for a family, so the two conflict"
+            ),
         }
     }
 }
@@ -256,6 +281,9 @@ impl Population {
                     id: p.id.clone(),
                     provider: name.to_string(),
                 });
+            }
+            if p.family.is_some() && !p.authored.is_empty() {
+                errs.push(ConfigError::FamilyWithAuthored { id: p.id.clone() });
             }
         }
         let wanted: Vec<&str> = self

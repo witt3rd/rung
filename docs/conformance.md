@@ -139,7 +139,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-het-props.md`
 
-**Counts.** 48 decidable · 25 judgmental · 1 owed · 101 rationale · 27 signature · 202 total.
+**Counts.** 55 decidable · 25 judgmental · 1 owed · 101 rationale · 28 signature · 210 total.
 
 ### The relation
 
@@ -188,6 +188,14 @@ unsettled. Where it is blank, nobody has written one down.
 | [3.23](rung-het-props.md#nothing-further-required) | `nothing-further-required` | `rationale` | The division is now observable from both sides. `rung::Principal` asks for `capable` and `id`, `Provenanced` for `π`, `Steward` for standing — and nothing anywhere in `rung` names a kind, a substrate partition, an identity field, a cost tier or a population. `rung-std::principals` names all five, because a supplier that named none of them would have supplied nothing. The cited test binds the interface at its declared arities and shows the licence that comes back out carrying an id, a provenance and a role — the kind, its required fields and its tier stay on the supplier's side of the line. What is NOT enforced: that a future `rung` stays incurious. Nothing structurally prevents the library growing a `Kind`; this row records that it has not. | — |
 | [3.24](rung-het-props.md#capable-single-arity) | `capable-single-arity` | `rationale` | `Principal::capable(&self, role_name: &str)` — one arity, and the second argument is a NAME. A supplier keys its qualification table on that name (`rung-std::principals::RoleSpec`), because a `Role` type cannot be recovered from a string; that is the shape this proposition forces, met rather than worked around. The cited test passes a *sentence* name where a role name goes and gets `false`: a principal does not have the theory's sentences and cannot be asked to inspect them. rung proves the arity, not that any supplier's table is right. | — |
 | [3.25](rung-het-props.md#principal-provenance-floor) | `principal-provenance-floor` | `rationale` | — | — |
+| [3.251](rung-het-props.md#commission-record-is-the-carrier) | `commission-record-is-the-carrier` | `signature` | Conformance: `PrincipalSpec::family` and `CommissionLog` in `rung-driver`; `Configured::authored` derives from the record when a family is present. `commissions.yaml` is the record rung's own population reads. | — |
+| [3.252](rung-het-props.md#commission-authored-is-lookup) | `commission-authored-is-lookup` | `decidable` | Exercised by `commission-authored-is-lookup`'s proof: a family with `x`,`y` in one active commission and `y`,`z` in another derives `{x,y,z}`. | `rung-driver/tests/commission.rs::authored_is_the_union_of_a_familys_active_commissions` |
+| [3.253](rung-het-props.md#commission-record-not-total) | `commission-record-not-total` | `decidable` | Exercised by `commission-record-not-total`'s proof: a closed, non-carried commission's artifact is absent from `authored`, and returns only when the commission is explicitly carried forward. | `rung-driver/tests/commission.rs::closed_non_carried_commissions_stay_open` |
+| [3.254](rung-het-props.md#commission-new-commission-empty) | `commission-new-commission-empty` | `decidable` | Exercised by `commission-new-commission-empty`'s proof: an active commission with no contributions attributes nothing. | `rung-driver/tests/commission.rs::a_new_commission_starts_empty` |
+| [3.255](rung-het-props.md#commission-non-vacuous) | `commission-non-vacuous` | `decidable` | Exercised by `commission-non-vacuous`'s proof: a family that recorded a contribution is refused for its own artifact and qualifies for another family's — reached through the pool, derived solely from the record. | `rung-driver/tests/commission.rs::a_family_cannot_judge_what_it_produced_but_can_judge_elsewhere` |
+| [3.256](rung-het-props.md#commission-derived-not-declared) | `commission-derived-not-declared` | `decidable` | Exercised by `commission-derived-not-declared`'s proof: every family principal in a sample population has `family` set and an empty `authored` field. | `rung-driver/tests/commission.rs::family_principals_declare_no_standing_authored` |
+| [3.257](rung-het-props.md#commission-no-dual-source) | `commission-no-dual-source` | `decidable` | Exercised by `commission-no-dual-source`'s proof: the population's `check` reports `FamilyWithAuthored` for such a principal. | `rung-driver/tests/commission.rs::family_plus_authored_is_a_fault` |
+| [3.258](rung-het-props.md#commission-record-roundtrips) | `commission-record-roundtrips` | `decidable` | Exercised by `commission-record-roundtrips`'s proof: serializing then re-parsing a record yields an equal value. | `rung-driver/tests/commission.rs::the_record_round_trips_through_yaml` |
 | [3.3](rung-het-props.md#three-belonging-predicates) | `three-belonging-predicates` | `rationale` | — | — |
 | [3.31](rung-het-props.md#ordering-is-hetopts) | `ordering-is-hetopts` | `decidable` | Cost tier is declared — per substrate kind, in `rung-std::principals::Kind::cost_tier` — and ordered nowhere. The cited test is the direct observation: roster A is laid out so the qualifying set opens with the costliest substrate and closes with the cheapest, and `Pool::qualify_for` picks the human over the model. Under the minimal-judge rule the order inverts. Deriving `Ord` on `CostTier` and sorting the set by it in `qualifying_set` is type-valid and turns the test red at the kind sequence. This row was `out-of-scope` while nothing in the workspace declared a tier; a supplier now does, and ordering it is a thing a host can refuse to do. | `rung-std/tests/principals_theory.rs::the_qualifying_set_is_not_ordered_by_cost` |
 | [3.32](rung-het-props.md#epsilon-declared-not-ranked) | `epsilon-declared-not-ranked` | `signature` | HALF HOLDS, HALF IS A GAP. *Never ranked*: `rung-std::principals` declares an `Epsilon` per principal and no accessor and no comparison exist for one, so nothing can read it as a preference; `principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon` enforces that across every source file. *Declared so the verdict can carry its error bar*: it cannot. `Settled::Judgmental` carries sentence, role, principal and verdict, and there is no field for an error bar — so the ε a supplier already declares stops at the supplier. This is a **different** gap from [4.6](rung-het-props.md#epsilon-reported-with-verdict), which asks whether a judge's confidence is expressible at all; this one asks whether the ε that IS declared reaches the caller. Deleting the `#[ignore]` reports it. | — |
@@ -588,12 +596,12 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 123 |
+| `decidable` | 130 |
 | `judgmental` | 47 |
 | `owed` | 3 |
 | `rationale` | 148 |
-| `signature` | 59 |
-| **total** | **380** |
+| `signature` | 60 |
+| **total** | **388** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
@@ -684,10 +692,10 @@ look shorter than it is.
 - `each_principal_resolves_to_the_provider_that_serves_it`
 - `hedging_is_not_a_verdict`
 - `leading_whitespace_is_tolerated`
+- `model_provenance_is_derived_from_the_commission_record`
 - `provider_settings_are_per_provider`
 - `the_author_may_write_the_source_and_not_the_rendering`
 - `the_declared_judges_and_authors_are_disjoint_sets`
-- `the_model_principals_provenance_is_still_a_placeholder`
 - `the_population_names_credentials_and_never_holds_one`
 - `the_repositorys_population_parses_and_is_well_formed`
 - `the_three_declared_forms_are_read`

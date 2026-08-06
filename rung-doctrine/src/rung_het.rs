@@ -483,6 +483,137 @@ a hand-written `Provenanced` impl for a principal is refused by coherence.*
             mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
+            slug: "commission-record-is-the-carrier".into(),
+            parent: Some("principal-provenance-floor".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**The carrier of `authored(p)` (Q16).** For a discontinuous
+kind — a model, an agent — the supplier does not enumerate `authored(p)` as a
+declaration: that would be a growing, hand-maintained second source of truth.
+Instead `authored(p)` is **derived by lookup** from a **commission contribution
+record**:
+
+$$\mathsf{authored}(p) = \bigcup_{c \in S} C(f, c)$$
+
+where $f$ is the principal's family (Q14's family identifier), $S$ is the
+**active commission set** — the current commission plus any prior commissions
+the supplier explicitly carried forward — and $C(f,c)$ is the finite set of
+artifacts family $f$ produced under commission $c$. A principal that names a
+family carries no `authored` list of its own; the pool reads the record at
+qualification time. A principal without a family (a continuous kind, e.g. a
+person) keeps `authored` as its own genuine, declared record.
+
+"#.into(),
+            mechanism: r#"Conformance: `PrincipalSpec::family` and
+`CommissionLog` in `rung-driver`; `Configured::authored` derives from the
+record when a family is present. `commissions.yaml` is the record rung's own
+population reads."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "commission-authored-is-lookup".into(),
+            parent: Some("principal-provenance-floor".into()),
+            kind: Kind::Decidable { proof: "rung-driver/tests/commission.rs::authored_is_the_union_of_a_familys_active_commissions".into() },
+            numbering: None,
+            prose: r#"`authored(f)` is the union, over the active commissions, of
+`C(f,c)` — an artifact in two active commissions is counted once, and the
+result is order-stable because it is the content of a set, not a list the
+supplier typed.
+
+"#.into(),
+            mechanism: r#"Exercised by
+`commission-authored-is-lookup`'s proof: a family with `x`,`y` in one active
+commission and `y`,`z` in another derives `{x,y,z}`."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "commission-record-not-total".into(),
+            parent: Some("principal-provenance-floor".into()),
+            kind: Kind::Decidable { proof: "rung-driver/tests/commission.rs::closed_non_carried_commissions_stay_open".into() },
+            numbering: None,
+            prose: r#"**Not total.** An artifact in a commission that is closed
+and **not** carried forward is not in `authored(f)` — it falls out of the
+active set and re-opens to later, disjoint instances of the same family. Only a
+supplier's explicit carry-forward brings a prior commission's artifacts back
+into $S$.
+
+"#.into(),
+            mechanism: r#"Exercised by `commission-record-not-total`'s proof:
+a closed, non-carried commission's artifact is absent from `authored`, and
+returns only when the commission is explicitly carried forward."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "commission-new-commission-empty".into(),
+            parent: Some("principal-provenance-floor".into()),
+            kind: Kind::Decidable { proof: "rung-driver/tests/commission.rs::a_new_commission_starts_empty".into() },
+            numbering: None,
+            prose: r#"A newly opened commission is empty for every family: no
+artifact is retroactively claimed. `authored(f)` for an untouched family is the
+empty set, which is the honest "nothing recorded yet" state rather than the
+refused per-invocation vacuity.
+
+"#.into(),
+            mechanism: r#"Exercised by `commission-new-commission-empty`'s
+proof: an active commission with no contributions attributes nothing."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "commission-non-vacuous".into(),
+            parent: Some("principal-provenance-floor".into()),
+            kind: Kind::Decidable { proof: "rung-driver/tests/commission.rs::a_family_cannot_judge_what_it_produced_but_can_judge_elsewhere".into() },
+            numbering: None,
+            prose: r#"**Non-vacuous.** Inside an open commission, a family cannot
+judge an artifact its family produced under that commission: it is in
+$C(f,c)$ for an active commission, hence in `authored(f)`, hence in
+$\pi(p)$, so {#disjointness-against-argument} refuses it end to end. Judging
+an artifact of a different family is untouched.
+
+"#.into(),
+            mechanism: r#"Exercised by `commission-non-vacuous`'s proof: a
+family that recorded a contribution is refused for its own artifact and
+qualifies for another family's — reached through the pool, derived solely from
+the record."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "commission-derived-not-declared".into(),
+            parent: Some("principal-provenance-floor".into()),
+            kind: Kind::Decidable { proof: "rung-driver/tests/commission.rs::family_principals_declare_no_standing_authored".into() },
+            numbering: None,
+            prose: r#"A principal that names a family **declares no `authored`
+list** — its stake is derived from the record, not typed. The declaration
+carries only the family, which is stable, and the record carries everything
+that changes.
+
+"#.into(),
+            mechanism: r#"Exercised by `commission-derived-not-declared`'s
+proof: every family principal in a sample population has `family` set and an
+empty `authored` field."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "commission-no-dual-source".into(),
+            parent: Some("principal-provenance-floor".into()),
+            kind: Kind::Decidable { proof: "rung-driver/tests/commission.rs::family_plus_authored_is_a_fault".into() },
+            numbering: None,
+            prose: r#"A principal that declares **both** a `family` and a static
+`authored` is refused as ill-formed: `authored` is derived for a family, so a
+second hand-maintained copy is the exact two-sources-of-truth the carrier
+exists to remove.
+
+"#.into(),
+            mechanism: r#"Exercised by `commission-no-dual-source`'s proof: the
+population's `check` reports `FamilyWithAuthored` for such a principal."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "commission-record-roundtrips".into(),
+            parent: Some("principal-provenance-floor".into()),
+            kind: Kind::Decidable { proof: "rung-driver/tests/commission.rs::the_record_round_trips_through_yaml".into() },
+            numbering: None,
+            prose: r#"The commission record is data in a file, and it round-trips
+through YAML: a record a driver reads and the one it re-serializes cannot
+drift.
+
+"#.into(),
+            mechanism: r#"Exercised by `commission-record-roundtrips`'s proof:
+serializing then re-parsing a record yields an equal value."#.into(),
+        }),
+        Element::Prop(Prop {
             slug: "three-belonging-predicates".into(),
             parent: Some("pool-is-parameter".into()),
             kind: Kind::Rationale,
