@@ -7,8 +7,10 @@
 //! `tier: dispatched` record. This is the loop the hand-rolled
 //! `rectify_questions` used to spell out by hand.
 
-use rung_driver::{Answer, Backing, CycleOutcome, Oracle, Population, population_pool, run_cycle};
-use rung_std::questions::{Questions, Scheme};
+use rung_driver::{
+    Answer, Backing, Configured, CycleOutcome, Oracle, Population, population_pool, run_cycle,
+};
+use rung_std::questions::{Adjudicator, Curator, Questions, Scheme};
 use std::sync::Arc;
 
 const RUNG: Scheme = Scheme {
@@ -62,7 +64,9 @@ fn the_composed_loop_closes_with_a_dispatched_record() {
     let pop = Population::from_yaml(QUESTIONS_POPULATION).unwrap();
     let pool = population_pool(&pop, "adjudicator", Arc::new(Holding));
 
-    match run_cycle(&mut world, &pop, &pool, Arc::new(Holding)) {
+    let author = pop.by_id("opus-author").expect("declared").clone();
+    let author_cfg = Configured::new(author, Arc::new(Holding));
+    match run_cycle::<_, _, _, Curator, Adjudicator>(&mut world, author_cfg, "questions", &pool) {
         CycleOutcome::Clean => {
             panic!("the pinned drift is genuinely present; the loop must not report clean")
         }
