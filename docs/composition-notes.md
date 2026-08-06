@@ -12,15 +12,15 @@ imposes no obligation.
 > the outside expert as principals — is half done: `rung-driver` builds a pool
 > from `population.yaml` and reaches models, but no judgment has been
 > dispatched, because what provenance a model carries is
-> [Q14](../questions/resolved/q14-model-principal-provenance.md), ruled —
-> and the carrier's definition is [Q16](../questions/resolved/q16-provenance-carrier.md),
-> and its [implementation](../questions/resolved/q17-provenance-carrier-implementation.md)
+> [Q14](../questions/q14-model-principal-provenance.md), ruled —
+> and the carrier's definition is [Q16](../questions/q16-provenance-carrier.md),
+> and its [implementation](../questions/q17-provenance-carrier-implementation.md)
 > is built: `authored` is now a family keyed lookup into the commission record.
 >
 > **Items 3, 6 and 7 stand.** And §4's shape is now blocked on something this
 > note did not anticipate: the pass disposes through a *branching* transition,
 > which has no residual channel, so it cannot wait for a question it raised —
-> [Q15](../questions/open/q15-does-the-pass-suspend.md).
+> [Q15](../questions/q15-does-the-pass-suspend.md).
 >
 > §8's summary — *the system governs what passes through it, and the interesting
 > work passed around it* — is still the honest reading.

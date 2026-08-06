@@ -190,7 +190,7 @@ fn a_judge_without_a_verdict_is_refused() {
 /// **A panel is carried; its size is nobody's business here.**
 ///
 /// `panels` is `⊨` with more than one judge, and the habit in
-/// `questions/resolved/_evidence/` is two independent reviews. The schema takes
+/// `questions/_evidence/` is two independent reviews. The schema takes
 /// any number and three pass exactly as one does.
 ///
 /// Deciding that a claim *warrants* a deep panel rather than one reasoning

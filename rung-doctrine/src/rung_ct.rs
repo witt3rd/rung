@@ -1176,7 +1176,7 @@ Membership of either sub-category is therefore a property of the body, which is
 {#proof-is-of-traversal-not-correctness} exactly. Guarantees on the domain
 do not compose into a guarantee on the codomain, and adding a third such
 guarantee did not change that — which is the whole content of
-[Q11](../questions/open/q11-gate-faithfulness.md)'s answer.
+[Q11](../questions/q11-gate-faithfulness.md)'s answer.
 
 "#.into(),
             mechanism: r#""#.into(),

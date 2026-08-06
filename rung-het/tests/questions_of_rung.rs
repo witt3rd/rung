@@ -175,7 +175,6 @@ fn every_per_question_decidable_sentence_holds_over_all_questions() {
         for settled in [
             question::id_matches_the_filename::holds(q),
             question::status_is_declared::holds(q),
-            question::status_agrees_with_the_directory::holds(q),
             question::edge_kinds_are_declared::holds(q),
         ] {
             assert!(
@@ -195,7 +194,7 @@ fn every_per_question_decidable_sentence_holds_over_all_questions() {
     }
 
     println!(
-        "\n  audit — {} questions × 4 decidable sentences",
+        "\n  audit — {} questions × 3 decidable sentences",
         r.questions.len()
     );
     if violations.is_empty() {
@@ -528,7 +527,7 @@ fn the_lifecycle_ladder_runs_the_authorial_and_judgmental_gates_in_turn() {
     let gathered = questionlifecycle::gathered(questionlifecycle::Open::new(q1), pen);
     assert_eq!(
         gathered.payload.sources,
-        vec!["questions/open/q1-transition-body-correctness.md".to_string()]
+        vec!["questions/q1-transition-body-correctness.md".to_string()]
     );
 
     let pen = pen_over(&p, &CURATOR, "open").unwrap();

@@ -59,7 +59,7 @@ Ordered by what blocks what, not by size.
 
 ### 2.1 — Q14 and Q16 ruled; the carrier's implementation is the gate now
 
-[Q14](../questions/resolved/q14-model-principal-provenance.md) asked what provenance
+[Q14](../questions/q14-model-principal-provenance.md) asked what provenance
 a model principal carries. **It is ruled** (2026-08-05): the stake-based reading
 holds — `π(p) = authored(p) ∪ {id(p)}`, with `id(p)` the family identifier for
 discontinuous kinds and `authored(p)` commission-local. Of the three candidate
@@ -77,7 +77,7 @@ The per-invocation reading was the dangerous one: it would have shown up as 47
 propositions settling smoothly and meant nothing.
 
 **What the ruling did not supply was the carrier — and now
-[Q16](../questions/resolved/q16-provenance-carrier.md) has supplied its
+[Q16](../questions/q16-provenance-carrier.md) has supplied its
 definition.** An outside ruling (2026-08-05) adopts the **commission
 contribution record** as the carrier: `authored(p) = ⋃_{c∈S} C(f,c)`, with
 `C : Family × CommissionId → P_fin(ArtifactId)`, commission boundaries harness
@@ -86,7 +86,7 @@ The two forbidden shapes are refused (a guessed static list; a source needing
 its own judgment).
 
 **What was left open was the *implementation* of that record
-([Q17](../questions/resolved/q17-provenance-carrier-implementation.md)), and
+([Q17](../questions/q17-provenance-carrier-implementation.md)), and
 that is now **built**. `CommissionLog` in `rung-driver` derives `authored(f)`
 by family-indexed lookup over the active set; `PrincipalSpec::family` replaces
 the growing `authored` array; `Configured::authored` reads the record at
@@ -130,7 +130,7 @@ than papered over.
 
 ### 2.4 — Q15, or the pass cannot wait
 
-[Q15](../questions/open/q15-does-the-pass-suspend.md): `het_pass!` disposes
+[Q15](../questions/q15-does-the-pass-suspend.md): `het_pass!` disposes
 through a **branching** transition, and G16's residual channel is on *forward*
 transitions only. So `RaisesQuestions -> Audited` re-enters immediately and the
 pass cannot wait for a question it raised.

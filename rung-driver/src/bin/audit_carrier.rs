@@ -93,8 +93,7 @@ fn run_question_audit(inst: &Instance, base: &Path) {
             .unwrap_or("");
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let Some(q) = Question::parse(RUNG, &text, dir, stem) else {
-            eprintln!("  {id}: not a parseable question");
-            violations += 1;
+            // infra files (README, INTAKE, _map) are not questions of the sort
             continue;
         };
         audited += 1;
@@ -106,10 +105,6 @@ fn run_question_audit(inst: &Instance, base: &Path) {
             (
                 "status_is_declared",
                 question::status_is_declared::holds(&q),
-            ),
-            (
-                "status_agrees_with_the_directory",
-                question::status_agrees_with_the_directory::holds(&q),
             ),
             (
                 "edge_kinds_are_declared",

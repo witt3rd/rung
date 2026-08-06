@@ -79,13 +79,13 @@ and `population.yaml` must not be hand-populated.
 
 ## Relation to neighbours
 
-- **[Q14](../resolved/q14-model-principal-provenance.md)** — the premise, above.
+- **[Q14](q14-model-principal-provenance.md)** — the premise, above.
   Q14 fixed the map; this supplies the values. Q14's own State records this as
   its follow-on obligation.
-- **[Q2](../parked/q2-cross-crate-provenance.md)** — unrelated despite the
+- **[Q2](q2-cross-crate-provenance.md)** — unrelated despite the
   shared word. Q2 asks whether a *token* survives a crate boundary; this asks
   where a *principal's* stake is recorded.
-- **[Q17](../resolved/q17-provenance-carrier-implementation.md)** — the follow-on,
+- **[Q17](q17-provenance-carrier-implementation.md)** — the follow-on,
   below, now resolved with it. Q16's ruling settles the definition; Q17 built
   the record `C` and wired it into the pool. Q16 is resolved because its owed
   work moved to Q17 — a scanned question, not a dead note — and Q17 is resolved
@@ -105,7 +105,7 @@ and `population.yaml` must not be hand-populated.
   by explicit supplier decision. The two forbidden shapes (a guessed static
   list; a source needing its own judgment) are refused. Relocating a question
   to `resolved/` is refused without an evidence edge, so the ruling is written
-  as `questions/resolved/_evidence/q16-ruling-commission-record.md`.
+  as `questions/_evidence/q16-ruling-commission-record.md`.
   **The implementation is open.** The record `C` does not exist yet and is not
   wired into the pool, so model principals still read the static empty field
   and remain open-as-recorded under P0 until a commission attributes work; the

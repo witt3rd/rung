@@ -8,20 +8,24 @@ This is the `outer-loop/bets/` and `augur/genesis/meta/questions/` pattern, appl
 
 ---
 
-## Folder is status
+## Status is metadata, not folder
+
+The docket is a **flat** collection of one markdown file per question; status is
+carried by each question's own **frontmatter** (`status: open`, `resolved`,
+`blocked`, `parked`, `dissolved`). Structure is parsed from the subject, never
+from where it sits — so a carrier (a flat folder, or a JSONL stream) yields
+subjects directly and the theory reads their state out of themselves.
 
 ```
 questions/
-  open/       — unresolved. actively awaiting an answer, and ours to push.
-  parked/     — a known mechanism exists, but the cost isn't worth paying yet (YAGNI).
-  blocked/    — depends on something outside this project (e.g. a language feature).
-  resolved/   — the fold is complete. The answer has landed in a normative surface
-                (SPEC / RUNG-CT / the macro) AND every owed change there is done.
-                Not "answer found" — "answer propagated." If any fold is still owed,
-                the file stays out of resolved/.
+  q01-*.md   — status: open    · unresolved, ours to push.
+  q14-*.md   — status: resolved · the fold is complete (answer propagated).
+  ...
+  _evidence/ — the ruling artifacts resolved questions cite.
 ```
 
-Moving a file between folders is the lifecycle. Git history records every transition for free. Each question keeps its stable **Q-number** as an ID (referenced from `RUNG-CT.md`, `rung-props.md`, and the handoff) — the number is the anchor; the folder is the status.
+Each question keeps its stable **Q-number** as an ID (referenced from the docs
+and the handoff) — the number is the anchor; the frontmatter is the status.
 
 **How a question gets *in* is [`INTAKE.md`](INTAKE.md)** — the capture door (the *front half* of the lifecycle this README specifies). It names the three-part "worth filing" test, the filing procedure, and rung's two doors: *captured* (a question surfaces in lived work) and *generated* (`_map.md`'s growth tower predicts the next one). This README is the back half; INTAKE is the front.
 

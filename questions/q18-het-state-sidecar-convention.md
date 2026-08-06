@@ -89,13 +89,13 @@ any particular carrier's shape.
   sidecar's `park/` can only make the loop *restart* if a suspended run can
   survive process death at all; Q13's answer bounds what "restart" here can
   mean.
-- **[Q17](../resolved/q17-provenance-carrier-implementation.md)** — the
+- **[Q17](q17-provenance-carrier-implementation.md)** — the
   commission record Q17 built is one piece of the state; this asks where it
   (and the rest) lives. Independent: the carrier can be built anywhere, but the
   convention decides where it is *kept*.
-- **[Q16](../resolved/q16-provenance-carrier.md)** / **[Q14](../resolved/q14-model-principal-provenance.md)**
+- **[Q16](q16-provenance-carrier.md)** / **[Q14](q14-model-principal-provenance.md)**
   — fixed the provenance; this fixes the provenance's *home*.
-- **[Q2](../parked/q2-cross-crate-provenance.md)** — unrelated despite the
+- **[Q2](q2-cross-crate-provenance.md)** — unrelated despite the
   shared word. Q2 asks whether a *token* survives a crate boundary; this asks
   where a loop's *state* is kept.
 

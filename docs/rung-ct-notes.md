@@ -16,7 +16,7 @@
 >
 > Two things here remain load-bearing and are cited as such:
 >
-> - **The resolution records (§4–§6)** — `questions/resolved/q7`, `q9`, `q10`
+> - **The resolution records (§4–§6)** — `questions/q7`, `q9`, `q10`
 >   and their `_evidence/` name this document as the fold target. Those
 >   citations point *here* deliberately: they record the reasoning, not the
 >   requirement.
@@ -136,7 +136,7 @@ A short derivation index. The claim itself lives in
 
 ## 4. Q7 — effectful bodies: which monad?
 
-*Resolved 2026-07-18. Record: `questions/resolved/q7-effectful-bodies-which-monad.md`
+*Resolved 2026-07-18. Record: `questions/q7-effectful-bodies-which-monad.md`
 and its `_evidence/`.*
 
 **The question.** A fallible transition returns `Result<StepOutcome, Failed<A>>`
@@ -193,7 +193,7 @@ in the error structure.
 
 ## 5. Q9 — the dependency superstructure
 
-*Resolved 2026-07-18. Record: `questions/resolved/q9-the-dependency-superstructure.md`
+*Resolved 2026-07-18. Record: `questions/q9-the-dependency-superstructure.md`
 and its `_evidence/`.*
 
 **The question.** A ladder is one category. But ladders — and questions, claims,
@@ -249,7 +249,7 @@ decision docket. `questions/README.md` is the operational quickstart.
 
 **The falsifier that forced typed edges — a lived cascade, not a design taste.**
 The cheap thing to build is one untyped `depends_on`. What killed it was **Q7's
-resolution** (`questions/resolved/q7-effectful-bodies-which-monad.md`), where
+resolution** (`questions/q7-effectful-bodies-which-monad.md`), where
 three items rested on the changed node and each required a *different* response:
 
 - **RUNG-CT §6** was a `premise`. Its framing was **wrong** until the resolution
@@ -286,7 +286,7 @@ store eventually) is inconsequential; the model is what is named.
 
 ## 6. Q10 — the tower iterates
 
-*Resolved 2026-07-19. Record: `questions/resolved/q10-fractal-registry-hierarchy.md`
+*Resolved 2026-07-19. Record: `questions/q10-fractal-registry-hierarchy.md`
 and its `_evidence/`.*
 
 **The question.** §5 describes the opfibration over *one* base — the item graph
@@ -455,7 +455,7 @@ Recorded so it is not mistaken for completeness.
   correspondence describes a trace wherever a caller accumulates one. The Python
   reference interpreter does.
 - **True no-drop linearity** is a language-level want, tracked as **Q3**
-  (`questions/blocked/q3-true-no-drop-linearity.md`). `#[must_use]` is the affine
+  (`questions/q3-true-no-drop-linearity.md`). `#[must_use]` is the affine
   approximation and is escapable.
 - **Async** is **Q8**, open, unblocked by Q7.
 - **Gate-faithfulness** — Het's requirement that an algebra declare which arrows

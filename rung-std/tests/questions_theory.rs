@@ -177,7 +177,6 @@ fn every_per_question_sentence_holds_over_the_whole_docket() {
         for settled in [
             question::id_matches_the_filename::holds(q),
             question::status_is_declared::holds(q),
-            question::status_agrees_with_the_directory::holds(q),
             question::edge_kinds_are_declared::holds(q),
         ] {
             assert!(
@@ -508,7 +507,7 @@ fn a_parked_question_re_enters_at_gathered_rather_than_terminating() {
     let gathered = questionlifecycle::gathered(questionlifecycle::Open::new(d4), pen);
     assert_eq!(
         gathered.payload.sources,
-        vec!["specs/decisions/parked/d4-schema-versioning.md".to_string()],
+        vec!["specs/decisions/d4-schema-versioning.md".to_string()],
         "the source path is built from the Scheme, not from a literal"
     );
 
@@ -546,7 +545,6 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
         &[
             ("id_matches_the_filename", "decidable"),
             ("status_is_declared", "decidable"),
-            ("status_agrees_with_the_directory", "decidable"),
             ("edge_kinds_are_declared", "decidable"),
             ("is_well_posed", "judgmental"),
             ("resolution_answers_the_question", "judgmental"),
@@ -571,7 +569,7 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
     );
     // `Sen(Σ)` for the theory is a hand-written concatenation, because
     // `theory!` declares one sort per invocation.
-    assert_eq!(sentences().len(), 13);
+    assert_eq!(sentences().len(), 12);
     for (name, gate) in sentences() {
         assert!(
             matches!(gate, "decidable" | "judgmental"),

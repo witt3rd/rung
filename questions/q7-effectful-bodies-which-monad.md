@@ -29,7 +29,7 @@ The cheapest falsifier: `Failed<A>` returns the *input* token, which is **not** 
 
 ## Resolution
 
-**Two independent outside expert reviews converge. The falsifier triggers: outcome (c) holds, absorbing (b).** Full reviews: `../resolved/_evidence/kleisli-review-1-dagger.md` and `../resolved/_evidence/kleisli-review-2-prism.md`.
+**Two independent outside expert reviews converge. The falsifier triggers: outcome (c) holds, absorbing (b).** Full reviews: `_evidence/kleisli-review-1-dagger.md` and `_evidence/kleisli-review-2-prism.md`.
 
 **1. `Failed<A>` is not a monad (the falsifier).** A Kleisli arrow in an exception monad needs a uniform endofunctor `T(X) = X + E` with `E` a *fixed* error object independent of the input. rung's transition is `f : A → B + A` — failure returns the *input* token, so `T_A(X) = X + A` depends on the domain. Trace composition `g ∘ f` with `f : A → B + A` and `g : B → C + B`: the composite has domain `A` and must return `A` on failure, but if `g` fails it hands back `B`. Standard monadic bind has **no mechanism to route `B → A`**. Because sequential composition requires explicit reverse edges to typecheck, **it is not a monad** — so Beck distributive laws do not apply, and the unification fails.
 
@@ -46,7 +46,7 @@ The cheapest falsifier: `Failed<A>` returns the *input* token, which is **not** 
 - **The Kleisli conjecture is closed — resolved NO on the unification.** "Q7's answer is half-written in the recover edges" resolves to **No**: error and async are orthogonal categorical gadgets.
 - **RUNG-CT §6 (the dagger) is vindicated.** The §6-dagger intuition was exactly correct — recovery *is* the Prism's backward pass, and G8's well-founded progress guard is precisely what makes that backward pass **contractive** rather than a symmetric involution. *(Fold target: RUNG-CT.md §6 gains the Prism framing.)*
 - **The blocking-client decision (cut #2) is safe.** Proceeding with `reqwest` blocking incurs **no architectural debt** — async is a new layer, not a missing piece of the error structure.
-- **Q7 spawns Q8** — the async driver. Async is a genuine free-standing feature: a strong monad evaluated *before* the optic routes the token, needing a distinct async driver, but **not** a redesign of the recovery algebra. Tracked as Q8 (`../open/q8-async-driver.md`).
+- **Q7 spawns Q8** — the async driver. Async is a genuine free-standing feature: a strong monad evaluated *before* the optic routes the token, needing a distinct async driver, but **not** a redesign of the recovery algebra. Tracked as Q8 (`q8-async-driver.md`).
 
 ## State
 - 2026-07-18 (handoff) — conjecture filed with the precise verification question and a "verify before building" gate.

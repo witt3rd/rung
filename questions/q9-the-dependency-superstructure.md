@@ -22,7 +22,7 @@ When Q7 resolved, it did **not** change one thing. It changed a *reachable set* 
 
 ## What counted as an answer
 
-Two independent outside reviews, checked against the categorical literature (Grothendieck fibrations, Moggi/Fritz on monad strength and Markov categories, Capucci–Hedges on optics, Spivak's *Poly* / Hedges' *Open Games* for the cybernetics frame), converging on a structure — the same bar that closed Q7. Full reviews: `../resolved/_evidence/q9-review-1-fibration.md` and `../resolved/_evidence/q9-review-2-opfibration.md`.
+Two independent outside reviews, checked against the categorical literature (Grothendieck fibrations, Moggi/Fritz on monad strength and Markov categories, Capucci–Hedges on optics, Spivak's *Poly* / Hedges' *Open Games* for the cybernetics frame), converging on a structure — the same bar that closed Q7. Full reviews: `_evidence/q9-review-1-fibration.md` and `_evidence/q9-review-2-opfibration.md`.
 
 ## Resolution
 
