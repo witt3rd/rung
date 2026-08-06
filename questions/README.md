@@ -54,7 +54,7 @@ Moving a file between folders is the lifecycle. Git history records every transi
 | Q13 | Can a suspended run survive process death? (reconstituting a rung from bytes is fabricating a mid-ladder rung) | **open** — resumption-is-authorial answers *who may*, not *what the token is* |
 | Q15 | Should raising a question suspend the pass, or re-enter it? (the pass disposes through a *branching* transition, which has no residual channel) | **open** — without suspension the only way to wait is to spin, and every rule that stops a spin is worth-shaped |
 | Q16 | What carrier makes `authored(p)` a derived fact? | **resolved** — the **commission contribution record**; the implementation is open (Q17) |
-| Q17 | Implement the commission contribution record and wire it into the pool | **open** — the implementation gate on Stage 5 |
+| Q17 | Implement the commission contribution record and wire it into the pool | **resolved** — built and wired; populating it is harness state |
 | Q14 | What provenance does a model principal carry? (`Kind::Llm` is admissible; non-identity needs a `π` for it) | **resolved** — stake-based π: `authored(p) ∪ {id(p)}` |
 
 **The growth tower** (`morphisms → functors in Cat → natural transformations in Fun`) and the CT-map-as-question-generator live in `_map.md` — the category theory is the principled source of the growth questions, not an ad-hoc list.

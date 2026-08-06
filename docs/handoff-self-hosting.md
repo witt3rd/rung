@@ -28,15 +28,15 @@ found and fixed by the loop rather than by a person.
 ## 1 · Where it stands
 
 ```
-decidable          123    all satisfied — `cargo run -p rung-doctrine --bin audit`
+decidable          130    all satisfied — `cargo run -p rung-doctrine --bin audit`
 judgmental          47    0 settled
 owed                 3    2 unimplemented, 1 parked test
 rationale          148
-signature           59
+signature           60
                    ───
-                   380
+                   388
 
-demonstrated failures      12 of 123   (a proof nobody watched fail is an assumption)
+demonstrated failures      12 of 130   (a proof nobody watched fail is an assumption)
 proofs claiming no prop   173          (mostly tooling; unfiltered on purpose)
 judgment records            0
 ```
@@ -85,19 +85,20 @@ state, and prior commissions entering `S` only by explicit supplier decision.
 The two forbidden shapes are refused (a guessed static list; a source needing
 its own judgment).
 
-**What remains open is the *implementation* of that record
-([Q17](../questions/open/q17-provenance-carrier-implementation.md)).**
-`population.yaml` still declares empty `authored` for every model — an
-*acknowledged, temporary placeholder* (a test pins it so it cannot ship quietly
-as a working configuration). The loose end is not the definition but a `C` the
-pool can actually read; until it exists and is wired in, a model judge still
-qualifies vacuously under the only provenance the pool can read, and **nothing
-guessed is written into `population.yaml`**.
+**What was left open was the *implementation* of that record
+([Q17](../questions/resolved/q17-provenance-carrier-implementation.md)), and
+that is now **built**. `CommissionLog` in `rung-driver` derives `authored(f)`
+by family-indexed lookup over the active set; `PrincipalSpec::family` replaces
+the growing `authored` array; `Configured::authored` reads the record at
+qualification; and `commissions.yaml` is the record rung's own population
+reads. `population.yaml`'s model principals no longer carry an `authored`
+placeholder at all — they declare a `family` and derive.
 
-**The escalation chain's definitional wall is cleared and so is the carrier's
-definitional wall; the implementation wall is not.** A human last-resort
-presumes something above him, and the only candidates are models — but a model
-can only be admitted once the record makes its stake real.
+**The escalation chain's definitional wall and the carrier's build are both
+cleared.** What a human last-resort presumes above him — the models — can now be
+admitted once a commission actually records what its family produced. That is
+harness operation, not another question: the record starts honest and empty,
+and nothing is guessed into it.
 
 ### 2.2 — One `dispatched` judgment record
 
@@ -214,8 +215,8 @@ machinery were not there.
 | | | status |
 |---|---|---|
 | Q14 | what provenance a model principal carries | **resolved** — definition ruled |
-| Q16 | what carrier makes `authored(p)` a derived fact | **resolved** — commission contribution record; implementation open (Q17) |
-| Q17 | implement the commission contribution record | open — the implementation gate |
+| Q16 | what carrier makes `authored(p)` a derived fact | **resolved** — commission contribution record |
+| Q17 | implement the commission contribution record | **resolved** — built and wired; the record is populated by harness state, not guessed |
 | Q15 | does the pass suspend, or re-enter | open |
 | Q11 | gate-faithfulness; `#[conditional]` unencoded | open |
 | Q13 | suspension across process death | open |
@@ -233,9 +234,9 @@ which is the signal to retire the proposition rather than a regression.
 
 Stated so it can be abandoned honestly rather than quietly.
 
-- **No carrier can be built that keeps non-identity real.** Q14 and Q16 have
-  ruled on the definition; if the commission contribution record Q17 builds
-  cannot be made decidable, non-vacuous and non-total at once, then models
+- **The commission record cannot be populated honestly.** Q14 and Q16 ruled
+  the definition and Q17 built the mechanism; if real commissions cannot be
+  recorded with decidable, non-vacuous, non-total contributions, then models
   cannot judge this corpus, the escalation chain has nothing above the human,
   and "last-resort" is unreachable. The loop still runs for the decidable
   fragment; the judgmental one stays declared and unsettled indefinitely.

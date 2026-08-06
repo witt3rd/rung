@@ -14,8 +14,8 @@ imposes no obligation.
 > dispatched, because what provenance a model carries is
 > [Q14](../questions/resolved/q14-model-principal-provenance.md), ruled —
 > and the carrier's definition is [Q16](../questions/resolved/q16-provenance-carrier.md),
-> ruled too; what is open is its
-> [implementation](../questions/open/q17-provenance-carrier-implementation.md).
+> and its [implementation](../questions/resolved/q17-provenance-carrier-implementation.md)
+> is built: `authored` is now a family keyed lookup into the commission record.
 >
 > **Items 3, 6 and 7 stand.** And §4's shape is now blocked on something this
 > note did not anticipate: the pass disposes through a *branching* transition,

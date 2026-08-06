@@ -1,15 +1,19 @@
 ---
 id: q17
-status: open
+status: resolved
 depends_on:
   - {on: q16, kind: premise}
+  - {on: q17-commission-record-implementation, kind: evidence}
 affects:
   - {target: bootstrap-stage-5, kind: gate}
 ---
 
-# Q17 — Implement the commission contribution record (the carrier) *(open)*
+# Q17 — Implement the commission contribution record (the carrier) *(resolved)*
 
-**Status:** OPEN
+**Status:** RESOLVED (2026-08-05) · **Ruling:** the record is built. The carrier
+is implemented in `rung-driver` (a `CommissionLog` family-indexed lookup),
+wired into the pool's `authored(p)`, written to `commissions.yaml`, and encoded
+as doctrine. Populating the record is harness state; the mechanism is done.
 
 **Question.** Q16's ruling resolved the *definition* of the carrier: it is a
 **commission contribution record** — a finite map
@@ -100,3 +104,15 @@ hand-populated.
   the same reason Q16 was filed rather than folded into Q14's — a distinct
   resolution condition and its own gate on Stage 5, which would otherwise
   evaporate inside a resolved question's State entry.
+- **2026-08-05** — Resolved (implemented). The record is built and wired:
+  `rung-driver/src/commission.rs::CommissionLog` derives `authored(f)` by
+  family-indexed lookup over the active commissions; `PrincipalSpec::family`
+  replaces the growing `authored` array (a family principal that also declares
+  `authored` is refused); `Configured::authored` reads the record at
+  qualification; `commissions.yaml` is the record rung's own population reads.
+  Eight propositions are encoded under `principal-provenance-floor`, and the
+  seven `rung-driver/tests/commission.rs` tests are their proofs. Evidence:
+  `questions/resolved/_evidence/q17-commission-record-implementation.md`.
+  **What remains is operational, not a question**: populating the record with
+  real contributions is harness state and nothing is guessed (Q16's
+  meta-refusal). Stage 5's meaning is no longer blocked on a build.

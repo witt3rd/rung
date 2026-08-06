@@ -9,7 +9,18 @@
 
 use rung::Verdict;
 use rung_driver::oracle_llm::read_reply;
-use rung_driver::{Answer, Backing, Population, Unreachable, resolve};
+use rung_driver::{
+    Answer, Backing, CommissionLog, Oracle, Population, Unreachable, population_pool_with_log,
+    resolve,
+};
+use std::sync::Arc;
+
+struct Answering;
+impl Oracle for Answering {
+    fn ask(&self, _id: &str, _backing: &Backing, _matter: &str) -> Answer {
+        Answer::holds()
+    }
+}
 
 fn verdict(text: &str) -> Option<Verdict> {
     match read_reply(text) {
@@ -122,6 +133,17 @@ fn population() -> Population {
     Population::from_yaml(&text).expect("the population parses")
 }
 
+fn commissions() -> CommissionLog {
+    let text = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("commissions.yaml"),
+    )
+    .expect("commissions.yaml");
+    CommissionLog::from_yaml(&text).expect("the commission record parses")
+}
+
 #[test]
 fn the_repositorys_population_parses_and_is_well_formed() {
     let p = population();
@@ -182,17 +204,18 @@ fn the_author_may_write_the_source_and_not_the_rendering() {
     );
 }
 
-/// **The population cannot judge this repository yet, and says so.**
+/// **Model provenance is now derived, not declared.**
 ///
-/// Every model principal declares an empty `authored`, which would make
-/// non-identity hold vacuously against every proposition. That is Q14, open —
-/// and this test exists so the placeholder cannot be forgotten and quietly
-/// shipped as a working configuration.
-///
-/// When Q14 is ruled on, this test is what has to change, deliberately.
+/// Q14 ruled the map, Q16 ruled the carrier (a commission contribution
+/// record), and Q17 built the wiring: a model declares a stable `family`, and
+/// the pool derives `authored(p)` from `commissions.yaml` by looking that
+/// family up at qualification time. A model must NOT carry a static `authored`
+/// list — that is the growing second source of truth the carrier exists to
+/// remove, and the driver refuses it (`FamilyWithAuthored`).
 #[test]
-fn the_model_principals_provenance_is_still_a_placeholder() {
+fn model_provenance_is_derived_from_the_commission_record() {
     let p = population();
+    let log = commissions();
     for id in [
         "opus-theorist",
         "gpt-judge",
@@ -204,15 +227,26 @@ fn the_model_principals_provenance_is_still_a_placeholder() {
     ] {
         let spec = p.by_id(id).expect("declared");
         assert!(
-            spec.authored.is_empty(),
-            "{id} now declares provenance — if Q14 is settled, update this test \
-             and say what the ruling was"
+            spec.family.is_some(),
+            "{id} must declare a `family` so its provenance is derived"
         );
+        assert!(
+            spec.authored.is_empty(),
+            "{id} must not carry a static `authored` list — provenance is derived"
+        );
+        // The artificial family coincides with its backing model: the pool can
+        // actually look it up. Whether it is yet non-empty is the record's
+        // state, not the mechanism's — see the commission tests.
+        let _ = log.artifacts_for(spec.family.as_deref().unwrap());
     }
 
-    // The human's provenance is real, and is what a settled model provenance
-    // would have to look like: something that actually disqualifies.
+    // Every model principal derives through a wired log without a fault.
+    let _ = population_pool_with_log(&p, "editor", Arc::new(Answering), Arc::new(log));
+
+    // The human's provenance is real, and is what a *declared* record looks
+    // like: something that actually disqualifies.
     let human = p.by_id("donald").expect("declared");
+    assert!(human.family.is_none());
     assert!(!human.authored.is_empty());
 }
 

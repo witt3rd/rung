@@ -229,6 +229,66 @@ being `impl<P: Principal> Provenanced for P { authored().with(id()) }`;
 `rung/tests/provenance_floor.rs`, whose third case is a `trybuild` **E0119** —
 a hand-written `Provenanced` impl for a principal is refused by coherence.*
 
+<a id="commission-record-is-the-carrier" data-parent="principal-provenance-floor"></a>
+**3.251** **The carrier of `authored(p)` (Q16).** For a discontinuous
+kind — a model, an agent — the supplier does not enumerate `authored(p)` as a
+declaration: that would be a growing, hand-maintained second source of truth.
+Instead `authored(p)` is **derived by lookup** from a **commission contribution
+record**:
+
+$$\mathsf{authored}(p) = \bigcup_{c \in S} C(f, c)$$
+
+where $f$ is the principal's family (Q14's family identifier), $S$ is the
+**active commission set** — the current commission plus any prior commissions
+the supplier explicitly carried forward — and $C(f,c)$ is the finite set of
+artifacts family $f$ produced under commission $c$. A principal that names a
+family carries no `authored` list of its own; the pool reads the record at
+qualification time. A principal without a family (a continuous kind, e.g. a
+person) keeps `authored` as its own genuine, declared record.
+
+<a id="commission-authored-is-lookup" data-parent="principal-provenance-floor"></a>
+**3.252** `authored(f)` is the union, over the active commissions, of
+`C(f,c)` — an artifact in two active commissions is counted once, and the
+result is order-stable because it is the content of a set, not a list the
+supplier typed.
+
+<a id="commission-record-not-total" data-parent="principal-provenance-floor"></a>
+**3.253** **Not total.** An artifact in a commission that is closed
+and **not** carried forward is not in `authored(f)` — it falls out of the
+active set and re-opens to later, disjoint instances of the same family. Only a
+supplier's explicit carry-forward brings a prior commission's artifacts back
+into $S$.
+
+<a id="commission-new-commission-empty" data-parent="principal-provenance-floor"></a>
+**3.254** A newly opened commission is empty for every family: no
+artifact is retroactively claimed. `authored(f)` for an untouched family is the
+empty set, which is the honest "nothing recorded yet" state rather than the
+refused per-invocation vacuity.
+
+<a id="commission-non-vacuous" data-parent="principal-provenance-floor"></a>
+**3.255** **Non-vacuous.** Inside an open commission, a family cannot
+judge an artifact its family produced under that commission: it is in
+$C(f,c)$ for an active commission, hence in `authored(f)`, hence in
+$\pi(p)$, so [3.51](#disjointness-against-argument) refuses it end to end. Judging
+an artifact of a different family is untouched.
+
+<a id="commission-derived-not-declared" data-parent="principal-provenance-floor"></a>
+**3.256** A principal that names a family **declares no `authored`
+list** — its stake is derived from the record, not typed. The declaration
+carries only the family, which is stable, and the record carries everything
+that changes.
+
+<a id="commission-no-dual-source" data-parent="principal-provenance-floor"></a>
+**3.257** A principal that declares **both** a `family` and a static
+`authored` is refused as ill-formed: `authored` is derived for a family, so a
+second hand-maintained copy is the exact two-sources-of-truth the carrier
+exists to remove.
+
+<a id="commission-record-roundtrips" data-parent="principal-provenance-floor"></a>
+**3.258** The commission record is data in a file, and it round-trips
+through YAML: a record a driver reads and the one it re-serializes cannot
+drift.
+
 <a id="three-belonging-predicates" data-parent="pool-is-parameter"></a>
 **3.3** Three of the four are **belonging predicates**: capability,
 non-identity, and standing. They decide whether a principal qualifies at

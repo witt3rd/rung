@@ -85,10 +85,11 @@ and `population.yaml` must not be hand-populated.
 - **[Q2](../parked/q2-cross-crate-provenance.md)** — unrelated despite the
   shared word. Q2 asks whether a *token* survives a crate boundary; this asks
   where a *principal's* stake is recorded.
-- **[Q17](../open/q17-provenance-carrier-implementation.md)** — the follow-on,
-  below. Q16's ruling settles the definition; Q17 tracks the *implementation*
-  of the record `C` and its wiring into the pool. Q16 is resolved because all
-  remaining action lives in Q17, not as a dead note in a done-pile.
+- **[Q17](../resolved/q17-provenance-carrier-implementation.md)** — the follow-on,
+  below, now resolved with it. Q16's ruling settles the definition; Q17 built
+  the record `C` and wired it into the pool. Q16 is resolved because its owed
+  work moved to Q17 — a scanned question, not a dead note — and Q17 is resolved
+  because that work is now done.
 
 ## State
 
@@ -107,6 +108,7 @@ and `population.yaml` must not be hand-populated.
   as `questions/resolved/_evidence/q16-ruling-commission-record.md`.
   **The implementation is open.** The record `C` does not exist yet and is not
   wired into the pool, so model principals still read the static empty field
-  and remain capable-but-inert under P0; Stage 5 stays gated by the absence of
-  the carrier, not by any definitional ambiguity. The implementation is filed
-  as Q17, where it is scanned, rather than noted here, where it would not be.
+  and remain open-as-recorded under P0 until a commission attributes work; the
+  definitional gate is gone and only the record's population is left. The
+  implementation was filed as Q17, where it is scanned, and is now resolved
+  with the carrier built.

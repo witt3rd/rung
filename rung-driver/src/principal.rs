@@ -15,6 +15,7 @@
 //! be the constant arrow with a config file in front of it. The oracle is the
 //! outside, and the only thing this type does with an answer is carry it.
 
+use crate::commission::CommissionLog;
 use crate::config::{Backing, PrincipalSpec};
 use rung::{Pool, Principal, Prov, Raised, Response, Steward, Verdict};
 
@@ -75,11 +76,36 @@ impl Oracle for Unwired {
 pub struct Configured<O: Oracle> {
     spec: PrincipalSpec,
     oracle: std::sync::Arc<O>,
+    /// The commission contribution record this principal's `authored` is
+    /// derived from, when it has a [`family`](PrincipalSpec::family).
+    log: Option<std::sync::Arc<CommissionLog>>,
 }
 
 impl<O: Oracle> Configured<O> {
     pub fn new(spec: PrincipalSpec, oracle: std::sync::Arc<O>) -> Self {
-        Self { spec, oracle }
+        Self {
+            spec,
+            oracle,
+            log: None,
+        }
+    }
+
+    /// A principal whose provenance is **derived** from the commission record,
+    /// keyed on its family. Use this (or
+    /// [`population_pool_with_log`](crate::population_pool_with_log)) for a
+    /// population of models; the plain [`Configured::new`] keeps `authored` as
+    /// the principal's own static declaration, which is right for a person and
+    /// wrong for a discontinuous kind.
+    pub fn with_log(
+        spec: PrincipalSpec,
+        oracle: std::sync::Arc<O>,
+        log: std::sync::Arc<CommissionLog>,
+    ) -> Self {
+        Self {
+            spec,
+            oracle,
+            log: Some(log),
+        }
     }
 
     pub fn spec(&self) -> &PrincipalSpec {
@@ -111,7 +137,15 @@ impl<O: Oracle> Principal for Configured<O> {
     }
 
     fn authored(&self) -> Prov {
-        Prov::of(self.spec.authored.iter().cloned())
+        // A principal with a family derives its stake from the commission
+        // record — that is Q16's carrier, and it is why `authored` is a lookup
+        // rather than a growing array in the declaration. A principal without
+        // a family (a continuous kind, e.g. a person) carries its own genuine
+        // record.
+        match (&self.spec.family, &self.log) {
+            (Some(family), Some(log)) => Prov::of(log.artifacts_for(family)),
+            _ => Prov::of(self.spec.authored.iter().cloned()),
+        }
     }
 
     fn rule(&self, matter: &str) -> Response {
@@ -144,6 +178,28 @@ pub fn population_pool<O: Oracle>(
     role: &str,
     oracle: std::sync::Arc<O>,
 ) -> Pool<Configured<O>> {
+    population_pool_inner(population, role, oracle, None)
+}
+
+/// Build a pool whose model principals derive `authored` from the commission
+/// record. The real population route: pass the [`CommissionLog`] this
+/// population's families record their work in, and `authored(p)` becomes a
+/// lookup against it rather than a static declaration.
+pub fn population_pool_with_log<O: Oracle>(
+    population: &crate::Population,
+    role: &str,
+    oracle: std::sync::Arc<O>,
+    log: std::sync::Arc<CommissionLog>,
+) -> Pool<Configured<O>> {
+    population_pool_inner(population, role, oracle, Some(log))
+}
+
+fn population_pool_inner<O: Oracle>(
+    population: &crate::Population,
+    role: &str,
+    oracle: std::sync::Arc<O>,
+    log: Option<std::sync::Arc<CommissionLog>>,
+) -> Pool<Configured<O>> {
     let members = population
         .capable_of(role)
         .into_iter()
@@ -152,7 +208,10 @@ pub fn population_pool<O: Oracle>(
             // Tag with the role it was admitted for, so `capable` is a lookup
             // and the requirement comparison lives in exactly one place.
             spec.capabilities.push(format!("role:{role}"));
-            Configured::new(spec, oracle.clone())
+            match &log {
+                Some(log) => Configured::with_log(spec, oracle.clone(), log.clone()),
+                None => Configured::new(spec, oracle.clone()),
+            }
         })
         .collect();
     Pool::new(members)
