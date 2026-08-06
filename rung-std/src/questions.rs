@@ -270,7 +270,7 @@ pub const fn recurses(kind: EdgeKind) -> bool {
 /// The declared status vocabulary, which is the lifecycle ladder's rungs read
 /// as data. Four of the five have a directory; `dissolved` does not — a
 /// question that dissolves is deleted, not filed — which
-/// `status_agrees_with_the_directory` has to know.
+/// status is frontmatter-canonical, so the docket is flat.
 pub const STATUSES: &[&str] = &["open", "blocked", "parked", "resolved", "dissolved"];
 
 /// The status whose directory runs a write-guard: the done-pile.
@@ -584,34 +584,35 @@ impl Questions {
     ///
     /// The root is a parameter. This function knows no path.
     pub fn load(scheme: Scheme, root: &Path) -> Self {
-        fn walk(scheme: Scheme, dir: &Path, out: &mut Vec<Question>) {
-            let Ok(entries) = std::fs::read_dir(dir) else {
-                return;
+        // **Flat, and structure is metadata.** Status comes from each
+        // question's own frontmatter — never from a folder — so the carrier is
+        // a flat set of `*.md` files and `dir` mirrors `status` for standing.
+        let mut questions = Vec::new();
+        let Ok(entries) = std::fs::read_dir(root) else {
+            return Self::new(scheme, questions);
+        };
+        for e in entries.flatten() {
+            let p = e.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+            if name.starts_with('_') || !p.is_file() {
+                continue;
+            }
+            if !p.extension().is_some_and(|x| x == "md") {
+                continue;
+            }
+            let (Ok(text), Some(stem)) = (
+                std::fs::read_to_string(&p),
+                p.file_stem().and_then(|s| s.to_str()),
+            ) else {
+                continue;
             };
-            for e in entries.flatten() {
-                let p = e.path();
-                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default();
-                if name.starts_with('_') {
-                    continue;
-                }
-                if p.is_dir() {
-                    walk(scheme, &p, out);
-                } else if p.extension().is_some_and(|x| x == "md") {
-                    let (Ok(text), Some(d), Some(stem)) = (
-                        std::fs::read_to_string(&p),
-                        p.parent().and_then(|d| d.file_name()?.to_str()),
-                        p.file_stem().and_then(|s| s.to_str()),
-                    ) else {
-                        continue;
-                    };
-                    if let Some(q) = Question::parse(scheme, &text, d, stem) {
-                        out.push(q);
-                    }
-                }
+            if let Some(mut q) = Question::parse(scheme, &text, "", stem) {
+                // `dir` mirrors the frontmatter status, not a folder: the
+                // container a question sits in is its status as declared.
+                q.dir = q.status.clone();
+                questions.push(q);
             }
         }
-        let mut questions = Vec::new();
-        walk(scheme, root, &mut questions);
         Self::new(scheme, questions)
     }
 }
@@ -657,13 +658,7 @@ theory!(question for Question {
     decidable status_is_declared = |q: &Question|
         STATUSES.contains(&q.status.as_str());
 
-    // The status agrees with the directory the file sits in. `dissolved` has no
-    // directory — a question that dissolves is deleted, not filed — so the
-    // sentence would be vacuously wrong about it.
-    decidable status_agrees_with_the_directory = |q: &Question|
-        q.dir == q.status;
-
-    // Every edge kind this question uses is in the theory's declared taxonomy.
+        // Every edge kind this question uses is in the theory's declared taxonomy.
     decidable edge_kinds_are_declared = |q: &Question|
         q.depends_on.iter().chain(q.affects.iter())
             .all(|e| EdgeKind::parse(&e.kind).is_some());
@@ -942,7 +937,8 @@ ladder!(QuestionLifecycle {
         assert_eq!(pen.role_name(), "curator");
         let q = open.payload;
         Gathered::new(Dossier {
-            sources: vec![format!("{}/{}/{}.md", q.scheme.root, q.dir, q.stem)],
+            // flat docket: the subject's file is at the root
+            sources: vec![format!("{}/{}.md", q.scheme.root, q.stem)],
             question: q,
         })
     },

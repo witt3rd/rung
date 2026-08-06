@@ -38,7 +38,7 @@ that would let a later reader disagree.
 ### `judges` is a list, and nothing here decides how long
 
 A panel is `⊨` with more than one judge (`panels`), and the habit in
-`questions/resolved/_evidence/` is two independent reviews. The schema
+`questions/_evidence/` is two independent reviews. The schema
 carries any number.
 
 **What it does not carry is a rule about how many are enough.** Deciding that a

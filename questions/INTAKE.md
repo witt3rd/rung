@@ -33,11 +33,12 @@ This is what rung has that a capture-only registry does not: a principled genera
 
 1. **Name it as a question** — one sentence, as sharp as you can make it now. Sharpness can improve later; vagueness at intake is allowed, but the *shape* must be a question, not a topic.
 2. **Assign the next Q-number.** rung's IDs are stable `qN` anchors, cited from `RUNG-CT.md`, `rung-props.md`, and other question files. Take the next free integer; **never renumber an existing one.**
-3. **Pick the folder** (folder is status):
-   - `open/` — unresolved, actively ours to push.
-   - `blocked/` — waiting on something outside this project (a language feature, an upstream dependency). Name what with a `gate` edge.
-   - `parked/` — a known answer-path exists but isn't worth the cost yet (YAGNI). *(Create the folder on first use.)*
-   - `resolved/` — reached later, never at intake. A question is not born answered.
+3. **Decide the status** (status is frontmatter metadata, not a folder):
+   - `open` — unresolved, actively ours to push.
+   - `blocked` — waiting on something outside this project (a language feature, an upstream dependency). Name what with a `gate` edge.
+   - `parked` — a known answer-path exists but isn't worth the cost yet (YAGNI).
+   - `resolved` — reached later, never at intake. A question is not born answered.
+
 4. **Write the body** — the parts the README names and the resolved files model (see `resolved/q7-*.md` as the template): the question; provenance (who/when/where it arose); *what would count as an answer*; what it blocks; a `## State` log with the opening line dated.
 5. **Add the frontmatter** — machine-readable, at the very top:
    ```yaml
@@ -51,7 +52,6 @@ This is what rung has that a capture-only registry does not: a principled genera
    ---
    ```
    - **Only encode a lived edge** — a dependency that actually exists *right now*. Never a speculative one. If you're unsure whether an edge is real, leave it out: a missing edge is cheap to add when it becomes real; a phantom edge is noise that erodes trust in the graph. (Edge kinds and their propagation semantics: [the README](README.md#dependencies--the-registry-is-a-typed-graph), and the theory that declares them, `rung-het/tests/question_registry.rs`.)
-6. **Run the check** — `python _reach.py --graph` to confirm the file parses and any edge shows up. If it doesn't appear, the frontmatter is malformed.
 7. **Keep both status markers.** The prose `**Status:**` line (human) and the frontmatter `status:` (machine) are redundant on purpose; set both to the same value.
 
 ## What intake is NOT (the boundary, held on purpose)

@@ -86,13 +86,13 @@ hand-populated.
 
 ## Relation to neighbours
 
-- **[Q16](../resolved/q16-provenance-carrier.md)** — the premise, above. Q16
+- **[Q16](q16-provenance-carrier.md)** — the premise, above. Q16
   fixed the carrier; this builds it. Q16's State and this file's existence are
   what keep Q16's `resolved/` home honest — no owed work hides in a done-pile.
-- **[Q14](../resolved/q14-model-principal-provenance.md)** — Q16's premise, and
+- **[Q14](q14-model-principal-provenance.md)** — Q16's premise, and
   once removed. Q14 fixed the map; Q16 fixed the carrier's definition; this
   supplies the values the pool can actually read.
-- **[Q2](../parked/q2-cross-crate-provenance.md)** — unrelated despite the
+- **[Q2](q2-cross-crate-provenance.md)** — unrelated despite the
   shared word. Q2 asks whether a *token* survives a crate boundary; this builds
   where a *principal's* stake is recorded.
 
@@ -112,7 +112,7 @@ hand-populated.
   qualification; `commissions.yaml` is the record rung's own population reads.
   Eight propositions are encoded under `principal-provenance-floor`, and the
   seven `rung-driver/tests/commission.rs` tests are their proofs. Evidence:
-  `questions/resolved/_evidence/q17-commission-record-implementation.md`.
+  `questions/_evidence/q17-commission-record-implementation.md`.
   **What remains is operational, not a question**: populating the record with
   real contributions is harness state and nothing is guessed (Q16's
   meta-refusal). Stage 5's meaning is no longer blocked on a build.

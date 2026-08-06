@@ -34,7 +34,7 @@ fn tmp(name: &str) -> PathBuf {
 /// walked in sorted order so the audit is deterministic over the real corpus.
 #[test]
 fn a_folder_yields_one_subject_per_file_sorted_and_opaque() {
-    let open = ws_root().join("questions").join("open");
+    let open = ws_root().join("questions");
     let c = FolderCarrier::new(&open);
     assert!(c.exists());
 
@@ -285,11 +285,14 @@ fn instance_config_drives_a_carrier_audit() {
             .and_then(|d| d.to_str())
             .unwrap_or("");
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-        let q = Question::parse(scheme, &content, dir, stem).expect("parseable");
+        // infra files (README, INTAKE, _map) are not questions — the theory
+        // skips them, and so does the audit over the carrier's subjects.
+        let Some(q) = Question::parse(scheme, &content, dir, stem) else {
+            continue;
+        };
         for settled in [
             question::id_matches_the_filename::holds(&q),
             question::status_is_declared::holds(&q),
-            question::status_agrees_with_the_directory::holds(&q),
             question::edge_kinds_are_declared::holds(&q),
         ] {
             assert!(settled.verdict().is_conforming(), "{} failed", q.id);

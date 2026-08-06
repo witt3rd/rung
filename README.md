@@ -272,7 +272,7 @@ Two moments, and rung keeps them apart:
   declines to dispose because it first needs some other matter settled. That is
   the branch the pass's branching transition has no residual channel to hand
   the token back on — which is why the pass cannot yet wait on a question it
-  raised ([Q15](questions/open/q15-does-the-pass-suspend.md)).
+  raised ([Q15](questions/q15-does-the-pass-suspend.md)).
 
 Either way the question is opaque to rung — an issue number, a filename — and
 it lands on the edge that resumes when evidence arrives that its matter
@@ -334,7 +334,7 @@ not to resolve it.
 It also can't resume anything: it hands the run back, and the ladder's own
 pen-gated resume edge does the resuming. And it's in-memory only — whether a
 suspended run can survive process death at all is
-[Q13](questions/open/q13-suspension-across-process-death.md), open.
+[Q13](questions/q13-suspension-across-process-death.md), open.
 
 ### Questions about questions are just more questions
 
@@ -540,16 +540,16 @@ it has never run on anything that mattered.
 
 Two things stand in the way, and only one is work:
 
-- **[Q14](questions/resolved/q14-model-principal-provenance.md)** — what
+- **[Q14](questions/q14-model-principal-provenance.md)** — what
   provenance a model principal carries. **Ruled** (stake-based π, definitional);
-  **[Q16](questions/resolved/q16-provenance-carrier.md)** ruled the **carrier** —
+  **[Q16](questions/q16-provenance-carrier.md)** ruled the **carrier** —
   a commission contribution record, `C(f,c)`, over the active commission set;
-  and **[Q17](questions/resolved/q17-provenance-carrier-implementation.md)** has
+  and **[Q17](questions/q17-provenance-carrier-implementation.md)** has
   **built** it. `authored(p)` is now a derived fact the pool reads by family
   from `commissions.yaml` — a lookup, not a growing array. What remains is to
   *populate* the record with real contributions (harness state; nothing is
   guessed); until then every model's derived set is open by design.
-- **[Q15](questions/open/q15-does-the-pass-suspend.md)** — the pass
+- **[Q15](questions/q15-does-the-pass-suspend.md)** — the pass
   disposes through a *branching* transition, which has no residual channel, so
   it cannot wait for a question it raised.
 

@@ -121,12 +121,12 @@ and neither is continuous either. Any answer should say which `Kind`s it covers.
 
 ## Relation to neighbours
 
-- **[Q12](../resolved/q12-admissibility-value-or-dispatch.md)** — the premise,
+- **[Q12](q12-admissibility-value-or-dispatch.md)** — the premise,
   above. R2 is what put `π(judge)` into the verdict.
-- **[Q2](../parked/q2-cross-crate-provenance.md)** — unrelated despite the
+- **[Q2](q2-cross-crate-provenance.md)** — unrelated despite the
   shared word. Q2 asks whether a *token* survives a crate boundary; this asks
   what a *principal's* provenance contains in the first place.
-- **[Q11](../open/q11-gate-faithfulness.md)** — adjacent, not dependent. Q11 asks
+- **[Q11](q11-gate-faithfulness.md)** — adjacent, not dependent. Q11 asks
   whether a transition is what it claims; this asks whether the principal
   settling it is who it claims. A green answer to one says nothing about the
   other.
@@ -142,7 +142,7 @@ and neither is continuous either. Any answer should say which `Kind`s it covers.
   `π(p) = authored(p) ∪ {id(p)}`, with `id(p)` the family identifier for
   discontinuous kinds and `authored(p)` commission-local. The three defective
   readings (per-family, per-invocation, per-session) are refused. Evidence:
-  `questions/resolved/_evidence/q14-ruling-stake-based.md`.
+  `questions/_evidence/q14-ruling-stake-based.md`.
   **The carrier is open.** No committed source yet makes `authored(p)` a derived
   fact — the pool still reads the static `PrincipalSpec::authored` field, which
   stays empty for models as an acknowledged, temporary placeholder (not the

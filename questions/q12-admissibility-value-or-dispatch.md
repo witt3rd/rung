@@ -245,7 +245,7 @@ remedy that adopts the epilogue and stops there would harden the arrow while
 leaving the constant arrow exactly where it is.
 
 In Het's own terms the analysis is a **reason**, not a remedy
-([`reason-is-not-an-edit`](../../docs/rung-het-props.md#reason-is-not-an-edit)): it
+([`reason-is-not-an-edit`](../docs/rung-het-props.md#reason-is-not-an-edit)): it
 holds no standing over `rung-het-props.md`, so it informs the author and does
 not author. Recorded as such.
 

@@ -8,20 +8,24 @@ This is the `outer-loop/bets/` and `augur/genesis/meta/questions/` pattern, appl
 
 ---
 
-## Folder is status
+## Status is metadata, not folder
+
+The docket is a **flat** collection of one markdown file per question; status is
+carried by each question's own **frontmatter** (`status: open`, `resolved`,
+`blocked`, `parked`, `dissolved`). Structure is parsed from the subject, never
+from where it sits — so a carrier (a flat folder, or a JSONL stream) yields
+subjects directly and the theory reads their state out of themselves.
 
 ```
 questions/
-  open/       — unresolved. actively awaiting an answer, and ours to push.
-  parked/     — a known mechanism exists, but the cost isn't worth paying yet (YAGNI).
-  blocked/    — depends on something outside this project (e.g. a language feature).
-  resolved/   — the fold is complete. The answer has landed in a normative surface
-                (SPEC / RUNG-CT / the macro) AND every owed change there is done.
-                Not "answer found" — "answer propagated." If any fold is still owed,
-                the file stays out of resolved/.
+  q01-*.md   — status: open    · unresolved, ours to push.
+  q14-*.md   — status: resolved · the fold is complete (answer propagated).
+  ...
+  _evidence/ — the ruling artifacts resolved questions cite.
 ```
 
-Moving a file between folders is the lifecycle. Git history records every transition for free. Each question keeps its stable **Q-number** as an ID (referenced from `RUNG-CT.md`, `rung-props.md`, and the handoff) — the number is the anchor; the folder is the status.
+Each question keeps its stable **Q-number** as an ID (referenced from the docs
+and the handoff) — the number is the anchor; the frontmatter is the status.
 
 **How a question gets *in* is [`INTAKE.md`](INTAKE.md)** — the capture door (the *front half* of the lifecycle this README specifies). It names the three-part "worth filing" test, the filing procedure, and rung's two doors: *captured* (a question surfaces in lived work) and *generated* (`_map.md`'s growth tower predicts the next one). This README is the back half; INTAKE is the front.
 
@@ -93,13 +97,6 @@ The **kind is load-bearing** — it decides how a change propagates, and no sing
 | `citation` | mechanical — update the reference |
 | `evidence` | inbound support — informational |
 
-`_reach.py` walks it and prints the blast radius **for review — it never mutates.** The graph surfaces what to look at; the human judges each edge. (A changed premise does not auto-invalidate its dependents — same produce-first / gate-second discipline as the rest of the system.)
-
-```
-python _reach.py q7          # what must be reviewed if q7 changed?
-python _reach.py --graph     # the whole typed edge list
-```
-
 The implementation is deliberately minimal — frontmatter + a stdlib script, preserving "clone and read, no service to run." It is honest at this scale (SQLite next, a real graph store eventually, if the registry ever outgrows the filesystem). **The model is what matters, not the store:** the registry is a *graph of typed relationships between items*, and propagation is *typed reachability*. That model outlives whatever holds it.
 
-> **This is a Level-1 structure.** The growth tower in `_map.md` names it: Level 0 is arrows *within* a category (a transition); Level 1 is arrows in **Cat** (functors — maps between whole structures). A dependency is an arrow between *items*, not within one — the registry itself is a Level-1 object. The tower predicted it. **What that superstructure *is* precisely is now resolved (Q9): a Grothendieck opfibration whose fibres are the per-item ladders and whose typed edges are dependent optics** — the Q7 Prism result, one level up. See `resolved/q9-the-dependency-superstructure.md` (folded into `../rung-ct-props.md` §11); `_reach.py` computes its deflationary boolean shadow.
+> **This is a Level-1 structure.** The growth tower in `_map.md` names it: Level 0 is arrows *within* a category (a transition); Level 1 is arrows in **Cat** (functors — maps between whole structures). A dependency is an arrow between *items*, not within one — the registry itself is a Level-1 object. The tower predicted it. **What that superstructure *is* precisely is now resolved (Q9): a Grothendieck opfibration whose fibres are the per-item ladders and whose typed edges are dependent optics** — the Q7 Prism result, one level up. See `resolved/q9-the-dependency-superstructure.md` (folded into `../rung-ct-props.md` §11).
