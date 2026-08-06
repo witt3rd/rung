@@ -2208,13 +2208,32 @@ under {#fractal-property} — and may refuse it.
             kind: Kind::Rationale,
             numbering: None,
             prose: r#"An authorization to edit is not a licence to violate the
-target's law. `enact` has two failure points: the Disposition may
-withhold it, and the target may refuse it.
+target's law. `enact` has three failure points: the Disposition may
+withhold it, the target may refuse it, and — the one that survives both
+refusals — the remedy may land yet not be observably in effect
+({#enact-verify}).
 
 ### Panels
 
 "#.into(),
             mechanism: r#""#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "enact-verify".into(),
+            parent: Some("enact-has-two-failure-points".into()),
+            kind: Kind::Decidable { proof: "rung-driver/tests/rectify_questions.rs::the_seam_runs_one_audit_rectify_cycle_over_rungs_own_questions".into() },
+            numbering: None,
+            prose: r#"An authorization to edit is not a report of success. After a
+remedy is enacted, an **observer** — not the author — must be able to read
+back, from the world's state, that the edit is observably in effect; otherwise
+a claimed change that did not happen (\`X is now Y\` when the state is \`W\`)
+is taken on the author's word. A world that cannot confirm an edit **fails
+closed**: success is not claimed.
+
+"#.into(),
+            mechanism: r#"Exercised by \`rung-driver/tests/rectify_questions.rs\`'s
+seam: after enact the world confirms the enacted edge, and an impostor edit — a
+different target, a claimed-but-unapplied change — is refused."#.into(),
         }),
         Element::Prop(Prop {
             slug: "panels".into(),

@@ -139,7 +139,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-het-props.md`
 
-**Counts.** 55 decidable · 25 judgmental · 1 owed · 101 rationale · 28 signature · 210 total.
+**Counts.** 56 decidable · 25 judgmental · 1 owed · 101 rationale · 28 signature · 211 total.
 
 ### The relation
 
@@ -336,6 +336,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [7.51](rung-het-props.md#licence-is-not-guarantee) | `licence-is-not-guarantee` | `decidable` | A `Licence<E>` is now a type, minted only from an affirming `Ruling` and consumed by `enact` — so the pass's `Accept` arm carries PERMISSION rather than a revised subject. Permission is all it is: `enact` still checks the pen against `Applies::territory` and hands the domain's own refusal back untouched. Making `enact` swallow `Applies::apply`'s error — type-valid, `world.apply(..)?` to `let _ = world.apply(..)` — turns the cited test red where it requires the fieldbook to refuse a write the cabinet's judge already accepted. The two failure points are [7.53](rung-het-props.md#enact-has-two-failure-points). | `rung-het/tests/acceptance.rs::the_pass_runs_end_to_end_as_a_chain_of_principals` |
 | [7.52](rung-het-props.md#target-runs-its-own-models) | `target-runs-its-own-models` | `decidable` | The write-guard exists and fires. `enact` checks the pen against `Applies::territory` and hands `EnactError::TargetRefused` back untouched, so a destination may decline a write its own judge already authorized: in the cited test the relocation is accepted by a qualified judge, refused by the fieldbook for want of a locality, and the source container is left unchanged. The target's law is the **theory's** — the library cannot know what admits a specimen — so rung secures the seam and the standing, not the law. `second_domain.rs::a_pen_for_one_territory_does_not_authorize_another` pins the standing half. What stays with Q4 is expressing the composite as a ladder inside a ladder; the boundary itself no longer waits on it. | `rung-het/tests/questions_of_rung.rs::resolved_runs_its_own_law_on_a_write_the_ruling_already_authorized` |
 | [7.53](rung-het-props.md#enact-has-two-failure-points) | `enact-has-two-failure-points` | `rationale` | — | — |
+| [7.531](rung-het-props.md#enact-verify) | `enact-verify` | `decidable` | Exercised by \`rung-driver/tests/rectify_questions.rs\`'s seam: after enact the world confirms the enacted edge, and an impostor edit — a different target, a claimed-but-unapplied change — is refused. | `rung-driver/tests/rectify_questions.rs::the_seam_runs_one_audit_rectify_cycle_over_rungs_own_questions` |
 | [7.6](rung-het-props.md#panels) | `panels` | `decidable` | A panel is `⊨` with more than one judge, and the proposition says it is **not a separate construction** — so the encoding must not add one. It does not: a seat is a pool of one principal, each seat mints its own licence against the very same argument, and the cited test convenes three of them with nothing `rung-het` does not already export. The combination rule is the theory's, exactly as its edits are ([11.12](rung-het-props.md#edit-required-not-typed)); putting a `panel()` primitive in the library would legislate a rule Het does not have. What stays with Q5 is running the seats **at the same time** — latency, which is HetOpt's ([cut-at-valuation](rung-het-props.md#cut-at-valuation)), not Het's. | `rung-het/tests/panel.rs::a_panel_is_the_pass_with_more_than_one_judge` |
 | [7.61](rung-het-props.md#panels-cannot-weaken-the-opponent) | `panels-cannot-weaken-the-opponent` | `decidable` | The observable form of the claim: the same Proponent move, the same first oracle answer, plus two more — and the seat that played in the original game answers identically in the composite. Added answers may take affirmation away and never grant it, so the Proponent's winning set under the panel is contained in its winning set against any single seat. rung proves the rulings were reached through qualified licences, not that unanimity is the right combination rule ([7.6](rung-het-props.md#panels)). | `rung-het/tests/panel.rs::a_panel_cannot_weaken_the_opponent` |
 
@@ -596,12 +597,12 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 130 |
+| `decidable` | 131 |
 | `judgmental` | 47 |
 | `owed` | 3 |
 | `rationale` | 148 |
 | `signature` | 60 |
-| **total** | **388** |
+| **total** | **389** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
@@ -617,7 +618,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 185 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 184 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -728,10 +729,6 @@ look shorter than it is.
 - `capability_alone_does_not_authorize_a_write`
 - `kind_decides_nothing`
 - `the_driver_offers_no_way_to_prefer_one_qualifying_principal`
-
-**`rung-driver/tests/rectify_questions.rs`** — 1 unclaimed
-
-- `the_seam_runs_one_audit_rectify_cycle_over_rungs_own_questions`
 
 **`rung-fixture/tests/consumer.rs`** — 4 unclaimed
 

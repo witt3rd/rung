@@ -446,7 +446,7 @@ none can be edited by hand and a new proposition cannot be added without a kind.
 
 `_props.py` survives for exactly two jobs, and neither duplicates the encoding:
 it re-derives every number from the *rendered markdown* rather than from the
-source, which makes it an independent second implementation agreeing on all 388;
+source, which makes it an independent second implementation agreeing on all 389;
 and it checks that Rust comments citing a slug still resolve, which nothing else
 does.
 
@@ -474,7 +474,7 @@ each proposition: **what kind of authority could settle it.**
 
 | kind | discharged by | count |
 |---|---|---:|
-| **decidable** | a proof — a test that fails when the proposition is violated | 130 |
+| **decidable** | a proof — a test that fails when the proposition is violated | 131 |
 | **judgmental** | a principal, **disjoint** from what it judges — ruling recorded in [`judgments/`](judgments/) | 47 |
 | **owed** | an author, with **standing** over it | 3 |
 | **signature** | nobody — it declares vocabulary | 60 |
@@ -553,7 +553,7 @@ Two things stand in the way, and only one is work:
   disposes through a *branching* transition, which has no residual channel, so
   it cannot wait for a question it raised.
 
-The honest measure of this project is not 388 propositions encoded or 250 tests
+The honest measure of this project is not 389 propositions encoded or 260 tests
 passing. It is **how many defects in rung were found and fixed by the loop
 rather than by a person**. That number is zero.
 

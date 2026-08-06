@@ -943,6 +943,22 @@ pub trait Applies<E> {
     fn apply(&mut self, object: &str, edit: &E) -> Result<(), EnactError>;
 }
 
+/// The **second face of an edit**: not "apply it" but "is it observably in
+/// effect?" — the check an *observer* makes after enact, so success is attested
+/// by someone other than the author (`enact-verify`, the third failure point of
+/// [`enact`]: the remedy may land as typed yet not be observably present).
+///
+/// `Applies` mutates; `Verify` reads back. The two are one world when an edit's
+/// effect is a mechanical predicate on the object's state — the common,
+/// decidable case. A world that cannot confirm an edit (a purely ·runt·
+/// effect) simply does not implement this: the driver then **fails closed** and
+/// refuses to claim success, rather than taking the author's word.
+pub trait Verify<E>: Applies<E> {
+    /// Whether `edit` is now observably in effect on `object`, read back from
+    /// this world's state — never from the author's report.
+    fn confirms(&self, edit: &E, object: &str) -> bool;
+}
+
 /// The author applies a ruling — **authorial**.
 ///
 /// Requires an [`Authorized`] pen: `enact` transforms the object, and
