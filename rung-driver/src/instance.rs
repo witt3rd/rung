@@ -24,6 +24,14 @@ pub struct Instance {
     /// theory crate instantiates the driver with its own logic.
     pub theory: String,
     pub carrier: CarrierConfig,
+    /// Where this instance's population lives (shared one level up, or a
+    /// bespoke one inside the instance) — Q18's shared-or-bespoke.
+    #[serde(default)]
+    pub population: Option<String>,
+    /// Where this instance keeps its state — the `dispatched` records, the
+    /// park, the activity log. Relative to the config, like `carrier`.
+    #[serde(default)]
+    pub state: Option<String>,
 }
 
 impl Instance {
@@ -53,5 +61,29 @@ impl Instance {
             }
         }
         cfg.build()
+    }
+
+    /// Resolve the population path against `base` (the config's directory).
+    pub fn population_path_at(&self, base: &std::path::Path) -> Option<std::path::PathBuf> {
+        self.population.as_ref().map(|p| {
+            let pb = std::path::Path::new(p);
+            if pb.is_absolute() {
+                pb.to_path_buf()
+            } else {
+                base.join(pb)
+            }
+        })
+    }
+
+    /// Resolve the state directory against `base`.
+    pub fn state_dir_at(&self, base: &std::path::Path) -> Option<std::path::PathBuf> {
+        self.state.as_ref().map(|p| {
+            let pb = std::path::Path::new(p);
+            if pb.is_absolute() {
+                pb.to_path_buf()
+            } else {
+                base.join(pb)
+            }
+        })
     }
 }
