@@ -25,9 +25,11 @@
 //! close on real artifacts; wiring it to real models is gated on Q14, which is
 //! a ruling, not more machinery.
 
-use rung_driver::{Answer, Backing, CommissionLog, Oracle, Population, population_pool};
-use rung_het::{Disposition, Proposal, Verdict, dispose, enact};
-use rung_std::questions::{Adjudicator, Curator, EdgeKind, QuestionEdit, Questions, Scheme};
+use rung_driver::{
+    Answer, Backing, CommissionLog, CycleOutcome, Oracle, Population, population_pool, run_cycle,
+};
+
+use rung_std::questions::{Questions, Scheme};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -128,57 +130,36 @@ fn main() {
     );
     println!();
 
-    // ── the cycle ─────────────────────────────────────────────────────────
+    // ── the cycle — the composed loop, run by the driver (not hand-rolled) ──
     let mut world = Questions::load(RUNG, &root.join("questions"));
     let pop = Population::from_yaml(QUESTIONS_POPULATION).expect("the questions population parses");
     let pool = population_pool(&pop, "adjudicator", Arc::new(Holding));
 
-    let settled = rung_std::questions::questions::affects_mirrors_inbound::holds(&world);
-    let Verdict::NonConforming { .. } = settled.verdict() else {
-        println!("  audit: conforming — nothing to rectify. Done.");
-        return;
-    };
-    let drift = world.outbound_drift();
-    let (src, dependent, kind) = drift.first().expect("the pinned drift exists").clone();
-    println!("  audit  : violates affects_mirrors_inbound");
-    for (s, d, k) in &drift {
-        println!("             {s} --{k}--> {d} unacknowledged");
+    match run_cycle(&mut world, &pop, &pool, Arc::new(Holding)) {
+        CycleOutcome::Clean => {
+            println!("  audit: conforming — nothing to rectify. Done.");
+            return;
+        }
+        CycleOutcome::Rectified { verified, record } => {
+            println!("  audit  : violates affects_mirrors_inbound");
+            for (s, d, k) in &world.outbound_drift() {
+                println!("             {s} --{k}--> {d} unacknowledged");
+            }
+            println!("  propose/dispose/enact closed the cycle");
+            println!(
+                "  verify : {} (the observer read the post-state back, not the author's word)",
+                verified
+            );
+            println!(
+                "  record : {} — {} by {}",
+                record.proposition, record.tier, record.judges[0].id
+            );
+            println!(
+                "  provenance: {:?} (out of the sealed judgment)",
+                record.judges[0].provenance
+            );
+        }
     }
-
-    let author = pop.by_id("opus-author").expect("declared").clone();
-    let author_cfg = rung_driver::Configured::new(author.clone(), Arc::new(Holding));
-    let pen = pool
-        .authorize::<Curator, _>(&author_cfg, "questions")
-        .expect("the author holds standing over the tree");
-    let edge_kind = EdgeKind::parse(&kind).expect("the drift names a declared kind");
-    let proposal = Proposal::remedy(
-        &pen,
-        &src,
-        QuestionEdit::AddEdge {
-            target: dependent.clone(),
-            kind: edge_kind,
-        },
-    );
-
-    let judge = pool
-        .qualify_for::<Adjudicator>(&proposal)
-        .expect("a judge disjoint from the proposal's author");
-    let ruling = dispose(&proposal, judge, Disposition::Accept)
-        .expect("the licence was minted against this proposal");
-    println!("  propose: {src} --{kind}--> {dependent} (mirror the edge)");
-    println!("  dispose: {} accepts", ruling.judge());
-
-    let enacted = enact(&mut world, &ruling, &pen).expect("the tree admits the mirroring");
-    let _remaining = world
-        .outbound_drift()
-        .into_iter()
-        .filter(|(s, d, _)| s == &src && d == &dependent)
-        .count();
-    println!(
-        "  enact  : landed on {}; that edge no longer drifts",
-        enacted.object()
-    );
-    println!();
 
     // ── provenance, honestly ─────────────────────────────────────────────
     let judge = pop.by_id("external-judge").expect("declared");
