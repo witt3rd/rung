@@ -28,15 +28,15 @@ found and fixed by the loop rather than by a person.
 ## 1 · Where it stands
 
 ```
-decidable          130    all satisfied — `cargo run -p rung-doctrine --bin audit`
+decidable          131    all satisfied — `cargo run -p rung-doctrine --bin audit`
 judgmental          47    0 settled
 owed                 3    2 unimplemented, 1 parked test
 rationale          148
 signature           60
                    ───
-                   388
+                   389
 
-demonstrated failures      12 of 130   (a proof nobody watched fail is an assumption)
+demonstrated failures      12 of 131   (a proof nobody watched fail is an assumption)
 proofs claiming no prop   173          (mostly tooling; unfiltered on purpose)
 judgment records            0
 ```

@@ -24,7 +24,7 @@
 //! which the whole loop can be shown to bite.
 
 use rung_driver::{Answer, Backing, Oracle, Population, population_pool};
-use rung_het::{Disposition, Proposal, Verdict, dispose, enact};
+use rung_het::{Disposition, Proposal, Verdict, Verify, dispose, enact};
 use rung_std::questions::{Adjudicator, Curator, EdgeKind, QuestionEdit, Questions, Scheme};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -178,6 +178,32 @@ fn the_seam_runs_one_audit_rectify_cycle_over_rungs_own_questions() {
     assert!(
         remaining.is_empty(),
         "the mirrored edge still drifts: {remaining:?}"
+    );
+
+    // ── 5 · VERIFY — the edit is observably in effect, read back by an
+    //        observer, never taken from the author's report (`enact-verify`,
+    //        the third failure point of enact). The same edit the loop
+    //        enacted must be confirmed by the world's own state.
+    let edit = QuestionEdit::AddEdge {
+        target: dependent.clone(),
+        kind: edge_kind,
+    };
+    assert!(
+        world.confirms(&edit, &src),
+        "after enact, the edge must be observably in effect — not merely claimed"
+    );
+
+    //    The claim-vs-state gap, exposed: the author's word is not the world's
+    //    state. If the enacted edit had been a *different* one (say, the wrong
+    //    target), verification refuses it even though a success was claimed.
+    let impostor = QuestionEdit::AddEdge {
+        target: "q99-does-not-exist".to_string(),
+        kind: edge_kind,
+    };
+    assert!(
+        !world.confirms(&impostor, &src),
+        "a claimed-but-not-actually-applied edit must not verify — success is \
+         attested by the state, not by the person who says so"
     );
 
     // The Q14 note, stated for the record. The judge's provenance is its

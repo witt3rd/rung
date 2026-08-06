@@ -78,7 +78,7 @@ use rung::{
     Authorized, Pool, Principal, Prov, Provenanced, QualifyError, Role, Settled, Situated, ladder,
     theory,
 };
-use rung_het::{Applies, EnactError};
+use rung_het::{Applies, EnactError, Verify};
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -847,6 +847,27 @@ impl Applies<QuestionEdit> for Questions {
             }
         }
         Ok(())
+    }
+}
+
+/// **The observer's check on an edit** (`enact-verify`): read back whether an
+/// edit is observably in effect, independent of the author's report. Without
+/// this, success is whatever the author says it is — the third failure point
+/// of `enact` (7.53).
+impl Verify<QuestionEdit> for Questions {
+    fn confirms(&self, edit: &QuestionEdit, object: &str) -> bool {
+        let Some(idx) = self.questions.iter().position(|q| q.id == object) else {
+            return false;
+        };
+        let q = &self.questions[idx];
+        match edit {
+            QuestionEdit::Relocate { to } => q.dir == *to && q.status == *to,
+            QuestionEdit::Dissolve { .. } => q.status == "dissolved",
+            QuestionEdit::AddEdge { target, kind } => q
+                .affects
+                .iter()
+                .any(|e| e.target == *target && e.kind == kind.name()),
+        }
     }
 }
 

@@ -1043,10 +1043,20 @@ under [6](#fractal-property) — and may refuse it.
 
 <a id="enact-has-two-failure-points" data-parent="enact-makes-an-endofunctor"></a>
 **7.53** An authorization to edit is not a licence to violate the
-target's law. `enact` has two failure points: the Disposition may
-withhold it, and the target may refuse it.
+target's law. `enact` has three failure points: the Disposition may
+withhold it, the target may refuse it, and — the one that survives both
+refusals — the remedy may land yet not be observably in effect
+([7.531](#enact-verify)).
 
 ### Panels
+
+<a id="enact-verify" data-parent="enact-has-two-failure-points"></a>
+**7.531** An authorization to edit is not a report of success. After a
+remedy is enacted, an **observer** — not the author — must be able to read
+back, from the world's state, that the edit is observably in effect; otherwise
+a claimed change that did not happen (\`X is now Y\` when the state is \`W\`)
+is taken on the author's word. A world that cannot confirm an edit **fails
+closed**: success is not claimed.
 
 <a id="panels" data-parent="satisfaction-is-a-game"></a>
 **7.6** Panels are $\models$ with more than one judge — the game with an
