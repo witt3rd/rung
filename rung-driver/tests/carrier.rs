@@ -250,3 +250,51 @@ fn github_live_issues_walk() {
     let alien = ObjectId::new(format!("{repo}#99999999"));
     assert!(c.read(&alien).is_ok() || c.read(&alien).is_err()); // number absent -> gh errors or empty
 }
+
+// ═════════════════════════════════════════════════════════════════════════
+// 8 · Instance config drives the audit, through the carrier (Q18/Q19)
+// ═════════════════════════════════════════════════════════════════════════
+
+/// The driver reads an instance config.yaml, builds the declared carrier, and
+/// audits its subjects with the governing theory — the walk is the generic
+/// carrier, not a hand-rolled fragment.
+#[test]
+fn instance_config_drives_a_carrier_audit() {
+    use rung_driver::Instance;
+    use rung_std::questions::{Question, Scheme, question};
+
+    let text = std::fs::read_to_string(ws_root().join("instance.yaml")).unwrap();
+    let inst = Instance::from_yaml(&text).unwrap();
+    assert_eq!(inst.theory, "rung-question");
+
+    let carrier = inst.build_carrier_at(&ws_root()).unwrap();
+    let scheme = Scheme {
+        namespace: "rung-questions",
+        root: "questions",
+        id_prefix: "q",
+    };
+
+    let mut audited = 0usize;
+    for subject in carrier.iter() {
+        let id = subject.expect("carrier walk is clean");
+        let content = carrier.read(&id).expect("subject readable");
+        let path = Path::new(id.as_str());
+        let dir = path
+            .parent()
+            .and_then(|d| d.file_name())
+            .and_then(|d| d.to_str())
+            .unwrap_or("");
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let q = Question::parse(scheme, &content, dir, stem).expect("parseable");
+        for settled in [
+            question::id_matches_the_filename::holds(&q),
+            question::status_is_declared::holds(&q),
+            question::status_agrees_with_the_directory::holds(&q),
+            question::edge_kinds_are_declared::holds(&q),
+        ] {
+            assert!(settled.verdict().is_conforming(), "{} failed", q.id);
+        }
+        audited += 1;
+    }
+    assert!(audited > 0, "the carrier enumerated subjects to audit");
+}

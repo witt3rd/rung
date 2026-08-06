@@ -1,0 +1,6 @@
+# rung's own bootstrap — an Instance (Q18's per-instance config.yaml).
+# The driver reads this and knows what to audit and where.
+theory: rung-question
+carrier:
+  kind: folder
+  path: ./questions/open
