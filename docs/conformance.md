@@ -617,7 +617,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 175 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 184 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -681,6 +681,18 @@ look shorter than it is.
 - `the_test_scan_includes_this_very_test`
 - `the_triage_is_recorded`
 - `verbatim_blocks_carry_only_non_propositional_matter`
+
+**`rung-driver/tests/carrier.rs`** — 9 unclaimed
+
+- `a_csv_folder_is_row_wise_with_header_excluded`
+- `a_file_is_a_single_subject_carrier`
+- `a_folder_yields_one_subject_per_file_sorted_and_opaque`
+- `a_jsonl_file_is_row_wise_and_opaque`
+- `a_jsonl_folder_flatmaps_rows_across_files`
+- `a_missing_or_foreign_id_is_an_error_not_a_fabrication`
+- `carrier_config_builds_the_declared_strategy`
+- `github_carrier_refuses_no_repos_but_takes_no_secret`
+- `github_live_issues_walk`
 
 **`rung-driver/tests/oracle.rs`** — 16 unclaimed
 

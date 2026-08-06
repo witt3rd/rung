@@ -29,11 +29,17 @@
 //! **When to stop waiting.** Parking is [`rung_std::driver::Park`]'s, and it has
 //! no timeout for the same reason.
 
+pub mod carrier;
 pub mod commission;
 pub mod config;
 pub mod oracle_llm;
 pub mod principal;
 
+pub use carrier::{
+    Carrier, CarrierConfig, CarrierError, CarrierKind, CarrierRef, CsvFileCarrier,
+    CsvFolderCarrier, FileCarrier, FolderCarrier, GitHubIssuesCarrier, JsonlFileCarrier,
+    JsonlFolderCarrier, ObjectId,
+};
 pub use commission::CommissionLog;
 pub use config::{Backing, ConfigError, Kind, Population, PrincipalSpec, Provider, RoleSpec};
 pub use oracle_llm::{Adjudicate, ModelOracle, Prompt, Unreachable, resolve};
