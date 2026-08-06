@@ -5,6 +5,7 @@ depends_on:
   - {on: q13, kind: premise}
 affects:
   - {target: self-hosting-run-loop, kind: gate}
+  - {target: q19, kind: premise}
 ---
 
 # Q18 — What is the state sidecar convention? *(open)*
@@ -57,17 +58,19 @@ For the loop to crash-and-resume it needs, on disk and structured:
    explicit about which, rather than it falling out of where someone happened
    to write `population.yaml` first.
 
-A single instance's layout (one candidate):
+A single instance's layout (one candidate — and every instance may differ,
+which is what its `config.yaml` says):
 
 ```text
 .het/
   <instance>/            e.g. gh-issues, rung-questions, portfolio
-    config.toml          # Scheme: namespace, root, id prefix
-    carrier/             # colocated subjects, or a pointer to the external carrier
+    config.yaml          # theory, scheme, carrier location, population shared|bespoke
+    carrier/             # colocated subjects (questions/, portfolio.jsonl)
+                         #   — absent when the carrier is external (GitHub issues)
     evidence/            # judgments and evidence trails
     park/                # suspended runs — restart (Q13)
     log/                 # one entry per audit -> propose -> dispose -> enact
-  population.yaml        # shared population, if any
+  population.yaml        # shared population, if any (a bespoke one lives in <instance>/)
   commissions.yaml       # provenance, if shared at this level
 ```
 
@@ -100,6 +103,12 @@ any particular carrier's shape.
 
 - **2026-08-05** — Filed. Raised while drawing the audit-rectify cycle for the
   README: the cycle needs per-carrier state to run and restart, and no
-  convention names where it lives. The two flexible axes (colocated-or-external
-  carrier, shared-or-bespoke population) are recorded as decisions the
-  convention must make explicit rather than leave to accident.
+  convention names where it lives.
+- **2026-08-05** — Corrected. Colocated/external and shared/bespoke are
+  **conjunctions the convention must support for every combination**, selected
+  per instance — not axes to choose between. The per-carrier `config.yaml` is
+  the handhold that makes the generic driver domain-blind: given an instance's
+  config it knows the governing theory, the carrier's location (colocated or
+  external), and where its population lives. The carrier backends and element
+  iterators to port are the archived het-rs prototype's
+  (`../.archive/het-rs/src/carrier/`: folder, jsonl, file, csv, github).
