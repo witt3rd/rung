@@ -57,25 +57,38 @@ joining the four moves. Suspension in the pass.
 
 Ordered by what blocks what, not by size.
 
-### 2.1 — Q14, and it is a ruling, not work
+### 2.1 — Q14: ruled definitionally; the carrier is the gate now
 
-[Q14](../questions/open/q14-model-principal-provenance.md) asks what provenance
-a model principal carries. Until it is settled:
+[Q14](../questions/resolved/q14-model-principal-provenance.md) asked what provenance
+a model principal carries. **It is ruled** (2026-08-05): the stake-based reading
+holds — `π(p) = authored(p) ∪ {id(p)}`, with `id(p)` the family identifier for
+discontinuous kinds and `authored(p)` commission-local. Of the three candidate
+readings:
 
 - **per-family** disqualifies every model from nearly everything, because models
-  wrote most of this corpus
+  wrote most of this corpus — refused as over-strong
 - **per-invocation** satisfies non-identity always and **vacuously** — a model
-  judges text it produced minutes ago, and every check in this system passes
+  judges text it produced minutes ago, and every check in this system passes —
+  refused as the constant-arrow hazard
+- **per-session** makes π an orchestration fact rather than a principal fact —
+  refused as incoherent
 
-The second is the dangerous reading. It would show up as 47 propositions
-settling smoothly and mean nothing.
+The per-invocation reading was the dangerous one: it would have shown up as 47
+propositions settling smoothly and meant nothing.
 
-`population.yaml` declares empty `authored` for every model, which *is* the
-per-invocation reading. A test pins the placeholder so it cannot ship quietly,
-and names itself as the thing to change when the ruling lands.
+**What the ruling does not supply is the carrier.** `population.yaml` still
+declares empty `authored` for every model — now an *acknowledged, temporary
+placeholder* (the ruling refuses it as the per-invocation reading, and a test
+still pins it so it cannot ship quietly as a working configuration). The loose
+end is not the definition but the **commission-and-contribution carrier**: a
+source that turns `authored(p)` from a static declaration into a derived fact.
+Until that carrier exists, a model judge still qualifies vacuously under the
+only provenance the pool can read, and **nothing guessed is written into
+`population.yaml`**.
 
-**Nothing about the escalation chain works until this is decided.** A human
-last-resort presumes something above him, and the only candidates are models.
+**The escalation chain's definitional wall is cleared; its carrier wall is not.**
+A human last-resort presumes something above him, and the only candidates are
+models — but a model can only be admitted once the carrier makes its stake real.
 
 ### 2.2 — One `dispatched` judgment record
 
@@ -191,7 +204,7 @@ machinery were not there.
 
 | | | status |
 |---|---|---|
-| Q14 | what provenance a model principal carries | **open — the gate** |
+| Q14 | what provenance a model principal carries | **resolved** — definition ruled; carrier open |
 | Q15 | does the pass suspend, or re-enter | open |
 | Q11 | gate-faithfulness; `#[conditional]` unencoded | open |
 | Q13 | suspension across process death | open |

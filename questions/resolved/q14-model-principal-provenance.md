@@ -1,15 +1,19 @@
 ---
 id: q14
-status: open
+status: resolved
 depends_on:
   - {on: q12, kind: premise}
+  - {on: q14-ruling-stake-based, kind: evidence}
 affects:
   - {target: bootstrap-stage-5, kind: gate}
+  - {target: q16, kind: premise}
 ---
 
-# Q14 — What provenance does a model principal carry? *(open)*
+# Q14 — What provenance does a model principal carry? *(resolved)*
 
-**Status:** OPEN
+**Status:** RESOLVED (2026-08-05) · **Ruling:** stake-based π. The three defective
+readings are refused; the commission-and-contribution carrier is the open
+follow-on.
 
 **Question.** `Kind::Llm` is an admissible principal by the theory's own
 reckoning — `rung_std::principals` declares it alongside `Agent`,
@@ -122,7 +126,7 @@ and neither is continuous either. Any answer should say which `Kind`s it covers.
 - **[Q2](../parked/q2-cross-crate-provenance.md)** — unrelated despite the
   shared word. Q2 asks whether a *token* survives a crate boundary; this asks
   what a *principal's* provenance contains in the first place.
-- **[Q11](q11-gate-faithfulness.md)** — adjacent, not dependent. Q11 asks
+- **[Q11](../open/q11-gate-faithfulness.md)** — adjacent, not dependent. Q11 asks
   whether a transition is what it claims; this asks whether the principal
   settling it is who it claims. A green answer to one says nothing about the
   other.
@@ -134,3 +138,15 @@ and neither is continuous either. Any answer should say which `Kind`s it covers.
   Filed separately rather than left inline, on the reasoning that a proposal's
   own admission of a hole is exactly the thing that evaporates when the proposal
   is superseded.
+- **2026-08-05** — Resolved (definitional). The stake-based reading is adopted:
+  `π(p) = authored(p) ∪ {id(p)}`, with `id(p)` the family identifier for
+  discontinuous kinds and `authored(p)` commission-local. The three defective
+  readings (per-family, per-invocation, per-session) are refused. Evidence:
+  `questions/resolved/_evidence/q14-ruling-stake-based.md`.
+  **The carrier is open.** No committed source yet makes `authored(p)` a derived
+  fact — the pool still reads the static `PrincipalSpec::authored` field, which
+  stays empty for models as an acknowledged, temporary placeholder (not the
+  per-invocation reading). A commission-and-contribution carrier is the recorded
+  follow-on obligation; until it exists, no guessed entries are written to
+  `population.yaml`, and Stage 5 remains gated by Q14's own ruling for families
+  whose artifacts the pool can see.
