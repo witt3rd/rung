@@ -64,7 +64,7 @@ fn questions_dir() -> PathBuf {
 }
 
 /// Walk `questions/**/*.md`. `_`-prefixed files and `_evidence/` are
-/// skipped by the library's loader — exactly what `_reach.py` skips, so the two
+/// skipped by the library's loader, so the two
 /// agree on what a node is.
 fn load() -> Questions {
     Questions::load(RUNG, &questions_dir())
@@ -215,7 +215,7 @@ fn every_per_question_decidable_sentence_holds_over_all_questions() {
 /// **A result, asserted as it stands.**
 ///
 /// `affects` is documented as *"the things that rest on this item"*, but nothing
-/// maintains it: `_reach.py` builds its reverse index from `depends_on` alone,
+/// maintains it: the reverse index is built from `depends_on` alone,
 /// so an unmirrored `affects` is invisible to every tool that reads these files.
 /// Five internal edges are unacknowledged by their source — including
 /// **Q7 → Q8**, the spawn edge that the retired `EDGES.md`'s own lived-cascade

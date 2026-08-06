@@ -51,7 +51,6 @@ This is what rung has that a capture-only registry does not: a principled genera
    ---
    ```
    - **Only encode a lived edge** — a dependency that actually exists *right now*. Never a speculative one. If you're unsure whether an edge is real, leave it out: a missing edge is cheap to add when it becomes real; a phantom edge is noise that erodes trust in the graph. (Edge kinds and their propagation semantics: [the README](README.md#dependencies--the-registry-is-a-typed-graph), and the theory that declares them, `rung-het/tests/question_registry.rs`.)
-6. **Run the check** — `python _reach.py --graph` to confirm the file parses and any edge shows up. If it doesn't appear, the frontmatter is malformed.
 7. **Keep both status markers.** The prose `**Status:**` line (human) and the frontmatter `status:` (machine) are redundant on purpose; set both to the same value.
 
 ## What intake is NOT (the boundary, held on purpose)

@@ -278,7 +278,7 @@ declared kind has no user in `questions/`.
 **Blast radius is the backward pass.** Before modifying an item, you query
 backward along the composite optic; the answer is a typed *exposure vector* —
 *"3 mechanical updates (cheap), 2 obligatory coproduct reviews (expensive)."*
-`questions/_reach.py` computes the **deflationary Boolean shadow** of that today:
+the typed-exposure predecessor computed the **deflationary Boolean shadow** of that:
 it walks reachability and prints a checklist. The store (frontmatter now, a graph
 store eventually) is inconsequential; the model is what is named.
 
@@ -316,7 +316,7 @@ Three consequences, all confirmed by review and all now normative:
   remap), which nesting does not introduce.
 - **Obligation-transport is scale-invariant**
   ([`transport-is-scale-invariant`](rung-ct-props.md#transport-is-scale-invariant)).
-  Optics compose (Capucci–Hedges; Spivak's *Poly*), so `_reach.py` and its
+  Optics compose (Capucci–Hedges; Spivak's *Poly*), so the tooling and its
   typed-exposure successor cross domain boundaries with **zero modification**.
 - **Horizontal ≅ vertical**
   ([`horizontal-and-vertical-coincide`](rung-ct-props.md#horizontal-and-vertical-coincide)).
