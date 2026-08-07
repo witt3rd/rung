@@ -124,6 +124,18 @@ question whose answer the structure determines"); *without* it, it had affirmed
 or deferred. A judge consulted without the standard is being asked to judge
 conformity it has no basis to assert.
 
+**The author, post-judgment, receives the judgment.** The mirror is not only
+about the *set* being conditioned — it is about the author's **input**. To
+propose or re-propose, the author must be handed the judgment's terms: the
+**disposition** (does this go on?), the **reason / the chain** (why not — what
+the next proposal must address, `reproposal-carries-the-chain`), the **standard**
+(the same criteria the judge held, so the remedy is a candidate against it, not
+a guess), and the **thereby-licensed remedy set** `remedies(j)`. Proposing a
+remedy without these is the authorial mirror of the constant arrow: a fix with
+no relation to what was decided or to what conforming means. We enforced the
+judge's input (the standard reaches it); the author's input (the judgment
+reaches it) is the other half, and it is what `repropose` is handed.
+
 **Authorship is conditioned by the judgment.** It is not the case that every
 authorial option is always available. The appropriate remedy set is licensed by
 the judgment — `remedies(j) \subseteq E`, never the full action space:
