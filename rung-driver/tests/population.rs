@@ -5,8 +5,8 @@
 //! would pass a happy-path test while making a filter mean something other than
 //! it says.
 
-use rung::{Prov, Provenanced, Role, Situated, Steward};
-use rung_driver::{Answer, Backing, Oracle, Population, Unwired, population_pool};
+use rung::{Principal, Prov, Provenanced, Role, Situated, Steward};
+use rung_driver::{Answer, Backing, Oracle, Roster, Unwired, population_pool};
 use std::sync::Arc;
 
 // ── the domain's roles ──────────────────────────────────────────────────────
@@ -64,8 +64,8 @@ principals:
     authored: []
 "#;
 
-fn population() -> Population {
-    Population::from_yaml(POPULATION).expect("the population parses")
+fn population() -> Roster {
+    Roster::from_yaml(POPULATION).expect("the population parses")
 }
 
 // ── the subject ─────────────────────────────────────────────────────────────
@@ -142,13 +142,13 @@ fn kind_decides_nothing() {
 
     assert_eq!(model.kind, rung_driver::Kind::Llm);
     assert!(
-        p.capable(model, "author"),
+        model.capable("author"),
         "a model that declares file-editing fills a role needing it"
     );
 
     assert_eq!(agent.kind, rung_driver::Kind::Agent);
     assert!(
-        !p.capable(agent, "judge"),
+        !agent.capable("judge"),
         "an agent that never declared structured-outputs does not fill a role needing it"
     );
 }
@@ -175,7 +175,7 @@ fn backing_decides_nothing() {
 fn an_undeclared_role_admits_nobody() {
     let p = population();
     assert!(p.capable_of("archivist").is_empty());
-    assert!(!p.capable(p.by_id("careful-model").unwrap(), "archivist"));
+    assert!(!p.by_id("careful-model").unwrap().capable("archivist"));
 }
 
 /// A role requiring nothing is filled by everyone — which is what it asked for.
@@ -184,10 +184,7 @@ fn an_undeclared_role_admits_nobody() {
 #[test]
 fn a_role_requiring_nothing_admits_everyone() {
     let mut p = population();
-    p.roles.push(rung_driver::RoleSpec {
-        name: "observer".into(),
-        requires: vec![],
-    });
+    p.roles.push(rung_driver::RoleSpec::named("observer", &[]));
     assert_eq!(p.capable_of("observer").len(), p.principals.len());
 }
 
@@ -203,7 +200,7 @@ fn a_capable_principal_is_still_refused_for_what_it_authored() {
     let pool = population_pool(&p, "author", Arc::new(Answering));
 
     // `tool-agent` authored `a-thing-it-wrote` and is capable of `author`.
-    assert!(p.capable(p.by_id("tool-agent").unwrap(), "author"));
+    assert!(p.by_id("tool-agent").unwrap().capable("author"));
 
     // Judged against something else, a qualifying principal is found.
     assert!(
@@ -230,7 +227,7 @@ fn a_capable_principal_is_still_refused_for_what_it_authored() {
 fn capability_alone_does_not_authorize_a_write() {
     let mut p = population();
     for spec in &mut p.principals {
-        spec.standing.clear();
+        spec.stewards.clear();
     }
     let pool = population_pool(&p, "author", Arc::new(Answering));
     let subject = Subject { id: "anything" };
@@ -313,7 +310,7 @@ fn a_duplicate_declaration_is_reported() {
 #[test]
 fn a_capability_no_role_requires_is_reported() {
     let mut p = population();
-    p.principals[0].capabilities.push("telepathy".into());
+    p.principals[0].qualifications.insert("telepathy".into());
     let errs = p.check();
     assert!(errs.iter().any(|e| matches!(
         e,
@@ -327,6 +324,6 @@ fn a_capability_no_role_requires_is_reported() {
 fn a_population_round_trips_through_yaml() {
     let p = population();
     let text = serde_yaml::to_string(&p).expect("serializes");
-    let back = Population::from_yaml(&text).expect("parses");
+    let back = Roster::from_yaml(&text).expect("parses");
     assert_eq!(p, back);
 }

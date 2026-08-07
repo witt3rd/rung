@@ -26,12 +26,12 @@
 //! to the pool and non-identity is applied per dispatch; by the time `ask` is
 //! called those are settled and this only carries the reply.
 
-use crate::config::{Backing, Population};
 use crate::principal::{Answer, Oracle};
 use rung::Raised;
 use rung_std::llm::{
     ChatMessage, ContentBlock, DEFAULT_MAX_ATTEMPTS, LlmConfig, LlmRequest, LlmResponse, llmcall,
 };
+use rung_std::principals::{Backing, Roster};
 
 /// Why a principal could not be reached.
 ///
@@ -66,7 +66,7 @@ impl std::fmt::Display for Unreachable {
 /// the provider declared. It is never held in the population and never stored
 /// on this type, so a config file cannot carry one and a debug print cannot
 /// leak one.
-pub fn resolve(population: &Population, backing: &Backing) -> Result<LlmConfig, Unreachable> {
+pub fn resolve(population: &Roster, backing: &Backing) -> Result<LlmConfig, Unreachable> {
     let (Some(name), Some(model)) = (backing.provider(), backing.model()) else {
         return Err(Unreachable::NotServedByAModel);
     };
@@ -137,14 +137,14 @@ impl Prompt for Adjudicate {
 /// One oracle serves a whole population: each principal's backing names its
 /// provider, and the endpoint and credential are resolved per dispatch.
 pub struct ModelOracle<P: Prompt> {
-    population: Population,
+    population: Roster,
     prompt: P,
     /// Reference used when a matter is raised without the model naming one.
     reference: String,
 }
 
 impl<P: Prompt> ModelOracle<P> {
-    pub fn new(population: Population, prompt: P, reference: impl Into<String>) -> Self {
+    pub fn new(population: Roster, prompt: P, reference: impl Into<String>) -> Self {
         Self {
             population,
             prompt,

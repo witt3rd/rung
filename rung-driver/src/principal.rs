@@ -1,8 +1,8 @@
 //! A declared principal, made dispatchable.
 //!
-//! [`Configured`] is the bridge from a [`PrincipalSpec`](crate::PrincipalSpec)
-//! — id, capabilities, standing, provenance, backing — to `rung`'s `Principal`
-//! and `Steward`, which is what a `Pool` can run its filters against.
+//! [`Configured`] is the bridge from a [`PrincipalDecl`](rung_std::principals::PrincipalDecl) —
+//! the unified principals model — to `rung`'s `Principal` and `Steward`, which
+//! is what a `Pool` can run its filters against.
 //!
 //! ## Where the answer comes from
 //!
@@ -16,8 +16,9 @@
 //! outside, and the only thing this type does with an answer is carry it.
 
 use crate::commission::CommissionLog;
-use crate::config::{Backing, PrincipalSpec};
 use rung::{Pool, Principal, Prov, Raised, Response, Steward, Verdict};
+use rung_std::principals::{Backing, PrincipalDecl, Roster};
+use std::sync::Arc;
 
 /// What an outside said when asked.
 ///
@@ -74,19 +75,25 @@ impl Oracle for Unwired {
 
 /// A declared principal, dispatchable.
 pub struct Configured<O: Oracle> {
-    spec: PrincipalSpec,
-    oracle: std::sync::Arc<O>,
+    spec: PrincipalDecl,
+    oracle: Arc<O>,
     /// The commission contribution record this principal's `authored` is
-    /// derived from, when it has a [`family`](PrincipalSpec::family).
-    log: Option<std::sync::Arc<CommissionLog>>,
+    /// derived from, when it has a [`family`](PrincipalDecl::family).
+    log: Option<Arc<CommissionLog>>,
+    /// The role this principal was admitted into a pool for, when built by
+    /// [`population_pool`]. The pool's judgmental filter re-asks `capable` of
+    /// the configured principal; this records that admission so the two cannot
+    /// drift — a principal admitted into the pool for a role is capable of it.
+    admitted: Option<String>,
 }
 
 impl<O: Oracle> Configured<O> {
-    pub fn new(spec: PrincipalSpec, oracle: std::sync::Arc<O>) -> Self {
+    pub fn new(spec: PrincipalDecl, oracle: Arc<O>) -> Self {
         Self {
             spec,
             oracle,
             log: None,
+            admitted: None,
         }
     }
 
@@ -96,19 +103,16 @@ impl<O: Oracle> Configured<O> {
     /// population of models; the plain [`Configured::new`] keeps `authored` as
     /// the principal's own static declaration, which is right for a person and
     /// wrong for a discontinuous kind.
-    pub fn with_log(
-        spec: PrincipalSpec,
-        oracle: std::sync::Arc<O>,
-        log: std::sync::Arc<CommissionLog>,
-    ) -> Self {
+    pub fn with_log(spec: PrincipalDecl, oracle: Arc<O>, log: Arc<CommissionLog>) -> Self {
         Self {
             spec,
             oracle,
             log: Some(log),
+            admitted: None,
         }
     }
 
-    pub fn spec(&self) -> &PrincipalSpec {
+    pub fn spec(&self) -> &PrincipalDecl {
         &self.spec
     }
 }
@@ -116,20 +120,14 @@ impl<O: Oracle> Configured<O> {
 impl<O: Oracle> Principal for Configured<O> {
     /// **Capability, and nothing else.**
     ///
-    /// The role's requirements are resolved against this principal's declared
-    /// capabilities. Kind is not read here and neither is backing: a model that
-    /// declares `file-editing` is capable of a role needing it, and an agent
-    /// that does not declare it is not, whatever it could in principle do.
-    ///
-    /// The requirements travel with the role name in
-    /// [`population_pool`](crate::population_pool), which resolves them once
-    /// and stores the answer per principal — so this stays a lookup rather than
-    /// a place where a filter could quietly grow.
+    /// Delegates to the unified model's claim-vs-earn check: a principal plays
+    /// a role only when it both claims it and declares what the role's minimum
+    /// qualifications require. A principal admitted into a pool for a role is
+    /// also capable of it (the pool's filter re-asks this, so admission is
+    /// recorded here rather than recomputed). Kind is not read and neither is
+    /// backing.
     fn capable(&self, role_name: &str) -> bool {
-        self.spec
-            .capabilities
-            .iter()
-            .any(|c| c == role_name || c == &format!("role:{role_name}"))
+        self.admitted.as_deref() == Some(role_name) || self.spec.capable(role_name)
     }
 
     fn id(&self) -> &str {
@@ -144,7 +142,7 @@ impl<O: Oracle> Principal for Configured<O> {
         // record.
         match (&self.spec.family, &self.log) {
             (Some(family), Some(log)) => Prov::of(log.artifacts_for(family)),
-            _ => Prov::of(self.spec.authored.iter().cloned()),
+            _ => Prov::of(self.spec.provenance.iter().cloned()),
         }
     }
 
@@ -158,27 +156,24 @@ impl<O: Oracle> Principal for Configured<O> {
 
 impl<O: Oracle> Steward for Configured<O> {
     fn has_standing(&self, over: &str) -> bool {
-        self.spec.standing.iter().any(|s| s == over)
+        self.spec.stewards.iter().any(|s| s == over)
     }
 }
 
-/// Build a pool from a population, for one role.
+/// Build a pool from a roster, for one role.
 ///
-/// Role requirements are resolved **here**, once: every principal that declares
-/// what the role needs is admitted to the pool tagged with that role's name, and
-/// `Principal::capable` becomes a lookup. Doing it here rather than inside
-/// `capable` keeps the competence rule in one readable place instead of
-/// distributed across a trait impl.
-///
-/// Everyone capable goes in. Non-identity is *not* applied — it is not a
-/// property of a principal but of a principal and the thing it is asked about,
-/// so the pool applies it per dispatch (`disjointness-against-argument`).
+/// Role requirements are resolved when the roster is loaded (its `from_yaml`
+/// derives each principal's `plays` from the role vocabulary), so admission
+/// here is a plain capability lookup over the unified model. Everyone capable
+/// goes in. Non-identity is *not* applied — it is not a property of a principal
+/// but of a principal and the thing it is asked about, so the pool applies it
+/// per dispatch (`disjointness-against-argument`).
 pub fn population_pool<O: Oracle>(
-    population: &crate::Population,
+    roster: &Roster,
     role: &str,
-    oracle: std::sync::Arc<O>,
+    oracle: Arc<O>,
 ) -> Pool<Configured<O>> {
-    population_pool_inner(population, role, oracle, None)
+    population_pool_inner(roster, role, oracle, None)
 }
 
 /// Build a pool whose model principals derive `authored` from the commission
@@ -186,32 +181,30 @@ pub fn population_pool<O: Oracle>(
 /// population's families record their work in, and `authored(p)` becomes a
 /// lookup against it rather than a static declaration.
 pub fn population_pool_with_log<O: Oracle>(
-    population: &crate::Population,
+    roster: &Roster,
     role: &str,
-    oracle: std::sync::Arc<O>,
-    log: std::sync::Arc<CommissionLog>,
+    oracle: Arc<O>,
+    log: Arc<CommissionLog>,
 ) -> Pool<Configured<O>> {
-    population_pool_inner(population, role, oracle, Some(log))
+    population_pool_inner(roster, role, oracle, Some(log))
 }
 
 fn population_pool_inner<O: Oracle>(
-    population: &crate::Population,
+    roster: &Roster,
     role: &str,
-    oracle: std::sync::Arc<O>,
-    log: Option<std::sync::Arc<CommissionLog>>,
+    oracle: Arc<O>,
+    log: Option<Arc<CommissionLog>>,
 ) -> Pool<Configured<O>> {
-    let members = population
+    let members = roster
         .capable_of(role)
         .into_iter()
         .map(|spec| {
-            let mut spec = spec.clone();
-            // Tag with the role it was admitted for, so `capable` is a lookup
-            // and the requirement comparison lives in exactly one place.
-            spec.capabilities.push(format!("role:{role}"));
-            match &log {
-                Some(log) => Configured::with_log(spec, oracle.clone(), log.clone()),
-                None => Configured::new(spec, oracle.clone()),
-            }
+            let mut cfg = match &log {
+                Some(log) => Configured::with_log(spec.clone(), oracle.clone(), log.clone()),
+                None => Configured::new(spec.clone(), oracle.clone()),
+            };
+            cfg.admitted = Some(role.to_string());
+            cfg
         })
         .collect();
     Pool::new(members)

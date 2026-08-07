@@ -188,7 +188,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [3.23](rung-het-props.md#nothing-further-required) | `nothing-further-required` | `rationale` | The division is now observable from both sides. `rung::Principal` asks for `capable` and `id`, `Provenanced` for `π`, `Steward` for standing — and nothing anywhere in `rung` names a kind, a substrate partition, an identity field, a cost tier or a population. `rung-std::principals` names all five, because a supplier that named none of them would have supplied nothing. The cited test binds the interface at its declared arities and shows the licence that comes back out carrying an id, a provenance and a role — the kind, its required fields and its tier stay on the supplier's side of the line. What is NOT enforced: that a future `rung` stays incurious. Nothing structurally prevents the library growing a `Kind`; this row records that it has not. | — |
 | [3.24](rung-het-props.md#capable-single-arity) | `capable-single-arity` | `rationale` | `Principal::capable(&self, role_name: &str)` — one arity, and the second argument is a NAME. A supplier keys its qualification table on that name (`rung-std::principals::RoleSpec`), because a `Role` type cannot be recovered from a string; that is the shape this proposition forces, met rather than worked around. The cited test passes a *sentence* name where a role name goes and gets `false`: a principal does not have the theory's sentences and cannot be asked to inspect them. rung proves the arity, not that any supplier's table is right. | — |
 | [3.25](rung-het-props.md#principal-provenance-floor) | `principal-provenance-floor` | `rationale` | — | — |
-| [3.251](rung-het-props.md#commission-record-is-the-carrier) | `commission-record-is-the-carrier` | `signature` | Conformance: `PrincipalSpec::family` and `CommissionLog` in `rung-driver`; `Configured::authored` derives from the record when a family is present. `commissions.yaml` is the record rung's own population reads. | — |
+| [3.251](rung-het-props.md#commission-record-is-the-carrier) | `commission-record-is-the-carrier` | `signature` | Conformance: the unified model's `rung_std::principals::PrincipalDecl::family` and `CommissionLog` in `rung-driver`; `Configured::authored` derives from the record when a family is present. `commissions.yaml` is the record rung's own population reads. | — |
 | [3.252](rung-het-props.md#commission-authored-is-lookup) | `commission-authored-is-lookup` | `decidable` | Exercised by `commission-authored-is-lookup`'s proof: a family with `x`,`y` in one active commission and `y`,`z` in another derives `{x,y,z}`. | `rung-driver/tests/commission.rs::authored_is_the_union_of_a_familys_active_commissions` |
 | [3.253](rung-het-props.md#commission-record-not-total) | `commission-record-not-total` | `decidable` | Exercised by `commission-record-not-total`'s proof: a closed, non-carried commission's artifact is absent from `authored`, and returns only when the commission is explicitly carried forward. | `rung-driver/tests/commission.rs::closed_non_carried_commissions_stay_open` |
 | [3.254](rung-het-props.md#commission-new-commission-empty) | `commission-new-commission-empty` | `decidable` | Exercised by `commission-new-commission-empty`'s proof: an active commission with no contributions attributes nothing. | `rung-driver/tests/commission.rs::a_new_commission_starts_empty` |
@@ -618,7 +618,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 188 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 190 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -699,6 +699,11 @@ look shorter than it is.
 - `github_carrier_refuses_no_repos_but_takes_no_secret`
 - `github_live_issues_walk`
 - `instance_config_drives_a_carrier_audit`
+
+**`rung-driver/tests/convergence.rs`** — 2 unclaimed
+
+- `dispatch_and_audit_read_one_roster`
+- `the_theory_audits_the_real_population_through_one_model`
 
 **`rung-driver/tests/dispatch.rs`** — 1 unclaimed
 

@@ -23,7 +23,7 @@
 //! only, so the real files are untouched. That is the smallest real subject on
 //! which the whole loop can be shown to bite.
 
-use rung_driver::{Answer, Backing, Oracle, Population, population_pool};
+use rung_driver::{Answer, Backing, Oracle, Roster, population_pool};
 use rung_het::{Disposition, Proposal, Verdict, Verify, dispose, enact};
 use rung_std::questions::{Adjudicator, Curator, EdgeKind, QuestionEdit, Questions, Scheme};
 use std::path::{Path, PathBuf};
@@ -91,8 +91,8 @@ principals:
     backing: {via: outside}
 "#;
 
-fn population() -> Population {
-    Population::from_yaml(POPULATION).expect("the population parses")
+fn population() -> Roster {
+    Roster::from_yaml(POPULATION).expect("the population parses")
 }
 
 /// The Q14 marker, carried on a dispatched record.
@@ -101,7 +101,7 @@ fn population() -> Population {
 /// judge's provenance is the empty placeholder must say so rather than passing
 /// as settled. In a real run this field would be the verdict against Q14's
 /// ruling; here it states the gate is open.
-fn q14_marker(judge: &str, provenance: &[String]) -> String {
+fn q14_marker(judge: &str, provenance: &std::collections::BTreeSet<String>) -> String {
     if provenance.is_empty() {
         format!(
             "{judge}: Q14 open — provenance is the empty placeholder; this ruling is provisional"
@@ -213,7 +213,7 @@ fn the_seam_runs_one_audit_rectify_cycle_over_rungs_own_questions() {
     let judge = pop.by_id("external-judge").expect("the judge is declared");
     eprintln!(
         "  RECORD  tier=dispatched, {}",
-        q14_marker(judge.id.as_str(), &judge.authored)
+        q14_marker(judge.id.as_str(), &judge.provenance)
     );
     eprintln!("  one audit-rectify cycle closed over rung's own questions");
 }

@@ -504,10 +504,10 @@ qualification time. A principal without a family (a continuous kind, e.g. a
 person) keeps `authored` as its own genuine, declared record.
 
 "#.into(),
-            mechanism: r#"Conformance: `PrincipalSpec::family` and
-`CommissionLog` in `rung-driver`; `Configured::authored` derives from the
-record when a family is present. `commissions.yaml` is the record rung's own
-population reads."#.into(),
+            mechanism: r#"Conformance: the unified model's
+`rung_std::principals::PrincipalDecl::family` and `CommissionLog` in `rung-driver`;
+`Configured::authored` derives from the record when a family is present.
+`commissions.yaml` is the record rung's own population reads."#.into(),
         }),
         Element::Prop(Prop {
             slug: "commission-authored-is-lookup".into(),

@@ -31,7 +31,6 @@
 
 pub mod carrier;
 pub mod commission;
-pub mod config;
 pub mod instance;
 pub mod judgment;
 pub mod oracle_llm;
@@ -44,13 +43,19 @@ pub use carrier::{
     JsonlFolderCarrier, ObjectId,
 };
 pub use commission::CommissionLog;
-pub use config::{Backing, ConfigError, Kind, Population, PrincipalSpec, Provider, RoleSpec};
+// The principals convergence: the driver's own Population/PrincipalSpec were
+// collapsed into the theory's single Roster/PrincipalDecl in rung_std. The
+// unified model (with providers + backing + family) is re-exported here so a
+// driver has one import.
 pub use instance::Instance;
 pub use judgment::{DispatchedJudge, DispatchedRecord};
 pub use oracle_llm::{Adjudicate, ModelOracle, Prompt, Unreachable, resolve};
 pub use pass::{Audit, CycleOutcome, Finding, audit_run, run_cycle};
 pub use principal::{
     Answer, Configured, Oracle, Unwired, population_pool, population_pool_with_log,
+};
+pub use rung_std::principals::{
+    Backing, ConfigError, Kind, PrincipalDecl, Provider, RoleSpec, Roster, RosterFault,
 };
 
 /// Re-exported so a driver has one import for holding suspended runs.

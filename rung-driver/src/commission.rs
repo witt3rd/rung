@@ -3,7 +3,7 @@
 //! `authored(p)` is **derived** from this record by **lookup** — never
 //! enumerated as a growing array in a principal's declaration. That is the
 //! whole point of the carrier: `population.yaml` declares a principal's stable
-//! [`family`](crate::PrincipalSpec::family), and this record supplies the
+//! [`family`](crate::PrincipalDecl::family), and this record supplies the
 //! artifacts that family produced, so the pool can read them at qualification
 //! time.
 //!

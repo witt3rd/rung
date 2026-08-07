@@ -8,6 +8,14 @@
 //! (`nothing-further-required`). This module is a **supplier** — the law of who
 //! may be dispatched to, for the pool that `rung`'s two gates draw from.
 //!
+//! Because it is a supplier, it is also **the deployment's single model**.
+//! There is one principals theory and many carriers (the principals
+//! convergence): a compile-time roster declared in a test and a runtime
+//! `population.yaml` are both just *carriers* loading into the same [`Roster`].
+//! The driver that dispatches (`rung-driver`) and the audit that adjudicates
+//! both read this one model, so `provenance` is the same `π` on both halves of
+//! the institution.
+//!
 //! `rung` already supplies the *interface*: `Provenanced` is `π`, `Role` is the
 //! competence a sentence declares, `Principal::capable` is the competence
 //! filter, `Steward::has_standing` is the standing predicate, and `Pool` mints
@@ -84,6 +92,7 @@
 //!    rather than dressed as `decidable` sentences with nothing to decide.
 
 use rung::{Principal, Prov, Provenanced, Response, Role, Steward, Verdict, theory};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -121,7 +130,7 @@ impl CostTier {
 /// rustc warns that the field is never read. That warning is *correct*, and it
 /// is silenced rather than answered: answering it means adding the accessor,
 /// and the accessor is the thing HetOpt would bring.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Epsilon(#[allow(dead_code)] f64);
 
 impl Epsilon {
@@ -149,7 +158,8 @@ impl Epsilon {
 /// not by the partition saying so for it.
 // No `Ord`. Declaration order here IS cost order, so deriving one would hand
 // out the minimal-judge rule for free, under the name of a convenience.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum Kind {
     /// A language model. Identified by the provider it is served from and the
     /// model identifier that provider uses.
@@ -216,6 +226,81 @@ impl Kind {
 }
 
 // ═════════════════════════════════════════════════════════════════════════
+// 2b. The deployment half — providers and backing
+// ═════════════════════════════════════════════════════════════════════════
+
+/// A place models are served from, and how to reach it.
+///
+/// Declared per provider rather than once, because a population routinely
+/// spans several: two judges from different families is the point of having
+/// two, and different families are usually different endpoints with different
+/// credentials.
+///
+/// ## No secret lives here
+///
+/// A provider names the **environment variable** its credential is read from,
+/// never the credential. A carrier is checked into a repository, and a schema
+/// with an `api_key` field is an invitation to paste one in — the sort of thing
+/// that is nobody's decision and everybody's problem. Supply the value however
+/// you like (a shell, `direnv`, a secret manager); the declaration only says
+/// what to look for.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Provider {
+    pub name: String,
+    /// Endpoint base, without trailing slash.
+    pub base_url: String,
+    /// The environment variable holding the credential.
+    pub api_key_env: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_secs: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_level: Option<String>,
+}
+
+/// How a principal answers when it is consulted.
+///
+/// Declared separately from capabilities on purpose: *what* a principal can do
+/// and *how it does it* are different facts, and only the first is a condition
+/// on being dispatched to. Nothing in the qualifying path reads this — it is
+/// the driver's to resolve when a principal is actually asked.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "via", rename_all = "kebab-case")]
+pub enum Backing {
+    /// One blocking model call, at a named provider.
+    Model { provider: String, model: String },
+    /// An agentic turn: drive a model, dispatch tools, iterate.
+    Agent {
+        provider: String,
+        model: String,
+        tools: Vec<String>,
+    },
+    /// Answers out of band. A person, or anything else that is asked by some
+    /// route this driver does not own. The default: a principal nobody wired up
+    /// has not been wired up, and says so rather than being assumed reachable.
+    #[default]
+    Outside,
+}
+
+impl Backing {
+    pub fn model(&self) -> Option<&str> {
+        match self {
+            Self::Model { model, .. } | Self::Agent { model, .. } => Some(model),
+            Self::Outside => None,
+        }
+    }
+
+    /// Which provider serves this principal, if any.
+    pub fn provider(&self) -> Option<&str> {
+        match self {
+            Self::Model { provider, .. } | Self::Agent { provider, .. } => Some(provider),
+            Self::Outside => None,
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
 // 3. Roles — open, and earned rather than claimed
 // ═════════════════════════════════════════════════════════════════════════
 
@@ -229,16 +314,36 @@ impl Kind {
 /// (`role-declared-not-enumerated`), so the population of roles lives in a
 /// [`Roster`], not here.
 ///
-/// The name is a `&'static str` rather than a `Role` type because
+/// The name is a `String` rather than a `Role` type because
 /// `capable-single-arity` fixes `capable`'s second argument to a role *name*
 /// and `rung` passes it as `&str`. A type cannot be recovered from a string, so
-/// the comparison has to be keyed on the name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// the comparison has to be keyed on the name. In YAML a role is declared as
+/// `name:` and `requires:` (the minimum-qualifications list); the carrier
+/// (`population.yaml`) and a compile-time roster both load into this same
+/// owned model.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleSpec {
-    pub name: &'static str,
+    pub name: String,
     /// The atoms a principal must declare. The vocabulary is the roster's; this
-    /// module compares it and never interprets it.
-    pub min_qualifications: &'static [&'static str],
+    /// module compares it and never interprets it. Serialized as `requires:` to
+    /// match a deployment carrier's vocabulary.
+    #[serde(rename = "requires", default)]
+    pub min_qualifications: Vec<String>,
+}
+
+impl RoleSpec {
+    /// A static-`&str` constructor, so the theory's own roles (`examiner`,
+    /// `taxonomist`) and a test's inline roles can be written without quoting
+    /// every atom.
+    pub fn named(name: &'static str, min_qualifications: &[&'static str]) -> Self {
+        Self {
+            name: name.to_string(),
+            min_qualifications: min_qualifications
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
+        }
+    }
 }
 
 /// A `Role` that declares its own minimum qualifications.
@@ -250,10 +355,7 @@ pub trait Competence: Role {
     const MIN_QUALIFICATIONS: &'static [&'static str];
 
     fn spec() -> RoleSpec {
-        RoleSpec {
-            name: Self::NAME,
-            min_qualifications: Self::MIN_QUALIFICATIONS,
-        }
+        RoleSpec::named(Self::NAME, Self::MIN_QUALIFICATIONS)
     }
 }
 
@@ -285,30 +387,64 @@ impl Competence for Taxonomist {
 // ═════════════════════════════════════════════════════════════════════════
 
 /// One concrete outside: what it is made of, who it is, what it can do, what it
-/// stewards, and what it costs.
-#[derive(Debug, Clone)]
+/// stewards, what it costs, and how it is reached.
+///
+/// This is the **single** principal for the whole institution. A deployment
+/// carrier (`population.yaml`, serialized with `capabilities`/`standing`/
+/// `authored`/`family`/`backing` under those names) and a compile-time roster
+/// load into this same type; the audit side and the dispatch side share it.
+/// `plays` is **derived at carrier-load time** from the role vocabulary (a
+/// principal plays every role whose minimum qualifications it declares), so a
+/// loaded roster carries the same claim versus earn shape a hand-built one does.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrincipalDecl {
     /// A human-readable identity, for the receipt.
     pub id: String,
     /// Exactly one substrate kind. Zero is not a term and two is not a field.
     pub kind: Kind,
     /// The kind's required identity fields, as declared.
+    #[serde(default)]
     pub identity: BTreeMap<String, String>,
-    /// What this principal declares it is — the atoms a [`RoleSpec`]'s minimum
-    /// qualifications are compared against.
+    /// What this principal declares it is. Serialized as `capabilities:` in a
+    /// deployment carrier; the atoms a [`RoleSpec`]'s minimum qualifications
+    /// are compared against.
+    #[serde(rename = "capabilities", default)]
     pub qualifications: BTreeSet<String>,
     /// The roles it plays. Claimed here; **earned** only if the comparison
-    /// holds, which is what [`PrincipalDecl::capable`] runs.
+    /// holds, which is what [`PrincipalDecl::capable`] runs. Derived at
+    /// carrier-load time, so never serialized.
+    #[serde(skip)]
     pub plays: Vec<RoleSpec>,
     /// `π(p)`. Both filters read it: disjointness for judgment, and it is a
-    /// principal's authorship that standing is held against.
+    /// principal's authorship that standing is held against. Serialized as
+    /// `authored:` in a deployment carrier, and for a family-derived principal
+    /// this is the **derived** commission π (see [`family`](Self::family)).
+    #[serde(rename = "authored", default)]
     pub provenance: BTreeSet<String>,
     /// The containers this principal stewards — `Steward::has_standing`'s
     /// answer. What counts as standing over what is a supplier's business
     /// (`nothing-further-required`), and this supplier says: a named container.
+    /// Serialized as `standing:` in a deployment carrier.
+    #[serde(rename = "standing", default)]
     pub stewards: BTreeSet<String>,
     /// Declared, and read by nothing beyond its presence. See [`Epsilon`].
+    #[serde(default)]
     pub epsilon: Option<Epsilon>,
+    /// The family this principal belongs to — the `f` under which a
+    /// [`CommissionLog`](crate::commission) attributes its work (Q14/Q16/Q17,
+    /// in `rung-driver`). For a discontinuous kind (a model, an agent) this is
+    /// the family identifier: when present, `authored(p)` is **derived** from
+    /// the commission record by looking this family up — never a second,
+    /// hand-maintained list (the driver refuses one). When absent (a continuous
+    /// kind, like a person), `provenance` remains the principal's genuine,
+    /// declared record.
+    #[serde(default)]
+    pub family: Option<String>,
+    /// How this principal answers when consulted: a model, an agent, or out of
+    /// band. Chosen by the principal, not by the filter; nothing in the
+    /// qualifying path reads it.
+    #[serde(default)]
+    pub backing: Backing,
 }
 
 impl PrincipalDecl {
@@ -323,7 +459,7 @@ impl PrincipalDecl {
     pub fn meets(&self, role: &RoleSpec) -> bool {
         role.min_qualifications
             .iter()
-            .all(|q| self.qualifications.contains(*q))
+            .all(|q| self.qualifications.contains(q))
     }
 
     /// Required identity fields this principal has not declared. An entry
@@ -338,11 +474,11 @@ impl PrincipalDecl {
     }
 
     /// Roles this principal claims and has not earned.
-    pub fn unearned_roles(&self) -> Vec<&'static str> {
+    pub fn unearned_roles(&self) -> Vec<&str> {
         self.plays
             .iter()
             .filter(|r| !self.meets(r))
-            .map(|r| r.name)
+            .map(|r| r.name.as_str())
             .collect()
     }
 }
@@ -369,6 +505,10 @@ impl Principal for PrincipalDecl {
     /// `authored` — the history this principal claims. `π(p)` is this
     /// **with `id()` added**, by the blanket `Provenanced` impl in `rung`:
     /// the provenance floor is not a value a principal gets to state.
+    ///
+    /// For a principal with a [`family`](Self::family), callers on the dispatch
+    /// side derive this from the commission record; the principal itself does
+    /// not know the record, so it reports its declared `provenance`.
     fn authored(&self) -> Prov {
         Prov::of(self.provenance.iter().cloned())
     }
@@ -389,31 +529,133 @@ impl Steward for PrincipalDecl {
 // 5. The second sort — the population
 // ═════════════════════════════════════════════════════════════════════════
 
-/// A model of this theory: a concrete population, and the role vocabulary it
-/// declares.
+/// A model of this theory: a concrete population, its providers, and the role
+/// vocabulary it declares.
 ///
 /// The theory is shared; the roster is a deployment's. Nothing in `rung-std`
 /// holds principals, and `principals_theory.rs` checks that no role name,
 /// qualification atom or principal id from either of its two rosters appears in
 /// any of the library's sources.
-#[derive(Debug, Clone)]
+///
+/// A roster is **carrier-loadable**: [`Roster::from_yaml`] reads a
+/// `population.yaml`-shaped carrier into this same model that a compile-time
+/// roster builds by hand. Loading derives [`PrincipalDecl::plays`] from the
+/// role vocabulary, so claim versus earn holds over a loaded population exactly as
+/// over a hand-built one.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Roster {
     /// The provenance tag the roster as a whole carries.
-    pub namespace: &'static str,
+    #[serde(default)]
+    pub namespace: String,
+    /// The endpoints a population's [`Backing`]s resolve through.
+    #[serde(default)]
+    pub providers: Vec<Provider>,
     /// The open role vocabulary this deployment declares.
+    #[serde(default)]
     pub roles: Vec<RoleSpec>,
     pub principals: Vec<PrincipalDecl>,
 }
 
 impl Provenanced for Roster {
     fn provenance(&self) -> Prov {
-        Prov::of([self.namespace])
+        Prov::of([self.namespace.clone()])
+    }
+}
+
+/// What is wrong with a carrier declaration.
+///
+/// Reported by [`Roster::check`] before any dispatch is attempted. Structural
+/// faults that would otherwise surface only at use — a duplicate id, an
+/// unreachable provider, a family that also declares static authorship — are
+/// named here.
+#[derive(Debug, PartialEq, Eq)]
+pub enum RosterFault {
+    DuplicatePrincipal {
+        id: String,
+    },
+    DuplicateRole {
+        name: String,
+    },
+    /// A capability (qualification atom) no role asks for. Not an error in
+    /// itself — reported so an unused declaration is visible rather than
+    /// silently inert.
+    Unused {
+        id: String,
+        capability: String,
+    },
+    /// A principal names a provider nobody declared. A real fault: it can never
+    /// be reached, and the failure would otherwise appear only at dispatch.
+    UnknownProvider {
+        id: String,
+        provider: String,
+    },
+    DuplicateProvider {
+        name: String,
+    },
+    /// A principal with a `family` also declares a static `authored`. The two
+    /// disagree structurally: `authored` is *derived* for a family, so a second
+    /// hand-maintained copy is a latent second source of truth. Refused.
+    FamilyWithAuthored {
+        id: String,
+    },
+}
+
+impl std::fmt::Display for RosterFault {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DuplicatePrincipal { id } => write!(f, "`{id}` is declared twice"),
+            Self::DuplicateRole { name } => write!(f, "role `{name}` is declared twice"),
+            Self::Unused { id, capability } => {
+                write!(f, "`{id}` declares `{capability}`, which no role requires")
+            }
+            Self::UnknownProvider { id, provider } => {
+                write!(f, "`{id}` is served by `{provider}`, which is not declared")
+            }
+            Self::DuplicateProvider { name } => {
+                write!(f, "provider `{name}` is declared twice")
+            }
+            Self::FamilyWithAuthored { id } => write!(
+                f,
+                "`{id}` declares both `family` and a static `authored`; authored is \
+                 derived from the commission record for a family, so the two conflict"
+            ),
+        }
     }
 }
 
 impl Roster {
+    /// Load a roster from a `population.yaml`-shaped carrier.
+    ///
+    /// The carrier uses the deployment vocabulary — `capabilities`, `standing`,
+    /// `authored`, `family`, `backing`, roles with `requires` — which serde
+    /// maps onto the theory's model. **Loading derives `plays`**: a principal
+    /// claims and earns every roster role whose minimum qualifications its
+    /// declared qualifications meet, so the claim versus earn law holds over a
+    /// loaded population exactly as over a hand-built one.
+    pub fn from_yaml(text: &str) -> Result<Self, serde_yaml::Error> {
+        let mut r: Roster = serde_yaml::from_str(text)?;
+        r.derive_plays();
+        Ok(r)
+    }
+
+    /// Derive each principal's `plays` from the role vocabulary (the carrier
+    /// admission rule, made part of the model so the audit sees it too).
+    fn derive_plays(&mut self) {
+        for p in &mut self.principals {
+            p.plays = self.roles.iter().filter(|r| p.meets(r)).cloned().collect();
+        }
+    }
+
     pub fn by_id(&self, id: &str) -> Option<&PrincipalDecl> {
         self.principals.iter().find(|p| p.id == id)
+    }
+
+    pub fn role(&self, name: &str) -> Option<&RoleSpec> {
+        self.roles.iter().find(|r| r.name == name)
+    }
+
+    pub fn provider(&self, name: &str) -> Option<&Provider> {
+        self.providers.iter().find(|p| p.name == name)
     }
 
     /// `𝒫` as `rung` wants it. One pool — the filters are applied to it, not
@@ -439,12 +681,12 @@ impl Roster {
     /// Without this a principal could carry a `RoleSpec` of its own invention
     /// with an empty qualification list and be capable of anything it named.
     /// The comparison is only as good as the thing compared against.
-    pub fn undeclared_roles(&self) -> Vec<(String, &'static str)> {
+    pub fn undeclared_roles(&self) -> Vec<(String, &str)> {
         let mut out = Vec::new();
         for p in &self.principals {
             for r in &p.plays {
                 if !self.roles.contains(r) {
-                    out.push((p.id.clone(), r.name));
+                    out.push((p.id.clone(), r.name.as_str()));
                 }
             }
         }
@@ -460,10 +702,10 @@ impl Roster {
                 let players: Vec<String> = self
                     .principals
                     .iter()
-                    .filter(|p| p.capable(r.name))
+                    .filter(|p| p.capable(r.name.as_str()))
                     .map(|p| p.id.clone())
                     .collect();
-                (*r, players)
+                (r.clone(), players)
             })
             .collect()
     }
@@ -482,6 +724,86 @@ impl Roster {
                 (*k, members)
             })
             .collect()
+    }
+
+    /// Everyone who could fill this role, by competence alone.
+    ///
+    /// Admission is the **carrier rule**, evaluated against the role's current
+    /// minimum qualifications (`requires`): a principal is capable of a role
+    /// when it declares every atom the role requires. It is computed fresh
+    /// against the role as it stands, so a role added after load is fillable
+    /// immediately — the same admission the driver's pool applies.
+    ///
+    /// Non-identity and standing are applied later, by the pool, against the
+    /// particular argument — they are not properties of a principal but of a
+    /// principal *and* a thing it is being asked about. An undeclared role
+    /// admits nobody rather than everybody: an unknown role has no requirements
+    /// to meet and nobody has been said to meet it.
+    pub fn capable_of(&self, role: &str) -> Vec<&PrincipalDecl> {
+        let Some(r) = self.role(role) else {
+            return Vec::new();
+        };
+        self.principals.iter().filter(|p| p.meets(r)).collect()
+    }
+
+    /// Faults, all of them. A structural pre-dispatch report an instance can
+    /// walk before it trusts a carrier.
+    pub fn check(&self) -> Vec<RosterFault> {
+        let mut errs = Vec::new();
+        let mut seen: Vec<&str> = Vec::new();
+        for p in &self.principals {
+            if seen.contains(&p.id.as_str()) {
+                errs.push(RosterFault::DuplicatePrincipal { id: p.id.clone() });
+            }
+            seen.push(&p.id);
+        }
+        let mut roles: Vec<&str> = Vec::new();
+        for r in &self.roles {
+            if roles.contains(&r.name.as_str()) {
+                errs.push(RosterFault::DuplicateRole {
+                    name: r.name.clone(),
+                });
+            }
+            roles.push(&r.name);
+        }
+        let mut provs: Vec<&str> = Vec::new();
+        for pr in &self.providers {
+            if provs.contains(&pr.name.as_str()) {
+                errs.push(RosterFault::DuplicateProvider {
+                    name: pr.name.clone(),
+                });
+            }
+            provs.push(&pr.name);
+        }
+        for p in &self.principals {
+            if let Some(name) = p.backing.provider()
+                && self.provider(name).is_none()
+            {
+                errs.push(RosterFault::UnknownProvider {
+                    id: p.id.clone(),
+                    provider: name.to_string(),
+                });
+            }
+            if p.family.is_some() && !p.provenance.is_empty() {
+                errs.push(RosterFault::FamilyWithAuthored { id: p.id.clone() });
+            }
+        }
+        let wanted: Vec<&str> = self
+            .roles
+            .iter()
+            .flat_map(|r| r.min_qualifications.iter().map(String::as_str))
+            .collect();
+        for p in &self.principals {
+            for c in &p.qualifications {
+                if !wanted.contains(&c.as_str()) {
+                    errs.push(RosterFault::Unused {
+                        id: p.id.clone(),
+                        capability: c.clone(),
+                    });
+                }
+            }
+        }
+        errs
     }
 }
 
@@ -628,3 +950,9 @@ pub fn sentences() -> Vec<(&'static str, &'static str)> {
         .copied()
         .collect()
 }
+
+/// Compatibility name for the roster's structural fault report.
+///
+/// `Roster::check` reports [`RosterFault`]s. This alias keeps a caller reading
+/// the dial in the driver's old vocabulary (`ConfigError`) working unchanged.
+pub type ConfigError = RosterFault;

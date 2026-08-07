@@ -10,8 +10,7 @@
 use rung::Verdict;
 use rung_driver::oracle_llm::read_reply;
 use rung_driver::{
-    Answer, Backing, CommissionLog, Oracle, Population, Unreachable, population_pool_with_log,
-    resolve,
+    Answer, Backing, CommissionLog, Oracle, Roster, Unreachable, population_pool_with_log, resolve,
 };
 use std::sync::Arc;
 
@@ -122,7 +121,7 @@ fn a_bare_failure_still_carries_a_reason() {
 // 3 · This repository's population
 // ════════════════════════════════════════════════════════════════════════════
 
-fn population() -> Population {
+fn population() -> Roster {
     let text = std::fs::read_to_string(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -130,7 +129,7 @@ fn population() -> Population {
             .join("population.yaml"),
     )
     .expect("population.yaml");
-    Population::from_yaml(&text).expect("the population parses")
+    Roster::from_yaml(&text).expect("the population parses")
 }
 
 fn commissions() -> CommissionLog {
@@ -197,9 +196,9 @@ fn the_declared_judges_and_authors_are_disjoint_sets() {
 fn the_author_may_write_the_source_and_not_the_rendering() {
     let p = population();
     let author = p.by_id("ds-maintainer").expect("declared");
-    assert!(author.standing.iter().any(|s| s == "rung-doctrine/src"));
+    assert!(author.stewards.iter().any(|s| s == "rung-doctrine/src"));
     assert!(
-        !author.standing.iter().any(|s| s.ends_with("-props.md")),
+        !author.stewards.iter().any(|s| s.ends_with("-props.md")),
         "the author holds standing over a generated document"
     );
 }
@@ -231,7 +230,7 @@ fn model_provenance_is_derived_from_the_commission_record() {
             "{id} must declare a `family` so its provenance is derived"
         );
         assert!(
-            spec.authored.is_empty(),
+            spec.provenance.is_empty(),
             "{id} must not carry a static `authored` list — provenance is derived"
         );
         // The artificial family coincides with its backing model: the pool can
@@ -247,7 +246,7 @@ fn model_provenance_is_derived_from_the_commission_record() {
     // like: something that actually disqualifies.
     let human = p.by_id("donald").expect("declared");
     assert!(human.family.is_none());
-    assert!(!human.authored.is_empty());
+    assert!(!human.provenance.is_empty());
 }
 
 // ════════════════════════════════════════════════════════════════════════════
