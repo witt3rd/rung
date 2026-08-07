@@ -1,10 +1,19 @@
 ---
 id: q15
 status: open
+filing: ill-posed
 depends_on:
   - {on: q4, kind: premise}
 affects:
   - {target: het-pass-disposition-vocabulary, kind: gate}
+ill_posed: |
+  As posed this is a decision wearing a question's clothes, not a determinate
+  fact: "should the pass suspend or re-enter?" is a fork between two designs
+  (a ruling to be made, not an answer the structure finds), and the question
+  itself is two-part ("can it wait — and if so, where does the residual
+  channel go?"). Repaired, the single determinate fact at its core is: "can a
+  branching transition carry a residual channel?" — which is the well-posed
+  question this filing should be re-filed as once worked.
 ---
 
 # Q15 — Should raising a question suspend the pass, or re-enter it? *(open)*

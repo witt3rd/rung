@@ -1,6 +1,7 @@
 ---
 id: q18
 status: open
+filing: well-posed
 depends_on:
   - {on: q13, kind: premise}
 affects:

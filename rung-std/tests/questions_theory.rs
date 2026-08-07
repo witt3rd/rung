@@ -547,6 +547,7 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
             ("status_is_declared", "decidable"),
             ("edge_kinds_are_declared", "decidable"),
             ("answerable_is_declared", "decidable"),
+            ("ill_posed_filings_name_their_condition", "decidable"),
             ("is_well_posed", "judgmental"),
             ("resolution_answers_the_question", "judgmental"),
         ]
@@ -570,7 +571,7 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
     );
     // `Sen(Σ)` for the theory is a hand-written concatenation, because
     // `theory!` declares one sort per invocation.
-    assert_eq!(sentences().len(), 13);
+    assert_eq!(sentences().len(), 14);
     for (name, gate) in sentences() {
         assert!(
             matches!(gate, "decidable" | "judgmental"),
@@ -599,8 +600,9 @@ fn the_cold_first_cut_is_declaring_an_answer() {
     );
     assert!(settled.verdict().is_conforming());
 
-    // A question that never declares its answer is not a member yet — the
-    // first cut refuses it cold (this is the intake gate).
+    // A question that defaults to Mode A but never declares its answer is not
+    // a member yet — it *claims* well-posedness and owes the anchor; the first
+    // cut refuses it cold (this is the intake gate).
     let bare = Question::parse(
         DOCKET,
         "---\nid: w2\nstatus: open\n---\nbody\n",
@@ -608,9 +610,59 @@ fn the_cold_first_cut_is_declaring_an_answer() {
         "w2",
     )
     .expect("parses");
+    assert!(bare.filing.is_well_posed(), "no filing declared -> Mode A");
     assert!(!bare.declares_resolution());
     assert!(
         !question::answerable_is_declared::holds(&bare)
+            .verdict()
+            .is_conforming()
+    );
+}
+
+/// **Mode B is the escape hatch, and it is honest.** A question filed
+/// `ill-posed` makes no well-posedness claim — `answerable` absent on purpose,
+/// the ill-posed condition named — so the first cut passes vacuously (there is
+/// no well-posedness asserted to fail), and the escape hatch itself is checked:
+/// an ill-posed filing must actually name its condition.
+#[test]
+fn mode_b_claims_nothing_and_names_its_condition() {
+    let mode_b = Question::parse(
+        DOCKET,
+        "---\nid: w3\nstatus: open\nfiling: ill-posed\nill_posed: |\n  this is a decision between two designs, not a determinate fact.\n---\nbody\n",
+        "open",
+        "w3",
+    )
+    .expect("parses");
+    assert!(mode_b.filing.is_ill_posed());
+    assert!(
+        !mode_b.declares_resolution(),
+        "Mode B carries no answerable"
+    );
+    assert!(
+        question::answerable_is_declared::holds(&mode_b)
+            .verdict()
+            .is_conforming(),
+        "Mode B claims nothing, so the first cut is vacuous — not a failure"
+    );
+    assert!(mode_b.names_its_ill_posed_condition());
+    assert!(
+        question::ill_posed_filings_name_their_condition::holds(&mode_b)
+            .verdict()
+            .is_conforming()
+    );
+
+    // ...and the escape hatch is not a silent opt-out: an ill-posed filing
+    // that fails to name its condition is caught cold.
+    let silent = Question::parse(
+        DOCKET,
+        "---\nid: w4\nstatus: open\nfiling: ill-posed\n---\nbody\n",
+        "open",
+        "w4",
+    )
+    .expect("parses");
+    assert!(!silent.names_its_ill_posed_condition());
+    assert!(
+        !question::ill_posed_filings_name_their_condition::holds(&silent)
             .verdict()
             .is_conforming()
     );

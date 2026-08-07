@@ -296,13 +296,57 @@ pub struct Question {
     pub stem: String,
     pub depends_on: Vec<Edge>,
     pub affects: Vec<Edge>,
+    /// The filing mode — whether this question *claims* well-posedness.
+    /// Mode A (`WellPosed`) declares its resolution condition and is audited
+    /// for the four cuts; Mode B (`IllPosed`) names why it is not a question
+    /// yet and claims nothing (`answerable` is absent on purpose, and it is
+    /// not audited for a well-posedness it does not assert). Defaults to Mode A.
+    pub filing: Filing,
     /// The declared resolution / adequacy criterion — what would count as an
     /// answer. The structural anchor of well-posedness: existence and
     /// uniqueness are judged *against this*, and whether it is declared is the
-    /// one checkable cut (`answerable_is_declared`). A question that does not
-    /// declare one is either not yet well-posed, or is being tracked precisely
-    /// to repair it into well-posedness (see `is_well_posed`).
+    /// one checkable cut (`answerable_is_declared`). This is the **single
+    /// source** of the resolution condition — a Mode A question's body defers
+    /// to it, or there are two things claiming to be the answer (the drift
+    /// well-posedness exists to stop).
     pub answerable: Option<String>,
+    /// Mode B only: the named ill-posed condition — *what* keeps this from
+    /// being a well-posed question (a decision awaiting a ruling, a
+    /// definitional commitment, a work item, an unpinned relation...). Mode B
+    /// claims no well-posedness, so the ill-posed condition is stated instead
+    /// of `answerable`.
+    pub ill_posed: Option<String>,
+}
+
+/// How a question is filed — the distinction that keeps the onramp gentle and
+/// the audit honest. Two modes, not one spectrum:
+///
+/// - **[`Filing::WellPosed`]** (Mode A) *claims* well-posedness: it owes a
+///   named resolution condition (`answerable:`), no exceptions, and is
+///   audited for the four cuts. That conditioning is what makes the judgment
+///   non-vacuous — an unanchored judge is a free-floating judge.
+/// - **[`Filing::IllPosed`]** (Mode B) is the escape hatch: `answerable` is
+///   absent **on purpose** and the question names `ill_posed` instead. It
+///   makes **no false audit claim** — it is not audited for a well-posedness
+///   it does not assert.
+///
+/// A question defaults to Mode A; to *decline* well-posedness you file Mode B
+/// explicitly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Filing {
+    /// Mode A — declares `answerable:` and is auditable under the four cuts.
+    WellPosed,
+    /// Mode B — the explicitly ill-posed escape hatch; claims no well-posedness.
+    IllPosed,
+}
+
+impl Filing {
+    pub fn is_well_posed(self) -> bool {
+        matches!(self, Self::WellPosed)
+    }
+    pub fn is_ill_posed(self) -> bool {
+        matches!(self, Self::IllPosed)
+    }
 }
 
 /// **π for a question.**
@@ -340,6 +384,13 @@ impl Question {
     /// the structural anchor of well-posedness (`answerable_is_declared`).
     pub fn declares_resolution(&self) -> bool {
         self.answerable
+            .as_deref()
+            .is_some_and(|s| !s.trim().is_empty())
+    }
+
+    /// Whether this Mode B question names its ill-posed condition.
+    pub fn names_its_ill_posed_condition(&self) -> bool {
+        self.ill_posed
             .as_deref()
             .is_some_and(|s| !s.trim().is_empty())
     }
@@ -415,30 +466,39 @@ impl Question {
 
         // Well-posedness frontmatter: `answerable:` as a single line, or a
         // `|`-block scalar carrying the resolution / adequacy criterion.
-        let answerable = {
-            if let Some(v) = scalar("answerable") {
-                Some(v)
-            } else {
-                let mut inside = false;
-                let mut lines: Vec<&str> = Vec::new();
-                for line in fm.lines() {
-                    if line.trim_end() == "answerable:" || line.trim_end() == "answerable: |" {
-                        inside = true;
-                        continue;
-                    }
-                    if inside {
-                        if !line.starts_with("  ") {
-                            break;
-                        }
-                        lines.push(line.trim());
-                    }
+        // Read a multi-line declaration (`answerable:` / `ill_posed:` as a
+        // `|` block or a single scalar line).
+        let maybe_block = |field: &str| -> Option<String> {
+            if let Some(v) = scalar(field) {
+                return Some(v);
+            }
+            let mut inside = false;
+            let mut lines: Vec<&str> = Vec::new();
+            for line in fm.lines() {
+                if line.trim_end() == field || line.trim_end() == format!("{field}: |") {
+                    inside = true;
+                    continue;
                 }
-                if lines.is_empty() {
-                    None
-                } else {
-                    Some(lines.join("\n"))
+                if inside {
+                    if !line.starts_with("  ") {
+                        break;
+                    }
+                    lines.push(line.trim());
                 }
             }
+            if lines.is_empty() {
+                None
+            } else {
+                Some(lines.join("\n"))
+            }
+        };
+
+        let answerable = maybe_block("answerable");
+        let ill_posed = maybe_block("ill_posed");
+        // filing: `well-posed` (default) or `ill-posed` (Mode B).
+        let filing = match scalar("filing").as_deref() {
+            Some("ill-posed") => Filing::IllPosed,
+            _ => Filing::WellPosed,
         };
 
         Some(Question {
@@ -449,7 +509,9 @@ impl Question {
             stem: stem.to_string(),
             depends_on: block("depends_on", "on"),
             affects: block("affects", "target"),
+            filing,
             answerable,
+            ill_posed,
         })
     }
 }
@@ -707,12 +769,22 @@ theory!(question for Question {
         q.depends_on.iter().chain(q.affects.iter())
             .all(|e| EdgeKind::parse(&e.kind).is_some());
 
-    // The cold first cut of well-posedness: the question must declare what
-    // would count as an answer (`answerable:`), or it is not yet a member of
-    // the question set — either not a question, or tracked precisely to be
-    // repaired. Decidable, because it reads the declaration and nothing else.
+    // The cold first cut of well-posedness, **scoped to Mode A**: a question
+    // that files `well-posed` owes a named resolution condition (`answerable:`),
+    // no exceptions — that conditioning is what makes the judgment non-vacuous.
+    // A Mode B (`ill-posed`) filing claims nothing, so the antecedent is empty
+    // and it trivially passes: it declares no well-posedness to fail.
+    // Decidable, because it reads the filing and the declaration, nothing else.
     decidable answerable_is_declared = |q: &Question|
-        q.declares_resolution();
+        !q.filing.is_well_posed() || q.declares_resolution();
+
+    // The other half of Mode B: a question filed as `ill-posed` must *name its
+    // ill-posed condition* (`ill_posed:`). The escape hatch is not a silent
+    // opt-out — it states what keeps this from being a question, so intake
+    // produces either a well-posed question or an explicitly-marked decision /
+    // work-item / definitional commitment, never a bare non-question.
+    decidable ill_posed_filings_name_their_condition = |q: &Question|
+        !q.filing.is_ill_posed() || q.names_its_ill_posed_condition();
 
     // **Well-posedness is the membership criterion of the question set** (`is_well_posed`,
     // in Hadamard's sense, transplanted). A question is well-posed iff, against
@@ -734,10 +806,20 @@ theory!(question for Question {
     //      question's answer is *found by the structure*, not *made by the
     //      asker*.
     //
-    // The one decidable cut is `answerable_is_declared`; the other three are
-    // judgmental, but they are judged *against the declared criterion*, which
-    // is what makes the judgment non-vacuous. A ruling that refuses must name
-    // the cut it refused (its `reason`).
+    // Only Mode A filings are audited for well-posedness; a Mode B filing
+    // (`ill-posed`) makes no claim, so the audit does not put it to the four
+    // cuts — it would be a false claim to audit a question against a
+    // well-posedness it explicitly declined.
+    //
+    // The one decidable cut is `answerable_is_declared`; `unique` and
+    // `authentic` also carry *cold screens* (they have recognizable footprints
+    // — an unpinned relation, a decision mask). `existence` and `stable` have
+    // none: reachability from substance and survive-rephrasing are
+    // irreducibly judgmental, and that asymmetry is correct — do not "close"
+    // them with a heuristic to make the table uniform. A uniform table would
+    // be shapelier and wrong. The judgment is grounded *against the declared
+    // criterion*, which is what makes it non-vacuous; a ruling that refuses
+    // must name the cut it refused (its `reason`).
     judgmental is_well_posed: Interrogator;
 
     // A resolved question claims a verdict. Does the verdict answer the
