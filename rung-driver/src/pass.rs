@@ -271,19 +271,24 @@ impl Pass<rung_std::questions::QuestionEdit> for Questions {
 
     /// The author's **post-judgment** remedy: handed the disposition, it
     /// re-proposes from what the judgment licenses (`remedy-presupposes-the-
-    /// judgment`). The reason is the "why" the next proposal must address —
-    /// here, a rejected remedy re-files the subject honestly (Mode B, naming
-    /// the condition) rather than re-submitting another fix that was refused.
+    /// judgment`, `remedies-for-is-judgment-conditional`). The reason is the
+    /// "why" the next proposal must address. The author's first instinct is to
+    /// **repair** — `Rewrite` the subject into conformity (the primary remedy)
+    /// — rather than demote it to Mode B; demotion is the fallback a theory
+    /// really only wants when repair is impossible.
     fn repropose(
         &self,
         _f: &Finding,
         after: &rung_het::Disposition,
     ) -> rung_std::questions::QuestionEdit {
-        use rung_std::questions::{Filing, QuestionEdit};
-        let reason = after.reason().unwrap_or("rejected").to_string();
-        QuestionEdit::Refile {
-            to: Filing::IllPosed,
-            condition: Some(format!("re-proposed after judgment: {reason}")),
+        use rung_std::questions::QuestionEdit;
+        let _ = after;
+        // repair is preferred: Rewrite the subject against the sharpened
+        // criterion (the first remedy `remedies_for` licenses for a rejection).
+        QuestionEdit::Rewrite {
+            answerable: "Is there a single determinate fact at this subject's core — \
+                         one reachable, unique, stable, authentic answer — and what is it?"
+                .to_string(),
         }
     }
 }

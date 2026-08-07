@@ -65,24 +65,29 @@ fn main() {
                 // the author receives the judgment
                 let class = JudgmentClass::IllPosed;
                 let remedies = world.remedies_for(&class);
-                println!("  author  : remedies_for(IllPosed) = {remedies:?}");
-                let Some(QuestionEdit::Refile { to, condition }) = remedies.first() else {
+                println!("  author  : remedies_for(IllPosed) =");
+                for r_ in &remedies {
+                    println!("             • {r_:?}");
+                }
+                // a real choice: repair to conform (primary) or demote to Mode B
+                let Some(QuestionEdit::Rewrite { answerable }) = remedies.first() else {
                     continue;
                 };
-                println!("  -> author re-proposes Refile {id} → Mode B");
+                println!("  -> author chooses REPAIR (Rewrite {id}; stays Mode A)");
                 world
                     .apply(
                         id,
-                        &QuestionEdit::Refile {
-                            to: *to,
-                            condition: condition.clone(),
+                        &QuestionEdit::Rewrite {
+                            answerable: answerable.clone(),
                         },
                     )
                     .expect("enact applies");
                 let q = world.questions.iter().find(|q| q.id == id).unwrap();
                 println!(
-                    "  enacted: filing={:?}, answerable={:?}, ill_posed={:?}",
-                    q.filing, q.answerable, q.ill_posed
+                    "  enacted: filing={:?}, answerable=`{:.40}…`, ill_posed={:?}",
+                    q.filing,
+                    q.answerable.as_deref().unwrap_or(""),
+                    q.ill_posed
                 );
                 println!();
             }

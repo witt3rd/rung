@@ -989,6 +989,14 @@ pub enum QuestionEdit {
         to: Filing,
         condition: Option<String>,
     },
+    /// **Repair** a Mode A question into conformity: give it a resolution /
+    /// adequacy criterion sharpened so the four cuts hold (unique, stable,
+    /// authentic...). The **primary** remedy an ill-posed judgment licenses
+    /// — bring the question up to the standard, rather than demoting it
+    /// (`Refile`) or an unrelated edit.
+    Rewrite {
+        answerable: String,
+    },
 }
 
 impl Applies<QuestionEdit> for Questions {
@@ -1033,6 +1041,13 @@ impl Applies<QuestionEdit> for Questions {
                     self.questions[idx].answerable = None;
                 }
             }
+            QuestionEdit::Rewrite { answerable } => {
+                // keep it Mode A and give it the sharpened resolution criterion;
+                // the question now claims well-posedness against that measure.
+                self.questions[idx].filing = Filing::WellPosed;
+                self.questions[idx].ill_posed = None;
+                self.questions[idx].answerable = Some(answerable.clone());
+            }
             QuestionEdit::AddEdge { target, kind } => {
                 self.questions[idx].affects.push(Edge {
                     target: target.clone(),
@@ -1069,6 +1084,9 @@ impl Verify<QuestionEdit> for Questions {
                         Filing::WellPosed => q.answerable.is_some(),
                     }
             }
+            QuestionEdit::Rewrite { answerable } => {
+                q.filing == Filing::WellPosed && q.answerable.as_deref() == Some(answerable)
+            }
         }
     }
 }
@@ -1082,15 +1100,31 @@ impl Questions {
     pub fn remedies_for(&self, j: &JudgmentClass) -> Vec<QuestionEdit> {
         match j {
             JudgmentClass::WellPosed => Vec::new(),
-            JudgmentClass::IllPosed => vec![QuestionEdit::Refile {
-                to: Filing::IllPosed,
-                condition: Some(
-                    "judged not-well-posed: a decision or work item, not a deterministic \
-                     question whose answer the structure finds"
-                        .to_string(),
-                ),
-            }],
+            JudgmentClass::IllPosed => {
+                // A **real option set**, not a single forced move. The primary
+                // remedy is to *repair*: Rewrite the question into a well-posed
+                // Mode A form (sharpen its `answerable:` so the four cuts hold).
+                // Demotion to Mode B (`Refile`) is the fallback, for a question
+                // that is genuinely a decision/work item and cannot be repaired.
+                // Which you choose is itself a judgment.
+                vec![
+                    QuestionEdit::Rewrite {
+                        answerable: self.sharpened_answerable().to_string(),
+                    },
+                    QuestionEdit::Refile {
+                        to: Filing::IllPosed,
+                        condition: Some(
+                            "judged not-well-posed: a decision or work item, not a \
+                             deterministic question whose answer the structure finds"
+                                .to_string(),
+                        ),
+                    },
+                ]
+            }
             JudgmentClass::RejectedRemedy { .. } => vec![
+                QuestionEdit::Rewrite {
+                    answerable: self.sharpened_answerable().to_string(),
+                },
                 QuestionEdit::Refile {
                     to: Filing::IllPosed,
                     condition: None,
@@ -1101,6 +1135,15 @@ impl Questions {
                 },
             ],
         }
+    }
+
+    /// The author's best-effort repaired resolution criterion: a single,
+    /// sharpened adequacy condition the question can be held against. In a real
+    /// repair the author writes the determinate core explicitly; this is the
+    /// shape the typed `Rewrite` remedy licenses.
+    fn sharpened_answerable(&self) -> &'static str {
+        "Is there a single determinate fact at this subject's core — one \
+         reachable, unique, stable, authentic answer — and what is it?"
     }
 }
 

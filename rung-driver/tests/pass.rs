@@ -126,13 +126,18 @@ fn the_author_receives_the_judgment_and_reproposes_from_it() {
     let author_cfg = Configured::new(author, Arc::new(FirstRejects::default()));
     match run_cycle::<_, _, _, Curator, Adjudicator>(&mut world, author_cfg, "questions", &pool) {
         CycleOutcome::Rectified { verified, .. } => {
-            assert!(verified, "the re-filed post-state reads back");
+            assert!(verified, "the repaired post-state reads back");
             // The first remedy was rejected; the author received the judgment and
-            // re-proposed `Refile → Mode B`; the second judge affirmed it, so the
-            // subject now sits in Mode B (answerable absent on purpose).
+            // chose to **repair** (`Rewrite`), keeping the subject Mode A with a
+            // sharpened answerable — not demoting it to Mode B. The second judge
+            // affirmed the repair.
+            let repaired = world
+                .questions
+                .iter()
+                .any(|q| q.filing == Filing::WellPosed && q.answerable.is_some());
             assert!(
-                world.questions.iter().any(|q| q.filing == Filing::IllPosed),
-                "the author's judgment-driven remedy must have been enacted"
+                repaired,
+                "the author's judgment-driven REPAIR must be enacted"
             );
         }
         other => panic!("after the re-proposal the loop must close; got {other:?}"),
