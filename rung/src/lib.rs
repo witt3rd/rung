@@ -1158,6 +1158,70 @@ impl<P: Principal> Pool<P> {
         Ok((licence, judgment))
     }
 
+    /// **Mint a panel** — every qualifying judge for role `R` against this
+    /// argument, each as its own sealed token.
+    ///
+    /// `judgmental-qualifying-set` is the whole set; `qualify_for` takes *any*
+    /// survivor, and this mints every one of them. That is all a panel is
+    /// ([`panels`](https://github.com/witt3rd/rung/blob/master/docs/rung-het-props.md#panels)):
+    /// N ordinary, independently-sealed consultations over one argument — not a
+    /// new construction. How the theory combines the N rulings is the
+    /// theory's (`panels`, `edit-required-not-typed`); this only hands them out.
+    ///
+    /// A seat that defers rather than answering mints nothing for the whole
+    /// panel: adequacy is *a qualifying judge exists and answers*, and a silent
+    /// member leaves the panel unable to affirm.
+    pub fn qualifying<R: Role>(
+        &self,
+        argument: &dyn Provenanced,
+    ) -> Result<Vec<Qualified<R>>, QualifyError> {
+        let arg_prov = argument.provenance();
+        if arg_prov.is_empty() {
+            return Err(QualifyError::ModelHasNoProvenance);
+        }
+
+        let mut out = Vec::new();
+        let mut last: Option<QualifyError> = None;
+        for p in &self.principals {
+            if !p.capable(R::NAME) {
+                last = Some(QualifyError::NotCapable {
+                    principal: p.id().to_string(),
+                    role: R::NAME,
+                });
+                continue;
+            }
+            let p_prov = p.provenance();
+            if p_prov.overlaps(&arg_prov) {
+                let shared: Vec<String> = p_prov.0.intersection(&arg_prov.0).cloned().collect();
+                last = Some(QualifyError::NonIdentityViolated {
+                    principal: p.id().to_string(),
+                    shared,
+                });
+                continue;
+            }
+            let role_answer = match p.judgment(R::NAME) {
+                Consulted::Rendered(j) => j,
+                Consulted::Deferred(raised) => return Err(QualifyError::JudgeDeferred(raised)),
+            };
+            out.push(Qualified {
+                _seal: (),
+                _not_send: PhantomData,
+                principal_id: p.id().to_string(),
+                principal_prov: p_prov,
+                argument_prov: arg_prov.clone(),
+                judgment: role_answer,
+                _role: PhantomData,
+            });
+        }
+        if out.is_empty() {
+            return Err(match (self.principals.len(), last) {
+                (1, Some(e)) => e,
+                (n, _) => QualifyError::PoolExhausted { considered: n },
+            });
+        }
+        Ok(out)
+    }
+
     /// The filter itself — `{ p ∈ 𝒫 : capable(p, role) ∧ π(p) ∩ π(a) = ∅ }`,
     /// and the first survivor. Shared by [`qualify_for`](Pool::qualify_for) and
     /// [`consult`](Pool::consult) so that the two cannot drift apart: a

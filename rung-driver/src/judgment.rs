@@ -11,6 +11,7 @@
 //! `judges: [{id, provenance, verdict, on, epsilon?}]`.
 
 use rung::{Judgment, Provenanced};
+use rung_het::Ruling;
 use serde::Serialize;
 
 /// One judge's ruling inside a dispatched record.
@@ -42,6 +43,8 @@ pub struct DispatchedRecord {
 impl DispatchedRecord {
     /// Build the honest record from a real, sealed judgment: the provenance
     /// rides out of `Provenanced`, so the writer cannot invent it.
+    /// Build the honest record from a real, sealed judgment: the provenance
+    /// rides out of `Provenanced`, so the writer cannot invent it.
     pub fn from_judgment(proposition: &str, role: &str, judgment: &Judgment, on: &str) -> Self {
         let prov: Vec<String> = judgment
             .provenance()
@@ -59,6 +62,33 @@ impl DispatchedRecord {
                 epsilon: None,
                 on: on.to_string(),
             }],
+            reasoning: None,
+        }
+    }
+
+    /// Build the record from a **panel** of rulings: one judge per seat, and
+    /// each one's sealed provenance — a dispatched record for a
+    /// `⊨`-with-more-than-one-judge disposal. Same honesty as
+    /// [`from_judgment`](Self::from_judgment): every judge's provenance rides
+    /// out of its own sealed `Judgment`, so the writer cannot invent any of it.
+    pub fn from_rulings<E>(proposition: &str, role: &str, rulings: &[Ruling<E>]) -> Self {
+        DispatchedRecord {
+            proposition: proposition.to_string(),
+            role: role.to_string(),
+            tier: "dispatched",
+            judges: rulings
+                .iter()
+                .map(|r| {
+                    let j = r.judgment();
+                    DispatchedJudge {
+                        id: r.judge().to_string(),
+                        provenance: j.provenance().members().map(str::to_string).collect(),
+                        verdict: verdict_name(j.verdict()),
+                        epsilon: None,
+                        on: r.object().to_string(),
+                    }
+                })
+                .collect(),
             reasoning: None,
         }
     }

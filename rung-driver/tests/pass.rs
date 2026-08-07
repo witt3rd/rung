@@ -70,6 +70,12 @@ fn the_composed_loop_closes_with_a_dispatched_record() {
         CycleOutcome::Clean => {
             panic!("the pinned drift is genuinely present; the loop must not report clean")
         }
+        CycleOutcome::Rejected { reasons } => {
+            panic!("the Holding oracle conforms; judging must affirm, not reject: {reasons:?}")
+        }
+        CycleOutcome::Deferred => {
+            panic!("the Holding oracle never defers; judging must not await anything")
+        }
         CycleOutcome::Rectified { verified, record } => {
             // verify: the observer reads the enacted edge back from the state
             assert!(

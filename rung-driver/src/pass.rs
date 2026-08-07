@@ -8,7 +8,7 @@
 //! `Adjudicator` — that is the theory crate's business.
 
 use rung::{Pool, Role, Verdict};
-use rung_het::{Disposition, Proposal, Verify, dispose, enact};
+use rung_het::{Disposition, Proposal, Ruling, Verify, dispose, enact};
 use rung_std::questions::{Questions, questions};
 
 use crate::{Configured, DispatchedRecord, Oracle};
@@ -42,6 +42,17 @@ pub trait Pass<E>: Audit + Verify<E> {
     /// An author's typed remedy for a defect. Called with the world, so a
     /// theory may consult its own model to build the edit.
     fn remedy(&self, f: &Finding) -> E;
+
+    /// The theory's combination rule over a panel of judges' rulings.
+    ///
+    /// `panels`: a panel is `⊨` with more than one judge, and *how the theory
+    /// combines their rulings is the theory's*, not the library's — exactly as
+    /// its edits are. `run_cycle` hands the whole judging step's [`Ruling`]s to
+    /// this and dispatches on what it returns. A consensus rule (affirm only
+    /// where every seat affirmed) is the natural default; majority, quorum and
+    /// weighted rules — and any HetOpt worth-conditional one — are all the
+    /// theory's to choose.
+    fn combine(&self, rulings: &[Ruling<E>]) -> Disposition;
 }
 
 /// **Audit-only mode**: run the audit and report what is wrong, without
@@ -51,23 +62,51 @@ pub fn audit_run<W: Audit>(world: &W) -> Vec<Finding> {
 }
 
 /// What a cycle produced.
+///
+/// The cycle treats **judging abstractly**: whether the theory's judgmental
+/// step consulted one principal or a panel acting as one is conceptually
+/// irrelevant to the cycle — `[judging]` is a single step. The theory decides
+/// (via [`Pass::combine`]) how many judges weigh in and how their rulings
+/// combine; this is what the cycle hands back.
+#[derive(Debug)]
 pub enum CycleOutcome {
     /// Audit found nothing to rectify.
     Clean,
-    /// The loop closed. `verified` is the observer's read-back of the enacted
-    /// edit; the `dispatched` record is written from the ruling's seal.
+    /// Judging affirmed. The edit was enacted; `verified` is the observer's
+    /// read-back of the post-state; the `dispatched` record lists **every**
+    /// judge that ruled (one, or a whole panel) with each one's sealed
+    /// provenance.
     Rectified {
         verified: bool,
         record: DispatchedRecord,
     },
+    /// Judging did **not** affirm — whether a sole judge or a panellist
+    /// dissented is the same shape. The dissenting reasons are returned so the
+    /// author re-proposes incorporating the divergence
+    /// (`reject-remedy` carries a reason, 7.43; the author re-proposes with
+    /// it, 7.44). A panel never *grants* affirmation a judge would not
+    /// (`panels-cannot-weaken-the-opponent`) — but it cannot amend a proposal
+    /// either (`no-amending-disposition`), so judgment surfaces, the author
+    /// authors.
+    Rejected { reasons: Vec<String> },
+    /// A judge (one that would have ruled) deferred instead of answering; the
+    /// run awaits it.
+    Deferred,
 }
 
 /// Run one composed audit-rectify cycle over a theory's world.
 ///
 /// `world` implements [`Pass<E>`] for the edit type; `author` is the acting
-/// author (with, `standing` over the territory); `ARole`/`JRole` name the
+/// author (holding `standing` over the territory); `ARole`/`JRole` name the
 /// authorial and judgmental gates of this theory's pass; `pool` holds the
 /// principals for the judge role.
+///
+/// The judgmental step mints **every** qualifying judge
+/// ([`Pool::qualifying`]) — a set that naturally has one member for a
+/// sole-judge theory and several for a panel — and reads each one's own sealed
+/// verdict. [`Pass::combine`] (the theory's) turns those rulings into the
+/// effective disposition. The cycle never asks how many judges there were; it
+/// only asks what judging concluded.
 #[allow(clippy::too_many_arguments)]
 pub fn run_cycle<O: Oracle, E: Clone, W, ARole: Role, JRole: Role>(
     world: &mut W,
@@ -90,28 +129,65 @@ where
     let edit = world.remedy(&claim);
     let proposal = Proposal::remedy(&pen, &claim.subject, edit.clone());
 
-    // dispose — a judge disjoint from the author; the ruling seals its judgment
-    let judge = pool
-        .qualify_for::<JRole>(&proposal)
-        .expect("a judge disjoint from the author");
-    let ruling = dispose(&proposal, judge, Disposition::Accept)
-        .expect("the licence was minted against this proposal");
+    // judge — the whole qualifying set (a sole judge is a set of one), each
+    // with its own sealed verdict
+    let seats = match pool.qualifying::<JRole>(&proposal) {
+        Ok(seats) => seats,
+        Err(rung::QualifyError::JudgeDeferred(_)) => return CycleOutcome::Deferred,
+        Err(e) => panic!("judging requires at least one qualifying judge: {e}"),
+    };
 
-    // enact — the author applies the edit to the world
-    let _ = enact(world, &ruling, &pen).expect("the world admits the edit");
+    // each judge's own reading of the proposal -> its own sealed Ruling
+    let rulings = seats
+        .into_iter()
+        .map(|seat| {
+            let disp = seat_disposition(seat.judgment().verdict());
+            dispose(&proposal, seat, disp).expect("minted against this proposal")
+        })
+        .collect::<Vec<_>>();
+
+    // the theory's rule over the judges who judged (one or many)
+    let effective = world.combine(&rulings);
+
+    if !effective.is_affirming() {
+        let reasons: Vec<String> = rulings
+            .iter()
+            .filter_map(|r| r.reason().map(str::to_string))
+            .collect();
+        return CycleOutcome::Rejected { reasons };
+    }
+
+    // enact — via an affirming judge's ruling; the edit is the author's, never
+    // the judging's (judgment classifies, authorship edits)
+    let enacting = rulings
+        .iter()
+        .find(|r| r.is_affirming())
+        .expect("judging affirmed, so a judge affirmed it");
+    let _ = enact(world, enacting, &pen).expect("the world admits the edit");
 
     // verify — the observer reads the post-state back, not the author's word
     let verified = world.confirms(&edit, &claim.subject);
 
-    // the ruling's sealed judgment -> `tier: dispatched` bookkeeping
-    let record = DispatchedRecord::from_judgment(
-        &claim.sentence,
-        JRole::NAME,
-        ruling.judgment(),
-        "2026-08-06",
-    );
+    // bookkeeping — a `tier: dispatched` record listing every judge that ruled
+    let record = DispatchedRecord::from_rulings(&claim.sentence, JRole::NAME, &rulings);
 
     CycleOutcome::Rectified { verified, record }
+}
+
+/// One outside verdict, read as a disposal.
+///
+/// A conforming outside affirms; a non-conforming outside rejects the remedy
+/// *with its reason* (`reason-is-not-an-edit` — the reason becomes advisory
+/// prose, never a replacement edit the judge authors). This is the
+/// theory-neutral reading of a judge's verdict; the theory still chooses how
+/// the whole judging step combines via [`Pass::combine`].
+fn seat_disposition(verdict: &Verdict) -> Disposition {
+    match verdict {
+        Verdict::Conforming => Disposition::Accept,
+        Verdict::NonConforming { reason } => Disposition::RejectRemedy {
+            reason: reason.clone(),
+        },
+    }
 }
 
 /// The audit half for the questions world: `affects_mirrors_inbound` names a
@@ -148,6 +224,27 @@ impl Pass<rung_std::questions::QuestionEdit> for Questions {
         rung_std::questions::QuestionEdit::AddEdge {
             target,
             kind: EdgeKind::parse(&kind).expect("declared kind"),
+        }
+    }
+
+    /// The questions theory's combination rule: **consensus**. A panel affirms
+    /// only where every seat affirmed — `panels-cannot-weaken-the-opponent`,
+    /// verbatim. A dissenting seat's reason is the divergence the author
+    /// re-proposes with, so strong agreement on some aspects and dissent on
+    /// others both reach the resolution.
+    fn combine(
+        &self,
+        rulings: &[rung_het::Ruling<rung_std::questions::QuestionEdit>],
+    ) -> rung_het::Disposition {
+        if rulings.iter().all(|r| r.is_affirming()) {
+            rung_het::Disposition::Accept
+        } else {
+            let reasons = rulings
+                .iter()
+                .filter_map(|r| r.reason())
+                .collect::<Vec<_>>()
+                .join("; ");
+            rung_het::Disposition::RejectRemedy { reason: reasons }
         }
     }
 }

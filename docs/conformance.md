@@ -618,7 +618,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 190 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 193 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -727,6 +727,12 @@ look shorter than it is.
 - `the_repositorys_population_parses_and_is_well_formed`
 - `the_three_declared_forms_are_read`
 - `trailing_prose_after_the_first_line_is_ignored`
+
+**`rung-driver/tests/panel.rs`** — 3 unclaimed
+
+- `a_consensus_panel_closes_and_records_every_judge`
+- `a_divergent_panel_does_not_affirm_and_surfaces_the_dissent`
+- `a_sole_judge_is_a_panel_of_one`
 
 **`rung-driver/tests/pass.rs`** — 1 unclaimed
 

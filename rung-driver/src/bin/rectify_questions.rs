@@ -143,6 +143,15 @@ fn main() {
             println!("  audit: conforming — nothing to rectify. Done.");
             return;
         }
+        CycleOutcome::Rejected { reasons } => {
+            println!("  judging did not affirm — the divergence reshapes the remedy:");
+            for r in &reasons {
+                println!("    - {r}");
+            }
+        }
+        CycleOutcome::Deferred => {
+            println!("  a judge deferred; the run awaits an answer.");
+        }
         CycleOutcome::Rectified { verified, record } => {
             println!("  audit  : violates affects_mirrors_inbound");
             for (s, d, k) in &world.outbound_drift() {
