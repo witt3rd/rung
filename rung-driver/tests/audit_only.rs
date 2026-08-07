@@ -13,7 +13,7 @@ fn audit_only_run_reports_without_rectifying() {
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join("questions"),
+            .join(".het/rung-questions/questions"),
     );
     // audit-run: the pinned drift is found...
     let findings = audit_run(&world);

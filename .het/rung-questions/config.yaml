@@ -3,6 +3,6 @@
 theory: rung-question
 carrier:
   kind: folder
-  path: ../../questions
-population: ../../population.yaml
+  path: ./questions
+population: ./population.yaml
 state: ./state

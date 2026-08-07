@@ -34,7 +34,7 @@ fn tmp(name: &str) -> PathBuf {
 /// walked in sorted order so the audit is deterministic over the real corpus.
 #[test]
 fn a_folder_yields_one_subject_per_file_sorted_and_opaque() {
-    let open = ws_root().join("questions");
+    let open = ws_root().join(".het/rung-questions/questions");
     let c = FolderCarrier::new(&open);
     assert!(c.exists());
 
@@ -189,7 +189,7 @@ fn carrier_config_builds_the_declared_strategy() {
 
     let folder = serde_yaml::from_str::<CarrierConfig>(&format!(
         "kind: folder\npath: {}\n",
-        ws_root().join("questions").display()
+        ws_root().join(".het/rung-questions/questions").display()
     ))
     .unwrap();
     assert_eq!(folder.kind, CarrierKind::Folder);
@@ -263,11 +263,13 @@ fn instance_config_drives_a_carrier_audit() {
     use rung_driver::Instance;
     use rung_std::questions::{Question, Scheme, question};
 
-    let text = std::fs::read_to_string(ws_root().join("instance.yaml")).unwrap();
+    let text = std::fs::read_to_string(ws_root().join(".het/rung-questions/config.yaml")).unwrap();
     let inst = Instance::from_yaml(&text).unwrap();
     assert_eq!(inst.theory, "rung-question");
 
-    let carrier = inst.build_carrier_at(&ws_root()).unwrap();
+    let carrier = inst
+        .build_carrier_at(&ws_root().join(".het/rung-questions"))
+        .unwrap();
     let scheme = Scheme {
         namespace: "rung-questions",
         root: "questions",

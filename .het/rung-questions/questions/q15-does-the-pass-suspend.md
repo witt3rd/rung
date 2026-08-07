@@ -25,7 +25,7 @@ transition, and `RaisesQuestions` is a continue arm:
 ```
 
 A continue arm re-enters **immediately**, carrying a live token.
-[`G16`](../docs/rung-props.md#g16-the-residual-channel)'s residual channel is on
+[`G16`](../../../docs/rung-props.md#g16-the-residual-channel)'s residual channel is on
 judgmental **forward** transitions only, so the pass has no `Suspended` and no
 `resume` edge. `RaisesQuestions { question }` carries the reference and waits on
 nothing.
@@ -42,8 +42,8 @@ proposing against it again. That is a spin.
 The only way to stop a spin is a rule about when to retry — and **every such rule
 is worth-shaped**. How long to wait, how often to re-audit, whether this question
 is worth blocking on: those are exactly the judgments
-[`het-declares-no-worth-law`](../docs/rung-het-props.md#het-declares-no-worth-law)
-and [`ordering-is-hetopts`](../docs/rung-het-props.md#ordering-is-hetopts) place
+[`het-declares-no-worth-law`](../../../docs/rung-het-props.md#het-declares-no-worth-law)
+and [`ordering-is-hetopts`](../../../docs/rung-het-props.md#ordering-is-hetopts) place
 outside Het.
 
 So the absence of a residual channel on the branching transition does not leave
@@ -84,8 +84,8 @@ implementation, which is why this is filed rather than built.
    suspension rather than a continue arm. Symmetric with the forward case and it
    is what would let the pass and the park meet. **Cost:** it touches the
    coproduct's shape, and
-   [`elimination-is-exhaustive`](../docs/rung-ct-props.md#elimination-is-exhaustive)
-   and [`residual-summand`](../docs/rung-ct-props.md#residual-summand) both have
+   [`elimination-is-exhaustive`](../../../docs/rung-ct-props.md#elimination-is-exhaustive)
+   and [`residual-summand`](../../../docs/rung-ct-props.md#residual-summand) both have
    something to say about a second residual on the same arrow. Not obviously
    free.
 
@@ -100,7 +100,7 @@ implementation, which is why this is filed rather than built.
    *terminal* verdict rather than a continue arm — the pass stops, the question
    runs, and a **new** pass begins when it terminates. **Cost:** the chain is
    lost across the boundary, so
-   [`reproposal-carries-the-chain`](../docs/rung-het-props.md#reproposal-carries-the-chain)
+   [`reproposal-carries-the-chain`](../../../docs/rung-het-props.md#reproposal-carries-the-chain)
    would not hold across a raised question, and a re-proposal after an answer
    would be indistinguishable from a fresh start. That is the same objection the
    composition note raises against the question lifecycle's missing re-proposal
@@ -127,7 +127,7 @@ So the pass over *questions*, raising a question, has the same theory on both
 sides of the composition boundary. Nothing has to be built twice, and if the
 loop closes there it closes anywhere. That makes this question the shortest path
 between the machinery as it stands and the loop running on itself — which is
-what [`composition-notes.md`](../docs/composition-notes.md) is about.
+what [`composition-notes.md`](../../../docs/composition-notes.md) is about.
 
 ## Relation to neighbours
 

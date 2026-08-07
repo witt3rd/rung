@@ -40,7 +40,7 @@ fn questions_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("rung-driver sits in the workspace")
-        .join("questions")
+        .join(".het/rung-questions/questions")
 }
 
 /// A deterministic `Oracle`: every consultation is answered `HOLDS`.

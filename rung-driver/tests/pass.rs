@@ -60,7 +60,7 @@ fn ws_root() -> std::path::PathBuf {
 
 #[test]
 fn the_composed_loop_closes_with_a_dispatched_record() {
-    let mut world = Questions::load(RUNG, &ws_root().join("questions"));
+    let mut world = Questions::load(RUNG, &ws_root().join(".het/rung-questions/questions"));
     let pop = Roster::from_yaml(QUESTIONS_POPULATION).unwrap();
     let pool = population_pool(&pop, "adjudicator", Arc::new(Holding));
 

@@ -91,11 +91,12 @@ fn ws_root() -> PathBuf {
 
 fn main() {
     let root = ws_root();
-    let pop_text = std::fs::read_to_string(root.join("population.yaml")).expect("population.yaml");
+    let pop_text = std::fs::read_to_string(root.join(".het/rung-questions/population.yaml"))
+        .expect("population.yaml");
     let real = Roster::from_yaml(&pop_text).expect("the real population parses");
 
-    let log_text =
-        std::fs::read_to_string(root.join("commissions.yaml")).expect("commissions.yaml");
+    let log_text = std::fs::read_to_string(root.join(".het/rung-questions/commissions.yaml"))
+        .expect("commissions.yaml");
     let real_log = CommissionLog::from_yaml(&log_text).expect("the commission record parses");
 
     println!("── audit-rectify over rung's own questions ──────────────────────");
@@ -132,7 +133,7 @@ fn main() {
     println!();
 
     // ── the cycle — the composed loop, run by the driver (not hand-rolled) ──
-    let mut world = Questions::load(RUNG, &root.join("questions"));
+    let mut world = Questions::load(RUNG, &root.join(".het/rung-questions/questions"));
     let pop = Roster::from_yaml(QUESTIONS_POPULATION).expect("the questions population parses");
     let pool = population_pool(&pop, "adjudicator", Arc::new(Holding));
 

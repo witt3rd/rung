@@ -23,7 +23,7 @@ fn the_het_sidecar_drives_the_q18_config() {
     let text = std::fs::read_to_string(base.join("config.yaml")).unwrap();
     let inst = Instance::from_yaml(&text).unwrap();
     assert_eq!(inst.theory, "rung-question");
-    assert_eq!(inst.population.as_deref(), Some("../../population.yaml"));
+    assert_eq!(inst.population.as_deref(), Some("./population.yaml"));
     assert_eq!(inst.state.as_deref(), Some("./state"));
 
     // carrier resolves against the config's own directory -> the flat docket

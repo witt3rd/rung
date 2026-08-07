@@ -366,4 +366,4 @@ the moment a commission records actual work.
 | the commission record (derived provenance) | [`rung-driver/src/commission.rs`](../../rung-driver/src/commission.rs) |
 | the law's tests over two synthetic rosters | [`rung-std/tests/principals_theory.rs`](../../rung-std/tests/principals_theory.rs) |
 | both halves over the real population | [`rung-driver/tests/convergence.rs`](../../rung-driver/tests/convergence.rs) |
-| who judges rung's own questions | `population.yaml` at the repository root |
+| who judges rung's own questions | `.het/rung-questions/population.yaml` (the state sidecar) |
