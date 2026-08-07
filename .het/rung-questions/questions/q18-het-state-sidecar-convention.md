@@ -6,6 +6,11 @@ depends_on:
 affects:
   - {target: self-hosting-run-loop, kind: gate}
   - {target: q19, kind: premise}
+answerable: |
+  A state-sidecar convention is well-posed iff all of a carrier's loop state
+  (config, population, commission record, subjects, judgments) has one
+  declared, restartable home per instance, and a second carrier gets that same
+  shape rather than a new ad-hoc layout.
 ---
 
 # Q18 — What is the state sidecar convention? *(open)*

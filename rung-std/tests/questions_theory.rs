@@ -546,6 +546,7 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
             ("id_matches_the_filename", "decidable"),
             ("status_is_declared", "decidable"),
             ("edge_kinds_are_declared", "decidable"),
+            ("answerable_is_declared", "decidable"),
             ("is_well_posed", "judgmental"),
             ("resolution_answers_the_question", "judgmental"),
         ]
@@ -569,13 +570,64 @@ fn the_theory_exposes_its_sentences_with_their_gates() {
     );
     // `Sen(Σ)` for the theory is a hand-written concatenation, because
     // `theory!` declares one sort per invocation.
-    assert_eq!(sentences().len(), 12);
+    assert_eq!(sentences().len(), 13);
     for (name, gate) in sentences() {
         assert!(
             matches!(gate, "decidable" | "judgmental"),
             "sentence `{name}` carries unknown gate `{gate}`"
         );
     }
+}
+/// **Well-posedness begins with the cold, decidable first cut**: a question
+/// must declare what would count as an answer (`answerable:`) — the structural
+/// anchor of existence/adequacy, and the one cut the audit can check without
+/// an outside.
+#[test]
+fn the_cold_first_cut_is_declaring_an_answer() {
+    let wp = Question::parse(
+        DOCKET,
+        "---\nid: w1\nstatus: open\nanswerable: |\n  a single determinate fact, reached by the structure: whether the driver is theory-blind.\n---\nbody\n",
+        "open",
+        "w1",
+    )
+    .expect("parses");
+    assert!(wp.declares_resolution());
+    let settled = question::answerable_is_declared::holds(&wp);
+    assert!(
+        !settled.consulted_outside(),
+        "the first cut reads the declaration only"
+    );
+    assert!(settled.verdict().is_conforming());
+
+    // A question that never declares its answer is not a member yet — the
+    // first cut refuses it cold (this is the intake gate).
+    let bare = Question::parse(
+        DOCKET,
+        "---\nid: w2\nstatus: open\n---\nbody\n",
+        "open",
+        "w2",
+    )
+    .expect("parses");
+    assert!(!bare.declares_resolution());
+    assert!(
+        !question::answerable_is_declared::holds(&bare)
+            .verdict()
+            .is_conforming()
+    );
+}
+
+/// The other three cuts (unique, stable, authentic) are judgmental — but they
+/// are judged **against the declared criterion**, not in a vacuum. `is_well_posed`
+/// is ruled by an `Interrogator`; this pins that the sentence is a judgment
+/// (the theory treats "the answer is found, not made" as the standard) and
+/// that its shape is settled as such.
+#[test]
+fn the_deep_cuts_are_judgmental() {
+    assert!(
+        question::SENTENCES
+            .iter()
+            .any(|(n, g)| *n == "is_well_posed" && *g == "judgmental")
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════

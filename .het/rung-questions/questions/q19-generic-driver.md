@@ -5,6 +5,11 @@ depends_on:
   - {on: q18, kind: premise}
 affects:
   - {target: self-hosting-run-loop, kind: gate}
+answerable: |
+  A generic driver is well-posed iff the audit-rectify loop (audit, propose,
+  dispose, enact, verify), the judgment/authoring discipline, and the
+  bookkeeping all run through one theory-blind engine pointed at a config;
+  and after it, no hand-rolled driver fragment remains.
 ---
 
 # Q19 — The generic driver: a theory-blind engine every theory runs on *(open)*
