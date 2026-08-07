@@ -316,6 +316,10 @@ pub struct Question {
     /// claims no well-posedness, so the ill-posed condition is stated instead
     /// of `answerable`.
     pub ill_posed: Option<String>,
+    /// The raw body — everything after the frontmatter's closing `---`, verbatim.
+    /// Kept so an enacted edit can be **persisted** back to the carrier file
+    /// without touching the prose (enact to carrier; see [`Questions::persist`]).
+    pub body: String,
 }
 
 /// How a question is filed — the distinction that keeps the onramp gentle and
@@ -415,6 +419,48 @@ impl Question {
             .is_some_and(|s| !s.trim().is_empty())
     }
 
+    /// Re-render this question as a markdown file — frontmatter + the raw body
+    /// verbatim — so an enacted edit can be **persisted** to its carrier file.
+    /// This is the writer half of enact to carrier: the parser reads the file
+    /// into the model, an edit mutates the model, and this writes it back.
+    pub fn to_markdown(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&format!("---\nid: {}\nstatus: {}\n", self.id, self.status));
+        let filing = match self.filing {
+            Filing::WellPosed => "well-posed",
+            Filing::IllPosed => "ill-posed",
+        };
+        out.push_str(&format!("filing: {filing}\n"));
+        if !self.depends_on.is_empty() {
+            out.push_str("depends_on:\n");
+            for e in &self.depends_on {
+                out.push_str(&format!("  - {{on: {}, kind: {}}}\n", e.target, e.kind));
+            }
+        }
+        if !self.affects.is_empty() {
+            out.push_str("affects:\n");
+            for e in &self.affects {
+                out.push_str(&format!("  - {{target: {}, kind: {}}}\n", e.target, e.kind));
+            }
+        }
+        if let Some(a) = &self.answerable {
+            out.push_str("answerable: |\n");
+            for l in a.lines() {
+                out.push_str(&format!("  {l}\n"));
+            }
+        }
+        if let Some(c) = &self.ill_posed {
+            out.push_str("ill_posed: |\n");
+            for l in c.lines() {
+                out.push_str(&format!("  {l}\n"));
+            }
+        }
+        out.push_str("---\n\n");
+        out.push_str(&self.body);
+        out.push('\n');
+        out
+    }
+
     pub fn names_in_affects(&self, id: &str) -> bool {
         self.affects.iter().any(|e| e.target == id)
     }
@@ -439,6 +485,8 @@ impl Question {
         let rest = text.strip_prefix("---\n")?;
         let end = rest.find("\n---")?;
         let fm = &rest[..end];
+        // the raw body: everything after the closing `---`
+        let body = rest[end + 4..].trim_start().to_string();
 
         let scalar = |key: &str| -> Option<String> {
             fm.lines()
@@ -490,7 +538,11 @@ impl Question {
         // `|` block or a single scalar line).
         let maybe_block = |field: &str| -> Option<String> {
             if let Some(v) = scalar(field) {
-                return Some(v);
+                // an inline `key: value` scalar — but `key: |` is a block
+                // marker, not a value, so it must fall through to the block read
+                if !v.is_empty() && v != "|" {
+                    return Some(v);
+                }
             }
             let mut inside = false;
             let mut lines: Vec<&str> = Vec::new();
@@ -532,6 +584,7 @@ impl Question {
             filing,
             answerable,
             ill_posed,
+            body,
         })
     }
 }
@@ -549,6 +602,10 @@ impl Question {
 pub struct Questions {
     pub scheme: Scheme,
     pub questions: Vec<Question>,
+    /// The directory (carrier) this set was loaded from, kept so an enacted
+    /// edit can be **persisted** back to its files (enact to carrier). `None`
+    /// for a model built in memory with [`Questions::new`].
+    pub source: Option<std::path::PathBuf>,
 }
 
 impl Provenanced for Questions {
@@ -566,7 +623,11 @@ impl Situated for Questions {
 impl Questions {
     pub fn new(scheme: Scheme, mut questions: Vec<Question>) -> Self {
         questions.sort_by(|a, b| a.id.cmp(&b.id));
-        Self { scheme, questions }
+        Self {
+            scheme,
+            questions,
+            source: None,
+        }
     }
 
     pub fn by_id(&self, id: &str) -> Option<&Question> {
@@ -739,7 +800,33 @@ impl Questions {
                 questions.push(q);
             }
         }
-        Self::new(scheme, questions)
+        questions.sort_by(|a, b| a.id.cmp(&b.id));
+        Questions {
+            scheme,
+            questions,
+            source: Some(root.to_path_buf()),
+        }
+    }
+
+    /// **Enact-to-carrier**: persist an enacted edit back to the question's own
+    /// file. Without this, enactment is in-memory only and the "real cycle"
+    /// could never repair the collection it audits. Writes `<stem>.md` in the
+    /// source directory and returns the path written.
+    pub fn persist(&self, object: &str) -> std::io::Result<std::path::PathBuf> {
+        let Some(src) = &self.source else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "in-memory Questions has no carrier to write back to",
+            ));
+        };
+        let q = self
+            .questions
+            .iter()
+            .find(|q| q.id == object)
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no such question"))?;
+        let path = src.join(format!("{}.md", q.stem));
+        std::fs::write(&path, q.to_markdown())?;
+        Ok(path)
     }
 }
 
