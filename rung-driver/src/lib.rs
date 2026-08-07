@@ -50,7 +50,9 @@ pub use commission::CommissionLog;
 // driver has one import.
 pub use instance::Instance;
 pub use judgment::{DispatchedJudge, DispatchedRecord};
-pub use oracle_llm::{Adjudicate, ModelOracle, Prompt, Unreachable, resolve};
+pub use oracle_llm::{
+    Adjudicate, ModelOracle, Prompt, Unreachable, WELL_POSED_STANDARD, WellPosedAdjudicate, resolve,
+};
 pub use pass::{Audit, CycleOutcome, Finding, audit_run, run_cycle};
 pub use principal::{
     Answer, Configured, Oracle, Unwired, population_pool, population_pool_with_log,

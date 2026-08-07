@@ -214,7 +214,7 @@ fn coverage_is_reported() {
         );
     }
     println!("  {props} propositions encoded in total\n");
-    assert_eq!(props, 389, "the corpus did not survive migration");
+    assert_eq!(props, 390, "the corpus did not survive migration");
 }
 
 /// Where the triage has got to.
@@ -246,10 +246,10 @@ fn the_corpus_triage_is_recorded() {
     println!("\n  corpus triage: {by_kind:?}\n");
     assert_eq!(by_kind.get("decidable").copied(), Some(131));
     assert_eq!(by_kind.get("rationale").copied(), Some(148));
-    assert_eq!(by_kind.get("signature").copied(), Some(60));
+    assert_eq!(by_kind.get("signature").copied(), Some(61));
     assert_eq!(by_kind.get("judgmental").copied(), Some(47));
     assert_eq!(by_kind.get("owed").copied(), Some(3));
-    assert_eq!(by_kind.values().sum::<usize>(), 389);
+    assert_eq!(by_kind.values().sum::<usize>(), 390);
 }
 
 /// **Nothing is unclassified.** Every proposition carries a kind, because the
@@ -258,7 +258,7 @@ fn the_corpus_triage_is_recorded() {
 #[test]
 fn every_proposition_in_the_corpus_carries_a_kind() {
     let n: usize = all().iter().map(|d| d.props().count()).sum();
-    assert_eq!(n, 389);
+    assert_eq!(n, 390);
 }
 
 /// **Every decidable proposition's proof resolves.**

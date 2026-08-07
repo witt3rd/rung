@@ -155,6 +155,48 @@ impl Prompt for Adjudicate {
     }
 }
 
+/// A prompt that gives the judge **the standard itself**, not a paraphrase.
+///
+/// `judgment-presupposes-the-standard`: a judge cannot evaluate whether a
+/// subject meets a standard without access to the criteria that constitute it.
+/// The act of judging presupposes the very measure against which the subject is
+/// held. So this instruction embeds the well-posedness doctrine — the four
+/// cuts and the Mode A/Mode B filing — into what the judge reads, and asks it
+/// to rule *against that doctrine* rather than against a caller's wording.
+pub struct WellPosedAdjudicate {
+    pub subject: String,
+}
+
+/// The doctrine, as the judge is to apply it.
+///
+/// Kept as a `&'static str` alongside the prompt so the source of the standard
+/// is visible and shared: the judge reads exactly this, and nothing else of the
+/// theory reaches it.
+pub const WELL_POSED_STANDARD: &str = "A question is well-posed iff its answer is found by     the structure, not made by the asker — all four cuts hold:
+    - existence: the structure can actually produce the declared answer (the resolution       condition is reachable from the substance, not merely nameable).
+    - unique: exactly one answer, not a family of framings (an unpinned equivalence,       a \"what is X\" with no adequacy criterion, or a definitional commitment dressed       as discovery all violate it).
+    - stable: the answer survives rephrasing the question, and the well-posedness itself       is stable (sharpening never changes which question it is).
+    - authentic: it is a question, not a decision awaiting a ruling, not a definitional       commitment, not a work item.
+    Filing: Mode A (well-posed) declares an `answerable:` resolution and is audited against     the four cuts; Mode B (ill-posed) names why it is a decision/work item and claims no     well-posedness.";
+
+impl Prompt for WellPosedAdjudicate {
+    fn ask(&self, _principal_id: &str, claim: &str) -> String {
+        format!(
+            "You are judging whether one subject meets the well-posedness standard.\n\n\
+             THE STANDARD\n{}\n\n\
+             SUBJECT\n{}\n\n\
+             CLAIM\n{}\n\n\
+             Reply with exactly one line, and nothing else:\n\
+             HOLDS\n\
+             FAILS <one sentence naming which cut fails and why>\n\
+             CANNOT-SETTLE <one sentence naming what you would need>\n\n\
+             Use CANNOT-SETTLE whenever you are not in a position to rule. It is a real \
+             answer and is preferred to a guess.",
+            WELL_POSED_STANDARD, self.subject, claim
+        )
+    }
+}
+
 /// An oracle that puts the matter to whichever provider serves the principal.
 ///
 /// One oracle serves a whole population: each principal's backing names its

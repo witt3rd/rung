@@ -7,7 +7,7 @@
 //! cargo run -p rung-driver --bin consult
 //! ```
 
-use rung_driver::{Adjudicate, ModelOracle, Oracle, Roster};
+use rung_driver::{ModelOracle, Oracle, Roster, WellPosedAdjudicate};
 
 fn docket() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -44,12 +44,11 @@ fn main() {
     println!("  principal : {judge_id}");
     println!("  backing   : {backing:?}   (provider omitted -> DEFAULT = OpenRouter)");
 
-    let claim = "This question is well-posed: it declares a determinate, reachable, \
-                 unique, stable, authentic resolution condition.";
+    let claim = "Does this question meet the well-posedness standard above?";
     for q in ["q18", "q19"] {
         let oracle = ModelOracle::new(
             pop.clone(),
-            Adjudicate {
+            WellPosedAdjudicate {
                 subject: question_text(q),
             },
             "consult",

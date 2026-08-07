@@ -855,7 +855,35 @@ that subject?"* must not be that principal.
 "#.into(),
             mechanism: r#""#.into(),
         }),
-        Element::Verbatim(r#"---
+
+
+        Element::Prop(Prop {
+            slug: "judgment-presupposes-the-standard".into(),
+            parent: Some("pool-is-parameter".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**A judge cannot evaluate whether a subject meets a standard
+without access to the criteria that constitute it.** Judgment of conformity is
+impossible without the standard's defining basis — the act of judging
+presupposes the very measure against which the subject is to be held.
+
+A judgmental dispatch therefore carries the **standard to the judge** (in the
+matter or the prompt), or its ruling is vacuous: it asserts conformity without
+the basis of the standard, which is the constant-arrow hazard one level in — a
+verdict that never consulted the thing it was supposed to measure against.
+
+"#.into(),
+            mechanism: r#"The driver's `Prompt` is where the standard travels:
+`WellPosedAdjudicate` embeds the four-cut well-posedness doctrine into the
+instruction, and `WELL_POSED_STANDARD` is the single source of the measure the
+judge holds. The differential is observable: `consult.rs` consults the same
+real model with and without the standard — with a paraphrase it deferred or
+affirmed; with the standard it refused q18/q19 on the authentic cut ("a work
+item, not a question whose answer the structure determines"). A judge
+consulted without the standard is being asked to judge conformity it has no
+basis to assert."#.into(),
+        }),
+Element::Verbatim(r#"---
 
 ## 4 · The verdict
 
