@@ -180,10 +180,10 @@ back door.
 
 ## 3 · The model — one shape, two halves
 
-After the principals **convergence** there is one model, not two:
-[`Roster`] is the population, [`PrincipalDecl`] is one principal, and
-[`RoleSpec`] is one role. A hand-built roster in a test and a runtime
-`population.yaml` are both just *carriers* loading into the same types.
+The principals model is **one shape with two halves**. [`Roster`] is the
+whole population, [`PrincipalDecl`] is one principal, and [`RoleSpec`] is one
+role. A hand-built roster in a test and a runtime `population.yaml` are both
+just *carriers* loading into those same types.
 
 | type | carries | notes |
 |---|---|---|
@@ -218,60 +218,57 @@ Notable details:
 
 ---
 
-## 4 · Terminology — why so many words, and often two for one thing
+## 4 · Terminology — two vocabularies, one institution
 
-The single most confusing thing about this area is the vocabulary, and it is
-confusing for a real reason: **the theory (the law) and the host (the code)
-grew separate words for the same concepts, and then a deployment file used a
-third set.** The convergence collapsed the *types* but could not erase the
-history of the *names*. Here is the master table.
+Read the prose and you will meet `π`, `standing`, and `𝒫`. Read the code and the
+carrier and you will meet `authored`, `stewards`, and `Pool`. These are **not**
+two languages for one thing; they are the same relation named at two distances,
+and both are in force today.
 
-| concept | theory name (`rung_std::principals`) | driver's old name (pre-convergence) | carrier / YAML name | why there was more than one |
-|---|---|---|---|---|
-| the population | **Roster** | **Population** | `population.yaml` (file) | *Roster* is the theory's word for "a concrete population plus its role vocabulary"; the driver called the same YAML-loaded aggregate *Population*. One type now, one word now — **Roster**. The file keeps the name `population.yaml` for continuity. |
-| one principal | **PrincipalDecl** | **PrincipalSpec** | a `principals:` entry | *Decl* is a *declaration* (what a principal is); *Spec* was the deployment-side *specification*. Same concept, two layers. Unified to **PrincipalDecl**. |
-| what a principal has | **qualifications** | **capabilities** | `capabilities:` | Two words for the same declared atoms. `qualifications` is the theory's; the YAML keeps `capabilities` (serde renames the field). |
-| the roles it plays | **plays** | *(derived implicitly)* | *(derived; not declared)* | The theory states plays explicitly; the driver inferred them from role requirements. Now `plays` is derived at load from the role vocabulary, so both agree. |
-| a role's requirement list | **min_qualifications** | **requires** | `requires:` | The theory's *minimum qualifications* vs the deployment's *requires*. Same list; YAML keeps `requires`. |
-| authorship | **provenance** (`π`) | **authored** | `authored:` | `π` is the institution's set including the floor id; `authored` is the declared history the principal states. `provenance = authored ∪ {id}`. The YAML keeps `authored`. |
-| what it may write to | **stewards** | **standing** | `standing:` | *Stewards* (the containers) on the theory side; *standing* (the right) on the filter side. YAML keeps `standing`. |
-| a stable lineage id | **family** | **family** | `family:` | Same everywhere — good. |
-| how it's reached | **backing** | **backing** | `backing:` | Same everywhere — good. |
-| an endpoint | **Provider** | **Provider** | `providers:` | Same everywhere — good. |
+- **The institution vocabulary** is the precise one the prose, the proofs, and
+  the audit sentences use. When a proposition says `π(p)`, it means provenance.
+- **The host/carrier vocabulary** is what the Rust code and the
+  `population.yaml` files spell. [`serde`](https://serde.rs) is the dictionary:
+  it maps the carrier's keys onto the model's fields, and the round-trip tests
+  pin the translation.
 
-### 4.1 A second reason: institution vs host names
+### 4.1 The pairs
 
-Even *within* the theory, a concept has an "institution" name and a "host"
-name. The vocabulary table in `rung-het-props.md` calls this the dictionary:
+| concept | institution (theory) | host / carrier | notes |
+|---|---|---|---|
+| the population | **Roster** | `Roster` (type); `population.yaml` (file) | *Roster* is the theory's name: a concrete population plus the providers and role vocabulary it declares. The type and the carrier file it loads are one thing at two layers. |
+| a role's requirement list | **min_qualifications** | `requires:` | the same list; the YAML key `requires` maps onto `min_qualifications`. |
+| a principal's declared atoms | **qualifications** | `capabilities:` | the same set; `capabilities` maps onto `qualifications`. |
+| the roles a principal plays | **plays** | `plays` | the per-principal list of claimed roles, derived at load and earned by qualification. |
+| the vocabulary a roster declares | **roles** | `roles` | the open set of named competences. |
+| the right to write | **standing** | `stewards` (field), `Steward::has_standing` (method) | *standing* is the authorial filter's second conjunct; `stewards` is the set of named containers the declaration actually carries. |
+| its declared authorship | **authored** | `authored:` | the history a principal states. |
+| authorship with the identity adjoined | **provenance** `π` | `Provenanced::provenance()` | `π = authored ∪ {id}` — the floor guarantees the identity is always present, so this is never equal to the raw declared set. |
+| how it is reached | **backing** | `backing:` | a model call, an agentic turn, or an outside answer — chosen by the principal. |
+| an endpoint | **Provider** | `providers:` | name, base URL, credential environment variable — no secret. |
 
-| institution | host | authority |
-|---|---|---|
-| `capable(p, role)` | `Principal::capable(&self, role: &str)` | [`capable-single-arity`] |
-| `π` | `Provenanced::provenance()` | [`principal-provenance-floor`] |
-| `standing(p, c)` | `Steward::has_standing(&self, over)` | [`authorial-qualifying-set`] |
-| `𝒫`, the pool | `rung_het::Pool<P>` | [`pool-is-opaque`] |
+The one pair that is *not* redundant deserves its own line: **`authored` and
+`provenance` (π) are different sets**, related but distinct. A principal
+declares `authored`; the institution adjoins its own `id` and calls the result
+provenance. So the filters never compare two raw declared histories — they
+always compare histories that already carry the author's identity, which is
+what stops a judge from ruling on its own work.
 
-These are **not** synonyms for ambiguity; they are the same relation named once
-in the mathematics and once in the host, so a reader can move between the
-prose and the code without guessing. When you see `π` in the docs, the host
-`authored`/`provenance` is meant; when you see `standing`, the `stewards`
-field and `has_standing` method are meant.
+### 4.2 Why two vocabularies at all
 
-### 4.2 Why you should *not* try to unify the names further
+Because the two read at different distances, and each is the right one there. A
+carrier file is an **operational surface**: it is read by operators and
+(potentially) by other tools, so its words (`requires`, `capabilities`,
+`standing`) name things the way a deployment would. The theory's words
+(`min_qualifications`, `qualifications`, `stewards`) are the ones the audit
+sentences and proofs refer to precisely. `serde` holds the line between them,
+and the round-trip tests pin it.
 
-It is tempting to rename `population.yaml` to `roster.yaml`, or to make the
-code spell `capabilities` instead of `qualifications`, and erase the history.
-Do not — and the reason is the same reason the aliases exist: **the carrier
-grammar and the theory vocabulary are each the right one at their own
-distance.** A deployment file is read by operators and by past/future carriers;
-its words (`capabilities`, `standing`, `requires`) are the operational surface.
-The theory's words (`qualifications`, `stewards`, `min_qualifications`) are
-the precise ones the audit sentences and proofs refer to. Serde holds the line
-between them, and the round-trip tests pin it. The cost of the pair of words is
-a table like this one; the cost of collapsing them is a law whose sentences and
-a carrier whose files can no longer change independently.
-
----
+You do not need to remember both vocabularies by heart — you need to know the
+distinction exists. Then when a proposition says `π(p)`, you read it as the
+code's `authored` *with the identity adjoined*, not as a second, separate
+value; and where the file says `capabilities`, the model reads
+`qualifications`. The two columns above are the whole of the translation.
 
 ## 5 · Reasoning — the first-principles choices that shape the model
 
@@ -319,11 +316,10 @@ The principals model sits at the center of two directions of travel:
   judgmental sentences (`competence_claim_is_true`,
   `kind_partition_is_adequate`) dispatch to an examiner/taxonomist.
 
-The convergence's payoff is that these are **the same `Roster` value**. When
-the driver builds a pool from `population.yaml`, provenance comes out of the
-commission log; when the theory audits that same roster, it reads the same
-`π`. (This is proven, over rung's own real population, in
-`rung-driver/tests/convergence.rs`.)
+The two halves read **the same `Roster` value**: when the driver builds a pool
+from `population.yaml`, provenance comes out of the commission log; when the
+theory audits that same roster, it reads the same `π`. (This is proven over
+rung's own real population in `rung-driver/tests/convergence.rs`.)
 
 ### 6.2 The lifecycle of a roster
 
@@ -369,5 +365,5 @@ the moment a commission records actual work.
 | the dispatch layer (Configured, Oracle, pool builders) | [`rung-driver/src/principal.rs`](../../rung-driver/src/principal.rs) |
 | the commission record (derived provenance) | [`rung-driver/src/commission.rs`](../../rung-driver/src/commission.rs) |
 | the law's tests over two synthetic rosters | [`rung-std/tests/principals_theory.rs`](../../rung-std/tests/principals_theory.rs) |
-| the convergence (both halves, real population) | [`rung-driver/tests/convergence.rs`](../../rung-driver/tests/convergence.rs) |
+| both halves over the real population | [`rung-driver/tests/convergence.rs`](../../rung-driver/tests/convergence.rs) |
 | who judges rung's own questions | `population.yaml` at the repository root |
