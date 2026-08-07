@@ -139,7 +139,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-het-props.md`
 
-**Counts.** 56 decidable · 25 judgmental · 1 owed · 101 rationale · 28 signature · 211 total.
+**Counts.** 56 decidable · 25 judgmental · 1 owed · 101 rationale · 29 signature · 212 total.
 
 ### The relation
 
@@ -215,6 +215,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [3.65](rung-het-props.md#standing-judge-disjoint-from-author) | `standing-judge-disjoint-from-author` | `rationale` | — | — |
 | [3.66](rung-het-props.md#two-escalation-triggers) | `two-escalation-triggers` | `rationale` | — | — |
 | [3.67](rung-het-props.md#standing-escalation-precedes-valuation) | `standing-escalation-precedes-valuation` | `rationale` | — | — |
+| [3.7](rung-het-props.md#judgment-presupposes-the-standard) | `judgment-presupposes-the-standard` | `signature` | The driver's `Prompt` is where the standard travels: `WellPosedAdjudicate` embeds the four-cut well-posedness doctrine into the instruction, and `WELL_POSED_STANDARD` is the single source of the measure the judge holds. The differential is observable: `consult.rs` consults the same real model with and without the standard — with a paraphrase it deferred or affirmed; with the standard it refused q18/q19 on the authentic cut ("a work item, not a question whose answer the structure determines"). A judge consulted without the standard is being asked to judge conformity it has no basis to assert. | — |
 
 ### The verdict
 
@@ -601,8 +602,8 @@ unsettled. Where it is blank, nobody has written one down.
 | `judgmental` | 47 |
 | `owed` | 3 |
 | `rationale` | 148 |
-| `signature` | 60 |
-| **total** | **389** |
+| `signature` | 61 |
+| **total** | **390** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that

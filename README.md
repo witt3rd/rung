@@ -551,7 +551,7 @@ each proposition: **what kind of authority could settle it.**
 | **decidable** | a proof — a test that fails when the proposition is violated | 131 |
 | **judgmental** | a principal, **disjoint** from what it judges — ruling recorded in [`judgments/`](.het/rung-questions/judgments/) | 47 |
 | **owed** | an author, with **standing** over it | 3 |
-| **signature** | nobody — it declares vocabulary | 60 |
+| **signature** | nobody — it declares vocabulary | 61 |
 | **rationale** | nobody — it argues, or records a limit | 148 |
 
 The two middle rows are the point. They route to **structurally exclusive**
@@ -637,7 +637,7 @@ docket, the judgments, and the generated `state/` — now lives **encapsulated**
 under one instance in [`.het/rung-questions/`](.het/rung-questions/), so the
 repository root stays pure rung source.
 
-The honest measure of this project is not 389 propositions encoded or 260 tests
+The honest measure of this project is not 390 propositions encoded or 260 tests
 passing. It is **how many defects in rung were found and fixed by the loop
 rather than by a person**. That number is zero.
 
