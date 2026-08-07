@@ -259,6 +259,7 @@ fn model_provenance_is_derived_from_the_commission_record() {
 /// **Providers are system-wide now; this population declares none inline.**
 /// Every model backing omits the provider and resolves through the system
 /// DEFAULT, which for rung's own population is OpenRouter.
+#[test]
 fn a_provider_catalog_may_be_inline() {
     // the system catalog supplies the DEFAULT
     assert_eq!(sys().default(), Some("openrouter"));
