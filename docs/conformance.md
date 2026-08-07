@@ -139,7 +139,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-het-props.md`
 
-**Counts.** 56 decidable · 25 judgmental · 1 owed · 101 rationale · 29 signature · 212 total.
+**Counts.** 56 decidable · 25 judgmental · 1 owed · 101 rationale · 30 signature · 213 total.
 
 ### The relation
 
@@ -216,6 +216,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [3.66](rung-het-props.md#two-escalation-triggers) | `two-escalation-triggers` | `rationale` | — | — |
 | [3.67](rung-het-props.md#standing-escalation-precedes-valuation) | `standing-escalation-precedes-valuation` | `rationale` | — | — |
 | [3.7](rung-het-props.md#judgment-presupposes-the-standard) | `judgment-presupposes-the-standard` | `signature` | The driver's `Prompt` is where the standard travels: `WellPosedAdjudicate` embeds the four-cut well-posedness doctrine into the instruction, and `WELL_POSED_STANDARD` is the single source of the measure the judge holds. The differential is observable: `consult.rs` consults the same real model with and without the standard — with a paraphrase it deferred or affirmed; with the standard it refused q18/q19 on the authentic cut ("a work item, not a question whose answer the structure determines"). A judge consulted without the standard is being asked to judge conformity it has no basis to assert. | — |
+| [3.8](rung-het-props.md#remedy-presupposes-the-judgment) | `remedy-presupposes-the-judgment` | `signature` | Conformance in `rung_std::questions`: `Questions::remedies_for` returns the judgment-conditioned edit set, and `Refile` is the authorial remedy licensed by `j = ill-posed` — `AddEdge` is not in `remedies("ill-posed")`, and proposing it to repair ill-posedness is a non-remedy that the mechanism refuses. | — |
 
 ### The verdict
 
@@ -602,8 +603,8 @@ unsettled. Where it is blank, nobody has written one down.
 | `judgmental` | 47 |
 | `owed` | 3 |
 | `rationale` | 148 |
-| `signature` | 61 |
-| **total** | **390** |
+| `signature` | 62 |
+| **total** | **391** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
@@ -619,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 196 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 198 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -841,7 +842,7 @@ look shorter than it is.
 - `the_library_names_no_role_or_principal_of_either_roster`
 - `the_theory_exposes_its_sentences_with_their_gates`
 
-**`rung-std/tests/questions_theory.rs`** — 19 unclaimed
+**`rung-std/tests/questions_theory.rs`** — 21 unclaimed
 
 - `a_gate_cycle_is_a_deadlock_and_the_sentence_refuses_it`
 - `a_parked_question_re_enters_at_gathered_rather_than_terminating`
@@ -853,6 +854,7 @@ look shorter than it is.
 - `mode_b_claims_nothing_and_names_its_condition`
 - `nesting_is_not_a_cycle_a_premise_up_and_a_gate_down`
 - `p0_refuses_the_curator_as_a_judge_of_the_questions_it_filed`
+- `refiling_to_mode_b_applies_and_verifies`
 - `the_cold_first_cut_is_declaring_an_answer`
 - `the_deep_cuts_are_judgmental`
 - `the_docket_has_no_dangling_dependency_and_no_duplicate_id`
@@ -860,6 +862,7 @@ look shorter than it is.
 - `the_docket_parses_into_six_questions_with_a_disjoint_id_space`
 - `the_docket_reports_its_own_outbound_edge_drift`
 - `the_done_pile_runs_its_own_law_on_a_write_the_ruling_already_authorized`
+- `the_remedies_are_conditioned_on_the_judgment`
 - `the_theory_exposes_its_sentences_with_their_gates`
 - `the_two_paths_differ_in_arity_not_in_convention`
 

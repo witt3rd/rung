@@ -409,6 +409,21 @@ matter or the prompt), or its ruling is vacuous: it asserts conformity without
 the basis of the standard, which is the constant-arrow hazard one level in — a
 verdict that never consulted the thing it was supposed to measure against.
 
+<a id="remedy-presupposes-the-judgment" data-parent="pool-is-parameter"></a>
+**3.8** **The authorial remedy set is conditioned on the judgment.** The
+author may propose only from `remedies(j)` — the set of edits the judgment `j`
+licenses — never the full action space `E`, unless it is declared that every
+authorial option is always available (and it is not).
+
+A remedy licensed by no judgment is no remedy: proposing outside `remedies(j)`
+is a non-remedy, and re-submitting a rejected one is blocked by the chain
+(`reproposal-carries-the-chain`: the next proposal is drawn from
+`remedies(why)`).
+
+This is the mirror of `judgment-presupposes-the-standard`: the standard
+conditions what the judge may *say*; the judgment conditions what the author
+may *do*. Both are conditional gates over the same institution.
+
 ---
 
 ## 4 · The verdict

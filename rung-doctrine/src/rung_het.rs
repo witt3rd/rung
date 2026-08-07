@@ -883,6 +883,32 @@ item, not a question whose answer the structure determines"). A judge
 consulted without the standard is being asked to judge conformity it has no
 basis to assert."#.into(),
         }),
+        Element::Prop(Prop {
+            slug: "remedy-presupposes-the-judgment".into(),
+            parent: Some("pool-is-parameter".into()),
+            kind: Kind::Signature,
+            numbering: None,
+            prose: r#"**The authorial remedy set is conditioned on the judgment.** The
+author may propose only from `remedies(j)` — the set of edits the judgment `j`
+licenses — never the full action space `E`, unless it is declared that every
+authorial option is always available (and it is not).
+
+A remedy licensed by no judgment is no remedy: proposing outside `remedies(j)`
+is a non-remedy, and re-submitting a rejected one is blocked by the chain
+(`reproposal-carries-the-chain`: the next proposal is drawn from
+`remedies(why)`).
+
+This is the mirror of `judgment-presupposes-the-standard`: the standard
+conditions what the judge may *say*; the judgment conditions what the author
+may *do*. Both are conditional gates over the same institution.
+
+"#.into(),
+            mechanism: r#"Conformance in `rung_std::questions`: `Questions::remedies_for`
+returns the judgment-conditioned edit set, and `Refile` is the authorial remedy
+licensed by `j = ill-posed` — `AddEdge` is not in `remedies("ill-posed")`, and
+proposing it to repair ill-posedness is a non-remedy that the mechanism
+refuses."#.into(),
+        }),
 Element::Verbatim(r#"---
 
 ## 4 · The verdict

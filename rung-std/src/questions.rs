@@ -349,6 +349,26 @@ impl Filing {
     }
 }
 
+/// A judgmental result, in the terms that condition the available authorial
+/// remedies (`remedy-presupposes-the-judgment`). The author proposes only from
+/// [`remedies_for`](Questions::remedies_for); a remedy licensed by no judgment
+/// is no remedy.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JudgmentClass {
+    /// The judge held the question well-posed (all four cuts against its
+    /// declared `answerable:`) — the proposal stands; no further remedy is
+    /// licensed.
+    WellPosed,
+    /// The judge refused well-posedness. The only appropriate authorial remedy
+    /// is to re-file the question honestly as Mode B (ill-posed, naming why) or
+    /// repair it into the determinate question at its core — never an
+    /// unrelated structural edit.
+    IllPosed,
+    /// The judge rejected a remedy with a reason; the author re-proposes from a
+    /// constrained set, and never the exact edit again (the chain).
+    RejectedRemedy { reason: String },
+}
+
 /// **π for a question.**
 ///
 /// The frontmatter has no `author:` field, so the finest provenance available
@@ -951,9 +971,24 @@ pub fn propagate<P: Principal>(e: &Exposure, pool: &Pool<P>) -> Result<Propagate
 /// answer is a diagnosis, never a resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QuestionEdit {
-    Relocate { to: &'static str },
-    Dissolve { why: &'static str },
-    AddEdge { target: String, kind: EdgeKind },
+    Relocate {
+        to: &'static str,
+    },
+    Dissolve {
+        why: &'static str,
+    },
+    AddEdge {
+        target: String,
+        kind: EdgeKind,
+    },
+    /// Re-file a question's well-posedness filing (Mode A / Mode B) — the
+    /// authorial remedy licensed by a *judgment* (`remedy-presupposes-the-judgment`).
+    /// A question ruled ill-posed is re-filed Mode B, naming the condition that
+    /// keeps it from being a question; it is not "fixed" by an unrelated edit.
+    Refile {
+        to: Filing,
+        condition: Option<String>,
+    },
 }
 
 impl Applies<QuestionEdit> for Questions {
@@ -989,6 +1024,15 @@ impl Applies<QuestionEdit> for Questions {
             QuestionEdit::Dissolve { .. } => {
                 self.questions[idx].status = "dissolved".into();
             }
+            QuestionEdit::Refile { to, condition } => {
+                self.questions[idx].filing = *to;
+                self.questions[idx].ill_posed = condition.clone();
+                // Mode B: `answerable` is absent on purpose; the condition names
+                // why. Mode A: ill_posed is cleared and `answerable` stands.
+                if *to == Filing::IllPosed {
+                    self.questions[idx].answerable = None;
+                }
+            }
             QuestionEdit::AddEdge { target, kind } => {
                 self.questions[idx].affects.push(Edge {
                     target: target.clone(),
@@ -1017,6 +1061,45 @@ impl Verify<QuestionEdit> for Questions {
                 .affects
                 .iter()
                 .any(|e| e.target == *target && e.kind == kind.name()),
+            QuestionEdit::Refile { to, condition } => {
+                q.filing == *to
+                    && q.ill_posed == *condition
+                    && match to {
+                        Filing::IllPosed => q.answerable.is_none(),
+                        Filing::WellPosed => q.answerable.is_some(),
+                    }
+            }
+        }
+    }
+}
+
+impl Questions {
+    /// The authorial remedies the judgment `j` licenses (`remedy-presupposes-the-judgment`).
+    /// `remedies_for(WellPosed)` is empty (nothing to remedy); `remedies_for(IllPosed)`
+    /// is `Refile → Mode B` and nothing else — `AddEdge` is *not* a remedy for
+    /// ill-posedness and is absent. `remedies_for(RejectedRemedy)` is the broader
+    /// re-proposal set (the chain forbids the exact edit already rejected).
+    pub fn remedies_for(&self, j: &JudgmentClass) -> Vec<QuestionEdit> {
+        match j {
+            JudgmentClass::WellPosed => Vec::new(),
+            JudgmentClass::IllPosed => vec![QuestionEdit::Refile {
+                to: Filing::IllPosed,
+                condition: Some(
+                    "judged not-well-posed: a decision or work item, not a deterministic \
+                     question whose answer the structure finds"
+                        .to_string(),
+                ),
+            }],
+            JudgmentClass::RejectedRemedy { .. } => vec![
+                QuestionEdit::Refile {
+                    to: Filing::IllPosed,
+                    condition: None,
+                },
+                QuestionEdit::Relocate { to: "resolved" },
+                QuestionEdit::Dissolve {
+                    why: "remedy rejected",
+                },
+            ],
         }
     }
 }

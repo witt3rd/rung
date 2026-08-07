@@ -19,7 +19,7 @@
 //! strings parsed in memory. If a change to rung's questions could turn this
 //! file red, the split between library and consumer is in the wrong place.
 
-use rung_het::{Disposition, EnactError, Pool, Proposal, dispose, enact};
+use rung_het::{Applies, Disposition, EnactError, Pool, Proposal, Verify, dispose, enact};
 use rung_std::questions::*;
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -665,6 +665,64 @@ fn mode_b_claims_nothing_and_names_its_condition() {
         !question::ill_posed_filings_name_their_condition::holds(&silent)
             .verdict()
             .is_conforming()
+    );
+}
+
+/// **The authorial remedy set is conditioned on the judgment**
+/// (`remedy-presupposes-the-judgment`). A question ruled ill-posed is re-filed
+/// Mode B — `Refile` is the licensed remedy, and `AddEdge` is *not in* the set:
+/// mirroring a structural edge cannot repair ill-posedness, so it is not a
+/// remedy the judgment licenses.
+#[test]
+fn the_remedies_are_conditioned_on_the_judgment() {
+    let d = docket();
+    let ill = d.remedies_for(&JudgmentClass::IllPosed);
+    assert!(
+        ill.iter().any(|e| matches!(
+            e,
+            QuestionEdit::Refile {
+                to: Filing::IllPosed,
+                ..
+            }
+        )),
+        "the ill-posed judgment licenses the Mode B re-file"
+    );
+    assert!(
+        !ill.iter()
+            .any(|e| matches!(e, QuestionEdit::AddEdge { .. })),
+        "AddEdge is not a remedy for ill-posedness"
+    );
+
+    // a well-posed judgment licenses no remedy — there is nothing to fix
+    assert!(d.remedies_for(&JudgmentClass::WellPosed).is_empty());
+}
+
+/// Re-filing applies and verifies: the filing flips to Mode B, `answerable` is
+/// dropped (absent on purpose), and the condition is named — the observer reads
+/// the post-state back, not the author's word.
+#[test]
+fn refiling_to_mode_b_applies_and_verifies() {
+    let mut d = docket();
+    let id = &d.questions[0].id.clone();
+    let edit = QuestionEdit::Refile {
+        to: Filing::IllPosed,
+        condition: Some("this is a decision, not a determinate question".into()),
+    };
+    d.apply(id, &edit).expect("the world admits the re-file");
+    assert!(!d.confirms(
+        &QuestionEdit::AddEdge {
+            target: "nope".into(),
+            kind: EdgeKind::Premise,
+        },
+        id
+    ));
+    assert!(d.confirms(&edit, id), "the re-file is observably in effect");
+    let q = d.questions.iter().find(|x| &x.id == id).unwrap();
+    assert_eq!(q.filing, Filing::IllPosed);
+    assert_eq!(q.answerable, None, "Mode B carries no answerable by design");
+    assert_eq!(
+        q.ill_posed.as_deref(),
+        Some("this is a decision, not a determinate question")
     );
 }
 
