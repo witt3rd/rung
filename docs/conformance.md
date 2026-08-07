@@ -618,7 +618,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 193 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 195 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -840,7 +840,7 @@ look shorter than it is.
 - `the_library_names_no_role_or_principal_of_either_roster`
 - `the_theory_exposes_its_sentences_with_their_gates`
 
-**`rung-std/tests/questions_theory.rs`** — 16 unclaimed
+**`rung-std/tests/questions_theory.rs`** — 18 unclaimed
 
 - `a_gate_cycle_is_a_deadlock_and_the_sentence_refuses_it`
 - `a_parked_question_re_enters_at_gathered_rather_than_terminating`
@@ -851,6 +851,8 @@ look shorter than it is.
 - `every_per_question_sentence_holds_over_the_whole_docket`
 - `nesting_is_not_a_cycle_a_premise_up_and_a_gate_down`
 - `p0_refuses_the_curator_as_a_judge_of_the_questions_it_filed`
+- `the_cold_first_cut_is_declaring_an_answer`
+- `the_deep_cuts_are_judgmental`
 - `the_docket_has_no_dangling_dependency_and_no_duplicate_id`
 - `the_docket_has_no_gate_cycle`
 - `the_docket_parses_into_six_questions_with_a_disjoint_id_space`

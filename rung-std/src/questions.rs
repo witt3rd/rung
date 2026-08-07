@@ -296,6 +296,13 @@ pub struct Question {
     pub stem: String,
     pub depends_on: Vec<Edge>,
     pub affects: Vec<Edge>,
+    /// The declared resolution / adequacy criterion — what would count as an
+    /// answer. The structural anchor of well-posedness: existence and
+    /// uniqueness are judged *against this*, and whether it is declared is the
+    /// one checkable cut (`answerable_is_declared`). A question that does not
+    /// declare one is either not yet well-posed, or is being tracked precisely
+    /// to repair it into well-posedness (see `is_well_posed`).
+    pub answerable: Option<String>,
 }
 
 /// **π for a question.**
@@ -327,6 +334,14 @@ impl Question {
             .filter(|e| is_internal_id(self.scheme, &e.target))
             .map(|e| (e.target.as_str(), e.kind.as_str()))
             .collect()
+    }
+
+    /// Whether this question declares a resolution / adequacy criterion —
+    /// the structural anchor of well-posedness (`answerable_is_declared`).
+    pub fn declares_resolution(&self) -> bool {
+        self.answerable
+            .as_deref()
+            .is_some_and(|s| !s.trim().is_empty())
     }
 
     pub fn names_in_affects(&self, id: &str) -> bool {
@@ -398,6 +413,34 @@ impl Question {
             out
         };
 
+        // Well-posedness frontmatter: `answerable:` as a single line, or a
+        // `|`-block scalar carrying the resolution / adequacy criterion.
+        let answerable = {
+            if let Some(v) = scalar("answerable") {
+                Some(v)
+            } else {
+                let mut inside = false;
+                let mut lines: Vec<&str> = Vec::new();
+                for line in fm.lines() {
+                    if line.trim_end() == "answerable:" || line.trim_end() == "answerable: |" {
+                        inside = true;
+                        continue;
+                    }
+                    if inside {
+                        if !line.starts_with("  ") {
+                            break;
+                        }
+                        lines.push(line.trim());
+                    }
+                }
+                if lines.is_empty() {
+                    None
+                } else {
+                    Some(lines.join("\n"))
+                }
+            }
+        };
+
         Some(Question {
             scheme,
             id: scalar("id")?,
@@ -406,6 +449,7 @@ impl Question {
             stem: stem.to_string(),
             depends_on: block("depends_on", "on"),
             affects: block("affects", "target"),
+            answerable,
         })
     }
 }
@@ -663,8 +707,37 @@ theory!(question for Question {
         q.depends_on.iter().chain(q.affects.iter())
             .all(|e| EdgeKind::parse(&e.kind).is_some());
 
-    // Is this a real question — one precise sentence, answerable in principle,
-    // not two questions wearing one id? No predicate settles that.
+    // The cold first cut of well-posedness: the question must declare what
+    // would count as an answer (`answerable:`), or it is not yet a member of
+    // the question set — either not a question, or tracked precisely to be
+    // repaired. Decidable, because it reads the declaration and nothing else.
+    decidable answerable_is_declared = |q: &Question|
+        q.declares_resolution();
+
+    // **Well-posedness is the membership criterion of the question set** (`is_well_posed`,
+    // in Hadamard's sense, transplanted). A question is well-posed iff, against
+    // its declared `answerable:` (the resolution / adequacy criterion), all four
+    // cuts hold:
+    //
+    //   1. **existence** — the structure can actually produce the declared
+    //      answer; the resolution condition is reachable from the substance,
+    //      not merely nameable.
+    //   2. **unique** — exactly one answer, not a family of framings. Watch:
+    //      an unpinned equivalence relation ("is X the same as Y" — same in
+    //      which sense?), a "what is X" with no pinned adequacy criterion, or a
+    //      definitional commitment dressed as a discovery.
+    //   3. **stable** — the answer survives rephrasing the question; and
+    //      well-posedness itself is stable, so sharpening a well-posed
+    //      question never changes *which* question it is.
+    //   4. **authentic** — it is a question, not a decision awaiting a ruling,
+    //      not a definitional commitment, not a work item. A well-posed
+    //      question's answer is *found by the structure*, not *made by the
+    //      asker*.
+    //
+    // The one decidable cut is `answerable_is_declared`; the other three are
+    // judgmental, but they are judged *against the declared criterion*, which
+    // is what makes the judgment non-vacuous. A ruling that refuses must name
+    // the cut it refused (its `reason`).
     judgmental is_well_posed: Interrogator;
 
     // A resolved question claims a verdict. Does the verdict answer the
