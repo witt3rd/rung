@@ -43,6 +43,16 @@ pub trait Pass<E>: Audit + Verify<E> {
     /// theory may consult its own model to build the edit.
     fn remedy(&self, f: &Finding) -> E;
 
+    /// The author's **post-judgment** remedy: propose (or re-propose) with the
+    /// just-rendered judgment in hand. `after` is the disposition — its reason
+    /// and the standard it was rendered against. The mirror of
+    /// [`judgment-presupposes-the-standard`]: there the standard reaches the
+    /// judge; here the judgment reaches the author, who draws the next proposal
+    /// from the set that judgment licenses (`remedy-presupposes-the-judgment`,
+    /// `reproposal-carries-the-chain`). Without `after`, a re-proposal would be
+    /// the authorial constant arrow — a fix with no relation to what was decided.
+    fn repropose(&self, f: &Finding, after: &Disposition) -> E;
+
     /// The theory's combination rule over a panel of judges' rulings.
     ///
     /// `panels`: a panel is `⊨` with more than one judge, and *how the theory
@@ -122,69 +132,80 @@ where
         return CycleOutcome::Clean;
     };
 
-    // propose — the author, with standing, writes a typed remedy
+    // The author proposes; at most **two** attempts. The first is a fresh
+    // remedy; on a rejection the author *receives the judgment*
+    // (`repropose` is handed the disposition — its reason and the standard it
+    // was rendered against) and proposes once from the licensed set
+    // (`remedy-presupposes-the-judgment`). Bounded, deliberately: how many
+    // re-proposals to allow is itself a worth judgment, so the engine
+    // re-proposes exactly once and surfaces the rest.
     let pen = pool
         .authorize::<ARole, _>(&author, standing)
         .expect("the author holds standing over the territory");
-    let edit = world.remedy(&claim);
-    let proposal = Proposal::remedy(&pen, &claim.subject, edit.clone());
+    let mut edit = world.remedy(&claim);
+    let mut reproposed = false;
 
-    // judge — the whole qualifying set (a sole judge is a set of one), each
-    // with its own sealed verdict
-    let seats = match pool.qualifying::<JRole>(&proposal) {
-        Ok(seats) => seats,
-        Err(rung::QualifyError::JudgeDeferred(_)) => return CycleOutcome::Deferred,
-        Err(e) => panic!("judging requires at least one qualifying judge: {e}"),
-    };
+    for _ in 0..2 {
+        let proposal = Proposal::remedy(&pen, &claim.subject, edit.clone());
 
-    // each judge's own reading of the proposal -> its own sealed Ruling
-    let rulings = seats
-        .into_iter()
-        .map(|seat| {
-            let disp = seat_disposition(seat.judgment().verdict());
-            dispose(&proposal, seat, disp).expect("minted against this proposal")
-        })
-        .collect::<Vec<_>>();
+        // judge — the whole qualifying set (a sole judge is a set of one)
+        let seats = match pool.qualifying::<JRole>(&proposal) {
+            Ok(seats) => seats,
+            Err(rung::QualifyError::JudgeDeferred(_)) => return CycleOutcome::Deferred,
+            Err(e) => panic!("judging requires at least one qualifying judge: {e}"),
+        };
+        let rulings = seats
+            .into_iter()
+            .map(|seat| {
+                let disp = seat_disposition(seat.judgment().verdict());
+                dispose(&proposal, seat, disp).expect("minted against this proposal")
+            })
+            .collect::<Vec<_>>();
+        let effective = world.combine(&rulings);
 
-    // the theory's rule over the judges who judged (one or many)
-    let effective = world.combine(&rulings);
+        if effective.is_affirming() {
+            // enact — via an affirming judge's ruling; the edit is the author's,
+            // never the judging's (judgment classifies, authorship edits)
+            let enacting = rulings
+                .iter()
+                .find(|r| r.is_affirming())
+                .expect("judging affirmed, so a judge affirmed it");
+            let _ = enact(world, enacting, &pen).expect("the world admits the edit");
+            // verify — the observer reads the post-state back
+            let verified = world.confirms(&edit, &claim.subject);
+            // bookkeeping — a `tier: dispatched` record of every judge
+            let record = DispatchedRecord::from_rulings(&claim.sentence, JRole::NAME, &rulings);
+            return CycleOutcome::Rectified { verified, record };
+        }
 
-    if !effective.is_affirming() {
+        if !reproposed {
+            // the author received the judgment and re-proposes from it
+            reproposed = true;
+            edit = world.repropose(&claim, &effective);
+            continue;
+        }
+
         let reasons: Vec<String> = rulings
             .iter()
             .filter_map(|r| r.reason().map(str::to_string))
             .collect();
         return CycleOutcome::Rejected { reasons };
     }
-
-    // enact — via an affirming judge's ruling; the edit is the author's, never
-    // the judging's (judgment classifies, authorship edits)
-    let enacting = rulings
-        .iter()
-        .find(|r| r.is_affirming())
-        .expect("judging affirmed, so a judge affirmed it");
-    let _ = enact(world, enacting, &pen).expect("the world admits the edit");
-
-    // verify — the observer reads the post-state back, not the author's word
-    let verified = world.confirms(&edit, &claim.subject);
-
-    // bookkeeping — a `tier: dispatched` record listing every judge that ruled
-    let record = DispatchedRecord::from_rulings(&claim.sentence, JRole::NAME, &rulings);
-
-    CycleOutcome::Rectified { verified, record }
+    unreachable!("bounded to two attempts")
 }
 
 /// One outside verdict, read as a disposal.
 ///
 /// A conforming outside affirms; a non-conforming outside rejects the remedy
 /// *with its reason* (`reason-is-not-an-edit` — the reason becomes advisory
-/// prose, never a replacement edit the judge authors). This is the
-/// theory-neutral reading of a judge's verdict; the theory still chooses how
-/// the whole judging step combines via [`Pass::combine`].
-fn seat_disposition(verdict: &Verdict) -> Disposition {
+/// prose the author re-proposes with, never a replacement edit the judge
+/// authors). This is the theory-neutral reading of `rule()`'s verdict; the
+/// theory still chooses how the whole judging step combines via
+/// [`Pass::combine`].
+fn seat_disposition(verdict: &rung::Verdict) -> rung_het::Disposition {
     match verdict {
-        Verdict::Conforming => Disposition::Accept,
-        Verdict::NonConforming { reason } => Disposition::RejectRemedy {
+        rung::Verdict::Conforming => rung_het::Disposition::Accept,
+        rung::Verdict::NonConforming { reason } => rung_het::Disposition::RejectRemedy {
             reason: reason.clone(),
         },
     }
@@ -245,6 +266,24 @@ impl Pass<rung_std::questions::QuestionEdit> for Questions {
                 .collect::<Vec<_>>()
                 .join("; ");
             rung_het::Disposition::RejectRemedy { reason: reasons }
+        }
+    }
+
+    /// The author's **post-judgment** remedy: handed the disposition, it
+    /// re-proposes from what the judgment licenses (`remedy-presupposes-the-
+    /// judgment`). The reason is the "why" the next proposal must address —
+    /// here, a rejected remedy re-files the subject honestly (Mode B, naming
+    /// the condition) rather than re-submitting another fix that was refused.
+    fn repropose(
+        &self,
+        _f: &Finding,
+        after: &rung_het::Disposition,
+    ) -> rung_std::questions::QuestionEdit {
+        use rung_std::questions::{Filing, QuestionEdit};
+        let reason = after.reason().unwrap_or("rejected").to_string();
+        QuestionEdit::Refile {
+            to: Filing::IllPosed,
+            condition: Some(format!("re-proposed after judgment: {reason}")),
         }
     }
 }

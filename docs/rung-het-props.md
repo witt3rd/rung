@@ -420,6 +420,14 @@ is a non-remedy, and re-submitting a rejected one is blocked by the chain
 (`reproposal-carries-the-chain`: the next proposal is drawn from
 `remedies(why)`).
 
+**The author receives the judgment to propose.** The mirror is not only about
+the *set* — it is about the author's **input**. To propose or re-propose, the
+author must be handed the judgment's terms: the disposition, the reason / the
+chain, the standard (the same criteria the judge held, so the remedy is a
+candidate *against it*), and the thereby-licensed set `remedies(j)`. A remedy
+proposed without them is the authorial mirror of the constant arrow: a fix with
+no relation to what was decided or to what conforming means.
+
 This is the mirror of `judgment-presupposes-the-standard`: the standard
 conditions what the judge may *say*; the judgment conditions what the author
 may *do*. Both are conditional gates over the same institution.

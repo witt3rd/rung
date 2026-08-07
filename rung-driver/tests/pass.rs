@@ -96,3 +96,45 @@ fn the_composed_loop_closes_with_a_dispatched_record() {
         }
     }
 }
+
+/// A judge that **rejects the first proposal, affirms the second** — so the
+/// loop exercises the author's post-judgment re-proposal
+/// (`remedy-presupposes-the-judgment`): the first remedy is refused, the author
+/// *receives the judgment* (its reason) and re-proposes from it (`Refile → Mode B`),
+/// and that is what the second judge affirms.
+#[derive(Default)]
+struct FirstRejects(std::sync::atomic::AtomicUsize);
+impl Oracle for FirstRejects {
+    fn ask(&self, _id: &str, _backing: &Backing, _matter: &str) -> Answer {
+        let n = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if n == 0 {
+            Answer::fails("not a well-posed question; re-file it honestly")
+        } else {
+            Answer::holds()
+        }
+    }
+}
+
+#[test]
+fn the_author_receives_the_judgment_and_reproposes_from_it() {
+    use rung_std::questions::Filing;
+    let mut world = Questions::load(RUNG, &ws_root().join(".het/rung-questions/questions"));
+    let pop = Roster::from_yaml(QUESTIONS_POPULATION).unwrap();
+    let pool = population_pool(&pop, "adjudicator", Arc::new(FirstRejects::default()));
+
+    let author = pop.by_id("opus-author").expect("declared").clone();
+    let author_cfg = Configured::new(author, Arc::new(FirstRejects::default()));
+    match run_cycle::<_, _, _, Curator, Adjudicator>(&mut world, author_cfg, "questions", &pool) {
+        CycleOutcome::Rectified { verified, .. } => {
+            assert!(verified, "the re-filed post-state reads back");
+            // The first remedy was rejected; the author received the judgment and
+            // re-proposed `Refile → Mode B`; the second judge affirmed it, so the
+            // subject now sits in Mode B (answerable absent on purpose).
+            assert!(
+                world.questions.iter().any(|q| q.filing == Filing::IllPosed),
+                "the author's judgment-driven remedy must have been enacted"
+            );
+        }
+        other => panic!("after the re-proposal the loop must close; got {other:?}"),
+    }
+}
