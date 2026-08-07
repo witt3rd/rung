@@ -693,8 +693,48 @@ fn the_remedies_are_conditioned_on_the_judgment() {
         "AddEdge is not a remedy for ill-posedness"
     );
 
+    // a real option set, not a single forced move: repair (Rewrite) is the
+    // primary remedy; demotion (Refile → Mode B) the fallback
+    assert!(
+        matches!(ill.first(), Some(QuestionEdit::Rewrite { .. })),
+        "repair is the primary remedy an ill-posed judgment licenses"
+    );
+    assert!(
+        ill.iter().any(|e| matches!(
+            e,
+            QuestionEdit::Refile {
+                to: Filing::IllPosed,
+                ..
+            }
+        )),
+        "demotion to Mode B is the fallback remedy"
+    );
+
     // a well-posed judgment licenses no remedy — there is nothing to fix
     assert!(d.remedies_for(&JudgmentClass::WellPosed).is_empty());
+}
+
+/// A `Rewrite` repairs the question into conformity: it stays Mode A with a
+/// sharpened `answerable:` (ill_posed cleared), and the observer reads that back.
+#[test]
+fn rewriting_repairs_to_conformity_and_verifies() {
+    let mut d = docket();
+    let id = &d.questions[0].id.clone();
+    let edit = QuestionEdit::Rewrite {
+        answerable: "one determinate fact, unique and authentic".into(),
+    };
+    d.apply(id, &edit).expect("the world admits the repair");
+    assert!(d.confirms(&edit, id), "the repair is observably in effect");
+    let q = d.questions.iter().find(|x| &x.id == id).unwrap();
+    assert_eq!(q.filing, Filing::WellPosed, "repair keeps Mode A");
+    assert_eq!(
+        q.answerable.as_deref(),
+        Some("one determinate fact, unique and authentic")
+    );
+    assert_eq!(
+        q.ill_posed, None,
+        "a repaired question names no ill-posed condition"
+    );
 }
 
 /// Re-filing applies and verifies: the filing flips to Mode B, `answerable` is
