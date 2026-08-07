@@ -53,6 +53,13 @@ pub trait Pass<E>: Audit + Verify<E> {
     /// the authorial constant arrow — a fix with no relation to what was decided.
     fn repropose(&self, f: &Finding, after: &Disposition) -> E;
 
+    /// **Enact-to-carrier**: write an enacted edit back to the carrier, so the
+    /// cycle can actually repair the collection it audits rather than only
+    /// mutating it in memory. Default is a no-op; an editable theory that owns
+    /// its files overrides this (see `Questions::repropose`'s sibling
+    /// `Questions::persist`). Called by `run_cycle` after enact, before verify.
+    fn persist(&mut self, _object: &str) {}
+
     /// The theory's combination rule over a panel of judges' rulings.
     ///
     /// `panels`: a panel is `⊨` with more than one judge, and *how the theory
@@ -290,5 +297,9 @@ impl Pass<rung_std::questions::QuestionEdit> for Questions {
                          one reachable, unique, stable, authentic answer — and what is it?"
                 .to_string(),
         }
+    }
+
+    fn persist(&mut self, object: &str) {
+        let _ = rung_std::questions::Questions::persist(self, object);
     }
 }
