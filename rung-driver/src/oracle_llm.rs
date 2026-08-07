@@ -27,6 +27,7 @@
 //! called those are settled and this only carries the reply.
 
 use crate::principal::{Answer, Oracle};
+use crate::system::SystemConfig;
 use rung::Raised;
 use rung_std::llm::{
     ChatMessage, ContentBlock, DEFAULT_MAX_ATTEMPTS, LlmConfig, LlmRequest, LlmResponse, llmcall,
@@ -66,18 +67,40 @@ impl std::fmt::Display for Unreachable {
 /// the provider declared. It is never held in the population and never stored
 /// on this type, so a config file cannot carry one and a debug print cannot
 /// leak one.
-pub fn resolve(population: &Roster, backing: &Backing) -> Result<LlmConfig, Unreachable> {
-    let (Some(name), Some(model)) = (backing.provider(), backing.model()) else {
-        return Err(Unreachable::NotServedByAModel);
-    };
-    let provider = population
-        .provider(name)
-        .ok_or_else(|| Unreachable::NoSuchProvider(name.to_string()))?;
+pub fn resolve(
+    population: &Roster,
+    backing: &Backing,
+    system: &SystemConfig,
+) -> Result<LlmConfig, Unreachable> {
+    let model = backing.model().ok_or(Unreachable::NotServedByAModel)?;
 
-    let api_key = std::env::var(&provider.api_key_env).map_err(|_| Unreachable::NoCredential {
-        provider: name.to_string(),
-        env: provider.api_key_env.clone(),
-    })?;
+    // the provider: the backing's, or the system DEFAULT
+    let name = match backing.provider() {
+        Some(n) => n.to_string(),
+        None => system
+            .default()
+            .ok_or_else(|| Unreachable::NoSuchProvider("<default>".to_string()))?
+            .to_string(),
+    };
+    // the provider definition: the roster's inline override, else the system
+    // catalog
+    let provider = population
+        .provider(&name)
+        .or_else(|| system.provider(&name))
+        .ok_or_else(|| Unreachable::NoSuchProvider(name.clone()))?;
+
+    // the credential: the real environment first (override), then auth.yaml
+    let api_key = std::env::var(&provider.api_key_env)
+        .or_else(|_| {
+            system
+                .api_key(&name)
+                .map(str::to_string)
+                .ok_or(std::env::VarError::NotPresent)
+        })
+        .map_err(|_| Unreachable::NoCredential {
+            provider: name.clone(),
+            env: provider.api_key_env.clone(),
+        })?;
 
     Ok(LlmConfig {
         base_url: provider.base_url.clone(),
@@ -138,15 +161,20 @@ impl Prompt for Adjudicate {
 /// provider, and the endpoint and credential are resolved per dispatch.
 pub struct ModelOracle<P: Prompt> {
     population: Roster,
+    system: SystemConfig,
     prompt: P,
     /// Reference used when a matter is raised without the model naming one.
     reference: String,
 }
 
 impl<P: Prompt> ModelOracle<P> {
+    /// `population` is the roster whose principals this oracle reaches; the
+    /// providers and credentials resolve through the system-wide `~/.rung/`
+    /// catalog (with the roster's inline `providers:` as an override).
     pub fn new(population: Roster, prompt: P, reference: impl Into<String>) -> Self {
         Self {
             population,
+            system: SystemConfig::load(),
             prompt,
             reference: reference.into(),
         }
@@ -162,7 +190,7 @@ impl<P: Prompt> ModelOracle<P> {
 
 impl<P: Prompt> Oracle for ModelOracle<P> {
     fn ask(&self, id: &str, backing: &Backing, matter: &str) -> Answer {
-        let config = match resolve(&self.population, backing) {
+        let config = match resolve(&self.population, backing, &self.system) {
             Ok(c) => c,
             // A configuration fault is a matter raised, not a claim refuted.
             Err(why) => return self.raise(matter, why),

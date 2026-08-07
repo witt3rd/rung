@@ -36,6 +36,7 @@ pub mod judgment;
 pub mod oracle_llm;
 pub mod pass;
 pub mod principal;
+pub mod system;
 
 pub use carrier::{
     Carrier, CarrierConfig, CarrierError, CarrierKind, CarrierRef, CsvFileCarrier,
@@ -57,6 +58,7 @@ pub use principal::{
 pub use rung_std::principals::{
     Backing, ConfigError, Kind, PrincipalDecl, Provider, RoleSpec, Roster, RosterFault,
 };
+pub use system::SystemConfig;
 
 /// Re-exported so a driver has one import for holding suspended runs.
 pub use rung_std::driver::Park;

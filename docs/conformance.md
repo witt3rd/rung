@@ -713,17 +713,17 @@ look shorter than it is.
 
 - `a_bare_failure_still_carries_a_reason`
 - `a_missing_credential_is_unreachable_and_not_a_verdict`
+- `a_provider_catalog_may_be_inline`
 - `an_out_of_band_principal_is_not_reachable_by_a_model`
 - `an_undeclared_provider_is_caught_before_dispatch`
+- `credentials_live_outside_the_repository`
 - `declining_to_rule_is_not_a_claim_failing`
-- `each_principal_resolves_to_the_provider_that_serves_it`
 - `hedging_is_not_a_verdict`
 - `leading_whitespace_is_tolerated`
 - `model_provenance_is_derived_from_the_commission_record`
 - `provider_settings_are_per_provider`
 - `the_author_may_write_the_source_and_not_the_rendering`
 - `the_declared_judges_and_authors_are_disjoint_sets`
-- `the_population_names_credentials_and_never_holds_one`
 - `the_repositorys_population_parses_and_is_well_formed`
 - `the_three_declared_forms_are_read`
 - `trailing_prose_after_the_first_line_is_ignored`
