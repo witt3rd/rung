@@ -126,7 +126,7 @@ fn population() -> Roster {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join("population.yaml"),
+            .join(".het/rung-questions/population.yaml"),
     )
     .expect("population.yaml");
     Roster::from_yaml(&text).expect("the population parses")
@@ -137,7 +137,7 @@ fn commissions() -> CommissionLog {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join("commissions.yaml"),
+            .join(".het/rung-questions/commissions.yaml"),
     )
     .expect("commissions.yaml");
     CommissionLog::from_yaml(&text).expect("the commission record parses")
@@ -280,7 +280,7 @@ fn the_population_names_credentials_and_never_holds_one() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join("population.yaml"),
+            .join(".het/rung-questions/population.yaml"),
     )
     .unwrap();
 

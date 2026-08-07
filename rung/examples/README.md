@@ -57,5 +57,5 @@ one inside the other (a ladder inside another ladder's transition body) is
 **composition**, and that is an *open research question*, not a feature you were
 supposed to find. Async transition bodies are another.
 
-See [`questions/`](../../questions/) — Q4 (composition) and Q8 (async).
+See [`questions/`](../../.het/rung-questions/questions/) — Q4 (composition) and Q8 (async).
 The curriculum ends where the research starts.

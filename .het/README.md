@@ -11,9 +11,19 @@ instead of scattering `population.yaml`/`commissions.yaml`/`questions/`/
   <instance>/              e.g. rung-questions, gh-issues, portfolio
     config.yaml            # theory, carrier (colocated or external), population,
                            #   and the state/ home — what the generic driver reads
+    population.yaml        # this instance's principals (or shared one level up)
+    commissions.yaml       # the commission record — provenance (or shared)
+    questions/             # the carrier's subjects (a flat docket, here)
+    judgments/             # the dispatched-judgment schema + records
     state/                 # what the loop WRITES: dispatched judgments, park, log
                            #   (generated; gitignored)
 ```
+
+**Encapsulation is the point.** Every piece of self-hosted state for an
+instance — the population, the commission record, the subject docket, the
+judgments, and the generated `state/` — lives here, together, so that (1) what
+constitutes state is obvious, and (2) the repository root is not polluted with
+it. The root holds only the `rung*` sources, `docs/`, and the build files.
 
 - **config.yaml** is an [`Instance`] (rung-driver): the governing theory, the
   [`CarrierConfig`] (colocated folder/jsonl/csv, or external github), the

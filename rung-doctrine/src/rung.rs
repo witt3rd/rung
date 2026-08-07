@@ -204,7 +204,7 @@ neither can be passed where the other is asked for
 model, one level up
 ({#classifier-one-level-up}),
 and `ladder!`'s checks run at expansion time against a single declaration; see
-[Q11](../questions/q11-gate-faithfulness.md).
+[Q11](../.het/rung-questions/questions/q11-gate-faithfulness.md).
 
 "#.into(),
             mechanism: r#"A `trybuild` case whose committed `.stderr` holds the refusal, including the pointer to the open question. A `compile_fail` doctest would not have distinguished this refusal from a typo ({#compile-fail-asserts-only-non-compilation})."#.into(),
@@ -900,7 +900,7 @@ re-entry rather than laundering
 ({#reproposal-carries-the-chain}) — so which arms are
 *outcomes* in the sense of {#admissibility-subcategories}
 is unsettled, and the epilogue does not guess. Recorded as an open limit in
-`questions/q11-gate-faithfulness.md`.
+`.het/rung-questions/questions/q11-gate-faithfulness.md`.
 
 *Conformance:
 `gate_markers.rs::the_injected_epilogue_refuses_an_outcome_the_judge_did_not_render`
@@ -1066,7 +1066,7 @@ mid-ladder rung nobody traversed to, which is exactly what
 {#g2-sealed-construction} exists to refuse. Resumption being authorial
 answers *who may* revive a run; it says nothing about *how a token survives
 serialization*. Filed as
-[Q13](../questions/q13-suspension-across-process-death.md), and related to
+[Q13](../.het/rung-questions/questions/q13-suspension-across-process-death.md), and related to
 {#cross-crate-provenance}.
 
 "#.into(),
@@ -1176,7 +1176,7 @@ seal is
             prose: r#"Whether {#g12-gate-marked-signature} +
 {#g13-token-binding} + {#g14-the-authorial-gate} +
 {#g15-outcome-provenance} amount to gate-faithfulness is argued — and
-answered *no* — in [Q11](../questions/q11-gate-faithfulness.md), which stays
+answered *no* — in [Q11](../.het/rung-questions/questions/q11-gate-faithfulness.md), which stays
 open on {#one-gate-unimplemented} and, in its narrowed form,
 {#outward-conditions-remaining}.
 
@@ -1209,10 +1209,10 @@ So `ladder!` does not express the endofunctor, and a claim that a single
 declaration is one has no standing here. Whether a rung's payload may be a
 completed sub-ladder run — which is the shape that would let the composite be
 declared rather than driven — is
-[Q4](../questions/q4-composition-nested-ladders.md), open.
+[Q4](../.het/rung-questions/questions/q4-composition-nested-ladders.md), open.
 
 "#.into(),
-            mechanism: r#"A limit on the DECLARATION, recorded rather than worked around. `ladder!` declares a linear spine with backward continue arms, and a continue arm's target rung is built inline by `step` ([G10](rung-props.md#g10-continue-arms)) — by whoever holds that transition's token. An `Accept -> Governed` arm on the pass would therefore have the JUDGE produce the revised subject, which {#no-amending-disposition} forbids. So `enact` sits outside the branching transition and the loop of {#enact-makes-an-endofunctor} closes by composition, not inside one declaration. The cited test is the shape as built: `Accept` is terminal and carries a `Licence`, and the run leaves the ladder to enact. Expressing the composite as a declaration is Q4 (`questions/q4-composition-nested-ladders.md`), open — nothing here is claimed to close it."#.into(),
+            mechanism: r#"A limit on the DECLARATION, recorded rather than worked around. `ladder!` declares a linear spine with backward continue arms, and a continue arm's target rung is built inline by `step` ([G10](rung-props.md#g10-continue-arms)) — by whoever holds that transition's token. An `Accept -> Governed` arm on the pass would therefore have the JUDGE produce the revised subject, which {#no-amending-disposition} forbids. So `enact` sits outside the branching transition and the loop of {#enact-makes-an-endofunctor} closes by composition, not inside one declaration. The cited test is the shape as built: `Accept` is terminal and carries a `Licence`, and the run leaves the ladder to enact. Expressing the composite as a declaration is Q4 (`.het/rung-questions/questions/q4-composition-nested-ladders.md`), open — nothing here is claimed to close it."#.into(),
         }),
         Element::Verbatim(r#"---
 

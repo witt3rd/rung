@@ -60,7 +60,7 @@ fn questions_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("rung-het sits in the workspace")
-        .join("questions")
+        .join(".het/rung-questions/questions")
 }
 
 /// Walk `questions/**/*.md`. `_`-prefixed files and `_evidence/` are

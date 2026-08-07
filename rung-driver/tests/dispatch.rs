@@ -41,8 +41,10 @@ fn a_dispatched_record_carries_the_sealed_provenance() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap();
-    let text =
-        std::fs::read_to_string(root.join("questions/q7-effectful-bodies-which-monad.md")).unwrap();
+    let text = std::fs::read_to_string(
+        root.join(".het/rung-questions/questions/q7-effectful-bodies-which-monad.md"),
+    )
+    .unwrap();
     let q7 = Question::parse(scheme, &text, "resolved", "q7-effectful-bodies-which-monad")
         .map(|mut q| {
             q.dir = q.status.clone();

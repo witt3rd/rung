@@ -859,7 +859,12 @@ fn no_proof_names_an_ignored_test() {
 fn every_markdown_link_in_the_repository_resolves() {
     let r = root();
     let mut files: Vec<std::path::PathBuf> = vec![r.join("README.md")];
-    for dir in ["docs", "questions", "judgments", "rung/examples"] {
+    for dir in [
+        "docs",
+        ".het/rung-questions/questions",
+        ".het/rung-questions/judgments",
+        "rung/examples",
+    ] {
         collect_md(&r.join(dir), &mut files);
     }
 

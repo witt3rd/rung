@@ -272,7 +272,7 @@ Two moments, and rung keeps them apart:
   declines to dispose because it first needs some other matter settled. That is
   the branch the pass's branching transition has no residual channel to hand
   the token back on — which is why the pass cannot yet wait on a question it
-  raised ([Q15](questions/q15-does-the-pass-suspend.md)).
+  raised ([Q15](.het/rung-questions/questions/q15-does-the-pass-suspend.md)).
 
 Either way the question is opaque to rung — an issue number, a filename — and
 it lands on the edge that resumes when evidence arrives that its matter
@@ -334,7 +334,7 @@ not to resolve it.
 It also can't resume anything: it hands the run back, and the ladder's own
 pen-gated resume edge does the resuming. And it's in-memory only — whether a
 suspended run can survive process death at all is
-[Q13](questions/q13-suspension-across-process-death.md), open.
+[Q13](.het/rung-questions/questions/q13-suspension-across-process-death.md), open.
 
 ### Questions about questions are just more questions
 
@@ -475,7 +475,7 @@ each proposition: **what kind of authority could settle it.**
 | kind | discharged by | count |
 |---|---|---:|
 | **decidable** | a proof — a test that fails when the proposition is violated | 131 |
-| **judgmental** | a principal, **disjoint** from what it judges — ruling recorded in [`judgments/`](judgments/) | 47 |
+| **judgmental** | a principal, **disjoint** from what it judges — ruling recorded in [`judgments/`](.het/rung-questions/judgments/) | 47 |
 | **owed** | an author, with **standing** over it | 3 |
 | **signature** | nobody — it declares vocabulary | 60 |
 | **rationale** | nobody — it argues, or records a limit | 148 |
@@ -534,22 +534,22 @@ step requiring someone who could not have made the previous one.
 
 **That has not happened yet.** Zero judgments have been settled and zero owed
 items discharged. The mechanism exists — [`rung-driver`](rung-driver/) builds a
-pool from [`population.yaml`](population.yaml), the pass is a ladder,
+pool from [`population.yaml`](.het/rung-questions/population.yaml), the pass is a ladder,
 edits are typed and verified against the source an author actually wrote — and
 it has never run on anything that mattered.
 
 Two things stand in the way, and only one is work:
 
-- **[Q14](questions/q14-model-principal-provenance.md)** — what
+- **[Q14](.het/rung-questions/questions/q14-model-principal-provenance.md)** — what
   provenance a model principal carries. **Ruled** (stake-based π, definitional);
-  **[Q16](questions/q16-provenance-carrier.md)** ruled the **carrier** —
+  **[Q16](.het/rung-questions/questions/q16-provenance-carrier.md)** ruled the **carrier** —
   a commission contribution record, `C(f,c)`, over the active commission set;
-  and **[Q17](questions/q17-provenance-carrier-implementation.md)** has
+  and **[Q17](.het/rung-questions/questions/q17-provenance-carrier-implementation.md)** has
   **built** it. `authored(p)` is now a derived fact the pool reads by family
   from `commissions.yaml` — a lookup, not a growing array. What remains is to
   *populate* the record with real contributions (harness state; nothing is
   guessed); until then every model's derived set is open by design.
-- **[Q15](questions/q15-does-the-pass-suspend.md)** — the pass
+- **[Q15](.het/rung-questions/questions/q15-does-the-pass-suspend.md)** — the pass
   disposes through a *branching* transition, which has no residual channel, so
   it cannot wait for a question it raised.
 
@@ -559,10 +559,10 @@ rather than by a person**. That number is zero.
 
 ## Further reading
 
-- [`questions/`](questions/) — the open questions: the frontier
+- [`questions/`](.het/rung-questions/questions/) — the open questions: the frontier
   for advancing the language (deepen vs grow). A question resolves only when its
   answer lands in a normative surface. See
-  [`INTAKE.md`](questions/INTAKE.md) for how one enters. The questions are
+  [`INTAKE.md`](.het/rung-questions/questions/INTAKE.md) for how one enters. The questions are
   themselves governed by a Het theory written in the DSL
   ([`rung-std/src/questions.rs`](rung-std/src/questions.rs)), which declares the
   typed dependency vocabulary; `rung-het/tests/questions_of_rung.rs` evaluates

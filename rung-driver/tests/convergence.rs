@@ -24,13 +24,15 @@ fn ws_root() -> std::path::PathBuf {
 
 fn real_roster() -> Roster {
     let root = ws_root();
-    let text = std::fs::read_to_string(root.join("population.yaml")).expect("population.yaml");
+    let text = std::fs::read_to_string(root.join(".het/rung-questions/population.yaml"))
+        .expect("population.yaml");
     Roster::from_yaml(&text).expect("the real population loads into the unified model")
 }
 
 fn real_log() -> CommissionLog {
     let root = ws_root();
-    let text = std::fs::read_to_string(root.join("commissions.yaml")).expect("commissions.yaml");
+    let text = std::fs::read_to_string(root.join(".het/rung-questions/commissions.yaml"))
+        .expect("commissions.yaml");
     CommissionLog::from_yaml(&text).expect("the commission record parses")
 }
 

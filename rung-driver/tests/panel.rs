@@ -84,7 +84,7 @@ impl Oracle for Scripted {
 }
 
 fn world() -> Questions {
-    Questions::load(RUNG, &ws_root().join("questions"))
+    Questions::load(RUNG, &ws_root().join(".het/rung-questions/questions"))
 }
 
 fn author_cfg(pop: &Roster) -> Configured<Scripted> {

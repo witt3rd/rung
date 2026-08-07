@@ -18,7 +18,7 @@ fn root() -> PathBuf {
 }
 
 fn dir() -> PathBuf {
-    root().join("judgments")
+    root().join(".het/rung-questions/judgments")
 }
 
 fn all() -> Vec<rung_doctrine::Doctrine> {

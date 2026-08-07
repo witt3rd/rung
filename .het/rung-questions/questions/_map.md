@@ -5,7 +5,7 @@ principled categorical ascent. Referenced from the registry README.*
 
 ## The category-theory map as a question generator
 
-[`rung-ct-props.md`](../docs/rung-ct-props.md) is not decoration — its structure predicts features.
+[`rung-ct-props.md`](../../../docs/rung-ct-props.md) is not decoration — its structure predicts features.
 The **growth** questions (Axis 2) all come from one place: the standard
 categorical **ascent**, where each level is "the arrows of the category one level
 up." That tower, not an ad-hoc feature list, is the principled generator.

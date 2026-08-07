@@ -1,5 +1,0 @@
-# rung's own bootstrap — an Instance (Q18's per-instance config.yaml).
-theory: rung-question
-carrier:
-  kind: folder
-  path: ./questions
