@@ -1,17 +1,20 @@
 ---
 id: q19
 status: open
-filing: well-posed
+filing: ill-posed
 depends_on:
   - {on: q18, kind: premise}
 affects:
   - {target: self-hosting-run-loop, kind: gate}
-answerable: |
-  A generic driver is well-posed iff the audit-rectify loop (audit, propose,
-  dispose, enact, verify), the judgment/authoring discipline, and the
-  bookkeeping all run through one theory-blind engine pointed at a config;
-  and after it, no hand-rolled driver fragment remains.
+ill_posed: |
+  As posed this is a design decision and work item, not a determinate qu
+  estion: it specifies what to build or decide rather than naming a fact
+   the structure determines. The real judge refused it repeatedly on the
+   authentic (and, here, the unique) cut, and authorial repair attempts 
+  were likewise refused. Filed Mode B: tracked as a decision/work item, 
+  not claimed as a well-posed question.
 ---
+
 
 # Q19 — The generic driver: a theory-blind engine every theory runs on *(open)*
 
@@ -143,3 +146,4 @@ fragment — anything that would make Q19's acceptance false is the bug.
   survives** — every test and all of rung's self-hosting run through one
   theory-blind engine. [Q18](q18-het-state-sidecar-convention.md) is the
   premise: this driver reads that convention's config and drives its carriers.
+
