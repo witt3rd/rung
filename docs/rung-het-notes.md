@@ -106,6 +106,43 @@ Two independent escalation triggers follow, and they are not the same thing:
 
 Standing-escalation happens before any valuation is applied.
 
+### The two-conditioning discipline — the mirror, both ways
+
+Gating alone is not enough; **both poles need a term they were given, or they
+act on nothing.**
+
+**Judging presupposes the standard.** A judge cannot evaluate whether a subject
+meets a standard without access to the criteria that constitute it — the act of
+judging presupposes the very measure against which the subject is held. So a
+judgmental dispatch must carry the **standard to the judge**, in the matter or
+the prompt, not a paraphrase (`judgment-presupposes-the-standard`). Concretely:
+`WellPosedAdjudicate` embeds the four-cut well-posedness doctrine (and Mode A / Mode B
+filing) into the instruction, and `WELL_POSED_STANDARD` is the single source of
+the measure. The difference is observable, not decorative: the same real judge,
+*with* the standard, refused q18/q19 on the authentic cut ("a work item, not a
+question whose answer the structure determines"); *without* it, it had affirmed
+or deferred. A judge consulted without the standard is being asked to judge
+conformity it has no basis to assert.
+
+**Authorship is conditioned by the judgment.** It is not the case that every
+authorial option is always available. The appropriate remedy set is licensed by
+the judgment — `remedies(j) \subseteq E`, never the full action space:
+
+$$\mathsf{available}(a, j) \quad\text{— edit } a \text{ is an authorial remedy the judgment } j \text{ licenses}$$
+
+So the missing `Refile` (→ Mode B) edit is not an arbitrary addition: it is the
+remedy that `j = \text{"not-well-posed"}` licenses, and `AddEdge` is simply *not in*
+`remedies(\text{"ill-posed"})` — proposing it to repair ill-posedness would be a
+non-remedy. `reproposal-carries-the-chain` is this discipline across rounds: a
+re-proposal is drawn from `remedies(\text{why})`, never a repeat of the same edit.
+
+The two are the mirror of one another — `judgment-presupposes-the-standard`
+(the standard conditions what the judge may *say*) and
+**`remedy-presupposes-the-judgment`** (the judgment conditions what the author may
+*do*). The loop is a state machine whose available remedy transitions depend on
+the state the judgment left you in — the ladder reading, where the available
+rungs are a function of the rung you occupy.
+
 ### Why judgment lives in $\models$, not in the signature
 
 Institution theory makes $\models$ an explicit, parameterized component. Judgment is a satisfaction mechanism, not a sort of the thing being judged. The principal pool, cost tiers, and $\varepsilon$-tolerances live in the satisfaction relation, cleanly separated from the theory structure. This is the foundational choice.
