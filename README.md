@@ -205,6 +205,16 @@ and disposing is judgmental (the judge must be disjoint from the proposal).
 `rung_std::questions` does both. `rung_std::principals` is audit-only — it has
 sentences and no edits, and that's a complete theory, not a half-finished one.
 
+A theory's most important *decidable* audit is often the one run **before a
+subject is even admitted**. `questions` makes well-posedness — "is this a
+question at all?" — the **membership criterion**: a compound of four cuts
+(existence, uniqueness, stability, authenticity) where only the recognizable
+footprints are decidable and the rest stay judgmental. Filing is explicitly two
+modes: **Mode A** (`well-posed`) declares its resolution condition and is
+audited; **Mode B** (`ill-posed`) names why it is not a question yet and claims
+nothing. See the questions guide below — well-posedness is the clearest place to
+see the decidable/judgmental split earning its keep.
+
 ### The vocabulary, on a familiar carrier
 
 The formalism's terms blur easily, and they are load-bearing, so here they are
@@ -257,6 +267,15 @@ One cycle, end to end, on the issues carrier:
   and the subject it rules on (the judgmental gate). Disposing decides whether
   the remedy answers the audit, not merely that an edit was proposed. The
   judge's verdict — or its deferral — is where the cycle can fork.
+- **judging is abstract — one judge or a panel is the same step.** The cycle
+  never asks *how many* judges weigh in. It mints every qualifying judge (a
+  panel is just the qualifying set; a sole judge is a set of one), reads each
+  sealed verdict, and lets the **theory** decide how to combine them
+  ([`Pass::combine`](rung-driver/src/pass.rs)). So a panel whose members agree
+  affirms, and a panel that diverges **surfaces the dissent to the author as
+  reasons** (reject-remedy → re-propose). A panel can never *grant* affirmation
+  a judge would not — it can only surface a dissent that takes it away
+  (`panels-cannot-weaken-the-opponent`).
 - **enact** — an accepting judge mints a licence; the author applies the edit;
   the round-trip (the typed edit *is* the specification, and applying it proves
   it was exactly that) closes the loop. The next audit sees the violation gone.
@@ -370,6 +389,27 @@ stops on a decidable well-formedness check that needs no theory to run.
 Fuller treatment in [`docs/rung-het-props.md`](docs/rung-het-props.md);
 [`docs/composition-notes.md`](docs/composition-notes.md) sketches where this is
 going.
+
+## Informative concept coverage
+
+The README above goes deep fast. If you are meeting this for the first time,
+these are the gentle, accurate onramps — each is a single concept, explained
+from the ground, and none is normative:
+
+| you want to understand | read |
+|---|---|
+| **who may judge and author** — principals, provenance, judges vs authors, panels of judges | [`docs/rung-std/principals.md`](docs/rung-std/principals.md) |
+| **the questions theory** — what a question is, the **decidable/judgmental** split, **well-posedness as the membership criterion**, the audit-rectify cycle, and the theory/driver/carrier separation | [`docs/rung-std/questions.md`](docs/rung-std/questions.md) |
+| **what a theory is vs Het vs the carrier vs the population** — the vocabulary, held apart on a familiar carrier (GitHub issues) | §"The vocabulary, on a familiar carrier" above, and [`docs/rung-het-props.md`](docs/rung-het-props.md) |
+| **the shape of the self-running loop** — the audit-rectify cycle and how a question composes | [`docs/composition-notes.md`](docs/composition-notes.md) |
+| **why the language is called a "ladder"** | [`docs/rung-notes.md`](docs/rung-notes.md) §0 |
+
+These are **informative companions**, kept intentionally separate from the
+normative `*-props.md` documents that govern them: a `*-notes.md` or a
+`docs/rung-std/*.md` walkthrough can explain *how and why* without being law,
+and the normative documents are the single source of truth when the two
+disagree. Start with `principals.md` and `questions.md` — one reading each is
+enough to make the rest of this README legible.
 
 ## How rung is specified and verified
 
@@ -551,7 +591,17 @@ Two things stand in the way, and only one is work:
   guessed); until then every model's derived set is open by design.
 - **[Q15](.het/rung-questions/questions/q15-does-the-pass-suspend.md)** — the pass
   disposes through a *branching* transition, which has no residual channel, so
-  it cannot wait for a question it raised.
+  it cannot wait for a question it raised. As posed it is a **decision wearing
+  a question's clothes**, so under the well-posedness doctrine it is filed
+  **ill-posed** (Mode B) with its determinate core named — "can a branching
+  transition carry a residual channel?" — awaiting re-filing as that repaired
+  question. The remaining *open* frontier is Q18 (the state sidecar) and Q19
+  (the generic driver), both filed `well-posed`.
+
+All of the loop's state — the population, the commission record, the questions
+docket, the judgments, and the generated `state/` — now lives **encapsulated**
+under one instance in [`.het/rung-questions/`](.het/rung-questions/), so the
+repository root stays pure rung source.
 
 The honest measure of this project is not 389 propositions encoded or 260 tests
 passing. It is **how many defects in rung were found and fixed by the loop
