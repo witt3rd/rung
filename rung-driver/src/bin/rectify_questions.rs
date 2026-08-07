@@ -26,7 +26,7 @@
 //! a ruling, not more machinery.
 
 use rung_driver::{
-    Answer, Backing, CommissionLog, Configured, CycleOutcome, Oracle, Population, population_pool,
+    Answer, Backing, CommissionLog, Configured, CycleOutcome, Oracle, Roster, population_pool,
     run_cycle,
 };
 
@@ -92,7 +92,7 @@ fn ws_root() -> PathBuf {
 fn main() {
     let root = ws_root();
     let pop_text = std::fs::read_to_string(root.join("population.yaml")).expect("population.yaml");
-    let real = Population::from_yaml(&pop_text).expect("the real population parses");
+    let real = Roster::from_yaml(&pop_text).expect("the real population parses");
 
     let log_text =
         std::fs::read_to_string(root.join("commissions.yaml")).expect("commissions.yaml");
@@ -109,7 +109,7 @@ fn main() {
                 "family={fam}  ->  authored={:?}",
                 real_log.artifacts_for(fam)
             ),
-            None => format!("authored={:?}", p.authored),
+            None => format!("authored={:?}", p.provenance),
         };
         println!(
             "    {:<14} kind={:<6} {}",
@@ -119,7 +119,7 @@ fn main() {
         );
     }
     // A principal fills a role by declaring the capabilities the role requires
-    // (`Population::capable_of`), not by declaring a capability that happens to
+    // (`Roster::capable_of`), not by declaring a capability that happens to
     // spell the role's name.
     let fills = |role: &str| !real.capable_of(role).is_empty();
     let curator_ok = fills("curator");
@@ -133,7 +133,7 @@ fn main() {
 
     // ── the cycle — the composed loop, run by the driver (not hand-rolled) ──
     let mut world = Questions::load(RUNG, &root.join("questions"));
-    let pop = Population::from_yaml(QUESTIONS_POPULATION).expect("the questions population parses");
+    let pop = Roster::from_yaml(QUESTIONS_POPULATION).expect("the questions population parses");
     let pool = population_pool(&pop, "adjudicator", Arc::new(Holding));
 
     let author = pop.by_id("opus-author").expect("declared").clone();
@@ -169,7 +169,7 @@ fn main() {
     println!("── provenance ───────────────────────────────────────────────────");
     println!(
         "  This run used a local judge with declared provenance {:?}, so P0 was real.",
-        judge.authored
+        judge.provenance
     );
     if !curator_ok || !adjudicator_ok || !interrogator_ok {
         println!("  Not all three questions roles are currently fillable from");
@@ -180,7 +180,7 @@ fn main() {
     // record contains a contribution; today it is empty, so every model set is
     // open — not the refused per-invocation vacuity, but the honest "no
     // commission recorded yet" state.
-    let family_principals: Vec<&rung_driver::PrincipalSpec> = real
+    let family_principals: Vec<&rung_std::principals::PrincipalDecl> = real
         .principals
         .iter()
         .filter(|p| p.family.is_some())

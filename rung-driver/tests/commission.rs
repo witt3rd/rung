@@ -13,7 +13,7 @@
 
 use rung::{Prov, Provenanced, QualifyError, Role, Situated};
 use rung_driver::{
-    Answer, Backing, CommissionLog, ConfigError, Oracle, Population, population_pool_with_log,
+    Answer, Backing, CommissionLog, ConfigError, Oracle, Roster, population_pool_with_log,
 };
 use std::sync::Arc;
 
@@ -160,7 +160,7 @@ fn the_record_round_trips_through_yaml() {
 /// its own artifact would be a fabricated set — there is no other judge to
 /// fall back on.
 fn single_family_pool(family: &str) -> rung::Pool<rung_driver::Configured<Answering>> {
-    let pop = Population::from_yaml(&format!(
+    let pop = Roster::from_yaml(&format!(
         r#"
 roles:
   - name: judge
@@ -230,11 +230,11 @@ fn a_family_cannot_judge_what_it_produced_but_can_judge_elsewhere() {
 /// and the disjointness above could only come from the log being read.
 #[test]
 fn family_principals_declare_no_standing_authored() {
-    let pop = Population::from_yaml(POP).unwrap();
+    let pop = Roster::from_yaml(POP).unwrap();
     for p in &pop.principals {
         assert!(p.family.is_some());
         assert!(
-            p.authored.is_empty(),
+            p.provenance.is_empty(),
             "a family principal must derive its stake, not declare it"
         );
     }
@@ -249,7 +249,7 @@ fn family_principals_declare_no_standing_authored() {
 /// exists to remove, and the configuration names it as a fault.
 #[test]
 fn family_plus_authored_is_a_fault() {
-    let pop = Population::from_yaml(
+    let pop = Roster::from_yaml(
         r#"
 roles:
   - name: judge

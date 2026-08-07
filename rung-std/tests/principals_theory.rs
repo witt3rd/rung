@@ -32,14 +32,15 @@ use rung_het::{Pool, QualifyError};
 // Roster A — a benchmarking bench
 // ═════════════════════════════════════════════════════════════════════════
 
-const CATEGORY_THEORIST: RoleSpec = RoleSpec {
-    name: "category-theorist",
-    min_qualifications: &["strong-reasoning", "category-theory"],
-};
-const STRUCTURAL_AUDITOR: RoleSpec = RoleSpec {
-    name: "structural-auditor",
-    min_qualifications: &["rule-following"],
-};
+fn category_theorist() -> RoleSpec {
+    RoleSpec::named(
+        "category-theorist",
+        &["strong-reasoning", "category-theory"],
+    )
+}
+fn structural_auditor() -> RoleSpec {
+    RoleSpec::named("structural-auditor", &["rule-following"])
+}
 
 /// A principal, with no standing anywhere and a placeholder ε. Standing and ε
 /// are added by the two combinators below where a case turns on them, so that a
@@ -70,6 +71,8 @@ fn decl(
             .collect::<BTreeSet<_>>(),
         stewards: BTreeSet::new(),
         epsilon: Some(Epsilon::declared(0.1)),
+        family: None,
+        backing: Backing::Outside,
     }
 }
 
@@ -89,10 +92,11 @@ fn with_epsilon(mut p: PrincipalDecl, bound: f64) -> PrincipalDecl {
 /// that is what makes the α cut observable here rather than merely asserted.
 fn roster_a() -> Roster {
     Roster {
-        namespace: "atlas-bench",
+        namespace: "atlas-bench".to_string(),
+        providers: vec![],
         roles: vec![
-            CATEGORY_THEORIST,
-            STRUCTURAL_AUDITOR,
+            category_theorist(),
+            structural_auditor(),
             Examiner::spec(),
             Taxonomist::spec(),
         ],
@@ -102,7 +106,7 @@ fn roster_a() -> Roster {
                 Kind::Llm,
                 &[("provider", "hexcorp"), ("model_id", "nine-b")],
                 &["rule-following"],
-                &[STRUCTURAL_AUDITOR],
+                &[structural_auditor()],
                 &["hexcorp"],
             ),
             stewarding(
@@ -117,7 +121,7 @@ fn roster_a() -> Roster {
                             "competence-assessment",
                             "substrate-taxonomy",
                         ],
-                        &[CATEGORY_THEORIST, Examiner::spec(), Taxonomist::spec()],
+                        &[category_theorist(), Examiner::spec(), Taxonomist::spec()],
                         &["mirabel"],
                     ),
                     0.02,
@@ -129,7 +133,7 @@ fn roster_a() -> Roster {
                 Kind::Agent,
                 &[("orchestration_id", "sw-1"), ("tools", "evals,fetch")],
                 &["rule-following", "competence-assessment"],
-                &[STRUCTURAL_AUDITOR, Examiner::spec()],
+                &[structural_auditor(), Examiner::spec()],
                 &["swarm-works"],
             ),
             with_epsilon(
@@ -153,7 +157,7 @@ fn roster_a() -> Roster {
                     "competence-assessment",
                     "substrate-taxonomy",
                 ],
-                &[CATEGORY_THEORIST, Examiner::spec(), Taxonomist::spec()],
+                &[category_theorist(), Examiner::spec(), Taxonomist::spec()],
                 &["orbital"],
             ),
         ],
@@ -164,19 +168,18 @@ fn roster_a() -> Roster {
 // Roster B — a different population, a different vocabulary
 // ═════════════════════════════════════════════════════════════════════════
 
-const PRUNER: RoleSpec = RoleSpec {
-    name: "pruner",
-    min_qualifications: &["shears-competence"],
-};
-const GRAFTER: RoleSpec = RoleSpec {
-    name: "grafter",
-    min_qualifications: &["graft-competence", "patience"],
-};
+fn pruner() -> RoleSpec {
+    RoleSpec::named("pruner", &["shears-competence"])
+}
+fn grafter() -> RoleSpec {
+    RoleSpec::named("grafter", &["graft-competence", "patience"])
+}
 
 fn roster_b() -> Roster {
     Roster {
-        namespace: "orchard-council",
-        roles: vec![PRUNER, GRAFTER, Examiner::spec(), Taxonomist::spec()],
+        namespace: "orchard-council".to_string(),
+        providers: vec![],
+        roles: vec![pruner(), grafter(), Examiner::spec(), Taxonomist::spec()],
         principals: vec![
             stewarding(
                 decl(
@@ -190,7 +193,7 @@ fn roster_b() -> Roster {
                         "competence-assessment",
                         "substrate-taxonomy",
                     ],
-                    &[PRUNER, GRAFTER, Examiner::spec(), Taxonomist::spec()],
+                    &[pruner(), grafter(), Examiner::spec(), Taxonomist::spec()],
                     &["hollis"],
                 ),
                 &["orchard/north"],
@@ -200,7 +203,7 @@ fn roster_b() -> Roster {
                 Kind::Llm,
                 &[("provider", "greenline"), ("model_id", "sr-1")],
                 &["shears-competence", "competence-assessment"],
-                &[PRUNER, Examiner::spec()],
+                &[pruner(), Examiner::spec()],
                 &["greenline"],
             ),
         ],
@@ -308,7 +311,7 @@ fn capability_is_a_mechanical_comparison_and_a_claimed_role_is_not_an_earned_one
         Kind::Llm,
         &[("provider", "hexcorp"), ("model_id", "p-0")],
         &["rule-following"],
-        &[CATEGORY_THEORIST],
+        &[category_theorist()],
         &["hexcorp"],
     );
     assert_eq!(
@@ -400,7 +403,7 @@ fn a_kind_fixes_its_identity_fields_and_a_principal_missing_one_is_refused() {
         Kind::Llm,
         &[("provider", "hexcorp")],
         &["rule-following"],
-        &[STRUCTURAL_AUDITOR],
+        &[structural_auditor()],
         &["hexcorp"],
     );
     assert_eq!(nameless.missing_identity_fields(), vec!["model_id"]);
