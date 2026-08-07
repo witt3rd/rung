@@ -204,17 +204,45 @@ Notable details:
   role each member was admitted for, so the pool's filter and the admission
   decision agree.
 
-### 3.1 The provider and backing pair
+### 3.1 Providers, configuration, and how a principal is reached
 
-- A **`Provider`** is an endpoint: name, base URL, and the *environment
-  variable* its credential is read from (`api_key_env`). **No secret ever
-  lives here** — the file is in the repository, and a schema with an `api_key`
-  field is an invitation to commit one.
-- **`Backing`** says how a *particular principal* answers when consulted: a
-  **model** call, an **agent**ic turn (with tools), or **outside** (a person).
-  It is chosen by the principal, not by any filter, and nothing in the
-  qualifying path reads it — *what* a principal can do and *how* it does it are
-  different facts.
+- A **`Provider`** is an endpoint: name, base URL, and the environment variable
+  its credential is read from (`api_key_env`). **No secret ever lives in a
+  file that gets committed** — a schema with an `api_key` field is an
+  invitation to commit one, so the catalog names variables and `~/.rung/auth.yaml`
+  (or the real environment, which overrides) holds the values.
+- **Providers are configured system-wide, not per-population.** The provider
+  catalog no longer belongs in `population.yaml`. It lives in
+  `~/.rung/providers.yaml` — a machine-local catalog shared by every
+  population, with a `default:` provider — and the credentials in
+  `~/.rung/auth.yaml`. A population may still declare an inline `providers:`
+  override for a portable or self-contained case (`Roster.providers` is kept
+  for exactly that); absent an inline entry, the driver falls back to the
+  system catalog.
+- **`Backing.provider` is optional.** `Backing` says how a *particular
+  principal* answers when consulted: a **model** call, an **agent**ic turn
+  (with tools), or **outside** (a person). It is chosen by the principal, not
+  by any filter, and nothing in the qualifying path reads it — *what* a
+  principal can do and *how* it does it are different facts. The kicker is
+  that a principal names its **model**, and only optionally its **endpoint**:
+  `provider` absent means *use the default from the catalog*.
+
+```yaml
+# ~/.rung/providers.yaml  (system-wide, shared by every population)
+default: openrouter
+providers:
+  - name: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+
+# population.yaml — a principal names only its model; the endpoint is the system's
+backing: {via: model, model: openai/gpt-5.6-luna-pro}   # provider omitted => DEFAULT
+```
+
+So the model is the principal's; the endpoint is the system's. A population
+that wants to run somewhere specific either names `provider:` explicitly or
+declares an inline override; a population that just says *which* model it wants
+is portable across every machine with a configured `~/.rung/`.
 
 ---
 
@@ -244,8 +272,8 @@ and both are in force today.
 | the right to write | **standing** | `stewards` (field), `Steward::has_standing` (method) | *standing* is the authorial filter's second conjunct; `stewards` is the set of named containers the declaration actually carries. |
 | its declared authorship | **authored** | `authored:` | the history a principal states. |
 | authorship with the identity adjoined | **provenance** `π` | `Provenanced::provenance()` | `π = authored ∪ {id}` — the floor guarantees the identity is always present, so this is never equal to the raw declared set. |
-| how it is reached | **backing** | `backing:` | a model call, an agentic turn, or an outside answer — chosen by the principal. |
-| an endpoint | **Provider** | `providers:` | name, base URL, credential environment variable — no secret. |
+| how it is reached | **backing** | `backing:` | a model call (with optional `provider:` — the system DEFAULT when absent), an agentic turn, or an outside answer — chosen by the principal. |
+| an endpoint | **Provider** | `providers:` | system-wide in `~/.rung/providers.yaml` (or an inline population override); name, base URL, credential environment variable — no secret. |
 
 The one pair that is *not* redundant deserves its own line: **`authored` and
 `provenance` (π) are different sets**, related but distinct. A principal

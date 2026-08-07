@@ -177,6 +177,40 @@ module-private, so no outside code can fabricate a mid-ladder token. Omit the
   crossing a crate boundary is trusted, like any Rust API). See
   [the non-guarantees](docs/rung-props.md#non-guarantees) for the full list.
 
+
+## Configuration
+
+rung reads a small amount of **system-wide configuration** from `~/.rung/` (or `$RUNG_HOME`), shared by every `population.yaml`. The split is deliberate: a project declares *who the principals are* (in its `population.yaml`), and the **machine declares how they are reached** (in `~/.rung/`). This keeps population files portable — the same population runs on any machine with a configured rung. The set of global settings is intentionally tiny right now; this is where future global configuration will live.
+
+| file | holds | committed? |
+|---|---|---|
+| `~/.rung/providers.yaml` | the provider catalog and the `default:` provider | no (machine-local) |
+| `~/.rung/auth.yaml` | credentials: provider → api key | no (secrets — never commit) |
+
+### Provider configuration
+
+A **provider** is an endpoint: name, base URL, and the environment variable its credential is read from (`api_key_env`). The catalog lives system-wide so no `population.yaml` re-declares an endpoint, and one catalog serves every population:
+
+```yaml
+# ~/.rung/providers.yaml
+default: openrouter
+providers:
+  - name: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+```
+
+A principal's `backing` names its **model**; `provider` is **optional** — absent means *the `default` provider*. So a population can say only which model it wants (`backing: {via: model, model: openai/gpt-5.6-luna-pro}`) and remain portable across every machine with a configured `~/.rung/`. (A single population can still route each principal through a different endpoint by naming `provider:` explicitly.)
+
+Credentials are sourced **environment-first** (the provider's `api_key_env`, e.g. `OPENROUTER_API_KEY`), then from `~/.rung/auth.yaml`:
+
+```yaml
+# ~/.rung/auth.yaml  — never commit
+openrouter: <your key>
+```
+
+A population may still declare an inline `providers:` block as an override (for a self-contained or portable case); the driver prefers the inline entry and falls back to the system catalog. **No credential ever lives in a file that is committed** — a schema with an `api_key` field is an invitation to commit one.
+
 ## The other half: theories, judgment, and questions
 
 Everything above declares **arrows** — the legal moves. The second half of the
