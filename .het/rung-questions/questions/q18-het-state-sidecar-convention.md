@@ -1,18 +1,21 @@
 ---
 id: q18
 status: open
-filing: well-posed
+filing: ill-posed
 depends_on:
   - {on: q13, kind: premise}
 affects:
   - {target: self-hosting-run-loop, kind: gate}
   - {target: q19, kind: premise}
-answerable: |
-  A state-sidecar convention is well-posed iff all of a carrier's loop state
-  (config, population, commission record, subjects, judgments) has one
-  declared, restartable home per instance, and a second carrier gets that same
-  shape rather than a new ad-hoc layout.
+ill_posed: |
+  As posed this is a design decision and work item, not a determinate qu
+  estion: it specifies what to build or decide rather than naming a fact
+   the structure determines. The real judge refused it repeatedly on the
+   authentic (and, here, the unique) cut, and authorial repair attempts 
+  were likewise refused. Filed Mode B: tracked as a decision/work item, 
+  not claimed as a well-posed question.
 ---
+
 
 # Q18 — What is the state sidecar convention? *(open)*
 
@@ -118,3 +121,4 @@ any particular carrier's shape.
   external), and where its population lives. The carrier backends and element
   iterators to port are the archived het-rs prototype's
   (`../.archive/het-rs/src/carrier/`: folder, jsonl, file, csv, github).
+
