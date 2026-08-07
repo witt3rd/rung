@@ -22,8 +22,36 @@ imposes no obligation.
 > which has no residual channel, so it cannot wait for a question it raised —
 > [Q15](../.het/rung-questions/questions/q15-does-the-pass-suspend.md).
 >
-> §8's summary — *the system governs what passes through it, and the interesting
-> work passed around it* — is still the honest reading.
+> **Refreshed (2026-08-07).** The machinery has moved, and §1's "almost none of
+> it passed through the machinery" is now historical: the **generic driver**
+> ([`run_cycle`](../rung-driver/src/pass.rs)) runs the audit-rectify loop over
+> rung's own questions through the real machinery — audit, propose, judge,
+> enact, verify, write the record. What still passes *around* it has narrowed to
+> the two things this note is really about:
+>
+> - **A real judgment has still not been dispatched.** The **principals
+>   convergence** unified the model — the human (`donald`) is an inhabitant of
+>   the pool with declared provenance, and **panels** now let several outside
+>   experts weigh in (judging is abstract: one judge or a panel, and the theory
+>   combines them). But the commission record is still empty, so no model is
+>   non-vacuous yet, and no genuine `tier: dispatched` record has been written
+>   and no question resolved *through* the driver. Item 2 is machinery-complete,
+>   **not honest-run**: the boundary still waits on the bootstrap seed — a real
+>   human ruling recorded from a sealed judgment.
+> - **Item 4's suspension is still blocked** on the branching residual. Q15 is
+>   open, now filed **ill-posed** (a decision wearing a question's clothes) with
+>   its determinate core named — "can a branching transition carry a residual
+>   channel?" — pending re-filing as that repaired question.
+>
+> **Item 3** is partly addressed at the pass level (judging that does not affirm
+> returns the reasons, and the author re-proposes), though a lifecycle-scale
+> re-proposal arm is still unbuilt. **Items 6 and 7 stand** (gate law across the
+> boundary; termination is not faked). **Item 5** — identity across the
+> boundary — is settled by the provenance floor.
+>
+> §8's summary holds, sharpened: *the system governs what passes through it — it
+> now runs its own loop's mechanism, and has not yet made a real judgment or
+> resolved a question of its own docket.*
 
 ---
 
@@ -40,7 +68,10 @@ That is the pass, exactly: `audit → propose → dispose`, with a `reject-remed
 and a re-proposal in the middle. It is the loop the formalism describes, run at
 full fidelity, on the formalism.
 
-**Almost none of it passed through the machinery.**
+**Almost none of it passed through the machinery.** (This is the observed state
+of *that day*, 2026-08-04. Since then the generic driver runs the loop through
+the machinery — see the header refresh. What still passes around it today is a
+real judgment and the suspension, both named there.)
 
 ## 2 · What did fire
 
