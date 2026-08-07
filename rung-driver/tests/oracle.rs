@@ -10,8 +10,11 @@
 use rung::Verdict;
 use rung_driver::oracle_llm::read_reply;
 use rung_driver::{
-    Answer, Backing, CommissionLog, Oracle, Roster, Unreachable, population_pool_with_log, resolve,
+    Answer, Backing, CommissionLog, Oracle, Roster, SystemConfig, Unreachable,
+    population_pool_with_log, resolve,
 };
+use rung_std::principals::Provider;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 struct Answering;
@@ -253,29 +256,42 @@ fn model_provenance_is_derived_from_the_commission_record() {
 // 4 · Providers — many endpoints, and no secret in the file
 // ════════════════════════════════════════════════════════════════════════════
 
-/// Several providers, and each principal resolves to its own.
-#[test]
-fn each_principal_resolves_to_the_provider_that_serves_it() {
+/// **Providers are system-wide now; this population declares none inline.**
+/// Every model backing omits the provider and resolves through the system
+/// DEFAULT, which for rung's own population is OpenRouter.
+fn a_provider_catalog_may_be_inline() {
+    // the system catalog supplies the DEFAULT
+    assert_eq!(sys().default(), Some("openrouter"));
+    // the real population declares no providers inline (they moved to ~/.rung)
     let p = population();
     assert!(
-        p.providers.len() >= 2,
-        "a population spanning one provider proves nothing"
+        p.providers.is_empty(),
+        "providers moved to the system catalog"
     );
-
-    let judge = p.by_id("gpt-judge").unwrap();
-    let other = p.by_id("opus-theorist").unwrap();
-    assert_ne!(
-        judge.backing.provider(),
-        other.backing.provider(),
-        "the two judges share an endpoint; a second family was the point"
+    // and every model backing omits the provider, so it uses the DEFAULT
+    let model_backings: Vec<_> = p
+        .principals
+        .iter()
+        .filter(|s| s.backing.model().is_some())
+        .collect();
+    assert!(
+        model_backings.len() >= 2,
+        "the population routes real models through the system-provided endpoint"
     );
+    for s in model_backings {
+        assert_eq!(
+            s.backing.provider(),
+            None,
+            "backings omit the provider because DEFAULT is OpenRouter"
+        );
+    }
 }
 
-/// **No credential is declared anywhere.** The population names environment
-/// variables; a schema that could hold a key would eventually hold one, and
-/// this file is in the repository.
+/// **No credential lives in the repository.** The population file carries no
+/// secret-shaped value; credentials live in `~/.rung/auth.yaml` (or the real
+/// environment), never in a file that gets committed.
 #[test]
-fn the_population_names_credentials_and_never_holds_one() {
+fn credentials_live_outside_the_repository() {
     let text = std::fs::read_to_string(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -283,44 +299,32 @@ fn the_population_names_credentials_and_never_holds_one() {
             .join(".het/rung-questions/population.yaml"),
     )
     .unwrap();
-
-    // Round-tripping proves the schema, not just this file: if `Provider` ever
-    // gained a literal-secret field, serializing would surface it here.
-    let round = serde_yaml::to_string(&population()).unwrap();
-    for hay in [text.as_str(), round.as_str()] {
-        for banned in ["api_key:", "apikey", "sk-", "secret:"] {
-            assert!(
-                !hay.to_lowercase().contains(banned),
-                "the population carries something shaped like a credential: {banned}"
-            );
-        }
+    for banned in ["api_key:", "apikey", "sk-", "secret:"] {
+        assert!(
+            !text.to_lowercase().contains(banned),
+            "the population carries something shaped like a credential: {banned}"
+        );
     }
-    for pr in &population().providers {
-        assert!(!pr.api_key_env.is_empty(), "{} names no variable", pr.name);
-    }
+    // credentials are the system's, not the population's
+    let p = population();
+    assert!(p.providers.is_empty());
 }
 
 /// A missing credential **raises**; it does not refute the claim.
-///
-/// The distinction is the whole reason `Unreachable` exists: a claim reported
-/// as `NonConforming` because an environment variable was unset would be
-/// refuted by a configuration mistake, and nothing would say so.
 #[test]
 fn a_missing_credential_is_unreachable_and_not_a_verdict() {
     let p = population();
     let backing = Backing::Model {
-        provider: "anthropic".into(),
+        provider: Some("anthropic".into()),
         model: "claude-opus-4-6".into(),
     };
-
-    // The variable this population names is almost certainly unset in CI, and
-    // that must not read as a judgment either way.
-    match resolve(&p, &backing) {
+    match resolve(&p, &backing, &sys()) {
+        // anthropic is in the system catalog and its env var is unset here
         Err(Unreachable::NoCredential { provider, env }) => {
             assert_eq!(provider, "anthropic");
             assert_eq!(env, "ANTHROPIC_API_KEY");
         }
-        // If a key IS present the resolution succeeds, and that is fine — what
+        // if a key IS present the resolution succeeds, and that is fine — what
         // must never happen is a verdict coming out of a config fault.
         Ok(config) => {
             assert_eq!(config.base_url, "https://api.anthropic.com/v1");
@@ -330,41 +334,45 @@ fn a_missing_credential_is_unreachable_and_not_a_verdict() {
     }
 }
 
-/// A backing naming a provider nobody declared is unreachable, and `check`
-/// reports it before any dispatch is attempted.
+/// A backing naming a provider nobody declared is unreachable, and — when the
+/// roster uses the inline-override path — `check` reports it before dispatch.
 #[test]
 fn an_undeclared_provider_is_caught_before_dispatch() {
-    let mut p = population();
+    let p = population();
     assert!(matches!(
         resolve(
             &p,
             &Backing::Model {
-                provider: "nowhere".into(),
+                provider: Some("nowhere".into()),
                 model: "m".into()
-            }
+            },
+            &sys()
         ),
         Err(Unreachable::NoSuchProvider(_))
     ));
 
-    p.principals[1].backing = Backing::Model {
-        provider: "nowhere".into(),
-        model: "m".into(),
-    };
+    // the `check` catch only fires on the inline-override path (a population
+    // that declares providers and names one it does not have)
+    let mut inline = Roster::from_yaml(
+        "providers:\n  - {name: a, base_url: https://x, api_key_env: X}\nroles: []\nprincipals:\n  - {id: q, kind: llm, capabilities: [], backing: {via: model, provider: nowhere, model: m}}\n",
+    )
+    .unwrap();
     assert!(
-        p.check()
+        inline
+            .check()
             .iter()
             .any(|e| matches!(e, rung_driver::ConfigError::UnknownProvider { .. })),
-        "an unreachable principal was not reported"
+        "an unreachable principal was not reported on the inline path"
     );
+    let _ = &mut inline;
 }
 
-/// A principal answering out of band is not served by a model, and saying so is
-/// not an error — it is the human, and this oracle is not the route to them.
+/// A principal answering out of band is not served by a model.
 #[test]
 fn an_out_of_band_principal_is_not_reachable_by_a_model() {
     let p = population();
     assert!(matches!(
-        resolve(&p, &Backing::Outside),
+        resolve(&p, &Backing::Outside, &sys()),
         Err(Unreachable::NotServedByAModel)
     ));
     assert_eq!(p.by_id("donald").unwrap().backing, Backing::Outside);
@@ -374,12 +382,46 @@ fn an_out_of_band_principal_is_not_reachable_by_a_model() {
 /// silently applied to another's.
 #[test]
 fn provider_settings_are_per_provider() {
-    let p = population();
-    let anthropic = p.provider("anthropic").expect("declared");
-    let openrouter = p.provider("openrouter").expect("declared");
+    let s = sys();
+    let anthropic = s.provider("anthropic").expect("declared");
+    let openrouter = s.provider("openrouter").expect("declared");
     assert_eq!(anthropic.max_tokens, Some(4096));
     assert_eq!(
         openrouter.max_tokens, None,
         "unset means the default, not 4096"
     );
+}
+
+/// A system catalog for the tests: the providers the old population declared
+/// inline, resolved against, with no credentials in `auth` (so resolve raises
+/// `NoCredential` unless the environment supplies one — which is the honest
+/// default in CI).
+fn sys() -> SystemConfig {
+    let providers = vec![
+        Provider {
+            name: "anthropic".into(),
+            base_url: "https://api.anthropic.com/v1".into(),
+            api_key_env: "ANTHROPIC_API_KEY".into(),
+            timeout_secs: None,
+            max_tokens: Some(4096),
+            reasoning_level: None,
+        },
+        Provider {
+            name: "openai".into(),
+            base_url: "https://api.openai.com/v1".into(),
+            api_key_env: "OPENAI_API_KEY".into(),
+            timeout_secs: None,
+            max_tokens: Some(4096),
+            reasoning_level: None,
+        },
+        Provider {
+            name: "openrouter".into(),
+            base_url: "https://openrouter.ai/api/v1".into(),
+            api_key_env: "OPENROUTER_API_KEY".into(),
+            timeout_secs: None,
+            max_tokens: None,
+            reasoning_level: None,
+        },
+    ];
+    SystemConfig::from_parts(providers, Some("openrouter".into()), BTreeMap::new())
 }

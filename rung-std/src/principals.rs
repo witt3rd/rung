@@ -268,11 +268,18 @@ pub struct Provider {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "via", rename_all = "kebab-case")]
 pub enum Backing {
-    /// One blocking model call, at a named provider.
-    Model { provider: String, model: String },
-    /// An agentic turn: drive a model, dispatch tools, iterate.
+    /// One blocking model call. `provider` is **optional**: when absent, the
+    /// driver uses the DEFAULT provider from the system catalog
+    /// (`~/.rung/providers.yaml`), so a population can name a model without
+    /// naming an endpoint.
+    Model {
+        provider: Option<String>,
+        model: String,
+    },
+    /// An agentic turn: drive a model, dispatch tools, iterate. `provider` as
+    /// above.
     Agent {
-        provider: String,
+        provider: Option<String>,
         model: String,
         tools: Vec<String>,
     },
@@ -291,10 +298,11 @@ impl Backing {
         }
     }
 
-    /// Which provider serves this principal, if any.
+    /// Which provider serves this principal, if one is named. `None` means the
+    /// caller falls back to the system's DEFAULT provider.
     pub fn provider(&self) -> Option<&str> {
         match self {
-            Self::Model { provider, .. } | Self::Agent { provider, .. } => Some(provider),
+            Self::Model { provider, .. } | Self::Agent { provider, .. } => provider.as_deref(),
             Self::Outside => None,
         }
     }
@@ -776,7 +784,13 @@ impl Roster {
             provs.push(&pr.name);
         }
         for p in &self.principals {
+            // Providers may be declared inline (an override) or resolved from
+            // the system catalog (`~/.rung/providers.yaml`). A named provider
+            // missing from an *inline* roster is only a fault when the roster
+            // actually declares inline providers — if it declares none it is
+            // relying on the system catalog, which this theory cannot see.
             if let Some(name) = p.backing.provider()
+                && !self.providers.is_empty()
                 && self.provider(name).is_none()
             {
                 errs.push(RosterFault::UnknownProvider {

@@ -618,7 +618,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 196 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 195 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -709,21 +709,20 @@ look shorter than it is.
 
 - `a_dispatched_record_carries_the_sealed_provenance`
 
-**`rung-driver/tests/oracle.rs`** — 16 unclaimed
+**`rung-driver/tests/oracle.rs`** — 15 unclaimed
 
 - `a_bare_failure_still_carries_a_reason`
 - `a_missing_credential_is_unreachable_and_not_a_verdict`
 - `an_out_of_band_principal_is_not_reachable_by_a_model`
 - `an_undeclared_provider_is_caught_before_dispatch`
+- `credentials_live_outside_the_repository`
 - `declining_to_rule_is_not_a_claim_failing`
-- `each_principal_resolves_to_the_provider_that_serves_it`
 - `hedging_is_not_a_verdict`
 - `leading_whitespace_is_tolerated`
 - `model_provenance_is_derived_from_the_commission_record`
 - `provider_settings_are_per_provider`
 - `the_author_may_write_the_source_and_not_the_rendering`
 - `the_declared_judges_and_authors_are_disjoint_sets`
-- `the_population_names_credentials_and_never_holds_one`
 - `the_repositorys_population_parses_and_is_well_formed`
 - `the_three_declared_forms_are_read`
 - `trailing_prose_after_the_first_line_is_ignored`
