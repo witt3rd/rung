@@ -15,4 +15,5 @@ theory: rung-issue
 carrier:
   kind: github
   repos: [witt3rd/rung]
+population: ../population.yaml
 state: ./state

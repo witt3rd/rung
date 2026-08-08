@@ -4,5 +4,5 @@ theory: rung-question
 carrier:
   kind: folder
   path: ./questions
-population: ./population.yaml
+population: ../population.yaml
 state: ./state

@@ -81,10 +81,9 @@ fn with_answerable(original: &str, draft: &str) -> String {
 }
 
 fn main() {
-    let pop = Roster::from_yaml(
-        &std::fs::read_to_string(root().join(".het/rung-questions/population.yaml")).unwrap(),
-    )
-    .unwrap();
+    let pop =
+        Roster::from_yaml(&std::fs::read_to_string(root().join(".het/population.yaml")).unwrap())
+            .unwrap();
     let system = SystemConfig::load();
     let author_id = "ds-curator";
     let a_back = pop.by_id(author_id).unwrap().backing.clone();
