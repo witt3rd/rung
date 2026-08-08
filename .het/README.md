@@ -23,7 +23,8 @@ instead of scattering `population.yaml`/`commissions.yaml`/`questions/`/
 instances under the sidecar convention: `rung-questions` (a colocated folder
 carrier) and **`rung-issues`** (an external **GitHub** carrier — the relegation
 destination work items are routed to from the questions instance). Both are
-governed by the same population once it is consolidated to `.het/population.yaml`.
+governed by **one shared population** at `.het/population.yaml` (referenced as `../population.yaml` from each
+instance — a single source, not a copy per instance).
 
 **Encapsulation is the point.** Every piece of self-hosted state for an
 instance — the population, the commission record, the subject docket, the

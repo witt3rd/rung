@@ -129,7 +129,7 @@ fn population() -> Roster {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join(".het/rung-questions/population.yaml"),
+            .join(".het/population.yaml"),
     )
     .expect("population.yaml");
     Roster::from_yaml(&text).expect("the population parses")
@@ -297,7 +297,7 @@ fn credentials_live_outside_the_repository() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join(".het/rung-questions/population.yaml"),
+            .join(".het/population.yaml"),
     )
     .unwrap();
     for banned in ["api_key:", "apikey", "sk-", "secret:"] {

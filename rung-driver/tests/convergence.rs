@@ -24,8 +24,7 @@ fn ws_root() -> std::path::PathBuf {
 
 fn real_roster() -> Roster {
     let root = ws_root();
-    let text = std::fs::read_to_string(root.join(".het/rung-questions/population.yaml"))
-        .expect("population.yaml");
+    let text = std::fs::read_to_string(root.join(".het/population.yaml")).expect("population.yaml");
     Roster::from_yaml(&text).expect("the real population loads into the unified model")
 }
 

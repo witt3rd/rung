@@ -91,8 +91,8 @@ fn ws_root() -> PathBuf {
 
 fn main() {
     let root = ws_root();
-    let pop_text = std::fs::read_to_string(root.join(".het/rung-questions/population.yaml"))
-        .expect("population.yaml");
+    let pop_text =
+        std::fs::read_to_string(root.join(".het/population.yaml")).expect("population.yaml");
     let real = Roster::from_yaml(&pop_text).expect("the real population parses");
 
     let log_text = std::fs::read_to_string(root.join(".het/rung-questions/commissions.yaml"))

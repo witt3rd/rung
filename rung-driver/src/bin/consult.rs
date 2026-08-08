@@ -32,10 +32,9 @@ fn main() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap();
-    let pop = Roster::from_yaml(
-        &std::fs::read_to_string(root.join(".het/rung-questions/population.yaml")).unwrap(),
-    )
-    .expect("population parses");
+    let pop =
+        Roster::from_yaml(&std::fs::read_to_string(root.join(".het/population.yaml")).unwrap())
+            .expect("population parses");
 
     let judge_id = "gpt-interrogator";
     let backing = pop.by_id(judge_id).expect("declared").backing.clone();
