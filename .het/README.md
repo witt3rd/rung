@@ -19,6 +19,12 @@ instead of scattering `population.yaml`/`commissions.yaml`/`questions/`/
                            #   (generated; gitignored)
 ```
 
+**.het/rung-issues/ — the second instance.** Rung currently has two
+instances under the sidecar convention: `rung-questions` (a colocated folder
+carrier) and **`rung-issues`** (an external **GitHub** carrier — the relegation
+destination work items are routed to from the questions instance). Both are
+governed by the same population once it is consolidated to `.het/population.yaml`.
+
 **Encapsulation is the point.** Every piece of self-hosted state for an
 instance — the population, the commission record, the subject docket, the
 judgments, and the generated `state/` — lives here, together, so that (1) what
