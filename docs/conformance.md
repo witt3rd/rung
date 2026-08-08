@@ -762,7 +762,7 @@ look shorter than it is.
 
 **`rung-driver/tests/writeback.rs`** — 1 unclaimed
 
-- `persist_writes_the_enacted_edit_to_the_file_and_keeps_the_body`
+- `persist_is_a_patch_that_leaves_unknown_fields_byte_identical`
 
 **`rung-fixture/tests/consumer.rs`** — 4 unclaimed
 
