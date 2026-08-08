@@ -273,6 +273,13 @@ held apart on the most familiar carrier that exists: **GitHub issues**.
 - **A subject** is one inhabitant of the carrier — a specific issue under
   judgment ($x : M(S)$). The issue is the subject; the pull request that would
   resolve it is the edit a `remedy` carries.
+- **An instance** is a theory **bound to a carrier** for a run — plus which
+  population supplies its principals and where its state lives. It is what the
+  driver drives: the config that says *which* theory, *which* carrier, *which*
+  people a given execution uses. `rung_std::questions` is the theory; the same
+  theory can be instantiated over Rung's question docket *or* over any other
+  body of questions — each such binding is a different instance of the same
+  theory.
 - **The population** is the body of *principals* a theory draws its judges and
   authors from — the maintainers, reviewers, and bots who triage, rule, and
   merge. A population is itself a carrier: auditing the principals (who holds
@@ -285,6 +292,49 @@ held apart on the most familiar carrier that exists: **GitHub issues**.
 So, concretely: an issue **is** a subject; the issue list **is** a carrier of
 the issue theory; the reviewers and triagers **are** a population, which — when
 you audit *them* — is just another theory's carrier.
+
+### Speaking idiomatically
+
+Definitions are necessary but not sufficient — practitioners talk *about the
+dynamics*, not just the nouns. Here is that dialect, in use.
+
+**Saying which run / which theory / which data**
+- "Run the questions theory over Rung's questions instance."
+- "This is an instance of the questions theory at the Rung questions carrier."
+- "The driver is theory-blind; the instance config tells it which theory, which
+  carrier, which population."
+- "A theory governs; a carrier is walked; an instance is driven."
+
+**Auditing**
+- "The audit found q18 **non-conforming**: it fails the *authentic* cut — it's a
+  work item, not a question whose answer the structure finds."
+- "The cold first cut is decidable — whether it declares a resolution is a
+  check, the four cuts are a judgment."
+- "Audit is pure and non-destructive: it reports what's wrong, it doesn't fix."
+
+**Proposing / judging / enacting**
+- "The author proposes, the judge disposes, the author enacts."
+- "The judge must hold the standard it judges against — a conformity verdict is
+  meaningless without the criteria (`judgment-presupposes-the-standard`)."
+- "The author re-proposes **with the judgment in hand** — the reason shapes the
+  next remedy (`remedy-presupposes-the-judgment`)."
+- "The remedy is chosen from `remedies(j)` — what that judgment licenses."
+- "Repair the question into conformity (Rewrite) rather than demote it (Refile
+  to Mode B) — repair is the primary remedy."
+- "After enact, the observer reads the post-state back — success is attested by
+  the state, not the author's word."
+
+**Membership, admission, and rerouting a subject**
+- "Admit the subject into the carrier only once it passes the theory's audit —
+  intake is gated on membership."
+- "Discharge the question from the questions docket and re-home it as an issue
+  in the issues carrier — a **relegation** across instances."
+- "Route the subject to the instance whose law fits the rationale (a decision →
+  issues, not questions); if none, it goes to the backlog."
+
+Between two people who share the dialect these sentences carry real, precise
+content: *which* theory, *which* carrier, *which* gate, *which* remedy, *which*
+standard — none of them left to guess.
 
 ### The audit-rectify cycle, and how it composes
 
