@@ -96,6 +96,7 @@
 
 pub mod agent;
 pub mod driver;
+pub mod issues;
 pub mod llm;
 pub mod principals;
 pub mod questions;
