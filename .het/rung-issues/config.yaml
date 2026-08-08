@@ -1,0 +1,18 @@
+# rung's own issues instance — the relegation destination (Q18 state sidecar).
+#
+# The Issues theory (rung_std::issues) governs work items — the thing a question
+# becomes when the authentic cut says it is not a determinate question. This
+# instance is rung's own issue set, whose carrier is EXTERNAL: this repository's
+# GitHub issues (there is no colocated folder — "colocate by default, look up
+# when external").
+#
+# The population (principals) is pending consolidation: the same people govern
+# rung's questions and rung's issues, so the principals should be ONE source at
+# .het/population.yaml (shared one level up, referenced here as
+# ../../population.yaml) rather than copied per instance. Until that
+# consolidation lands, no population is bound to this instance.
+theory: rung-issue
+carrier:
+  kind: github
+  repos: [witt3rd/rung]
+state: ./state
