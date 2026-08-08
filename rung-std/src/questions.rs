@@ -812,22 +812,262 @@ impl Questions {
     /// file. Without this, enactment is in-memory only and the "real cycle"
     /// could never repair the collection it audits. Writes `<stem>.md` in the
     /// source directory and returns the path written.
-    pub fn persist(&self, object: &str) -> std::io::Result<std::path::PathBuf> {
+    pub fn persist(&self, object: &str) -> Result<std::path::PathBuf, PersistError> {
+        // no repair callback: a failed verification rolls back and refuses
+        self.persist_with(object, &mut |_, _, _| None)
+    }
+
+    /// **Enact to carrier** with an optional LLM-assisted repair seam.
+    ///
+    /// Patch the frontmatter (only changed regions; unknown fields + body stay
+    /// byte for byte), write it, then **verify by re-loading**. If verification
+    /// fails, the caller may hand `(original, written, model)` to a `repair`
+    /// callback — in the wild this is the CLI invoking an LLM to reconstruct
+    /// what a bad edit dropped. The repair is accepted only if it *verifies*;
+    /// otherwise (or with no repair) the exact original bytes are restored and
+    /// the persist is refused. A silent corruption never ships.
+    pub fn persist_with<F>(
+        &self,
+        object: &str,
+        repair: &mut F,
+    ) -> Result<std::path::PathBuf, PersistError>
+    where
+        F: FnMut(&str, &str, &Question) -> Option<String>,
+    {
         let Some(src) = &self.source else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "in-memory Questions has no carrier to write back to",
-            ));
+            return Err(PersistError::NoCarrier);
         };
         let q = self
             .questions
             .iter()
             .find(|q| q.id == object)
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no such question"))?;
+            .ok_or(PersistError::NoSuchQuestion)?;
         let path = src.join(format!("{}.md", q.stem));
-        std::fs::write(&path, q.to_markdown())?;
-        Ok(path)
+        let original = std::fs::read_to_string(&path).map_err(PersistError::Io)?;
+
+        // patch, not whole-file re-render: only the frontmatter regions whose
+        // content the edit changed are rewritten; every other line — including
+        // frontmatter fields this model does not know about, and the body — is
+        // preserved byte for byte.
+        let patched = patch_frontmatter(&original, q);
+        if patched == original {
+            return Ok(path);
+        }
+        std::fs::write(&path, &patched).map_err(PersistError::Io)?;
+
+        // write then verify: re-read what we wrote, re-parse it, and confirm the
+        // edit landed and the untouched prose survived.
+        let written = match std::fs::read_to_string(&path) {
+            Ok(w) => w,
+            Err(_) => return rollback(&path, &original),
+        };
+        if writeback_ok(src, q, &written) {
+            return Ok(path);
+        }
+
+        // verification failed: let the caller's LLM (or nothing) try to repair.
+        if let Some(fixed) = repair(&original, &written, q) {
+            std::fs::write(&path, &fixed).ok();
+            if std::fs::read_to_string(&path)
+                .map(|w| writeback_ok(src, q, &w))
+                .unwrap_or(false)
+            {
+                return Ok(path);
+            }
+        }
+        let _ = std::fs::write(&path, &original);
+        Err(PersistError::VerifyFailed)
     }
+}
+
+/// Why an enact to carrier (persist) could not be completed.
+#[derive(Debug)]
+pub enum PersistError {
+    /// The model was built in memory; it has no carrier to write to.
+    NoCarrier,
+    /// No question with that id.
+    NoSuchQuestion,
+    /// The file could not be read or written.
+    Io(std::io::Error),
+    /// The write-back was verified and failed; the file was rolled back.
+    VerifyFailed,
+}
+impl std::fmt::Display for PersistError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoCarrier => write!(f, "in-memory Questions has no carrier to write back to"),
+            Self::NoSuchQuestion => write!(f, "no such question"),
+            Self::Io(e) => write!(f, "{e}"),
+            Self::VerifyFailed => write!(f, "write-back failed verification; rolled back"),
+        }
+    }
+}
+impl std::error::Error for PersistError {}
+
+/// Does this frontmatter line open a region we model? (Unmodelled keys are
+/// never touched by a patch, so they survive byte for byte.)
+fn modeled_key(line: &str) -> Option<&'static str> {
+    for k in [
+        "id",
+        "status",
+        "filing",
+        "depends_on",
+        "affects",
+        "answerable",
+        "ill_posed",
+    ] {
+        if line == k || line.starts_with(&format!("{k}:")) {
+            return Some(k);
+        }
+    }
+    None
+}
+
+/// The canonical frontmatter lines for a modelled key, or "" if the key is
+/// absent in this question (e.g. `answerable` for Mode B).
+fn canon_key(k: &str, q: &Question) -> String {
+    match k {
+        "id" => format!("id: {}", q.id),
+        "status" => format!("status: {}", q.status),
+        "filing" => format!(
+            "filing: {}",
+            match q.filing {
+                Filing::WellPosed => "well-posed",
+                Filing::IllPosed => "ill-posed",
+            }
+        ),
+        "depends_on" | "affects" => {
+            let prefix = if k == "depends_on" { "on" } else { "target" };
+            let edges = if k == "depends_on" {
+                &q.depends_on
+            } else {
+                &q.affects
+            };
+            if edges.is_empty() {
+                return String::new();
+            }
+            let mut s = format!("{k}:");
+            for e in edges {
+                s.push_str(&format!(
+                    "\n  - {{{prefix}: {}, kind: {}}}",
+                    e.target, e.kind
+                ));
+            }
+            s
+        }
+        "answerable" => q
+            .answerable
+            .as_deref()
+            .map(|a| block_key("answerable", a))
+            .unwrap_or_default(),
+        "ill_posed" => q
+            .ill_posed
+            .as_deref()
+            .map(|c| block_key("ill_posed", c))
+            .unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+fn block_key(key: &str, value: &str) -> String {
+    let mut s = format!("{key}: |");
+    for l in value.lines() {
+        s.push_str(&format!("\n  {l}"));
+    }
+    s
+}
+
+/// Patch a file's frontmatter so it matches `q`, touching **only** the modelled
+/// regions whose content actually changed; every other line — unmodelled
+/// frontmatter fields and the whole body — is preserved byte for byte.
+fn patch_frontmatter(original: &str, q: &Question) -> String {
+    let lines: Vec<&str> = original.split('\n').collect();
+    let mut close = None;
+    for (i, &l) in lines.iter().enumerate().skip(1) {
+        if l.trim() == "---" {
+            close = Some(i);
+            break;
+        }
+    }
+    let Some(close) = close else {
+        return original.to_string();
+    };
+    let fm = &lines[1..close];
+    let body = &lines[close + 1..];
+
+    let mut out: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < fm.len() {
+        let line = fm[i];
+        if let Some(k) = modeled_key(line) {
+            // region: this line + its indented continuation lines
+            let mut j = i + 1;
+            while j < fm.len() && (fm[j].starts_with(' ') || fm[j].is_empty()) {
+                j += 1;
+            }
+            let current = fm[i..j].join("\n");
+            let canonical = canon_key(k, q);
+            if current != canonical {
+                if !canonical.is_empty() {
+                    out.push(canonical);
+                }
+                // else: the file has a region the model no longer carries -> drop it
+            } else {
+                out.push(current);
+            }
+            i = j;
+        } else {
+            out.push(line.to_string());
+            i += 1;
+        }
+    }
+    // modelled keys the file lacks but the model carries: append
+    let present: Vec<&str> = fm.iter().filter_map(|l| modeled_key(l)).collect();
+    for k in [
+        "id",
+        "status",
+        "filing",
+        "depends_on",
+        "affects",
+        "answerable",
+        "ill_posed",
+    ] {
+        if !present.contains(&k) {
+            let canonical = canon_key(k, q);
+            if !canonical.is_empty() {
+                out.push(canonical);
+            }
+        }
+    }
+    format!(
+        "---\n{}\n---\n{}\n",
+        out.join("\n"),
+        body.join("\n").trim_start()
+    )
+}
+
+/// Write-then-verify: after writing, reload from the carrier and confirm the
+/// edited fields round-trip to `q` (and the prose body is present), so a bad
+/// write is caught before it ships — even with no human watching.
+fn rollback(path: &std::path::Path, original: &str) -> Result<std::path::PathBuf, PersistError> {
+    let _ = std::fs::write(path, original);
+    Err(PersistError::VerifyFailed)
+}
+
+fn writeback_ok(src: &std::path::Path, q: &Question, written: &str) -> bool {
+    if !written.contains(&q.body) && !written.contains(q.body.trim_end()) {
+        return false;
+    }
+    let reloaded = Questions::load(q.scheme, src);
+    let Some(w) = reloaded.by_id(&q.id) else {
+        return false;
+    };
+    w.filing == q.filing
+        && w.answerable == q.answerable
+        && w.ill_posed == q.ill_posed
+        && w.status == q.status
+        && w.depends_on == q.depends_on
+        && w.affects == q.affects
 }
 
 // ═════════════════════════════════════════════════════════════════════════
