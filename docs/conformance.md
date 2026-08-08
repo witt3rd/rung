@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 201 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 203 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -832,6 +832,11 @@ look shorter than it is.
 - `evidence_releases_the_run_it_answers_and_not_the_one_parked_first`
 - `one_terminal_releases_every_run_that_awaits_it`
 - `the_same_run_parks_and_resumes_without_bound`
+
+**`rung-std/tests/issues_theory.rs`** — 2 unclaimed
+
+- `an_issue_parses_and_its_status_turns_under_the_ladder`
+- `the_decidable_issue_sentences_hold_and_well_scoped_is_judgmental`
 
 **`rung-std/tests/principals_theory.rs`** — 11 unclaimed
 
