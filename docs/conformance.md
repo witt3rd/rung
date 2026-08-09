@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 203 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 209 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -702,6 +702,11 @@ look shorter than it is.
 - `github_live_issues_walk`
 - `instance_config_drives_a_carrier_audit`
 
+**`rung-driver/tests/catalog.rs`** — 2 unclaimed
+
+- `admit_evict_and_route_are_higher_order_edits`
+- `every_carrier_is_present_is_lived_not_declared`
+
 **`rung-driver/tests/convergence.rs`** — 2 unclaimed
 
 - `dispatch_and_audit_read_one_roster`
@@ -710,6 +715,12 @@ look shorter than it is.
 **`rung-driver/tests/dispatch.rs`** — 1 unclaimed
 
 - `a_dispatched_record_carries_the_sealed_provenance`
+
+**`rung-driver/tests/intake_discharge.rs`** — 3 unclaimed
+
+- `admit_is_gated_on_the_destinations_membership`
+- `admit_refuses_a_candidate_that_fails_the_gate`
+- `discharge_removes_a_subject_from_the_carrier`
 
 **`rung-driver/tests/oracle.rs`** — 16 unclaimed
 
@@ -755,6 +766,10 @@ look shorter than it is.
 - `capability_alone_does_not_authorize_a_write`
 - `kind_decides_nothing`
 - `the_driver_offers_no_way_to_prefer_one_qualifying_principal`
+
+**`rung-driver/tests/relegation.rs`** — 1 unclaimed
+
+- `questions_discharges_a_work_item_and_issues_admits_it`
 
 **`rung-driver/tests/sidecar.rs`** — 1 unclaimed
 

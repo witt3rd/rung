@@ -58,3 +58,30 @@ impl Carrier for FolderCarrier {
             .map_err(|e| CarrierError::new(item.clone(), e.to_string()))
     }
 }
+
+impl super::ObjectCarrier for FolderCarrier {
+    /// Write the subject as a new file in the directory, named by its id
+    /// (`.md` appended if absent) — each subject is one file here. Returns the
+    /// file's path as the carrier-assigned id, mirroring what `iter()` yields.
+    fn add(
+        &self,
+        id: &super::ObjectId,
+        content: &str,
+    ) -> Result<super::ObjectId, super::CarrierError> {
+        let mut name = id.as_str().to_string();
+        if !name.ends_with(".md") {
+            name.push_str(".md");
+        }
+        let path = self.dir.join(&name);
+        std::fs::write(&path, content).map_err(|e| {
+            super::CarrierError::new(self.id(), format!("write {}: {e}", path.display()))
+        })?;
+        Ok(super::ObjectId::new(path.to_string_lossy().into_owned()))
+    }
+
+    /// Delete the subject's file. The id is the file path, as `iter()` yields.
+    fn remove(&self, id: &super::ObjectId) -> Result<(), super::CarrierError> {
+        std::fs::remove_file(id.as_str())
+            .map_err(|e| super::CarrierError::new(id.clone(), e.to_string()))
+    }
+}

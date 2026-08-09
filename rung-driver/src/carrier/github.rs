@@ -117,3 +117,52 @@ impl Carrier for GitHubIssuesCarrier {
         Ok(body.trim_end().to_string())
     }
 }
+
+impl super::ObjectCarrier for GitHubIssuesCarrier {
+    /// Admit by creating an issue in the first configured repo. The caller's
+    /// `id` becomes the issue title (a discharged question's id, say); GitHub
+    /// assigns the real number, which is what is returned as the carrier id
+    /// (`owner/repo#N`).
+    fn add(
+        &self,
+        id: &super::ObjectId,
+        content: &str,
+    ) -> Result<super::ObjectId, super::CarrierError> {
+        let repo = self
+            .repos
+            .first()
+            .ok_or_else(|| self.err("no repo to admit into"))?;
+        let out = self.gh(&[
+            "issue",
+            "create",
+            "--repo",
+            repo,
+            "--title",
+            id.as_str(),
+            "--body",
+            content,
+        ])?;
+        // gh prints the issue URL: .../issues/N
+        let number = out
+            .trim()
+            .rsplit('/')
+            .next()
+            .unwrap_or_default()
+            .to_string();
+        Ok(super::ObjectId::new(format!("{repo}#{number}")))
+    }
+
+    /// Discharge by closing the issue — the item leaves the *open* set (a hard
+    /// delete is not something the `gh` CLI exposes, and the generic driver
+    /// should not assume it). An item discharged this way remains in a
+    /// `--state all` walk, so a subsequent `iter` still shows it — closing is
+    /// the honest, reversible reading of "removed from the work set".
+    fn remove(&self, id: &super::ObjectId) -> Result<(), super::CarrierError> {
+        let (repo, number) = id
+            .as_str()
+            .rsplit_once('#')
+            .ok_or_else(|| self.err(format!("{id} is not `owner/repo#number`")))?;
+        self.gh(&["issue", "close", number, "--repo", repo])?;
+        Ok(())
+    }
+}

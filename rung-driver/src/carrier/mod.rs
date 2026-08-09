@@ -47,4 +47,4 @@ pub use folder::FolderCarrier;
 pub use github::GitHubIssuesCarrier;
 pub use id::ObjectId;
 pub use jsonl::{JsonlFileCarrier, JsonlFolderCarrier};
-pub use source::{Carrier, CarrierRef};
+pub use source::{Carrier, CarrierRef, ObjectCarrier};

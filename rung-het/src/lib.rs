@@ -974,6 +974,39 @@ pub trait Verify<E>: Applies<E> {
     fn confirms(&self, edit: &E, object: &str) -> bool;
 }
 
+/// The **intake gate** — the destination theory's membership / well-posedness
+/// screen, as seen by the generic `Intake` driver (the catalog note’s
+/// Intake/Discharge).
+///
+/// Cross-theory rectification re-homes a subject that one theory discharged
+/// ("a work item, not a question") into another instance, under *its* law. The
+/// source theory may say what the subject is **not**; only the destination
+/// theory can say whether it is a well-formed member of its own sort. That
+/// re-audit is this trait: **admission is gated on the destination's
+/// membership**, never on the source's say-so.
+///
+/// Intake is generic — one driver serves any theory's carrier — so the trait is
+/// the **theory's** face to it (what the driver may classify but not parse).
+/// A world that can receive subjects implements it; [`Applies`]/[`Verify`]
+/// handle *editing* the world, this handles *admitting a new subject into its
+/// carrier*.
+pub trait Admits {
+    /// Re-audit one candidate subject's *content* under this theory's law —
+    /// the intake gate. `true` only if the content is a well-formed member of
+    /// this theory's sort (parseable, and satisfying its decidable
+    /// well-formedness). A candidate that fails the gate is **refused**, never
+    /// silently degraded.
+    fn content_is_admissible(&self, content: &str) -> bool;
+
+    /// Re-render an *admissible* subject as this carrier's bytes — the
+    /// destination's re-homing of the subject under its own law (its
+    /// frontmatter, its status, its shape). `content` is the subject as it
+    /// came off the source carrier; called only after
+    /// [`content_is_admissible`](Admits::content_is_admissible) returned
+    /// `true`.
+    fn render(&self, content: &str) -> String;
+}
+
 /// The author applies a ruling — **authorial**.
 ///
 /// Requires an [`Authorized`] pen: `enact` transforms the object, and
