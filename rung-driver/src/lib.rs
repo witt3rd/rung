@@ -30,8 +30,10 @@
 //! no timeout for the same reason.
 
 pub mod carrier;
+pub mod catalog;
 pub mod commission;
 pub mod instance;
+pub mod intake;
 pub mod judgment;
 pub mod oracle_llm;
 pub mod pass;
@@ -41,9 +43,13 @@ pub mod system;
 pub use carrier::{
     Carrier, CarrierConfig, CarrierError, CarrierKind, CarrierRef, CsvFileCarrier,
     CsvFolderCarrier, FileCarrier, FolderCarrier, GitHubIssuesCarrier, JsonlFileCarrier,
-    JsonlFolderCarrier, ObjectId,
+    JsonlFolderCarrier, ObjectCarrier, ObjectId,
+};
+pub use catalog::{
+    Catalog, CatalogEdit, CatalogEntry, Route, Router, sentences as catalog_sentences,
 };
 pub use commission::CommissionLog;
+pub use intake::{IntakeError, admit, discharge};
 // The principals convergence: the driver's own Population/PrincipalSpec were
 // collapsed into the theory's single Roster/PrincipalDecl in rung_std. The
 // unified model (with providers + backing + family) is re-exported here so a

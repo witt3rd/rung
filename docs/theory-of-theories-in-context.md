@@ -133,5 +133,27 @@ and growing them when the routing says so.
 - the patch-based writeback (enact to carrier): what persists a re-homed
   subject.
 
+## Where the machinery now lives
+
+The shape is being built out rather than remaining only a note:
+
+- `rung_het::Admits` — the **intake gate**: a destination theory's own
+  membership / well-posedness screen, implemented by `rung_std::issues::Issues`.
+- `rung_driver::carrier::ObjectCarrier` — the **write half** of a carrier
+  (`add`/`remove`), implemented for the folder and GitHub carriers.
+- `rung_driver::intake::{admit, discharge}` — the **generic Intake/Discharge
+  driver**: `admit` gates on the destination's audit then adds to the carrier;
+  `discharge` removes from the carrier set. Domain-blind.
+- `rung_driver::catalog` — the **catalog theory**: a second-order theory over
+  `Instance`s, with `admit`/`evict`/`route` edits and sentinels
+  `instances_are_named_uniquely`, `every_carrier_is_present`,
+  `routes_target_admitted_instances`, and judgmental `routing_is_complete`.
+- `rung-driver --bin relegate` — the wired first relegation
+  (Questions discharges a work item → Issues admits it), dry-run by default.
+
+The routing-completeness judgment, provenance across the boundary, the
+backlog, and invention-in-the-loop remain open, exactly as this note holds
+them; the machinery above now gives them real instances to prove against.
+
 This note will evolve; formalize it into a normative proposition only when the
 router, intake, and catalog theory have real instances proving the shape.

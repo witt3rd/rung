@@ -159,6 +159,30 @@ impl rung_het::Verify<IssueEdit> for Issues {
     }
 }
 
+/// The Issues theory’s intake gate ([`rung_het::Admits`] — the catalog note’s
+/// Intake/Discharge). Admission is a **re-audit under the destination law** — a
+/// candidate subject is admitted only if it parses as an `Issue` with a
+/// non-empty id and a declared status. The source theory may say "not a
+/// question"; only this theory can say whether it is a well-formed issue.
+impl rung_het::Admits for Issues {
+    fn content_is_admissible(&self, content: &str) -> bool {
+        match Issue::parse(self.scheme, content, "", self.scheme.id_prefix) {
+            Some(it) => !it.id.is_empty() && STATUSES.contains(&it.status.as_str()),
+            None => false,
+        }
+    }
+
+    fn render(&self, content: &str) -> String {
+        match Issue::parse(self.scheme, content, "", self.scheme.id_prefix) {
+            Some(it) => it.to_markdown(),
+            // Unreachable in the driver's contract: `render` is called only on
+            // a content the gate just admitted. Preserve it verbatim rather
+            // than fabricate.
+            None => content.to_string(),
+        }
+    }
+}
+
 impl Issues {
     pub fn new(scheme: Scheme, mut issues: Vec<Issue>) -> Self {
         issues.sort_by(|a, b| a.id.cmp(&b.id));

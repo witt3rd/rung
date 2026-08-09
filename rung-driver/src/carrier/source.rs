@@ -37,5 +37,24 @@ pub trait Carrier: std::fmt::Debug + Send + Sync {
     fn read(&self, item: &ObjectId) -> Result<String, CarrierError>;
 }
 
+/// The **write half of intake/discharge** (the second-order note:
+/// Intake/Discharge). A carrier that can receive a subject back (**admit**) and
+/// give one up (**discharge**) implements this in addition to the read-only
+/// [`Carrier`].
+///
+/// Kept a separate trait so that a read-only carrier (a mirror, an archive)
+/// still satisfies the model side; the intake driver narrows to
+/// `&dyn ObjectCarrier` only at the instant it must add or remove.
+pub trait ObjectCarrier: Carrier {
+    /// Add a subject to the carrier. `id` is how the caller knows the subject;
+    /// `content` is the destination-rendered bytes. Returns the id the carrier
+    /// actually assigned, which may differ from `id` (a GitHub issue's number
+    /// is assigned by GitHub, not the caller).
+    fn add(&self, id: &ObjectId, content: &str) -> Result<ObjectId, CarrierError>;
+
+    /// Remove a subject from the carrier by id.
+    fn remove(&self, id: &ObjectId) -> Result<(), CarrierError>;
+}
+
 /// Convenience alias — carriers are always shared by reference.
 pub type CarrierRef = Arc<dyn Carrier>;
