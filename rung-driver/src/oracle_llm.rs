@@ -107,14 +107,21 @@ pub fn resolve(
         api_key,
         model: model.to_string(),
         timeout_secs: provider.timeout_secs.unwrap_or(120),
+        idle_timeout_secs: None,
         max_tokens: provider.max_tokens.unwrap_or(2048),
         // Judging is not a place for sampling variety.
         temperature: Some(0.0),
+        top_p: None,
+        top_k: None,
+        seed: None,
+        stop: Vec::new(),
         reasoning_level: provider.reasoning_level.clone(),
         // The reply is three fixed forms read by `read_reply`, not a schema.
         // Asking the provider to enforce one would move the strictness
         // somewhere this crate cannot check it.
         structured_outputs: false,
+        protocol: provider.protocol.unwrap_or_default(),
+        cache: rung_std::llm::CachePolicy::None,
         stream_listener: None,
     })
 }

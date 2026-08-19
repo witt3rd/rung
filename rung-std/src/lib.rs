@@ -54,6 +54,9 @@
 //! | `max_tokens` | `max_tokens` in request body |
 //! | `temperature` | `temperature` in request body (both providers) |
 //! | `reasoning_level` | `thinking.budget_tokens` (Anthropic) / `reasoning_effort` (OpenAI o-series) |
+//! | `protocol` | `Auto` (sniff host) or explicit `AnthropicMessages` / `OpenAiChat` |
+//! | `cache` | `Auto` places Anthropic `cache_control` breakpoints; `None` opts out |
+//! | `top_p` / `top_k` / `seed` / `stop` | portable generation knobs |
 //!
 //! ## How this ladder uses rung's guarantees
 //!

@@ -257,6 +257,11 @@ pub struct Provider {
     pub max_tokens: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_level: Option<String>,
+    /// Wire protocol. Absent → `Protocol::Auto` (sniff `anthropic.com`).
+    /// Set `anthropic-messages` when Claude is reached through a proxy whose
+    /// host is not anthropic.com.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<crate::llm::Protocol>,
 }
 
 /// How a principal answers when it is consulted.

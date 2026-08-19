@@ -88,11 +88,7 @@ impl ToolCollection {
     fn definitions(&self) -> Vec<ToolDefinition> {
         self.tools
             .iter()
-            .map(|(_, t)| ToolDefinition {
-                name: t.name().into(),
-                description: t.description().into(),
-                input_schema: t.input_schema(),
-            })
+            .map(|(_, t)| ToolDefinition::new(t.name(), t.description(), t.input_schema()))
             .collect()
     }
 
@@ -526,8 +522,8 @@ mod tests {
         let result = ListFiles
             .execute(&serde_json::json!({"path": "src"}))
             .unwrap();
-        // rung-std/src has llm.rs, principals.rs, questions.rs, lib.rs, (tools.rs)
-        assert!(result.contains("llm.rs"));
+        // rung-std/src has llm/, principals.rs, questions.rs, lib.rs, (tools.rs)
+        assert!(result.contains("llm"));
     }
 
     #[test]
@@ -655,6 +651,6 @@ mod tests {
         let result = tools
             .execute("list_files", &serde_json::json!({"path": "src"}))
             .unwrap();
-        assert!(result.contains("llm.rs"));
+        assert!(result.contains("llm"));
     }
 }
