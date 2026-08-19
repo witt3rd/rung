@@ -439,7 +439,12 @@ mod tests {
         let sb = Sandbox::open(cfg).unwrap();
         let r = sb.strike("1/0").unwrap();
         assert!(!r.ok);
-        assert!(r.error.as_deref().unwrap_or("").contains("ZeroDivisionError"));
+        assert!(
+            r.error
+                .as_deref()
+                .unwrap_or("")
+                .contains("ZeroDivisionError")
+        );
         let still = sb.strike("3").unwrap();
         assert_eq!(still.value, serde_json::json!(3));
         cleanup(&dir);
