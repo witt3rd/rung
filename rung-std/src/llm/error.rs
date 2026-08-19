@@ -108,7 +108,9 @@ pub enum RawCallError {
     },
     NoContent,
     /// No SSE/body bytes for `elapsed_secs`. Fatal — retrying the same path stalls again.
-    IdleTimeout { elapsed_secs: u64 },
+    IdleTimeout {
+        elapsed_secs: u64,
+    },
     Config(String),
 }
 
@@ -174,7 +176,9 @@ impl RawCallError {
             | Self::Forbidden { context, .. }
             | Self::QuotaExceeded { context, .. }
             | Self::ContentPolicy { context, .. }
-            | Self::InvalidRequest { context, .. } => context.as_ref().and_then(|c| c.retry_after_ms),
+            | Self::InvalidRequest { context, .. } => {
+                context.as_ref().and_then(|c| c.retry_after_ms)
+            }
             _ => None,
         }
     }
@@ -229,7 +233,9 @@ impl fmt::Display for RawCallError {
 pub enum LlmFailure {
     Auth(String),
     Forbidden(String),
-    MaxRetries { last_error: String },
+    MaxRetries {
+        last_error: String,
+    },
     Config(String),
     ContentPolicy(String),
     InvalidRequest {
@@ -237,7 +243,9 @@ pub enum LlmFailure {
         classification: Option<String>,
     },
     QuotaExceeded(String),
-    IdleTimeout { elapsed_secs: u64 },
+    IdleTimeout {
+        elapsed_secs: u64,
+    },
 }
 
 impl LlmFailure {
@@ -374,7 +382,12 @@ pub fn is_retryable_status(status: u16) -> bool {
 pub fn header_pairs(headers: &reqwest::header::HeaderMap) -> Vec<(String, String)> {
     headers
         .iter()
-        .filter_map(|(k, v)| Some((k.as_str().to_ascii_lowercase(), v.to_str().ok()?.to_string())))
+        .filter_map(|(k, v)| {
+            Some((
+                k.as_str().to_ascii_lowercase(),
+                v.to_str().ok()?.to_string(),
+            ))
+        })
         .collect()
 }
 
@@ -413,7 +426,11 @@ fn retry_after_ms(headers: &[(String, String)]) -> Option<u64> {
 }
 
 fn should_retry_header(headers: &[(String, String)]) -> Option<bool> {
-    let v = headers.iter().find(|(k, _)| k == "x-should-retry")?.1.as_str();
+    let v = headers
+        .iter()
+        .find(|(k, _)| k == "x-should-retry")?
+        .1
+        .as_str();
     if v.eq_ignore_ascii_case("true") {
         Some(true)
     } else if v.eq_ignore_ascii_case("false") {
@@ -685,9 +702,19 @@ mod tests {
 
     #[test]
     fn anthropic_529_is_retryable() {
-        let e = classify_http("POST", "https://api.anthropic.com/v1/messages", 529, &[], "overloaded", "k");
+        let e = classify_http(
+            "POST",
+            "https://api.anthropic.com/v1/messages",
+            529,
+            &[],
+            "overloaded",
+            "k",
+        );
         assert!(e.is_retryable());
-        assert!(matches!(e, RawCallError::ProviderInternal { status: 529, .. }));
+        assert!(matches!(
+            e,
+            RawCallError::ProviderInternal { status: 529, .. }
+        ));
     }
 
     #[test]
@@ -712,16 +739,20 @@ mod tests {
 
     #[test]
     fn transport_retryable_only_before_output() {
-        assert!(RawCallError::Transport {
-            message: "timeout".into(),
-            observed: false
-        }
-        .is_retryable());
-        assert!(!RawCallError::Transport {
-            message: "timeout".into(),
-            observed: true
-        }
-        .is_retryable());
+        assert!(
+            RawCallError::Transport {
+                message: "timeout".into(),
+                observed: false
+            }
+            .is_retryable()
+        );
+        assert!(
+            !RawCallError::Transport {
+                message: "timeout".into(),
+                observed: true
+            }
+            .is_retryable()
+        );
     }
 
     #[test]
@@ -735,7 +766,9 @@ mod tests {
             "sk-secret-value",
         );
         match e {
-            RawCallError::Auth { context: Some(ctx), .. } => {
+            RawCallError::Auth {
+                context: Some(ctx), ..
+            } => {
                 assert!(!ctx.body.unwrap_or_default().contains("sk-secret-value"));
                 assert!(!ctx.url.contains("sk-secret-value"));
             }
@@ -756,10 +789,24 @@ mod tests {
 
     #[test]
     fn forbidden_403_is_not_auth() {
-        let e = classify_http("POST", "https://api.example/v1", 403, &[], r#"{"error":"nope"}"#, "k");
+        let e = classify_http(
+            "POST",
+            "https://api.example/v1",
+            403,
+            &[],
+            r#"{"error":"nope"}"#,
+            "k",
+        );
         assert!(!e.is_retryable());
         assert!(matches!(e, RawCallError::Forbidden { .. }));
-        let auth = classify_http("POST", "https://api.example/v1", 401, &[], r#"{"error":"bad key"}"#, "k");
+        let auth = classify_http(
+            "POST",
+            "https://api.example/v1",
+            401,
+            &[],
+            r#"{"error":"bad key"}"#,
+            "k",
+        );
         assert!(matches!(auth, RawCallError::Auth { .. }));
     }
 
@@ -809,7 +856,10 @@ mod tests {
             "k",
         );
         assert!(!e.is_retryable());
-        assert!(matches!(e, RawCallError::ProviderInternal { status: 525, .. }));
+        assert!(matches!(
+            e,
+            RawCallError::ProviderInternal { status: 525, .. }
+        ));
     }
 
     #[test]
@@ -834,7 +884,10 @@ mod tests {
         )
         .unwrap();
         assert!(e.is_retryable());
-        assert!(matches!(e, RawCallError::ProviderInternal { status: 529, .. }));
+        assert!(matches!(
+            e,
+            RawCallError::ProviderInternal { status: 529, .. }
+        ));
     }
 
     #[test]
@@ -849,8 +902,10 @@ mod tests {
     #[test]
     fn parse_provider_error_corpus() {
         assert_eq!(
-            parse_provider_error(r#"{"error":{"message":"Incorrect API key","type":"invalid_request_error"}}"#)
-                .as_deref(),
+            parse_provider_error(
+                r#"{"error":{"message":"Incorrect API key","type":"invalid_request_error"}}"#
+            )
+            .as_deref(),
             Some("Incorrect API key")
         );
         assert_eq!(

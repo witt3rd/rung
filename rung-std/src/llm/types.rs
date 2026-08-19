@@ -55,12 +55,7 @@ impl Usage {
         }
     }
 
-    pub fn from_openai(
-        prompt: u32,
-        completion: u32,
-        cached: u32,
-        reasoning: u32,
-    ) -> Self {
+    pub fn from_openai(prompt: u32, completion: u32, cached: u32, reasoning: u32) -> Self {
         let cached = cached.min(prompt);
         Self {
             input_tokens: prompt,
@@ -85,13 +80,18 @@ pub enum StopReason {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     ToolUse {
         id: String,
         name: String,
         input: serde_json::Value,
     },
-    Thinking { thinking: String, signature: String },
+    Thinking {
+        thinking: String,
+        signature: String,
+    },
 }
 
 #[must_use = "LlmResponse carries the model's output and usage; dropping it silently loses both — handle it"]
@@ -432,7 +432,10 @@ pub trait StreamListener: Send + Sync {
 }
 
 pub enum StreamEvent {
-    MessageStart { model: String, id: String },
+    MessageStart {
+        model: String,
+        id: String,
+    },
     ContentBlockStart {
         index: usize,
         block: ContentBlockStart,
@@ -441,7 +444,9 @@ pub enum StreamEvent {
         index: usize,
         delta: ContentBlockDelta,
     },
-    ContentBlockStop { index: usize },
+    ContentBlockStop {
+        index: usize,
+    },
     MessageDelta {
         stop_reason: Option<StopReason>,
         usage: Option<Usage>,
@@ -508,4 +513,3 @@ pub fn map_openai_finish_reason(s: Option<&str>) -> StopReason {
         _ => StopReason::EndTurn,
     }
 }
-
