@@ -286,7 +286,7 @@ CITING = ("rung", "rung-het", "rung-std")
 # explicit list rather than a pattern: every entry is a name some protocol
 # chose, and the alternative is degrading the documentation to satisfy a
 # regex.
-NOT_A_CITATION = {"x-api-key"}
+NOT_A_CITATION = {"x-api-key", "x-should-retry"}
 
 COMMENT = re.compile(r"^\s*(?://[/!]?)(.*)$")
 SLUGLIKE = re.compile(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+){2,}\b")

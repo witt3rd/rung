@@ -416,23 +416,21 @@ pub(crate) fn parse_sse(
             for tc in tcs {
                 let index = tc["index"].as_u64().unwrap_or(0) as usize;
                 let pending = tools.entry(index).or_default();
-                let was_new = pending.id.is_empty() && pending.name.is_empty();
+                let had_identity = !pending.id.is_empty() && !pending.name.is_empty();
                 if let Some(tid) = tc["id"].as_str() {
                     pending.id = tid.to_string();
                 }
                 if let Some(name) = tc["function"]["name"].as_str() {
                     pending.name = name.to_string();
                 }
-                if was_new || (!pending.id.is_empty() && !pending.name.is_empty()) {
-                    if was_new {
-                        emit(StreamEvent::ContentBlockStart {
-                            index,
-                            block: ContentBlockStart::ToolUse {
-                                id: pending.id.clone(),
-                                name: pending.name.clone(),
-                            },
-                        });
-                    }
+                if !had_identity && !pending.id.is_empty() && !pending.name.is_empty() {
+                    emit(StreamEvent::ContentBlockStart {
+                        index,
+                        block: ContentBlockStart::ToolUse {
+                            id: pending.id.clone(),
+                            name: pending.name.clone(),
+                        },
+                    });
                 }
                 if let Some(args) = tc["function"]["arguments"].as_str() {
                     pending.arguments.push_str(args);
