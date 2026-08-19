@@ -3,10 +3,9 @@
 use super::cache::{self, Breakpoints};
 use super::error::{RawCallError, classify_http, header_pairs, parse_sse_error};
 use super::types::{
-    ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, LlmConfig,
-    LlmResponse, MessageContent, MessageContentBlock, ObservingListener, PreparedRequest,
-    ResolvedProtocol, StopReason, StreamEvent, StreamListener, ToolDefinition, Usage,
-    map_anthropic_stop_reason,
+    ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, LlmConfig, LlmResponse,
+    MessageContent, MessageContentBlock, ObservingListener, PreparedRequest, ResolvedProtocol,
+    StopReason, StreamEvent, StreamListener, ToolDefinition, Usage, map_anthropic_stop_reason,
 };
 use std::io::BufRead;
 use std::sync::Arc;
@@ -337,12 +336,13 @@ fn parse_json(response: reqwest::blocking::Response) -> Result<LlmResponse, RawC
         thinking_tokens: Option<u32>,
     }
 
-    let parsed: AnthropicResponse = response.json().map_err(|e| {
-        RawCallError::InvalidProviderOutput {
-            message: e.to_string(),
-            raw: None,
-        }
-    })?;
+    let parsed: AnthropicResponse =
+        response
+            .json()
+            .map_err(|e| RawCallError::InvalidProviderOutput {
+                message: e.to_string(),
+                raw: None,
+            })?;
 
     Ok(LlmResponse {
         id: parsed.id,
@@ -439,12 +439,11 @@ pub(crate) fn parse_sse(
                 continue;
             }
 
-            let payload: serde_json::Value = serde_json::from_str(&data).map_err(|e| {
-                RawCallError::InvalidProviderOutput {
+            let payload: serde_json::Value =
+                serde_json::from_str(&data).map_err(|e| RawCallError::InvalidProviderOutput {
                     message: format!("SSE JSON parse error: {e}"),
                     raw: Some(data.clone()),
-                }
-            })?;
+                })?;
 
             match event_type.as_str() {
                 "error" => {
@@ -668,8 +667,7 @@ mod tests {
         let user = &p.body["messages"][0]["content"];
         // user is a blocks array after auto placement
         assert!(
-            user.is_array() && user[0]["cache_control"]["type"] == "ephemeral"
-                || user.is_string()
+            user.is_array() && user[0]["cache_control"]["type"] == "ephemeral" || user.is_string()
         );
     }
 

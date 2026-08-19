@@ -15,10 +15,7 @@ pub fn prepare(
     messages: &[ChatMessage],
     tools: &[ToolDefinition],
 ) -> Result<PreparedRequest, RawCallError> {
-    let url = format!(
-        "{}/chat/completions",
-        config.base_url.trim_end_matches('/')
-    );
+    let url = format!("{}/chat/completions", config.base_url.trim_end_matches('/'));
     Ok(PreparedRequest {
         protocol: ResolvedProtocol::OpenAiChat,
         url,
@@ -115,8 +112,7 @@ pub fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
                             text_parts.push(serde_json::json!({"type": "text", "text": text}));
                         }
                         MessageContentBlock::Image { source, .. } => {
-                            let url =
-                                format!("data:{};base64,{}", source.media_type, source.data);
+                            let url = format!("data:{};base64,{}", source.media_type, source.data);
                             text_parts.push(serde_json::json!({
                                 "type": "image_url",
                                 "image_url": { "url": url }
@@ -263,12 +259,11 @@ pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
         reasoning_tokens: Option<u32>,
     }
 
-    let parsed: OpenAiResponse = serde_json::from_str(text).map_err(|e| {
-        RawCallError::InvalidProviderOutput {
+    let parsed: OpenAiResponse =
+        serde_json::from_str(text).map_err(|e| RawCallError::InvalidProviderOutput {
             message: format!("JSON parse error: {e}"),
             raw: Some(text.chars().take(512).collect()),
-        }
-    })?;
+        })?;
 
     let choice = parsed.choices.into_iter().next();
     let mut content_blocks = Vec::new();
@@ -387,12 +382,17 @@ pub(crate) fn parse_sse(
         }
 
         let choice = chunk.get("choices").and_then(|c| c.get(0));
-        if let Some(fr) = choice.and_then(|c| c.get("finish_reason")).and_then(|v| v.as_str()) {
+        if let Some(fr) = choice
+            .and_then(|c| c.get("finish_reason"))
+            .and_then(|v| v.as_str())
+        {
             stop_reason = map_openai_finish_reason(Some(fr));
         }
         let delta = choice.and_then(|c| c.get("delta"));
 
-        if let Some(s) = delta.and_then(|d| d.get("content")).and_then(|v| v.as_str())
+        if let Some(s) = delta
+            .and_then(|d| d.get("content"))
+            .and_then(|v| v.as_str())
             && !s.is_empty()
         {
             if !saw_text_start {
@@ -409,7 +409,10 @@ pub(crate) fn parse_sse(
             });
         }
 
-        if let Some(tcs) = delta.and_then(|d| d.get("tool_calls")).and_then(|v| v.as_array()) {
+        if let Some(tcs) = delta
+            .and_then(|d| d.get("tool_calls"))
+            .and_then(|v| v.as_array())
+        {
             for tc in tcs {
                 let index = tc["index"].as_u64().unwrap_or(0) as usize;
                 let pending = tools.entry(index).or_default();
@@ -468,7 +471,9 @@ pub(crate) fn parse_sse(
         return Err(RawCallError::NoContent);
     }
     if matches!(stop_reason, StopReason::EndTurn)
-        && blocks.iter().any(|b| matches!(b, ContentBlock::ToolUse { .. }))
+        && blocks
+            .iter()
+            .any(|b| matches!(b, ContentBlock::ToolUse { .. }))
     {
         stop_reason = StopReason::ToolUse;
     }
