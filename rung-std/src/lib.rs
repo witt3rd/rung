@@ -1,7 +1,7 @@
 //! rung-std — the canonical building blocks.
 //!
 //! A block is admitted here when it recurs across independent projects and
-//! embeds no caller-specific knowledge. There are five:
+//! embeds no caller-specific knowledge. There are six:
 //!
 //! | block | surface | what recurs |
 //! |---|---|---|
@@ -9,6 +9,7 @@
 //! | [`agent`] | `ladder!` | one agentic turn — drive the LLM, dispatch tools, iterate |
 //! | [`questions`] | `theory!` + `ladder!` | questions posed, ruled on by an outside panel, folded back through a lifecycle |
 //! | [`principals`] | `theory!` | who may be dispatched to — the law of the pool both gates draw from |
+//! | [`python`] | `ladder!` | one strike in a persistent, jailed CPython guest |
 //! | [`driver`] | neither | hold suspended runs; release the ones evidence answers |
 //!
 //! The first four exercise the two halves of the DSL: `ladder!` declares
@@ -99,6 +100,7 @@
 
 pub mod agent;
 pub mod driver;
+pub mod python;
 pub mod issues;
 pub mod llm;
 pub mod principals;
