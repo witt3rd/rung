@@ -86,7 +86,9 @@ impl Guest {
         stdin
             .write_all(line.as_bytes())
             .map_err(|_| SandboxError::GuestDead)?;
-        stdin.write_all(b"\n").map_err(|_| SandboxError::GuestDead)?;
+        stdin
+            .write_all(b"\n")
+            .map_err(|_| SandboxError::GuestDead)?;
         stdin.flush().map_err(|_| SandboxError::GuestDead)?;
 
         let mut stdout = self.stdout.take().ok_or(SandboxError::GuestDead)?;
@@ -156,8 +158,7 @@ impl Drop for Guest {
     fn drop(&mut self) {
         if self.alive() {
             if let Some(stdin) = self.stdin.as_mut() {
-                let line =
-                    serde_json::to_string(&StrikeRequest::shutdown("0")).unwrap_or_default();
+                let line = serde_json::to_string(&StrikeRequest::shutdown("0")).unwrap_or_default();
                 let _ = writeln!(stdin, "{line}");
                 let _ = stdin.flush();
             }
