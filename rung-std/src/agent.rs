@@ -38,6 +38,12 @@
 //! 3. It sits directly on the [`llm`](crate::llm) block: the single-call
 //!    ladder drives the model; the agent ladder drives the single-call
 //!    ladder repeatedly.
+//!
+//! The [`python`](crate::python) sandbox is the intended single-tool
+//! roster (`Sandbox::collection`): the model writes Python, the guest
+//! keeps state, the agent does not need `read_file` / `shell`. Admit it
+//! on the [`ToolRoster`](crate::tools::ToolRoster) the same as any other
+//! collection.
 
 use rung::ladder;
 
