@@ -73,34 +73,34 @@ pub enum RawCallError {
     },
     Auth {
         message: String,
-        context: Option<HttpContext>,
+        context: Option<Box<HttpContext>>,
     },
     /// Authenticated, but the action is forbidden (policy / 403). Not a bad key.
     Forbidden {
         message: String,
-        context: Option<HttpContext>,
+        context: Option<Box<HttpContext>>,
     },
     RateLimit {
         retry_after_ms: Option<u64>,
-        context: Option<HttpContext>,
+        context: Option<Box<HttpContext>>,
     },
     QuotaExceeded {
         message: String,
-        context: Option<HttpContext>,
+        context: Option<Box<HttpContext>>,
     },
     ContentPolicy {
         message: String,
-        context: Option<HttpContext>,
+        context: Option<Box<HttpContext>>,
     },
     InvalidRequest {
         message: String,
         classification: Option<RequestClassification>,
-        context: Option<HttpContext>,
+        context: Option<Box<HttpContext>>,
     },
     ProviderInternal {
         status: u16,
         retry_after_ms: Option<u64>,
-        context: Option<HttpContext>,
+        context: Option<Box<HttpContext>>,
     },
     InvalidProviderOutput {
         message: String,
@@ -163,7 +163,7 @@ impl RawCallError {
             | Self::QuotaExceeded { context, .. }
             | Self::ContentPolicy { context, .. }
             | Self::InvalidRequest { context, .. }
-            | Self::ProviderInternal { context, .. } => context.as_ref(),
+            | Self::ProviderInternal { context, .. } => context.as_deref(),
             _ => None,
         }
     }
@@ -177,7 +177,7 @@ impl RawCallError {
             | Self::QuotaExceeded { context, .. }
             | Self::ContentPolicy { context, .. }
             | Self::InvalidRequest { context, .. } => {
-                context.as_ref().and_then(|c| c.retry_after_ms)
+                context.as_deref().and_then(|c| c.retry_after_ms)
             }
             _ => None,
         }
@@ -317,57 +317,57 @@ pub fn classify_http(
         return RawCallError::InvalidRequest {
             classification: Some(RequestClassification::ContextOverflow),
             message,
-            context: Some(ctx),
+            context: Some(Box::new(ctx)),
         };
     }
     if !looks_like_html(body) && is_content_policy(body) {
         return RawCallError::ContentPolicy {
             message,
-            context: Some(ctx),
+            context: Some(Box::new(ctx)),
         };
     }
     if status == 401 {
         return RawCallError::Auth {
             message,
-            context: Some(ctx),
+            context: Some(Box::new(ctx)),
         };
     }
     if status == 403 {
         return RawCallError::Forbidden {
             message,
-            context: Some(ctx),
+            context: Some(Box::new(ctx)),
         };
     }
     if status == 429 {
         if is_quota(body) {
             return RawCallError::QuotaExceeded {
                 message,
-                context: Some(ctx),
+                context: Some(Box::new(ctx)),
             };
         }
         return RawCallError::RateLimit {
             retry_after_ms: retry_after,
-            context: Some(ctx),
+            context: Some(Box::new(ctx)),
         };
     }
     if matches!(status, 400 | 404 | 409 | 413 | 422) {
         return RawCallError::InvalidRequest {
             classification: None,
             message,
-            context: Some(ctx),
+            context: Some(Box::new(ctx)),
         };
     }
     if status >= 500 || matches!(status, 520..=530) {
         return RawCallError::ProviderInternal {
             status,
             retry_after_ms: retry_after,
-            context: Some(ctx),
+            context: Some(Box::new(ctx)),
         };
     }
     RawCallError::InvalidRequest {
         classification: None,
         message,
-        context: Some(ctx),
+        context: Some(Box::new(ctx)),
     }
 }
 
@@ -498,10 +498,10 @@ fn walk_error(value: &serde_json::Value) -> Option<String> {
         }
         serde_json::Value::Array(items) => items.iter().find_map(walk_error),
         serde_json::Value::Object(obj) => {
-            if let Some(err) = obj.get("error") {
-                if let Some(s) = walk_error(err) {
-                    return Some(s);
-                }
+            if let Some(err) = obj.get("error")
+                && let Some(s) = walk_error(err)
+            {
+                return Some(s);
             }
             for key in ["message", "detail", "msg", "description"] {
                 if let Some(s) = obj.get(key).and_then(|v| v.as_str()) {
