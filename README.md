@@ -198,6 +198,11 @@ providers:
   - name: openrouter
     base_url: https://openrouter.ai/api/v1
     api_key_env: OPENROUTER_API_KEY
+  # Claude behind a non-anthropic.com host (OmniRoute, a gateway):
+  # - name: omniroute
+  #   base_url: http://localhost:20128/v1
+  #   api_key_env: OPENROUTER_API_KEY
+  #   protocol: anthropic-messages   # do not leave this as Auto
 ```
 
 A principal's `backing` names its **model**; `provider` is **optional** — absent means *the `default` provider*. So a population can say only which model it wants (`backing: {via: model, model: openai/gpt-5.6-luna-pro}`) and remain portable across every machine with a configured `~/.rung/`. (A single population can still route each principal through a different endpoint by naming `provider:` explicitly.)

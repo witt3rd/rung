@@ -406,6 +406,7 @@ fn sys() -> SystemConfig {
             timeout_secs: None,
             max_tokens: Some(4096),
             reasoning_level: None,
+            protocol: None,
         },
         Provider {
             name: "openai".into(),
@@ -414,6 +415,7 @@ fn sys() -> SystemConfig {
             timeout_secs: None,
             max_tokens: Some(4096),
             reasoning_level: None,
+            protocol: None,
         },
         Provider {
             name: "openrouter".into(),
@@ -422,6 +424,7 @@ fn sys() -> SystemConfig {
             timeout_secs: None,
             max_tokens: None,
             reasoning_level: None,
+            protocol: None,
         },
     ];
     SystemConfig::from_parts(providers, Some("openrouter".into()), BTreeMap::new())

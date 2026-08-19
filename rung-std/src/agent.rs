@@ -227,6 +227,7 @@ ladder!(AgentLoop {
             messages: thread.messages.clone(),
             tools: tools.definitions(),
             attempts_remaining: DEFAULT_MAX_ATTEMPTS,
+            next_delay_ms: None,
         };
 
         // Drive the LlmCall ladder to completion, handling its retries internally.
@@ -244,10 +245,23 @@ ladder!(AgentLoop {
                     let failure = e.into_payload();
                     let reason = match failure {
                         LlmFailure::Auth(msg) => format!("auth: {msg}"),
+                        LlmFailure::Forbidden(msg) => format!("forbidden: {msg}"),
+                        LlmFailure::IdleTimeout { elapsed_secs } => {
+                            format!("idle-timeout after {elapsed_secs}s")
+                        }
                         LlmFailure::Config(msg) => format!("config: {msg}"),
                         LlmFailure::MaxRetries { last_error } => {
                             format!("max retries exhausted: {last_error}")
                         }
+                        LlmFailure::ContentPolicy(msg) => format!("content-policy: {msg}"),
+                        LlmFailure::QuotaExceeded(msg) => format!("quota: {msg}"),
+                        LlmFailure::InvalidRequest {
+                            message,
+                            classification,
+                        } => match classification {
+                            Some(c) => format!("invalid-request ({c}): {message}"),
+                            None => format!("invalid-request: {message}"),
+                        },
                     };
                     return Ok(StepOutcome::ContentFiltered(ContentFiltered::new(
                         Filtered { reason },
@@ -284,6 +298,14 @@ ladder!(AgentLoop {
                         ContentBlock::Text { text } => {
                             assistant_blocks.push(crate::llm::MessageContentBlock::Text {
                                 text: text.clone(),
+                                cache: None,
+                            });
+                        }
+                        ContentBlock::Thinking { thinking, signature } => {
+                            assistant_blocks.push(crate::llm::MessageContentBlock::Thinking {
+                                thinking: thinking.clone(),
+                                signature: signature.clone(),
+                                cache: None,
                             });
                         }
                         ContentBlock::ToolUse { id, name, input } => {
@@ -293,6 +315,7 @@ ladder!(AgentLoop {
                                     id: id.clone(),
                                     name: name.clone(),
                                     input: input.clone(),
+                                    cache: None,
                                 },
                             );
                             let result = tools
@@ -303,12 +326,10 @@ ladder!(AgentLoop {
                                 crate::llm::MessageContentBlock::ToolResult {
                                     tool_use_id: id.clone(),
                                     content: result,
+                                    cache: None,
                                 },
                             );
                             tool_count += 1;
-                        }
-                        ContentBlock::Thinking { .. } => {
-                            // Thinking is internal — not re-submitted.
                         }
                     }
                 }
