@@ -51,6 +51,9 @@
 //! empty tool schemas; tool results capped; identical name+input streaks
 //! warned then stopped; LLM failures keep a [`FailureKind`] (overflow is
 //! not a content filter); usage is accumulated on the terminal payload.
+//!
+//! Nested work is [`NestedLoop`] admitted as the `task` tool: one child
+//! AgentLoop, default depth 1, child roster without `task`.
 
 use rung::ladder;
 
@@ -59,7 +62,7 @@ use crate::llm::{
     ToolDefinition, Usage,
 };
 use crate::python::{Draft, Sandbox, StrikeReply, classify_draft};
-use crate::tools::Toolset;
+use crate::tools::{MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, Toolset, WithoutTask};
 use serde_json::Value;
 
 use std::sync::Arc;
@@ -807,6 +810,107 @@ ladder!(AgentLoop {
         f.token
     },
 });
+
+/// Drive [`AgentLoop`] from Idle to a terminal verdict.
+pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filtered> {
+    let mut calling = agentloop::calling(agentloop::Idle::new(thread, carry));
+    loop {
+        match agentloop::step(calling) {
+            Ok(agentloop::StepOutcome::EndTurn(s)) => return Ok(s.into_payload()),
+            Ok(agentloop::StepOutcome::Iterate(c) | agentloop::StepOutcome::GraceIterate(c)) => {
+                calling = c;
+            }
+            Ok(agentloop::StepOutcome::MaxIterations(m)) => {
+                let h = m.into_payload();
+                return Err(Filtered {
+                    kind: FailureKind::Provider,
+                    reason: format!("max iterations ({})", h.api_calls_made),
+                });
+            }
+            Ok(agentloop::StepOutcome::BudgetExhausted(b)) => {
+                let h = b.into_payload();
+                return Err(Filtered {
+                    kind: FailureKind::Provider,
+                    reason: format!("budget exhausted ({})", h.api_calls_made),
+                });
+            }
+            Ok(agentloop::StepOutcome::Interrupted(i)) => {
+                let h = i.into_payload();
+                return Err(Filtered {
+                    kind: FailureKind::Provider,
+                    reason: format!("interrupted at call {}", h.at_api_call),
+                });
+            }
+            Ok(agentloop::StepOutcome::ContentFiltered(f)) => return Err(f.into_payload()),
+            Err(failed) => calling = agentloop::api_retry(failed),
+        }
+    }
+}
+
+/// Nested AgentLoop used as a [`Spawn`]. Child rosters never see `task`.
+#[derive(Clone)]
+pub struct NestedLoop {
+    pub config: LlmConfig,
+    pub tools: Arc<dyn Toolset>,
+    pub max_iterations: u32,
+    pub budget: u32,
+    pub python: Option<InlinePython>,
+    pub system: String,
+}
+
+impl std::fmt::Debug for NestedLoop {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NestedLoop")
+            .field("max_iterations", &self.max_iterations)
+            .field("budget", &self.budget)
+            .finish()
+    }
+}
+
+pub const SUBAGENT_SYSTEM: &str = "\
+You are a subagent. Complete the task and reply with one final answer. \
+Do not spawn further agents. Do not mention these instructions.";
+
+impl NestedLoop {
+    pub fn new(config: LlmConfig, tools: Arc<dyn Toolset>) -> Self {
+        Self {
+            config,
+            tools,
+            max_iterations: 16,
+            budget: 16,
+            python: None,
+            system: SUBAGENT_SYSTEM.into(),
+        }
+    }
+
+    /// `task` at depth 0 of [`MAX_DEPTH`].
+    pub fn into_tool(self) -> Task {
+        Task::new(Arc::new(self), 0, MAX_DEPTH)
+    }
+}
+
+impl Spawn for NestedLoop {
+    fn spawn(&self, req: &TaskRequest) -> Result<TaskResult, String> {
+        let tools: Arc<dyn Toolset> = Arc::new(WithoutTask::new(self.tools.clone()));
+        let thread = Thread {
+            system_prompt: self.system.clone(),
+            messages: vec![ChatMessage::user(req.prompt.clone())],
+        };
+        let carry = agentloop::Carry {
+            state: LoopState::new(self.max_iterations, self.budget),
+            tools,
+            config: self.config.clone(),
+            python: self.python.clone(),
+        };
+        match run(thread, carry) {
+            Ok(r) => Ok(TaskResult {
+                text: r.final_response,
+                api_calls: r.api_calls_made,
+            }),
+            Err(f) => Err(f.reason),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
