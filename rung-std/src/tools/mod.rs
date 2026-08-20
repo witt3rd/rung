@@ -7,16 +7,24 @@
 mod edit;
 mod files;
 mod fsutil;
+mod patch;
 mod shell;
+mod skill;
 mod task;
+mod todo;
+mod webfetch;
 
 use crate::llm::ToolDefinition;
 use serde_json::Value;
 
 pub use edit::EditFile;
 pub use files::{Glob, Grep, ListFiles, ReadFile, WriteFile};
+pub use patch::ApplyPatch;
 pub use shell::Shell;
+pub use skill::Skill;
 pub use task::{MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, WithoutTask};
+pub use todo::Todo;
+pub use webfetch::WebFetch;
 
 // ─── Tool trait ────────────────────────────────────────────────────────────────
 
@@ -162,6 +170,17 @@ pub fn filesystem_tools() -> ToolCollection {
 pub fn filesystem_tools_with_shell() -> ToolCollection {
     let mut c = filesystem_tools();
     c.admit(Shell);
+    c
+}
+
+/// Kernel extras that are not filesystem: patch, todos, fetch, skills.
+/// Admit `task` separately — it needs a [`Spawn`].
+pub fn kernel_tools() -> ToolCollection {
+    let mut c = ToolCollection::new("kernel");
+    c.admit(ApplyPatch);
+    c.admit(Todo::new());
+    c.admit(WebFetch);
+    c.admit(Skill::in_cwd());
     c
 }
 
@@ -408,6 +427,15 @@ mod tests {
         assert!(names.contains(&"grep".into()), "{names:?}");
         assert!(!names.contains(&"shell".into()), "{names:?}");
         assert!(!names.contains(&"task".into()), "{names:?}");
+        let k: Vec<_> = kernel_tools()
+            .definitions()
+            .into_iter()
+            .map(|d| d.name)
+            .collect();
+        for n in ["apply_patch", "todo", "webfetch", "skill"] {
+            assert!(k.contains(&n.into()), "{k:?}");
+        }
+        assert!(!k.contains(&"task".into()), "{k:?}");
         let with: Vec<_> = filesystem_tools_with_shell()
             .definitions()
             .into_iter()
