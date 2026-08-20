@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 209 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 214 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -629,6 +629,14 @@ reads it as incidental and deletes it, because nothing says otherwise.
 Not filtered by crate: some of these test the tooling and will never cite a
 proposition. Excluding them by name would be the quiet narrowing that makes a queue
 look shorter than it is.
+
+**`rung-agent/tests/cli.rs`** — 5 unclaimed
+
+- `background_without_key_records_error`
+- `help_exits_zero`
+- `missing_prompt_is_usage`
+- `poll_completed_session`
+- `poll_missing_session`
 
 **`rung-doctrine/tests/governed.rs`** — 9 unclaimed
 
