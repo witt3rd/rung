@@ -57,6 +57,22 @@ background child, isolation worktrees, XDG `config.yaml` = `rung-agent`.
 - `docs/_props.py cited` kebab-tokens in comments are citations.
 - Overflow is `FailureKind::Overflow`, not a content filter.
 
+## Harbor eval
+
+Out-of-tree adapter: `rung-agent/python/rung_harbor/agent.py`. Do not fork
+Harbor. Default model `openrouter/anthropic/claude-sonnet-4.5`. Key from
+`doppler run -p fleet -c dev_work` (`OPENROUTER_API_KEY`).
+
+```bash
+cargo build -p rung-agent --release
+PYTHONPATH=<rung>/rung-agent/python \
+  doppler run -p fleet -c dev_work -- \
+  uv run --directory ~/src/ext/harbor harbor run \
+    -p examples/tasks/hello-world \
+    --agent rung_harbor.agent:RungAgent \
+    --model openrouter/anthropic/claude-sonnet-4.5
+```
+
 ## Next
 
 `rung-agent` and inhabitation have landed on `master`. Wake with

@@ -71,6 +71,10 @@ Product CLI `rung-agent` (catalog, sessions, isolation, background, XDG
 `config.yaml`) is in the workspace. Kernel `task` is nested `Spawn`, depth
 1. Catalog / resume / worktrees / background are product.
 
+Harbor eval is out of tree (`rung-agent/python/rung_harbor`). Default model
+`openrouter/anthropic/claude-sonnet-4.5`. Key: `doppler run -p fleet -c
+dev_work` (`OPENROUTER_API_KEY`). Do not fork Harbor for this.
+
 ### Commands
 
 ```bash
