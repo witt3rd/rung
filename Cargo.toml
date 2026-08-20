@@ -5,7 +5,8 @@
 # re-exports the macro. Consumers depend on `rung` alone. (Same split as
 # serde/serde_derive, tokio/tokio-macros.) The example lives in `rung/examples/`
 # (Cargo-native: `cargo run -p rung --example metric_opt`).
-members = ["rung", "rung-macro", "rung-std", "rung-het", "rung-doctrine", "rung-driver", "rung-fixture"]
+# `rung-agent` is the product: compose std blocks into a headless task CLI.
+members = ["rung", "rung-macro", "rung-std", "rung-het", "rung-doctrine", "rung-driver", "rung-fixture", "rung-agent"]
 resolver = "2"
 
 [workspace.package]

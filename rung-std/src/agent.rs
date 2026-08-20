@@ -906,6 +906,7 @@ impl Spawn for NestedLoop {
             Ok(r) => Ok(TaskResult {
                 text: r.final_response,
                 api_calls: r.api_calls_made,
+                task_id: req.task_id.clone(),
             }),
             Err(f) => Err(f.reason),
         }
