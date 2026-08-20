@@ -57,7 +57,7 @@ token is to go through the transition that produces it.
 
 ### Workspace
 
-```
+```text
 rung          ladder! runtime + re-export of the macro
 rung-macro    proc-macro crate (must be separate)
 rung-std      canonical blocks
@@ -86,6 +86,49 @@ docs/_props.py cited
 `docs/_props.py cited` treats kebab tokens in comments in `rung`, `rung-het`,
 and `rung-std` as proposition slugs. Wire names that are not slugs go in
 `NOT_A_CITATION` (`x-api-key`, `x-should-retry`).
+
+The crate rustdoc includes this file (`include_str` of `README.md`) as doctests.
+Unlabeled fences here are treated as Rust — label them. The block below is the
+Getting Started program; it is compiled and run.
+
+```rust
+use rung::ladder;
+
+struct Task;
+struct Job { step: u32 }
+struct Output { steps: u32 }
+
+ladder!(Workflow {
+    carry { task_id: String }
+
+    Pending(Task) => Running(Job) => {
+        Step -> Running
+        | Done(Output)
+    }
+} impl {
+    running = |pending| { Running::new(Job { step: 0 }, pending.carry().clone()) },
+    step = |running| {
+        let n = running.payload.step;
+        if n >= 3 {
+            return Ok(StepOutcome::Done(Done::new(Output { steps: n })));
+        }
+        Ok(StepOutcome::Step(Running::new(Job { step: n + 1 }, running.carry().clone())))
+    },
+});
+
+fn main() {
+    let p = workflow::Pending::new(Task, workflow::Carry { task_id: "t1".into() });
+    let mut r = workflow::running(p);
+    let out = loop {
+        match workflow::step(r) {
+            Ok(workflow::StepOutcome::Step(next)) => r = next,
+            Ok(workflow::StepOutcome::Done(d)) => break d.into_payload(),
+            Err(f) => panic!("{}", f.error),
+        }
+    };
+    assert_eq!(out.steps, 3);
+}
+```
 
 Required CI check is `check`. Merge method: rebase.
 
@@ -151,7 +194,7 @@ judgment has been dispatched.
 
 ### Caretaker loop
 
-```
+```text
 scripts/agent state          # where we are in time (first read on wake)
 scripts/agent inbox          # what is waiting
 scripts/agent handoff <subject> [-m BODY]   # sleep: append H + derived S
