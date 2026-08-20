@@ -17,12 +17,17 @@ pub const MAX_DEPTH: u32 = 1;
 pub struct TaskRequest {
     pub description: String,
     pub prompt: String,
+    /// Named child profile (`explore`, `implement`, `review`). Product catalogs interpret this.
+    pub subagent_type: Option<String>,
+    /// Resume this child session if the Spawn persists transcripts.
+    pub task_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct TaskResult {
     pub text: String,
     pub api_calls: u32,
+    pub task_id: Option<String>,
 }
 
 /// How a child agent is actually run. The default is a nested AgentLoop;
@@ -69,7 +74,8 @@ impl Tool for Task {
     fn description(&self) -> &'static str {
         "Launch a nested agent for a complex subtask. It returns one final message. \
          Do not use this for a single file read or grep — call those tools directly. \
-         Nested tasks cannot spawn further tasks."
+         Nested tasks cannot spawn further tasks. Optional subagent_type: explore, implement, review. \
+         Optional task_id resumes a prior child."
     }
     fn input_schema(&self) -> Value {
         serde_json::json!({
@@ -82,6 +88,14 @@ impl Tool for Task {
                 "prompt": {
                     "type": "string",
                     "description": "The full task. Say exactly what to return."
+                },
+                "subagent_type": {
+                    "type": "string",
+                    "description": "Named child: explore (read-only), implement (full tools), review (read/search)"
+                },
+                "task_id": {
+                    "type": "string",
+                    "description": "Resume a previous child session instead of starting fresh"
                 }
             },
             "required": ["description", "prompt"]
@@ -103,14 +117,31 @@ impl Tool for Task {
                 description.into()
             },
             prompt: prompt.into(),
+            subagent_type: input["subagent_type"]
+                .as_str()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string),
+            task_id: input["task_id"]
+                .as_str()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string),
         };
         let label = xml_esc(&req.description);
         match self.spawn.spawn(&req) {
-            Ok(r) => Ok(format!(
-                "<task description=\"{label}\" state=\"completed\" calls=\"{}\">\n{}\n</task>",
-                r.api_calls,
-                r.text.trim()
-            )),
+            Ok(r) => {
+                let id = r
+                    .task_id
+                    .as_deref()
+                    .map(|id| format!(" id=\"{}\"", xml_esc(id)))
+                    .unwrap_or_default();
+                Ok(format!(
+                    "<task description=\"{label}\" state=\"completed\" calls=\"{}\"{id}>\n{}\n</task>",
+                    r.api_calls,
+                    r.text.trim()
+                ))
+            }
             Err(e) => Ok(format!(
                 "<task description=\"{label}\" state=\"error\">\n{e}\n</task>"
             )),
@@ -172,6 +203,7 @@ mod tests {
             Ok(TaskResult {
                 text: format!("done: {}", req.prompt),
                 api_calls: 2,
+                task_id: None,
             })
         }
     }
@@ -209,6 +241,36 @@ mod tests {
             }))
             .unwrap_err();
         assert!(err.contains("depth limit"), "{err}");
+    }
+
+    #[test]
+    fn forwards_type_and_task_id() {
+        #[derive(Debug)]
+        struct Capture(std::sync::Mutex<Option<TaskRequest>>);
+        impl Spawn for Capture {
+            fn spawn(&self, req: &TaskRequest) -> Result<TaskResult, String> {
+                *self.0.lock().unwrap() = Some(req.clone());
+                Ok(TaskResult {
+                    text: "ok".into(),
+                    api_calls: 1,
+                    task_id: req.task_id.clone(),
+                })
+            }
+        }
+        let cap = Arc::new(Capture(std::sync::Mutex::new(None)));
+        let t = Task::new(cap.clone(), 0, MAX_DEPTH);
+        let out = t
+            .execute(&serde_json::json!({
+                "description": "look",
+                "prompt": "find it",
+                "subagent_type": "explore",
+                "task_id": "abc-1"
+            }))
+            .unwrap();
+        assert!(out.contains("id=\"abc-1\""), "{out}");
+        let got = cap.0.lock().unwrap().clone().unwrap();
+        assert_eq!(got.subagent_type.as_deref(), Some("explore"));
+        assert_eq!(got.task_id.as_deref(), Some("abc-1"));
     }
 
     #[test]
