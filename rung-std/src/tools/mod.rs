@@ -315,6 +315,24 @@ mod tests {
     }
 
     #[test]
+    fn edit_mixed_indent_duplicates_fail_closed() {
+        let dir = tmp("edit-mixed-indent");
+        let p = dir.join("d.txt");
+        let original = "  x = 1\nx = 1\n";
+        std::fs::write(&p, original).unwrap();
+        let err = EditFile
+            .execute(&serde_json::json!({
+                "path": p.to_str().unwrap(),
+                "old_string": "x = 1",
+                "new_string": "x = 2"
+            }))
+            .unwrap_err();
+        assert!(err.contains("more than once"), "{err}");
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), original);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn edit_indent_tolerant_unique() {
         let dir = tmp("edit-indent");
         let p = dir.join("g.rs");

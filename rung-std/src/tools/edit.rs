@@ -88,8 +88,22 @@ pub fn replace(
     new: &str,
     replace_all: bool,
 ) -> Result<(String, usize), String> {
-    let mut not_found = true;
-    for search in candidates(content, old) {
+    let exact = nonoverlap_count(content, old);
+    if exact > 0 {
+        if replace_all {
+            return Ok((content.replace(old, new), exact));
+        }
+        if exact > 1 {
+            return Err(
+                "old_string matched more than once; add surrounding lines or set replace_all"
+                    .into(),
+            );
+        }
+        return Ok((content.replacen(old, new, 1), 1));
+    }
+    // Exact count is 0: indent/whitespace fallbacks may still find a unique span.
+    let mut ambiguous = false;
+    for search in fallbacks(content, old) {
         if disproportionate(&search, old) {
             return Err(
                 "matched span is much larger than old_string; re-read and pass the exact text"
@@ -100,30 +114,29 @@ pub fn replace(
         if count == 0 {
             continue;
         }
-        not_found = false;
         if replace_all {
             return Ok((content.replace(&search, new), count));
         }
         if count > 1 {
+            ambiguous = true;
             continue;
         }
         return Ok((content.replacen(&search, new, 1), 1));
     }
-    if not_found {
-        Err(not_found_msg(content, old))
-    } else {
+    if ambiguous {
         Err("old_string matched more than once; add surrounding lines or set replace_all".into())
+    } else {
+        Err(not_found_msg(content, old))
     }
 }
 
-fn candidates(content: &str, old: &str) -> Vec<String> {
+fn fallbacks(content: &str, old: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut push = |s: String| {
-        if !s.is_empty() && !out.iter().any(|x| x == &s) {
+        if !s.is_empty() && s != old && !out.iter().any(|x| x == &s) {
             out.push(s);
         }
     };
-    push(old.to_string());
     for s in line_trimmed(content, old) {
         push(s);
     }
@@ -257,5 +270,12 @@ mod tests {
         let (out, n) = replace(file, old, "fn go() {\n        y\n    }", false).unwrap();
         assert_eq!(n, 1);
         assert!(out.contains("y"));
+    }
+
+    #[test]
+    fn exact_duplicate_does_not_fall_through_to_indent_match() {
+        let file = "  x = 1\nx = 1\n";
+        let err = replace(file, "x = 1", "x = 2", false).unwrap_err();
+        assert!(err.contains("more than once"), "{err}");
     }
 }
