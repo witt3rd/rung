@@ -219,6 +219,7 @@ fn anthropic_message(msg: &ChatMessage, bp: &mut Breakpoints) -> serde_json::Val
                     MessageContentBlock::ToolResult {
                         tool_use_id,
                         content,
+                        is_error,
                         cache,
                     } => {
                         let mut v = serde_json::json!({
@@ -226,6 +227,9 @@ fn anthropic_message(msg: &ChatMessage, bp: &mut Breakpoints) -> serde_json::Val
                             "tool_use_id": tool_use_id,
                             "content": content,
                         });
+                        if *is_error {
+                            v["is_error"] = serde_json::json!(true);
+                        }
                         if let Some(cc) = bp.take(*cache) {
                             v["cache_control"] = cc;
                         }

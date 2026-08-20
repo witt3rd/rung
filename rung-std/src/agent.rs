@@ -46,20 +46,36 @@
 //! - both: tools on the wire, and an EndTurn draft may still be struck
 //!
 //! Shell waffle is never a strike ([`crate::python::classify_draft`]).
+//!
+//! Loop hardening (OpenCode / grok-build): last-step text-only nudge and
+//! empty tool schemas; tool results capped; identical name+input streaks
+//! warned then stopped; LLM failures keep a [`FailureKind`] (overflow is
+//! not a content filter); usage is accumulated on the terminal payload.
 
 use rung::ladder;
 
 use crate::llm::{
     ChatMessage, ContentBlock, DEFAULT_MAX_ATTEMPTS, LlmConfig, LlmFailure, LlmRequest, StopReason,
-    ToolDefinition,
+    ToolDefinition, Usage,
 };
 use crate::python::{Draft, Sandbox, StrikeReply, classify_draft};
 use crate::tools::Toolset;
+use serde_json::Value;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 // ─── Carry data ────────────────────────────────────────────────────────────────
+
+/// Characters of a tool result kept in history. OpenCode prunes at 2k for
+/// compaction; live turns stay larger. 0 means no cap.
+pub const DEFAULT_TOOL_OUTPUT_LIMIT: usize = 8_192;
+/// Identical name+input in a row before we stop executing (OpenCode uses 3).
+pub const DOOM_STREAK: u32 = 3;
+
+const LAST_STEP_NUDGE: &str = "\
+CRITICAL: this is the last step. Tools are disabled. Reply with text only: \
+what was done, what remains, and what to do next. Do not call tools.";
 
 /// Loop-control counters threaded through every rung as immutable carry (G5).
 #[derive(Clone, Debug)]
@@ -69,6 +85,9 @@ pub struct LoopState {
     pub budget_remaining: u32,
     /// One-shot: allow a single extra call when budget is zero.
     pub grace_call: bool,
+    pub usage: Usage,
+    pub watch: ToolWatch,
+    pub tool_output_limit: usize,
 }
 
 impl LoopState {
@@ -78,7 +97,57 @@ impl LoopState {
             max_iterations,
             budget_remaining: budget,
             grace_call: true,
+            usage: Usage::default(),
+            watch: ToolWatch::default(),
+            tool_output_limit: DEFAULT_TOOL_OUTPUT_LIMIT,
         }
+    }
+}
+
+/// Consecutive identical tool calls. A streak of [`DOOM_STREAK`] warns;
+/// one more of the same stops the loop.
+#[derive(Clone, Debug, Default)]
+pub struct ToolWatch {
+    last: Option<(String, String)>,
+    streak: u32,
+    warned: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Watch {
+    Execute,
+    Warn,
+    Stop,
+}
+
+impl ToolWatch {
+    pub fn observe(&self, name: &str, input: &Value) -> (Self, Watch) {
+        let fp = (
+            name.to_string(),
+            serde_json::to_string(input).unwrap_or_default(),
+        );
+        let same = self.last.as_ref() == Some(&fp);
+        let streak = if same {
+            self.streak.saturating_add(1)
+        } else {
+            1
+        };
+        let warned = if same { self.warned } else { false };
+        let action = if streak > DOOM_STREAK && warned {
+            Watch::Stop
+        } else if streak >= DOOM_STREAK {
+            Watch::Warn
+        } else {
+            Watch::Execute
+        };
+        (
+            Self {
+                last: Some(fp),
+                streak,
+                warned: matches!(action, Watch::Warn) || warned,
+            },
+            action,
+        )
     }
 }
 
@@ -86,15 +155,98 @@ impl LoopState {
 /// that elected to continue. Increments the call counter, optionally decrements
 /// budget (unless this was a grace call), and consumes the grace flag only when
 /// the grace call was actually taken.
-fn next_state(prev: &LoopState, is_grace: bool) -> LoopState {
+fn next_state(prev: &LoopState, is_grace: bool, usage: &Usage, watch: ToolWatch) -> LoopState {
     let mut next = prev.clone();
     next.api_call_count += 1;
+    next.usage = next.usage.saturating_add(usage);
+    next.watch = watch;
     if !is_grace {
         next.budget_remaining = next.budget_remaining.saturating_sub(1);
     } else {
         next.grace_call = false; // grace call consumed, one-shot exhausted
     }
     next
+}
+
+/// Last allowed provider turn: iteration cap, or the one-shot grace call.
+pub fn is_last_call(state: &LoopState) -> bool {
+    state.api_call_count + 1 >= state.max_iterations
+        || (state.budget_remaining == 0 && state.grace_call)
+}
+
+pub fn cap_output(text: &str, limit: usize) -> String {
+    if limit == 0 || text.len() <= limit {
+        return text.to_string();
+    }
+    let mut end = limit;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}\n[truncated {} chars]", &text[..end], text.len() - end)
+}
+
+fn ensure_system(thread: &Thread) -> Vec<ChatMessage> {
+    let mut messages = thread.messages.clone();
+    if thread.system_prompt.is_empty() {
+        return messages;
+    }
+    let has_system = messages.iter().any(|m| m.role == "system");
+    if !has_system {
+        messages.insert(0, ChatMessage::system(thread.system_prompt.clone()));
+    }
+    messages
+}
+
+fn map_llm_failure(failure: LlmFailure) -> Filtered {
+    match failure {
+        LlmFailure::Auth(msg) => Filtered {
+            kind: FailureKind::Auth,
+            reason: format!("auth: {msg}"),
+        },
+        LlmFailure::Forbidden(msg) => Filtered {
+            kind: FailureKind::Forbidden,
+            reason: format!("forbidden: {msg}"),
+        },
+        LlmFailure::IdleTimeout { elapsed_secs } => Filtered {
+            kind: FailureKind::Provider,
+            reason: format!("idle-timeout after {elapsed_secs}s"),
+        },
+        LlmFailure::Config(msg) => Filtered {
+            kind: FailureKind::Config,
+            reason: format!("config: {msg}"),
+        },
+        LlmFailure::MaxRetries { last_error } => Filtered {
+            kind: FailureKind::Provider,
+            reason: format!("max retries exhausted: {last_error}"),
+        },
+        LlmFailure::ContentPolicy(msg) => Filtered {
+            kind: FailureKind::ContentPolicy,
+            reason: format!("content-policy: {msg}"),
+        },
+        LlmFailure::QuotaExceeded(msg) => Filtered {
+            kind: FailureKind::Quota,
+            reason: format!("quota: {msg}"),
+        },
+        LlmFailure::InvalidRequest {
+            message,
+            classification,
+        } => {
+            let overflow = classification
+                .as_deref()
+                .is_some_and(|c| c == "context-overflow");
+            Filtered {
+                kind: if overflow {
+                    FailureKind::Overflow
+                } else {
+                    FailureKind::Provider
+                },
+                reason: match classification {
+                    Some(c) => format!("invalid-request ({c}): {message}"),
+                    None => format!("invalid-request: {message}"),
+                },
+            }
+        }
+    }
 }
 
 /// System prompt for [`InlinePython::only_answer`] / [`InlinePython::only`].
@@ -286,18 +438,21 @@ pub struct Thread {
 pub struct AgentResult {
     pub final_response: String,
     pub api_calls_made: u32,
+    pub usage: Usage,
 }
 
 /// Iteration limit reached before the model finished.
 #[derive(Debug)]
 pub struct LimitHit {
     pub api_calls_made: u32,
+    pub usage: Usage,
 }
 
 /// Budget exhausted (and no grace call available).
 #[derive(Debug)]
 pub struct BudgetHit {
     pub api_calls_made: u32,
+    pub usage: Usage,
 }
 
 /// Reserved for future signal handling.
@@ -306,10 +461,25 @@ pub struct Interrupt {
     pub at_api_call: u32,
 }
 
+/// Why the loop stopped without an answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailureKind {
+    ContentPolicy,
+    Refusal,
+    Auth,
+    Forbidden,
+    Overflow,
+    Quota,
+    Config,
+    Provider,
+    DoomLoop,
+}
+
 /// The model refused or an unrecoverable error occurred.
 #[derive(Debug)]
 pub struct Filtered {
     pub reason: String,
+    pub kind: FailureKind,
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -383,16 +553,24 @@ ladder!(AgentLoop {
         // ── termination gates (before the LLM call) ──────────────────────
         if state.api_call_count >= state.max_iterations {
             return Ok(StepOutcome::MaxIterations(MaxIterations::new(
-                LimitHit { api_calls_made: state.api_call_count },
+                LimitHit {
+                    api_calls_made: state.api_call_count,
+                    usage: state.usage.clone(),
+                },
             )));
         }
 
         let is_grace = state.budget_remaining == 0 && state.grace_call;
         if state.budget_remaining == 0 && !state.grace_call {
             return Ok(StepOutcome::BudgetExhausted(BudgetExhausted::new(
-                BudgetHit { api_calls_made: state.api_call_count },
+                BudgetHit {
+                    api_calls_made: state.api_call_count,
+                    usage: state.usage.clone(),
+                },
             )));
         }
+
+        let last_call = is_last_call(&state);
 
         // ── LLM call ─────────────────────────────────────────────────────
         let call_id = fresh_call_id();
@@ -402,10 +580,19 @@ ladder!(AgentLoop {
             state.max_iterations
         );
 
+        let mut messages = ensure_system(&thread);
+        if last_call {
+            messages.push(ChatMessage::user(LAST_STEP_NUDGE));
+        }
+        let wire_tools = if last_call {
+            Vec::new()
+        } else {
+            wire_definitions(python.as_ref(), tools.as_ref())
+        };
         let request = LlmRequest {
             config: config.clone(),
-            messages: thread.messages.clone(),
-            tools: wire_definitions(python.as_ref(), tools.as_ref()),
+            messages,
+            tools: wire_tools,
             attempts_remaining: DEFAULT_MAX_ATTEMPTS,
             next_delay_ms: None,
         };
@@ -422,29 +609,8 @@ ladder!(AgentLoop {
                     break s.into_payload();
                 }
                 Ok(crate::llm::llmcall::StepOutcome::LlmError(e)) => {
-                    let failure = e.into_payload();
-                    let reason = match failure {
-                        LlmFailure::Auth(msg) => format!("auth: {msg}"),
-                        LlmFailure::Forbidden(msg) => format!("forbidden: {msg}"),
-                        LlmFailure::IdleTimeout { elapsed_secs } => {
-                            format!("idle-timeout after {elapsed_secs}s")
-                        }
-                        LlmFailure::Config(msg) => format!("config: {msg}"),
-                        LlmFailure::MaxRetries { last_error } => {
-                            format!("max retries exhausted: {last_error}")
-                        }
-                        LlmFailure::ContentPolicy(msg) => format!("content-policy: {msg}"),
-                        LlmFailure::QuotaExceeded(msg) => format!("quota: {msg}"),
-                        LlmFailure::InvalidRequest {
-                            message,
-                            classification,
-                        } => match classification {
-                            Some(c) => format!("invalid-request ({c}): {message}"),
-                            None => format!("invalid-request: {message}"),
-                        },
-                    };
                     return Ok(StepOutcome::ContentFiltered(ContentFiltered::new(
-                        Filtered { reason },
+                        map_llm_failure(e.into_payload()),
                     )));
                 }
                 Err(f) => {
@@ -455,7 +621,7 @@ ladder!(AgentLoop {
         };
 
         // ── classify the response ────────────────────────────────────────
-        let next = next_state(&state, is_grace);
+        let next = next_state(&state, is_grace, &response.usage, state.watch.clone());
 
         match response.stop_reason {
             StopReason::EndTurn | StopReason::MaxTokens | StopReason::StopSequence => {
@@ -468,6 +634,7 @@ ladder!(AgentLoop {
                         return Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
                             final_response: done,
                             api_calls_made: next.api_call_count,
+                            usage: next.usage.clone(),
                         })));
                     }
                     eprintln!(
@@ -476,7 +643,10 @@ ladder!(AgentLoop {
                     let mut updated_messages = thread.messages.clone();
                     updated_messages.push(ChatMessage::assistant(turn.assistant));
                     if let Some(follow) = turn.follow_up {
-                        updated_messages.push(ChatMessage::user(follow));
+                        updated_messages.push(ChatMessage::user(cap_output(
+                            &follow,
+                            next.tool_output_limit,
+                        )));
                     }
                     let updated_thread = Thread {
                         system_prompt: thread.system_prompt.clone(),
@@ -504,6 +674,7 @@ ladder!(AgentLoop {
                 Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
                     final_response: text,
                     api_calls_made: next.api_call_count,
+                    usage: next.usage.clone(),
                 })))
             }
 
@@ -511,6 +682,7 @@ ladder!(AgentLoop {
                 let mut assistant_blocks: Vec<crate::llm::MessageContentBlock> = Vec::new();
                 let mut tool_count = 0u32;
                 let mut tool_result_blocks: Vec<crate::llm::MessageContentBlock> = Vec::new();
+                let mut next = next;
 
                 for block in &response.content {
                     match block {
@@ -537,20 +709,54 @@ ladder!(AgentLoop {
                                     cache: None,
                                 },
                             );
-                            let result = tools
-                                .execute(name, input)
-                                .unwrap_or_else(|e| format!("error: {e}"));
-                            eprintln!("[rung-std] {call_id}:   -> {:.120}", result);
+                            let (watch, action) = next.watch.observe(name, input);
+                            next.watch = watch;
+                            let (content, is_error) = match action {
+                                Watch::Stop => {
+                                    return Ok(StepOutcome::ContentFiltered(
+                                        ContentFiltered::new(Filtered {
+                                            kind: FailureKind::DoomLoop,
+                                            reason: format!(
+                                                "repeated {name} with the same input"
+                                            ),
+                                        }),
+                                    ));
+                                }
+                                Watch::Warn => (
+                                    format!(
+                                        "Repeated {name} with the same input {DOOM_STREAK} times. Use the previous result or change the arguments."
+                                    ),
+                                    true,
+                                ),
+                                Watch::Execute => match tools.execute(name, input) {
+                                    Ok(s) => (cap_output(&s, next.tool_output_limit), false),
+                                    Err(e) => {
+                                        (cap_output(&format!("error: {e}"), next.tool_output_limit), true)
+                                    }
+                                },
+                            };
+                            eprintln!("[rung-std] {call_id}:   -> {:.120}", content);
                             tool_result_blocks.push(
                                 crate::llm::MessageContentBlock::ToolResult {
                                     tool_use_id: id.clone(),
-                                    content: result,
+                                    content,
+                                    is_error,
                                     cache: None,
                                 },
                             );
                             tool_count += 1;
                         }
                     }
+                }
+
+                if tool_count == 0 {
+                    let text = response_text(&response.content)
+                        .unwrap_or_else(|| "(no text in response)".into());
+                    return Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
+                        final_response: text,
+                        api_calls_made: next.api_call_count,
+                        usage: next.usage.clone(),
+                    })));
                 }
 
                 let mut updated_messages = thread.messages.clone();
@@ -587,6 +793,7 @@ ladder!(AgentLoop {
             StopReason::Refusal => {
                 Ok(StepOutcome::ContentFiltered(ContentFiltered::new(
                     Filtered {
+                        kind: FailureKind::Refusal,
                         reason: "model refused the request".into(),
                     },
                 )))
@@ -740,5 +947,77 @@ mod tests {
                 .contains("ZeroDivisionError")
         );
         cleanup(&dir);
+    }
+
+    #[test]
+    fn cap_output_keeps_char_boundary() {
+        let s = "éééé";
+        let out = cap_output(s, 3);
+        assert!(out.contains("[truncated"));
+        assert!(out.starts_with('é') || out.starts_with('['));
+    }
+
+    #[test]
+    fn cap_output_unlimited_when_zero() {
+        let s = "x".repeat(100);
+        assert_eq!(cap_output(&s, 0), s);
+    }
+
+    #[test]
+    fn doom_warns_on_third_then_stops() {
+        let input = serde_json::json!({"path": "a"});
+        let mut w = ToolWatch::default();
+        let mut actions = Vec::new();
+        for _ in 0..4 {
+            let (next, a) = w.observe("read_file", &input);
+            w = next;
+            actions.push(a);
+        }
+        assert_eq!(
+            actions,
+            vec![Watch::Execute, Watch::Execute, Watch::Warn, Watch::Stop]
+        );
+        let (_, a) = w.observe("read_file", &serde_json::json!({"path": "b"}));
+        assert_eq!(a, Watch::Execute);
+    }
+
+    #[test]
+    fn last_call_on_iteration_cap_and_grace() {
+        let mut s = LoopState::new(3, 10);
+        s.api_call_count = 2;
+        assert!(is_last_call(&s));
+        let mut g = LoopState::new(10, 0);
+        g.grace_call = true;
+        assert!(is_last_call(&g));
+        let mut n = LoopState::new(10, 2);
+        n.api_call_count = 0;
+        assert!(!is_last_call(&n));
+    }
+
+    #[test]
+    fn overflow_is_not_a_content_filter() {
+        let f = map_llm_failure(LlmFailure::InvalidRequest {
+            message: "too long".into(),
+            classification: Some("context-overflow".into()),
+        });
+        assert_eq!(f.kind, FailureKind::Overflow);
+        let auth = map_llm_failure(LlmFailure::Auth("bad key".into()));
+        assert_eq!(auth.kind, FailureKind::Auth);
+    }
+
+    #[test]
+    fn ensure_system_prepends_once() {
+        let thread = Thread {
+            system_prompt: "be brief".into(),
+            messages: vec![ChatMessage::user("hi")],
+        };
+        let msgs = ensure_system(&thread);
+        assert_eq!(msgs[0].role, "system");
+        assert_eq!(msgs.len(), 2);
+        let again = Thread {
+            system_prompt: "be brief".into(),
+            messages: msgs,
+        };
+        assert_eq!(ensure_system(&again).len(), 2);
     }
 }
