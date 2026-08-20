@@ -130,8 +130,8 @@ Options:
   --max-iterations N
   -h, --help
 
-Env: RUNG_BASE_URL (https://api.x.ai/v1), RUNG_API_KEY or XAI_API_KEY,
-     RUNG_MODEL (grok-4), RUNG_TIMEOUT_SECS, RUNG_MAX_TOKENS.
+Config: $XDG_CONFIG_HOME/rung/config.yaml  (llm: base_url, model, api_key_env, …)
+        RUNG_CONFIG overrides the path. Env RUNG_* / XAI_API_KEY wins over the file.
 Sessions: <cwd>/.rung/sessions/<id>.json
 Worktrees: <repo>.wt/rung-task--<id>  (branch rung-task/<id>)
 "

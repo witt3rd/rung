@@ -254,7 +254,7 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
     sess.status = "running".into();
     store.save(&sess)?;
 
-    let config = match crate::config::from_env() {
+    let config = match crate::config::load() {
         Ok(c) => c,
         Err(e) => {
             sess.status = "error".into();

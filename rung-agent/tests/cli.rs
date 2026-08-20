@@ -70,6 +70,7 @@ fn background_without_key_records_error() {
     let tmp = tempfile();
     let out = bin()
         .current_dir(&tmp)
+        .env("RUNG_CONFIG", tmp.join("no-such-config.yaml"))
         .env_remove("RUNG_API_KEY")
         .env_remove("XAI_API_KEY")
         .args(["--background", "--type", "explore", "look around"])

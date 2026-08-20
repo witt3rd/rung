@@ -14,8 +14,9 @@
 //!            [--isolation none|worktree] [--background] [PROMPT]
 //! ```
 //!
-//! LLM config is environment-only: `RUNG_BASE_URL` (default `https://api.x.ai/v1`),
-//! `RUNG_API_KEY` or `XAI_API_KEY`, `RUNG_MODEL` (default `grok-4`).
+//! LLM config: `$XDG_CONFIG_HOME/rung/config.yaml` (`llm:` block), then env
+//! (`RUNG_BASE_URL`, `RUNG_API_KEY` / `XAI_API_KEY`, `RUNG_MODEL`). Env wins.
+//! The file names `api_key_env`; it does not hold the key.
 
 pub mod args;
 pub mod background;
