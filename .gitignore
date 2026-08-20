@@ -5,3 +5,6 @@ target/
 
 # Q18 state sidecar — generated per carrier
 .het/**/state/
+
+.agent/.busy/
+.agent/.dispatch.log
