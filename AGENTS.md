@@ -68,9 +68,8 @@ rung-fixture  cross-crate consumption tests
 ```
 
 Product CLI `rung-agent` (catalog, sessions, isolation, background, XDG
-`config.yaml`) lives on `feat/rung-agent` until it lands. Kernel `task` is
-nested `Spawn`, depth 1. Catalog / resume / worktrees / background are
-product.
+`config.yaml`) is in the workspace. Kernel `task` is nested `Spawn`, depth
+1. Catalog / resume / worktrees / background are product.
 
 ### Commands
 

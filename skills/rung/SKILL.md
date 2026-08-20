@@ -42,8 +42,7 @@ Wire identifiers that look like slugs: add to `NOT_A_CITATION` in
 
 `rung-std` tools: filesystem, `kernel_tools` (apply_patch, todo, webfetch,
 skill), `task` as nested `Spawn` (depth 1). Named catalogs, session resume,
-background child, isolation worktrees, XDG `config.yaml` = `rung-agent`
-(PR 113 / `feat/rung-agent` until landed).
+background child, isolation worktrees, XDG `config.yaml` = `rung-agent`.
 
 ## Config
 
