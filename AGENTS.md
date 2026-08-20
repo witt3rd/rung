@@ -120,6 +120,16 @@ Env `RUNG_*` / `XAI_API_KEY` wins over the agent file.
 evidence. `G1`–`G14` and `J1`–`J2` are labelled subtrees cited from Rust
 and test filenames.
 
+Five kinds — not a status field. The counts are the corpus; a test pins them.
+
+| kind | discharged by | count |
+|---|---|---:|
+| **decidable** | a proof — a test that fails when the proposition is violated | 131 |
+| **judgmental** | a principal, **disjoint** from what it judges | 47 |
+| **owed** | an author, with **standing** over it | 3 |
+| **signature** | nobody — it declares vocabulary | 62 |
+| **rationale** | nobody — it argues, or records a limit | 148 |
+
 ### Map
 
 | you want | read |
