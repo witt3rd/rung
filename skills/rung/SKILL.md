@@ -59,5 +59,5 @@ background child, isolation worktrees, XDG `config.yaml` = `rung-agent`.
 
 ## Next
 
-Open PR 113 (`feat/rung-agent`) is the product CLI. Do not mix inhabitation
-commits onto that branch; land this charter on `master` independently.
+`rung-agent` and inhabitation have landed on `master`. Wake with
+`scripts/agent state`.
