@@ -8,6 +8,7 @@ mod edit;
 mod files;
 mod fsutil;
 mod shell;
+mod task;
 
 use crate::llm::ToolDefinition;
 use serde_json::Value;
@@ -15,6 +16,7 @@ use serde_json::Value;
 pub use edit::EditFile;
 pub use files::{Glob, Grep, ListFiles, ReadFile, WriteFile};
 pub use shell::Shell;
+pub use task::{MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, WithoutTask};
 
 // ─── Tool trait ────────────────────────────────────────────────────────────────
 
@@ -131,7 +133,7 @@ impl Default for ToolRoster {
     }
 }
 
-pub trait Toolset: std::fmt::Debug {
+pub trait Toolset: Send + Sync + std::fmt::Debug {
     fn definitions(&self) -> Vec<ToolDefinition>;
     fn execute(&self, name: &str, input: &Value) -> Result<String, String>;
 }
@@ -405,6 +407,7 @@ mod tests {
         assert!(names.contains(&"glob".into()), "{names:?}");
         assert!(names.contains(&"grep".into()), "{names:?}");
         assert!(!names.contains(&"shell".into()), "{names:?}");
+        assert!(!names.contains(&"task".into()), "{names:?}");
         let with: Vec<_> = filesystem_tools_with_shell()
             .definitions()
             .into_iter()
