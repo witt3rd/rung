@@ -216,6 +216,21 @@ openrouter: <your key>
 
 A population may still declare an inline `providers:` block as an override (for a self-contained or portable case); the driver prefers the inline entry and falls back to the system catalog. **No credential ever lives in a file that is committed** — a schema with an `api_key` field is an invitation to commit one.
 
+### Agent (`rung-agent`)
+
+The headless task agent reads **XDG** `$XDG_CONFIG_HOME/rung/config.yaml` (`~/.config/rung/config.yaml` when `XDG_CONFIG_HOME` is unset). `RUNG_CONFIG` overrides the path. Env `RUNG_*` / `XAI_API_KEY` wins over the file.
+
+```yaml
+# ~/.config/rung/config.yaml
+llm:
+  base_url: https://api.x.ai/v1
+  model: grok-4
+  api_key_env: XAI_API_KEY   # name of the env var; not the key
+  timeout_secs: 120
+  max_tokens: 8192
+  protocol: auto             # auto | anthropic-messages | openai-chat
+```
+
 ## The other half: theories, judgment, and questions
 
 Everything above declares **arrows** — the legal moves. The second half of the
