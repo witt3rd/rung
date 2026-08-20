@@ -6,7 +6,7 @@
 //! | block | surface | what recurs |
 //! |---|---|---|
 //! | [`llm`] | `ladder!` | one blocking LLM call, with retry |
-//! | [`agent`] | `ladder!` | one agentic turn — drive the LLM, dispatch tools, iterate |
+//! | [`agent`] | `ladder!` | one agentic turn — drive the LLM, dispatch tools and/or inline Python, iterate |
 //! | [`questions`] | `theory!` + `ladder!` | questions posed, ruled on by an outside panel, folded back through a lifecycle |
 //! | [`principals`] | `theory!` | who may be dispatched to — the law of the pool both gates draw from |
 //! | [`python`] | `ladder!` | one strike in a persistent, jailed CPython guest |

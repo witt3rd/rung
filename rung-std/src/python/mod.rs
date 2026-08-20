@@ -6,13 +6,17 @@
 //! writable, network is off, each strike has a wall-clock timeout.
 //!
 //! Stands alone: [`Sandbox::open`] then [`Sandbox::strike`]. The agent
-//! consumes it as a [`Tool`](crate::tools::Tool) via [`Sandbox::as_tool`]
-//! so a roster can be *only* Python (the single-tool strategy) or Python
-//! plus the filesystem collection.
+//! consumes it two ways, and they are not exclusive:
+//! - as a named [`Tool`](crate::tools::Tool) via [`Sandbox::as_tool`]
+//!   (one roster entry among others)
+//! - as the action channel: no tool schema on the wire, the model writes
+//!   Python, [`extract_python`] pulls it out, the guest strikes. See
+//!   [`crate::agent::InlinePython`].
 //!
 //! The verb lives on the arrow (`the-law`): JSON write/read and jail spawn
 //! happen in `step` / `retry`, not in constructing a verdict.
 
+mod extract;
 mod guest;
 mod jail;
 
@@ -24,6 +28,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+pub use extract::{Draft, classify_draft, extract_python};
 pub use jail::bwrap_ok;
 
 /// How strictly the guest is isolated from the host.
@@ -198,7 +203,7 @@ pub struct Strike {
 }
 
 /// Handle that owns a live guest. Clone shares the same process (and pickle).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Sandbox {
     guest: Arc<Mutex<guest::Guest>>,
 }

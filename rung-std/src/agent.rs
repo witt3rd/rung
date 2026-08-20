@@ -14,9 +14,9 @@
 //!   module — no caller can fabricate a terminal outcome
 //!   (`the-law`).
 //!
-//! - **G5 (carry immutability).** [`LoopState`] and the tool roster ride
-//!   in the immutable carry. The recover edge threads them forward
-//!   unchanged.
+//! - **G5 (carry immutability).** [`LoopState`], the tool roster, and
+//!   optional [`InlinePython`] ride in the immutable carry. The recover
+//!   edge threads them forward unchanged. The guest mutates behind a mutex.
 //!
 //! - **G4 (no silent drop).** Every token — `Idle`, `Calling`, `EndTurn`,
 //!   and all continue-arm verdicts — is `#[must_use]`.
@@ -39,17 +39,21 @@
 //!    ladder drives the model; the agent ladder drives the single-call
 //!    ladder repeatedly.
 //!
-//! The [`python`](crate::python) sandbox is the intended single-tool
-//! roster (`Sandbox::collection`): the model writes Python, the guest
-//! keeps state, the agent does not need `read_file` / `shell`. Admit it
-//! on the [`ToolRoster`](crate::tools::ToolRoster) the same as any other
-//! collection.
+//! Action is not exclusive. The same loop admits:
+//! - native tools on the roster (including [`Sandbox::as_tool`](crate::python::Sandbox::as_tool))
+//! - inline Python: no tool schema on the wire, extract code from the
+//!   assistant text, strike the guest ([`InlinePython`])
+//! - both: tools on the wire, and an EndTurn draft may still be struck
+//!
+//! Shell waffle is never a strike ([`crate::python::classify_draft`]).
 
 use rung::ladder;
 
 use crate::llm::{
     ChatMessage, ContentBlock, DEFAULT_MAX_ATTEMPTS, LlmConfig, LlmFailure, LlmRequest, StopReason,
+    ToolDefinition,
 };
+use crate::python::{Draft, Sandbox, StrikeReply, classify_draft};
 use crate::tools::Toolset;
 
 use std::sync::Arc;
@@ -91,6 +95,174 @@ fn next_state(prev: &LoopState, is_grace: bool) -> LoopState {
         next.grace_call = false; // grace call consumed, one-shot exhausted
     }
     next
+}
+
+/// System prompt for [`InlinePython::only_answer`] / [`InlinePython::only`].
+pub const PYTHON_ONLY_SYSTEM: &str = "\
+You write Python for a persistent CPython guest.
+The harness will exec your code. Print the answer.
+Rules:
+- Reply with Python only. No prose, no markdown, no bash.
+- Use pathlib / os as needed. Names persist across strikes.
+- Print the result. Do not explain it.
+";
+
+const PYTHON_NUDGE: &str = "That was not Python. Reply with Python only. Print the answer. No markdown, no bash, no explanation.";
+
+/// A successful inline strike is either the answer or another tool-result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AfterStrike {
+    /// First ok strike is `EndTurn` (Anvil smith).
+    Finish,
+    /// Feed stdout back and iterate (Python is the action channel).
+    Continue,
+}
+
+/// A draft that is not Python and not a rejected shell dump.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AfterWaffle {
+    /// The text is the answer.
+    EndTurn,
+    /// Nudge the model to write Python and iterate.
+    Nudge,
+}
+
+/// Inline Python on the agent loop — extract from assistant text, strike.
+///
+/// Independent of admitting [`Sandbox::collection`](crate::python::Sandbox::collection)
+/// as a named tool. Set `exclusive` to omit tool schemas on the wire.
+#[derive(Clone, Debug)]
+pub struct InlinePython {
+    pub sandbox: Sandbox,
+    pub after_strike: AfterStrike,
+    pub after_waffle: AfterWaffle,
+    pub exclusive: bool,
+}
+
+impl InlinePython {
+    /// No tools on the wire. First ok strike is the answer.
+    pub fn only_answer(sandbox: Sandbox) -> Self {
+        Self {
+            sandbox,
+            after_strike: AfterStrike::Finish,
+            after_waffle: AfterWaffle::Nudge,
+            exclusive: true,
+        }
+    }
+
+    /// No tools on the wire. Strike results come back; prose ends the loop.
+    /// Rejected shell dumps still nudge.
+    pub fn only(sandbox: Sandbox) -> Self {
+        Self {
+            sandbox,
+            after_strike: AfterStrike::Continue,
+            after_waffle: AfterWaffle::EndTurn,
+            exclusive: true,
+        }
+    }
+
+    /// Tools stay on the wire. An EndTurn draft may still be struck.
+    pub fn also(sandbox: Sandbox) -> Self {
+        Self {
+            sandbox,
+            after_strike: AfterStrike::Continue,
+            after_waffle: AfterWaffle::EndTurn,
+            exclusive: false,
+        }
+    }
+}
+
+/// Tool schemas sent on the request. Exclusive inline Python sends none.
+pub fn wire_definitions(python: Option<&InlinePython>, tools: &dyn Toolset) -> Vec<ToolDefinition> {
+    if python.is_some_and(|p| p.exclusive) {
+        Vec::new()
+    } else {
+        tools.definitions()
+    }
+}
+
+/// Result of one inline-Python look at an assistant draft.
+#[derive(Debug, Clone)]
+pub struct InlineTurn {
+    pub assistant: String,
+    pub follow_up: Option<String>,
+    pub done: Option<String>,
+}
+
+/// Strike, nudge, or finish. The verb (guest I/O) lives here so `step` can
+/// stay a match on stop-reason.
+pub fn inline_turn(py: &InlinePython, assistant_text: &str) -> InlineTurn {
+    match classify_draft(assistant_text) {
+        Draft::Python(code) => strike_turn(py, assistant_text, &code),
+        Draft::Rejected => nudge(assistant_text),
+        Draft::Text => match py.after_waffle {
+            AfterWaffle::EndTurn => InlineTurn {
+                assistant: assistant_text.into(),
+                follow_up: None,
+                done: Some(assistant_text.to_string()),
+            },
+            AfterWaffle::Nudge => nudge(assistant_text),
+        },
+    }
+}
+
+fn nudge(assistant: &str) -> InlineTurn {
+    InlineTurn {
+        assistant: assistant.into(),
+        follow_up: Some(PYTHON_NUDGE.into()),
+        done: None,
+    }
+}
+
+fn strike_turn(py: &InlinePython, assistant: &str, code: &str) -> InlineTurn {
+    match py.sandbox.strike(code) {
+        Ok(reply) if reply.ok => match py.after_strike {
+            AfterStrike::Finish => InlineTurn {
+                assistant: assistant.into(),
+                follow_up: None,
+                done: Some(ok_display(&reply)),
+            },
+            AfterStrike::Continue => InlineTurn {
+                assistant: assistant.into(),
+                follow_up: Some(format_ok(&reply)),
+                done: None,
+            },
+        },
+        Ok(reply) => InlineTurn {
+            assistant: assistant.into(),
+            follow_up: Some(format_fail(
+                reply.error.as_deref().unwrap_or("strike failed"),
+            )),
+            done: None,
+        },
+        Err(e) => InlineTurn {
+            assistant: assistant.into(),
+            follow_up: Some(format_fail(&e.to_string())),
+            done: None,
+        },
+    }
+}
+
+fn ok_display(reply: &StrikeReply) -> String {
+    let shown = reply.display();
+    if shown.is_empty() {
+        "(ok)".into()
+    } else {
+        shown
+    }
+}
+
+fn format_ok(reply: &StrikeReply) -> String {
+    let shown = reply.display();
+    if shown.is_empty() {
+        "Python returned no output.".into()
+    } else {
+        format!("Python result:\n{shown}")
+    }
+}
+
+fn format_fail(err: &str) -> String {
+    format!("That Python failed:\n{err}\nWrite fixed Python only. Print the answer.")
 }
 
 // ─── Payloads ──────────────────────────────────────────────────────────────────
@@ -172,6 +344,7 @@ ladder!(AgentLoop {
         state: LoopState,
         tools: Arc<dyn Toolset>,
         config: LlmConfig,
+        python: Option<InlinePython>,
     }
 
     Idle(Thread)
@@ -205,6 +378,7 @@ ladder!(AgentLoop {
         let thread = calling.payload.clone();  // will be consumed below
         let config = calling.carry().config.clone();
         let tools = calling.carry().tools.clone();  // Arc<dyn Toolset>
+        let python = calling.carry().python.clone();
 
         // ── termination gates (before the LLM call) ──────────────────────
         if state.api_call_count >= state.max_iterations {
@@ -231,7 +405,7 @@ ladder!(AgentLoop {
         let request = LlmRequest {
             config: config.clone(),
             messages: thread.messages.clone(),
-            tools: tools.definitions(),
+            tools: wire_definitions(python.as_ref(), tools.as_ref()),
             attempts_remaining: DEFAULT_MAX_ATTEMPTS,
             next_delay_ms: None,
         };
@@ -287,6 +461,45 @@ ladder!(AgentLoop {
             StopReason::EndTurn | StopReason::MaxTokens | StopReason::StopSequence => {
                 let text = response_text(&response.content)
                     .unwrap_or_else(|| "(no text in response)".into());
+                if let Some(py) = python.as_ref() {
+                    let turn = inline_turn(py, &text);
+                    if let Some(done) = turn.done {
+                        eprintln!("[rung-std] {call_id}: end_turn — {done:.120}");
+                        return Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
+                            final_response: done,
+                            api_calls_made: next.api_call_count,
+                        })));
+                    }
+                    eprintln!(
+                        "[rung-std] {call_id}: inline python — iterating"
+                    );
+                    let mut updated_messages = thread.messages.clone();
+                    updated_messages.push(ChatMessage::assistant(turn.assistant));
+                    if let Some(follow) = turn.follow_up {
+                        updated_messages.push(ChatMessage::user(follow));
+                    }
+                    let updated_thread = Thread {
+                        system_prompt: thread.system_prompt.clone(),
+                        messages: updated_messages,
+                    };
+                    let carry = Carry {
+                        state: next,
+                        tools,
+                        config,
+                        python,
+                    };
+                    return if is_grace {
+                        Ok(StepOutcome::GraceIterate(Calling::new(
+                            updated_thread,
+                            carry,
+                        )))
+                    } else {
+                        Ok(StepOutcome::Iterate(Calling::new(
+                            updated_thread,
+                            carry,
+                        )))
+                    };
+                }
                 eprintln!("[rung-std] {call_id}: end_turn — {text:.120}");
                 Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
                     final_response: text,
@@ -361,12 +574,12 @@ ladder!(AgentLoop {
                 if is_grace {
                     Ok(StepOutcome::GraceIterate(Calling::new(
                         updated_thread,
-                        Carry { state: next, tools, config },
+                        Carry { state: next, tools, config, python },
                     )))
                 } else {
                     Ok(StepOutcome::Iterate(Calling::new(
                         updated_thread,
-                        Carry { state: next, tools, config },
+                        Carry { state: next, tools, config, python },
                     )))
                 }
             }
@@ -387,3 +600,145 @@ ladder!(AgentLoop {
         f.token
     },
 });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::python::{Jail, SandboxConfig};
+    use crate::tools::{Tool, ToolCollection, ToolRoster};
+    use std::path::PathBuf;
+    use std::time::Duration;
+
+    fn tmp() -> PathBuf {
+        let p = std::env::temp_dir().join(format!(
+            "rung-agent-py-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    fn sandbox() -> (PathBuf, Sandbox) {
+        let dir = tmp();
+        let mut c = SandboxConfig::in_dir(&dir);
+        c.jail = Jail::Off;
+        c.strike_timeout = Duration::from_secs(8);
+        let sb = Sandbox::open(c).unwrap();
+        (dir, sb)
+    }
+
+    fn cleanup(dir: &PathBuf) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[derive(Debug)]
+    struct Named;
+
+    impl Tool for Named {
+        fn name(&self) -> &'static str {
+            "named"
+        }
+        fn description(&self) -> &'static str {
+            "a named tool"
+        }
+        fn input_schema(&self) -> serde_json::Value {
+            serde_json::json!({"type": "object"})
+        }
+        fn execute(&self, _input: &serde_json::Value) -> Result<String, String> {
+            Ok("ok".into())
+        }
+    }
+
+    fn roster_with_named() -> ToolRoster {
+        let mut c = ToolCollection::new("test");
+        c.admit(Named);
+        let mut r = ToolRoster::new();
+        r.add(c);
+        r
+    }
+
+    #[test]
+    fn exclusive_sends_no_tool_schemas() {
+        let (dir, sb) = sandbox();
+        let roster = roster_with_named();
+        let py = InlinePython::only_answer(sb);
+        assert!(wire_definitions(Some(&py), &roster).is_empty());
+        assert_eq!(wire_definitions(None, &roster).len(), 1);
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn also_keeps_tool_schemas() {
+        let (dir, sb) = sandbox();
+        let roster = roster_with_named();
+        let py = InlinePython::also(sb);
+        assert_eq!(wire_definitions(Some(&py), &roster).len(), 1);
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn waffle_nudges_even_when_also() {
+        let (dir, sb) = sandbox();
+        let py = InlinePython::also(sb);
+        let turn = inline_turn(
+            &py,
+            "Here's the one-liner:\n```bash\nfind . -type l\n```\n### What this does\n",
+        );
+        assert!(turn.done.is_none());
+        assert!(
+            turn.follow_up
+                .as_deref()
+                .unwrap_or("")
+                .contains("not Python")
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn prose_ends_when_after_waffle_is_end_turn() {
+        let (dir, sb) = sandbox();
+        let py = InlinePython::only(sb);
+        let turn = inline_turn(&py, "The answer is 4.");
+        assert_eq!(turn.done.as_deref(), Some("The answer is 4."));
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn only_answer_finishes_on_ok_strike() {
+        let (dir, sb) = sandbox();
+        let py = InlinePython::only_answer(sb);
+        let turn = inline_turn(&py, "```python\nprint(2+2)\n```");
+        assert_eq!(turn.done.as_deref(), Some("4"));
+        assert!(turn.follow_up.is_none());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn only_continues_with_the_result() {
+        let (dir, sb) = sandbox();
+        let py = InlinePython::only(sb);
+        let turn = inline_turn(&py, "print(6*7)");
+        assert!(turn.done.is_none());
+        assert!(turn.follow_up.as_deref().unwrap_or("").contains("42"));
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn failed_strike_comes_back_as_follow_up() {
+        let (dir, sb) = sandbox();
+        let py = InlinePython::only_answer(sb);
+        let turn = inline_turn(&py, "```python\n1/0\n```");
+        assert!(turn.done.is_none());
+        assert!(
+            turn.follow_up
+                .as_deref()
+                .unwrap_or("")
+                .contains("ZeroDivisionError")
+        );
+        cleanup(&dir);
+    }
+}
