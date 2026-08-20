@@ -507,6 +507,7 @@ mod tests {
         MessageContentBlock::ToolResult {
             tool_use_id: id.into(),
             content: content.into(),
+            is_error: false,
             cache: None,
         }
     }

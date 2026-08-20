@@ -67,6 +67,27 @@ impl Usage {
             service_tier: None,
         }
     }
+
+    pub fn saturating_add(&self, other: &Self) -> Self {
+        Self {
+            input_tokens: self.input_tokens.saturating_add(other.input_tokens),
+            output_tokens: self.output_tokens.saturating_add(other.output_tokens),
+            non_cached_input_tokens: self
+                .non_cached_input_tokens
+                .saturating_add(other.non_cached_input_tokens),
+            cache_read_input_tokens: self
+                .cache_read_input_tokens
+                .saturating_add(other.cache_read_input_tokens),
+            cache_creation_input_tokens: self
+                .cache_creation_input_tokens
+                .saturating_add(other.cache_creation_input_tokens),
+            thinking_tokens: self.thinking_tokens.saturating_add(other.thinking_tokens),
+            service_tier: other
+                .service_tier
+                .clone()
+                .or_else(|| self.service_tier.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -282,6 +303,8 @@ pub enum MessageContentBlock {
     ToolResult {
         tool_use_id: String,
         content: String,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        is_error: bool,
         #[serde(skip)]
         cache: Option<CacheHint>,
     },
@@ -373,6 +396,7 @@ impl ChatMessage {
             content: MessageContent::Blocks(vec![MessageContentBlock::ToolResult {
                 tool_use_id: tool_use_id.into(),
                 content: result.into(),
+                is_error: false,
                 cache: None,
             }]),
         }
