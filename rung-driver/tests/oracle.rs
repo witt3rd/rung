@@ -311,27 +311,23 @@ fn credentials_live_outside_the_repository() {
     assert!(p.providers.is_empty());
 }
 
-/// A missing credential **raises**; it does not refute the claim.
+/// A missing credential still resolves. The call goes out without an auth
+/// header; a cloud 401 is an LLM failure, not Unreachable (and not a verdict).
 #[test]
-fn a_missing_credential_is_unreachable_and_not_a_verdict() {
+fn a_missing_credential_is_an_empty_key() {
     let p = population();
     let backing = Backing::Model {
         provider: Some("anthropic".into()),
         model: "claude-opus-4-6".into(),
     };
-    match resolve(&p, &backing, &sys()) {
-        // anthropic is in the system catalog and its env var is unset here
-        Err(Unreachable::NoCredential { provider, env }) => {
-            assert_eq!(provider, "anthropic");
-            assert_eq!(env, "ANTHROPIC_API_KEY");
-        }
-        // if a key IS present the resolution succeeds, and that is fine — what
-        // must never happen is a verdict coming out of a config fault.
-        Ok(config) => {
-            assert_eq!(config.base_url, "https://api.anthropic.com/v1");
-            assert!(!config.api_key.is_empty());
-        }
-        Err(other) => panic!("expected a credential fault, got {other}"),
+    let config = resolve(&p, &backing, &sys()).expect("reachable without a key");
+    assert_eq!(config.base_url, "https://api.anthropic.com/v1");
+    if std::env::var("ANTHROPIC_API_KEY")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .is_none()
+    {
+        assert!(config.api_key.is_empty());
     }
 }
 
@@ -394,9 +390,8 @@ fn provider_settings_are_per_provider() {
 }
 
 /// A system catalog for the tests: the providers the old population declared
-/// inline, resolved against, with no credentials in `auth` (so resolve raises
-/// `NoCredential` unless the environment supplies one — which is the honest
-/// default in CI).
+/// inline, with no credentials in `auth` (empty key unless the environment
+/// supplies one).
 fn sys() -> SystemConfig {
     let providers = vec![
         Provider {

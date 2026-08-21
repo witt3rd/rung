@@ -181,15 +181,14 @@ fn send(
             observed: false,
         })?;
 
-    let response = client
-        .post(url)
-        .bearer_auth(&config.api_key)
-        .json(&body)
-        .send()
-        .map_err(|e| RawCallError::Transport {
-            message: e.to_string(),
-            observed: false,
-        })?;
+    let mut req = client.post(url).json(&body);
+    if !config.api_key.is_empty() {
+        req = req.bearer_auth(&config.api_key);
+    }
+    let response = req.send().map_err(|e| RawCallError::Transport {
+        message: e.to_string(),
+        observed: false,
+    })?;
 
     let status = response.status().as_u16();
     if !(200..300).contains(&status) {

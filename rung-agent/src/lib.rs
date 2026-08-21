@@ -16,7 +16,8 @@
 //!
 //! LLM config: `$XDG_CONFIG_HOME/rung/config.yaml` (`llm:` block), then env
 //! (`RUNG_BASE_URL`, `RUNG_API_KEY` / `XAI_API_KEY`, `RUNG_MODEL`). Env wins.
-//! The file names `api_key_env`; it does not hold the key.
+//! The file may name `api_key_env`; it does not hold the key. No key is
+//! required — LAN llama.cpp sends no Authorization header.
 
 pub mod args;
 pub mod background;

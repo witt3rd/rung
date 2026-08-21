@@ -272,16 +272,17 @@ fn send(
             observed: false,
         })?;
 
-    let response = client
+    let mut req = client
         .post(url)
-        .header("x-api-key", &config.api_key)
         .header("anthropic-version", "2023-06-01")
-        .json(&body)
-        .send()
-        .map_err(|e| RawCallError::Transport {
-            message: e.to_string(),
-            observed: false,
-        })?;
+        .json(&body);
+    if !config.api_key.is_empty() {
+        req = req.header("x-api-key", &config.api_key);
+    }
+    let response = req.send().map_err(|e| RawCallError::Transport {
+        message: e.to_string(),
+        observed: false,
+    })?;
 
     let status = response.status().as_u16();
     if !(200..300).contains(&status) {
