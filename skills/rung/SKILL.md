@@ -74,14 +74,18 @@ PYTHONPATH=<rung>/rung-agent/python python3 -m rung_harbor.validate list
 PYTHONPATH=<rung>/rung-agent/python \
   doppler run -p fleet -c dev_work -- \
   python3 -m rung_harbor.validate next
+python3 -m rung_harbor.validate run cwd-capture   # redo one case
+python3 -m rung_harbor.validate show cwd-capture
+python3 -m rung_harbor.validate import            # once: copy Harbor jobs in
 ```
 
-`list` reads rewards from `~/src/ext/harbor/jobs`. `next` runs the first
-live case that is not yet reward 1.0. `run <id>` pins one case.
+Evidence: `rung-agent/harbor-runs/<UTC>-<id>/` plus `index.jsonl`.
+Gitignored. `list` / `next` read the index in this repo, not Harbor's
+`jobs/`. `run` always makes a new timestamped folder.
 
 A skip is a **product gap** (e.g. MCP). A fail is a **bug or a missing
-affordance**. Read `jobs/<ts>/*/agent/rung-agent.txt` before changing the
-kernel.
+affordance**. Read `harbor-runs/<stamp>-<id>/**/rung-agent.txt` before
+changing the kernel.
 
 ## Next
 
