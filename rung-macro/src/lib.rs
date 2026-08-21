@@ -341,14 +341,13 @@ impl Parse for Ladder {
                         let param_type: Type = block.parse()?;
                         block.parse::<Token![=>]>()?;
                         let return_rung: Ident = block.parse()?;
-                        let _payload: Type;
-                        if block.peek(syn::token::Paren) {
+                        let _payload: Type = if block.peek(syn::token::Paren) {
                             let p;
                             syn::parenthesized!(p in block);
-                            _payload = p.parse()?;
+                            p.parse()?
                         } else {
-                            _payload = param_type.clone();
-                        }
+                            param_type.clone()
+                        };
                         let fv = Ident::new(
                             &param_type.to_token_stream().to_string().replace(' ', ""),
                             param_type.span(),
