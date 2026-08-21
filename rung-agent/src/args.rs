@@ -31,6 +31,7 @@ pub struct Args {
     pub kind: Kind,
     pub isolation: IsolationMode,
     pub background: bool,
+    pub json: bool,
     pub max_iterations: Option<u32>,
     pub prompt: Option<String>,
     pub help: bool,
@@ -42,6 +43,7 @@ impl Args {
         let mut kind = Kind::Implement;
         let mut isolation = IsolationMode::None;
         let mut background = false;
+        let mut json = false;
         let mut max_iterations = None;
         let mut help = false;
         let mut prompt_parts: Vec<String> = Vec::new();
@@ -59,6 +61,7 @@ impl Args {
                 "--" => rest = true,
                 "-h" | "--help" => help = true,
                 "--background" => background = true,
+                "--json" => json = true,
                 "--task-id" => {
                     task_id = Some(need("--task-id", it.next())?);
                 }
@@ -101,6 +104,7 @@ impl Args {
             kind,
             isolation,
             background,
+            json,
             max_iterations,
             prompt,
             help,
@@ -127,6 +131,7 @@ Options:
   --task-id ID                      resume or poll
   --isolation none|worktree         default none
   --background                      spawn a child, print task_id and pid
+  --json                            emit one JSON Outcome object on stdout
   --max-iterations N
   -h, --help
 

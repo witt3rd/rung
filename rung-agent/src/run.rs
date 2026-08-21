@@ -11,11 +11,13 @@ use rung_std::tools::{
     WithoutTask,
 };
 
+use serde::Serialize;
+
 use crate::args::{Args, IsolationMode};
 use crate::catalog::Kind;
 use crate::session::{Line, Session, SessionStore};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Outcome {
     pub task_id: String,
     pub text: String,
