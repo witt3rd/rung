@@ -66,6 +66,39 @@ fn poll_completed_session() {
 }
 
 #[test]
+fn poll_completed_session_json() {
+    let tmp = tempfile();
+    let dir = tmp.join(".rung").join("sessions");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("abc-1.json"),
+        r#"{
+  "id": "abc-1",
+  "kind": "implement",
+  "status": "completed",
+  "cwd": ".",
+  "lines": [
+    {"role": "user", "text": "look"},
+    {"role": "assistant", "text": "found it"}
+  ]
+}"#,
+    )
+    .unwrap();
+    let out = bin()
+        .current_dir(&tmp)
+        .args(["--json", "--task-id", "abc-1"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{:?}", out);
+    let text = String::from_utf8_lossy(&out.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["task_id"], "abc-1");
+    assert_eq!(parsed["status"], "completed");
+    assert_eq!(parsed["text"], "found it");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
 fn background_unreachable_endpoint_records_error() {
     let tmp = tempfile();
     let out = bin()

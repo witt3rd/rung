@@ -40,7 +40,17 @@ fn main() -> ExitCode {
     };
     match run_job(&args, &origin) {
         Ok(out) => {
-            if args.background && !rung_agent::background::in_child() {
+            if args.json {
+                // Single-shot JSON contract: one Outcome object on stdout,
+                // used by headless callers (e.g. animus RungFramework).
+                match serde_json::to_string(&out) {
+                    Ok(j) => println!("{j}"),
+                    Err(e) => {
+                        eprintln!("rung-agent: json: {e}");
+                        return ExitCode::from(1);
+                    }
+                }
+            } else if args.background && !rung_agent::background::in_child() {
                 println!("task_id={}", out.task_id);
                 println!("{}", out.text);
             } else if args.prompt.is_none() {
