@@ -57,23 +57,33 @@ background child, isolation worktrees, XDG `config.yaml` = `rung-agent`.
 - `docs/_props.py cited` kebab-tokens in comments are citations.
 - Overflow is `FailureKind::Overflow`, not a content filter.
 
-## Harbor eval
+## Harbor eval → validation suite
 
 Out-of-tree adapter: `rung-agent/python/rung_harbor/agent.py`. Do not fork
-Harbor. Default model `openrouter/anthropic/claude-sonnet-4.5`. Key from
-`doppler run -p fleet -c dev_work` (`OPENROUTER_API_KEY`).
+Harbor. Harbor `examples/tasks` mixes **agent** tasks with **harness**
+tests (network policy, verifier modes, CUA, CUDA). The suite
+(`rung_harbor.suite`) is only the agent tasks, cheap-to-dear. Terminal-Bench
+2.0 is phase 2 after that ladder is green.
+
+Key: `doppler run -p fleet -c dev_work` (`OPENROUTER_API_KEY`).
+Suite model: `openrouter/~deepseek/deepseek-v4-flash-latest`.
 
 ```bash
-cargo build -p rung-agent --release
+cargo build -p rung-agent --release   # when the binary changed
+PYTHONPATH=<rung>/rung-agent/python python3 -m rung_harbor.validate list
 PYTHONPATH=<rung>/rung-agent/python \
   doppler run -p fleet -c dev_work -- \
-  uv run --directory ~/src/ext/harbor harbor run \
-    -p examples/tasks/hello-world \
-    --agent rung_harbor.agent:RungAgent \
-    --model openrouter/anthropic/claude-sonnet-4.5
+  python3 -m rung_harbor.validate next
 ```
+
+`list` reads rewards from `~/src/ext/harbor/jobs`. `next` runs the first
+live case that is not yet reward 1.0. `run <id>` pins one case.
+
+A skip is a **product gap** (e.g. MCP). A fail is a **bug or a missing
+affordance**. Read `jobs/<ts>/*/agent/rung-agent.txt` before changing the
+kernel.
 
 ## Next
 
-`rung-agent` and inhabitation have landed on `master`. Wake with
-`scripts/agent state`.
+`rung-agent` and the Harbor adapter have landed. Walk the validation
+ladder (`validate next`); then `terminal-bench@2.0` one task at a time.
