@@ -73,15 +73,20 @@ Product CLI `rung-agent` (catalog, sessions, isolation, background, XDG
 
 Harbor eval is out of tree (`rung-agent/python/rung_harbor`). Do not fork
 Harbor. The **validation suite** (`rung_harbor.suite`) is a capability
-ladder of Harbor *agent* tasks, not Harbor's own harness tests. Key:
-`doppler run -p fleet -c dev_work` (`OPENROUTER_API_KEY`). Suite model:
-`openrouter/~deepseek/deepseek-v4-flash-latest`.
+ladder of Harbor *agent* tasks. Each `run` / `next` writes timestamped
+evidence under `rung-agent/harbor-runs/` (gitignored) and appends
+`index.jsonl`. Redo a case with `validate run <id>` — it always creates a
+new folder. Key: `doppler run -p fleet -c dev_work` (`OPENROUTER_API_KEY`).
+Suite model: `openrouter/~deepseek/deepseek-v4-flash-latest`.
 
 ```bash
 PYTHONPATH=<rung>/rung-agent/python python3 -m rung_harbor.validate list
 PYTHONPATH=<rung>/rung-agent/python \
   doppler run -p fleet -c dev_work -- \
   python3 -m rung_harbor.validate next
+python3 -m rung_harbor.validate run cwd-capture
+python3 -m rung_harbor.validate show cwd-capture
+python3 -m rung_harbor.validate import   # seed from existing Harbor jobs/
 ```
 
 ### Commands

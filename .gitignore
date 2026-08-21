@@ -3,6 +3,10 @@ __pycache__/
 *.pyc
 target/
 
+# Harbor validation evidence (timestamped jobs + index.jsonl)
+rung-agent/harbor-runs/*
+!rung-agent/harbor-runs/.gitkeep
+
 # Q18 state sidecar — generated per carrier
 .het/**/state/
 
