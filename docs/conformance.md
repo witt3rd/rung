@@ -632,7 +632,7 @@ look shorter than it is.
 
 **`rung-agent/tests/cli.rs`** — 5 unclaimed
 
-- `background_without_key_records_error`
+- `background_unreachable_endpoint_records_error`
 - `help_exits_zero`
 - `missing_prompt_is_usage`
 - `poll_completed_session`
@@ -733,7 +733,7 @@ look shorter than it is.
 **`rung-driver/tests/oracle.rs`** — 16 unclaimed
 
 - `a_bare_failure_still_carries_a_reason`
-- `a_missing_credential_is_unreachable_and_not_a_verdict`
+- `a_missing_credential_is_an_empty_key`
 - `a_provider_catalog_may_be_inline`
 - `an_out_of_band_principal_is_not_reachable_by_a_model`
 - `an_undeclared_provider_is_caught_before_dispatch`
