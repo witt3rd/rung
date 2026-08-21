@@ -75,6 +75,7 @@ fn background_unreachable_endpoint_records_error() {
         .env_remove("XAI_API_KEY")
         .env("RUNG_BASE_URL", "http://127.0.0.1:9/v1")
         .env("RUNG_MODEL", "dummy")
+        .env("RUNG_TIMEOUT_SECS", "1")
         .args(["--background", "--type", "explore", "look around"])
         .output()
         .unwrap();
@@ -90,7 +91,7 @@ fn background_unreachable_endpoint_records_error() {
         .join("sessions")
         .join(format!("{id}.json"));
     let mut body = String::new();
-    for _ in 0..50 {
+    for _ in 0..80 {
         if let Ok(s) = std::fs::read_to_string(&sess) {
             body = s;
             if body.contains("\"status\": \"error\"") || body.contains("\"status\":\"error\"") {
