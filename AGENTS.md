@@ -71,9 +71,18 @@ Product CLI `rung-agent` (catalog, sessions, isolation, background, XDG
 `config.yaml`) is in the workspace. Kernel `task` is nested `Spawn`, depth
 1. Catalog / resume / worktrees / background are product.
 
-Harbor eval is out of tree (`rung-agent/python/rung_harbor`). Default model
-`openrouter/anthropic/claude-sonnet-4.5`. Key: `doppler run -p fleet -c
-dev_work` (`OPENROUTER_API_KEY`). Do not fork Harbor for this.
+Harbor eval is out of tree (`rung-agent/python/rung_harbor`). Do not fork
+Harbor. The **validation suite** (`rung_harbor.suite`) is a capability
+ladder of Harbor *agent* tasks, not Harbor's own harness tests. Key:
+`doppler run -p fleet -c dev_work` (`OPENROUTER_API_KEY`). Suite model:
+`openrouter/~deepseek/deepseek-v4-flash-latest`.
+
+```bash
+PYTHONPATH=<rung>/rung-agent/python python3 -m rung_harbor.validate list
+PYTHONPATH=<rung>/rung-agent/python \
+  doppler run -p fleet -c dev_work -- \
+  python3 -m rung_harbor.validate next
+```
 
 ### Commands
 
