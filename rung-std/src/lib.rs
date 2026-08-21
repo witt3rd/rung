@@ -49,7 +49,7 @@
 //! | Field | Wire |
 //! |---|---|
 //! | `base_url` | selects provider path + Anthropic vs. OpenAI format |
-//! | `api_key` | `x-api-key` (Anthropic) or `Authorization: Bearer` (OpenAI) |
+//! | `api_key` | `x-api-key` (Anthropic) or `Authorization: Bearer` (OpenAI); omitted when empty |
 //! | `model` | `model` field in request body |
 //! | `timeout_secs` | HTTP client timeout |
 //! | `max_tokens` | `max_tokens` in request body |

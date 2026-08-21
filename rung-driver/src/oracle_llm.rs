@@ -37,16 +37,15 @@ use rung_std::principals::{Backing, Roster};
 /// Why a principal could not be reached.
 ///
 /// Every one of these becomes a **raised matter**, never a verdict. Nothing was
-/// judged, and a configuration fault reported as `NonConforming` would refute a
-/// claim on the strength of a missing environment variable.
+/// judged. A missing API key is **not** this: the call still goes out with no
+/// auth header (LAN llama.cpp), and a cloud 401 is an LLM failure, not a
+/// fabricated `NonConforming`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Unreachable {
     /// Declared as answering out of band. This oracle is not that route.
     NotServedByAModel,
     /// The backing names a provider the population does not declare.
     NoSuchProvider(String),
-    /// The provider is declared and its credential is not in the environment.
-    NoCredential { provider: String, env: String },
 }
 
 impl std::fmt::Display for Unreachable {
@@ -54,19 +53,15 @@ impl std::fmt::Display for Unreachable {
         match self {
             Self::NotServedByAModel => write!(f, "not-served-by-a-model"),
             Self::NoSuchProvider(p) => write!(f, "no-such-provider:{p}"),
-            Self::NoCredential { provider, env } => {
-                write!(f, "no-credential:{provider}:{env}")
-            }
         }
     }
 }
 
 /// Resolve a principal's backing into a request configuration.
 ///
-/// The credential is read from the environment **here**, at use, by the name
-/// the provider declared. It is never held in the population and never stored
-/// on this type, so a config file cannot carry one and a debug print cannot
-/// leak one.
+/// A credential, if any, is read from the environment **here**, at use, by the
+/// name the provider declared. It is never held in the population. Absence is
+/// an empty key, not unreachability.
 pub fn resolve(
     population: &Roster,
     backing: &Backing,
@@ -89,18 +84,20 @@ pub fn resolve(
         .or_else(|| system.provider(&name))
         .ok_or_else(|| Unreachable::NoSuchProvider(name.clone()))?;
 
-    // the credential: the real environment first (override), then auth.yaml
+    // Credential is optional. Env first, then auth.yaml, else empty (no
+    // Authorization / x-api-key header). LAN endpoints do not authenticate.
     let api_key = std::env::var(&provider.api_key_env)
-        .or_else(|_| {
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
             system
                 .api_key(&name)
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
                 .map(str::to_string)
-                .ok_or(std::env::VarError::NotPresent)
         })
-        .map_err(|_| Unreachable::NoCredential {
-            provider: name.clone(),
-            env: provider.api_key_env.clone(),
-        })?;
+        .unwrap_or_default();
 
     Ok(LlmConfig {
         base_url: provider.base_url.clone(),

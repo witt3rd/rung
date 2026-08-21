@@ -132,6 +132,7 @@ Options:
 
 Config: $XDG_CONFIG_HOME/rung/config.yaml  (llm: base_url, model, api_key_env, …)
         RUNG_CONFIG overrides the path. Env RUNG_* / XAI_API_KEY wins over the file.
+        API key is optional; empty means no Authorization header.
 Sessions: <cwd>/.rung/sessions/<id>.json
 Worktrees: <repo>.wt/rung-task--<id>  (branch rung-task/<id>)
 "

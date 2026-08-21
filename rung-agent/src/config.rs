@@ -4,8 +4,10 @@
 //! $XDG_CONFIG_HOME/rung/config.yaml   # or ~/.config/rung/config.yaml
 //! ```
 //!
-//! Env wins over the file. The file names the credential's *environment
-//! variable* (`api_key_env`); it does not hold the key.
+//! Env wins over the file. The file may name the credential's *environment
+//! variable* (`api_key_env`); it does not hold the key. A missing key is
+//! empty: LAN llama.cpp / vLLM do not authenticate. Cloud endpoints that
+//! need a key will 401 at the wire.
 
 use rung_std::llm::{CachePolicy, LlmConfig, Protocol};
 use serde::Deserialize;
@@ -117,7 +119,7 @@ fn resolve(
         })
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| "missing RUNG_API_KEY or XAI_API_KEY (or llm.api_key_env)".to_string())?;
+        .unwrap_or_default();
 
     let protocol = parse_protocol(
         getenv("RUNG_PROTOCOL")
@@ -293,10 +295,12 @@ llm:
     }
 
     #[test]
-    fn missing_key_is_an_error() {
+    fn missing_key_is_empty() {
         let env: HashMap<&str, &str> = HashMap::new();
-        let err = resolve(None, getenv(&env)).unwrap_err();
-        assert!(err.contains("API_KEY"), "{err}");
+        let c = resolve(None, getenv(&env)).unwrap();
+        assert!(c.api_key.is_empty());
+        assert_eq!(c.base_url, DEFAULT_BASE);
+        assert_eq!(c.model, DEFAULT_MODEL);
     }
 
     #[test]

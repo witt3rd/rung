@@ -66,13 +66,15 @@ fn poll_completed_session() {
 }
 
 #[test]
-fn background_without_key_records_error() {
+fn background_unreachable_endpoint_records_error() {
     let tmp = tempfile();
     let out = bin()
         .current_dir(&tmp)
         .env("RUNG_CONFIG", tmp.join("no-such-config.yaml"))
         .env_remove("RUNG_API_KEY")
         .env_remove("XAI_API_KEY")
+        .env("RUNG_BASE_URL", "http://127.0.0.1:9/v1")
+        .env("RUNG_MODEL", "dummy")
         .args(["--background", "--type", "explore", "look around"])
         .output()
         .unwrap();
@@ -97,10 +99,7 @@ fn background_without_key_records_error() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    assert!(
-        body.contains("error") || body.contains("missing RUNG_API_KEY"),
-        "session never failed: {body}"
-    );
+    assert!(body.contains("error"), "session never failed: {body}");
     let _ = std::fs::remove_dir_all(&tmp);
 }
 

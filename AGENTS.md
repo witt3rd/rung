@@ -162,7 +162,7 @@ files; never `git add -A`. `scripts/agent` stages only `.agent/` files.
 |---|---|
 | `~/.rung/providers.yaml` | endpoint catalog + `default:` (driver) |
 | `~/.rung/auth.yaml` | provider → key (never commit) |
-| `$XDG_CONFIG_HOME/rung/config.yaml` | `rung-agent` LLM settings (`llm.api_key_env`, not the key) |
+| `$XDG_CONFIG_HOME/rung/config.yaml` | `rung-agent` LLM settings (`llm.api_key_env` optional; not the key) |
 
 `$RUNG_HOME` overrides `~/.rung/`. `RUNG_CONFIG` overrides the XDG path.
 Env `RUNG_*` / `XAI_API_KEY` wins over the agent file.

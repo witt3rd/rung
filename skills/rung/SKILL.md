@@ -48,7 +48,8 @@ background child, isolation worktrees, XDG `config.yaml` = `rung-agent`.
 
 - Driver: `~/.rung/providers.yaml` + `auth.yaml`. Env first, then auth.yaml.
 - Agent: `$XDG_CONFIG_HOME/rung/config.yaml` (`llm.api_key_env`, not the key).
-  `RUNG_CONFIG` overrides path. Env `RUNG_*` wins.
+  `RUNG_CONFIG` overrides path. Env `RUNG_*` wins. No key required for LAN
+  llama.cpp / vLLM; the client omits Authorization when the key is empty.
 
 ## Edit / tools gotchas (kernel)
 
