@@ -1,16 +1,11 @@
-//! Headless task agent — the product that composes rung-std blocks.
+//! Headless agent — composes rung-std blocks. Not a coding product;
+//! coding is one thing it can do when given write/shell tools.
 //!
-//! Kernel stays generic: [`rung_std::agent::run`] drives one loop, `task` admits
-//! a nested child, file tools resolve against the process cwd. This crate is
-//! what OpenCode / grok keep in the session layer:
-//!
-//! - named [`catalog`] profiles (`explore`, `implement`, `review`)
-//! - [`session`] files under `.rung/sessions` (resume by `task_id`)
-//! - [`isolation`] git worktrees (`{repo}.wt/rung-task--{id}`)
-//! - a [`background`] child of this binary
+//! Tool access is a **scope** (`--tools` / config `tools:`). `--type
+//! explore|implement|review` is a preset alias for those groups.
 //!
 //! ```text
-//! rung-agent [--task-id ID] [--type explore|implement|review]
+//! rung-agent [--tools none|read,web,…] [--type explore|implement|review]
 //!            [--isolation none|worktree] [--background] [PROMPT]
 //! ```
 //!
@@ -29,6 +24,6 @@ pub mod session;
 pub mod stream;
 
 pub use args::{Args, IsolationMode};
-pub use catalog::Kind;
+pub use catalog::{Kind, Scope};
 pub use run::{Outcome, run_job};
 pub use session::{Line, Session, SessionStore};

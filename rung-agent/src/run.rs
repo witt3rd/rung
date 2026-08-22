@@ -14,7 +14,7 @@ use rung_std::tools::{
 use serde::Serialize;
 
 use crate::args::{Args, IsolationMode};
-use crate::catalog::Kind;
+use crate::catalog::{Kind, Scope};
 use crate::session::{Line, Session, SessionStore};
 
 #[derive(Debug, Clone, Serialize)]
@@ -124,7 +124,7 @@ fn drive(
     if let Some(em) = &emitter {
         config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
     }
-    let thread = thread_from(kind, lines, None, None);
+    let thread = thread_from(lines, None, None);
     let carry = agentloop::Carry {
         state: LoopState::new(cap, cap),
         tools,
@@ -137,19 +137,20 @@ fn drive(
     }
 }
 
-fn thread_from(
-    kind: Kind,
-    lines: &[Line],
-    system_text: Option<&str>,
-    user_material: Option<&str>,
-) -> Thread {
-    // System slot: caller-supplied system prompt FIRST, then the catalog
-    // guarantee (read-only guard, etc.) so the mode's operating instructions
-    // are never shadowed.
-    let system_prompt = match system_text {
-        Some(s) => format!("{s}\n\n---\n\n{}", kind.system()),
-        None => kind.system().into(),
-    };
+fn resolve_scope(args: &Args) -> Result<Scope, String> {
+    if let Some(spec) = &args.tools {
+        return Scope::parse(spec);
+    }
+    if let Some(list) = crate::config::load_tool_groups()?
+        && !list.is_empty()
+    {
+        return Scope::from_config_list(&list);
+    }
+    Ok(Scope::from_kind(args.kind))
+}
+
+fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<&str>) -> Thread {
+    let system_prompt = system_text.unwrap_or("").to_string();
     // User slot: prepared material becomes the FIRST user message, preceding
     // the session lines (which already end with the current ask).
     let mut messages = Vec::new();
@@ -328,12 +329,13 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
     }
     let model = config.model.clone();
 
+    let scope = resolve_scope(args)?;
     let cap = args
         .max_iterations
         .unwrap_or_else(|| args.kind.max_iterations())
         .max(1);
-    let mut roster: ToolRoster = args.kind.roster();
-    if args.kind.allows_task() {
+    let mut roster: ToolRoster = scope.roster();
+    if scope.allows_task() {
         let spawn = CatalogSpawn {
             config: config.clone(),
             store: store.clone(),
@@ -361,7 +363,6 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
         None => None,
     };
     let thread = thread_from(
-        args.kind,
         &sess.lines,
         system_prompt.as_deref(),
         user_material.as_deref(),
@@ -409,7 +410,6 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::Kind;
 
     #[test]
     fn thread_skips_non_chat_roles() {
@@ -423,22 +423,19 @@ mod tests {
                 text: "hi".into(),
             },
         ];
-        let t = thread_from(Kind::Explore, &lines, None, None);
+        let t = thread_from(&lines, None, None);
         assert_eq!(t.messages.len(), 1);
-        assert_eq!(t.system_prompt, Kind::Explore.system());
+        assert_eq!(t.system_prompt, "");
     }
 
     #[test]
-    fn system_prompt_prepends_catalog() {
+    fn system_prompt_is_caller_only() {
         let lines = vec![Line {
             role: "user".into(),
             text: "q".into(),
         }];
-        let t = thread_from(Kind::Explore, &lines, Some("caller system"), None);
-        assert_eq!(
-            t.system_prompt,
-            format!("caller system\n\n---\n\n{}", Kind::Explore.system())
-        );
+        let t = thread_from(&lines, Some("caller system"), None);
+        assert_eq!(t.system_prompt, "caller system");
         assert_eq!(t.messages.len(), 1);
     }
 
@@ -448,7 +445,7 @@ mod tests {
             role: "user".into(),
             text: "q".into(),
         }];
-        let t = thread_from(Kind::Explore, &lines, None, Some("## brief\nprepared"));
+        let t = thread_from(&lines, None, Some("## brief\nprepared"));
         assert_eq!(t.messages.len(), 2);
         let first = format!("{:?}", t.messages[0]);
         assert!(first.contains("user"), "{first}");

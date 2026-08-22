@@ -22,7 +22,7 @@ _store = os.environ.get("RUNG_PYTHON_STORE") or os.environ.get("ANVIL_STORE") or
 STORE = Path(_store).expanduser()
 NAMESPACE_PATH = STORE / "namespace.pkl" if STORE else None
 
-NS: dict[str, Any] = {"__name__": "__hammer__"}
+NS: dict[str, Any] = {"__name__": "__guest__"}
 
 
 def _load() -> None:
@@ -34,9 +34,9 @@ def _load() -> None:
         if isinstance(loaded, dict):
             NS.clear()
             NS.update(loaded)
-            NS.setdefault("__name__", "__hammer__")
+            NS.setdefault("__name__", "__guest__")
     except Exception as exc:  # noqa: BLE001 — guest must start even if pickle is junk
-        sys.stderr.write(f"hammer: failed to load namespace: {exc}\n")
+        sys.stderr.write(f"guest: failed to load namespace: {exc}\n")
 
 
 def _persist() -> list[str]:
@@ -95,7 +95,7 @@ def _strike(code: str) -> dict[str, Any]:
         dropped = _persist()
         if dropped:
             stderr.write(
-                "hammer: dropped unpicklable names: " + ", ".join(dropped) + "\n"
+                "guest: dropped unpicklable names: " + ", ".join(dropped) + "\n"
             )
         return {
             "ok": True,
@@ -132,7 +132,7 @@ def _handle(msg: dict[str, Any]) -> dict[str, Any]:
         return {"id": mid, "ok": True, "value": None, "stdout": "", "stderr": "", "error": None}
     if op == "reset":
         NS.clear()
-        NS["__name__"] = "__hammer__"
+        NS["__name__"] = "__guest__"
         if NAMESPACE_PATH is not None and NAMESPACE_PATH.exists():
             NAMESPACE_PATH.unlink()
         return {"id": mid, "ok": True, "value": None, "stdout": "", "stderr": "", "error": None}
@@ -157,10 +157,10 @@ def _self_test() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         STORE = Path(tmp)
         NAMESPACE_PATH = STORE / "namespace.pkl"
-        NS = {"__name__": "__hammer__"}
+        NS = {"__name__": "__guest__"}
         r = _strike("x = 1\nx + 1")
         assert r["ok"] and r["value"] == 2, r
-        NS = {"__name__": "__hammer__"}
+        NS = {"__name__": "__guest__"}
         _load()
         r = _strike("x")
         assert r["ok"] and r["value"] == 1, r
@@ -168,7 +168,7 @@ def _self_test() -> int:
         assert r["ok"] and r["stdout"] == "hi\n" and r["value"] is None, r
         r = _strike("1/0")
         assert not r["ok"] and "ZeroDivisionError" in (r["error"] or ""), r
-    print("hammer self-test ok")
+    print("guest self-test ok")
     return 0
 
 

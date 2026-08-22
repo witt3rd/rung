@@ -1,19 +1,23 @@
-//! Named child profiles. Kernel `subagent_type` is a string; this crate
-//! interprets it.
+//! Tool **scopes**, not jobs.
+//!
+//! Rung is an agent. Coding is one thing it might do. What changes per call
+//! is which tools it may use. Named groups are composed from CLI `--tools`
+//! and/or config `tools:`; `--type explore|implement|review` is a **preset
+//! alias** for those groups (Harbor / nested `task` still pass `--type`).
 
 use rung_std::tools::{
-    Glob, Grep, ListFiles, ReadFile, Skill, ToolCollection, ToolRoster, WebFetch,
-    filesystem_tools_with_shell, kernel_tools,
+    ApplyPatch, EditFile, Glob, Grep, ListFiles, ReadFile, Shell, Skill, Todo, ToolCollection,
+    ToolRoster, WebFetch, WriteFile,
 };
 
-/// Built-in catalog. Unknown names are refused, not guessed.
+/// Built-in `--type` aliases. Unknown names are refused, not guessed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
-    /// Read and search only. No nested `task`.
+    /// Preset: read + web + skill. No nested `task`.
     Explore,
-    /// Full tools plus nested `task`.
+    /// Preset: write filesystem, shell, kernel extras, nested `task`.
     Implement,
-    /// Read and search; report, do not edit. No nested `task`.
+    /// Preset: same tools as explore (read-only).
     Review,
 }
 
@@ -24,7 +28,7 @@ impl Kind {
             "implement" | "general-purpose" | "general" => Ok(Self::Implement),
             "review" => Ok(Self::Review),
             other => Err(format!(
-                "unknown type '{other}' (explore, implement, review)"
+                "unknown type '{other}' (explore, implement, review — these are tool presets, not jobs)"
             )),
         }
     }
@@ -48,46 +52,134 @@ impl Kind {
         }
     }
 
-    pub fn system(self) -> &'static str {
+    /// Groups this `--type` alias expands to.
+    pub fn groups(self) -> &'static [&'static str] {
         match self {
-            Self::Explore => {
-                "You are a read-only explorer. Search and read. Do not modify files. \
-                 Return a concise report of what you found."
-            }
-            Self::Implement => {
-                "You are a coding agent. Prefer unique edit over rewrite. \
-                 Use task for a bounded subproblem (explore, implement, or review). \
-                 Nested tasks cannot spawn further tasks. Reply with what you did."
-            }
-            Self::Review => {
-                "You are a reviewer. Read and search. Do not modify files. \
-                 Report findings: bugs, risks, and what looks sound."
-            }
+            Self::Explore | Self::Review => &["read", "web", "skill"],
+            Self::Implement => &["write", "shell", "todo", "web", "skill", "task"],
         }
     }
 
-    /// Roster for this profile. Caller admits `task` after isolation `chdir`.
     pub fn roster(self) -> ToolRoster {
-        let mut r = ToolRoster::new();
-        match self {
-            Self::Implement => {
-                r.add(filesystem_tools_with_shell());
-                r.add(kernel_tools());
+        Scope::from_groups(self.groups()).roster()
+    }
+}
+
+/// Composed tool access for one run. `none` is empty.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Scope {
+    groups: Vec<String>,
+}
+
+impl Scope {
+    pub fn none() -> Self {
+        Self { groups: Vec::new() }
+    }
+
+    pub fn from_kind(kind: Kind) -> Self {
+        Self::from_groups(kind.groups())
+    }
+
+    pub fn from_groups(names: &[&str]) -> Self {
+        Self {
+            groups: names.iter().map(|s| (*s).to_string()).collect(),
+        }
+    }
+
+    /// `"none"` or comma-separated groups: `read`, `write`, `shell`, `web`,
+    /// `skill`, `todo`, `task`.
+    pub fn parse(spec: &str) -> Result<Self, String> {
+        let spec = spec.trim();
+        if spec.is_empty() || spec.eq_ignore_ascii_case("none") {
+            return Ok(Self::none());
+        }
+        let mut groups = Vec::new();
+        for part in spec.split(',') {
+            let g = part.trim().to_ascii_lowercase();
+            if g.is_empty() {
+                continue;
             }
-            Self::Explore | Self::Review => {
-                r.add(read_search());
-                let mut extra = ToolCollection::new("read-extra");
-                extra.admit(WebFetch);
-                extra.admit(Skill::in_cwd());
-                r.add(extra);
+            if !GROUPS.contains(&g.as_str()) {
+                return Err(format!(
+                    "unknown tool group '{g}' (none, read, write, shell, web, skill, todo, task)"
+                ));
+            }
+            if !groups.contains(&g) {
+                groups.push(g);
+            }
+        }
+        Ok(Self { groups })
+    }
+
+    pub fn from_config_list(names: &[String]) -> Result<Self, String> {
+        if names.is_empty() {
+            return Ok(Self::none());
+        }
+        Self::parse(&names.join(","))
+    }
+
+    pub fn allows_task(&self) -> bool {
+        self.groups.iter().any(|g| g == "task")
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.groups.is_empty()
+    }
+
+    pub fn roster(&self) -> ToolRoster {
+        let mut r = ToolRoster::new();
+        for g in &self.groups {
+            match g.as_str() {
+                "read" => {
+                    r.add(read_search());
+                }
+                "write" => {
+                    r.add(filesystem_tools_with_shell_write());
+                }
+                "shell" => {
+                    let mut c = ToolCollection::new("shell");
+                    c.admit(Shell);
+                    r.add(c);
+                }
+                "web" => {
+                    let mut c = ToolCollection::new("web");
+                    c.admit(WebFetch);
+                    r.add(c);
+                }
+                "skill" => {
+                    let mut c = ToolCollection::new("skill");
+                    c.admit(Skill::in_cwd());
+                    r.add(c);
+                }
+                "todo" => {
+                    let mut c = ToolCollection::new("todo");
+                    c.admit(Todo::new());
+                    r.add(c);
+                }
+                "task" => {} // admitted in run.rs after Spawn exists
+                _ => {}
             }
         }
         r
     }
 }
 
+const GROUPS: &[&str] = &["read", "write", "shell", "web", "skill", "todo", "task"];
+
 fn read_search() -> ToolCollection {
     let mut c = ToolCollection::new("read-search");
+    c.admit(ReadFile);
+    c.admit(ListFiles);
+    c.admit(Glob);
+    c.admit(Grep);
+    c
+}
+
+fn filesystem_tools_with_shell_write() -> ToolCollection {
+    let mut c = ToolCollection::new("write");
+    c.admit(WriteFile);
+    c.admit(EditFile);
+    c.admit(ApplyPatch);
     c.admit(ReadFile);
     c.admit(ListFiles);
     c.admit(Glob);
@@ -109,7 +201,28 @@ mod tests {
     }
 
     #[test]
-    fn implement_has_write_and_shell_explore_does_not() {
+    fn none_has_no_tools() {
+        assert!(Scope::none().roster().definitions().is_empty());
+        assert!(Scope::parse("none").unwrap().is_empty());
+    }
+
+    #[test]
+    fn parse_groups() {
+        let s = Scope::parse("read,web").unwrap();
+        let names: Vec<_> = s
+            .roster()
+            .definitions()
+            .into_iter()
+            .map(|d| d.name)
+            .collect();
+        for n in ["read_file", "grep", "webfetch"] {
+            assert!(names.contains(&n.into()), "{names:?}");
+        }
+        assert!(!names.iter().any(|n| n == "edit"));
+    }
+
+    #[test]
+    fn implement_preset_has_write_and_shell() {
         let impl_names: Vec<_> = Kind::Implement
             .roster()
             .definitions()

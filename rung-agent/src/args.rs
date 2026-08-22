@@ -36,6 +36,8 @@ pub struct Args {
     pub max_iterations: Option<u32>,
     pub system_prompt: Option<String>,
     pub user_prompt: Option<String>,
+    /// Comma-separated tool groups, or `none`. Overrides `--type` and config.
+    pub tools: Option<String>,
     pub prompt: Option<String>,
     pub help: bool,
 }
@@ -51,6 +53,7 @@ impl Args {
         let mut max_iterations = None;
         let mut system_prompt = None;
         let mut user_prompt = None;
+        let mut tools = None;
         let mut help = false;
         let mut prompt_parts: Vec<String> = Vec::new();
         let mut rest = false;
@@ -91,11 +94,17 @@ impl Args {
                 "--user-prompt" => {
                     user_prompt = Some(need("--user-prompt", it.next())?);
                 }
+                "--tools" => {
+                    tools = Some(need("--tools", it.next())?);
+                }
                 s if s.starts_with("--system-prompt=") => {
                     system_prompt = Some(s["--system-prompt=".len()..].to_string());
                 }
                 s if s.starts_with("--user-prompt=") => {
                     user_prompt = Some(s["--user-prompt=".len()..].to_string());
+                }
+                s if s.starts_with("--tools=") => {
+                    tools = Some(s["--tools=".len()..].to_string());
                 }
                 s if s.starts_with("--task-id=") => {
                     task_id = Some(s["--task-id=".len()..].to_string());
@@ -128,6 +137,7 @@ impl Args {
             max_iterations,
             system_prompt,
             user_prompt,
+            tools,
             prompt,
             help,
         })
@@ -142,14 +152,16 @@ fn need(flag: &str, v: Option<impl AsRef<str>>) -> Result<String, String> {
 
 pub fn usage() -> &'static str {
     "\
-rung-agent — headless task agent (rung-std composition)
+rung-agent — headless agent (not a coding product; coding is one use)
 
   rung-agent [OPTIONS] [PROMPT]
   rung-agent --task-id ID              print status / last answer
   rung-agent --task-id ID PROMPT       resume that session
 
 Options:
-  --type explore|implement|review   default implement
+  --tools none|read,write,shell,web,skill,todo,task
+                                    tool groups for this call (overrides --type and config)
+  --type explore|implement|review   preset alias for --tools (default implement)
   --task-id ID                      resume or poll
   --isolation none|worktree         default none
   --background                      spawn a child, print task_id and pid
@@ -191,6 +203,14 @@ mod tests {
         assert!(a.background);
         assert_eq!(a.task_id.as_deref(), Some("abc"));
         assert_eq!(a.prompt.as_deref(), Some("look around"));
+    }
+
+    #[test]
+    fn parses_tools() {
+        let a = Args::parse(["rung-agent", "--tools", "none", "hi"]).unwrap();
+        assert_eq!(a.tools.as_deref(), Some("none"));
+        let b = Args::parse(["rung-agent", "--tools=read,web", "hi"]).unwrap();
+        assert_eq!(b.tools.as_deref(), Some("read,web"));
     }
 
     #[test]
