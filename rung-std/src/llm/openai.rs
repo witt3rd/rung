@@ -58,6 +58,10 @@ fn request_body(
         "messages": openai_messages(messages),
     });
 
+    if config.stream_listener.is_some() {
+        body["stream"] = serde_json::json!(true);
+    }
+
     if config.structured_outputs {
         body["response_format"] = serde_json::json!({"type": "json_object"});
     }
@@ -569,6 +573,40 @@ mod tests {
         assert_eq!(out.len(), 3);
         assert_eq!(out[1]["tool_calls"][0]["id"], "t1");
         assert_eq!(out[2]["role"], "tool");
+    }
+
+    #[test]
+    fn request_body_streams_when_listener_present() {
+        use crate::llm::{CachePolicy, Protocol, StreamEvent, StreamListener};
+        struct Noop;
+        impl StreamListener for Noop {
+            fn on_event(&self, _: StreamEvent) {}
+        }
+        let cfg = || LlmConfig {
+            base_url: "http://127.0.0.1:9/v1".into(),
+            api_key: "k".into(),
+            model: "m".into(),
+            timeout_secs: 10,
+            idle_timeout_secs: None,
+            max_tokens: 32,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            seed: None,
+            stop: vec![],
+            reasoning_level: None,
+            structured_outputs: false,
+            protocol: Protocol::OpenAiChat,
+            cache: CachePolicy::None,
+            stream_listener: None,
+        };
+        let plain = request_body(&cfg(), &[ChatMessage::user("hi")], &[]);
+        assert!(plain.get("stream").is_none());
+
+        let mut with_listener = cfg();
+        with_listener.stream_listener = Some(std::sync::Arc::new(Noop) as _);
+        let body = request_body(&with_listener, &[ChatMessage::user("hi")], &[]);
+        assert_eq!(body["stream"], true);
     }
 
     #[test]

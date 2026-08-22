@@ -33,6 +33,7 @@ pub struct CatalogSpawn {
     pub config: LlmConfig,
     pub store: SessionStore,
     pub max_iterations: u32,
+    pub emitter: Option<Arc<crate::stream::Emitter>>,
 }
 
 impl std::fmt::Debug for CatalogSpawn {
@@ -70,7 +71,13 @@ impl Spawn for CatalogSpawn {
         sess.status = "running".into();
         sess.pid = Some(std::process::id());
         self.store.save(&sess)?;
-        match drive(&self.config, kind, &sess.lines, self.max_iterations) {
+        match drive(
+            &self.config,
+            kind,
+            &sess.lines,
+            self.max_iterations,
+            self.emitter.clone(),
+        ) {
             Ok((text, api_calls)) => {
                 sess.lines.push(Line {
                     role: "assistant".into(),
@@ -102,14 +109,26 @@ fn drive(
     kind: Kind,
     lines: &[Line],
     max_iterations: u32,
+    emitter: Option<Arc<crate::stream::Emitter>>,
 ) -> Result<(String, u32), String> {
     let cap = max_iterations.min(kind.max_iterations()).max(1);
-    let tools: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
-    let thread = thread_from(kind, lines);
+    let base: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
+    let tools: Arc<dyn Toolset> = match &emitter {
+        Some(em) => Arc::new(crate::stream::ObservingToolset {
+            inner: base,
+            emitter: em.clone(),
+        }),
+        None => base,
+    };
+    let mut config = config.clone();
+    if let Some(em) = &emitter {
+        config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
+    }
+    let thread = thread_from(kind, lines, None);
     let carry = agentloop::Carry {
         state: LoopState::new(cap, cap),
         tools,
-        config: config.clone(),
+        config,
         python: None,
     };
     match agent::run(thread, carry) {
@@ -118,9 +137,13 @@ fn drive(
     }
 }
 
-fn thread_from(kind: Kind, lines: &[Line]) -> Thread {
+fn thread_from(kind: Kind, lines: &[Line], context: Option<&str>) -> Thread {
+    let mut system_prompt = kind.system().into();
+    if let Some(c) = context {
+        system_prompt = format!("{system_prompt}\n\n---\n\n{c}");
+    }
     Thread {
-        system_prompt: kind.system().into(),
+        system_prompt,
         messages: lines
             .iter()
             .filter_map(|l| match l.role.as_str() {
@@ -139,6 +162,16 @@ fn last_assistant(lines: &[Line]) -> String {
         .find(|l| l.role == "assistant")
         .map(|l| l.text.clone())
         .unwrap_or_default()
+}
+
+fn read_context(origin: &Path, path: &str) -> Result<String, String> {
+    let p = Path::new(path);
+    let resolved = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        origin.join(p)
+    };
+    std::fs::read_to_string(&resolved).map_err(|e| format!("context {path}: {e}"))
 }
 
 fn pid_alive(pid: u32) -> bool {
@@ -256,7 +289,13 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
     sess.status = "running".into();
     store.save(&sess)?;
 
-    let config = match crate::config::load() {
+    let emitter = if args.stream {
+        Some(crate::stream::Emitter::new())
+    } else {
+        None
+    };
+
+    let mut config = match crate::config::load() {
         Ok(c) => c,
         Err(e) => {
             sess.status = "error".into();
@@ -268,6 +307,11 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
             return Err(e);
         }
     };
+    if let Some(em) = &emitter {
+        config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
+    }
+    let model = config.model.clone();
+
     let cap = args
         .max_iterations
         .unwrap_or_else(|| args.kind.max_iterations())
@@ -278,13 +322,25 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
             config: config.clone(),
             store: store.clone(),
             max_iterations: cap,
+            emitter: emitter.clone(),
         };
         let mut tasks = ToolCollection::new("task");
         tasks.admit(Task::new(Arc::new(spawn), 0, MAX_DEPTH));
         roster.add(tasks);
     }
-    let tools: Arc<dyn Toolset> = Arc::new(roster);
-    let thread = thread_from(args.kind, &sess.lines);
+    let base: Arc<dyn Toolset> = Arc::new(roster);
+    let tools: Arc<dyn Toolset> = match &emitter {
+        Some(em) => Arc::new(crate::stream::ObservingToolset {
+            inner: base,
+            emitter: em.clone(),
+        }),
+        None => base,
+    };
+    let context = match &args.context {
+        Some(path) => Some(read_context(&origin, path)?),
+        None => None,
+    };
+    let thread = thread_from(args.kind, &sess.lines, context.as_deref());
     let carry = agentloop::Carry {
         state: LoopState::new(cap, cap),
         tools,
@@ -299,6 +355,9 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
             });
             sess.status = "completed".into();
             store.save(&sess)?;
+            if let Some(em) = &emitter {
+                em.emit_result(&id, &r, &model, sess.isolation_path.as_deref());
+            }
             Ok(Outcome {
                 task_id: id,
                 text: r.final_response,
@@ -314,6 +373,9 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
                 text: f.reason.clone(),
             });
             let _ = store.save(&sess);
+            if let Some(em) = &emitter {
+                em.emit_error(&id, &f.reason, &model);
+            }
             Err(f.reason)
         }
     }
@@ -336,9 +398,23 @@ mod tests {
                 text: "hi".into(),
             },
         ];
-        let t = thread_from(Kind::Explore, &lines);
+        let t = thread_from(Kind::Explore, &lines, None);
         assert_eq!(t.messages.len(), 1);
         assert_eq!(t.system_prompt, Kind::Explore.system());
+    }
+
+    #[test]
+    fn context_appends_after_system_prompt() {
+        let lines = vec![Line {
+            role: "user".into(),
+            text: "q".into(),
+        }];
+        let t = thread_from(Kind::Explore, &lines, Some("the context"));
+        assert_eq!(
+            t.system_prompt,
+            format!("{}\n\n---\n\nthe context", Kind::Explore.system())
+        );
+        assert_eq!(t.messages.len(), 1);
     }
 
     #[test]

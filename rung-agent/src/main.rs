@@ -40,7 +40,11 @@ fn main() -> ExitCode {
     };
     match run_job(&args, &origin) {
         Ok(out) => {
-            if args.json {
+            if args.stream {
+                // NDJSON stream mode: the final result line was already
+                // emitted by the stream emitter during the run. Nothing else
+                // goes on stdout.
+            } else if args.json {
                 // Single-shot JSON contract: one Outcome object on stdout,
                 // used by headless callers (e.g. animus RungFramework).
                 match serde_json::to_string(&out) {
