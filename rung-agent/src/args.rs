@@ -40,7 +40,7 @@ pub struct Args {
     pub tools: Option<String>,
     pub prompt: Option<String>,
     pub help: bool,
-    /// Speak ACP on stdio (anvil holds this process).
+    /// Speak ACP on stdio.
     pub acp: bool,
 }
 
@@ -166,7 +166,7 @@ pub fn usage() -> &'static str {
 rung-agent — headless agent (not a coding product; coding is one use)
 
   rung-agent [OPTIONS] [PROMPT]
-  rung-agent --acp                     ACP agent on stdio (anvil holds this)
+  rung-agent --acp                     ACP agent on stdio
   rung-agent --task-id ID              print status / last answer
   rung-agent --task-id ID PROMPT       resume that session
 
@@ -273,6 +273,22 @@ mod tests {
         let a = Args::parse(["rung-agent", "--acp"]).unwrap();
         assert!(a.acp);
         assert!(a.prompt.is_none());
+    }
+
+    #[test]
+    fn parses_acp_with_tools_and_system() {
+        let a = Args::parse([
+            "rung-agent",
+            "--acp",
+            "--tools",
+            "none",
+            "--system-prompt",
+            "sys",
+        ])
+        .unwrap();
+        assert!(a.acp);
+        assert_eq!(a.tools.as_deref(), Some("none"));
+        assert_eq!(a.system_prompt.as_deref(), Some("sys"));
     }
 
     #[test]

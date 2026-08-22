@@ -214,17 +214,37 @@ fn send_text(
     ))
 }
 
-/// Speak ACP until stdin closes.
-pub fn run() -> Result<(), String> {
+fn job_args(process: &Args, id: String, kind: Kind, text: String) -> Args {
+    Args {
+        task_id: Some(id),
+        kind,
+        isolation: IsolationMode::None,
+        background: false,
+        json: false,
+        stream: false,
+        max_iterations: process.max_iterations,
+        system_prompt: process.system_prompt.clone(),
+        user_prompt: None,
+        tools: process.tools.clone(),
+        prompt: Some(text),
+        help: false,
+        acp: false,
+    }
+}
+
+/// Speak ACP until stdin closes. CLI `--tools` / `--system-prompt` /
+/// `--toolset` / `--max-iterations` apply to each `session/prompt`.
+pub fn run(process: Args) -> Result<(), String> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .map_err(|e| e.to_string())?;
-    rt.block_on(serve()).map_err(|e| e.to_string())
+    rt.block_on(serve(process)).map_err(|e| e.to_string())
 }
 
-async fn serve() -> AcpResult<()> {
+async fn serve(process: Args) -> AcpResult<()> {
     let live = Live::default();
+    let process = Arc::new(process);
 
     Agent
         .builder()
@@ -255,11 +275,12 @@ async fn serve() -> AcpResult<()> {
         .on_receive_request(
             {
                 let live = live.clone();
+                let process = process.clone();
                 async move |request: NewSessionRequest,
                             responder: Responder<NewSessionResponse>,
                             _connection: ConnectionTo<Client>| {
                     let cwd = abs_cwd(request.cwd);
-                    let kind = Kind::Implement;
+                    let kind = process.kind;
                     let id = crate::session::new_id();
                     let sess = Session::new(&id, kind, &cwd);
                     store_at(&cwd).save(&sess).map_err(invalid)?;
@@ -405,6 +426,7 @@ async fn serve() -> AcpResult<()> {
         .on_receive_request(
             {
                 let live = live.clone();
+                let process = process.clone();
                 async move |request: PromptRequest,
                             responder: Responder<PromptResponse>,
                             connection: ConnectionTo<Client>| {
@@ -424,21 +446,7 @@ async fn serve() -> AcpResult<()> {
                     if text.is_empty() {
                         return responder.respond(PromptResponse::new(StopReason::EndTurn));
                     }
-                    let args = Args {
-                        task_id: Some(id.clone()),
-                        kind,
-                        isolation: IsolationMode::None,
-                        background: false,
-                        json: false,
-                        stream: false,
-                        max_iterations: None,
-                        system_prompt: None,
-                        user_prompt: None,
-                        tools: None,
-                        prompt: Some(text),
-                        help: false,
-                        acp: false,
-                    };
+                    let args = job_args(&process, id.clone(), kind, text);
                     let notify_conn = connection.clone();
                     let notify_sid = session_id.clone();
                     let extra = JobEx {
@@ -517,5 +525,29 @@ mod tests {
         assert_eq!(tool_kind("webfetch"), ToolKind::Fetch);
         assert_eq!(tool_kind("todo"), ToolKind::Think);
         assert_eq!(tool_kind("task"), ToolKind::Other);
+    }
+
+    #[test]
+    fn prompt_job_inherits_process_tools_and_system() {
+        let process = Args::parse([
+            "rung-agent",
+            "--acp",
+            "--tools",
+            "none",
+            "--system-prompt",
+            "be brief",
+            "--max-iterations",
+            "3",
+            "--toolset",
+            "explore",
+        ])
+        .unwrap();
+        let job = job_args(&process, "s1".into(), process.kind, "hello".into());
+        assert_eq!(job.tools.as_deref(), Some("none"));
+        assert_eq!(job.system_prompt.as_deref(), Some("be brief"));
+        assert_eq!(job.max_iterations, Some(3));
+        assert_eq!(job.kind, Kind::Explore);
+        assert_eq!(job.prompt.as_deref(), Some("hello"));
+        assert!(!job.acp);
     }
 }

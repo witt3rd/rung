@@ -19,7 +19,7 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     if args.acp {
-        return match rung_agent::acp::run() {
+        return match rung_agent::acp::run(args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("rung-agent: {e}");
