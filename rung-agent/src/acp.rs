@@ -4,7 +4,7 @@
 //! `session/update`. Also advertised: load, list, delete, close, set_mode,
 //! resume, and unstable `session/fork`. Prompt emits `ToolCall` /
 //! `ToolCallUpdate`. Cancel is checked before each LLM call and around each
-//! tool. MCP, image, and audio are not claimed.
+//! tool. Prompt image/audio/embedded context and MCP HTTP/stdio are claimed.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -14,15 +14,16 @@ use std::sync::{Arc, Mutex};
 use agent_client_protocol::schema::v1::{
     AgentCapabilities, AuthenticateRequest, AuthenticateResponse, CancelNotification,
     CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk, DeleteSessionRequest,
-    DeleteSessionResponse, ForkSessionRequest, ForkSessionResponse, Implementation,
-    InitializeRequest, InitializeResponse, ListSessionsRequest, ListSessionsResponse,
-    LoadSessionRequest, LoadSessionResponse, NewSessionRequest, NewSessionResponse, PromptRequest,
-    PromptResponse, ResumeSessionRequest, ResumeSessionResponse, SessionCapabilities,
-    SessionCloseCapabilities, SessionDeleteCapabilities, SessionForkCapabilities, SessionId,
-    SessionInfo, SessionListCapabilities, SessionMode, SessionModeId, SessionModeState,
-    SessionNotification, SessionResumeCapabilities, SessionUpdate, SetSessionModeRequest,
-    SetSessionModeResponse, StopReason, TextContent, ToolCall, ToolCallContent, ToolCallStatus,
-    ToolCallUpdate, ToolCallUpdateFields, ToolKind,
+    DeleteSessionResponse, EmbeddedResourceResource, ForkSessionRequest, ForkSessionResponse,
+    Implementation, InitializeRequest, InitializeResponse, ListSessionsRequest,
+    ListSessionsResponse, LoadSessionRequest, LoadSessionResponse, McpCapabilities, McpServer,
+    NewSessionRequest, NewSessionResponse, PromptCapabilities, PromptRequest, PromptResponse,
+    ResumeSessionRequest, ResumeSessionResponse, SessionCapabilities, SessionCloseCapabilities,
+    SessionDeleteCapabilities, SessionForkCapabilities, SessionId, SessionInfo,
+    SessionListCapabilities, SessionMode, SessionModeId, SessionModeState, SessionNotification,
+    SessionResumeCapabilities, SessionUpdate, SetSessionModeRequest, SetSessionModeResponse,
+    StopReason, TextContent, ToolCall, ToolCallContent, ToolCallStatus, ToolCallUpdate,
+    ToolCallUpdateFields, ToolKind,
 };
 use agent_client_protocol::{
     Agent, Client, ConnectionTo, Error, Responder, Result as AcpResult, Stdio,
@@ -30,9 +31,11 @@ use agent_client_protocol::{
 
 use crate::args::{Args, IsolationMode};
 use crate::catalog::Kind;
+use crate::mcp::McpSpec;
 use crate::run::{JobEx, run_job_ex};
 use crate::session::{Session, SessionStore};
 use crate::stream::{NotifyingToolset, ToolNotify};
+use rung_std::llm::{AudioSource, ImageSource, MessageContentBlock};
 
 use serde_json::Value;
 
@@ -46,6 +49,7 @@ struct Inner {
     /// session_id → kind (cwd lives on the Session file).
     kinds: HashMap<String, Kind>,
     cancelled: HashMap<String, Arc<AtomicBool>>,
+    mcp: HashMap<String, Vec<McpSpec>>,
 }
 
 impl Live {
@@ -85,6 +89,25 @@ impl Live {
         let mut g = self.inner.lock().expect("acp state");
         g.kinds.remove(id);
         g.cancelled.remove(id);
+        g.mcp.remove(id);
+    }
+
+    fn set_mcp(&self, id: &str, specs: Vec<McpSpec>) {
+        self.inner
+            .lock()
+            .expect("acp state")
+            .mcp
+            .insert(id.to_string(), specs);
+    }
+
+    fn mcp(&self, id: &str) -> Vec<McpSpec> {
+        self.inner
+            .lock()
+            .expect("acp state")
+            .mcp
+            .get(id)
+            .cloned()
+            .unwrap_or_default()
     }
 }
 
@@ -102,6 +125,13 @@ fn modes(current: Kind) -> SessionModeState {
 fn capabilities() -> AgentCapabilities {
     AgentCapabilities::new()
         .load_session(true)
+        .prompt_capabilities(
+            PromptCapabilities::new()
+                .image(true)
+                .audio(true)
+                .embedded_context(true),
+        )
+        .mcp_capabilities(McpCapabilities::new().http(true))
         .session_capabilities(
             SessionCapabilities::new()
                 .list(SessionListCapabilities::new())
@@ -180,16 +210,142 @@ fn sid_str(id: &SessionId) -> String {
     id.to_string()
 }
 
-fn prompt_text(blocks: &[ContentBlock]) -> String {
-    let mut out = String::new();
+fn prompt_parts(blocks: &[ContentBlock]) -> (String, Vec<MessageContentBlock>) {
+    let mut text = String::new();
+    let mut out = Vec::new();
     for b in blocks {
-        let ContentBlock::Text(t) = b else {
-            continue;
-        };
-        if !out.is_empty() {
-            out.push('\n');
+        match b {
+            ContentBlock::Text(t) => {
+                if !text.is_empty() {
+                    text.push('\n');
+                }
+                text.push_str(&t.text);
+                out.push(MessageContentBlock::Text {
+                    text: t.text.clone(),
+                    cache: None,
+                });
+            }
+            ContentBlock::Image(img) => {
+                out.push(MessageContentBlock::Image {
+                    source: ImageSource {
+                        source_type: "base64".into(),
+                        media_type: img.mime_type.clone(),
+                        data: img.data.clone(),
+                    },
+                    cache: None,
+                });
+            }
+            ContentBlock::Audio(a) => {
+                out.push(MessageContentBlock::Audio {
+                    source: AudioSource {
+                        media_type: a.mime_type.clone(),
+                        data: a.data.clone(),
+                    },
+                    cache: None,
+                });
+            }
+            ContentBlock::ResourceLink(r) => {
+                let line = match &r.description {
+                    Some(d) => format!("[resource {}]({}) {}", r.name, r.uri, d),
+                    None => format!("[resource {}]({})", r.name, r.uri),
+                };
+                if !text.is_empty() {
+                    text.push('\n');
+                }
+                text.push_str(&line);
+                out.push(MessageContentBlock::Text {
+                    text: line,
+                    cache: None,
+                });
+            }
+            ContentBlock::Resource(e) => match &e.resource {
+                EmbeddedResourceResource::TextResourceContents(t) => {
+                    let line = format!("[resource {}]\n{}", t.uri, t.text);
+                    if !text.is_empty() {
+                        text.push('\n');
+                    }
+                    text.push_str(&line);
+                    out.push(MessageContentBlock::Text {
+                        text: line,
+                        cache: None,
+                    });
+                }
+                EmbeddedResourceResource::BlobResourceContents(b) => {
+                    let mime = b
+                        .mime_type
+                        .clone()
+                        .unwrap_or_else(|| "application/octet-stream".into());
+                    if mime.starts_with("image/") {
+                        out.push(MessageContentBlock::Image {
+                            source: ImageSource {
+                                source_type: "base64".into(),
+                                media_type: mime,
+                                data: b.blob.clone(),
+                            },
+                            cache: None,
+                        });
+                    } else if mime.starts_with("audio/") {
+                        out.push(MessageContentBlock::Audio {
+                            source: AudioSource {
+                                media_type: mime,
+                                data: b.blob.clone(),
+                            },
+                            cache: None,
+                        });
+                    } else {
+                        let line = format!("[blob {} {}]", b.uri, mime);
+                        if !text.is_empty() {
+                            text.push('\n');
+                        }
+                        text.push_str(&line);
+                        out.push(MessageContentBlock::Text {
+                            text: line,
+                            cache: None,
+                        });
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
         }
-        out.push_str(&t.text);
+    }
+    (text, out)
+}
+
+fn mcp_from_acp(servers: &[McpServer]) -> Vec<McpSpec> {
+    let mut out = Vec::new();
+    for s in servers {
+        match s {
+            McpServer::Http(h) => out.push(McpSpec::Http {
+                name: h.name.clone(),
+                url: h.url.clone(),
+                headers: h
+                    .headers
+                    .iter()
+                    .map(|h| (h.name.clone(), h.value.clone()))
+                    .collect(),
+            }),
+            McpServer::Sse(h) => out.push(McpSpec::Http {
+                name: h.name.clone(),
+                url: h.url.clone(),
+                headers: h
+                    .headers
+                    .iter()
+                    .map(|h| (h.name.clone(), h.value.clone()))
+                    .collect(),
+            }),
+            McpServer::Stdio(st) => out.push(McpSpec::Stdio {
+                name: st.name.clone(),
+                command: st.command.clone(),
+                args: st.args.clone(),
+                env: st
+                    .env
+                    .iter()
+                    .map(|e| (e.name.clone(), e.value.clone()))
+                    .collect(),
+            }),
+            _ => {}
+        }
     }
     out
 }
@@ -229,6 +385,7 @@ fn job_args(process: &Args, id: String, kind: Kind, text: String) -> Args {
         prompt: Some(text),
         help: false,
         acp: false,
+        mcp: Vec::new(),
     }
 }
 
@@ -285,6 +442,7 @@ async fn serve(process: Args) -> AcpResult<()> {
                     let sess = Session::new(&id, kind, &cwd);
                     store_at(&cwd).save(&sess).map_err(invalid)?;
                     live.set_kind(&id, kind);
+                    live.set_mcp(&id, mcp_from_acp(&request.mcp_servers));
                     responder.respond(
                         NewSessionResponse::new(SessionId::new(id.clone())).modes(modes(kind)),
                     )
@@ -401,6 +559,7 @@ async fn serve(process: Args) -> AcpResult<()> {
                     child.pid = Some(std::process::id());
                     store_at(&cwd).save(&child).map_err(invalid)?;
                     live.set_kind(&id, kind);
+                    live.set_mcp(&id, live.mcp(&src));
                     responder
                         .respond(ForkSessionResponse::new(SessionId::new(id)).modes(modes(kind)))
                 }
@@ -434,7 +593,7 @@ async fn serve(process: Args) -> AcpResult<()> {
                     let kind = live.kind(&id);
                     let flag = live.cancel_flag(&id);
                     flag.store(false, Ordering::SeqCst);
-                    let text = prompt_text(&request.prompt);
+                    let (mut text, blocks) = prompt_parts(&request.prompt);
                     let session_id = request.session_id.clone();
                     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
                     if let Ok(sess) = store_at(&cwd).load(&id)
@@ -443,10 +602,14 @@ async fn serve(process: Args) -> AcpResult<()> {
                         let _ = std::env::set_current_dir(p);
                     }
                     let origin = std::env::current_dir().unwrap_or(cwd);
-                    if text.is_empty() {
+                    if blocks.is_empty() {
                         return responder.respond(PromptResponse::new(StopReason::EndTurn));
                     }
-                    let args = job_args(&process, id.clone(), kind, text);
+                    if text.is_empty() {
+                        text = "(multimodal prompt)".into();
+                    }
+                    let mut args = job_args(&process, id.clone(), kind, text);
+                    args.mcp = live.mcp(&id);
                     let notify_conn = connection.clone();
                     let notify_sid = session_id.clone();
                     let extra = JobEx {
@@ -460,6 +623,7 @@ async fn serve(process: Args) -> AcpResult<()> {
                                 },
                             ))
                         })),
+                        prompt_blocks: Some(blocks),
                     };
                     let out =
                         tokio::task::spawn_blocking(move || run_job_ex(&args, &origin, extra))
@@ -506,7 +670,19 @@ mod tests {
             ContentBlock::Text(TextContent::new("hello")),
             ContentBlock::Text(TextContent::new("world")),
         ];
-        assert_eq!(prompt_text(&blocks), "hello\nworld");
+        let (text, parts) = prompt_parts(&blocks);
+        assert_eq!(text, "hello\nworld");
+        assert_eq!(parts.len(), 2);
+    }
+
+    #[test]
+    fn prompt_parts_keep_image() {
+        let blocks = vec![ContentBlock::Image(
+            agent_client_protocol::schema::v1::ImageContent::new("QQ==", "image/png"),
+        )];
+        let (text, parts) = prompt_parts(&blocks);
+        assert!(text.is_empty());
+        assert!(matches!(parts[0], MessageContentBlock::Image { .. }));
     }
 
     #[test]

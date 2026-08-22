@@ -39,7 +39,11 @@ fn initialize_new_list_set_mode_close() {
     let init = read_json(&mut stdout);
     assert_eq!(init["result"]["protocolVersion"], 1);
     assert_eq!(init["result"]["agentCapabilities"]["loadSession"], true);
-    let caps = &init["result"]["agentCapabilities"]["sessionCapabilities"];
+    let agent_caps = &init["result"]["agentCapabilities"];
+    assert_eq!(agent_caps["promptCapabilities"]["image"], true);
+    assert_eq!(agent_caps["promptCapabilities"]["audio"], true);
+    assert_eq!(agent_caps["mcpCapabilities"]["http"], true);
+    let caps = &agent_caps["sessionCapabilities"];
     assert!(caps["list"].is_object());
     assert!(caps["resume"].is_object());
     assert!(caps["fork"].is_object());

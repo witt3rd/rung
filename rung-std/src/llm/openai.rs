@@ -99,7 +99,16 @@ fn request_body(
 }
 
 /// Convert our messages to OpenAI `/v1/chat/completions` wire format.
-pub fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
+pub fn audio_format(mime: &str) -> &'static str {
+    let m = mime.to_ascii_lowercase();
+    if m.contains("mpeg") || m.contains("mp3") {
+        "mp3"
+    } else {
+        "wav"
+    }
+}
+
+fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
     let mut out: Vec<serde_json::Value> = Vec::new();
     for msg in messages {
         match &msg.content {
@@ -120,6 +129,15 @@ pub fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
                             text_parts.push(serde_json::json!({
                                 "type": "image_url",
                                 "image_url": { "url": url }
+                            }));
+                        }
+                        MessageContentBlock::Audio { source, .. } => {
+                            text_parts.push(serde_json::json!({
+                                "type": "input_audio",
+                                "input_audio": {
+                                    "data": source.data,
+                                    "format": audio_format(&source.media_type),
+                                }
                             }));
                         }
                         MessageContentBlock::ToolUse {

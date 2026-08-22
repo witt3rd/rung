@@ -1440,6 +1440,7 @@ name = "rung-agent"
 version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
+ "reqwest",
  "rung-std",
  "serde",
  "serde_json",

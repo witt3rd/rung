@@ -73,8 +73,10 @@ nested `Spawn`, depth 1. Catalog / resume / worktrees / background are
 product. `--acp` is ACP v1 on stdio (`agent-client-protocol` crate).
 Baseline plus load/list/delete/close/set_mode/resume and unstable
 `session/fork`. Prompt emits tool-call `session/update`s; cancel is
-checked before each LLM call and around each tool. MCP/image/audio
-are not claimed. Anvil holds the process as a pane.
+checked before each LLM call and around each tool. Prompt image,
+audio, and embedded context are claimed. MCP HTTP (and ACP-required
+stdio) tools are admitted for the session. Anvil holds the process as
+a pane.
 
 Harbor eval is out of tree (`rung-agent/python/rung_harbor`). Do not fork
 Harbor. The **validation suite** (`rung_harbor.suite`) is a capability

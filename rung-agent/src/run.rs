@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use rung_std::agent::{self, FailureKind, LoopState, Thread, agentloop};
-use rung_std::llm::{ChatMessage, LlmConfig};
+use rung_std::llm::{ChatMessage, LlmConfig, MessageContent, MessageContentBlock};
 use rung_std::tools::{
     MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, ToolCollection, ToolRoster, Toolset,
     WithoutTask,
@@ -35,6 +35,8 @@ pub type WrapTools = Arc<dyn Fn(Arc<dyn Toolset>) -> Arc<dyn Toolset> + Send + S
 pub struct JobEx {
     pub cancel: Option<Arc<AtomicBool>>,
     pub wrap_tools: Option<WrapTools>,
+    /// Replace the last user message with these blocks (ACP image/audio).
+    pub prompt_blocks: Option<Vec<MessageContentBlock>>,
 }
 
 /// Nested `task` Spawn: pick a catalog kind, persist a child session, run a
@@ -387,7 +389,16 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         tasks.admit(Task::new(Arc::new(spawn), 0, MAX_DEPTH));
         roster.add(tasks);
     }
-    let base: Arc<dyn Toolset> = Arc::new(roster);
+    let mut base: Arc<dyn Toolset> = Arc::new(roster);
+    if !args.mcp.is_empty() {
+        let mcp = crate::mcp::McpRoster::connect(&args.mcp)?;
+        if !mcp.is_empty() {
+            base = Arc::new(crate::mcp::WithMcp {
+                inner: base,
+                mcp: Arc::new(mcp),
+            });
+        }
+    }
     let tools = wrap_tools(base, emitter.as_ref(), &extra);
     let system_prompt = match &args.system_prompt {
         Some(s) => Some(read_text(&origin, s)?),
@@ -397,11 +408,17 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         Some(u) => Some(read_text(&origin, u)?),
         None => None,
     };
-    let thread = thread_from(
+    let mut thread = thread_from(
         &sess.lines,
         system_prompt.as_deref(),
         user_material.as_deref(),
     );
+    if let Some(blocks) = extra.prompt_blocks.clone()
+        && let Some(last) = thread.messages.last_mut()
+        && last.role == "user"
+    {
+        last.content = MessageContent::Blocks(blocks);
+    }
     let state = LoopState {
         cancel: extra.cancel.clone(),
         ..LoopState::new(cap, cap)

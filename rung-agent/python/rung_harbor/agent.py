@@ -135,6 +135,11 @@ class RungAgent(BaseInstalledAgent):
         }
         flags = self.build_cli_flags()
         extra = (flags + " ") if flags else ""
+        for server in self.mcp_servers:
+            url = getattr(server, "url", None)
+            name = getattr(server, "name", None) or "mcp"
+            if url:
+                extra += f"--mcp-http {shlex.quote(f'{name}={url}')} "
         prompt = shlex.quote(instruction)
         await self.exec_as_agent(
             environment,
