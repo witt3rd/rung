@@ -151,10 +151,17 @@ Required CI check is `check`. Merge method: rebase.
 
 ### House git
 
-Primary clone stays on `master`. Never commit from it, never check it out to
-a feature branch. Work in `<repo>.wt/<branch>/` via `git wt-new <branch>`.
-After merge: `git wt-rm <branch>`, fast-forward master. Stage only your
-files; never `git add -A`. `scripts/agent` stages only `.agent/` files.
+House skill: `fleet_git`. Mainline is `master`. Merge method: rebase.
+Stage only files you touched; never `git add -A`. `scripts/agent` stages
+only `.agent/` files.
+
+**Debugging / iteration:** work on `master`. Commit small batches; never
+leave uncommitted work. Session start: `git checkout master && git pull
+origin master`. When stable, branch, rebase onto `origin/master`, PR.
+
+**Parallel features:** `git wt-new` → `rung.wt/<branch>/`. After merge:
+`git wt-rm`, fast-forward `master`. Task isolation worktrees
+(`rung-task/{id}`) are product, not `git-wt-new`.
 
 ### Configuration
 
@@ -226,8 +233,8 @@ write `.agent/HANDOFF.md`. Lived experience for *this* repo:
 
 ## Scope and audience
 
-Maintainer: write access on `witt3rd/rung`, work from a linked worktree.
-External contributors: PRs against `master`; follow CI; do not rewrite
-history.
+Maintainer: write access on `witt3rd/rung`. Debugging on `master`;
+worktrees only for parallel features. External contributors: PRs against
+`master`; follow CI; do not rewrite history.
 
-Last updated: 2026-08-20.
+Last updated: 2026-08-21.

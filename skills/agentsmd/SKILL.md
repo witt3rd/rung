@@ -146,12 +146,13 @@ points back to AGENTS.md as the charter. Maintain both as lived experience grows
   rules in nested AGENTS.md files.
 - **Capture corrections.** When the agent gets corrected or relearns a non-obvious repo fact,
   add it to the relevant AGENTS.md — it's the durable home for per-project lessons.
-- **House git discipline.** Follow the worktree rule (see the `git` skill): primary clone
-  stays on main, work in per-branch worktrees. Never `git add -A`, stage only your own
-  files, never force push / `reset --hard`.
+- **House git discipline.** See the `git` skill (`fleet_git`): iterate on the
+  mainline, commit frequently; worktrees only for parallel features. Never
+  accumulate uncommitted work. Never `git add -A`; stage only your own files.
 
 ## References
 
 - Format/how-to: the AGENTS.md open format reference at <https://agents.md>.
-- Sibling skills: `caretaker` (the custodial loop), `git` (worktree/hygiene discipline),
-  `signalling` (the handoff + messaging that keeps the charter's loop recoverable).
+- Sibling skills: `caretaker` (the custodial loop), `git` (iterate on mainline;
+  worktrees for parallel features; hygiene), `signalling` (the handoff +
+  messaging that keeps the charter's loop recoverable).

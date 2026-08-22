@@ -2,8 +2,9 @@
 name: rung
 description: >
   Lived experience for the rung repo. Load when working in ~/src/witt3rd/rung
-  (or a worktree): house git, CI, proposition citations, kernel vs product,
-  the ledger. Not the ladder language itself — that is AGENTS.md + docs/.
+  (or a worktree): house git (iterate on master; worktrees for parallel
+  features), CI, proposition citations, kernel vs product, the ledger. Not
+  the ladder language itself — that is AGENTS.md + docs/.
 metadata:
   home: ~/src/witt3rd/rung/skills/rung
   aliases: [rung-repo, rung-caretaker]
@@ -22,10 +23,11 @@ channel. Prefer `scripts/agent` over PATH `agent`.
 
 ## Git
 
-Primary clone on `master` only. `git wt-new <branch>` → work in
-`rung.wt/<branch>/` (`/` → `--`). After merge: `git wt-rm <branch>`, ff
-master. Merge method rebase. Never `git add -A`. `scripts/agent` stages only
-its own files.
+House `fleet_git`. Debugging: work on `master`, commit often. Session
+start: `git checkout master && git pull origin master`. Parallel
+features: `git wt-new` → `rung.wt/<branch>/`; after merge `git wt-rm`.
+Merge method rebase. Never `git add -A`. `scripts/agent` stages only its
+own files.
 
 Task isolation worktrees (`{repo}.wt/rung-task--{id}`, branch `rung-task/{id}`)
 are product, not `git-wt-new`. Do not use `git-wt-new` for those.

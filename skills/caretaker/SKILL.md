@@ -55,10 +55,13 @@ Disorganization directly slows every future agent and human here.
 5. **Take possession and make it recoverable.** Commit + push everything meaningful; ensure
    state survives rebuild/reboot (git-tracked, skills registered, units persisted + enabled).
    Log what you changed and **why**.
-6. **Bring the repo to the clean end-state** (see the `git` skill — the checklist is the
-   contract): no stale worktrees, no local branches beyond the mainline, mainline at origin
-   tip, primary clone clean. The only legitimate exception is a worktree deliberately wired
-   to a live profile for a test — keep it, but record why in the handoff.
+6. **Bring the repo to the clean end-state** (see the `git` skill — the
+   checklist is the contract): no uncommitted work, no stale worktrees, no
+   local branches beyond the mainline, mainline at origin tip. During
+   debugging, commits on the mainline are the trail; when done, they live on
+   a PR branch. The only legitimate exception is a worktree deliberately
+   wired to a live profile for a test — keep it, but record why in the
+   handoff.
 
 ## 2. Orient on wake (read the handoff)
 
@@ -129,9 +132,8 @@ to look — a repo with an active intelligence.
 
 ## Sibling skills
 
-- **`git`** — the house git discipline AND the repo-hygiene clean end-state checklist. Load
-  it for any hygiene/cleanliness check; the caretaker's hygiene step (§1.6) is its
-  application.
+- **`git`** — two-mode house git (`fleet_git`) plus this repo's overlay
+  (master, rebase, never `git add -A`). Hygiene checklist lives there.
 - **`agentsmd`** — authoring/using AGENTS.md, the charter.
 - **`signalling`** — the event-log handoff + agent-to-agent messaging (the
   recoverable ledger). Never a last-words file.
