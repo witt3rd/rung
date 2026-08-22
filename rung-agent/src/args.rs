@@ -40,6 +40,8 @@ pub struct Args {
     pub tools: Option<String>,
     pub prompt: Option<String>,
     pub help: bool,
+    /// Speak ACP on stdio (anvil holds this process).
+    pub acp: bool,
 }
 
 impl Args {
@@ -55,6 +57,7 @@ impl Args {
         let mut user_prompt = None;
         let mut tools = None;
         let mut help = false;
+        let mut acp = false;
         let mut prompt_parts: Vec<String> = Vec::new();
         let mut rest = false;
         let mut it = argv.into_iter().peekable();
@@ -69,6 +72,7 @@ impl Args {
             match a {
                 "--" => rest = true,
                 "-h" | "--help" => help = true,
+                "--acp" => acp = true,
                 "--background" => background = true,
                 "--json" => json = true,
                 "--stream" => stream = true,
@@ -146,6 +150,7 @@ impl Args {
             tools,
             prompt,
             help,
+            acp,
         })
     }
 }
@@ -161,10 +166,12 @@ pub fn usage() -> &'static str {
 rung-agent — headless agent (not a coding product; coding is one use)
 
   rung-agent [OPTIONS] [PROMPT]
+  rung-agent --acp                     ACP agent on stdio (anvil holds this)
   rung-agent --task-id ID              print status / last answer
   rung-agent --task-id ID PROMPT       resume that session
 
 Options:
+  --acp                             ACP JSON-RPC on stdin/stdout
   --tools none|read,write,shell,web,skill,todo,python,task
                                     compose groups for this call (overrides --toolset and config)
   --toolset explore|implement|review
@@ -211,6 +218,7 @@ mod tests {
         assert!(a.background);
         assert_eq!(a.task_id.as_deref(), Some("abc"));
         assert_eq!(a.prompt.as_deref(), Some("look around"));
+        assert!(!a.acp);
         let alias = Args::parse(["rung-agent", "--type", "review", "q"]).unwrap();
         assert_eq!(alias.kind, Kind::Review);
     }
@@ -258,6 +266,13 @@ mod tests {
         let a = Args::parse(["rung-agent", "--stream", "q"]).unwrap();
         assert!(a.stream);
         assert!(!a.json);
+    }
+
+    #[test]
+    fn parses_acp() {
+        let a = Args::parse(["rung-agent", "--acp"]).unwrap();
+        assert!(a.acp);
+        assert!(a.prompt.is_none());
     }
 
     #[test]

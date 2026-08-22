@@ -68,8 +68,9 @@ rung-fixture  cross-crate consumption tests
 ```
 
 Product CLI `rung-agent` (catalog, sessions, isolation, background, XDG
-`config.yaml`) is in the workspace. Kernel `task` is nested `Spawn`, depth
-1. Catalog / resume / worktrees / background are product.
+`config.yaml`, `--acp` on stdio) is in the workspace. Kernel `task` is
+nested `Spawn`, depth 1. Catalog / resume / worktrees / background are
+product. Anvil holds `--acp` as a pane.
 
 Harbor eval is out of tree (`rung-agent/python/rung_harbor`). Do not fork
 Harbor. The **validation suite** (`rung_harbor.suite`) is a capability
