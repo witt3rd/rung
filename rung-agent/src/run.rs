@@ -124,7 +124,7 @@ fn drive(
     if let Some(em) = &emitter {
         config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
     }
-    let thread = thread_from(kind, lines, None);
+    let thread = thread_from(kind, lines, None, None);
     let carry = agentloop::Carry {
         state: LoopState::new(cap, cap),
         tools,
@@ -137,21 +137,33 @@ fn drive(
     }
 }
 
-fn thread_from(kind: Kind, lines: &[Line], context: Option<&str>) -> Thread {
-    let mut system_prompt = kind.system().into();
-    if let Some(c) = context {
-        system_prompt = format!("{system_prompt}\n\n---\n\n{c}");
+fn thread_from(
+    kind: Kind,
+    lines: &[Line],
+    system_text: Option<&str>,
+    user_material: Option<&str>,
+) -> Thread {
+    // System slot: caller-supplied system prompt FIRST, then the catalog
+    // guarantee (read-only guard, etc.) so the mode's operating instructions
+    // are never shadowed.
+    let system_prompt = match system_text {
+        Some(s) => format!("{s}\n\n---\n\n{}", kind.system()),
+        None => kind.system().into(),
+    };
+    // User slot: prepared material becomes the FIRST user message, preceding
+    // the session lines (which already end with the current ask).
+    let mut messages = Vec::new();
+    if let Some(m) = user_material {
+        messages.push(ChatMessage::user(m));
     }
+    messages.extend(lines.iter().filter_map(|l| match l.role.as_str() {
+        "user" => Some(ChatMessage::user(l.text.clone())),
+        "assistant" => Some(ChatMessage::assistant(l.text.clone())),
+        _ => None,
+    }));
     Thread {
         system_prompt,
-        messages: lines
-            .iter()
-            .filter_map(|l| match l.role.as_str() {
-                "user" => Some(ChatMessage::user(l.text.clone())),
-                "assistant" => Some(ChatMessage::assistant(l.text.clone())),
-                _ => None,
-            })
-            .collect(),
+        messages,
     }
 }
 
@@ -164,14 +176,18 @@ fn last_assistant(lines: &[Line]) -> String {
         .unwrap_or_default()
 }
 
-fn read_context(origin: &Path, path: &str) -> Result<String, String> {
-    let p = Path::new(path);
-    let resolved = if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        origin.join(p)
-    };
-    std::fs::read_to_string(&resolved).map_err(|e| format!("context {path}: {e}"))
+fn read_text(origin: &Path, spec: &str) -> Result<String, String> {
+    // Inline text unless the value starts with "@", in which case it names a
+    // file (absolute, or relative to origin) whose bytes become the value.
+    if let Some(path) = spec.strip_prefix('@') {
+        let resolved = if Path::new(path).is_absolute() {
+            Path::new(path).to_path_buf()
+        } else {
+            origin.join(path)
+        };
+        return std::fs::read_to_string(&resolved).map_err(|e| format!("{path}: {e}"));
+    }
+    Ok(spec.to_string())
 }
 
 fn pid_alive(pid: u32) -> bool {
@@ -336,11 +352,20 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
         }),
         None => base,
     };
-    let context = match &args.context {
-        Some(path) => Some(read_context(&origin, path)?),
+    let system_prompt = match &args.system_prompt {
+        Some(s) => Some(read_text(&origin, s)?),
         None => None,
     };
-    let thread = thread_from(args.kind, &sess.lines, context.as_deref());
+    let user_material = match &args.user_prompt {
+        Some(u) => Some(read_text(&origin, u)?),
+        None => None,
+    };
+    let thread = thread_from(
+        args.kind,
+        &sess.lines,
+        system_prompt.as_deref(),
+        user_material.as_deref(),
+    );
     let carry = agentloop::Carry {
         state: LoopState::new(cap, cap),
         tools,
@@ -398,23 +423,39 @@ mod tests {
                 text: "hi".into(),
             },
         ];
-        let t = thread_from(Kind::Explore, &lines, None);
+        let t = thread_from(Kind::Explore, &lines, None, None);
         assert_eq!(t.messages.len(), 1);
         assert_eq!(t.system_prompt, Kind::Explore.system());
     }
 
     #[test]
-    fn context_appends_after_system_prompt() {
+    fn system_prompt_prepends_catalog() {
         let lines = vec![Line {
             role: "user".into(),
             text: "q".into(),
         }];
-        let t = thread_from(Kind::Explore, &lines, Some("the context"));
+        let t = thread_from(Kind::Explore, &lines, Some("caller system"), None);
         assert_eq!(
             t.system_prompt,
-            format!("{}\n\n---\n\nthe context", Kind::Explore.system())
+            format!("caller system\n\n---\n\n{}", Kind::Explore.system())
         );
         assert_eq!(t.messages.len(), 1);
+    }
+
+    #[test]
+    fn user_material_becomes_first_user_message() {
+        let lines = vec![Line {
+            role: "user".into(),
+            text: "q".into(),
+        }];
+        let t = thread_from(Kind::Explore, &lines, None, Some("## brief\nprepared"));
+        assert_eq!(t.messages.len(), 2);
+        let first = format!("{:?}", t.messages[0]);
+        assert!(first.contains("user"), "{first}");
+        assert!(first.contains("## brief\\nprepared"), "{first}");
+        let second = format!("{:?}", t.messages[1]);
+        assert!(second.contains("user"), "{second}");
+        assert!(second.contains("q"), "{second}");
     }
 
     #[test]
