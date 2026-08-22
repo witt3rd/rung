@@ -10,6 +10,7 @@ fn help_exits_zero() {
     assert!(out.status.success(), "{:?}", out.status);
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(text.contains("--type"), "{text}");
+    assert!(text.contains("--tools"), "{text}");
     assert!(text.contains("--isolation"), "{text}");
     assert!(text.contains("--background"), "{text}");
 }

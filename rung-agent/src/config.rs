@@ -20,6 +20,10 @@ const DEFAULT_MODEL: &str = "grok-4";
 struct FileConfig {
     #[serde(default)]
     llm: Option<LlmFile>,
+    /// Default tool groups for a run when CLI `--tools` is omitted.
+    /// `[]` or omitted-with-`--type` means use the `--type` preset.
+    #[serde(default)]
+    tools: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -75,6 +79,15 @@ pub fn config_path() -> PathBuf {
 /// Load LLM settings: env over XDG file over defaults.
 pub fn load() -> Result<LlmConfig, String> {
     load_from_path(&config_path())
+}
+
+/// `tools:` list from the same YAML, if present.
+pub fn load_tool_groups() -> Result<Option<Vec<String>>, String> {
+    load_tool_groups_from_path(&config_path())
+}
+
+pub fn load_tool_groups_from_path(path: &Path) -> Result<Option<Vec<String>>, String> {
+    Ok(read_file(path)?.and_then(|f| f.tools))
 }
 
 pub fn load_from_path(path: &Path) -> Result<LlmConfig, String> {

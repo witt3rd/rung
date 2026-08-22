@@ -31,7 +31,7 @@ pub fn bwrap_ok() -> bool {
 fn spawn_bare(config: &SandboxConfig) -> Result<Child, SandboxError> {
     std::fs::create_dir_all(&config.store).map_err(SandboxError::Io)?;
     Command::new(&config.python)
-        .arg(&config.hammer)
+        .arg(&config.guest_script)
         .env("RUNG_PYTHON_STORE", &config.store)
         .env("PYTHONUNBUFFERED", "1")
         .stdin(Stdio::piped())
@@ -49,7 +49,7 @@ fn spawn_jailed(config: &SandboxConfig) -> Result<Child, SandboxError> {
     }
     std::fs::create_dir_all(&config.store).map_err(SandboxError::Io)?;
     let store = abs(&config.store)?;
-    let hammer = abs(&config.hammer)?;
+    let guest_script = abs(&config.guest_script)?;
     let python = config.python.clone();
 
     let mut cmd = Command::new("bwrap");
@@ -91,7 +91,7 @@ fn spawn_jailed(config: &SandboxConfig) -> Result<Child, SandboxError> {
         .arg("1")
         .arg("--")
         .arg(&python)
-        .arg(&hammer)
+        .arg(&guest_script)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());

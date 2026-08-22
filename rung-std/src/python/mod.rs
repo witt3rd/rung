@@ -47,7 +47,8 @@ pub enum Jail {
 pub struct SandboxConfig {
     /// Directory for `namespace.pkl`. Bound read-write in the jail.
     pub store: PathBuf,
-    pub hammer: PathBuf,
+    /// Python program the child runs (stdio JSON guest).
+    pub guest_script: PathBuf,
     pub python: PathBuf,
     /// Extra path visible inside the jail (cwd of the guest when set).
     pub work_dir: Option<PathBuf>,
@@ -63,7 +64,7 @@ impl SandboxConfig {
         let dir = dir.into();
         Self {
             store: dir.join("store"),
-            hammer: default_hammer(),
+            guest_script: default_guest_script(),
             python: PathBuf::from("python3"),
             work_dir: None,
             work_dir_rw: false,
@@ -74,8 +75,8 @@ impl SandboxConfig {
     }
 }
 
-pub fn default_hammer() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("guest/hammer.py")
+pub fn default_guest_script() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("guest/guest.py")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -159,7 +160,7 @@ impl StrikeRequest {
 
 #[derive(Debug)]
 pub enum SandboxError {
-    MissingHammer(PathBuf),
+    MissingGuestScript(PathBuf),
     Spawn(String),
     JailUnavailable(String),
     GuestDead,
@@ -177,7 +178,9 @@ impl SandboxError {
 impl std::fmt::Display for SandboxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MissingHammer(p) => write!(f, "hammer is not a file: {}", p.display()),
+            Self::MissingGuestScript(p) => {
+                write!(f, "python guest script is not a file: {}", p.display())
+            }
             Self::Spawn(e) => write!(f, "spawn: {e}"),
             Self::JailUnavailable(e) => write!(f, "jail: {e}"),
             Self::GuestDead => write!(f, "python guest died"),
@@ -382,9 +385,9 @@ mod tests {
     }
 
     #[test]
-    fn hammer_self_test() {
+    fn guest_script_self_test() {
         let st = std::process::Command::new("python3")
-            .arg(default_hammer())
+            .arg(default_guest_script())
             .arg("--self-test")
             .status()
             .unwrap();

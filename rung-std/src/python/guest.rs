@@ -27,8 +27,10 @@ impl std::fmt::Debug for Guest {
 
 impl Guest {
     pub fn open(config: SandboxConfig) -> Result<Self, SandboxError> {
-        if !config.hammer.is_file() {
-            return Err(SandboxError::MissingHammer(config.hammer.clone()));
+        if !config.guest_script.is_file() {
+            return Err(SandboxError::MissingGuestScript(
+                config.guest_script.clone(),
+            ));
         }
         std::fs::create_dir_all(&config.store).map_err(SandboxError::Io)?;
         let mut guest = Self {
