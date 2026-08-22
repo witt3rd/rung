@@ -61,6 +61,7 @@ CASES: tuple[Case, ...] = (
         tools=("write_file",),
         path="examples/tasks/hello-alpine",
         task_name="harbor/hello-alpine",
+        skip="rung-agent is glibc; Alpine musl fails even with gcompat (__res_init)",
     ),
     Case(
         id="skills",

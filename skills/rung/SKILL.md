@@ -91,9 +91,15 @@ Evidence: `rung-agent/harbor-runs/<UTC>-<id>/` plus `index.jsonl`.
 Gitignored. `list` / `next` read the index in this repo, not Harbor's
 `jobs/`. `run` always makes a new timestamped folder.
 
-A skip is a **product gap** (e.g. MCP). A fail is a **bug or a missing
+A skip is a **product gap** (e.g. MCP-over-ACP). A fail is a **bug or a missing
 affordance**. Read `harbor-runs/<stamp>-<id>/**/rung-agent.txt` before
 changing the kernel.
+
+Alpine (`hello-alpine`) is skipped: the release binary is glibc
+(`ld-linux-x86-64.so.2`). Without a loader Alpine says `required file not
+found`. `gcompat` loads the ELF then dies on `__res_init` (resolver). A
+musl/static build would unskip this; do not treat it as a Harbor harness
+bug.
 
 ## Next
 
