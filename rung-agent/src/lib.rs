@@ -5,7 +5,7 @@
 //! explore|implement|review` is a preset alias for those groups.
 //!
 //! ```text
-//! rung-agent [--tools none|read,web,…] [--type explore|implement|review]
+//! rung-agent [--tools none|read,python,web,…] [--type explore|implement|review]
 //!            [--isolation none|worktree] [--background] [PROMPT]
 //! ```
 //!

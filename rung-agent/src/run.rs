@@ -335,6 +335,12 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
         .unwrap_or_else(|| args.kind.max_iterations())
         .max(1);
     let mut roster: ToolRoster = scope.roster();
+    if scope.allows_python() {
+        let dir = origin.join(".rung").join("python");
+        let sb = rung_std::python::Sandbox::open(rung_std::python::SandboxConfig::in_dir(&dir))
+            .map_err(|e| format!("python sandbox: {e}"))?;
+        roster.add(sb.collection());
+    }
     if scope.allows_task() {
         let spawn = CatalogSpawn {
             config: config.clone(),

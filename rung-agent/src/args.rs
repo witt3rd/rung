@@ -159,7 +159,7 @@ rung-agent — headless agent (not a coding product; coding is one use)
   rung-agent --task-id ID PROMPT       resume that session
 
 Options:
-  --tools none|read,write,shell,web,skill,todo,task
+  --tools none|read,write,shell,web,skill,todo,python,task
                                     tool groups for this call (overrides --type and config)
   --type explore|implement|review   preset alias for --tools (default implement)
   --task-id ID                      resume or poll

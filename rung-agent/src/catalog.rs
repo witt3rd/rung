@@ -87,7 +87,7 @@ impl Scope {
     }
 
     /// `"none"` or comma-separated groups: `read`, `write`, `shell`, `web`,
-    /// `skill`, `todo`, `task`.
+    /// `skill`, `todo`, `python`, `task`.
     pub fn parse(spec: &str) -> Result<Self, String> {
         let spec = spec.trim();
         if spec.is_empty() || spec.eq_ignore_ascii_case("none") {
@@ -101,7 +101,7 @@ impl Scope {
             }
             if !GROUPS.contains(&g.as_str()) {
                 return Err(format!(
-                    "unknown tool group '{g}' (none, read, write, shell, web, skill, todo, task)"
+                    "unknown tool group '{g}' (none, read, write, shell, web, skill, todo, python, task)"
                 ));
             }
             if !groups.contains(&g) {
@@ -120,6 +120,10 @@ impl Scope {
 
     pub fn allows_task(&self) -> bool {
         self.groups.iter().any(|g| g == "task")
+    }
+
+    pub fn allows_python(&self) -> bool {
+        self.groups.iter().any(|g| g == "python")
     }
 
     pub fn is_empty(&self) -> bool {
@@ -156,7 +160,8 @@ impl Scope {
                     c.admit(Todo::new());
                     r.add(c);
                 }
-                "task" => {} // admitted in run.rs after Spawn exists
+                "python" => {} // admitted in run.rs (needs a live sandbox)
+                "task" => {}   // admitted in run.rs after Spawn exists
                 _ => {}
             }
         }
@@ -164,7 +169,9 @@ impl Scope {
     }
 }
 
-const GROUPS: &[&str] = &["read", "write", "shell", "web", "skill", "todo", "task"];
+const GROUPS: &[&str] = &[
+    "read", "write", "shell", "web", "skill", "todo", "python", "task",
+];
 
 fn read_search() -> ToolCollection {
     let mut c = ToolCollection::new("read-search");
@@ -219,6 +226,8 @@ mod tests {
             assert!(names.contains(&n.into()), "{names:?}");
         }
         assert!(!names.iter().any(|n| n == "edit"));
+        assert!(Scope::parse("python").unwrap().allows_python());
+        assert!(!Scope::parse("read").unwrap().allows_python());
     }
 
     #[test]
