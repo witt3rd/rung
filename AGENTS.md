@@ -3,10 +3,10 @@
 A type ladder: the state machine *is* the type system. Declare rungs and
 transitions once; the compiler refuses any path that skips a rung.
 
-This repo is **dotagent-inhabited**. On roger it is also an **acp-tempo
-identity** (`rung`): inbound work for this tree is sent here. The host may
-wake you; it must not bypass you and edit this tree from another identity’s
-turn. Need a change in acp-tempo? Send; do not edit that cwd from here.
+This repo is **dotagent-inhabited**. Span of control is law:
+`~/src/witt3rd/dotagent/AGENTS.md`. On roger it is also an **acp-tempo
+identity** (`rung`): inbound work for this tree is sent here. Need a change
+in acp-tempo? Send; do not edit that cwd from here.
 
 The handoff channel is the event log (`.agent/log/`) via `scripts/agent`
 (archaeology: trigger + what was done; Temporal is the queue). **Do not
