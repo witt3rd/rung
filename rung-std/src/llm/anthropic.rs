@@ -199,6 +199,20 @@ fn anthropic_message(msg: &ChatMessage, bp: &mut Breakpoints) -> serde_json::Val
                         }
                         v
                     }
+                    MessageContentBlock::Audio { source, cache } => {
+                        let mut v = serde_json::json!({
+                            "type": "text",
+                            "text": format!(
+                                "[audio {} attached, {} base64 chars; this protocol has no audio part]",
+                                source.media_type,
+                                source.data.len()
+                            ),
+                        });
+                        if let Some(cc) = bp.take(*cache) {
+                            v["cache_control"] = cc;
+                        }
+                        v
+                    }
                     MessageContentBlock::ToolUse {
                         id,
                         name,

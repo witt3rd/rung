@@ -13,10 +13,10 @@ mod types;
 
 pub use error::{HttpContext, LlmFailure, RawCallError, RequestClassification, retry_delay_ms};
 pub use types::{
-    CacheHint, CachePolicy, ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart,
-    DEFAULT_MAX_ATTEMPTS, ImageSource, LlmConfig, LlmRequest, LlmResponse, MessageContent,
-    MessageContentBlock, PreparedRequest, Protocol, ResolvedProtocol, StopReason, StreamEvent,
-    StreamListener, ToolDefinition, Usage,
+    AudioSource, CacheHint, CachePolicy, ChatMessage, ContentBlock, ContentBlockDelta,
+    ContentBlockStart, DEFAULT_MAX_ATTEMPTS, ImageSource, LlmConfig, LlmRequest, LlmResponse,
+    MessageContent, MessageContentBlock, PreparedRequest, Protocol, ResolvedProtocol, StopReason,
+    StreamEvent, StreamListener, ToolDefinition, Usage,
 };
 
 use rung::ladder;

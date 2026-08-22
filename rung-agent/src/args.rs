@@ -42,6 +42,8 @@ pub struct Args {
     pub help: bool,
     /// Speak ACP on stdio.
     pub acp: bool,
+    /// MCP servers for this call (`--mcp-http name=url`).
+    pub mcp: Vec<crate::mcp::McpSpec>,
 }
 
 impl Args {
@@ -58,6 +60,7 @@ impl Args {
         let mut tools = None;
         let mut help = false;
         let mut acp = false;
+        let mut mcp = Vec::new();
         let mut prompt_parts: Vec<String> = Vec::new();
         let mut rest = false;
         let mut it = argv.into_iter().peekable();
@@ -101,6 +104,12 @@ impl Args {
                 "--tools" => {
                     tools = Some(need("--tools", it.next())?);
                 }
+                "--mcp-http" => {
+                    mcp.push(crate::mcp::McpSpec::parse_http(&need(
+                        "--mcp-http",
+                        it.next(),
+                    )?)?);
+                }
                 s if s.starts_with("--system-prompt=") => {
                     system_prompt = Some(s["--system-prompt=".len()..].to_string());
                 }
@@ -109,6 +118,9 @@ impl Args {
                 }
                 s if s.starts_with("--tools=") => {
                     tools = Some(s["--tools=".len()..].to_string());
+                }
+                s if s.starts_with("--mcp-http=") => {
+                    mcp.push(crate::mcp::McpSpec::parse_http(&s["--mcp-http=".len()..])?);
                 }
                 s if s.starts_with("--task-id=") => {
                     task_id = Some(s["--task-id=".len()..].to_string());
@@ -151,6 +163,7 @@ impl Args {
             prompt,
             help,
             acp,
+            mcp,
         })
     }
 }
@@ -174,6 +187,7 @@ Options:
   --acp                             ACP JSON-RPC on stdin/stdout
   --tools none|read,write,shell,web,skill,todo,python,task
                                     compose groups for this call (overrides --toolset and config)
+  --mcp-http name=url               connect a streamable-HTTP MCP server; repeatable
   --toolset explore|implement|review
                                     named toolset (default implement)
   --type                            alias of --toolset
@@ -289,6 +303,19 @@ mod tests {
         assert!(a.acp);
         assert_eq!(a.tools.as_deref(), Some("none"));
         assert_eq!(a.system_prompt.as_deref(), Some("sys"));
+    }
+
+    #[test]
+    fn parses_mcp_http() {
+        let a = Args::parse([
+            "rung-agent",
+            "--mcp-http",
+            "mcp-server=http://mcp-server:8000/mcp",
+            "q",
+        ])
+        .unwrap();
+        assert_eq!(a.mcp.len(), 1);
+        assert_eq!(a.mcp[0].name(), "mcp-server");
     }
 
     #[test]

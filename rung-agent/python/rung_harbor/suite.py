@@ -93,10 +93,9 @@ CASES: tuple[Case, ...] = (
     Case(
         id="mcp",
         capability="Call a tool on an MCP server",
-        tools=(),
+        tools=("get_secret",),
         path="examples/tasks/hello-mcp",
         task_name="harbor/hello-mcp",
-        skip="rung-agent catalog has no MCP client",
     ),
 )
 

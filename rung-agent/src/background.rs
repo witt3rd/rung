@@ -49,6 +49,11 @@ pub fn spawn_child(
     if let Some(u) = &args.user_prompt {
         cmd.arg("--user-prompt").arg(u);
     }
+    for spec in &args.mcp {
+        if let crate::mcp::McpSpec::Http { name, url, .. } = spec {
+            cmd.arg("--mcp-http").arg(format!("{name}={url}"));
+        }
+    }
     if let Some(p) = &args.prompt {
         cmd.arg("--");
         cmd.arg(p);

@@ -21,6 +21,7 @@ pub mod background;
 pub mod catalog;
 pub mod config;
 pub mod isolation;
+pub mod mcp;
 pub mod run;
 pub mod session;
 pub mod stream;

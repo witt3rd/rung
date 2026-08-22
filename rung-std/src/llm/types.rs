@@ -291,6 +291,12 @@ pub enum MessageContentBlock {
         #[serde(skip)]
         cache: Option<CacheHint>,
     },
+    #[serde(rename = "audio")]
+    Audio {
+        source: AudioSource,
+        #[serde(skip)]
+        cache: Option<CacheHint>,
+    },
     #[serde(rename = "tool_use")]
     ToolUse {
         id: String,
@@ -322,6 +328,7 @@ impl MessageContentBlock {
         match self {
             Self::Text { cache, .. }
             | Self::Image { cache, .. }
+            | Self::Audio { cache, .. }
             | Self::ToolUse { cache, .. }
             | Self::ToolResult { cache, .. }
             | Self::Thinking { cache, .. } => cache,
@@ -333,6 +340,12 @@ impl MessageContentBlock {
 pub struct ImageSource {
     #[serde(rename = "type")]
     pub source_type: String,
+    pub media_type: String,
+    pub data: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AudioSource {
     pub media_type: String,
     pub data: String,
 }

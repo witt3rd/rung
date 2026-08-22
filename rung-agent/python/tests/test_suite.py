@@ -21,11 +21,11 @@ class SuiteTests(unittest.TestCase):
         ids = [c.id for c in CASES]
         self.assertEqual(len(ids), len(set(ids)))
 
-    def test_live_excludes_mcp(self):
+    def test_live_includes_mcp(self):
         live = {c.id for c in live_cases()}
         self.assertIn("write-file", live)
-        self.assertNotIn("mcp", live)
-        self.assertIsNotNone(case_by_id("mcp").skip)
+        self.assertIn("mcp", live)
+        self.assertIsNone(case_by_id("mcp").skip)
 
     def test_unknown_id(self):
         with self.assertRaises(KeyError):
