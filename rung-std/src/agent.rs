@@ -66,7 +66,7 @@ use crate::tools::{MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, Toolset, Wit
 use serde_json::Value;
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 // ─── Carry data ────────────────────────────────────────────────────────────────
 
@@ -91,6 +91,8 @@ pub struct LoopState {
     pub usage: Usage,
     pub watch: ToolWatch,
     pub tool_output_limit: usize,
+    /// Shared cancel. Checked before an LLM call and around each tool.
+    pub cancel: Option<Arc<AtomicBool>>,
 }
 
 impl LoopState {
@@ -103,7 +105,14 @@ impl LoopState {
             usage: Usage::default(),
             watch: ToolWatch::default(),
             tool_output_limit: DEFAULT_TOOL_OUTPUT_LIMIT,
+            cancel: None,
         }
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel
+            .as_ref()
+            .is_some_and(|f| f.load(Ordering::SeqCst))
     }
 }
 
@@ -458,7 +467,7 @@ pub struct BudgetHit {
     pub usage: Usage,
 }
 
-/// Reserved for future signal handling.
+/// [`LoopState::cancel`] was set (ACP `session/cancel`, `session/close`).
 #[derive(Debug)]
 pub struct Interrupt {
     pub at_api_call: u32,
@@ -476,6 +485,7 @@ pub enum FailureKind {
     Config,
     Provider,
     DoomLoop,
+    Interrupted,
 }
 
 /// The model refused or an unrecoverable error occurred.
@@ -554,6 +564,12 @@ ladder!(AgentLoop {
         let python = calling.carry().python.clone();
 
         // ── termination gates (before the LLM call) ──────────────────────
+        if state.is_cancelled() {
+            return Ok(StepOutcome::Interrupted(Interrupted::new(Interrupt {
+                at_api_call: state.api_call_count,
+            })));
+        }
+
         if state.api_call_count >= state.max_iterations {
             return Ok(StepOutcome::MaxIterations(MaxIterations::new(
                 LimitHit {
@@ -625,6 +641,11 @@ ladder!(AgentLoop {
 
         // ── classify the response ────────────────────────────────────────
         let next = next_state(&state, is_grace, &response.usage, state.watch.clone());
+        if next.is_cancelled() {
+            return Ok(StepOutcome::Interrupted(Interrupted::new(Interrupt {
+                at_api_call: next.api_call_count,
+            })));
+        }
 
         match response.stop_reason {
             StopReason::EndTurn | StopReason::MaxTokens | StopReason::StopSequence => {
@@ -712,6 +733,13 @@ ladder!(AgentLoop {
                                     cache: None,
                                 },
                             );
+                            if next.is_cancelled() {
+                                return Ok(StepOutcome::Interrupted(Interrupted::new(
+                                    Interrupt {
+                                        at_api_call: next.api_call_count,
+                                    },
+                                )));
+                            }
                             let (watch, action) = next.watch.observe(name, input);
                             next.watch = watch;
                             let (content, is_error) = match action {
@@ -738,6 +766,13 @@ ladder!(AgentLoop {
                                     }
                                 },
                             };
+                            if next.is_cancelled() {
+                                return Ok(StepOutcome::Interrupted(Interrupted::new(
+                                    Interrupt {
+                                        at_api_call: next.api_call_count,
+                                    },
+                                )));
+                            }
                             eprintln!("[rung-std] {call_id}:   -> {:.120}", content);
                             tool_result_blocks.push(
                                 crate::llm::MessageContentBlock::ToolResult {
@@ -837,7 +872,7 @@ pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filte
             Ok(agentloop::StepOutcome::Interrupted(i)) => {
                 let h = i.into_payload();
                 return Err(Filtered {
-                    kind: FailureKind::Provider,
+                    kind: FailureKind::Interrupted,
                     reason: format!("interrupted at call {}", h.at_api_call),
                 });
             }
@@ -916,6 +951,7 @@ impl Spawn for NestedLoop {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::llm::{CachePolicy, LlmConfig, Protocol};
     use crate::python::{Jail, SandboxConfig};
     use crate::tools::{Tool, ToolCollection, ToolRoster};
     use std::path::PathBuf;
@@ -1086,6 +1122,27 @@ mod tests {
         assert_eq!(a, Watch::Execute);
     }
 
+    fn dummy_llm() -> LlmConfig {
+        LlmConfig {
+            base_url: "http://127.0.0.1:9/v1".into(),
+            api_key: "test".into(),
+            model: "dummy".into(),
+            timeout_secs: 1,
+            idle_timeout_secs: None,
+            max_tokens: 16,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            seed: None,
+            stop: Vec::new(),
+            reasoning_level: None,
+            structured_outputs: false,
+            protocol: Protocol::OpenAiChat,
+            cache: CachePolicy::None,
+            stream_listener: None,
+        }
+    }
+
     #[test]
     fn last_call_on_iteration_cap_and_grace() {
         let mut s = LoopState::new(3, 10);
@@ -1124,5 +1181,26 @@ mod tests {
             messages: msgs,
         };
         assert_eq!(ensure_system(&again).len(), 2);
+    }
+
+    #[test]
+    fn cancel_before_llm_is_interrupted() {
+        let state = LoopState {
+            cancel: Some(Arc::new(AtomicBool::new(true))),
+            ..LoopState::new(3, 3)
+        };
+        assert!(state.is_cancelled());
+        let carry = agentloop::Carry {
+            state,
+            tools: Arc::new(ToolRoster::new()),
+            config: dummy_llm(),
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("hi")],
+        };
+        let err = run(thread, carry).expect_err("cancelled");
+        assert_eq!(err.kind, FailureKind::Interrupted);
     }
 }
