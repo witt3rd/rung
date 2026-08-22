@@ -34,7 +34,8 @@ pub struct Args {
     pub json: bool,
     pub stream: bool,
     pub max_iterations: Option<u32>,
-    pub context: Option<String>,
+    pub system_prompt: Option<String>,
+    pub user_prompt: Option<String>,
     pub prompt: Option<String>,
     pub help: bool,
 }
@@ -48,7 +49,8 @@ impl Args {
         let mut json = false;
         let mut stream = false;
         let mut max_iterations = None;
-        let mut context = None;
+        let mut system_prompt = None;
+        let mut user_prompt = None;
         let mut help = false;
         let mut prompt_parts: Vec<String> = Vec::new();
         let mut rest = false;
@@ -83,11 +85,17 @@ impl Args {
                             .map_err(|_| format!("--max-iterations: not a number ({v})"))?,
                     );
                 }
-                "--context" => {
-                    context = Some(need("--context", it.next())?);
+                "--system-prompt" => {
+                    system_prompt = Some(need("--system-prompt", it.next())?);
                 }
-                s if s.starts_with("--context=") => {
-                    context = Some(s["--context=".len()..].to_string());
+                "--user-prompt" => {
+                    user_prompt = Some(need("--user-prompt", it.next())?);
+                }
+                s if s.starts_with("--system-prompt=") => {
+                    system_prompt = Some(s["--system-prompt=".len()..].to_string());
+                }
+                s if s.starts_with("--user-prompt=") => {
+                    user_prompt = Some(s["--user-prompt=".len()..].to_string());
                 }
                 s if s.starts_with("--task-id=") => {
                     task_id = Some(s["--task-id=".len()..].to_string());
@@ -118,7 +126,8 @@ impl Args {
             json,
             stream,
             max_iterations,
-            context,
+            system_prompt,
+            user_prompt,
             prompt,
             help,
         })
@@ -147,7 +156,8 @@ Options:
   --json                            emit one JSON Outcome object on stdout
   --stream                          emit NDJSON trace events on stdout
   --max-iterations N
-  --context PATH                  read file, append after system prompt
+  --system-prompt TEXT            system message; TEXT or @file path
+  --user-prompt TEXT             first user message; TEXT or @file path
   -h, --help
 
 Config: $XDG_CONFIG_HOME/rung/config.yaml  (llm: base_url, model, api_key_env, …)
@@ -184,12 +194,33 @@ mod tests {
     }
 
     #[test]
-    fn parses_context() {
-        let a = Args::parse(["rung-agent", "--context", "context.md", "q"]).unwrap();
-        assert_eq!(a.context.as_deref(), Some("context.md"));
-        let b = Args::parse(["rung-agent", "--context=me.md", "q"]).unwrap();
-        assert_eq!(b.context.as_deref(), Some("me.md"));
-        assert!(Args::parse(["rung-agent", "--context"]).is_err());
+    fn parses_prompts() {
+        let a = Args::parse([
+            "rung-agent",
+            "--system-prompt",
+            "you are X",
+            "--user-prompt",
+            "material",
+            "q",
+        ])
+        .unwrap();
+        assert_eq!(a.system_prompt.as_deref(), Some("you are X"));
+        assert_eq!(a.user_prompt.as_deref(), Some("material"));
+        assert_eq!(a.prompt.as_deref(), Some("q"));
+        assert!(Args::parse(["rung-agent", "--system-prompt"]).is_err());
+    }
+
+    #[test]
+    fn parses_prompt_equals_forms() {
+        let a = Args::parse([
+            "rung-agent",
+            "--user-prompt=@brief.md",
+            "--system-prompt=sys",
+            "q",
+        ])
+        .unwrap();
+        assert_eq!(a.user_prompt.as_deref(), Some("@brief.md"));
+        assert_eq!(a.system_prompt.as_deref(), Some("sys"));
     }
 
     #[test]

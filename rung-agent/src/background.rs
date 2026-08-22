@@ -43,8 +43,11 @@ pub fn spawn_child(
     if let Some(n) = args.max_iterations {
         cmd.arg("--max-iterations").arg(n.to_string());
     }
-    if let Some(c) = &args.context {
-        cmd.arg("--context").arg(c);
+    if let Some(s) = &args.system_prompt {
+        cmd.arg("--system-prompt").arg(s);
+    }
+    if let Some(u) = &args.user_prompt {
+        cmd.arg("--user-prompt").arg(u);
     }
     if let Some(p) = &args.prompt {
         cmd.arg("--");
