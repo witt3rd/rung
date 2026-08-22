@@ -32,7 +32,9 @@ pub struct Args {
     pub isolation: IsolationMode,
     pub background: bool,
     pub json: bool,
+    pub stream: bool,
     pub max_iterations: Option<u32>,
+    pub context: Option<String>,
     pub prompt: Option<String>,
     pub help: bool,
 }
@@ -44,7 +46,9 @@ impl Args {
         let mut isolation = IsolationMode::None;
         let mut background = false;
         let mut json = false;
+        let mut stream = false;
         let mut max_iterations = None;
+        let mut context = None;
         let mut help = false;
         let mut prompt_parts: Vec<String> = Vec::new();
         let mut rest = false;
@@ -62,6 +66,7 @@ impl Args {
                 "-h" | "--help" => help = true,
                 "--background" => background = true,
                 "--json" => json = true,
+                "--stream" => stream = true,
                 "--task-id" => {
                     task_id = Some(need("--task-id", it.next())?);
                 }
@@ -77,6 +82,12 @@ impl Args {
                         v.parse()
                             .map_err(|_| format!("--max-iterations: not a number ({v})"))?,
                     );
+                }
+                "--context" => {
+                    context = Some(need("--context", it.next())?);
+                }
+                s if s.starts_with("--context=") => {
+                    context = Some(s["--context=".len()..].to_string());
                 }
                 s if s.starts_with("--task-id=") => {
                     task_id = Some(s["--task-id=".len()..].to_string());
@@ -105,7 +116,9 @@ impl Args {
             isolation,
             background,
             json,
+            stream,
             max_iterations,
+            context,
             prompt,
             help,
         })
@@ -132,7 +145,9 @@ Options:
   --isolation none|worktree         default none
   --background                      spawn a child, print task_id and pid
   --json                            emit one JSON Outcome object on stdout
+  --stream                          emit NDJSON trace events on stdout
   --max-iterations N
+  --context PATH                  read file, append after system prompt
   -h, --help
 
 Config: $XDG_CONFIG_HOME/rung/config.yaml  (llm: base_url, model, api_key_env, …)
@@ -166,6 +181,22 @@ mod tests {
         assert!(a.background);
         assert_eq!(a.task_id.as_deref(), Some("abc"));
         assert_eq!(a.prompt.as_deref(), Some("look around"));
+    }
+
+    #[test]
+    fn parses_context() {
+        let a = Args::parse(["rung-agent", "--context", "context.md", "q"]).unwrap();
+        assert_eq!(a.context.as_deref(), Some("context.md"));
+        let b = Args::parse(["rung-agent", "--context=me.md", "q"]).unwrap();
+        assert_eq!(b.context.as_deref(), Some("me.md"));
+        assert!(Args::parse(["rung-agent", "--context"]).is_err());
+    }
+
+    #[test]
+    fn parses_stream() {
+        let a = Args::parse(["rung-agent", "--stream", "q"]).unwrap();
+        assert!(a.stream);
+        assert!(!a.json);
     }
 
     #[test]

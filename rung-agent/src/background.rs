@@ -43,6 +43,9 @@ pub fn spawn_child(
     if let Some(n) = args.max_iterations {
         cmd.arg("--max-iterations").arg(n.to_string());
     }
+    if let Some(c) = &args.context {
+        cmd.arg("--context").arg(c);
+    }
     if let Some(p) = &args.prompt {
         cmd.arg("--");
         cmd.arg(p);

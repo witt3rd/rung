@@ -26,6 +26,7 @@ pub mod config;
 pub mod isolation;
 pub mod run;
 pub mod session;
+pub mod stream;
 
 pub use args::{Args, IsolationMode};
 pub use catalog::Kind;
