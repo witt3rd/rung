@@ -78,6 +78,37 @@ impl SessionStore {
         Ok(Some(self.load(id)?))
     }
 
+    pub fn list(&self) -> Result<Vec<Session>, String> {
+        let mut out = Vec::new();
+        if !self.dir.is_dir() {
+            return Ok(out);
+        }
+        let ents = fs::read_dir(&self.dir).map_err(|e| format!("sessions dir: {e}"))?;
+        for ent in ents {
+            let ent = ent.map_err(|e| format!("sessions dir: {e}"))?;
+            let p = ent.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            match self.load(stem) {
+                Ok(s) => out.push(s),
+                Err(_) => continue,
+            }
+        }
+        Ok(out)
+    }
+
+    pub fn delete(&self, id: &str) -> Result<(), String> {
+        let p = self.path(id)?;
+        if p.is_file() {
+            fs::remove_file(&p).map_err(|e| format!("session {id}: {e}"))?;
+        }
+        Ok(())
+    }
+
     pub fn save(&self, session: &Session) -> Result<(), String> {
         check_id(&session.id)?;
         fs::create_dir_all(&self.dir).map_err(|e| format!("sessions dir: {e}"))?;

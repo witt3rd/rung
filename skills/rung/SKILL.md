@@ -44,7 +44,8 @@ Wire identifiers that look like slugs: add to `NOT_A_CITATION` in
 
 `rung-std` tools: filesystem, `kernel_tools` (apply_patch, todo, webfetch,
 skill), `task` as nested `Spawn` (depth 1). Named catalogs, session resume,
-background child, isolation worktrees, XDG `config.yaml` = `rung-agent`.
+background child, isolation worktrees, XDG `config.yaml`, ACP v1 stdio
+(`rung-agent --acp`) = `rung-agent`. MCP over ACP is not advertised.
 
 ## Config
 
