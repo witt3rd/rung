@@ -26,6 +26,8 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("write-file", live)
         self.assertIn("mcp", live)
         self.assertIsNone(case_by_id("mcp").skip)
+        self.assertNotIn("alpine-write", live)
+        self.assertIsNotNone(case_by_id("alpine-write").skip)
 
     def test_unknown_id(self):
         with self.assertRaises(KeyError):
