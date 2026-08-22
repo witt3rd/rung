@@ -1,144 +1,376 @@
-//! ACP agent on stdio: JSON-RPC, one object per line.
-//! initialize → session/new → session/prompt (session/update chunks, then
-//! stopReason). The kernel stays a CLI; this is the door anvil holds.
+//! ACP v1 agent on stdio via `agent-client-protocol`.
+//!
+//! Baseline: `initialize`, `session/new`, `session/prompt`, `session/cancel`,
+//! `session/update`. Also advertised: load, list, delete, close, set_mode.
+//! MCP, image, and audio are not claimed.
 
-use std::io::{self, BufRead, Write};
-use std::path::PathBuf;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
-use serde_json::{Value, json};
+use agent_client_protocol::schema::v1::{
+    AgentCapabilities, AuthenticateRequest, AuthenticateResponse, CancelNotification,
+    CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk, DeleteSessionRequest,
+    DeleteSessionResponse, Implementation, InitializeRequest, InitializeResponse,
+    ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
+    NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse, SessionCapabilities,
+    SessionCloseCapabilities, SessionDeleteCapabilities, SessionId, SessionInfo,
+    SessionListCapabilities, SessionMode, SessionModeId, SessionModeState, SessionNotification,
+    SessionUpdate, SetSessionModeRequest, SetSessionModeResponse, StopReason, TextContent,
+};
+use agent_client_protocol::{
+    Agent, Client, ConnectionTo, Error, Responder, Result as AcpResult, Stdio,
+};
 
 use crate::args::{Args, IsolationMode};
 use crate::catalog::Kind;
 use crate::run::run_job;
-use crate::session;
+use crate::session::{Session, SessionStore};
 
-/// Speak ACP until stdin closes.
-pub fn run() -> Result<(), String> {
-    let stdin = io::stdin();
-    let mut out = io::stdout();
-    let mut session_id: Option<String> = None;
-    let origin = std::env::current_dir().map_err(|e| format!("cwd: {e}"))?;
-    for line in stdin.lock().lines() {
-        let line = line.map_err(|e| format!("stdin: {e}"))?;
-        if line.trim().is_empty() {
-            continue;
-        }
-        let msg: Value =
-            serde_json::from_str(&line).map_err(|e| format!("json: {e}"))?;
-        for reply in handle(&mut session_id, &origin, &msg) {
-            writeln!(out, "{reply}").map_err(|e| format!("stdout: {e}"))?;
-            out.flush().map_err(|e| format!("stdout: {e}"))?;
-        }
-    }
-    Ok(())
+#[derive(Clone, Default)]
+struct Live {
+    inner: Arc<Mutex<Inner>>,
 }
 
-fn handle(session_id: &mut Option<String>, origin: &PathBuf, msg: &Value) -> Vec<Value> {
-    let method = msg.get("method").and_then(|m| m.as_str()).unwrap_or("");
-    let id = msg.get("id").cloned();
-    match method {
-        "initialize" => vec![ok(
-            id,
-            json!({
-                "protocolVersion": 1,
-                "agentCapabilities": {
-                    "loadSession": false,
-                    "promptCapabilities": { "image": false, "audio": false }
-                },
-                "agentInfo": { "name": "rung-agent", "version": "0.1.0" },
-                "authMethods": []
-            }),
-        )],
-        "session/new" => {
-            let sid = session::new_id();
-            *session_id = Some(sid.clone());
-            vec![ok(id, json!({ "sessionId": sid }))]
-        }
-        "session/prompt" => prompt(session_id, origin, id, msg),
-        "session/cancel" => vec![ok(id, json!({}))],
-        _ if id.is_some() => vec![err(id, -32601, "method not found")],
-        _ => Vec::new(),
-    }
+#[derive(Default)]
+struct Inner {
+    /// session_id → kind (cwd lives on the Session file).
+    kinds: HashMap<String, Kind>,
+    cancelled: HashMap<String, Arc<AtomicBool>>,
 }
 
-fn prompt(
-    session_id: &mut Option<String>,
-    origin: &PathBuf,
-    id: Option<Value>,
-    msg: &Value,
-) -> Vec<Value> {
-    let Some(sid) = session_id.clone() else {
-        return vec![err(id, -32600, "no session")];
-    };
-    let text = prompt_text(msg);
-    if text.is_empty() {
-        return vec![ok(id, json!({ "stopReason": "end_turn" }))];
+impl Live {
+    fn kind(&self, id: &str) -> Kind {
+        self.inner
+            .lock()
+            .expect("acp state")
+            .kinds
+            .get(id)
+            .copied()
+            .unwrap_or(Kind::Implement)
     }
-    let args = Args {
-        task_id: Some(sid.clone()),
-        kind: Kind::Implement,
-        isolation: IsolationMode::None,
-        background: false,
-        max_iterations: None,
-        prompt: Some(text),
-        help: false,
-        acp: false,
-    };
-    match run_job(&args, origin) {
-        Ok(out) => {
-            let mut replies = Vec::new();
-            if !out.text.is_empty() {
-                replies.push(json!({
-                    "jsonrpc": "2.0",
-                    "method": "session/update",
-                    "params": {
-                        "sessionId": sid,
-                        "update": {
-                            "sessionUpdate": "agent_message_chunk",
-                            "content": { "type": "text", "text": out.text }
-                        }
-                    }
-                }));
-            }
-            replies.push(ok(id, json!({ "stopReason": "end_turn" })));
-            replies
-        }
-        Err(e) => vec![err(id, -32000, &e)],
+
+    fn set_kind(&self, id: &str, kind: Kind) {
+        self.inner
+            .lock()
+            .expect("acp state")
+            .kinds
+            .insert(id.to_string(), kind);
+    }
+
+    fn cancel_flag(&self, id: &str) -> Arc<AtomicBool> {
+        self.inner
+            .lock()
+            .expect("acp state")
+            .cancelled
+            .entry(id.to_string())
+            .or_insert_with(|| Arc::new(AtomicBool::new(false)))
+            .clone()
+    }
+
+    fn cancel(&self, id: &str) {
+        self.cancel_flag(id).store(true, Ordering::SeqCst);
+    }
+
+    fn drop_session(&self, id: &str) {
+        let mut g = self.inner.lock().expect("acp state");
+        g.kinds.remove(id);
+        g.cancelled.remove(id);
     }
 }
 
-fn prompt_text(msg: &Value) -> String {
-    let Some(blocks) = msg
-        .pointer("/params/prompt")
-        .and_then(|v| v.as_array())
-    else {
-        return String::new();
-    };
+fn modes(current: Kind) -> SessionModeState {
+    SessionModeState::new(
+        SessionModeId::new(current.as_str()),
+        vec![
+            SessionMode::new("explore", "Explore").description("Read and search only"),
+            SessionMode::new("implement", "Implement").description("Edit, shell, nested task"),
+            SessionMode::new("review", "Review").description("Read-only report"),
+        ],
+    )
+}
+
+fn capabilities() -> AgentCapabilities {
+    AgentCapabilities::new()
+        .load_session(true)
+        .session_capabilities(
+            SessionCapabilities::new()
+                .list(SessionListCapabilities::new())
+                .delete(SessionDeleteCapabilities::new())
+                .close(SessionCloseCapabilities::new()),
+        )
+}
+
+fn abs_cwd(cwd: PathBuf) -> PathBuf {
+    if cwd.is_absolute() {
+        cwd
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(cwd)
+    }
+}
+
+fn store_at(cwd: &Path) -> SessionStore {
+    SessionStore::in_cwd(cwd)
+}
+
+fn sid_str(id: &SessionId) -> String {
+    id.to_string()
+}
+
+fn prompt_text(blocks: &[ContentBlock]) -> String {
     let mut out = String::new();
     for b in blocks {
-        if b.get("type").and_then(|t| t.as_str()) != Some("text") {
+        let ContentBlock::Text(t) = b else {
             continue;
+        };
+        if !out.is_empty() {
+            out.push('\n');
         }
-        if let Some(t) = b.get("text").and_then(|t| t.as_str()) {
-            if !out.is_empty() {
-                out.push('\n');
-            }
-            out.push_str(t);
-        }
+        out.push_str(&t.text);
     }
     out
 }
 
-fn ok(id: Option<Value>, result: Value) -> Value {
-    json!({ "jsonrpc": "2.0", "id": id, "result": result })
+fn invalid(msg: impl Into<String>) -> Error {
+    Error::invalid_params().data(msg.into())
 }
 
-fn err(id: Option<Value>, code: i64, message: &str) -> Value {
-    json!({
-        "jsonrpc": "2.0",
-        "id": id,
-        "error": { "code": code, "message": message }
-    })
+fn send_text(
+    connection: &ConnectionTo<Client>,
+    session_id: SessionId,
+    text: String,
+) -> AcpResult<()> {
+    if text.is_empty() {
+        return Ok(());
+    }
+    connection.send_notification(SessionNotification::new(
+        session_id,
+        SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            text,
+        )))),
+    ))
+}
+
+/// Speak ACP until stdin closes.
+pub fn run() -> Result<(), String> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| e.to_string())?;
+    rt.block_on(serve()).map_err(|e| e.to_string())
+}
+
+async fn serve() -> AcpResult<()> {
+    let live = Live::default();
+
+    Agent
+        .builder()
+        .name("rung-agent")
+        .on_receive_request(
+            async move |request: InitializeRequest,
+                        responder: Responder<InitializeResponse>,
+                        _connection: ConnectionTo<Client>| {
+                responder.respond(
+                    InitializeResponse::new(request.protocol_version)
+                        .agent_capabilities(capabilities())
+                        .agent_info(
+                            Implementation::new("rung-agent", env!("CARGO_PKG_VERSION"))
+                                .title("rung-agent"),
+                        ),
+                )
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            async move |_: AuthenticateRequest,
+                        responder: Responder<AuthenticateResponse>,
+                        _connection: ConnectionTo<Client>| {
+                responder.respond(AuthenticateResponse::new())
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
+                async move |request: NewSessionRequest,
+                            responder: Responder<NewSessionResponse>,
+                            _connection: ConnectionTo<Client>| {
+                    let cwd = abs_cwd(request.cwd);
+                    let kind = Kind::Implement;
+                    let id = crate::session::new_id();
+                    let sess = Session::new(&id, kind, &cwd);
+                    store_at(&cwd).save(&sess).map_err(invalid)?;
+                    live.set_kind(&id, kind);
+                    responder.respond(
+                        NewSessionResponse::new(SessionId::new(id.clone())).modes(modes(kind)),
+                    )
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
+                async move |request: LoadSessionRequest,
+                            responder: Responder<LoadSessionResponse>,
+                            connection: ConnectionTo<Client>| {
+                    let cwd = abs_cwd(request.cwd);
+                    let id = sid_str(&request.session_id);
+                    let sess = store_at(&cwd).load(&id).map_err(invalid)?;
+                    let kind = sess.kind().unwrap_or(Kind::Implement);
+                    live.set_kind(&id, kind);
+                    if let Some(last) = sess.lines.iter().rev().find(|l| l.role == "assistant") {
+                        send_text(&connection, request.session_id.clone(), last.text.clone())?;
+                    }
+                    responder.respond(LoadSessionResponse::new().modes(modes(kind)))
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            async move |request: ListSessionsRequest,
+                        responder: Responder<ListSessionsResponse>,
+                        _connection: ConnectionTo<Client>| {
+                let cwd = request.cwd.clone().map(abs_cwd).unwrap_or_else(|| {
+                    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+                });
+                let sessions = store_at(&cwd)
+                    .list()
+                    .map_err(invalid)?
+                    .into_iter()
+                    .map(|s| {
+                        SessionInfo::new(SessionId::new(s.id.clone()), PathBuf::from(&s.cwd))
+                            .title(s.kind)
+                    })
+                    .collect();
+                responder.respond(ListSessionsResponse::new(sessions))
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
+                async move |request: DeleteSessionRequest,
+                            responder: Responder<DeleteSessionResponse>,
+                            _connection: ConnectionTo<Client>| {
+                    let id = sid_str(&request.session_id);
+                    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+                    store_at(&cwd).delete(&id).map_err(invalid)?;
+                    live.drop_session(&id);
+                    responder.respond(DeleteSessionResponse::new())
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
+                async move |request: CloseSessionRequest,
+                            responder: Responder<CloseSessionResponse>,
+                            _connection: ConnectionTo<Client>| {
+                    let id = sid_str(&request.session_id);
+                    live.cancel(&id);
+                    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+                    if let Ok(mut sess) = store_at(&cwd).load(&id) {
+                        sess.status = "closed".into();
+                        let _ = store_at(&cwd).save(&sess);
+                    }
+                    responder.respond(CloseSessionResponse::new())
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
+                async move |request: SetSessionModeRequest,
+                            responder: Responder<SetSessionModeResponse>,
+                            _connection: ConnectionTo<Client>| {
+                    let id = sid_str(&request.session_id);
+                    let kind = Kind::parse(request.mode_id.0.as_ref()).map_err(invalid)?;
+                    live.set_kind(&id, kind);
+                    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+                    if let Ok(mut sess) = store_at(&cwd).load(&id) {
+                        sess.kind = kind.as_str().into();
+                        let _ = store_at(&cwd).save(&sess);
+                    }
+                    responder.respond(SetSessionModeResponse::new())
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
+                async move |request: PromptRequest,
+                            responder: Responder<PromptResponse>,
+                            connection: ConnectionTo<Client>| {
+                    let id = sid_str(&request.session_id);
+                    let kind = live.kind(&id);
+                    let flag = live.cancel_flag(&id);
+                    flag.store(false, Ordering::SeqCst);
+                    let text = prompt_text(&request.prompt);
+                    let session_id = request.session_id.clone();
+                    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+                    if let Ok(sess) = store_at(&cwd).load(&id)
+                        && let Ok(p) = PathBuf::from(&sess.cwd).canonicalize()
+                    {
+                        let _ = std::env::set_current_dir(p);
+                    }
+                    let origin = std::env::current_dir().unwrap_or(cwd);
+                    if text.is_empty() {
+                        return responder.respond(PromptResponse::new(StopReason::EndTurn));
+                    }
+                    let args = Args {
+                        task_id: Some(id.clone()),
+                        kind,
+                        isolation: IsolationMode::None,
+                        background: false,
+                        json: false,
+                        stream: false,
+                        max_iterations: None,
+                        system_prompt: None,
+                        user_prompt: None,
+                        tools: None,
+                        prompt: Some(text),
+                        help: false,
+                        acp: false,
+                    };
+                    let out = tokio::task::spawn_blocking(move || run_job(&args, &origin))
+                        .await
+                        .map_err(|e| Error::internal_error().data(e.to_string()))?;
+                    let cancelled = flag.load(Ordering::SeqCst);
+                    match out {
+                        Ok(o) => {
+                            send_text(&connection, session_id, o.text)?;
+                            let reason = if cancelled {
+                                StopReason::Cancelled
+                            } else {
+                                StopReason::EndTurn
+                            };
+                            responder.respond(PromptResponse::new(reason))
+                        }
+                        Err(e) => responder.respond_with_error(Error::internal_error().data(e)),
+                    }
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_notification(
+            {
+                let live = live.clone();
+                async move |notification: CancelNotification, _connection: ConnectionTo<Client>| {
+                    live.cancel(&sid_str(&notification.session_id));
+                    Ok(())
+                }
+            },
+            agent_client_protocol::on_receive_notification!(),
+        )
+        .connect_to(Stdio::new())
+        .await
 }
 
 #[cfg(test)]
@@ -146,32 +378,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn initialize_and_session_new() {
-        let mut sid = None;
-        let origin = PathBuf::from(".");
-        let init = handle(
-            &mut sid,
-            &origin,
-            &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}),
-        );
-        assert_eq!(init[0]["result"]["protocolVersion"], 1);
-        let created = handle(
-            &mut sid,
-            &origin,
-            &json!({"jsonrpc":"2.0","id":2,"method":"session/new","params":{"cwd":"."}}),
-        );
-        assert!(created[0]["result"]["sessionId"].as_str().unwrap().len() > 1);
-        assert!(sid.is_some());
+    fn prompt_text_joins_text_blocks() {
+        let blocks = vec![
+            ContentBlock::Text(TextContent::new("hello")),
+            ContentBlock::Text(TextContent::new("world")),
+        ];
+        assert_eq!(prompt_text(&blocks), "hello\nworld");
     }
 
     #[test]
-    fn prompt_text_joins_blocks() {
-        let msg = json!({
-            "params": { "prompt": [
-                {"type":"text","text":"hello"},
-                {"type":"text","text":"world"}
-            ]}
-        });
-        assert_eq!(prompt_text(&msg), "hello\nworld");
+    fn modes_include_three_catalogs() {
+        let m = modes(Kind::Implement);
+        assert_eq!(m.current_mode_id.0.as_ref(), "implement");
+        assert_eq!(m.available_modes.len(), 3);
     }
 }
