@@ -14,6 +14,7 @@ fn help_exits_zero() {
     assert!(text.contains("--tools"), "{text}");
     assert!(text.contains("--isolation"), "{text}");
     assert!(text.contains("--background"), "{text}");
+    assert!(text.contains("--acp"), "{text}");
 }
 
 #[test]

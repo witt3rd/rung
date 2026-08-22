@@ -7,6 +7,7 @@
 //! ```text
 //! rung-agent [--tools none|read,python,web,…] [--toolset explore|implement|review]
 //!            [--isolation none|worktree] [--background] [PROMPT]
+//! rung-agent --acp
 //! ```
 //!
 //! LLM config: `$XDG_CONFIG_HOME/rung/config.yaml` (`llm:` block), then env
@@ -14,6 +15,7 @@
 //! The file may name `api_key_env`; it does not hold the key. No key is
 //! required — LAN llama.cpp sends no Authorization header.
 
+pub mod acp;
 pub mod args;
 pub mod background;
 pub mod catalog;

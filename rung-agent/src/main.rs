@@ -18,6 +18,15 @@ fn main() -> ExitCode {
         print!("{}", args::usage());
         return ExitCode::SUCCESS;
     }
+    if args.acp {
+        return match rung_agent::acp::run() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("rung-agent: {e}");
+                ExitCode::from(1)
+            }
+        };
+    }
     if args.prompt.is_none() && args.task_id.is_none() && !io::stdin().is_terminal() {
         let mut buf = String::new();
         if io::stdin().read_to_string(&mut buf).is_ok() {
