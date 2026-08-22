@@ -21,7 +21,7 @@ struct FileConfig {
     #[serde(default)]
     llm: Option<LlmFile>,
     /// Default tool groups for a run when CLI `--tools` is omitted.
-    /// `[]` or omitted-with-`--type` means use the `--type` preset.
+    /// Empty/omitted means use `--toolset`.
     #[serde(default)]
     tools: Option<Vec<String>>,
 }

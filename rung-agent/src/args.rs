@@ -36,7 +36,7 @@ pub struct Args {
     pub max_iterations: Option<u32>,
     pub system_prompt: Option<String>,
     pub user_prompt: Option<String>,
-    /// Comma-separated tool groups, or `none`. Overrides `--type` and config.
+    /// Comma-separated tool groups, or `none`. Overrides `--tool-set` and config.
     pub tools: Option<String>,
     pub prompt: Option<String>,
     pub help: bool,
@@ -75,8 +75,8 @@ impl Args {
                 "--task-id" => {
                     task_id = Some(need("--task-id", it.next())?);
                 }
-                "--type" => {
-                    kind = Kind::parse(&need("--type", it.next())?)?;
+                "--toolset" | "--tool-set" | "--type" => {
+                    kind = Kind::parse(&need("--toolset", it.next())?)?;
                 }
                 "--isolation" => {
                     isolation = IsolationMode::parse(&need("--isolation", it.next())?)?;
@@ -108,6 +108,12 @@ impl Args {
                 }
                 s if s.starts_with("--task-id=") => {
                     task_id = Some(s["--task-id=".len()..].to_string());
+                }
+                s if s.starts_with("--toolset=") => {
+                    kind = Kind::parse(&s["--toolset=".len()..])?;
+                }
+                s if s.starts_with("--tool-set=") => {
+                    kind = Kind::parse(&s["--tool-set=".len()..])?;
                 }
                 s if s.starts_with("--type=") => {
                     kind = Kind::parse(&s["--type=".len()..])?;
@@ -159,9 +165,11 @@ rung-agent — headless agent (not a coding product; coding is one use)
   rung-agent --task-id ID PROMPT       resume that session
 
 Options:
-  --tools none|read,write,shell,web,skill,todo,task
-                                    tool groups for this call (overrides --type and config)
-  --type explore|implement|review   preset alias for --tools (default implement)
+  --tools none|read,write,shell,web,skill,todo,python,task
+                                    compose groups for this call (overrides --toolset and config)
+  --toolset explore|implement|review
+                                    named toolset (default implement)
+  --type                            alias of --toolset
   --task-id ID                      resume or poll
   --isolation none|worktree         default none
   --background                      spawn a child, print task_id and pid
@@ -188,7 +196,7 @@ mod tests {
     fn parses_flags_and_prompt() {
         let a = Args::parse([
             "rung-agent",
-            "--type",
+            "--toolset",
             "explore",
             "--isolation=worktree",
             "--background",
@@ -203,6 +211,8 @@ mod tests {
         assert!(a.background);
         assert_eq!(a.task_id.as_deref(), Some("abc"));
         assert_eq!(a.prompt.as_deref(), Some("look around"));
+        let alias = Args::parse(["rung-agent", "--type", "review", "q"]).unwrap();
+        assert_eq!(alias.kind, Kind::Review);
     }
 
     #[test]

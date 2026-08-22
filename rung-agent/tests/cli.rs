@@ -9,6 +9,7 @@ fn help_exits_zero() {
     let out = bin().arg("--help").output().unwrap();
     assert!(out.status.success(), "{:?}", out.status);
     let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("--toolset"), "{text}");
     assert!(text.contains("--type"), "{text}");
     assert!(text.contains("--tools"), "{text}");
     assert!(text.contains("--isolation"), "{text}");
