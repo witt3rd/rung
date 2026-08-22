@@ -15,6 +15,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::io::{self, Write};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use rung_std::agent::AgentResult;
@@ -204,5 +205,102 @@ impl Toolset for ObservingToolset {
                 Err(e)
             }
         }
+    }
+}
+
+/// Start/finish hooks around [`Toolset::execute`]. ACP uses this to emit
+/// `session/update` tool calls; IDs are generated here (not the LLM's).
+pub trait ToolNotify: Send + Sync {
+    fn started(&self, id: &str, name: &str, input: &Value);
+    fn finished(&self, id: &str, name: &str, result: Result<&str, &str>);
+}
+
+pub struct NotifyingToolset<N: ToolNotify> {
+    pub inner: Arc<dyn Toolset>,
+    pub notify: N,
+    seq: AtomicU64,
+}
+
+impl<N: ToolNotify> NotifyingToolset<N> {
+    pub fn new(inner: Arc<dyn Toolset>, notify: N) -> Self {
+        Self {
+            inner,
+            notify,
+            seq: AtomicU64::new(0),
+        }
+    }
+}
+
+impl<N: ToolNotify> std::fmt::Debug for NotifyingToolset<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NotifyingToolset").finish()
+    }
+}
+
+impl<N: ToolNotify> Toolset for NotifyingToolset<N> {
+    fn definitions(&self) -> Vec<ToolDefinition> {
+        self.inner.definitions()
+    }
+
+    fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
+        let id = format!("tool-{}", self.seq.fetch_add(1, Ordering::Relaxed));
+        self.notify.started(&id, name, input);
+        let result = self.inner.execute(name, input);
+        match &result {
+            Ok(s) => self.notify.finished(&id, name, Ok(s)),
+            Err(e) => self.notify.finished(&id, name, Err(e)),
+        }
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rung_std::tools::{Tool, ToolCollection, ToolRoster};
+
+    #[derive(Debug)]
+    struct Echo;
+
+    impl Tool for Echo {
+        fn name(&self) -> &'static str {
+            "echo"
+        }
+        fn description(&self) -> &'static str {
+            "echo"
+        }
+        fn input_schema(&self) -> Value {
+            json!({"type": "object"})
+        }
+        fn execute(&self, input: &Value) -> Result<String, String> {
+            Ok(input.to_string())
+        }
+    }
+
+    struct Rec(Arc<Mutex<Vec<String>>>);
+
+    impl ToolNotify for Rec {
+        fn started(&self, id: &str, name: &str, _input: &Value) {
+            self.0.lock().unwrap().push(format!("start {id} {name}"));
+        }
+        fn finished(&self, id: &str, name: &str, result: Result<&str, &str>) {
+            self.0
+                .lock()
+                .unwrap()
+                .push(format!("end {id} {name} {}", result.is_ok()));
+        }
+    }
+
+    #[test]
+    fn notifying_toolset_emits_start_then_finish() {
+        let mut c = ToolCollection::new("t");
+        c.admit(Echo);
+        let mut r = ToolRoster::new();
+        r.add(c);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let set = NotifyingToolset::new(Arc::new(r), Rec(log.clone()));
+        set.execute("echo", &json!({"a": 1})).unwrap();
+        let got = log.lock().unwrap().clone();
+        assert_eq!(got, vec!["start tool-0 echo", "end tool-0 echo true"]);
     }
 }

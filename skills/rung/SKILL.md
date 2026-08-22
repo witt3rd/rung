@@ -45,7 +45,9 @@ Wire identifiers that look like slugs: add to `NOT_A_CITATION` in
 `rung-std` tools: filesystem, `kernel_tools` (apply_patch, todo, webfetch,
 skill), `task` as nested `Spawn` (depth 1). Named catalogs, session resume,
 background child, isolation worktrees, XDG `config.yaml`, ACP v1 stdio
-(`rung-agent --acp`) = `rung-agent`. MCP over ACP is not advertised.
+(`rung-agent --acp`) = `rung-agent`. ACP also: resume, unstable fork,
+tool-call updates, real abort (before LLM / around tools). MCP, image,
+and audio over ACP are not advertised.
 
 ## Config
 

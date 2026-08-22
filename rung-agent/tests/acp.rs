@@ -3,6 +3,8 @@
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 
+use serde_json::json;
+
 fn bin() -> Command {
     Command::new(env!("CARGO_BIN_EXE_rung-agent"))
 }
@@ -37,7 +39,10 @@ fn initialize_new_list_set_mode_close() {
     let init = read_json(&mut stdout);
     assert_eq!(init["result"]["protocolVersion"], 1);
     assert_eq!(init["result"]["agentCapabilities"]["loadSession"], true);
-    assert!(init["result"]["agentCapabilities"]["sessionCapabilities"]["list"].is_object());
+    let caps = &init["result"]["agentCapabilities"]["sessionCapabilities"];
+    assert!(caps["list"].is_object());
+    assert!(caps["resume"].is_object());
+    assert!(caps["fork"].is_object());
 
     writeln!(
         stdin,
@@ -93,6 +98,105 @@ fn initialize_new_list_set_mode_close() {
     stdin.flush().unwrap();
     let closed = read_json(&mut stdout);
     assert!(closed.get("result").is_some(), "{closed}");
+
+    drop(stdin);
+    let status = child.wait().unwrap();
+    assert!(status.success(), "{status:?}");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn fork_resume_does_not_replay_load_does() {
+    let tmp = tempfile();
+    let cwd = tmp.to_string_lossy().into_owned();
+    let mut child = bin()
+        .arg("--acp")
+        .current_dir(&tmp)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":1}}}}"#
+    )
+    .unwrap();
+    stdin.flush().unwrap();
+    let _ = read_json(&mut stdout);
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":2,"method":"session/new","params":{{"cwd":"{cwd}","mcpServers":[]}}}}"#
+    )
+    .unwrap();
+    stdin.flush().unwrap();
+    let created = read_json(&mut stdout);
+    let sid = created["result"]["sessionId"].as_str().expect("sessionId");
+
+    let path = tmp
+        .join(".rung")
+        .join("sessions")
+        .join(format!("{sid}.json"));
+    let mut sess: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    sess["lines"] = json!([
+        {"role": "user", "text": "hi"},
+        {"role": "assistant", "text": "secret-replay"}
+    ]);
+    std::fs::write(&path, serde_json::to_string_pretty(&sess).unwrap()).unwrap();
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":3,"method":"session/fork","params":{{"sessionId":"{sid}","cwd":"{cwd}","mcpServers":[]}}}}"#
+    )
+    .unwrap();
+    stdin.flush().unwrap();
+    let forked = read_json(&mut stdout);
+    let fid = forked["result"]["sessionId"].as_str().expect("fork id");
+    assert_ne!(fid, sid);
+    assert_eq!(forked["result"]["modes"]["currentModeId"], "implement");
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":4,"method":"session/list","params":{{"cwd":"{cwd}"}}}}"#
+    )
+    .unwrap();
+    stdin.flush().unwrap();
+    let listed = read_json(&mut stdout);
+    assert_eq!(listed["result"]["sessions"].as_array().unwrap().len(), 2);
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":5,"method":"session/resume","params":{{"sessionId":"{sid}","cwd":"{cwd}","mcpServers":[]}}}}"#
+    )
+    .unwrap();
+    stdin.flush().unwrap();
+    let resume = read_json(&mut stdout);
+    assert!(resume.get("result").is_some(), "{resume}");
+    assert!(
+        resume.get("method").is_none(),
+        "resume must not replay: {resume}"
+    );
+    assert_eq!(resume["result"]["modes"]["currentModeId"], "implement");
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":6,"method":"session/load","params":{{"sessionId":"{sid}","cwd":"{cwd}","mcpServers":[]}}}}"#
+    )
+    .unwrap();
+    stdin.flush().unwrap();
+    let load_note = read_json(&mut stdout);
+    assert_eq!(load_note["method"], "session/update", "{load_note}");
+    let replay = load_note["params"]["update"]["content"]["text"]
+        .as_str()
+        .unwrap_or_default();
+    assert_eq!(replay, "secret-replay");
+    let load = read_json(&mut stdout);
+    assert!(load.get("result").is_some(), "{load}");
 
     drop(stdin);
     let status = child.wait().unwrap();

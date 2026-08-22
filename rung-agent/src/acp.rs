@@ -1,8 +1,10 @@
 //! ACP v1 agent on stdio via `agent-client-protocol`.
 //!
 //! Baseline: `initialize`, `session/new`, `session/prompt`, `session/cancel`,
-//! `session/update`. Also advertised: load, list, delete, close, set_mode.
-//! MCP, image, and audio are not claimed.
+//! `session/update`. Also advertised: load, list, delete, close, set_mode,
+//! resume, and unstable `session/fork`. Prompt emits `ToolCall` /
+//! `ToolCallUpdate`. Cancel is checked before each LLM call and around each
+//! tool. MCP, image, and audio are not claimed.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -12,12 +14,15 @@ use std::sync::{Arc, Mutex};
 use agent_client_protocol::schema::v1::{
     AgentCapabilities, AuthenticateRequest, AuthenticateResponse, CancelNotification,
     CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk, DeleteSessionRequest,
-    DeleteSessionResponse, Implementation, InitializeRequest, InitializeResponse,
-    ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
-    NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse, SessionCapabilities,
-    SessionCloseCapabilities, SessionDeleteCapabilities, SessionId, SessionInfo,
-    SessionListCapabilities, SessionMode, SessionModeId, SessionModeState, SessionNotification,
-    SessionUpdate, SetSessionModeRequest, SetSessionModeResponse, StopReason, TextContent,
+    DeleteSessionResponse, ForkSessionRequest, ForkSessionResponse, Implementation,
+    InitializeRequest, InitializeResponse, ListSessionsRequest, ListSessionsResponse,
+    LoadSessionRequest, LoadSessionResponse, NewSessionRequest, NewSessionResponse, PromptRequest,
+    PromptResponse, ResumeSessionRequest, ResumeSessionResponse, SessionCapabilities,
+    SessionCloseCapabilities, SessionDeleteCapabilities, SessionForkCapabilities, SessionId,
+    SessionInfo, SessionListCapabilities, SessionMode, SessionModeId, SessionModeState,
+    SessionNotification, SessionResumeCapabilities, SessionUpdate, SetSessionModeRequest,
+    SetSessionModeResponse, StopReason, TextContent, ToolCall, ToolCallContent, ToolCallStatus,
+    ToolCallUpdate, ToolCallUpdateFields, ToolKind,
 };
 use agent_client_protocol::{
     Agent, Client, ConnectionTo, Error, Responder, Result as AcpResult, Stdio,
@@ -25,8 +30,11 @@ use agent_client_protocol::{
 
 use crate::args::{Args, IsolationMode};
 use crate::catalog::Kind;
-use crate::run::run_job;
+use crate::run::{JobEx, run_job_ex};
 use crate::session::{Session, SessionStore};
+use crate::stream::{NotifyingToolset, ToolNotify};
+
+use serde_json::Value;
 
 #[derive(Clone, Default)]
 struct Live {
@@ -98,8 +106,60 @@ fn capabilities() -> AgentCapabilities {
             SessionCapabilities::new()
                 .list(SessionListCapabilities::new())
                 .delete(SessionDeleteCapabilities::new())
-                .close(SessionCloseCapabilities::new()),
+                .close(SessionCloseCapabilities::new())
+                .resume(SessionResumeCapabilities::new())
+                .fork(SessionForkCapabilities::new()),
         )
+}
+
+fn tool_kind(name: &str) -> ToolKind {
+    match name {
+        "read_file" | "list_files" | "glob" => ToolKind::Read,
+        "grep" => ToolKind::Search,
+        "write_file" | "edit" | "apply_patch" => ToolKind::Edit,
+        "shell" | "python" => ToolKind::Execute,
+        "webfetch" => ToolKind::Fetch,
+        "todo" => ToolKind::Think,
+        _ => ToolKind::Other,
+    }
+}
+
+struct AcpNotify {
+    connection: ConnectionTo<Client>,
+    session_id: SessionId,
+}
+
+impl ToolNotify for AcpNotify {
+    fn started(&self, id: &str, name: &str, input: &Value) {
+        let _ = self.connection.send_notification(SessionNotification::new(
+            self.session_id.clone(),
+            SessionUpdate::ToolCall(
+                ToolCall::new(id.to_string(), name)
+                    .kind(tool_kind(name))
+                    .status(ToolCallStatus::InProgress)
+                    .raw_input(input.clone()),
+            ),
+        ));
+    }
+
+    fn finished(&self, id: &str, _name: &str, result: Result<&str, &str>) {
+        let (status, body) = match result {
+            Ok(s) => (ToolCallStatus::Completed, s),
+            Err(e) => (ToolCallStatus::Failed, e),
+        };
+        let _ = self.connection.send_notification(SessionNotification::new(
+            self.session_id.clone(),
+            SessionUpdate::ToolCallUpdate(ToolCallUpdate::new(
+                id.to_string(),
+                ToolCallUpdateFields::new()
+                    .status(status)
+                    .content(vec![ToolCallContent::from(ContentBlock::Text(
+                        TextContent::new(body),
+                    ))])
+                    .raw_output(Value::String(body.to_string())),
+            )),
+        ));
+    }
 }
 
 fn abs_cwd(cwd: PathBuf) -> PathBuf {
@@ -305,6 +365,46 @@ async fn serve() -> AcpResult<()> {
         .on_receive_request(
             {
                 let live = live.clone();
+                async move |request: ForkSessionRequest,
+                            responder: Responder<ForkSessionResponse>,
+                            _connection: ConnectionTo<Client>| {
+                    let src = sid_str(&request.session_id);
+                    let cwd = abs_cwd(request.cwd);
+                    let parent = store_at(&cwd).load(&src).map_err(invalid)?;
+                    let id = crate::session::new_id();
+                    let kind = parent.kind().unwrap_or(Kind::Implement);
+                    let mut child = parent;
+                    child.id = id.clone();
+                    child.cwd = cwd.to_string_lossy().into_owned();
+                    child.status = "new".into();
+                    child.pid = Some(std::process::id());
+                    store_at(&cwd).save(&child).map_err(invalid)?;
+                    live.set_kind(&id, kind);
+                    responder
+                        .respond(ForkSessionResponse::new(SessionId::new(id)).modes(modes(kind)))
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
+                async move |request: ResumeSessionRequest,
+                            responder: Responder<ResumeSessionResponse>,
+                            _connection: ConnectionTo<Client>| {
+                    let cwd = abs_cwd(request.cwd);
+                    let id = sid_str(&request.session_id);
+                    let sess = store_at(&cwd).load(&id).map_err(invalid)?;
+                    let kind = sess.kind().unwrap_or(Kind::Implement);
+                    live.set_kind(&id, kind);
+                    responder.respond(ResumeSessionResponse::new().modes(modes(kind)))
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
                 async move |request: PromptRequest,
                             responder: Responder<PromptResponse>,
                             connection: ConnectionTo<Client>| {
@@ -339,14 +439,29 @@ async fn serve() -> AcpResult<()> {
                         help: false,
                         acp: false,
                     };
-                    let out = tokio::task::spawn_blocking(move || run_job(&args, &origin))
-                        .await
-                        .map_err(|e| Error::internal_error().data(e.to_string()))?;
+                    let notify_conn = connection.clone();
+                    let notify_sid = session_id.clone();
+                    let extra = JobEx {
+                        cancel: Some(flag.clone()),
+                        wrap_tools: Some(Arc::new(move |inner| {
+                            Arc::new(NotifyingToolset::new(
+                                inner,
+                                AcpNotify {
+                                    connection: notify_conn.clone(),
+                                    session_id: notify_sid.clone(),
+                                },
+                            ))
+                        })),
+                    };
+                    let out =
+                        tokio::task::spawn_blocking(move || run_job_ex(&args, &origin, extra))
+                            .await
+                            .map_err(|e| Error::internal_error().data(e.to_string()))?;
                     let cancelled = flag.load(Ordering::SeqCst);
                     match out {
                         Ok(o) => {
                             send_text(&connection, session_id, o.text)?;
-                            let reason = if cancelled {
+                            let reason = if cancelled || o.status == "cancelled" {
                                 StopReason::Cancelled
                             } else {
                                 StopReason::EndTurn
@@ -391,5 +506,16 @@ mod tests {
         let m = modes(Kind::Implement);
         assert_eq!(m.current_mode_id.0.as_ref(), "implement");
         assert_eq!(m.available_modes.len(), 3);
+    }
+
+    #[test]
+    fn tool_kind_maps_catalog_names() {
+        assert_eq!(tool_kind("read_file"), ToolKind::Read);
+        assert_eq!(tool_kind("edit"), ToolKind::Edit);
+        assert_eq!(tool_kind("shell"), ToolKind::Execute);
+        assert_eq!(tool_kind("grep"), ToolKind::Search);
+        assert_eq!(tool_kind("webfetch"), ToolKind::Fetch);
+        assert_eq!(tool_kind("todo"), ToolKind::Think);
+        assert_eq!(tool_kind("task"), ToolKind::Other);
     }
 }

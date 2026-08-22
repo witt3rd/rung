@@ -3,8 +3,9 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
-use rung_std::agent::{self, LoopState, Thread, agentloop};
+use rung_std::agent::{self, FailureKind, LoopState, Thread, agentloop};
 use rung_std::llm::{ChatMessage, LlmConfig};
 use rung_std::tools::{
     MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, ToolCollection, ToolRoster, Toolset,
@@ -26,6 +27,16 @@ pub struct Outcome {
     pub isolation_path: Option<String>,
 }
 
+/// Wrap a roster so execute is observed (ACP tool-call updates).
+pub type WrapTools = Arc<dyn Fn(Arc<dyn Toolset>) -> Arc<dyn Toolset> + Send + Sync>;
+
+/// Optional cancel + tool wrap for one job (ACP).
+#[derive(Clone, Default)]
+pub struct JobEx {
+    pub cancel: Option<Arc<AtomicBool>>,
+    pub wrap_tools: Option<WrapTools>,
+}
+
 /// Nested `task` Spawn: pick a catalog kind, persist a child session, run a
 /// depth-capped loop. Isolation stays the process cwd (parent already chdir'd).
 #[derive(Clone)]
@@ -34,6 +45,7 @@ pub struct CatalogSpawn {
     pub store: SessionStore,
     pub max_iterations: u32,
     pub emitter: Option<Arc<crate::stream::Emitter>>,
+    pub extra: JobEx,
 }
 
 impl std::fmt::Debug for CatalogSpawn {
@@ -77,6 +89,7 @@ impl Spawn for CatalogSpawn {
             &sess.lines,
             self.max_iterations,
             self.emitter.clone(),
+            &self.extra,
         ) {
             Ok((text, api_calls)) => {
                 sess.lines.push(Line {
@@ -110,23 +123,22 @@ fn drive(
     lines: &[Line],
     max_iterations: u32,
     emitter: Option<Arc<crate::stream::Emitter>>,
+    extra: &JobEx,
 ) -> Result<(String, u32), String> {
     let cap = max_iterations.min(kind.max_iterations()).max(1);
     let base: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
-    let tools: Arc<dyn Toolset> = match &emitter {
-        Some(em) => Arc::new(crate::stream::ObservingToolset {
-            inner: base,
-            emitter: em.clone(),
-        }),
-        None => base,
-    };
+    let tools = wrap_tools(base, emitter.as_ref(), extra);
     let mut config = config.clone();
     if let Some(em) = &emitter {
         config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
     }
     let thread = thread_from(lines, None, None);
+    let state = LoopState {
+        cancel: extra.cancel.clone(),
+        ..LoopState::new(cap, cap)
+    };
     let carry = agentloop::Carry {
-        state: LoopState::new(cap, cap),
+        state,
         tools,
         config,
         python: None,
@@ -134,6 +146,24 @@ fn drive(
     match agent::run(thread, carry) {
         Ok(r) => Ok((r.final_response, r.api_calls_made)),
         Err(f) => Err(f.reason),
+    }
+}
+
+fn wrap_tools(
+    base: Arc<dyn Toolset>,
+    emitter: Option<&Arc<crate::stream::Emitter>>,
+    extra: &JobEx,
+) -> Arc<dyn Toolset> {
+    let tools: Arc<dyn Toolset> = match emitter {
+        Some(em) => Arc::new(crate::stream::ObservingToolset {
+            inner: base,
+            emitter: em.clone(),
+        }),
+        None => base,
+    };
+    match &extra.wrap_tools {
+        Some(w) => w(tools),
+        None => tools,
     }
 }
 
@@ -204,6 +234,10 @@ impl Drop for CwdGuard {
 }
 
 pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
+    run_job_ex(args, origin, JobEx::default())
+}
+
+pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, String> {
     if let Some(id) = &args.task_id {
         crate::session::check_id(id)?;
     }
@@ -347,19 +381,14 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
             store: store.clone(),
             max_iterations: cap,
             emitter: emitter.clone(),
+            extra: extra.clone(),
         };
         let mut tasks = ToolCollection::new("task");
         tasks.admit(Task::new(Arc::new(spawn), 0, MAX_DEPTH));
         roster.add(tasks);
     }
     let base: Arc<dyn Toolset> = Arc::new(roster);
-    let tools: Arc<dyn Toolset> = match &emitter {
-        Some(em) => Arc::new(crate::stream::ObservingToolset {
-            inner: base,
-            emitter: em.clone(),
-        }),
-        None => base,
-    };
+    let tools = wrap_tools(base, emitter.as_ref(), &extra);
     let system_prompt = match &args.system_prompt {
         Some(s) => Some(read_text(&origin, s)?),
         None => None,
@@ -373,8 +402,12 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
         system_prompt.as_deref(),
         user_material.as_deref(),
     );
+    let state = LoopState {
+        cancel: extra.cancel.clone(),
+        ..LoopState::new(cap, cap)
+    };
     let carry = agentloop::Carry {
-        state: LoopState::new(cap, cap),
+        state,
         tools,
         config,
         python: None,
@@ -395,6 +428,17 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
                 text: r.final_response,
                 status: "completed".into(),
                 api_calls: r.api_calls_made,
+                isolation_path: sess.isolation_path,
+            })
+        }
+        Err(f) if f.kind == FailureKind::Interrupted => {
+            sess.status = "interrupted".into();
+            let _ = store.save(&sess);
+            Ok(Outcome {
+                task_id: id,
+                text: String::new(),
+                status: "cancelled".into(),
+                api_calls: 0,
                 isolation_path: sess.isolation_path,
             })
         }
