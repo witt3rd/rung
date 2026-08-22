@@ -1,11 +1,11 @@
 //! Headless agent — composes rung-std blocks. Not a coding product;
 //! coding is one thing it can do when given write/shell tools.
 //!
-//! Tool access is a **scope** (`--tools` / config `tools:`). `--type
-//! explore|implement|review` is a preset alias for those groups.
+//! Tool access is a **scope** (`--tools` / config `tools:`). `--toolset
+//! explore|implement|review` names a preset. `--type` is an alias of `--toolset`.
 //!
 //! ```text
-//! rung-agent [--tools none|read,python,web,…] [--type explore|implement|review]
+//! rung-agent [--tools none|read,python,web,…] [--toolset explore|implement|review]
 //!            [--isolation none|worktree] [--background] [PROMPT]
 //! ```
 //!

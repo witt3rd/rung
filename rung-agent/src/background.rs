@@ -36,7 +36,7 @@ pub fn spawn_child(
         .env(CHILD_ENV, "1")
         .arg("--task-id")
         .arg(task_id)
-        .arg("--type")
+        .arg("--toolset")
         .arg(args.kind.as_str())
         .arg("--isolation")
         .arg(args.isolation.as_str());

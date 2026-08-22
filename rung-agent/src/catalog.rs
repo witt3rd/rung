@@ -2,15 +2,15 @@
 //!
 //! Rung is an agent. Coding is one thing it might do. What changes per call
 //! is which tools it may use. Named groups are composed from CLI `--tools`
-//! and/or config `tools:`; `--type explore|implement|review` is a **preset
-//! alias** for those groups (Harbor / nested `task` still pass `--type`).
+//! and/or config `tools:`; `--toolset explore|implement|review` names a
+//! preset. `--type` is an alias of `--toolset`.
 
 use rung_std::tools::{
     ApplyPatch, EditFile, Glob, Grep, ListFiles, ReadFile, Shell, Skill, Todo, ToolCollection,
     ToolRoster, WebFetch, WriteFile,
 };
 
-/// Built-in `--type` aliases. Unknown names are refused, not guessed.
+/// Built-in `--toolset` names. Unknown names are refused, not guessed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     /// Preset: read + web + skill. No nested `task`.
@@ -52,7 +52,7 @@ impl Kind {
         }
     }
 
-    /// Groups this `--type` alias expands to.
+    /// Groups this `--toolset` expands to.
     pub fn groups(self) -> &'static [&'static str] {
         match self {
             Self::Explore | Self::Review => &["read", "web", "skill"],
