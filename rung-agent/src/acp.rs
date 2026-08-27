@@ -1,4 +1,4 @@
-//! ACP v1 agent on stdio via `agent-client-protocol`.
+//! ACP v1 agent: stdio (`--acp`) or Streamable HTTP (`--acp-http`).
 //!
 //! Baseline: `initialize`, `session/new`, `session/prompt`, `session/cancel`,
 //! `session/update`. Also advertised: load, list, delete, close, set_mode,
@@ -26,7 +26,7 @@ use agent_client_protocol::schema::v1::{
     ToolCallUpdateFields, ToolKind,
 };
 use agent_client_protocol::{
-    Agent, Client, ConnectionTo, Error, Responder, Result as AcpResult, Stdio,
+    Agent, Client, ConnectTo, ConnectionTo, Error, Responder, Result as AcpResult, Stdio,
 };
 
 use crate::args::{Args, IsolationMode};
@@ -40,7 +40,7 @@ use rung_std::llm::{AudioSource, ImageSource, MessageContentBlock};
 use serde_json::Value;
 
 #[derive(Clone, Default)]
-struct Live {
+pub(crate) struct Live {
     inner: Arc<Mutex<Inner>>,
 }
 
@@ -385,24 +385,37 @@ fn job_args(process: &Args, id: String, kind: Kind, text: String) -> Args {
         prompt: Some(text),
         help: false,
         acp: false,
+        acp_http: None,
+        acp_token: None,
         mcp: Vec::new(),
     }
 }
 
-/// Speak ACP until stdin closes. CLI `--tools` / `--system-prompt` /
-/// `--toolset` / `--max-iterations` apply to each `session/prompt`.
+/// Speak ACP until stdin closes, or until the HTTP listener stops.
+/// CLI `--tools` / `--system-prompt` / `--toolset` / `--max-iterations`
+/// apply to each `session/prompt`.
 pub fn run(process: Args) -> Result<(), String> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .map_err(|e| e.to_string())?;
-    rt.block_on(serve(process)).map_err(|e| e.to_string())
+    rt.block_on(async {
+        if let Some(addr) = process.acp_http.clone() {
+            crate::acp_http::listen(process, addr).await
+        } else {
+            let live = Live::default();
+            connect_agent(Arc::new(process), live, Stdio::new())
+                .await
+                .map_err(|e| e.to_string())
+        }
+    })
 }
 
-async fn serve(process: Args) -> AcpResult<()> {
-    let live = Live::default();
-    let process = Arc::new(process);
-
+pub(crate) async fn connect_agent(
+    process: Arc<Args>,
+    live: Live,
+    transport: impl ConnectTo<Agent> + 'static,
+) -> AcpResult<()> {
     Agent
         .builder()
         .name("rung-agent")
@@ -656,7 +669,7 @@ async fn serve(process: Args) -> AcpResult<()> {
             },
             agent_client_protocol::on_receive_notification!(),
         )
-        .connect_to(Stdio::new())
+        .connect_to(transport)
         .await
 }
 

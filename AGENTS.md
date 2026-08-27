@@ -73,15 +73,21 @@ rung-fixture  cross-crate consumption tests
 ```
 
 Product CLI `rung-agent` (catalog, sessions, isolation, background, XDG
-`config.yaml`, `--acp` on stdio) is in the workspace. Kernel `task` is
-nested `Spawn`, depth 1. Catalog / resume / worktrees / background are
-product. `--acp` is ACP v1 on stdio (`agent-client-protocol` crate).
-Baseline plus load/list/delete/close/set_mode/resume and unstable
-`session/fork`. Prompt emits tool-call `session/update`s; cancel is
-checked before each LLM call and around each tool. Prompt image,
-audio, and embedded context are claimed. MCP HTTP (and ACP-required
-stdio) tools are admitted for the session. Anvil holds the process as
-a pane.
+`config.yaml`, `--acp` on stdio, `--acp-http` Streamable HTTP) is in
+the workspace. Kernel `task` is nested `Spawn`, depth 1. Catalog /
+resume / worktrees / background are product. `--acp` is ACP v1 on
+stdio (`agent-client-protocol` crate) — the only stable transport.
+`--acp-http [ADDR]` is the experimental Streamable HTTP RFD
+(`POST`/`GET`/`DELETE /acp`, `Acp-Connection-Id` / `Acp-Session-Id`,
+SSE GET streams) matching `@agentclientprotocol/sdk` `createHttpStream`
+/ `AcpServer`. HTTP/2 is accepted; HTTP/1.1 is served so the TS client
+works on localhost. WebSocket upgrade returns 426 until sacp HTTP
+lands. Baseline plus load/list/delete/close/set_mode/resume and
+unstable `session/fork`. Prompt emits tool-call `session/update`s;
+cancel is checked before each LLM call and around each tool. Prompt
+image, audio, and embedded context are claimed. MCP HTTP (and
+ACP-required stdio) tools are admitted for the session. Anvil holds
+the process as a pane.
 
 Harbor eval is out of tree (`rung-agent/python/rung_harbor`). Do not fork
 Harbor. The **validation suite** (`rung_harbor.suite`) is a capability

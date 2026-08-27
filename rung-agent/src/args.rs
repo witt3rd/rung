@@ -42,6 +42,10 @@ pub struct Args {
     pub help: bool,
     /// Speak ACP on stdio.
     pub acp: bool,
+    /// Streamable HTTP bind address (`--acp-http [ADDR]`).
+    pub acp_http: Option<String>,
+    /// Optional bearer for `--acp-http`.
+    pub acp_token: Option<String>,
     /// MCP servers for this call (`--mcp-http name=url`).
     pub mcp: Vec<crate::mcp::McpSpec>,
 }
@@ -60,6 +64,8 @@ impl Args {
         let mut tools = None;
         let mut help = false;
         let mut acp = false;
+        let mut acp_http = None;
+        let mut acp_token = None;
         let mut mcp = Vec::new();
         let mut prompt_parts: Vec<String> = Vec::new();
         let mut rest = false;
@@ -76,6 +82,12 @@ impl Args {
                 "--" => rest = true,
                 "-h" | "--help" => help = true,
                 "--acp" => acp = true,
+                "--acp-http" => {
+                    acp_http = Some(optional_addr(&mut it)?);
+                }
+                "--acp-token" => {
+                    acp_token = Some(need("--acp-token", it.next())?);
+                }
                 "--background" => background = true,
                 "--json" => json = true,
                 "--stream" => stream = true,
@@ -122,6 +134,17 @@ impl Args {
                 s if s.starts_with("--mcp-http=") => {
                     mcp.push(crate::mcp::McpSpec::parse_http(&s["--mcp-http=".len()..])?);
                 }
+                s if s.starts_with("--acp-http=") => {
+                    let v = s["--acp-http=".len()..].to_string();
+                    acp_http = Some(if v.is_empty() {
+                        DEFAULT_ACP_HTTP.to_string()
+                    } else {
+                        v
+                    });
+                }
+                s if s.starts_with("--acp-token=") => {
+                    acp_token = Some(s["--acp-token=".len()..].to_string());
+                }
                 s if s.starts_with("--task-id=") => {
                     task_id = Some(s["--task-id=".len()..].to_string());
                 }
@@ -163,8 +186,24 @@ impl Args {
             prompt,
             help,
             acp,
+            acp_http,
+            acp_token,
             mcp,
         })
+    }
+}
+
+pub(crate) const DEFAULT_ACP_HTTP: &str = "127.0.0.1:7331";
+
+fn optional_addr(
+    it: &mut std::iter::Peekable<impl Iterator<Item = impl AsRef<str>>>,
+) -> Result<String, String> {
+    match it.peek() {
+        Some(s) if !s.as_ref().starts_with('-') && !s.as_ref().is_empty() => Ok(it
+            .next()
+            .map(|s| s.as_ref().to_string())
+            .unwrap_or_default()),
+        _ => Ok(DEFAULT_ACP_HTTP.to_string()),
     }
 }
 
@@ -180,11 +219,14 @@ rung-agent — headless agent (not a coding product; coding is one use)
 
   rung-agent [OPTIONS] [PROMPT]
   rung-agent --acp                     ACP agent on stdio
+  rung-agent --acp-http [ADDR]         ACP Streamable HTTP (experimental)
   rung-agent --task-id ID              print status / last answer
   rung-agent --task-id ID PROMPT       resume that session
 
 Options:
   --acp                             ACP JSON-RPC on stdin/stdout
+  --acp-http [ADDR]                 ACP Streamable HTTP at /acp (default 127.0.0.1:7331)
+  --acp-token TOKEN                 require Authorization: Bearer TOKEN on --acp-http
   --tools none|read,write,shell,web,skill,todo,python,task
                                     compose groups for this call (overrides --toolset and config)
   --mcp-http name=url               connect a streamable-HTTP MCP server; repeatable
@@ -233,6 +275,7 @@ mod tests {
         assert_eq!(a.task_id.as_deref(), Some("abc"));
         assert_eq!(a.prompt.as_deref(), Some("look around"));
         assert!(!a.acp);
+        assert!(a.acp_http.is_none());
         let alias = Args::parse(["rung-agent", "--type", "review", "q"]).unwrap();
         assert_eq!(alias.kind, Kind::Review);
     }
@@ -287,6 +330,18 @@ mod tests {
         let a = Args::parse(["rung-agent", "--acp"]).unwrap();
         assert!(a.acp);
         assert!(a.prompt.is_none());
+        assert!(a.acp_http.is_none());
+    }
+
+    #[test]
+    fn parses_acp_http_default_and_addr() {
+        let a = Args::parse(["rung-agent", "--acp-http"]).unwrap();
+        assert_eq!(a.acp_http.as_deref(), Some(DEFAULT_ACP_HTTP));
+        let b = Args::parse(["rung-agent", "--acp-http", "127.0.0.1:0"]).unwrap();
+        assert_eq!(b.acp_http.as_deref(), Some("127.0.0.1:0"));
+        let c = Args::parse(["rung-agent", "--acp-http=0.0.0.0:9", "--acp-token", "k"]).unwrap();
+        assert_eq!(c.acp_http.as_deref(), Some("0.0.0.0:9"));
+        assert_eq!(c.acp_token.as_deref(), Some("k"));
     }
 
     #[test]

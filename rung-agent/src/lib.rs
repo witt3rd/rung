@@ -8,6 +8,7 @@
 //! rung-agent [--tools none|read,python,web,…] [--toolset explore|implement|review]
 //!            [--isolation none|worktree] [--background] [PROMPT]
 //! rung-agent --acp
+//! rung-agent --acp-http [ADDR]
 //! ```
 //!
 //! LLM config: `$XDG_CONFIG_HOME/rung/config.yaml` (`llm:` block), then env
@@ -16,6 +17,7 @@
 //! required — LAN llama.cpp sends no Authorization header.
 
 pub mod acp;
+pub(crate) mod acp_http;
 pub mod args;
 pub mod background;
 pub mod catalog;

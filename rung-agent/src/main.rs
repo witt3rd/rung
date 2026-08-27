@@ -18,7 +18,7 @@ fn main() -> ExitCode {
         print!("{}", args::usage());
         return ExitCode::SUCCESS;
     }
-    if args.acp {
+    if args.acp || args.acp_http.is_some() {
         return match rung_agent::acp::run(args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
