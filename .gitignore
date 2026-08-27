@@ -12,3 +12,4 @@ rung-agent/harbor-runs/*
 
 .agent/.busy/
 .agent/.dispatch.log
+.rung/
