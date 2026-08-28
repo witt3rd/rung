@@ -1057,6 +1057,19 @@ impl<P: Principal> Pool<P> {
         self.principals.is_empty()
     }
 
+    /// Look a principal up by declared identity.
+    ///
+    /// A read-only accessor over the declared inhabitants, used by extensions
+    /// that wrap a [`Pool`] and need the principal behind a token the pool
+    /// minted (see `rung-het`'s HetOpt layer, which orders qualifying tokens
+    /// by declared worth). It adds no predicate to the supplier interface:
+    /// [nothing-further-required](https://github.com/witt3rd/rung/blob/master/docs/rung-het-props.md#nothing-further-required)
+    /// still holds — the pool was always enumerable by `new`, this only makes
+    /// the enumeration addressable.
+    pub fn principal(&self, id: &str) -> Option<&P> {
+        self.principals.iter().find(|p| p.id() == id)
+    }
+
     /// Het dispatch-is-two-operations — the qualifying set for **this
     /// argument**, then *any* member of it.
     ///

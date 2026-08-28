@@ -544,7 +544,17 @@ fn nothing_in_the_workspace_orders_by_cost_or_epsilon() {
     let mut offences: Vec<String> = Vec::new();
     let mut sighted = 0usize;
 
+    // The one licensed exception: rung-het's `hetopt` module IS the HetOpt
+    // layer (ordering-is-hetopts: "Ordering is HetOpt's"), and its worth
+    // ordering is the minimal-judge / minimal-author rules of 8.22. The cut
+    // is drawn at valuation — this module is valuation. Everywhere else, the
+    // refusal stands.
+    const HETOPT: &str = "rung-het/src/hetopt.rs";
+
     for file in workspace_sources() {
+        if file.to_string_lossy().ends_with(HETOPT) {
+            continue;
+        }
         let text = std::fs::read_to_string(&file).expect("a source file is readable");
         let lines: Vec<&str> = text.split('\n').collect();
         for (i, raw) in lines.iter().enumerate() {

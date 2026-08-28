@@ -240,6 +240,14 @@ pub use rung::{
 // `rung_het`.
 pub use rung::theory;
 
+// HetOpt — the worth-law extension (rung-het-props.md §8). Kept as its own
+// module rather than merged into the root: Het's surface stays exactly what
+// Het declares (het-declares-no-worth-law), and the extension declares its
+// additions at the same door it is reached through. The names are re-exported
+// at the root so `rung_het::ValuedPool` resolves alongside `rung_het::Pool`.
+pub mod hetopt;
+pub use hetopt::{Priced, ValuedPool, WorthLaw, rank};
+
 // The pass is declared with `ladder!` ([`het_pass!`] below expands to one), so
 // the macro has to be reachable from here: a consumer that declares the pass
 // should not have to name `rung` as well.
