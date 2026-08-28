@@ -210,16 +210,17 @@ fn last_assistant(lines: &[Line]) -> String {
 }
 
 /// System prompt precedence: explicit `--system-prompt` (TEXT or @file)
-/// beats the host's env channel. `BEING_PREFILL` is set by the being host
-/// at spawn — the packed profile, read from env so child argv stays the
-/// child's own ACP entry flags.
+/// beats the env channel. `RUNG_SYSTEM_PROMPT_FILE` is rung's own config
+/// surface: a host (its own wrapper, a fleet driver, an agent harness)
+/// may place a system-prompt *file path* there at spawn, keeping child
+/// argv purely the ACP entry flags.
 fn resolve_system_prompt(
     origin: &Path,
     explicit: Option<&String>,
 ) -> Result<Option<String>, String> {
     match explicit {
         Some(s) => read_text(origin, s).map(Some),
-        None => std::env::var("BEING_PREFILL")
+        None => std::env::var("RUNG_SYSTEM_PROMPT_FILE")
             .ok()
             .filter(|p| !p.trim().is_empty())
             .map(|p| read_text(origin, &format!("@{p}")))
@@ -516,7 +517,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("prefill.md");
         std::fs::write(&f, "# packed profile").unwrap();
-        unsafe { std::env::set_var("BEING_PREFILL", &f) };
+        unsafe { std::env::set_var("RUNG_SYSTEM_PROMPT_FILE", &f) };
 
         // env channel used when argv is silent
         let got = resolve_system_prompt(Path::new("/tmp"), None).unwrap();
@@ -528,7 +529,7 @@ mod tests {
         assert!(got.is_some());
         assert_ne!(got.as_deref(), Some("# packed profile"));
 
-        unsafe { std::env::remove_var("BEING_PREFILL") };
+        unsafe { std::env::remove_var("RUNG_SYSTEM_PROMPT_FILE") };
         let got = resolve_system_prompt(Path::new("/tmp"), None).unwrap();
         assert!(got.is_none());
         let _ = std::fs::remove_dir_all(&dir);

@@ -239,7 +239,9 @@ Options:
   --json                            emit one JSON Outcome object on stdout
   --stream                          emit NDJSON trace events on stdout
   --max-iterations N
-  --system-prompt TEXT            system message; TEXT or @file path
+  --system-prompt TEXT            system message; TEXT or @file path.
+                                  Without it, RUNG_SYSTEM_PROMPT_FILE (a file
+                                  path set by the host at spawn) is used.
   --user-prompt TEXT             first user message; TEXT or @file path
   -h, --help
 
