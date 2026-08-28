@@ -4,9 +4,10 @@
 //! $XDG_CONFIG_HOME/rung/config.yaml   # or ~/.config/rung/config.yaml
 //! ```
 //!
-//! Env wins over the file. The file may name the credential's *environment
-//! variable* (`api_key_env`); it does not hold the key. A missing key is
-//! empty: LAN llama.cpp / vLLM do not authenticate. Cloud endpoints that
+//! Env wins over the file. When the file names an `api_key_env`, the key is
+//! read from that env var alone (no fallback chain). If the file sets no
+//! `api_key_env`, the env-vars `RUNG_API_KEY` then `XAI_API_KEY` are tried.
+//! A missing key is empty: LAN llama.cpp / vLLM do not authenticate. Cloud endpoints that
 //! need a key will 401 at the wire.
 
 use rung_std::llm::{CachePolicy, LlmConfig, Protocol};
@@ -122,17 +123,18 @@ fn resolve(
                     .map(str::to_string)
             })
     };
-    let api_key = getenv("RUNG_API_KEY")
-        .or_else(|| getenv("XAI_API_KEY"))
-        .or_else(|| {
-            file.and_then(|f| f.api_key_env.as_deref())
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .and_then(&getenv)
-        })
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_default();
+    let key_file = getenv("RUNG_KEY_FILE").or_else(|| {
+        file.and_then(|f| f.api_key_env.as_deref())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    });
+    let api_key = if let Some(ref k) = key_file {
+        getenv(k).map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    } else {
+        getenv("RUNG_API_KEY").or_else(|| getenv("XAI_API_KEY"))
+    }
+    .unwrap_or_default();
 
     let protocol = parse_protocol(
         getenv("RUNG_PROTOCOL")
@@ -285,12 +287,23 @@ llm:
     }
 
     #[test]
-    fn env_overrides_file() {
-        let file = parse_llm("llm:\n  model: from-file\n  api_key_env: FILE_KEY\n");
+    fn file_api_key_env_is_authoritative() {
+        let file = parse_llm("llm:\n  api_key_env: FILE_KEY\n");
+        let env = HashMap::from([
+            ("RUNG_API_KEY", "env-key"),
+            ("XAI_API_KEY", "xai-key"),
+            ("FILE_KEY", "file-key"),
+        ]);
+        let c = resolve(Some(&file), getenv(&env)).unwrap();
+        assert_eq!(c.api_key, "file-key", "file's api_key_env must be authoritative");
+    }
+
+    #[test]
+    fn file_api_key_env_absent_falls_back() {
+        let file = parse_llm("llm:\n  model: from-file\n");
         let env = HashMap::from([
             ("RUNG_MODEL", "from-env"),
             ("RUNG_API_KEY", "env-key"),
-            ("FILE_KEY", "file-key"),
         ]);
         let c = resolve(Some(&file), getenv(&env)).unwrap();
         assert_eq!(c.model, "from-env");
