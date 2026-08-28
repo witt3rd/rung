@@ -130,7 +130,9 @@ fn resolve(
             .map(str::to_string)
     });
     let api_key = if let Some(ref k) = key_file {
-        getenv(k).map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+        getenv(k)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
     } else {
         getenv("RUNG_API_KEY").or_else(|| getenv("XAI_API_KEY"))
     }
@@ -295,16 +297,16 @@ llm:
             ("FILE_KEY", "file-key"),
         ]);
         let c = resolve(Some(&file), getenv(&env)).unwrap();
-        assert_eq!(c.api_key, "file-key", "file's api_key_env must be authoritative");
+        assert_eq!(
+            c.api_key, "file-key",
+            "file's api_key_env must be authoritative"
+        );
     }
 
     #[test]
     fn file_api_key_env_absent_falls_back() {
         let file = parse_llm("llm:\n  model: from-file\n");
-        let env = HashMap::from([
-            ("RUNG_MODEL", "from-env"),
-            ("RUNG_API_KEY", "env-key"),
-        ]);
+        let env = HashMap::from([("RUNG_MODEL", "from-env"), ("RUNG_API_KEY", "env-key")]);
         let c = resolve(Some(&file), getenv(&env)).unwrap();
         assert_eq!(c.model, "from-env");
         assert_eq!(c.api_key, "env-key");
