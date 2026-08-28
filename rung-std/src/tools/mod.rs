@@ -205,7 +205,9 @@ mod tests {
     #[test]
     fn read_file_tool_executes() {
         let result = ReadFile
-            .execute(&serde_json::json!({"path": "Cargo.toml"}))
+            .execute(
+                &serde_json::json!({"path": concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml")}),
+            )
             .unwrap();
         assert!(result.contains("[package]") || result.contains("→"));
         assert!(result.contains("package") || result.contains("[package]"));
