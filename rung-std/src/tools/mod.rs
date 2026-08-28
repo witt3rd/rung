@@ -267,7 +267,7 @@ mod tests {
     #[test]
     fn list_files_tool_executes() {
         let result = ListFiles
-            .execute(&serde_json::json!({"path": "src"}))
+            .execute(&serde_json::json!({"path": concat!(env!("CARGO_MANIFEST_DIR"), "/src")}))
             .unwrap();
         assert!(result.contains("llm"));
     }
@@ -277,7 +277,7 @@ mod tests {
         let result = Grep
             .execute(&serde_json::json!({
                 "pattern": "pub trait Tool",
-                "path": "src",
+                "path": concat!(env!("CARGO_MANIFEST_DIR"), "/src"),
                 "glob": "**/*.rs"
             }))
             .unwrap();
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn glob_finds_rs() {
         let result = Glob
-            .execute(&serde_json::json!({"pattern": "**/*.rs", "path": "src"}))
+            .execute(&serde_json::json!({"pattern": "**/*.rs", "path": concat!(env!("CARGO_MANIFEST_DIR"), "/src")}))
             .unwrap();
         assert!(result.contains("tools"));
     }
