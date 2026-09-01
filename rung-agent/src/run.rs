@@ -37,6 +37,8 @@ pub struct JobEx {
     pub wrap_tools: Option<WrapTools>,
     /// Replace the last user message with these blocks (ACP image/audio).
     pub prompt_blocks: Option<Vec<MessageContentBlock>>,
+    /// Forward model stream events (thinking deltas) to the ACP client.
+    pub stream_listener: Option<Arc<dyn rung_std::llm::StreamListener>>,
 }
 
 /// Nested `task` Spawn: pick a catalog kind, persist a child session, run a
@@ -133,6 +135,21 @@ fn drive(
     let mut config = config.clone();
     if let Some(em) = &emitter {
         config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
+    }
+    // The ACP prompt path forwards thinking deltas to the client even
+    // though the final text is sent at turn end.
+    if config.stream_listener.is_none()
+        && let Some(listener) = &extra.stream_listener
+    {
+        config.stream_listener = Some(listener.clone());
+    }
+    // Reasoning visibility: RUNG_REASONING (e.g. "medium") maps to
+    // reasoning_effort / thinking budget. GLM-class models emit
+    // reasoning_content deltas regardless; this asks for them.
+    if config.reasoning_level.is_none() {
+        config.reasoning_level = std::env::var("RUNG_REASONING")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
     }
     let thread = thread_from(lines, None, None);
     let state = LoopState {
@@ -381,6 +398,21 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
     };
     if let Some(em) = &emitter {
         config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
+    }
+    // The ACP prompt path forwards thinking deltas to the client even
+    // though the final text is sent at turn end.
+    if config.stream_listener.is_none()
+        && let Some(listener) = &extra.stream_listener
+    {
+        config.stream_listener = Some(listener.clone());
+    }
+    // Reasoning visibility: RUNG_REASONING (e.g. "medium") maps to
+    // reasoning_effort / thinking budget. GLM-class models emit
+    // reasoning_content deltas regardless; this asks for them.
+    if config.reasoning_level.is_none() {
+        config.reasoning_level = std::env::var("RUNG_REASONING")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
     }
     let model = config.model.clone();
 

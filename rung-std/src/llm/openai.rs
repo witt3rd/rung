@@ -358,6 +358,7 @@ pub(crate) fn parse_sse(
     let mut model = String::new();
     let mut usage = Usage::default();
     let mut saw_text_start = false;
+    let mut saw_think_start = false;
 
     let emit = |event: StreamEvent| {
         if let Some(l) = listener {
@@ -410,6 +411,27 @@ pub(crate) fn parse_sse(
             stop_reason = map_openai_finish_reason(Some(fr));
         }
         let delta = choice.and_then(|c| c.get("delta"));
+
+        // GLM / DeepSeek-style `reasoning_content`: thinking deltas ride
+        // an OpenAI-compatible extension field. Emit them as thinking
+        // blocks so the host's ambient can carry the model's reasoning.
+        if let Some(s) = delta
+            .and_then(|d| d.get("reasoning_content"))
+            .and_then(|v| v.as_str())
+            && !s.is_empty()
+        {
+            if !saw_think_start {
+                emit(StreamEvent::ContentBlockStart {
+                    index: 1,
+                    block: ContentBlockStart::Thinking,
+                });
+                saw_think_start = true;
+            }
+            emit(StreamEvent::ContentBlockDelta {
+                index: 1,
+                delta: ContentBlockDelta::ThinkingDelta(s.into()),
+            });
+        }
 
         if let Some(s) = delta
             .and_then(|d| d.get("content"))

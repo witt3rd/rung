@@ -35,7 +35,9 @@ use crate::mcp::McpSpec;
 use crate::run::{JobEx, run_job_ex};
 use crate::session::{Session, SessionStore};
 use crate::stream::{NotifyingToolset, ToolNotify};
-use rung_std::llm::{AudioSource, ImageSource, MessageContentBlock};
+use rung_std::llm::{
+    AudioSource, ContentBlockDelta, ImageSource, MessageContentBlock, StreamEvent, StreamListener,
+};
 
 use serde_json::Value;
 
@@ -354,6 +356,33 @@ fn invalid(msg: impl Into<String>) -> Error {
     Error::invalid_params().data(msg.into())
 }
 
+/// Forward the model's thinking deltas to the venue as
+/// `agent_thought_chunk` updates — reasoning is part of the record.
+struct ThoughtForwarder {
+    connection: ConnectionTo<Client>,
+    session_id: SessionId,
+}
+
+impl rung_std::llm::StreamListener for ThoughtForwarder {
+    fn on_event(&self, event: StreamEvent) {
+        if let StreamEvent::ContentBlockDelta {
+            index: _,
+            delta: ContentBlockDelta::ThinkingDelta(t),
+        } = event
+        {
+            if t.is_empty() {
+                return;
+            }
+            let _ = self.connection.send_notification(SessionNotification::new(
+                self.session_id.clone(),
+                SessionUpdate::AgentThoughtChunk(ContentChunk::new(ContentBlock::Text(
+                    TextContent::new(t),
+                ))),
+            ));
+        }
+    }
+}
+
 fn send_text(
     connection: &ConnectionTo<Client>,
     session_id: SessionId,
@@ -635,6 +664,10 @@ pub(crate) async fn connect_agent(
                                     session_id: notify_sid.clone(),
                                 },
                             ))
+                        })),
+                        stream_listener: Some(Arc::new(ThoughtForwarder {
+                            connection: connection.clone(),
+                            session_id: session_id.clone(),
                         })),
                         prompt_blocks: Some(blocks),
                     };
