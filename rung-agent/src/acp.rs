@@ -36,7 +36,7 @@ use crate::run::{JobEx, run_job_ex};
 use crate::session::{Session, SessionStore};
 use crate::stream::{NotifyingToolset, ToolNotify};
 use rung_std::llm::{
-    AudioSource, ContentBlockDelta, ImageSource, MessageContentBlock, StreamEvent, StreamListener,
+    AudioSource, ContentBlockDelta, ImageSource, MessageContentBlock, StreamEvent,
 };
 
 use serde_json::Value;
