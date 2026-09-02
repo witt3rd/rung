@@ -412,11 +412,10 @@ pub(crate) fn parse_sse(
         }
         let delta = choice.and_then(|c| c.get("delta"));
 
-        // GLM / DeepSeek-style `reasoning_content`: thinking deltas ride
-        // an OpenAI-compatible extension field. Emit them as thinking
-        // blocks so the host's ambient can carry the model's reasoning.
+        // OpenAI-compatible providers use either `reasoning_content`
+        // (GLM/DeepSeek) or `reasoning` (OpenRouter) for thinking deltas.
         if let Some(s) = delta
-            .and_then(|d| d.get("reasoning_content"))
+            .and_then(|d| d.get("reasoning_content").or_else(|| d.get("reasoning")))
             .and_then(|v| v.as_str())
             && !s.is_empty()
         {
@@ -691,5 +690,35 @@ mod tests {
             ContentBlock::Text { text } => assert_eq!(text, "Hello"),
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn sse_openrouter_reasoning_emits_thinking_delta() {
+        use std::sync::Mutex;
+
+        #[derive(Default)]
+        struct Capture(Mutex<Vec<String>>);
+        impl StreamListener for Capture {
+            fn on_event(&self, event: StreamEvent) {
+                if let StreamEvent::ContentBlockDelta {
+                    delta: ContentBlockDelta::ThinkingDelta(text),
+                    ..
+                } = event
+                {
+                    self.0.lock().unwrap().push(text);
+                }
+            }
+        }
+
+        let lines = [
+            r#"data: {"id":"x","model":"m","choices":[{"delta":{"reasoning":"considering"}}]}"#
+                .to_string(),
+            r#"data: {"choices":[{"delta":{"content":"done"},"finish_reason":"stop"}]}"#
+                .to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let capture = Capture::default();
+        let _ = parse_sse(&lines, Some(&capture)).unwrap();
+        assert_eq!(*capture.0.lock().unwrap(), ["considering"]);
     }
 }
