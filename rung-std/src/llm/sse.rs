@@ -11,6 +11,21 @@ pub fn read_lines_idle(
     response: reqwest::blocking::Response,
     idle: Duration,
 ) -> Result<Vec<String>, RawCallError> {
+    let mut out = Vec::new();
+    read_lines_idle_each(response, idle, |line| {
+        out.push(line.to_string());
+        Ok(())
+    })?;
+    Ok(out)
+}
+
+/// Read response lines under the same idle deadline, delivering each line to
+/// the parser immediately instead of buffering the complete SSE response.
+pub fn read_lines_idle_each(
+    response: reqwest::blocking::Response,
+    idle: Duration,
+    mut each: impl FnMut(&str) -> Result<(), RawCallError>,
+) -> Result<(), RawCallError> {
     let (tx, rx) = mpsc::sync_channel::<Option<Result<String, String>>>(16);
     std::thread::spawn(move || {
         let mut reader = BufReader::new(response);
@@ -36,15 +51,18 @@ pub fn read_lines_idle(
         }
     });
 
-    let mut out = Vec::new();
+    let mut observed = false;
     loop {
         match rx.recv_timeout(idle) {
-            Ok(None) => return Ok(out),
-            Ok(Some(Ok(line))) => out.push(line),
+            Ok(None) => return Ok(()),
+            Ok(Some(Ok(line))) => {
+                observed = true;
+                each(&line)?;
+            }
             Ok(Some(Err(e))) => {
                 return Err(RawCallError::Transport {
                     message: format!("body read error: {e}"),
-                    observed: !out.is_empty(),
+                    observed,
                 });
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
@@ -52,7 +70,7 @@ pub fn read_lines_idle(
                     elapsed_secs: idle.as_secs(),
                 });
             }
-            Err(mpsc::RecvTimeoutError::Disconnected) => return Ok(out),
+            Err(mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
         }
     }
 }

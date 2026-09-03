@@ -30,6 +30,11 @@ pub struct Usage {
     pub cache_creation_input_tokens: u32,
     pub thinking_tokens: u32,
     pub service_tier: Option<String>,
+    pub cost_usd: Option<f64>,
+    pub ttft_ms: Option<f64>,
+    pub duration_ms: Option<f64>,
+    pub output_tokens_per_second: Option<f64>,
+    pub provider: Option<serde_json::Value>,
 }
 
 impl Usage {
@@ -52,6 +57,11 @@ impl Usage {
             cache_creation_input_tokens: cache_write,
             thinking_tokens: thinking,
             service_tier,
+            cost_usd: None,
+            ttft_ms: None,
+            duration_ms: None,
+            output_tokens_per_second: None,
+            provider: None,
         }
     }
 
@@ -65,6 +75,11 @@ impl Usage {
             cache_creation_input_tokens: 0,
             thinking_tokens: reasoning.min(completion),
             service_tier: None,
+            cost_usd: None,
+            ttft_ms: None,
+            duration_ms: None,
+            output_tokens_per_second: None,
+            provider: None,
         }
     }
 
@@ -86,6 +101,16 @@ impl Usage {
                 .service_tier
                 .clone()
                 .or_else(|| self.service_tier.clone()),
+            cost_usd: match (self.cost_usd, other.cost_usd) {
+                (Some(a), Some(b)) => Some(a + b),
+                (a, b) => b.or(a),
+            },
+            ttft_ms: other.ttft_ms.or(self.ttft_ms),
+            duration_ms: other.duration_ms.or(self.duration_ms),
+            output_tokens_per_second: other
+                .output_tokens_per_second
+                .or(self.output_tokens_per_second),
+            provider: other.provider.clone().or_else(|| self.provider.clone()),
         }
     }
 }
@@ -468,6 +493,7 @@ pub trait StreamListener: Send + Sync {
     fn on_event(&self, event: StreamEvent);
 }
 
+#[derive(Debug, Clone, Serialize)]
 pub enum StreamEvent {
     MessageStart {
         model: String,
@@ -491,12 +517,14 @@ pub enum StreamEvent {
     MessageStop,
 }
 
+#[derive(Debug, Clone, Serialize)]
 pub enum ContentBlockStart {
     Text,
     ToolUse { id: String, name: String },
     Thinking,
 }
 
+#[derive(Debug, Clone, Serialize)]
 pub enum ContentBlockDelta {
     TextDelta(String),
     InputJsonDelta(String),

@@ -207,6 +207,7 @@ fn send(
     if !config.api_key.is_empty() {
         req = req.bearer_auth(&config.api_key);
     }
+    let started = std::time::Instant::now();
     let response = req.send().map_err(|e| RawCallError::Transport {
         message: e.to_string(),
         observed: false,
@@ -226,11 +227,25 @@ fn send(
         ));
     }
 
-    let lines = super::sse::read_lines_idle(response, config.idle_timeout())?;
-    let first_data_line = lines.iter().find(|l| l.starts_with("data:"));
+    if listener.is_some() {
+        let mut parser = OpenAiSse::new(started);
+        let mut lines = Vec::new();
+        let mut saw_data = false;
+        super::sse::read_lines_idle_each(response, config.idle_timeout(), |line| {
+            saw_data |= line.starts_with("data:");
+            lines.push(line.to_string());
+            parser.push(line, listener)
+        })?;
+        return if saw_data {
+            parser.finish(listener)
+        } else {
+            parse_json(&lines.join("\n"))
+        };
+    }
 
-    if first_data_line.is_some() {
-        parse_sse(&lines, listener)
+    let lines = super::sse::read_lines_idle(response, config.idle_timeout())?;
+    if lines.iter().any(|line| line.starts_with("data:")) {
+        parse_sse(&lines, None)
     } else {
         parse_json(&lines.join("\n"))
     }
@@ -347,36 +362,52 @@ struct PendingTool {
     arguments: String,
 }
 
-pub(crate) fn parse_sse(
-    lines: &[String],
-    listener: Option<&dyn StreamListener>,
-) -> Result<LlmResponse, RawCallError> {
-    let mut content = String::new();
-    let mut tools: BTreeMap<usize, PendingTool> = BTreeMap::new();
-    let mut stop_reason = StopReason::EndTurn;
-    let mut id = String::new();
-    let mut model = String::new();
-    let mut usage = Usage::default();
-    let mut saw_text_start = false;
-    let mut saw_think_start = false;
+struct OpenAiSse {
+    content: String,
+    tools: BTreeMap<usize, PendingTool>,
+    stop_reason: StopReason,
+    id: String,
+    model: String,
+    usage: Usage,
+    saw_text_start: bool,
+    saw_think_start: bool,
+    saw_message_start: bool,
+    started: std::time::Instant,
+    first_token_at: Option<std::time::Instant>,
+}
 
-    let emit = |event: StreamEvent| {
-        if let Some(l) = listener {
-            l.on_event(event);
+impl OpenAiSse {
+    fn new(started: std::time::Instant) -> Self {
+        Self {
+            content: String::new(),
+            tools: BTreeMap::new(),
+            stop_reason: StopReason::EndTurn,
+            id: String::new(),
+            model: String::new(),
+            usage: Usage::default(),
+            saw_text_start: false,
+            saw_think_start: false,
+            saw_message_start: false,
+            started,
+            first_token_at: None,
         }
-    };
+    }
 
-    for line in lines {
+    fn push(
+        &mut self,
+        line: &str,
+        listener: Option<&dyn StreamListener>,
+    ) -> Result<(), RawCallError> {
         let line = line.trim();
         let Some(payload) = line.strip_prefix("data:") else {
-            continue;
+            return Ok(());
         };
         let payload = payload.trim();
         if payload == "[DONE]" {
-            break;
+            return Ok(());
         }
         let Ok(chunk) = serde_json::from_str::<serde_json::Value>(payload) else {
-            continue;
+            return Ok(());
         };
         if chunk.get("error").is_some()
             && let Some(err) = parse_sse_error(payload)
@@ -384,14 +415,26 @@ pub(crate) fn parse_sse(
             return Err(err);
         }
 
-        if id.is_empty() {
-            id = chunk["id"].as_str().unwrap_or("").to_string();
+        let emit = |event: StreamEvent| {
+            if let Some(listener) = listener {
+                listener.on_event(event);
+            }
+        };
+        if self.id.is_empty() {
+            self.id = chunk["id"].as_str().unwrap_or("").to_string();
         }
-        if model.is_empty() {
-            model = chunk["model"].as_str().unwrap_or("").to_string();
+        if self.model.is_empty() {
+            self.model = chunk["model"].as_str().unwrap_or("").to_string();
+        }
+        if !self.saw_message_start && (!self.id.is_empty() || !self.model.is_empty()) {
+            emit(StreamEvent::MessageStart {
+                model: self.model.clone(),
+                id: self.id.clone(),
+            });
+            self.saw_message_start = true;
         }
         if let Some(u) = chunk.get("usage") {
-            usage = Usage::from_openai(
+            let mut usage = Usage::from_openai(
                 u["prompt_tokens"].as_u64().unwrap_or(0) as u32,
                 u["completion_tokens"].as_u64().unwrap_or(0) as u32,
                 u["prompt_tokens_details"]["cached_tokens"]
@@ -401,68 +444,76 @@ pub(crate) fn parse_sse(
                     .as_u64()
                     .unwrap_or(0) as u32,
             );
+            usage.cost_usd = u["cost"].as_f64();
+            usage.provider = Some(u.clone());
+            self.usage = usage;
         }
 
-        let choice = chunk.get("choices").and_then(|c| c.get(0));
-        if let Some(fr) = choice
-            .and_then(|c| c.get("finish_reason"))
-            .and_then(|v| v.as_str())
+        let choice = chunk.get("choices").and_then(|choices| choices.get(0));
+        if let Some(reason) = choice
+            .and_then(|choice| choice.get("finish_reason"))
+            .and_then(|value| value.as_str())
         {
-            stop_reason = map_openai_finish_reason(Some(fr));
+            self.stop_reason = map_openai_finish_reason(Some(reason));
         }
-        let delta = choice.and_then(|c| c.get("delta"));
-
-        // OpenAI-compatible providers use either `reasoning_content`
-        // (GLM/DeepSeek) or `reasoning` (OpenRouter) for thinking deltas.
-        if let Some(s) = delta
-            .and_then(|d| d.get("reasoning_content").or_else(|| d.get("reasoning")))
-            .and_then(|v| v.as_str())
-            && !s.is_empty()
+        let delta = choice.and_then(|choice| choice.get("delta"));
+        if let Some(text) = delta
+            .and_then(|delta| {
+                delta
+                    .get("reasoning_content")
+                    .or_else(|| delta.get("reasoning"))
+            })
+            .and_then(|value| value.as_str())
+            && !text.is_empty()
         {
-            if !saw_think_start {
+            self.first_token_at
+                .get_or_insert_with(std::time::Instant::now);
+            if !self.saw_think_start {
                 emit(StreamEvent::ContentBlockStart {
                     index: 1,
                     block: ContentBlockStart::Thinking,
                 });
-                saw_think_start = true;
+                self.saw_think_start = true;
             }
             emit(StreamEvent::ContentBlockDelta {
                 index: 1,
-                delta: ContentBlockDelta::ThinkingDelta(s.into()),
+                delta: ContentBlockDelta::ThinkingDelta(text.into()),
             });
         }
 
-        if let Some(s) = delta
-            .and_then(|d| d.get("content"))
-            .and_then(|v| v.as_str())
-            && !s.is_empty()
+        if let Some(text) = delta
+            .and_then(|delta| delta.get("content"))
+            .and_then(|value| value.as_str())
+            && !text.is_empty()
         {
-            if !saw_text_start {
+            self.first_token_at
+                .get_or_insert_with(std::time::Instant::now);
+            if !self.saw_text_start {
                 emit(StreamEvent::ContentBlockStart {
                     index: 0,
                     block: ContentBlockStart::Text,
                 });
-                saw_text_start = true;
+                self.saw_text_start = true;
             }
-            content.push_str(s);
+            self.content.push_str(text);
             emit(StreamEvent::ContentBlockDelta {
                 index: 0,
-                delta: ContentBlockDelta::TextDelta(s.into()),
+                delta: ContentBlockDelta::TextDelta(text.into()),
             });
         }
 
-        if let Some(tcs) = delta
-            .and_then(|d| d.get("tool_calls"))
-            .and_then(|v| v.as_array())
+        if let Some(tool_calls) = delta
+            .and_then(|delta| delta.get("tool_calls"))
+            .and_then(|value| value.as_array())
         {
-            for tc in tcs {
-                let index = tc["index"].as_u64().unwrap_or(0) as usize;
-                let pending = tools.entry(index).or_default();
+            for tool_call in tool_calls {
+                let index = tool_call["index"].as_u64().unwrap_or(0) as usize;
+                let pending = self.tools.entry(index).or_default();
                 let had_identity = !pending.id.is_empty() && !pending.name.is_empty();
-                if let Some(tid) = tc["id"].as_str() {
-                    pending.id = tid.to_string();
+                if let Some(id) = tool_call["id"].as_str() {
+                    pending.id = id.to_string();
                 }
-                if let Some(name) = tc["function"]["name"].as_str() {
+                if let Some(name) = tool_call["function"]["name"].as_str() {
                     pending.name = name.to_string();
                 }
                 if !had_identity && !pending.id.is_empty() && !pending.name.is_empty() {
@@ -474,63 +525,94 @@ pub(crate) fn parse_sse(
                         },
                     });
                 }
-                if let Some(args) = tc["function"]["arguments"].as_str() {
-                    pending.arguments.push_str(args);
+                if let Some(arguments) = tool_call["function"]["arguments"].as_str() {
+                    pending.arguments.push_str(arguments);
                     emit(StreamEvent::ContentBlockDelta {
                         index,
-                        delta: ContentBlockDelta::InputJsonDelta(args.into()),
+                        delta: ContentBlockDelta::InputJsonDelta(arguments.into()),
                     });
                 }
             }
         }
+        Ok(())
     }
 
-    if saw_text_start {
-        emit(StreamEvent::ContentBlockStop { index: 0 });
-    }
-
-    let mut blocks = Vec::new();
-    if !content.is_empty() {
-        blocks.push(ContentBlock::Text { text: content });
-    }
-    for (index, tool) in tools {
-        let input: serde_json::Value = if tool.arguments.is_empty() {
-            serde_json::Value::Null
-        } else {
-            serde_json::from_str(&tool.arguments).unwrap_or(serde_json::Value::Null)
+    fn finish(
+        mut self,
+        listener: Option<&dyn StreamListener>,
+    ) -> Result<LlmResponse, RawCallError> {
+        let finished = std::time::Instant::now();
+        self.usage.duration_ms = Some(finished.duration_since(self.started).as_secs_f64() * 1000.0);
+        if let Some(first) = self.first_token_at {
+            self.usage.ttft_ms = Some(first.duration_since(self.started).as_secs_f64() * 1000.0);
+            let generation_seconds = finished.duration_since(first).as_secs_f64();
+            if generation_seconds > 0.0 {
+                self.usage.output_tokens_per_second =
+                    Some(f64::from(self.usage.output_tokens) / generation_seconds);
+            }
+        }
+        let emit = |event: StreamEvent| {
+            if let Some(listener) = listener {
+                listener.on_event(event);
+            }
         };
-        emit(StreamEvent::ContentBlockStop { index });
-        blocks.push(ContentBlock::ToolUse {
-            id: tool.id,
-            name: tool.name,
-            input,
+        if self.saw_text_start {
+            emit(StreamEvent::ContentBlockStop { index: 0 });
+        }
+        if self.saw_think_start {
+            emit(StreamEvent::ContentBlockStop { index: 1 });
+        }
+        let mut blocks = Vec::new();
+        if !self.content.is_empty() {
+            blocks.push(ContentBlock::Text { text: self.content });
+        }
+        for (index, tool) in self.tools {
+            let input = if tool.arguments.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::from_str(&tool.arguments).unwrap_or(serde_json::Value::Null)
+            };
+            emit(StreamEvent::ContentBlockStop { index });
+            blocks.push(ContentBlock::ToolUse {
+                id: tool.id,
+                name: tool.name,
+                input,
+            });
+        }
+        if blocks.is_empty() {
+            return Err(RawCallError::NoContent);
+        }
+        if matches!(self.stop_reason, StopReason::EndTurn)
+            && blocks
+                .iter()
+                .any(|block| matches!(block, ContentBlock::ToolUse { .. }))
+        {
+            self.stop_reason = StopReason::ToolUse;
+        }
+        emit(StreamEvent::MessageDelta {
+            stop_reason: Some(self.stop_reason.clone()),
+            usage: Some(self.usage.clone()),
         });
+        emit(StreamEvent::MessageStop);
+        Ok(LlmResponse {
+            id: self.id,
+            model: self.model,
+            stop_reason: self.stop_reason,
+            usage: self.usage,
+            content: blocks,
+        })
     }
+}
 
-    if blocks.is_empty() {
-        return Err(RawCallError::NoContent);
+pub(crate) fn parse_sse(
+    lines: &[String],
+    listener: Option<&dyn StreamListener>,
+) -> Result<LlmResponse, RawCallError> {
+    let mut parser = OpenAiSse::new(std::time::Instant::now());
+    for line in lines {
+        parser.push(line, listener)?;
     }
-    if matches!(stop_reason, StopReason::EndTurn)
-        && blocks
-            .iter()
-            .any(|b| matches!(b, ContentBlock::ToolUse { .. }))
-    {
-        stop_reason = StopReason::ToolUse;
-    }
-
-    emit(StreamEvent::MessageDelta {
-        stop_reason: Some(stop_reason.clone()),
-        usage: Some(usage.clone()),
-    });
-    emit(StreamEvent::MessageStop);
-
-    Ok(LlmResponse {
-        id,
-        model,
-        stop_reason,
-        usage,
-        content: blocks,
-    })
+    parser.finish(listener)
 }
 
 #[cfg(test)]
@@ -720,5 +802,80 @@ mod tests {
         let capture = Capture::default();
         let _ = parse_sse(&lines, Some(&capture)).unwrap();
         assert_eq!(*capture.0.lock().unwrap(), ["considering"]);
+    }
+
+    #[test]
+    fn raw_call_delivers_a_chunk_before_the_sse_response_finishes() {
+        use crate::llm::{CachePolicy, Protocol};
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        struct Capture(mpsc::Sender<String>);
+        impl StreamListener for Capture {
+            fn on_event(&self, event: StreamEvent) {
+                if let StreamEvent::ContentBlockDelta {
+                    delta: ContentBlockDelta::TextDelta(text),
+                    ..
+                } = event
+                {
+                    let _ = self.0.send(text);
+                }
+            }
+        }
+
+        let server = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let serving = std::thread::spawn(move || {
+            let (mut socket, _) = server.accept().unwrap();
+            let mut request = [0_u8; 4096];
+            let _ = socket.read(&mut request);
+            socket
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n")
+                .unwrap();
+            socket
+                .write_all(b"data: {\"id\":\"x\",\"model\":\"m\",\"choices\":[{\"delta\":{\"content\":\"Hel\"}}]}\n\n")
+                .unwrap();
+            socket.flush().unwrap();
+            std::thread::sleep(Duration::from_millis(500));
+            socket
+                .write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"lo\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":100,\"completion_tokens\":20,\"prompt_tokens_details\":{\"cached_tokens\":80},\"completion_tokens_details\":{\"reasoning_tokens\":5},\"cost\":0.0042}}\n\ndata: [DONE]\n\n")
+                .unwrap();
+        });
+
+        let (tx, rx) = mpsc::channel();
+        let config = LlmConfig {
+            base_url: format!("http://{address}/v1"),
+            api_key: String::new(),
+            model: "m".into(),
+            timeout_secs: 5,
+            idle_timeout_secs: Some(2),
+            max_tokens: 32,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            seed: None,
+            stop: vec![],
+            reasoning_level: None,
+            structured_outputs: false,
+            protocol: Protocol::OpenAiChat,
+            cache: CachePolicy::None,
+            stream_listener: Some(Arc::new(Capture(tx))),
+        };
+        let call = std::thread::spawn(move || raw_call(&config, &[ChatMessage::user("hi")], &[]));
+
+        assert_eq!(rx.recv_timeout(Duration::from_millis(250)).unwrap(), "Hel");
+        let response = call.join().unwrap().unwrap();
+        serving.join().unwrap();
+        assert!(matches!(&response.content[0], ContentBlock::Text { text } if text == "Hello"));
+        assert_eq!(response.usage.cache_read_input_tokens, 80);
+        assert_eq!(response.usage.cost_usd, Some(0.0042));
+        assert!(response.usage.ttft_ms.is_some());
+        assert!(response.usage.output_tokens_per_second.is_some());
+        assert_eq!(
+            response.usage.provider.as_ref().unwrap()["prompt_tokens"],
+            100
+        );
     }
 }

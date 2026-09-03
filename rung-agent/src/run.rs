@@ -136,8 +136,7 @@ fn drive(
     if let Some(em) = &emitter {
         config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
     }
-    // The ACP prompt path forwards thinking deltas to the client even
-    // though the final text is sent at turn end.
+    // The ACP prompt path forwards thinking and message deltas to the client.
     if config.stream_listener.is_none()
         && let Some(listener) = &extra.stream_listener
     {

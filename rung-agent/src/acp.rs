@@ -13,17 +13,18 @@ use std::sync::{Arc, Mutex};
 
 use agent_client_protocol::schema::v1::{
     AgentCapabilities, AuthenticateRequest, AuthenticateResponse, CancelNotification,
-    CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk, DeleteSessionRequest,
-    DeleteSessionResponse, EmbeddedResourceResource, ForkSessionRequest, ForkSessionResponse,
-    Implementation, InitializeRequest, InitializeResponse, ListSessionsRequest,
-    ListSessionsResponse, LoadSessionRequest, LoadSessionResponse, McpCapabilities, McpServer,
-    NewSessionRequest, NewSessionResponse, PromptCapabilities, PromptRequest, PromptResponse,
-    ResumeSessionRequest, ResumeSessionResponse, SessionCapabilities, SessionCloseCapabilities,
-    SessionDeleteCapabilities, SessionForkCapabilities, SessionId, SessionInfo,
-    SessionListCapabilities, SessionMode, SessionModeId, SessionModeState, SessionNotification,
-    SessionResumeCapabilities, SessionUpdate, SetSessionModeRequest, SetSessionModeResponse,
-    StopReason, TextContent, ToolCall, ToolCallContent, ToolCallStatus, ToolCallUpdate,
-    ToolCallUpdateFields, ToolKind,
+    CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk, Cost,
+    DeleteSessionRequest, DeleteSessionResponse, EmbeddedResourceResource, ForkSessionRequest,
+    ForkSessionResponse, Implementation, InitializeRequest, InitializeResponse,
+    ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
+    McpCapabilities, McpServer, NewSessionRequest, NewSessionResponse, PromptCapabilities,
+    PromptRequest, PromptResponse, ResumeSessionRequest, ResumeSessionResponse,
+    SessionCapabilities, SessionCloseCapabilities, SessionDeleteCapabilities,
+    SessionForkCapabilities, SessionId, SessionInfo, SessionInfoUpdate, SessionListCapabilities,
+    SessionMode, SessionModeId, SessionModeState, SessionNotification, SessionResumeCapabilities,
+    SessionUpdate, SetSessionModeRequest, SetSessionModeResponse, StopReason, TextContent,
+    ToolCall, ToolCallContent, ToolCallStatus, ToolCallUpdate, ToolCallUpdateFields, ToolKind,
+    UsageUpdate,
 };
 use agent_client_protocol::{
     Agent, Client, ConnectTo, ConnectionTo, Error, Responder, Result as AcpResult, Stdio,
@@ -356,30 +357,73 @@ fn invalid(msg: impl Into<String>) -> Error {
     Error::invalid_params().data(msg.into())
 }
 
-/// Forward the model's thinking deltas to the venue as
-/// `agent_thought_chunk` updates — reasoning is part of the record.
+/// Forward model deltas as ACP updates while the provider response is open.
 struct ThoughtForwarder {
     connection: ConnectionTo<Client>,
     session_id: SessionId,
+    streamed_text: Arc<AtomicBool>,
 }
 
 impl rung_std::llm::StreamListener for ThoughtForwarder {
     fn on_event(&self, event: StreamEvent) {
-        if let StreamEvent::ContentBlockDelta {
-            index: _,
-            delta: ContentBlockDelta::ThinkingDelta(t),
-        } = event
-        {
-            if t.is_empty() {
-                return;
-            }
-            let _ = self.connection.send_notification(SessionNotification::new(
-                self.session_id.clone(),
-                SessionUpdate::AgentThoughtChunk(ContentChunk::new(ContentBlock::Text(
-                    TextContent::new(t),
-                ))),
-            ));
+        let update = update_for_event(event, &self.streamed_text);
+        let _ = self
+            .connection
+            .send_notification(SessionNotification::new(self.session_id.clone(), update));
+    }
+}
+
+fn raw_meta(event: &StreamEvent) -> serde_json::Map<String, Value> {
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        "rung".into(),
+        serde_json::to_value(event).unwrap_or(Value::Null),
+    );
+    meta
+}
+
+fn update_for_event(event: StreamEvent, streamed_text: &AtomicBool) -> SessionUpdate {
+    let meta = raw_meta(&event);
+    match event {
+        StreamEvent::ContentBlockDelta {
+            delta: ContentBlockDelta::ThinkingDelta(text),
+            ..
+        } => SessionUpdate::AgentThoughtChunk(
+            ContentChunk::new(ContentBlock::Text(TextContent::new(text))).meta(meta),
+        ),
+        StreamEvent::ContentBlockDelta {
+            delta: ContentBlockDelta::TextDelta(text),
+            ..
+        } => {
+            streamed_text.store(true, Ordering::SeqCst);
+            SessionUpdate::AgentMessageChunk(
+                ContentChunk::new(ContentBlock::Text(TextContent::new(text))).meta(meta),
+            )
         }
+        StreamEvent::MessageDelta {
+            usage: Some(usage), ..
+        } => {
+            let used = u64::from(usage.input_tokens) + u64::from(usage.output_tokens);
+            let mut update = UsageUpdate::new(used, 0).meta(meta);
+            if let Some(cost) = usage.cost_usd {
+                update = update.cost(Cost::new(cost, "USD"));
+            }
+            SessionUpdate::UsageUpdate(update)
+        }
+        _ => SessionUpdate::SessionInfoUpdate(SessionInfoUpdate::new().meta(meta)),
+    }
+}
+
+fn send_text_if_unstreamed(
+    connection: &ConnectionTo<Client>,
+    session_id: SessionId,
+    text: String,
+    streamed_text: &AtomicBool,
+) -> AcpResult<()> {
+    if streamed_text.load(Ordering::SeqCst) {
+        Ok(())
+    } else {
+        send_text(connection, session_id, text)
     }
 }
 
@@ -654,6 +698,7 @@ pub(crate) async fn connect_agent(
                     args.mcp = live.mcp(&id);
                     let notify_conn = connection.clone();
                     let notify_sid = session_id.clone();
+                    let streamed_text = Arc::new(AtomicBool::new(false));
                     let extra = JobEx {
                         cancel: Some(flag.clone()),
                         wrap_tools: Some(Arc::new(move |inner| {
@@ -668,6 +713,7 @@ pub(crate) async fn connect_agent(
                         stream_listener: Some(Arc::new(ThoughtForwarder {
                             connection: connection.clone(),
                             session_id: session_id.clone(),
+                            streamed_text: streamed_text.clone(),
                         })),
                         prompt_blocks: Some(blocks),
                     };
@@ -678,7 +724,12 @@ pub(crate) async fn connect_agent(
                     let cancelled = flag.load(Ordering::SeqCst);
                     match out {
                         Ok(o) => {
-                            send_text(&connection, session_id, o.text)?;
+                            send_text_if_unstreamed(
+                                &connection,
+                                session_id,
+                                o.text,
+                                &streamed_text,
+                            )?;
                             let reason = if cancelled || o.status == "cancelled" {
                                 StopReason::Cancelled
                             } else {
@@ -729,6 +780,57 @@ mod tests {
         let (text, parts) = prompt_parts(&blocks);
         assert!(text.is_empty());
         assert!(matches!(parts[0], MessageContentBlock::Image { .. }));
+    }
+
+    #[test]
+    fn text_delta_becomes_an_immediate_acp_message_chunk() {
+        let streamed = AtomicBool::new(false);
+        let update = update_for_event(
+            StreamEvent::ContentBlockDelta {
+                index: 0,
+                delta: ContentBlockDelta::TextDelta("Hel".into()),
+            },
+            &streamed,
+        );
+        assert!(matches!(update, SessionUpdate::AgentMessageChunk(_)));
+        assert!(streamed.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn every_rung_stream_event_has_an_acp_update() {
+        let streamed = AtomicBool::new(false);
+        let update = update_for_event(StreamEvent::MessageStop, &streamed);
+        let SessionUpdate::SessionInfoUpdate(info) = update else {
+            panic!("message stop was dropped");
+        };
+        assert!(info.meta.unwrap().contains_key("rung"));
+    }
+
+    #[test]
+    fn usage_update_keeps_the_complete_rung_measurement_in_meta() {
+        let streamed = AtomicBool::new(false);
+        let mut usage = rung_std::llm::Usage::from_openai(100, 20, 80, 5);
+        usage.cost_usd = Some(0.0042);
+        usage.ttft_ms = Some(125.0);
+        usage.output_tokens_per_second = Some(40.0);
+        let update = update_for_event(
+            StreamEvent::MessageDelta {
+                stop_reason: None,
+                usage: Some(usage),
+            },
+            &streamed,
+        );
+        let value = serde_json::to_value(update).unwrap();
+        assert_eq!(value["sessionUpdate"], "usage_update");
+        assert_eq!(value["cost"]["amount"], 0.0042);
+        assert_eq!(
+            value["_meta"]["rung"]["MessageDelta"]["usage"]["ttft_ms"],
+            125.0
+        );
+        assert_eq!(
+            value["_meta"]["rung"]["MessageDelta"]["usage"]["cache_read_input_tokens"],
+            80
+        );
     }
 
     #[test]
