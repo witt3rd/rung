@@ -3,8 +3,8 @@ name: rung
 description: >
   Lived experience for the rung repo. Load when working in ~/src/witt3rd/rung
   (or a worktree): house git (iterate on master; worktrees for parallel
-  features), CI, proposition citations, kernel vs product, the ledger. Not
-  the ladder language itself — that is AGENTS.md + docs/.
+  features), CI, proposition citations, kernel vs product. Not the ladder
+  language itself — that is AGENTS.md + docs/.
 metadata:
   home: ~/src/witt3rd/rung/skills/rung
   aliases: [rung-repo, rung-caretaker]
@@ -13,21 +13,15 @@ metadata:
 # rung — how we act in this tree
 
 Charter: repo-root `AGENTS.md`. This skill is the gotchas.
-
-## Ledger, not a last-words file
-
-This repo is inhabited. Wake = `scripts/agent state` then `scripts/agent inbox`.
-Sleep = `scripts/agent handoff <subject>`. **Never create `HANDOFF.md`.** The
-growing last-words file is taboo; the append-only log in `.agent/log/` is the
-channel. Prefer `scripts/agent` over PATH `agent`.
+Custody is AGENTS.md + skills/; no `.agent/` folder, no inhabit, no formal
+handoff.
 
 ## Git
 
 House `fleet_git`. Debugging: work on `master`, commit often. Session
 start: `git checkout master && git pull origin master`. Parallel
 features: `git wt-new` → `rung.wt/<branch>/`; after merge `git wt-rm`.
-Merge method rebase. Never `git add -A`. `scripts/agent` stages only its
-own files.
+Merge method rebase. Never `git add -A`.
 
 Task isolation worktrees (`{repo}.wt/rung-task--{id}`, branch `rung-task/{id}`)
 are product, not `git-wt-new`. Do not use `git-wt-new` for those.

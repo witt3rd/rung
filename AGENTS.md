@@ -3,16 +3,8 @@
 A type ladder: the state machine *is* the type system. Declare rungs and
 transitions once; the compiler refuses any path that skips a rung.
 
-This repo is **dotagent-inhabited**. Span of control is law:
-`~/src/witt3rd/dotagent/AGENTS.md`. On roger it is also an **acp-tempo
-identity** (`rung`): inbound work for this tree is sent here. Need a change
-in acp-tempo? Send; do not edit that cwd from here.
-
-The handoff channel is the event log (`.agent/log/`) via `scripts/agent`
-(archaeology: trigger + what was done; Temporal is the queue). **Do not
-create a `HANDOFF.md`.** That file is retired and taboo here. Orient with
-`scripts/agent state`, see what is waiting with `scripts/agent inbox`, hand
-off on sleep with `scripts/agent handoff <subject>`.
+Custody is AGENTS.md + skills/; no `.agent/` folder, no inhabit, no formal
+handoff. On roger this tree is also an **acp-tempo identity** (`rung`).
 
 ## Goals (the problem)
 
@@ -54,9 +46,8 @@ token is to go through the transition that produces it.
 - **`rung-het`** is the two-filter pool (judge vs author) over one population.
 - **`rung-driver`** is theory-blind dispatch over a carrier. It does not
   decide worth.
-- **A repo is an active intelligence** when it has a charter (`AGENTS.md`),
-  lived experience (`skills/`), state in time (the ledger), and a voice
-  (`scripts/agent`). Remove one and it is a static asset again.
+- **A repo is an active intelligence** when it has a charter (`AGENTS.md`)
+  and lived experience (`skills/`).
 
 ## Mechanisms
 
@@ -170,8 +161,7 @@ Required CI check is `check`. Merge method: rebase.
 ### House git
 
 House skill: `fleet_git`. Mainline is `master`. Merge method: rebase.
-Stage only files you touched; never `git add -A`. `scripts/agent` stages
-only `.agent/` files.
+Stage only files you touched; never `git add -A`.
 
 **Debugging / iteration:** work on `master`. Commit small batches; never
 leave uncommitted work. Session start: `git checkout master && git pull
@@ -234,20 +224,11 @@ The honest bootstrap measure is how many defects in rung the audit-rectify
 loop found and fixed. That number is still zero: machinery exists, no real
 judgment has been dispatched.
 
-### Caretaker loop
+### Caretaker
 
-```text
-scripts/agent state          # where we are in time (first read on wake)
-scripts/agent inbox          # what is waiting
-scripts/agent handoff <subject> [-m BODY]   # sleep: append H + derived S
-scripts/agent check          # ledger integrity (exit 0/2/3)
-```
-
-Prefer `scripts/agent` over PATH `agent`. Never hand-edit events. Never
-write `.agent/HANDOFF.md`. Lived experience for *this* repo:
-`skills/rung/SKILL.md`. Core discipline (`caretaker`, `agentsmd`, `git`,
-`signalling`) lives in `skills/` as the inhabit set; house deltas are the
-`fleet_*` skills on the machine.
+Custody is AGENTS.md + `skills/`; no `.agent/` folder, no inhabit, no formal
+handoff. Lived experience for *this* repo: `skills/rung/SKILL.md`. House
+deltas are the `fleet_*` skills on the machine.
 
 ## Scope and audience
 

@@ -10,6 +10,4 @@ rung-agent/harbor-runs/*
 # Q18 state sidecar — generated per carrier
 .het/**/state/
 
-.agent/.busy/
-.agent/.dispatch.log
 .rung/
