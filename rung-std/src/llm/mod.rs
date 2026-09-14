@@ -16,7 +16,7 @@ pub use types::{
     AudioSource, CacheHint, CachePolicy, ChatMessage, ContentBlock, ContentBlockDelta,
     ContentBlockStart, DEFAULT_MAX_ATTEMPTS, ImageSource, LlmConfig, LlmRequest, LlmResponse,
     MessageContent, MessageContentBlock, PreparedRequest, Protocol, ResolvedProtocol, StopReason,
-    StreamEvent, StreamListener, ToolDefinition, Usage,
+    StreamEvent, StreamListener, ToolDefinition, ToolDiagnostic, ToolErrorKind, Usage,
 };
 
 use rung::ladder;
