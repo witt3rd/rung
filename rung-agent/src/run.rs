@@ -75,6 +75,8 @@ impl Spawn for CatalogSpawn {
             None => crate::session::new_id(),
         };
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let _cancel_guard = crate::mcp::set_session_cancel(self.extra.cancel.clone());
+        let _sink_guard = crate::mcp::set_session_sink(Some((self.store.dir.clone(), id.clone())));
         let mut sess = match self.store.try_load(&id)? {
             Some(s) => s,
             None => Session::new(&id, kind, &cwd),
@@ -129,6 +131,7 @@ fn drive(
     emitter: Option<Arc<crate::stream::Emitter>>,
     extra: &JobEx,
 ) -> Result<(String, u32), String> {
+    let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
     let cap = max_iterations.min(kind.max_iterations()).max(1);
     let base: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
     let tools = wrap_tools(base, emitter.as_ref(), extra);
@@ -275,6 +278,7 @@ pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
 }
 
 pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, String> {
+    let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
     if let Some(id) = &args.task_id {
         crate::session::check_id(id)?;
     }
@@ -286,6 +290,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         Some(id) => id.clone(),
         None => crate::session::new_id(),
     };
+    let _sink_guard = crate::mcp::set_session_sink(Some((store.dir.clone(), id.clone())));
 
     if args.background && !crate::background::in_child() {
         let prompt = args
@@ -441,7 +446,8 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
     }
     let mut base: Arc<dyn Toolset> = Arc::new(roster);
     if !args.mcp.is_empty() {
-        let mcp = crate::mcp::McpRoster::connect(&args.mcp)?;
+        let mut mcp = crate::mcp::McpRoster::connect(&args.mcp)?;
+        mcp.set_cancel(extra.cancel.clone());
         if !mcp.is_empty() {
             base = Arc::new(crate::mcp::WithMcp {
                 inner: base,

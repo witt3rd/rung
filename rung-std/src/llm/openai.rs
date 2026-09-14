@@ -4,7 +4,8 @@ use super::error::{RawCallError, classify_http, header_pairs, parse_sse_error};
 use super::types::{
     ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, LlmConfig, LlmResponse,
     MessageContent, MessageContentBlock, ObservingListener, PreparedRequest, ResolvedProtocol,
-    StopReason, StreamEvent, StreamListener, ToolDefinition, Usage, map_openai_finish_reason,
+    StopReason, StreamEvent, StreamListener, ToolDefinition, ToolDiagnostic, ToolErrorKind, Usage,
+    map_openai_finish_reason,
 };
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -251,6 +252,176 @@ fn send(
     }
 }
 
+pub(crate) fn validate_tool_call(
+    id: String,
+    name: String,
+    arguments: &str,
+    finish_reason: Option<&str>,
+    saw_done: bool,
+    saw_malformed_frame: bool,
+) -> ContentBlock {
+    let received_bytes = arguments.len();
+    let received_chars = arguments.chars().count();
+
+    // 1. Missing tool identity: reject without inventing id or name
+    if id.is_empty() || name.is_empty() {
+        let details = if id.is_empty() && name.is_empty() {
+            "missing tool id and name".to_string()
+        } else if id.is_empty() {
+            "missing tool id".to_string()
+        } else {
+            "missing tool name".to_string()
+        };
+        return ContentBlock::InvalidToolUse {
+            id,
+            name,
+            diagnostic: ToolDiagnostic {
+                kind: ToolErrorKind::IncompleteStream { details },
+                finish_reason: finish_reason.map(str::to_string),
+                saw_done,
+                received_chars,
+                received_bytes,
+            },
+        };
+    }
+
+    // 2. PARSE FIRST: Retain parse error evidence for exact observed truncated JSON + missing finish
+    match serde_json::from_str::<serde_json::Value>(arguments) {
+        Err(e) => {
+            let category = match e.classify() {
+                serde_json::error::Category::Io => "io",
+                serde_json::error::Category::Syntax => "syntax",
+                serde_json::error::Category::Data => "data",
+                serde_json::error::Category::Eof => "eof",
+            };
+            ContentBlock::InvalidToolUse {
+                id,
+                name,
+                diagnostic: ToolDiagnostic {
+                    kind: ToolErrorKind::Json {
+                        category: category.to_string(),
+                        line: e.line(),
+                        column: e.column(),
+                        message: e.to_string(),
+                    },
+                    finish_reason: finish_reason.map(str::to_string),
+                    saw_done,
+                    received_chars,
+                    received_bytes,
+                },
+            }
+        }
+        Ok(serde_json::Value::Object(map)) => {
+            // Check if stream had corrupt/malformed SSE frames
+            if saw_malformed_frame {
+                return ContentBlock::InvalidToolUse {
+                    id,
+                    name,
+                    diagnostic: ToolDiagnostic {
+                        kind: ToolErrorKind::IncompleteStream {
+                            details: "corrupted stream: malformed SSE frame encountered".into(),
+                        },
+                        finish_reason: finish_reason.map(str::to_string),
+                        saw_done,
+                        received_chars,
+                        received_bytes,
+                    },
+                };
+            }
+
+            // Valid complete object BUT missing finish_reason -> IncompleteStream
+            let Some(reason) = finish_reason else {
+                return ContentBlock::InvalidToolUse {
+                    id,
+                    name,
+                    diagnostic: ToolDiagnostic {
+                        kind: ToolErrorKind::IncompleteStream {
+                            details: "stream terminated before finish_reason received (EOF)".into(),
+                        },
+                        finish_reason: None,
+                        saw_done,
+                        received_chars,
+                        received_bytes,
+                    },
+                };
+            };
+
+            // Reject complete object on finish_reason length/content_filter/unrecognized too.
+            // Policy: Only "tool_calls", "function_call", and "stop" (for compatible nonstream/stop) permit execution.
+            // "length" (MaxTokens) MUST be InvalidToolUse.
+            match reason {
+                "tool_calls" | "function_call" | "stop" => ContentBlock::ToolUse {
+                    id,
+                    name,
+                    input: serde_json::Value::Object(map),
+                },
+                "length" => ContentBlock::InvalidToolUse {
+                    id,
+                    name,
+                    diagnostic: ToolDiagnostic {
+                        kind: ToolErrorKind::IncompleteStream {
+                            details: "generation truncated by max_tokens limit (finish_reason: length)".into(),
+                        },
+                        finish_reason: Some(reason.to_string()),
+                        saw_done,
+                        received_chars,
+                        received_bytes,
+                    },
+                },
+                "content_filter" => ContentBlock::InvalidToolUse {
+                    id,
+                    name,
+                    diagnostic: ToolDiagnostic {
+                        kind: ToolErrorKind::IncompleteStream {
+                            details: "generation interrupted by content filter (finish_reason: content_filter)".into(),
+                        },
+                        finish_reason: Some(reason.to_string()),
+                        saw_done,
+                        received_chars,
+                        received_bytes,
+                    },
+                },
+                other => ContentBlock::InvalidToolUse {
+                    id,
+                    name,
+                    diagnostic: ToolDiagnostic {
+                        kind: ToolErrorKind::IncompleteStream {
+                            details: format!("unsupported or interrupted finish_reason: {other}"),
+                        },
+                        finish_reason: Some(reason.to_string()),
+                        saw_done,
+                        received_chars,
+                        received_bytes,
+                    },
+                },
+            }
+        }
+        Ok(other) => {
+            let found = match other {
+                serde_json::Value::Null => "null",
+                serde_json::Value::Bool(_) => "boolean",
+                serde_json::Value::Number(_) => "number",
+                serde_json::Value::String(_) => "string",
+                serde_json::Value::Array(_) => "array",
+                serde_json::Value::Object(_) => unreachable!(),
+            };
+            ContentBlock::InvalidToolUse {
+                id,
+                name,
+                diagnostic: ToolDiagnostic {
+                    kind: ToolErrorKind::NotAnObject {
+                        found: found.to_string(),
+                    },
+                    finish_reason: finish_reason.map(str::to_string),
+                    saw_done,
+                    received_chars,
+                    received_bytes,
+                },
+            }
+        }
+    }
+}
+
 pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
     #[derive(serde::Deserialize)]
     struct OpenAiResponse {
@@ -315,17 +486,16 @@ pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
         && let Some(tool_calls) = &c.message.tool_calls
     {
         for tc in tool_calls {
-            let input: serde_json::Value = tc
-                .function
-                .arguments
-                .as_ref()
-                .and_then(|args| serde_json::from_str(args).ok())
-                .unwrap_or(serde_json::Value::Null);
-            content_blocks.push(ContentBlock::ToolUse {
-                id: tc.id.clone().unwrap_or_default(),
-                name: tc.function.name.clone().unwrap_or_default(),
-                input,
-            });
+            let args = tc.function.arguments.as_deref().unwrap_or("");
+            let block = validate_tool_call(
+                tc.id.clone().unwrap_or_default(),
+                tc.function.name.clone().unwrap_or_default(),
+                args,
+                c.finish_reason.as_deref(),
+                true,
+                false,
+            );
+            content_blocks.push(block);
         }
     }
 
@@ -333,14 +503,25 @@ pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
         return Err(RawCallError::NoContent);
     }
 
+    let mut stop_reason = match &choice {
+        Some(c) => map_openai_finish_reason(c.finish_reason.as_deref()),
+        None => StopReason::EndTurn,
+    };
+    let has_tools = content_blocks.iter().any(|b| {
+        matches!(
+            b,
+            ContentBlock::ToolUse { .. } | ContentBlock::InvalidToolUse { .. }
+        )
+    });
+    if has_tools && matches!(stop_reason, StopReason::EndTurn | StopReason::MaxTokens) {
+        stop_reason = StopReason::ToolUse;
+    }
+
     let u = parsed.usage.as_ref();
     Ok(LlmResponse {
         id: parsed.id.unwrap_or_default(),
         model: parsed.model.unwrap_or_default(),
-        stop_reason: match &choice {
-            Some(c) => map_openai_finish_reason(c.finish_reason.as_deref()),
-            None => StopReason::EndTurn,
-        },
+        stop_reason,
         usage: Usage::from_openai(
             u.and_then(|u| u.prompt_tokens).unwrap_or(0),
             u.and_then(|u| u.completion_tokens).unwrap_or(0),
@@ -366,6 +547,9 @@ struct OpenAiSse {
     content: String,
     tools: BTreeMap<usize, PendingTool>,
     stop_reason: StopReason,
+    raw_finish_reason: Option<String>,
+    saw_done: bool,
+    saw_malformed_frame: bool,
     id: String,
     model: String,
     usage: Usage,
@@ -382,6 +566,9 @@ impl OpenAiSse {
             content: String::new(),
             tools: BTreeMap::new(),
             stop_reason: StopReason::EndTurn,
+            raw_finish_reason: None,
+            saw_done: false,
+            saw_malformed_frame: false,
             id: String::new(),
             model: String::new(),
             usage: Usage::default(),
@@ -404,10 +591,15 @@ impl OpenAiSse {
         };
         let payload = payload.trim();
         if payload == "[DONE]" {
+            self.saw_done = true;
             return Ok(());
         }
-        let Ok(chunk) = serde_json::from_str::<serde_json::Value>(payload) else {
-            return Ok(());
+        let chunk = match serde_json::from_str::<serde_json::Value>(payload) {
+            Ok(c) => c,
+            Err(_) => {
+                self.saw_malformed_frame = true;
+                return Ok(());
+            }
         };
         if chunk.get("error").is_some()
             && let Some(err) = parse_sse_error(payload)
@@ -454,6 +646,7 @@ impl OpenAiSse {
             .and_then(|choice| choice.get("finish_reason"))
             .and_then(|value| value.as_str())
         {
+            self.raw_finish_reason = Some(reason.to_string());
             self.stop_reason = map_openai_finish_reason(Some(reason));
         }
         let delta = choice.and_then(|choice| choice.get("delta"));
@@ -567,26 +760,27 @@ impl OpenAiSse {
             blocks.push(ContentBlock::Text { text: self.content });
         }
         for (index, tool) in self.tools {
-            let input = if tool.arguments.is_empty() {
-                serde_json::Value::Null
-            } else {
-                serde_json::from_str(&tool.arguments).unwrap_or(serde_json::Value::Null)
-            };
             emit(StreamEvent::ContentBlockStop { index });
-            blocks.push(ContentBlock::ToolUse {
-                id: tool.id,
-                name: tool.name,
-                input,
-            });
+            let block = validate_tool_call(
+                tool.id,
+                tool.name,
+                &tool.arguments,
+                self.raw_finish_reason.as_deref(),
+                self.saw_done,
+                self.saw_malformed_frame,
+            );
+            blocks.push(block);
         }
         if blocks.is_empty() {
             return Err(RawCallError::NoContent);
         }
-        if matches!(self.stop_reason, StopReason::EndTurn)
-            && blocks
-                .iter()
-                .any(|block| matches!(block, ContentBlock::ToolUse { .. }))
-        {
+        let has_tools = blocks.iter().any(|block| {
+            matches!(
+                block,
+                ContentBlock::ToolUse { .. } | ContentBlock::InvalidToolUse { .. }
+            )
+        });
+        if has_tools && matches!(self.stop_reason, StopReason::EndTurn | StopReason::MaxTokens) {
             self.stop_reason = StopReason::ToolUse;
         }
         emit(StreamEvent::MessageDelta {
@@ -877,5 +1071,459 @@ mod tests {
             response.usage.provider.as_ref().unwrap()["prompt_tokens"],
             100
         );
+    }
+
+    #[test]
+    fn sse_truncated_json_becomes_invalid_tool_use() {
+        let lines = [
+            r#"data: {"id":"chatcmpl-trunc","model":"gpt","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"search","arguments":"{\"query\":\"unfin"}}]}}]}"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#.to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        assert_eq!(resp.stop_reason, StopReason::ToolUse);
+        assert_eq!(resp.content.len(), 1);
+        match &resp.content[0] {
+            ContentBlock::InvalidToolUse {
+                id,
+                name,
+                diagnostic,
+            } => {
+                assert_eq!(id, "c1");
+                assert_eq!(name, "search");
+                assert_eq!(diagnostic.finish_reason.as_deref(), Some("tool_calls"));
+                assert!(diagnostic.saw_done);
+                assert_eq!(diagnostic.received_chars, "{\"query\":\"unfin".len());
+                match &diagnostic.kind {
+                    ToolErrorKind::Json { category, .. } => {
+                        assert_eq!(category, "eof");
+                    }
+                    other => panic!("expected Json eof error, got {other:?}"),
+                }
+                // Verify no raw args are leaked in formatted diagnostic
+                let diag_str = diagnostic.to_string();
+                assert!(!diag_str.contains("unfin"));
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sse_null_array_string_become_invalid_tool_use() {
+        let cases = [
+            ("null", "null"),
+            ("[1, 2, 3]", "array"),
+            ("\"just a string\"", "string"),
+            ("12345", "number"),
+            ("true", "boolean"),
+        ];
+
+        for (arg_str, expected_type) in cases {
+            let lines = [
+                format!(
+                    r#"data: {{"id":"c","model":"m","choices":[{{"index":0,"delta":{{"tool_calls":[{{"index":0,"id":"call_id","function":{{"name":"fn_name","arguments":{}}}}}]}}}}]}}"#,
+                    serde_json::to_string(arg_str).unwrap()
+                ),
+                r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#
+                    .to_string(),
+                "data: [DONE]".to_string(),
+            ];
+            let resp = parse_sse(&lines, None).unwrap();
+            assert_eq!(resp.stop_reason, StopReason::ToolUse);
+            match &resp.content[0] {
+                ContentBlock::InvalidToolUse {
+                    id,
+                    name,
+                    diagnostic,
+                } => {
+                    assert_eq!(id, "call_id");
+                    assert_eq!(name, "fn_name");
+                    assert!(diagnostic.saw_done);
+                    assert_eq!(
+                        diagnostic.kind,
+                        ToolErrorKind::NotAnObject {
+                            found: expected_type.to_string(),
+                        }
+                    );
+                }
+                other => panic!("for arg {arg_str}, expected InvalidToolUse, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn sse_missing_finish_reason_rejects_tool_execution() {
+        // Complete valid JSON object, but connection dropped without finish_reason
+        let lines = [
+            r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"search","arguments":"{\"query\":\"hello\"}"}}]}}]}"#.to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        assert_eq!(resp.stop_reason, StopReason::ToolUse);
+        match &resp.content[0] {
+            ContentBlock::InvalidToolUse {
+                id,
+                name,
+                diagnostic,
+            } => {
+                assert_eq!(id, "c1");
+                assert_eq!(name, "search");
+                assert_eq!(diagnostic.finish_reason, None);
+                assert!(!diagnostic.saw_done);
+                match &diagnostic.kind {
+                    ToolErrorKind::IncompleteStream { details } => {
+                        assert!(details.contains("finish_reason"));
+                    }
+                    other => panic!("expected IncompleteStream, got {other:?}"),
+                }
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sse_missing_done_with_valid_finish_permits_tool_execution() {
+        let lines = [
+            r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"search","arguments":"{\"query\":\"hello\"}"}}]}}]}"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#.to_string(),
+            // Notice: no "data: [DONE]" line
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        assert_eq!(resp.stop_reason, StopReason::ToolUse);
+        match &resp.content[0] {
+            ContentBlock::ToolUse { id, name, input } => {
+                assert_eq!(id, "c1");
+                assert_eq!(name, "search");
+                assert_eq!(input["query"], "hello");
+            }
+            other => panic!("expected ToolUse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sse_mixed_valid_and_invalid_tools() {
+        let lines = [
+            r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"search","arguments":"{\"query\":\"hello\"}"}},{"index":1,"id":"c2","function":{"name":"calc","arguments":"{\"expr\":\"1+2"}}]}}]}"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#.to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        assert_eq!(resp.stop_reason, StopReason::ToolUse);
+        assert_eq!(resp.content.len(), 2);
+        match (&resp.content[0], &resp.content[1]) {
+            (
+                ContentBlock::ToolUse { id: id1, .. },
+                ContentBlock::InvalidToolUse { id: id2, .. },
+            ) => {
+                assert_eq!(id1, "c1");
+                assert_eq!(id2, "c2");
+            }
+            other => panic!("expected (ToolUse, InvalidToolUse), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn nonstream_parse_json_valid_and_invalid_cases() {
+        // Case 1: Valid tool call with finish_reason
+        let json_valid = r#"{
+            "id": "cmpl-1",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "t1",
+                        "function": {"name": "read", "arguments": "{\"path\":\"a.txt\"}"}
+                    }]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        }"#;
+        let r1 = parse_json(json_valid).unwrap();
+        assert_eq!(r1.stop_reason, StopReason::ToolUse);
+        match &r1.content[0] {
+            ContentBlock::ToolUse { id, name, input } => {
+                assert_eq!(id, "t1");
+                assert_eq!(name, "read");
+                assert_eq!(input["path"], "a.txt");
+            }
+            other => panic!("expected ToolUse, got {other:?}"),
+        }
+
+        // Case 2: Truncated JSON arguments
+        let json_trunc = r#"{
+            "id": "cmpl-2",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "t2",
+                        "function": {"name": "read", "arguments": "{\"path\":"}
+                    }]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        }"#;
+        let r2 = parse_json(json_trunc).unwrap();
+        assert_eq!(r2.stop_reason, StopReason::ToolUse);
+        match &r2.content[0] {
+            ContentBlock::InvalidToolUse {
+                id,
+                name,
+                diagnostic,
+            } => {
+                assert_eq!(id, "t2");
+                assert_eq!(name, "read");
+                match &diagnostic.kind {
+                    ToolErrorKind::Json { category, .. } => assert_eq!(category, "eof"),
+                    other => panic!("expected Json eof, got {other:?}"),
+                }
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+
+        // Case 3: Non-object JSON argument ("null")
+        let json_null = r#"{
+            "id": "cmpl-3",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "t3",
+                        "function": {"name": "read", "arguments": "null"}
+                    }]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        }"#;
+        let r3 = parse_json(json_null).unwrap();
+        assert_eq!(r3.stop_reason, StopReason::ToolUse);
+        match &r3.content[0] {
+            ContentBlock::InvalidToolUse {
+                diagnostic, ..
+            } => {
+                assert_eq!(
+                    diagnostic.kind,
+                    ToolErrorKind::NotAnObject {
+                        found: "null".into()
+                    }
+                );
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+
+        // Case 4: Missing finish_reason rejects tool execution
+        let json_nofinish = r#"{
+            "id": "cmpl-4",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "t4",
+                        "function": {"name": "read", "arguments": "{\"path\":\"a.txt\"}"}
+                    }]
+                },
+                "finish_reason": null
+            }]
+        }"#;
+        let r4 = parse_json(json_nofinish).unwrap();
+        assert_eq!(r4.stop_reason, StopReason::ToolUse);
+        match &r4.content[0] {
+            ContentBlock::InvalidToolUse {
+                diagnostic, ..
+            } => {
+                match &diagnostic.kind {
+                    ToolErrorKind::IncompleteStream { .. } => {}
+                    other => panic!("expected IncompleteStream, got {other:?}"),
+                }
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+
+        // Case 5: MaxTokens (length) finish_reason with truncated tool call forces StopReason::ToolUse
+        let json_length = r#"{
+            "id": "cmpl-5",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "t5",
+                        "function": {"name": "read", "arguments": "{\"path\": \"trun"}
+                    }]
+                },
+                "finish_reason": "length"
+            }]
+        }"#;
+        let r5 = parse_json(json_length).unwrap();
+        // Crucial test: must force classification ToolUse even when finish_reason was length (MaxTokens)
+        assert_eq!(r5.stop_reason, StopReason::ToolUse);
+        assert!(matches!(r5.content[0], ContentBlock::InvalidToolUse { .. }));
+
+        // Case 6: Complete valid object with finish_reason: length is REJECTED
+        let json_len_complete = r#"{
+            "id": "cmpl-6",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "t6",
+                        "function": {"name": "read", "arguments": "{\"path\": \"a.txt\"}"}
+                    }]
+                },
+                "finish_reason": "length"
+            }]
+        }"#;
+        let r6 = parse_json(json_len_complete).unwrap();
+        assert_eq!(r6.stop_reason, StopReason::ToolUse);
+        match &r6.content[0] {
+            ContentBlock::InvalidToolUse { diagnostic, .. } => {
+                match &diagnostic.kind {
+                    ToolErrorKind::IncompleteStream { details } => {
+                        assert!(details.contains("length"));
+                    }
+                    other => panic!("expected IncompleteStream with length, got {other:?}"),
+                }
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sse_truncated_json_and_missing_finish_captures_both_parse_and_termination() {
+        // Exact observed incident: 242 characters of unterminated JSON, stream EOF with no finish_reason
+        let payload_242 = format!(
+            r#"{{"path":"/tmp/dir/file.txt","content":"{}"#,
+            "x".repeat(203)
+        );
+        assert_eq!(payload_242.len(), 242);
+        assert_eq!(payload_242.chars().count(), 242);
+
+        let lines = [format!(
+            r#"data: {{"id":"c1","model":"m","choices":[{{"index":0,"delta":{{"tool_calls":[{{"index":0,"id":"call_inc","function":{{"name":"write","arguments":{}}}}}]}}}}]}}"#,
+            serde_json::to_string(&payload_242).unwrap()
+        )];
+        let resp = parse_sse(&lines, None).unwrap();
+        assert_eq!(resp.stop_reason, StopReason::ToolUse);
+        match &resp.content[0] {
+            ContentBlock::InvalidToolUse {
+                id,
+                name,
+                diagnostic,
+            } => {
+                assert_eq!(id, "call_inc");
+                assert_eq!(name, "write");
+                // Retains parse error: category EOF
+                match &diagnostic.kind {
+                    ToolErrorKind::Json { category, .. } => assert_eq!(category, "eof"),
+                    other => panic!("expected Json eof, got {other:?}"),
+                }
+                // Retains stream termination evidence: missing finish_reason and saw_done false
+                assert_eq!(diagnostic.finish_reason, None);
+                assert!(!diagnostic.saw_done);
+                assert_eq!(diagnostic.received_chars, 242);
+                assert_eq!(diagnostic.received_bytes, 242);
+                // Clear display mentions missing finish_reason
+                let display = diagnostic.to_string();
+                assert!(display.contains("missing finish_reason (EOF)"));
+                assert!(display.contains("saw_done: false"));
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sse_complete_object_on_length_finish_reason_rejected() {
+        let lines = [
+            r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"search","arguments":"{\"query\":\"hello\"}"}}]}}]}"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"length"}]}"#.to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        assert_eq!(resp.stop_reason, StopReason::ToolUse);
+        match &resp.content[0] {
+            ContentBlock::InvalidToolUse { diagnostic, .. } => {
+                match &diagnostic.kind {
+                    ToolErrorKind::IncompleteStream { details } => {
+                        assert!(details.contains("length"));
+                    }
+                    other => panic!("expected IncompleteStream with length, got {other:?}"),
+                }
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sse_missing_identity_rejected_without_invention() {
+        let lines = [
+            r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"","function":{"name":"","arguments":"{}"}}]}}]}"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#.to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        match &resp.content[0] {
+            ContentBlock::InvalidToolUse {
+                id,
+                name,
+                diagnostic,
+            } => {
+                assert!(id.is_empty());
+                assert!(name.is_empty());
+                match &diagnostic.kind {
+                    ToolErrorKind::IncompleteStream { details } => {
+                        assert!(details.contains("missing tool id and name"));
+                    }
+                    other => panic!("expected missing identity details, got {other:?}"),
+                }
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sse_corrupt_frame_invalidates_tool_call() {
+        let lines = [
+            r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"search","arguments":"{\"query\":"}}]}}]}"#.to_string(),
+            r#"data: {"corrupted_json_chunk_without_closing"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"hi\"}"}}]}}]}"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#.to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        match &resp.content[0] {
+            ContentBlock::InvalidToolUse { diagnostic, .. } => {
+                match &diagnostic.kind {
+                    ToolErrorKind::IncompleteStream { details } => {
+                        assert!(details.contains("malformed SSE frame"));
+                    }
+                    other => panic!("expected IncompleteStream with malformed SSE, got {other:?}"),
+                }
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn received_chars_vs_bytes_multibyte_utf8() {
+        // Multi-byte Unicode: 4 emojis (4 chars, 16 bytes)
+        let raw = "{\"emoji\":\"🎉🚀🔥✨\"";
+        let chars = raw.chars().count();
+        let bytes = raw.len();
+        assert_ne!(chars, bytes);
+
+        let lines = [
+            format!(
+                r#"data: {{"id":"c","model":"m","choices":[{{"index":0,"delta":{{"tool_calls":[{{"index":0,"id":"c1","function":{{"name":"fn","arguments":{}}}}}]}}}}]}}"#,
+                serde_json::to_string(raw).unwrap()
+            ),
+            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#.to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        match &resp.content[0] {
+            ContentBlock::InvalidToolUse { diagnostic, .. } => {
+                assert_eq!(diagnostic.received_chars, chars);
+                assert_eq!(diagnostic.received_bytes, bytes);
+            }
+            other => panic!("expected InvalidToolUse, got {other:?}"),
+        }
     }
 }

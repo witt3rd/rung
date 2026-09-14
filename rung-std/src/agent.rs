@@ -647,7 +647,19 @@ ladder!(AgentLoop {
             })));
         }
 
-        match response.stop_reason {
+        let has_tool_blocks = response.content.iter().any(|b| {
+            matches!(
+                b,
+                ContentBlock::ToolUse { .. } | ContentBlock::InvalidToolUse { .. }
+            )
+        });
+        let stop_reason = if has_tool_blocks {
+            StopReason::ToolUse
+        } else {
+            response.stop_reason
+        };
+
+        match stop_reason {
             StopReason::EndTurn | StopReason::MaxTokens | StopReason::StopSequence => {
                 let text = response_text(&response.content)
                     .unwrap_or_else(|| "(no text in response)".into());
@@ -706,6 +718,9 @@ ladder!(AgentLoop {
                 let mut assistant_blocks: Vec<crate::llm::MessageContentBlock> = Vec::new();
                 let mut tool_count = 0u32;
                 let mut tool_result_blocks: Vec<crate::llm::MessageContentBlock> = Vec::new();
+                let mut invalid_tool_diagnostics: Vec<(String, String, crate::llm::ToolDiagnostic)> =
+                    Vec::new();
+                let mut executed_tools: Vec<String> = Vec::new();
                 let mut next = next;
 
                 for block in &response.content {
@@ -761,9 +776,7 @@ ladder!(AgentLoop {
                                 ),
                                 Watch::Execute => match tools.execute(name, input) {
                                     Ok(s) => (cap_output(&s, next.tool_output_limit), false),
-                                    Err(e) => {
-                                        (cap_output(&format!("error: {e}"), next.tool_output_limit), true)
-                                    }
+                                    Err(e) => (format!("error: {e}"), true),
                                 },
                             };
                             if next.is_cancelled() {
@@ -773,7 +786,11 @@ ladder!(AgentLoop {
                                     },
                                 )));
                             }
-                            eprintln!("[rung-std] {call_id}:   -> {:.120}", content);
+                            if is_error {
+                                eprintln!("[rung-std] {call_id}:   -> {content}");
+                            } else {
+                                eprintln!("[rung-std] {call_id}:   -> {:.120}", content);
+                            }
                             tool_result_blocks.push(
                                 crate::llm::MessageContentBlock::ToolResult {
                                     tool_use_id: id.clone(),
@@ -782,12 +799,20 @@ ladder!(AgentLoop {
                                     cache: None,
                                 },
                             );
+                            executed_tools.push(name.clone());
                             tool_count += 1;
+                        }
+                        ContentBlock::InvalidToolUse { id, name, diagnostic } => {
+                            eprintln!(
+                                "[rung-std] {call_id}: invalid tool call '{name}' (id: '{id}'): {diagnostic}"
+                            );
+                            invalid_tool_diagnostics
+                                .push((id.clone(), name.clone(), diagnostic.clone()));
                         }
                     }
                 }
 
-                if tool_count == 0 {
+                if tool_count == 0 && invalid_tool_diagnostics.is_empty() {
                     let text = response_text(&response.content)
                         .unwrap_or_else(|| "(no text in response)".into());
                     return Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
@@ -802,13 +827,48 @@ ladder!(AgentLoop {
                     updated_messages
                         .push(ChatMessage::assistant_with_blocks(assistant_blocks));
                 }
+
                 if !tool_result_blocks.is_empty() {
                     updated_messages
                         .push(ChatMessage::user_with_blocks(tool_result_blocks));
                 }
-                eprintln!(
-                    "[rung-std] {call_id}: tool_use — {tool_count} tool(s), iterating"
-                );
+
+                if !invalid_tool_diagnostics.is_empty() {
+                    let mut feedback = Vec::new();
+                    for (id, name, diag) in &invalid_tool_diagnostics {
+                        let id_str = if id.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" (id: '{id}')")
+                        };
+                        feedback.push(format!(
+                            "Tool call '{name}'{id_str} could not be executed because its arguments were malformed or incomplete:\n{diag}"
+                        ));
+                    }
+                    if !executed_tools.is_empty() {
+                        feedback.push(format!(
+                            "The following sibling tool calls already executed successfully: {}.\nDo NOT repeat or re-call these completed tools. Proceed with their results or fix the failed tool call.",
+                            executed_tools.join(", ")
+                        ));
+                    } else {
+                        feedback.push(
+                            "Please provide a valid, complete JSON tool call or answer with text."
+                                .to_string(),
+                        );
+                    }
+                    updated_messages.push(ChatMessage::user(feedback.join("\n\n")));
+                }
+
+                if invalid_tool_diagnostics.is_empty() {
+                    eprintln!(
+                        "[rung-std] {call_id}: tool_use — {tool_count} tool(s), iterating"
+                    );
+                } else {
+                    eprintln!(
+                        "[rung-std] {call_id}: tool_use — {tool_count} valid tool(s), {} invalid, iterating",
+                        invalid_tool_diagnostics.len()
+                    );
+                }
 
                 let updated_thread = Thread {
                     system_prompt: thread.system_prompt.clone(),
@@ -951,7 +1011,7 @@ impl Spawn for NestedLoop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::llm::{CachePolicy, LlmConfig, Protocol};
+    use crate::llm::{CachePolicy, LlmConfig, MessageContent, Protocol};
     use crate::python::{Jail, SandboxConfig};
     use crate::tools::{Tool, ToolCollection, ToolRoster};
     use std::path::PathBuf;
@@ -1202,5 +1262,382 @@ mod tests {
         };
         let err = run(thread, carry).expect_err("cancelled");
         assert_eq!(err.kind, FailureKind::Interrupted);
+    }
+
+    use std::sync::atomic::AtomicUsize;
+
+    #[derive(Debug)]
+    struct CountingTool {
+        name: &'static str,
+        exec_count: Arc<AtomicUsize>,
+        error: Option<String>,
+    }
+
+    impl Tool for CountingTool {
+        fn name(&self) -> &'static str {
+            self.name
+        }
+        fn description(&self) -> &'static str {
+            "counting tool"
+        }
+        fn input_schema(&self) -> serde_json::Value {
+            serde_json::json!({"type": "object"})
+        }
+        fn execute(&self, _input: &serde_json::Value) -> Result<String, String> {
+            self.exec_count.fetch_add(1, Ordering::SeqCst);
+            if let Some(err) = &self.error {
+                Err(err.clone())
+            } else {
+                Ok("S".repeat(200))
+            }
+        }
+    }
+
+    fn serve_json(body: &str) -> (String, std::thread::JoinHandle<()>) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let body_owned = body.to_string();
+        let handle = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = socket.read(&mut buf);
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body_owned.len(),
+                body_owned
+            );
+            let _ = socket.write_all(resp.as_bytes());
+        });
+        (format!("http://127.0.0.1:{port}"), handle)
+    }
+
+    #[test]
+    fn mixed_valid_invalid_siblings_execute_valid_once_and_preserves_results() {
+        let response_body = r#"{
+            "id": "cmpl-mixed",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "call_valid_1",
+                            "function": {"name": "valid_tool", "arguments": "{\"path\":\"a.txt\"}"}
+                        },
+                        {
+                            "id": "call_invalid_2",
+                            "function": {"name": "invalid_tool", "arguments": "{\"path\":"}
+                        }
+                    ]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        }"#;
+
+        let (url, handle) = serve_json(response_body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+
+        let valid_count = Arc::new(AtomicUsize::new(0));
+        let invalid_count = Arc::new(AtomicUsize::new(0));
+
+        let mut c = ToolCollection::new("test");
+        c.admit(CountingTool {
+            name: "valid_tool",
+            exec_count: valid_count.clone(),
+            error: None,
+        });
+        c.admit(CountingTool {
+            name: "invalid_tool",
+            exec_count: invalid_count.clone(),
+            error: None,
+        });
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(roster),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: "system prompt".into(),
+            messages: vec![ChatMessage::user("run tools")],
+        };
+        let calling = agentloop::calling(agentloop::Idle::new(thread, carry));
+        let outcome = match agentloop::step(calling) {
+            Ok(o) => o,
+            Err(_) => panic!("step failed"),
+        };
+        handle.join().unwrap();
+
+        // 1. Valid sibling executed ONCE
+        assert_eq!(valid_count.load(Ordering::SeqCst), 1);
+        // 2. Invalid sibling NEVER dispatched
+        assert_eq!(invalid_count.load(Ordering::SeqCst), 0);
+
+        // 3. Loop iterates
+        let next_calling = match outcome {
+            agentloop::StepOutcome::Iterate(c) => c,
+            _ => panic!("expected Iterate"),
+        };
+
+        // 4. Thread messages preserve valid sibling history/results and include corrective feedback
+        let msgs = &next_calling.payload.messages;
+        assert_eq!(msgs.len(), 4); // [initial user, assistant (valid tool), user (tool result), user (corrective)]
+
+        // Assistant message has valid ToolUse
+        match &msgs[1].content {
+            MessageContent::Blocks(blocks) => {
+                assert_eq!(blocks.len(), 1);
+                match &blocks[0] {
+                    crate::llm::MessageContentBlock::ToolUse { id, name, .. } => {
+                        assert_eq!(id, "call_valid_1");
+                        assert_eq!(name, "valid_tool");
+                    }
+                    other => panic!("expected ToolUse block, got {other:?}"),
+                }
+            }
+            other => panic!("expected Blocks, got {other:?}"),
+        }
+
+        // ToolResult block
+        match &msgs[2].content {
+            MessageContent::Blocks(blocks) => {
+                assert_eq!(blocks.len(), 1);
+                match &blocks[0] {
+                    crate::llm::MessageContentBlock::ToolResult {
+                        tool_use_id,
+                        is_error,
+                        ..
+                    } => {
+                        assert_eq!(tool_use_id, "call_valid_1");
+                        assert!(!is_error);
+                    }
+                    other => panic!("expected ToolResult block, got {other:?}"),
+                }
+            }
+            other => panic!("expected Blocks, got {other:?}"),
+        }
+
+        // Corrective user message
+        match &msgs[3].content {
+            MessageContent::Text(text) => {
+                assert!(text.contains("invalid_tool"));
+                assert!(text.contains("valid_tool"));
+                assert!(text.contains("Do NOT repeat or re-call these completed tools"));
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn tool_errors_unclipped_in_agent_loop() {
+        let response_body = r#"{
+            "id": "cmpl-err",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "call_err",
+                            "function": {"name": "failing_tool", "arguments": "{}"}
+                        }
+                    ]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        }"#;
+
+        let (url, handle) = serve_json(response_body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+
+        let long_err_message =
+            "CRITICAL_DATABASE_ERROR: connection refused by host at cluster-node-99".repeat(10);
+        let mut c = ToolCollection::new("test");
+        c.admit(CountingTool {
+            name: "failing_tool",
+            exec_count: Arc::new(AtomicUsize::new(0)),
+            error: Some(long_err_message.clone()),
+        });
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+
+        let mut state = LoopState::new(5, 5);
+        state.tool_output_limit = 20; // Very small limit!
+
+        let carry = agentloop::Carry {
+            state,
+            tools: Arc::new(roster),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("run tool")],
+        };
+        let calling = agentloop::calling(agentloop::Idle::new(thread, carry));
+        let outcome = match agentloop::step(calling) {
+            Ok(o) => o,
+            Err(_) => panic!("step failed"),
+        };
+        handle.join().unwrap();
+
+        let next_calling = match outcome {
+            agentloop::StepOutcome::Iterate(c) => c,
+            _ => panic!("expected Iterate"),
+        };
+
+        // ToolResult block MUST NOT be clipped on error!
+        let msgs = &next_calling.payload.messages;
+        match &msgs[2].content {
+            MessageContent::Blocks(blocks) => match &blocks[0] {
+                crate::llm::MessageContentBlock::ToolResult {
+                    content,
+                    is_error,
+                    ..
+                } => {
+                    assert!(is_error);
+                    // The entire error message must be present without truncation!
+                    assert!(!content.contains("[truncated"));
+                    assert!(content.contains(&long_err_message));
+                }
+                other => panic!("expected ToolResult, got {other:?}"),
+            },
+            other => panic!("expected Blocks, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn invalid_tool_forces_tool_use_even_on_max_tokens() {
+        let response_body = r#"{
+            "id": "cmpl-len",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "content": "I am calling the tool",
+                    "tool_calls": [
+                        {
+                            "id": "call_cut",
+                            "function": {"name": "broken_tool", "arguments": "{\"incomplete\": true"}
+                        }
+                    ]
+                },
+                "finish_reason": "length"
+            }]
+        }"#;
+
+        let (url, handle) = serve_json(response_body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+
+        let mut c = ToolCollection::new("test");
+        c.admit(CountingTool {
+            name: "broken_tool",
+            exec_count: Arc::new(AtomicUsize::new(0)),
+            error: None,
+        });
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(roster),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("run tool")],
+        };
+        let calling = agentloop::calling(agentloop::Idle::new(thread, carry));
+        let outcome = match agentloop::step(calling) {
+            Ok(o) => o,
+            Err(_) => panic!("step failed"),
+        };
+        handle.join().unwrap();
+
+        // Must NOT be EndTurn despite finish_reason: length / MaxTokens
+        match outcome {
+            agentloop::StepOutcome::Iterate(c) => {
+                let msgs = &c.payload.messages;
+                let last_msg = msgs.last().unwrap();
+                assert!(last_msg.content.as_text().unwrap().contains("broken_tool"));
+            }
+            _ => panic!("expected Iterate due to forced ToolUse"),
+        }
+    }
+
+    #[test]
+    fn invalid_tool_without_assistant_text_appends_corrective_user_message_without_empty_assistant()
+    {
+        // Model emitted only an invalid tool call and NO text content
+        let response_body = r#"{
+            "id": "cmpl-notext",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "call_bad",
+                            "function": {"name": "broken_tool", "arguments": "invalid-json"}
+                        }
+                    ]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        }"#;
+
+        let (url, handle) = serve_json(response_body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+
+        let mut c = ToolCollection::new("test");
+        c.admit(CountingTool {
+            name: "broken_tool",
+            exec_count: Arc::new(AtomicUsize::new(0)),
+            error: None,
+        });
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(roster),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("run tool")],
+        };
+        let calling = agentloop::calling(agentloop::Idle::new(thread, carry));
+        let outcome = match agentloop::step(calling) {
+            Ok(o) => o,
+            Err(_) => panic!("step failed"),
+        };
+        handle.join().unwrap();
+
+        match outcome {
+            agentloop::StepOutcome::Iterate(c) => {
+                let msgs = &c.payload.messages;
+                // Verify: No empty assistant message was inserted!
+                // Initial user message, then corrective user message.
+                for m in msgs {
+                    if m.role == "assistant" {
+                        match &m.content {
+                            MessageContent::Text(t) => assert!(!t.is_empty()),
+                            MessageContent::Blocks(b) => assert!(!b.is_empty()),
+                        }
+                    }
+                }
+                let last_msg = msgs.last().unwrap();
+                assert_eq!(last_msg.role, "user");
+                assert!(last_msg.content.as_text().unwrap().contains("broken_tool"));
+            }
+            _ => panic!("expected Iterate"),
+        }
     }
 }

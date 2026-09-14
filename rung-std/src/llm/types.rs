@@ -124,7 +124,72 @@ pub enum StopReason {
     Refusal,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ToolErrorKind {
+    /// Serde JSON parse error (e.g. truncated or malformed JSON syntax).
+    Json {
+        category: String,
+        line: usize,
+        column: usize,
+        message: String,
+    },
+    /// Parsed JSON was not a JSON Object (e.g. null, array, string, number, boolean).
+    NotAnObject {
+        found: String,
+    },
+    /// Stream terminated or ended before a valid finish_reason was received.
+    IncompleteStream {
+        details: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolDiagnostic {
+    pub kind: ToolErrorKind,
+    pub finish_reason: Option<String>,
+    pub saw_done: bool,
+    pub received_chars: usize,
+    pub received_bytes: usize,
+}
+
+impl std::fmt::Display for ToolDiagnostic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let finish_str = match &self.finish_reason {
+            Some(r) => format!("finish_reason: {r:?}"),
+            None => "missing finish_reason (EOF)".to_string(),
+        };
+        match &self.kind {
+            ToolErrorKind::Json {
+                category,
+                line,
+                column,
+                message,
+            } => {
+                write!(
+                    f,
+                    "JSON parse error ({category}) at line {line}, column {column}: {message} (received {} chars, {} bytes, {finish_str}, saw_done: {})",
+                    self.received_chars, self.received_bytes, self.saw_done
+                )
+            }
+            ToolErrorKind::NotAnObject { found } => {
+                write!(
+                    f,
+                    "expected JSON object arguments, found {found} (received {} chars, {} bytes, {finish_str}, saw_done: {})",
+                    self.received_chars, self.received_bytes, self.saw_done
+                )
+            }
+            ToolErrorKind::IncompleteStream { details } => {
+                write!(
+                    f,
+                    "stream incomplete: {details} (received {} chars, {} bytes, {finish_str}, saw_done: {})",
+                    self.received_chars, self.received_bytes, self.saw_done
+                )
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ContentBlock {
     Text {
         text: String,
@@ -133,6 +198,11 @@ pub enum ContentBlock {
         id: String,
         name: String,
         input: serde_json::Value,
+    },
+    InvalidToolUse {
+        id: String,
+        name: String,
+        diagnostic: ToolDiagnostic,
     },
     Thinking {
         thinking: String,
