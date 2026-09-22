@@ -55,9 +55,13 @@ fn request_body(
 ) -> serde_json::Value {
     let mut body = serde_json::json!({
         "model": config.model,
-        "max_tokens": config.max_tokens,
         "messages": openai_messages(messages),
     });
+    // 0 = no cap: the field is optional here, and a cap on a reasoning
+    // model cuts off the answer, not the cost.
+    if config.max_tokens > 0 {
+        body["max_tokens"] = serde_json::json!(config.max_tokens);
+    }
 
     if config.stream_listener.is_some() {
         body["stream"] = serde_json::json!(true);
@@ -780,7 +784,12 @@ impl OpenAiSse {
                 ContentBlock::ToolUse { .. } | ContentBlock::InvalidToolUse { .. }
             )
         });
-        if has_tools && matches!(self.stop_reason, StopReason::EndTurn | StopReason::MaxTokens) {
+        if has_tools
+            && matches!(
+                self.stop_reason,
+                StopReason::EndTurn | StopReason::MaxTokens
+            )
+        {
             self.stop_reason = StopReason::ToolUse;
         }
         emit(StreamEvent::MessageDelta {
@@ -922,6 +931,34 @@ mod tests {
         with_listener.stream_listener = Some(std::sync::Arc::new(Noop) as _);
         let body = request_body(&with_listener, &[ChatMessage::user("hi")], &[]);
         assert_eq!(body["stream"], true);
+    }
+
+    #[test]
+    fn request_body_omits_max_tokens_when_uncapped() {
+        use crate::llm::{CachePolicy, Protocol};
+        let mut cfg = LlmConfig {
+            base_url: "http://127.0.0.1:9/v1".into(),
+            api_key: "k".into(),
+            model: "m".into(),
+            timeout_secs: 10,
+            idle_timeout_secs: None,
+            max_tokens: 0,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            seed: None,
+            stop: vec![],
+            reasoning_level: None,
+            structured_outputs: false,
+            protocol: Protocol::OpenAiChat,
+            cache: CachePolicy::None,
+            stream_listener: None,
+        };
+        let body = request_body(&cfg, &[ChatMessage::user("hi")], &[]);
+        assert!(body.get("max_tokens").is_none());
+        cfg.max_tokens = 64;
+        let body = request_body(&cfg, &[ChatMessage::user("hi")], &[]);
+        assert_eq!(body["max_tokens"], 64);
     }
 
     #[test]
@@ -1297,9 +1334,7 @@ mod tests {
         let r3 = parse_json(json_null).unwrap();
         assert_eq!(r3.stop_reason, StopReason::ToolUse);
         match &r3.content[0] {
-            ContentBlock::InvalidToolUse {
-                diagnostic, ..
-            } => {
+            ContentBlock::InvalidToolUse { diagnostic, .. } => {
                 assert_eq!(
                     diagnostic.kind,
                     ToolErrorKind::NotAnObject {
@@ -1327,14 +1362,10 @@ mod tests {
         let r4 = parse_json(json_nofinish).unwrap();
         assert_eq!(r4.stop_reason, StopReason::ToolUse);
         match &r4.content[0] {
-            ContentBlock::InvalidToolUse {
-                diagnostic, ..
-            } => {
-                match &diagnostic.kind {
-                    ToolErrorKind::IncompleteStream { .. } => {}
-                    other => panic!("expected IncompleteStream, got {other:?}"),
-                }
-            }
+            ContentBlock::InvalidToolUse { diagnostic, .. } => match &diagnostic.kind {
+                ToolErrorKind::IncompleteStream { .. } => {}
+                other => panic!("expected IncompleteStream, got {other:?}"),
+            },
             other => panic!("expected InvalidToolUse, got {other:?}"),
         }
 
@@ -1374,14 +1405,12 @@ mod tests {
         let r6 = parse_json(json_len_complete).unwrap();
         assert_eq!(r6.stop_reason, StopReason::ToolUse);
         match &r6.content[0] {
-            ContentBlock::InvalidToolUse { diagnostic, .. } => {
-                match &diagnostic.kind {
-                    ToolErrorKind::IncompleteStream { details } => {
-                        assert!(details.contains("length"));
-                    }
-                    other => panic!("expected IncompleteStream with length, got {other:?}"),
+            ContentBlock::InvalidToolUse { diagnostic, .. } => match &diagnostic.kind {
+                ToolErrorKind::IncompleteStream { details } => {
+                    assert!(details.contains("length"));
                 }
-            }
+                other => panic!("expected IncompleteStream with length, got {other:?}"),
+            },
             other => panic!("expected InvalidToolUse, got {other:?}"),
         }
     }
@@ -1439,14 +1468,12 @@ mod tests {
         let resp = parse_sse(&lines, None).unwrap();
         assert_eq!(resp.stop_reason, StopReason::ToolUse);
         match &resp.content[0] {
-            ContentBlock::InvalidToolUse { diagnostic, .. } => {
-                match &diagnostic.kind {
-                    ToolErrorKind::IncompleteStream { details } => {
-                        assert!(details.contains("length"));
-                    }
-                    other => panic!("expected IncompleteStream with length, got {other:?}"),
+            ContentBlock::InvalidToolUse { diagnostic, .. } => match &diagnostic.kind {
+                ToolErrorKind::IncompleteStream { details } => {
+                    assert!(details.contains("length"));
                 }
-            }
+                other => panic!("expected IncompleteStream with length, got {other:?}"),
+            },
             other => panic!("expected InvalidToolUse, got {other:?}"),
         }
     }
@@ -1489,14 +1516,12 @@ mod tests {
         ];
         let resp = parse_sse(&lines, None).unwrap();
         match &resp.content[0] {
-            ContentBlock::InvalidToolUse { diagnostic, .. } => {
-                match &diagnostic.kind {
-                    ToolErrorKind::IncompleteStream { details } => {
-                        assert!(details.contains("malformed SSE frame"));
-                    }
-                    other => panic!("expected IncompleteStream with malformed SSE, got {other:?}"),
+            ContentBlock::InvalidToolUse { diagnostic, .. } => match &diagnostic.kind {
+                ToolErrorKind::IncompleteStream { details } => {
+                    assert!(details.contains("malformed SSE frame"));
                 }
-            }
+                other => panic!("expected IncompleteStream with malformed SSE, got {other:?}"),
+            },
             other => panic!("expected InvalidToolUse, got {other:?}"),
         }
     }
@@ -1514,7 +1539,8 @@ mod tests {
                 r#"data: {{"id":"c","model":"m","choices":[{{"index":0,"delta":{{"tool_calls":[{{"index":0,"id":"c1","function":{{"name":"fn","arguments":{}}}}}]}}}}]}}"#,
                 serde_json::to_string(raw).unwrap()
             ),
-            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#
+                .to_string(),
             "data: [DONE]".to_string(),
         ];
         let resp = parse_sse(&lines, None).unwrap();

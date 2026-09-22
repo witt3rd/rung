@@ -150,7 +150,7 @@ fn resolve(
     };
     let max_tokens = match getenv("RUNG_MAX_TOKENS") {
         Some(s) => parse_num("RUNG_MAX_TOKENS", &s)?,
-        None => file.and_then(|f| f.max_tokens).unwrap_or(8192),
+        None => file.and_then(|f| f.max_tokens).unwrap_or(0),
     };
     let idle_timeout_secs = match getenv("RUNG_IDLE_TIMEOUT_SECS") {
         Some(s) => Some(parse_num("RUNG_IDLE_TIMEOUT_SECS", &s)?),

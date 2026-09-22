@@ -39,6 +39,9 @@ pub struct JobEx {
     pub prompt_blocks: Option<Vec<MessageContentBlock>>,
     /// Forward model stream events (thinking deltas) to the ACP client.
     pub stream_listener: Option<Arc<dyn rung_std::llm::StreamListener>>,
+    /// Per-session system text (ACP `session/new` `_meta.systemPrompt`),
+    /// appended after the process system prompt.
+    pub system_append: Option<String>,
 }
 
 /// Nested `task` Spawn: pick a catalog kind, persist a child session, run a
@@ -457,6 +460,11 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
     }
     let tools = wrap_tools(base, emitter.as_ref(), &extra);
     let system_prompt = resolve_system_prompt(&origin, args.system_prompt.as_ref())?;
+    let system_prompt = match (system_prompt, extra.system_append.as_deref()) {
+        (base, None) => base,
+        (None, Some(add)) => Some(add.to_string()),
+        (Some(base), Some(add)) => Some(format!("{base}\n\n{add}")),
+    };
     let user_material = match &args.user_prompt {
         Some(u) => Some(read_text(&origin, u)?),
         None => None,
