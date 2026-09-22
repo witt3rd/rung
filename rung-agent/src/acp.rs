@@ -53,6 +53,8 @@ struct Inner {
     kinds: HashMap<String, Kind>,
     cancelled: HashMap<String, Arc<AtomicBool>>,
     mcp: HashMap<String, Vec<McpSpec>>,
+    /// session_id → per-session system text from `session/new` `_meta`.
+    system: HashMap<String, String>,
 }
 
 impl Live {
@@ -93,6 +95,28 @@ impl Live {
         g.kinds.remove(id);
         g.cancelled.remove(id);
         g.mcp.remove(id);
+        g.system.remove(id);
+    }
+
+    fn set_system(&self, id: &str, text: Option<String>) {
+        let mut g = self.inner.lock().expect("acp state");
+        match text {
+            Some(t) if !t.trim().is_empty() => {
+                g.system.insert(id.to_string(), t);
+            }
+            _ => {
+                g.system.remove(id);
+            }
+        }
+    }
+
+    fn system(&self, id: &str) -> Option<String> {
+        self.inner
+            .lock()
+            .expect("acp state")
+            .system
+            .get(id)
+            .cloned()
     }
 
     fn set_mcp(&self, id: &str, specs: Vec<McpSpec>) {
@@ -443,6 +467,11 @@ fn send_text(
     ))
 }
 
+/// The session's own system text: `_meta.systemPrompt` on `session/new`.
+fn session_system(meta: Option<&serde_json::Map<String, Value>>) -> Option<String> {
+    meta?.get("systemPrompt")?.as_str().map(str::to_string)
+}
+
 fn job_args(process: &Args, id: String, kind: Kind, text: String) -> Args {
     Args {
         task_id: Some(id),
@@ -529,6 +558,7 @@ pub(crate) async fn connect_agent(
                     store_at(&cwd).save(&sess).map_err(invalid)?;
                     live.set_kind(&id, kind);
                     live.set_mcp(&id, mcp_from_acp(&request.mcp_servers));
+                    live.set_system(&id, session_system(request.meta.as_ref()));
                     responder.respond(
                         NewSessionResponse::new(SessionId::new(id.clone())).modes(modes(kind)),
                     )
@@ -716,6 +746,7 @@ pub(crate) async fn connect_agent(
                             streamed_text: streamed_text.clone(),
                         })),
                         prompt_blocks: Some(blocks),
+                        system_append: live.system(&id),
                     };
                     let out =
                         tokio::task::spawn_blocking(move || run_job_ex(&args, &origin, extra))
@@ -804,6 +835,25 @@ mod tests {
             panic!("message stop was dropped");
         };
         assert!(info.meta.unwrap().contains_key("rung"));
+    }
+
+    #[test]
+    fn session_system_reads_meta_system_prompt() {
+        let meta: serde_json::Map<String, Value> =
+            serde_json::from_str(r#"{"systemPrompt":"you are in a project channel"}"#).unwrap();
+        assert_eq!(
+            session_system(Some(&meta)).as_deref(),
+            Some("you are in a project channel")
+        );
+        assert_eq!(session_system(None), None);
+        let live = Live::default();
+        live.set_system("s1", session_system(Some(&meta)));
+        assert_eq!(
+            live.system("s1").as_deref(),
+            Some("you are in a project channel")
+        );
+        live.drop_session("s1");
+        assert_eq!(live.system("s1"), None);
     }
 
     #[test]
