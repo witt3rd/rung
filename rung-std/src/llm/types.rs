@@ -134,13 +134,9 @@ pub enum ToolErrorKind {
         message: String,
     },
     /// Parsed JSON was not a JSON Object (e.g. null, array, string, number, boolean).
-    NotAnObject {
-        found: String,
-    },
+    NotAnObject { found: String },
     /// Stream terminated or ended before a valid finish_reason was received.
-    IncompleteStream {
-        details: String,
-    },
+    IncompleteStream { details: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
