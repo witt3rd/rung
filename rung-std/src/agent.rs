@@ -1495,9 +1495,7 @@ mod tests {
         match &msgs[2].content {
             MessageContent::Blocks(blocks) => match &blocks[0] {
                 crate::llm::MessageContentBlock::ToolResult {
-                    content,
-                    is_error,
-                    ..
+                    content, is_error, ..
                 } => {
                     assert!(is_error);
                     // The entire error message must be present without truncation!
