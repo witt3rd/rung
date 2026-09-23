@@ -449,8 +449,18 @@ pub struct Thread {
 #[derive(Debug)]
 pub struct AgentResult {
     pub final_response: String,
+    /// The whole conversation at end of turn: the thread's messages (tool-use
+    /// and tool-result blocks included) followed by the final assistant text.
+    /// A caller persisting history slices off what it passed in.
+    pub transcript: Vec<ChatMessage>,
     pub api_calls_made: u32,
     pub usage: Usage,
+}
+
+fn closed(thread: &Thread, text: &str) -> Vec<ChatMessage> {
+    let mut m = thread.messages.clone();
+    m.push(ChatMessage::assistant(text));
+    m
 }
 
 /// Iteration limit reached before the model finished.
@@ -668,6 +678,7 @@ ladder!(AgentLoop {
                     if let Some(done) = turn.done {
                         eprintln!("[rung-std] {call_id}: end_turn — {done:.120}");
                         return Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
+                            transcript: closed(&thread, &done),
                             final_response: done,
                             api_calls_made: next.api_call_count,
                             usage: next.usage.clone(),
@@ -708,6 +719,7 @@ ladder!(AgentLoop {
                 }
                 eprintln!("[rung-std] {call_id}: end_turn — {text:.120}");
                 Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
+                    transcript: closed(&thread, &text),
                     final_response: text,
                     api_calls_made: next.api_call_count,
                     usage: next.usage.clone(),
@@ -816,6 +828,7 @@ ladder!(AgentLoop {
                     let text = response_text(&response.content)
                         .unwrap_or_else(|| "(no text in response)".into());
                     return Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
+                        transcript: closed(&thread, &text),
                         final_response: text,
                         api_calls_made: next.api_call_count,
                         usage: next.usage.clone(),

@@ -85,10 +85,7 @@ impl Spawn for CatalogSpawn {
             None => Session::new(&id, kind, &cwd),
         };
         sess.kind = kind.as_str().into();
-        sess.lines.push(Line {
-            role: "user".into(),
-            text: req.prompt.clone(),
-        });
+        sess.lines.push(Line::user(req.prompt.clone()));
         sess.status = "running".into();
         sess.pid = Some(std::process::id());
         self.store.save(&sess)?;
@@ -100,11 +97,9 @@ impl Spawn for CatalogSpawn {
             self.emitter.clone(),
             &self.extra,
         ) {
-            Ok((text, api_calls)) => {
-                sess.lines.push(Line {
-                    role: "assistant".into(),
-                    text: text.clone(),
-                });
+            Ok((line, api_calls)) => {
+                let text = line.text.clone();
+                sess.lines.push(line);
                 sess.status = "completed".into();
                 self.store.save(&sess)?;
                 Ok(TaskResult {
@@ -115,10 +110,7 @@ impl Spawn for CatalogSpawn {
             }
             Err(e) => {
                 sess.status = "error".into();
-                sess.lines.push(Line {
-                    role: "assistant".into(),
-                    text: e.clone(),
-                });
+                sess.lines.push(Line::assistant(e.clone()));
                 let _ = self.store.save(&sess);
                 Err(e)
             }
@@ -133,7 +125,7 @@ fn drive(
     max_iterations: u32,
     emitter: Option<Arc<crate::stream::Emitter>>,
     extra: &JobEx,
-) -> Result<(String, u32), String> {
+) -> Result<(Line, u32), String> {
     let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
     let cap = max_iterations.min(kind.max_iterations()).max(1);
     let base: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
@@ -167,8 +159,9 @@ fn drive(
         config,
         python: None,
     };
+    let sent = thread.messages.len();
     match agent::run(thread, carry) {
-        Ok(r) => Ok((r.final_response, r.api_calls_made)),
+        Ok(r) => Ok((turn_line(&r, sent), r.api_calls_made)),
         Err(f) => Err(f.reason),
     }
 }
@@ -211,14 +204,43 @@ fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<
     if let Some(m) = user_material {
         messages.push(ChatMessage::user(m));
     }
-    messages.extend(lines.iter().filter_map(|l| match l.role.as_str() {
-        "user" => Some(ChatMessage::user(l.text.clone())),
-        "assistant" => Some(ChatMessage::assistant(l.text.clone())),
-        _ => None,
-    }));
+    for l in lines {
+        match (l.role.as_str(), &l.messages) {
+            ("user", _) => messages.push(ChatMessage::user(l.text.clone())),
+            ("assistant", Some(turn)) if !turn.is_empty() => messages.extend(turn.iter().cloned()),
+            ("assistant", _) => messages.push(ChatMessage::assistant(l.text.clone())),
+            _ => {}
+        }
+    }
     Thread {
         system_prompt,
         messages,
+    }
+}
+
+/// History cap for a replayed tool result. The call itself is kept whole.
+const HISTORY_TOOL_RESULT_CHARS: usize = 4000;
+
+/// The assistant line for a finished turn: the messages the loop added after
+/// the `sent` messages it was given, with large tool results shortened.
+fn turn_line(r: &agent::AgentResult, sent: usize) -> Line {
+    let mut turn: Vec<ChatMessage> = r.transcript.iter().skip(sent).cloned().collect();
+    for m in &mut turn {
+        if let MessageContent::Blocks(blocks) = &mut m.content {
+            for b in blocks {
+                if let MessageContentBlock::ToolResult { content, .. } = b
+                    && content.chars().count() > HISTORY_TOOL_RESULT_CHARS
+                {
+                    let kept: String = content.chars().take(HISTORY_TOOL_RESULT_CHARS).collect();
+                    *content = format!("{kept}\n[… shortened in history]");
+                }
+            }
+        }
+    }
+    Line {
+        role: "assistant".into(),
+        text: r.final_response.clone(),
+        messages: Some(turn),
     }
 }
 
@@ -305,10 +327,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             .unwrap_or_else(|| Session::new(&id, args.kind, &origin));
         sess.kind = args.kind.as_str().into();
         sess.status = "queued".into();
-        sess.lines.push(Line {
-            role: "user".into(),
-            text: prompt.clone(),
-        });
+        sess.lines.push(Line::user(prompt.clone()));
         store.save(&sess)?;
         let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
         let launch = crate::background::spawn_child(&exe, args, &origin, &id, &store)?;
@@ -353,10 +372,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         .last()
         .is_some_and(|l| l.role == "user" && l.text == prompt);
     if !already {
-        sess.lines.push(Line {
-            role: "user".into(),
-            text: prompt,
-        });
+        sess.lines.push(Line::user(prompt));
     }
     sess.kind = args.kind.as_str().into();
     sess.pid = Some(std::process::id());
@@ -395,10 +411,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         Ok(c) => c,
         Err(e) => {
             sess.status = "error".into();
-            sess.lines.push(Line {
-                role: "assistant".into(),
-                text: e.clone(),
-            });
+            sess.lines.push(Line::assistant(e.clone()));
             let _ = store.save(&sess);
             return Err(e);
         }
@@ -490,12 +503,10 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         config,
         python: None,
     };
+    let sent = thread.messages.len();
     match agent::run(thread, carry) {
         Ok(r) => {
-            sess.lines.push(Line {
-                role: "assistant".into(),
-                text: r.final_response.clone(),
-            });
+            sess.lines.push(turn_line(&r, sent));
             sess.status = "completed".into();
             store.save(&sess)?;
             if let Some(em) = &emitter {
@@ -522,10 +533,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         }
         Err(f) => {
             sess.status = "error".into();
-            sess.lines.push(Line {
-                role: "assistant".into(),
-                text: f.reason.clone(),
-            });
+            sess.lines.push(Line::assistant(f.reason.clone()));
             let _ = store.save(&sess);
             if let Some(em) = &emitter {
                 em.emit_error(&id, &f.reason, &model);
@@ -545,11 +553,9 @@ mod tests {
             Line {
                 role: "system".into(),
                 text: "nope".into(),
+                messages: None,
             },
-            Line {
-                role: "user".into(),
-                text: "hi".into(),
-            },
+            Line::user("hi"),
         ];
         let t = thread_from(&lines, None, None);
         assert_eq!(t.messages.len(), 1);
@@ -582,10 +588,7 @@ mod tests {
 
     #[test]
     fn system_prompt_is_caller_only() {
-        let lines = vec![Line {
-            role: "user".into(),
-            text: "q".into(),
-        }];
+        let lines = vec![Line::user("q")];
         let t = thread_from(&lines, Some("caller system"), None);
         assert_eq!(t.system_prompt, "caller system");
         assert_eq!(t.messages.len(), 1);
@@ -593,10 +596,7 @@ mod tests {
 
     #[test]
     fn user_material_becomes_first_user_message() {
-        let lines = vec![Line {
-            role: "user".into(),
-            text: "q".into(),
-        }];
+        let lines = vec![Line::user("q")];
         let t = thread_from(&lines, None, Some("## brief\nprepared"));
         assert_eq!(t.messages.len(), 2);
         let first = format!("{:?}", t.messages[0]);
@@ -610,18 +610,9 @@ mod tests {
     #[test]
     fn last_assistant_picks_tail() {
         let lines = vec![
-            Line {
-                role: "assistant".into(),
-                text: "old".into(),
-            },
-            Line {
-                role: "user".into(),
-                text: "q".into(),
-            },
-            Line {
-                role: "assistant".into(),
-                text: "new".into(),
-            },
+            Line::assistant("old"),
+            Line::user("q"),
+            Line::assistant("new"),
         ];
         assert_eq!(last_assistant(&lines), "new");
     }

@@ -367,7 +367,7 @@ impl LlmConfig {
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum MessageContentBlock {
     #[serde(rename = "text")]
@@ -427,7 +427,7 @@ impl MessageContentBlock {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageSource {
     #[serde(rename = "type")]
     pub source_type: String,
@@ -435,13 +435,13 @@ pub struct ImageSource {
     pub data: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioSource {
     pub media_type: String,
     pub data: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageContent {
     Text(String),
@@ -457,7 +457,7 @@ impl MessageContent {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: String,
     pub content: MessageContent,

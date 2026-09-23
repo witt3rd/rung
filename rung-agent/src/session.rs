@@ -1,17 +1,53 @@
-//! Persist role+text lines. [`rung_std::llm::ChatMessage`] is serialize-only
-//! (blocks, cache hints); resume does not replay tool_use.
+//! Persist role+text lines. An assistant line also keeps the turn's full
+//! message sequence (tool-use, tool-result, final text) so the next turn
+//! replays what the model actually did, not only what it said.
 
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use rung_std::llm::ChatMessage;
+
 use crate::catalog::Kind;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Line {
     pub role: String,
     pub text: String,
+    /// The turn's messages after the user line, ending with the final
+    /// assistant text. Absent on user lines and on older sessions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messages: Option<Vec<ChatMessage>>,
 }
+
+impl Line {
+    pub fn user(text: impl Into<String>) -> Self {
+        Self {
+            role: "user".into(),
+            text: text.into(),
+            messages: None,
+        }
+    }
+
+    pub fn assistant(text: impl Into<String>) -> Self {
+        Self {
+            role: "assistant".into(),
+            text: text.into(),
+            messages: None,
+        }
+    }
+}
+
+impl PartialEq for Line {
+    fn eq(&self, other: &Self) -> bool {
+        self.role == other.role
+            && self.text == other.text
+            && serde_json::to_value(&self.messages).ok()
+                == serde_json::to_value(&other.messages).ok()
+    }
+}
+
+impl Eq for Line {}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Session {
@@ -164,14 +200,8 @@ mod tests {
         let dir = tmp();
         let store = SessionStore::at(&dir);
         let mut s = Session::new("abc-1", Kind::Explore, Path::new("/work"));
-        s.lines.push(Line {
-            role: "user".into(),
-            text: "look around".into(),
-        });
-        s.lines.push(Line {
-            role: "assistant".into(),
-            text: "found Cargo.toml".into(),
-        });
+        s.lines.push(Line::user("look around"));
+        s.lines.push(Line::assistant("found Cargo.toml"));
         s.status = "completed".into();
         store.save(&s).unwrap();
         let got = store.load("abc-1").unwrap();
