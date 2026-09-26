@@ -105,7 +105,7 @@ pub fn resolve(
         model: model.to_string(),
         timeout_secs: provider.timeout_secs.unwrap_or(120),
         idle_timeout_secs: None,
-        max_tokens: provider.max_tokens.unwrap_or(2048),
+        max_tokens: provider.max_tokens.unwrap_or(0),
         // Judging is not a place for sampling variety.
         temperature: Some(0.0),
         top_p: None,
