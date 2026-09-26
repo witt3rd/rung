@@ -110,8 +110,8 @@ fn request_body(
 
     let mut body = serde_json::json!({
         "model": config.model,
-        // Anthropic requires max_tokens; 0 (no cap) sends the API's ceiling.
-        "max_tokens": if config.max_tokens > 0 { config.max_tokens } else { 64_000 },
+        // Anthropic requires max_tokens; 0 (no cap) sends the Opus-class 128k ceiling.
+        "max_tokens": if config.max_tokens > 0 { config.max_tokens } else { 128_000 },
         "messages": user_msgs,
     });
 
