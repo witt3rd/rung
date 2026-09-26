@@ -107,7 +107,9 @@ pub enum RawCallError {
         raw: Option<String>,
     },
     NoContent,
-    /// No SSE/body bytes for `elapsed_secs`. Fatal — retrying the same path stalls again.
+    /// No content line for `elapsed_secs` (keepalive comments do not count).
+    /// Retried: a stalled provider call is usually a stuck upstream request,
+    /// and the attempt counter bounds how often we pay for it.
     IdleTimeout {
         elapsed_secs: u64,
     },
@@ -118,7 +120,7 @@ impl RawCallError {
     /// Transient failures that may be retried *before* any output is observed.
     ///
     /// Vetoes (never retried): `x-should-retry: false`, context overflow even
-    /// on a 5xx, Cloudflare origin-TLS 525/526, idle timeout, 403.
+    /// on a 5xx, Cloudflare origin-TLS 525/526, 403. An idle timeout is retried.
     pub fn is_retryable(&self) -> bool {
         if self.is_retry_vetoed() {
             return false;
@@ -127,6 +129,7 @@ impl RawCallError {
             Self::RateLimit { .. } => true,
             Self::ProviderInternal { status, .. } => is_retryable_status(*status),
             Self::Transport { observed, .. } => !*observed,
+            Self::IdleTimeout { .. } => true,
             _ => false,
         }
     }

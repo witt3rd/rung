@@ -148,6 +148,28 @@ pub struct ToolDiagnostic {
     pub received_bytes: usize,
 }
 
+impl ToolDiagnostic {
+    /// Plain words for the model when its tool call was cut off in transit:
+    /// the provider hit the output limit (`finish_reason: length`) or the
+    /// stream ended mid-arguments. `None` for a call that arrived whole but
+    /// was malformed.
+    pub fn cut_off_notice(&self, name: &str) -> Option<String> {
+        let n = self.received_chars;
+        let eof = matches!(&self.kind, ToolErrorKind::Json { category, .. } if category == "eof");
+        if self.finish_reason.as_deref() == Some("length") {
+            return Some(format!(
+                "Your last tool call '{name}' was cut off at {n} chars: the output token limit was reached before its arguments were complete. Send it again, smaller: shorten the arguments or split the work across several calls, and keep reasoning brief before the call."
+            ));
+        }
+        if eof {
+            return Some(format!(
+                "Your last tool call '{name}' was cut off at {n} chars: the response ended before its arguments were complete. Send it again, smaller: shorten the arguments or split the work across several calls."
+            ));
+        }
+        None
+    }
+}
+
 impl std::fmt::Display for ToolDiagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let finish_str = match &self.finish_reason {

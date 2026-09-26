@@ -632,18 +632,26 @@ ladder!(AgentLoop {
             crate::llm::llmcall::Carry { call_id: call_id.clone() },
         );
 
+        let mut last_retryable: Option<String> = None;
         let response: crate::llm::LlmResponse = loop {
             match crate::llm::llmcall::step(llm_pending) {
                 Ok(crate::llm::llmcall::StepOutcome::Success(s)) => {
                     break s.into_payload();
                 }
                 Ok(crate::llm::llmcall::StepOutcome::LlmError(e)) => {
+                    let failure = match (e.into_payload(), last_retryable.take()) {
+                        (crate::llm::LlmFailure::MaxRetries { .. }, Some(last_error)) => {
+                            crate::llm::LlmFailure::MaxRetries { last_error }
+                        }
+                        (failure, _) => failure,
+                    };
                     return Ok(StepOutcome::ContentFiltered(ContentFiltered::new(
-                        map_llm_failure(e.into_payload()),
+                        map_llm_failure(failure),
                     )));
                 }
                 Err(f) => {
                     eprintln!("[rung-std] {call_id}: retryable LLM error — {}", f.error);
+                    last_retryable = Some(f.error.clone());
                     llm_pending = crate::llm::llmcall::retry(f);
                 }
             }
@@ -854,9 +862,10 @@ ladder!(AgentLoop {
                         } else {
                             format!(" (id: '{id}')")
                         };
-                        feedback.push(format!(
-                            "Tool call '{name}'{id_str} could not be executed because its arguments were malformed or incomplete:\n{diag}"
+                        let lead = diag.cut_off_notice(name).unwrap_or_else(|| format!(
+                            "Tool call '{name}'{id_str} could not be executed because its arguments were malformed or incomplete."
                         ));
+                        feedback.push(format!("{lead}\n{diag}"));
                     }
                     if !executed_tools.is_empty() {
                         feedback.push(format!(
@@ -1649,6 +1658,162 @@ mod tests {
                 assert!(last_msg.content.as_text().unwrap().contains("broken_tool"));
             }
             _ => panic!("expected Iterate"),
+        }
+    }
+
+    /// A fake streaming provider. Each accepted connection gets the SSE
+    /// `frames`; with `stall`, it then holds the socket open and sends nothing.
+    fn serve_sse(frames: &[&str], stall: bool, connections: usize) -> (String, Arc<AtomicUsize>) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let body: String = frames.iter().map(|f| format!("{f}\n\n")).collect();
+        let hits = Arc::new(AtomicUsize::new(0));
+        let seen = hits.clone();
+        std::thread::spawn(move || {
+            for _ in 0..connections {
+                let Ok((mut socket, _)) = listener.accept() else {
+                    return;
+                };
+                seen.fetch_add(1, Ordering::SeqCst);
+                let mut buf = [0u8; 65536];
+                let _ = socket.read(&mut buf);
+                let head = if stall {
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n".to_string()
+                } else {
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    )
+                };
+                let _ = socket.write_all(head.as_bytes());
+                let _ = socket.write_all(body.as_bytes());
+                let _ = socket.flush();
+                if stall {
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(30));
+                        drop(socket);
+                    });
+                }
+            }
+        });
+        (format!("http://127.0.0.1:{port}"), hits)
+    }
+
+    fn one_tool_step(
+        url: String,
+        name: &'static str,
+    ) -> (Result<agentloop::StepOutcome, String>, Arc<AtomicUsize>) {
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+        let count = Arc::new(AtomicUsize::new(0));
+        let mut c = ToolCollection::new("test");
+        c.admit(CountingTool {
+            name,
+            exec_count: count.clone(),
+            error: None,
+        });
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(roster),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: "system prompt".into(),
+            messages: vec![ChatMessage::user("integrate")],
+        };
+        let outcome = agentloop::step(agentloop::calling(agentloop::Idle::new(thread, carry)))
+            .map_err(|_| "step failed".to_string());
+        (outcome, count)
+    }
+
+    fn feedback(outcome: agentloop::StepOutcome) -> String {
+        let agentloop::StepOutcome::Iterate(c) = outcome else {
+            panic!("expected Iterate")
+        };
+        match &c.payload.messages.last().unwrap().content {
+            MessageContent::Text(text) => text.clone(),
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    const CUT_ARGS: &str = r#"{\"note\":\"a long integration that never clo"#;
+
+    #[test]
+    fn tool_call_cut_off_by_output_limit_tells_the_model_to_resend_smaller() {
+        let start = format!(
+            r#"data: {{"id":"c","model":"m","choices":[{{"index":0,"delta":{{"tool_calls":[{{"index":0,"id":"call_1","type":"function","function":{{"name":"memory_integrate","arguments":"{CUT_ARGS}"}}}}]}},"finish_reason":null}}]}}"#
+        );
+        let (url, _) = serve_sse(
+            &[
+                &start,
+                r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{},"finish_reason":"length"}]}"#,
+                "data: [DONE]",
+            ],
+            false,
+            1,
+        );
+        let (outcome, count) = one_tool_step(url, "memory_integrate");
+        assert_eq!(
+            count.load(Ordering::SeqCst),
+            0,
+            "cut-off call must not execute"
+        );
+        let text = feedback(outcome.unwrap());
+        let n = r#"{"note":"a long integration that never clo"#.chars().count();
+        assert!(
+            text.contains(&format!("'memory_integrate' was cut off at {n} chars")),
+            "{text}"
+        );
+        assert!(text.contains("output token limit"), "{text}");
+        assert!(text.contains("Send it again, smaller"), "{text}");
+    }
+
+    #[test]
+    fn tool_call_cut_off_by_stream_end_tells_the_model_to_resend_smaller() {
+        let start = format!(
+            r#"data: {{"id":"c","model":"m","choices":[{{"index":0,"delta":{{"tool_calls":[{{"index":0,"id":"call_1","type":"function","function":{{"name":"memory_integrate","arguments":"{CUT_ARGS}"}}}}]}},"finish_reason":null}}]}}"#
+        );
+        let (url, _) = serve_sse(&[&start], false, 1);
+        let (outcome, count) = one_tool_step(url, "memory_integrate");
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+        let text = feedback(outcome.unwrap());
+        assert!(text.contains("was cut off at"), "{text}");
+        assert!(text.contains("response ended"), "{text}");
+    }
+
+    #[test]
+    fn stalled_model_call_times_out_is_retried_and_reported() {
+        // Only keepalives after the role frame: the call is stalled.
+        let (url, hits) = serve_sse(
+            &[
+                r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}"#,
+                ": OPENROUTER PROCESSING",
+            ],
+            true,
+            DEFAULT_MAX_ATTEMPTS as usize,
+        );
+        let started = std::time::Instant::now();
+        let (outcome, count) = one_tool_step(url, "memory_integrate");
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(30),
+            "call hung"
+        );
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            hits.load(Ordering::SeqCst),
+            DEFAULT_MAX_ATTEMPTS as usize,
+            "each attempt retried"
+        );
+        match outcome.unwrap() {
+            agentloop::StepOutcome::ContentFiltered(f) => {
+                let reason = f.into_payload().reason;
+                assert!(reason.contains("idle timeout"), "{reason}");
+            }
+            _ => panic!("expected a reported failure"),
         }
     }
 }
