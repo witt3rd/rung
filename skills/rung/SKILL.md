@@ -26,6 +26,14 @@ Merge method rebase. Never `git add -A`.
 Task isolation worktrees (`{repo}.wt/rung-task--{id}`, branch `rung-task/{id}`)
 are product, not `git-wt-new`. Do not use `git-wt-new` for those.
 
+## Release
+
+A release is its own commit: bump `[workspace.package] version` in
+`Cargo.toml`, build so `Cargo.lock` follows, commit `release: X.Y.Z
+(workspace version matches tag)`, push master, then tag `vX.Y.Z` and push the
+tag. The version must match the tag. Downstream (agent-binding-host) pins tags.
+Wait for CI on the release commit before you report the release.
+
 ## CI
 
 Required check is `check` (fmt, clippy `-D warnings`, tests `--locked`).
@@ -47,6 +55,19 @@ abort (before LLM / around tools), prompt image/audio, MCP HTTP+stdio
 (`--mcp-http name=url`). MCP-over-ACP tunnel, ACP WebSocket upgrade, and
 Harbor `describe-image` (file vision tool) are still not claimed.
 
+Session history: an assistant `Line` keeps the turn's full `messages`
+(tool-use, tool-result, final text) from `AgentResult.transcript`, and
+`thread_from` replays them. Tool results over 4000 chars are shortened. The
+calls are never dropped: text-only history teaches the model to narrate
+actions instead of taking them (#128). Old sessions without `messages` still
+replay as text.
+
+ACP end-to-end with a model: `rung-agent/tests/acp.rs` `mock_llm` is a
+std-only OpenAI-compatible server. It serves SSE when the body has
+`"stream": true`, which the ACP path always sets, and it records request
+bodies. Point `RUNG_BASE_URL` at it and isolate `HOME`, `RUNG_CONFIG` and
+`RUNG_HOME`.
+
 ## Config
 
 - Driver: `~/.rung/providers.yaml` + `auth.yaml`. Env first, then auth.yaml.
@@ -60,6 +81,9 @@ Harbor `describe-image` (file vision tool) are still not claimed.
   match.
 - `docs/_props.py cited` kebab-tokens in comments are citations.
 - Overflow is `FailureKind::Overflow`, not a content filter.
+- `rung-fixture` trybuild `a_match_missing_a_step_outcome_summand_is_e0004`
+  can fail locally on roger (rustc diagnostic drift) while CI passes. Check it
+  on a stash before blaming your change; CI is the gate.
 
 ## Harbor eval → validation suite
 

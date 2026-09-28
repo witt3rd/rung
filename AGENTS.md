@@ -75,7 +75,9 @@ SSE GET streams) matching `@agentclientprotocol/sdk` `createHttpStream`
 works on localhost. WebSocket upgrade returns 426 until sacp HTTP
 lands. Baseline plus load/list/delete/close/set_mode/resume and
 unstable `session/fork`. Prompt emits tool-call `session/update`s;
-cancel is checked before each LLM call and around each tool. Prompt
+cancel is checked before each LLM call and around each tool. Session
+history keeps each turn's tool calls and results and replays them into the
+next turn. Prompt
 image, audio, and embedded context are claimed. MCP HTTP (and
 ACP-required stdio) tools are admitted for the session. Anvil holds
 the process as a pane.
@@ -156,7 +158,9 @@ fn main() {
 }
 ```
 
-Required CI check is `check`. Merge method: rebase.
+Required CI check is `check`. Merge method: rebase. Release: bump the
+workspace version in `Cargo.toml`, commit, then tag `vX.Y.Z` to match
+(procedure: `skills/rung/SKILL.md`).
 
 ### House git
 
@@ -236,4 +240,4 @@ Maintainer: write access on `witt3rd/rung`. Debugging on `master`;
 worktrees only for parallel features. External contributors: PRs against
 `master`; follow CI; do not rewrite history.
 
-Last updated: 2026-08-21.
+Last updated: 2026-09-28.
