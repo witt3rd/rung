@@ -645,7 +645,7 @@ that qualify. Ordering is HetOpt's ({#het-settles-hetopt-orders}).
 its error bar. Het never reads it as a preference.
 
 "#.into(),
-            mechanism: r#"HALF HOLDS, HALF IS A GAP. *Never ranked*: `rung-std::principals` declares an `Epsilon` per principal and no accessor and no comparison exist for one, so nothing can read it as a preference; `principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon` enforces that across every source file. *Declared so the verdict can carry its error bar*: it cannot. `Settled::Judgmental` carries sentence, role, principal and verdict, and there is no field for an error bar — so the ε a supplier already declares stops at the supplier. This is a **different** gap from {#epsilon-reported-with-verdict}, which asks whether a judge's confidence is expressible at all; this one asks whether the ε that IS declared reaches the caller. Deleting the `#[ignore]` reports it."#.into(),
+            mechanism: r#"HALF HOLDS, HALF IS A GAP. *Never ranked*: `rung-std::principals` declares an `Epsilon` per principal and no accessor and no comparison exist for one, so nothing can read it as a preference; `principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon` enforces that across every source file. *Declared so the verdict can carry its error bar*: not yet. A verdict can now carry one — {#epsilon-reported-with-verdict} seals the judge's reported confidence into the `Judgment`, and `Settled::epsilon` reads it — but nothing wires the ε a supplier *declares* in `rung-std::principals` into a rendering, so the declared value still stops at the supplier. This is a **different** gap from {#epsilon-reported-with-verdict}, which asks whether a judge's confidence is expressible and reaches the caller (it is, and does); this one asks whether the ε that IS declared reaches the caller. Deleting the `#[ignore]` on `principals_theory.rs::a_verdict_carries_the_declared_epsilon_of_the_principal_that_rendered_it` reports it."#.into(),
         }),
         Element::Prop(Prop {
             slug: "one-pool-two-filters".into(),
@@ -1029,13 +1029,13 @@ valuation, and belongs to HetOpt ({#het-settles-hetopt-orders}).
         Element::Prop(Prop {
             slug: "epsilon-reported-with-verdict".into(),
             parent: Some("verdict-space-with-metric".into()),
-            kind: Kind::Owed { why: "the test exists and is #[ignore]d: `Settled` does not yet carry an error bar, so nothing runs".into() },
+            kind: Kind::Decidable { proof: "rung-het/tests/gate_law.rs::two_judges_of_differing_confidence_report_differing_verdicts".into() },
             numbering: None,
             prose: r#"$\varepsilon$ is reported alongside the verdict — an honest error
 bar.
 
 "#.into(),
-            mechanism: r#"GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ({#boolean-breaks-satisfaction}). The cited test is the gap as an assertion: two judges settle the same sentence with the same polarity, one barely persuaded and one certain, and the two verdicts are the same object. Deleting the `#[ignore]` reports whether an error bar has reached the caller."#.into(),
+            mechanism: r#"HOLDS for every judge that reports a confidence. `Verdict` stays Boolean — it is the ruling's polarity — and the verdict space is beside it: `rung::VerdictPoint` is a point of $[0,1]$ or $\Delta^n$ ({#typical-verdict-spaces}), well formed by construction, and `VerdictPoint::distance` is $d$ (`|p − q|`, or total variation). A `Weight` is that point, the judge's confidence and the source that reported it; its fields are private and its only constructor is `Rendering::weighed`, which is what `Principal::rule` returns inside `Response::Rendered`. `Principal::judgment` seals the weight into the `Judgment` with the verdict, so `Judgment::epsilon` and `Settled::epsilon` (`1 − confidence`) are the judge's own and no body can state or alter one. The cited test settles one sentence through two judges of the same polarity, one barely persuaded and one certain, and asserts the two settlements differ by exactly their judges' ε; dropping the weight at the seal or at `settle`, or reporting a constant, turns it red. `rung/tests/verdict_space.rs` pins the seal (trybuild: no `Weight` outside the rendering path) and the metric's laws. A judge that reports no confidence — every prose LLM judge, and `From<Verdict>` — is **uncalibrated**: its ε is `None`, reported as absent rather than as a number nobody gave; a decidable settlement reports `Some(0.0)`. The limit is the one `Principal::rule` already has: the seal stops a body inventing confidence, not a whole fake judge."#.into(),
         }),
         Element::Prop(Prop {
             slug: "translation-invariance-is-candidates-burden".into(),

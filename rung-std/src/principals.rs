@@ -74,10 +74,11 @@
 //! Limits found by using it, recorded rather than worked around:
 //!
 //! 1. **ε is declared and unread.** Every principal declares an [`Epsilon`],
-//!    and `Settled` has no field for it — sentence, role, principal, verdict,
-//!    and no error bar. `epsilon-reported-with-verdict` wants one; under a
-//!    Boolean verdict space there is nothing to attach it to. Parked, with the
-//!    test that would report its arrival.
+//!    and nothing carries it to the verdict. `Settled` can now carry an error
+//!    bar — the one a judge's oracle reports with its verdict
+//!    (`epsilon-reported-with-verdict`, sealed in the `Judgment`) — but the
+//!    *declared* ε is not wired into any rendering. Parked, with the test that
+//!    would report its arrival.
 //! 2. **`capable` is keyed on a role NAME.** `capable-single-arity` pins the
 //!    second argument to `role(φ)`, and `rung` passes it as `&str`. A supplier
 //!    therefore keys its minimum qualifications on names, which is why
@@ -528,7 +529,7 @@ impl Principal for PrincipalDecl {
 
     /// The oracle. The verdict is the outside's, not the caller's.
     fn rule(&self, _matter: &str) -> Response {
-        Response::Rendered(Verdict::Conforming)
+        Response::Rendered(Verdict::Conforming.into())
     }
 }
 

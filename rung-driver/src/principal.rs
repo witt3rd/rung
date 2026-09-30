@@ -16,7 +16,7 @@
 //! outside, and the only thing this type does with an answer is carry it.
 
 use crate::commission::CommissionLog;
-use rung::{Pool, Principal, Prov, Raised, Response, Steward, Verdict};
+use rung::{Pool, Principal, Prov, Raised, Rendering, Response, Steward, Verdict};
 use rung_std::principals::{Backing, PrincipalDecl, Roster};
 use std::sync::Arc;
 
@@ -25,10 +25,16 @@ use std::sync::Arc;
 /// Two summands, mirroring `Response`: an answer, or a matter raised instead.
 /// Nothing here can construct a `Judgment` — the seal is `rung`'s and this type
 /// stays on the far side of it.
+///
+/// An answer is a [`Rendering`]: the verdict and, when the oracle's judge
+/// reports one, its weight (point, confidence, model) — made only by
+/// [`Rendering::weighed`]. [`holds`](Self::holds) and [`fails`](Self::fails)
+/// are unweighed, which is what every prose judge (`ModelOracle`) gives: its ε
+/// reaches the record as absent — uncalibrated — rather than as a number.
 #[derive(Clone, Debug)]
 pub enum Answer {
-    /// It holds, or it does not, and why not.
-    Verdict(Verdict),
+    /// It holds, or it does not, and why not — with the judge's weight, if any.
+    Rendered(Rendering),
     /// It could not be settled now, and here is what was raised.
     Raised(Raised),
 }
@@ -36,13 +42,33 @@ pub enum Answer {
 impl Answer {
     /// Affirm. The shorthand a test double wants and a real oracle rarely does.
     pub fn holds() -> Self {
-        Self::Verdict(Verdict::Conforming)
+        Self::Rendered(Verdict::Conforming.into())
     }
 
     pub fn fails(reason: impl Into<String>) -> Self {
-        Self::Verdict(Verdict::NonConforming {
-            reason: reason.into(),
-        })
+        Self::Rendered(
+            Verdict::NonConforming {
+                reason: reason.into(),
+            }
+            .into(),
+        )
+    }
+
+    /// The verdict, if this is an answer rather than a raised matter.
+    pub fn verdict(&self) -> Option<&Verdict> {
+        match self {
+            Self::Rendered(r) => Some(r.verdict()),
+            Self::Raised(_) => None,
+        }
+    }
+
+    /// The verdict, or the matter raised instead — dropping any weight. For a
+    /// caller that reports the ruling and has no use for its error bar.
+    pub fn into_verdict(self) -> Result<Verdict, Raised> {
+        match self {
+            Self::Rendered(r) => Ok(r.into_verdict()),
+            Self::Raised(r) => Err(r),
+        }
     }
 }
 
@@ -148,7 +174,7 @@ impl<O: Oracle> Principal for Configured<O> {
 
     fn rule(&self, matter: &str) -> Response {
         match self.oracle.ask(&self.spec.id, &self.spec.backing, matter) {
-            Answer::Verdict(v) => Response::Rendered(v),
+            Answer::Rendered(r) => Response::Rendered(r),
             Answer::Raised(r) => Response::Deferred(r),
         }
     }

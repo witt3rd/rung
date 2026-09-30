@@ -1,0 +1,21 @@
+error[E0451]: fields `point`, `confidence` and `model` of struct `Weight` are private
+  --> tests/ui/weight_forged.rs:20:9
+   |
+19 |     let _forged = Weight {
+   |                   ------ in this type
+20 |         point: VerdictPoint::probability(0.99).unwrap(),
+   |         ^^^^^ private field
+21 |         confidence: 0.99,
+   |         ^^^^^^^^^^ private field
+22 |         model: "me".to_string(),
+   |         ^^^^^ private field
+
+error[E0451]: fields `verdict` and `weight` of struct `Rendering` are private
+  --> tests/ui/weight_forged.rs:36:9
+   |
+35 |     let _moved = Rendering {
+   |                  --------- in this type
+36 |         verdict: Verdict::Conforming,
+   |         ^^^^^^^ private field
+37 |         weight: Some(weight),
+   |         ^^^^^^ private field

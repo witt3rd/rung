@@ -121,17 +121,17 @@ fn main() {
             &j_back,
             "Does this repaired question meet the well-posedness standard above?",
         );
-        match verdict {
-            rung_driver::Answer::Verdict(Verdict::Conforming) => {
+        match verdict.into_verdict() {
+            Ok(Verdict::Conforming) => {
                 passed += 1;
                 println!("  {id:<3} PASS  author: {}", short(&draft));
             }
-            rung_driver::Answer::Verdict(Verdict::NonConforming { reason }) => println!(
+            Ok(Verdict::NonConforming { reason }) => println!(
                 "  {id:<3} FAIL  ({}) author: {}",
                 short(&reason),
                 short(&draft)
             ),
-            rung_driver::Answer::Raised(r) => println!(
+            Err(r) => println!(
                 "  {id:<3} DEFER ({}) author: {}",
                 r.reference(),
                 short(&draft)

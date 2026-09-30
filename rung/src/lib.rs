@@ -344,7 +344,9 @@ pub trait Role: Copy + 'static {
 /// Het nothing-further-required: the theory requires exactly four predicates of a principal
 /// supplier and **nothing further**. No kinds, no substrates, no identity
 /// fields. `capable` and `π` are here; `standing` belongs to the authorial gate
-/// (out of scope) and `ε` to the verdict metric (out of scope).
+/// (out of scope). `ε` is not a predicate of the principal at all: it rides on
+/// each rendering, as the [`Weight`] its oracle reports with the verdict, and is
+/// sealed into the [`Judgment`] with it (epsilon-reported-with-verdict).
 pub trait Principal {
     /// Het's `capable(p, Role)`, at its one arity (capable-single-arity).
     fn capable(&self, role_name: &str) -> bool;
@@ -380,9 +382,11 @@ pub trait Principal {
     /// the supplying theory rather than by Het (nothing-further-required). The
     /// principal is asked, and answers.
     ///
-    /// This method is **not** the seal. Its return carries a bare [`Verdict`],
-    /// which anyone can write. [`judgment`](Principal::judgment) is the sealed
-    /// form, and it is what `settle` accepts.
+    /// This method is **not** the seal. Its return carries a bare [`Verdict`]
+    /// (and, if the judge reported one, a [`Weight`] made by
+    /// [`Rendering::weighed`]), which anyone can write.
+    /// [`judgment`](Principal::judgment) is the sealed form, and it is what
+    /// `settle` accepts.
     ///
     /// # It may defer
     ///
@@ -423,12 +427,13 @@ pub trait Principal {
     ///   makes it worse, not better.
     fn judgment(&self, matter: &str) -> Consulted {
         match self.rule(matter) {
-            Response::Rendered(verdict) => Consulted::Rendered(Judgment {
+            Response::Rendered(Rendering { verdict, weight }) => Consulted::Rendered(Judgment {
                 _seal: (),
                 judge_id: self.id().to_string(),
                 judge_prov: self.provenance(),
                 matter: matter.to_string(),
                 verdict,
+                weight,
             }),
             Response::Deferred(raised) => Consulted::Deferred(raised),
         }
@@ -568,6 +573,287 @@ impl Terminated {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// The verdict space — a point, its metric, and the judge's error bar
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The tolerance on the mass of a [`VerdictPoint::simplex`]: the masses a
+/// judge reports must sum to `1 ± SIMPLEX_TOLERANCE`. Judges round; a sum of
+/// 0.99 or 1.01 is a rounded distribution, and a sum of 0.5 is not one.
+pub const SIMPLEX_TOLERANCE: f64 = 0.01;
+
+/// A point in a judgmental verdict space — `verdict-space-with-metric`.
+///
+/// Het asks for a verdict space carrying a metric `d`, and names two: the unit
+/// interval `[0,1]` (a judge's probability that `M ⊨ φ`) and the probability
+/// simplex `Δⁿ` (a judge's distribution over named options). This is those two,
+/// and nothing else.
+///
+/// # Well-formed by construction
+///
+/// The variants are private. [`probability`](Self::probability) refuses a value
+/// outside `[0,1]` (and NaN); [`simplex`](Self::simplex) refuses an empty
+/// support, a repeated option, a mass outside `[0,1]`, and a total outside
+/// `1 ± SIMPLEX_TOLERANCE`, and normalises what it accepts to sum to 1. So every
+/// `VerdictPoint` that exists is a point of the space it claims, and
+/// [`distance`](Self::distance) is a metric on every pair it answers for.
+///
+/// A `VerdictPoint` is not a ruling and carries no authority. It enters a
+/// [`Judgment`] only through [`Rendering::weighed`] and [`Principal::judgment`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct VerdictPoint(Point);
+
+#[derive(Clone, Debug, PartialEq)]
+enum Point {
+    Probability(f64),
+    Simplex(std::collections::BTreeMap<String, f64>),
+}
+
+// Every mass is finite by construction (NaN and ±∞ are refused), so `==` is
+// reflexive and the equivalence is lawful.
+impl Eq for VerdictPoint {}
+
+impl VerdictPoint {
+    /// A point of `[0,1]`: the judge's probability that the sentence holds.
+    pub fn probability(p: f64) -> Result<Self, WeightError> {
+        if !(0.0..=1.0).contains(&p) {
+            return Err(WeightError::MassOutOfRange(p));
+        }
+        Ok(Self(Point::Probability(p)))
+    }
+
+    /// A point of `Δⁿ`: the judge's distribution over named options.
+    ///
+    /// Normalised to sum to exactly 1 once the total is within
+    /// [`SIMPLEX_TOLERANCE`] of it.
+    pub fn simplex<K: Into<String>>(
+        masses: impl IntoIterator<Item = (K, f64)>,
+    ) -> Result<Self, WeightError> {
+        let mut support = std::collections::BTreeMap::new();
+        for (option, mass) in masses {
+            let option = option.into();
+            if !(0.0..=1.0).contains(&mass) {
+                return Err(WeightError::MassOutOfRange(mass));
+            }
+            if support.insert(option.clone(), mass).is_some() {
+                return Err(WeightError::RepeatedOption(option));
+            }
+        }
+        if support.is_empty() {
+            return Err(WeightError::EmptySimplex);
+        }
+        let total: f64 = support.values().sum();
+        // The slack is for binary rounding of a decimal total such as 1.01.
+        if (total - 1.0).abs() > SIMPLEX_TOLERANCE + 1e-9 {
+            return Err(WeightError::NotADistribution(total));
+        }
+        for mass in support.values_mut() {
+            *mass /= total;
+        }
+        Ok(Self(Point::Simplex(support)))
+    }
+
+    /// The probability, when this is a point of `[0,1]`.
+    pub fn as_probability(&self) -> Option<f64> {
+        match &self.0 {
+            Point::Probability(p) => Some(*p),
+            Point::Simplex(_) => None,
+        }
+    }
+
+    /// The distribution, when this is a point of `Δⁿ`. Its masses sum to 1.
+    pub fn as_simplex(&self) -> Option<&std::collections::BTreeMap<String, f64>> {
+        match &self.0 {
+            Point::Probability(_) => None,
+            Point::Simplex(s) => Some(s),
+        }
+    }
+
+    /// Het's metric `d` on the verdict space.
+    ///
+    /// - `[0,1]`: `|p − q|`.
+    /// - `Δⁿ`: total variation, `½ Σᵢ |pᵢ − qᵢ|`, which lies in `[0,1]`.
+    ///
+    /// `None` when the two points are not in the same space — a probability
+    /// and a distribution, or two distributions over different options. There
+    /// is no metric across spaces, and inventing one (treating a missing option
+    /// as mass 0, say) would be a claim about the judges nobody made.
+    pub fn distance(&self, other: &Self) -> Option<f64> {
+        match (&self.0, &other.0) {
+            (Point::Probability(p), Point::Probability(q)) => Some((p - q).abs()),
+            (Point::Simplex(p), Point::Simplex(q)) => {
+                if !p.keys().eq(q.keys()) {
+                    return None;
+                }
+                let sum: f64 = p.values().zip(q.values()).map(|(a, b)| (a - b).abs()).sum();
+                // Both sides sum to 1, so this is at most 1 up to rounding;
+                // the clamp keeps the rounding from leaving the space.
+                Some((sum / 2.0).clamp(0.0, 1.0))
+            }
+            _ => None,
+        }
+    }
+}
+
+/// A point, the judge's confidence in it, and who reported it — the error bar
+/// `epsilon-reported-with-verdict` asks every judgmental verdict to carry.
+///
+/// # Sealed: no constructor but the rendering path
+///
+/// The fields are private and there is no `Weight::new`. The one way to make a
+/// `Weight` is [`Rendering::weighed`], which validates it and binds it to the
+/// verdict it weighs; the one way into a [`Judgment`] is
+/// [`Principal::judgment`], which reads it off the oracle's [`Response`]. So a
+/// `Weight` held anywhere is the one the judge's oracle rendered, and a body
+/// holding a `Judgment` has no term with which to state or alter one
+/// (rung-props.md G2, held for the same reason as [`Judgment`]'s seal).
+///
+/// The honest limit is the one [`Principal::rule`] already has: the seal stops
+/// a *body* from inventing confidence; it does not stop a whole fake judge.
+/// A principal whose oracle reports a confidence it did not have is a fake
+/// judge, exactly as a principal whose oracle reports a verdict it did not
+/// reach is one today.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Weight {
+    point: VerdictPoint,
+    confidence: f64,
+    model: String,
+}
+
+// `confidence` is finite by construction; see `VerdictPoint`.
+impl Eq for Weight {}
+
+impl Weight {
+    /// Where in the verdict space the judge placed the model.
+    pub fn point(&self) -> &VerdictPoint {
+        &self.point
+    }
+
+    /// How sure the judge said it was, in `[0,1]`.
+    pub fn confidence(&self) -> f64 {
+        self.confidence
+    }
+
+    /// What reported this weight — the versioned model id a judge actually
+    /// served, or whatever names the source of the confidence.
+    pub fn model(&self) -> &str {
+        &self.model
+    }
+
+    /// The error bar: `ε = 1 − confidence`.
+    pub fn epsilon(&self) -> f64 {
+        1.0 - self.confidence
+    }
+}
+
+/// A [`Weight`] or [`VerdictPoint`] that is not one.
+#[derive(Clone, Debug, PartialEq)]
+pub enum WeightError {
+    /// A probability or mass outside `[0,1]`, or not a number.
+    MassOutOfRange(f64),
+    /// A distribution with no options.
+    EmptySimplex,
+    /// A distribution naming the same option twice.
+    RepeatedOption(String),
+    /// A distribution whose masses do not sum to `1 ± SIMPLEX_TOLERANCE`.
+    NotADistribution(f64),
+    /// A confidence outside `[0,1]`, or not a number.
+    ConfidenceOutOfRange(f64),
+    /// A weight that names nothing as its source.
+    Unattributed,
+}
+
+impl std::fmt::Display for WeightError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MassOutOfRange(m) => write!(f, "mass {m} is not in [0,1]"),
+            Self::EmptySimplex => write!(f, "a distribution over no options"),
+            Self::RepeatedOption(o) => write!(f, "option `{o}` is named twice"),
+            Self::NotADistribution(t) => write!(f, "masses sum to {t}, not 1"),
+            Self::ConfidenceOutOfRange(c) => write!(f, "confidence {c} is not in [0,1]"),
+            Self::Unattributed => write!(f, "a weight must name what reported it"),
+        }
+    }
+}
+
+impl std::error::Error for WeightError {}
+
+/// What an oracle rendered: a verdict, and — when the judge reported one — its
+/// [`Weight`].
+///
+/// # Unweighed is uncalibrated, and says so
+///
+/// `From<Verdict>` gives a rendering with **no** weight: a point mass on the
+/// verdict, with no confidence reported. That is every judge that answers in
+/// words today (the LLM judges read by `HOLDS` / `FAILS`), and every test
+/// double. Its `Judgment::epsilon` is `None` — *uncalibrated*, not "certain":
+/// the absence is reported rather than filled in with a number nobody gave.
+///
+/// A weighed rendering is built by [`weighed`](Self::weighed), which is the only
+/// constructor of a [`Weight`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[must_use = "a Rendering is what an outside said; dropping it discards the answer"]
+pub struct Rendering {
+    verdict: Verdict,
+    weight: Option<Weight>,
+}
+
+impl Rendering {
+    /// The rendering path: a verdict, the point the judge placed the model at,
+    /// how confident it was, and who reported it.
+    ///
+    /// Refuses a confidence outside `[0,1]` and an empty `model`. The point is
+    /// already well formed ([`VerdictPoint`]).
+    pub fn weighed(
+        verdict: Verdict,
+        point: VerdictPoint,
+        confidence: f64,
+        model: impl Into<String>,
+    ) -> Result<Self, WeightError> {
+        if !(0.0..=1.0).contains(&confidence) {
+            return Err(WeightError::ConfidenceOutOfRange(confidence));
+        }
+        let model = model.into();
+        if model.trim().is_empty() {
+            return Err(WeightError::Unattributed);
+        }
+        Ok(Self {
+            verdict,
+            weight: Some(Weight {
+                point,
+                confidence,
+                model,
+            }),
+        })
+    }
+
+    /// What the outside said.
+    pub fn verdict(&self) -> &Verdict {
+        &self.verdict
+    }
+
+    /// The judge's error bar, if it reported one. `None` is uncalibrated.
+    pub fn weight(&self) -> Option<&Weight> {
+        self.weight.as_ref()
+    }
+
+    /// The verdict alone, discarding the weight. The unsealed form: nothing
+    /// here can put a weight back, so this only ever loses information.
+    pub fn into_verdict(self) -> Verdict {
+        self.verdict
+    }
+}
+
+/// An unweighed rendering — a point mass on the verdict, uncalibrated.
+impl From<Verdict> for Rendering {
+    fn from(verdict: Verdict) -> Self {
+        Self {
+            verdict,
+            weight: None,
+        }
+    }
+}
+
 /// What an oracle said when asked — a verdict, or a matter it raised instead.
 ///
 /// The unsealed form, returned by [`Principal::rule`]. Two summands and not
@@ -576,8 +862,9 @@ impl Terminated {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use = "a Response is what an outside said; dropping it discards the answer or the deferral"]
 pub enum Response {
-    /// The outside answered.
-    Rendered(Verdict),
+    /// The outside answered — a verdict and, if the judge reported one, its
+    /// [`Weight`]. A bare verdict converts with `.into()`, unweighed.
+    Rendered(Rendering),
     /// The outside did not answer, and raised this instead.
     Deferred(Raised),
 }
@@ -675,12 +962,30 @@ pub struct Judgment {
     judge_prov: Prov,
     matter: String,
     verdict: Verdict,
+    weight: Option<Weight>,
 }
 
 impl Judgment {
     /// What the outside said.
     pub fn verdict(&self) -> &Verdict {
         &self.verdict
+    }
+
+    /// The point, confidence and source the judge reported with its verdict,
+    /// sealed in with it. `None` is an uncalibrated judge: it answered and
+    /// reported no confidence.
+    ///
+    /// There is no setter and no constructor that takes one, so the weight a
+    /// `Judgment` carries is the one [`Principal::rule`] rendered
+    /// (`epsilon-reported-with-verdict`).
+    pub fn weight(&self) -> Option<&Weight> {
+        self.weight.as_ref()
+    }
+
+    /// `ε`, the judge's error bar on this verdict: `1 − confidence`. `None` when
+    /// the judge reported no confidence (uncalibrated) — never a made-up 0.
+    pub fn epsilon(&self) -> Option<f64> {
+        self.weight.as_ref().map(Weight::epsilon)
     }
 
     /// The judge's identity — for the receipt.
@@ -1593,11 +1898,15 @@ impl<R: Role> std::fmt::Debug for Authorized<'_, R> {
 
 /// The outcome of `M ⊨ φ` for one sentence.
 ///
-/// Boolean, deliberately and incompletely. Het verdict-space-with-metric requires a verdict space
-/// carrying a **metric** `d`, with `ε` reported alongside every verdict as an
-/// error bar, so that the satisfaction condition survives renaming (pool-is-parameter). This
-/// crate does not implement it, and under a Boolean verdict space that
-/// condition does not hold. Named rather than papered over.
+/// Boolean — the *polarity* of a ruling, and deliberately only that. Het
+/// verdict-space-with-metric requires a verdict space carrying a **metric** `d`,
+/// with `ε` reported alongside every verdict as an error bar, so that the
+/// satisfaction condition survives renaming (pool-is-parameter). That space is
+/// not here: it is [`VerdictPoint`] (with its [`distance`](VerdictPoint::distance)),
+/// carried with the judge's confidence in a [`Weight`] that is sealed into the
+/// [`Judgment`] beside this verdict, and read as [`Settled::epsilon`]. A judge
+/// that reports no weight is uncalibrated, and its `ε` is `None` rather than
+/// a number nobody gave.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Verdict {
     /// `M ⊨ φ`.
@@ -1655,6 +1964,22 @@ impl Settled {
         match self {
             Self::Decidable { verdict, .. } => verdict,
             Self::Judgmental { judgment, .. } => judgment.verdict(),
+        }
+    }
+
+    /// `ε`, the error bar the verdict is reported with
+    /// (`epsilon-reported-with-verdict`).
+    ///
+    /// - **decidable**: `Some(0.0)`. It was computed inside the algebra, and a
+    ///   machine check is exact.
+    /// - **judgmental**: the sealed [`Judgment::epsilon`] — the judge's own,
+    ///   read out of the seal, so neither the settling code nor the caller
+    ///   chose it. `None` when the judge reported no confidence: uncalibrated,
+    ///   and said so.
+    pub fn epsilon(&self) -> Option<f64> {
+        match self {
+            Self::Decidable { .. } => Some(0.0),
+            Self::Judgmental { judgment, .. } => judgment.epsilon(),
         }
     }
 

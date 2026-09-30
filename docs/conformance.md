@@ -139,7 +139,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-het-props.md`
 
-**Counts.** 56 decidable · 25 judgmental · 1 owed · 101 rationale · 30 signature · 213 total.
+**Counts.** 57 decidable · 25 judgmental · 101 rationale · 30 signature · 213 total.
 
 ### The relation
 
@@ -198,7 +198,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [3.258](rung-het-props.md#commission-record-roundtrips) | `commission-record-roundtrips` | `decidable` | Exercised by `commission-record-roundtrips`'s proof: serializing then re-parsing a record yields an equal value. | `rung-driver/tests/commission.rs::the_record_round_trips_through_yaml` |
 | [3.3](rung-het-props.md#three-belonging-predicates) | `three-belonging-predicates` | `rationale` | — | — |
 | [3.31](rung-het-props.md#ordering-is-hetopts) | `ordering-is-hetopts` | `decidable` | Cost tier is declared — per substrate kind, in `rung-std::principals::Kind::cost_tier` — and ordered nowhere. The cited test is the direct observation: roster A is laid out so the qualifying set opens with the costliest substrate and closes with the cheapest, and `Pool::qualify_for` picks the human over the model. Under the minimal-judge rule the order inverts. Deriving `Ord` on `CostTier` and sorting the set by it in `qualifying_set` is type-valid and turns the test red at the kind sequence. This row was `out-of-scope` while nothing in the workspace declared a tier; a supplier now does, and ordering it is a thing a host can refuse to do. | `rung-std/tests/principals_theory.rs::the_qualifying_set_is_not_ordered_by_cost` |
-| [3.32](rung-het-props.md#epsilon-declared-not-ranked) | `epsilon-declared-not-ranked` | `signature` | HALF HOLDS, HALF IS A GAP. *Never ranked*: `rung-std::principals` declares an `Epsilon` per principal and no accessor and no comparison exist for one, so nothing can read it as a preference; `principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon` enforces that across every source file. *Declared so the verdict can carry its error bar*: it cannot. `Settled::Judgmental` carries sentence, role, principal and verdict, and there is no field for an error bar — so the ε a supplier already declares stops at the supplier. This is a **different** gap from [4.6](rung-het-props.md#epsilon-reported-with-verdict), which asks whether a judge's confidence is expressible at all; this one asks whether the ε that IS declared reaches the caller. Deleting the `#[ignore]` reports it. | — |
+| [3.32](rung-het-props.md#epsilon-declared-not-ranked) | `epsilon-declared-not-ranked` | `signature` | HALF HOLDS, HALF IS A GAP. *Never ranked*: `rung-std::principals` declares an `Epsilon` per principal and no accessor and no comparison exist for one, so nothing can read it as a preference; `principals_theory.rs::nothing_in_the_workspace_orders_by_cost_or_epsilon` enforces that across every source file. *Declared so the verdict can carry its error bar*: not yet. A verdict can now carry one — [4.6](rung-het-props.md#epsilon-reported-with-verdict) seals the judge's reported confidence into the `Judgment`, and `Settled::epsilon` reads it — but nothing wires the ε a supplier *declares* in `rung-std::principals` into a rendering, so the declared value still stops at the supplier. This is a **different** gap from [4.6](rung-het-props.md#epsilon-reported-with-verdict), which asks whether a judge's confidence is expressible and reaches the caller (it is, and does); this one asks whether the ε that IS declared reaches the caller. Deleting the `#[ignore]` on `principals_theory.rs::a_verdict_carries_the_declared_epsilon_of_the_principal_that_rendered_it` reports it. | — |
 | [3.4](rung-het-props.md#one-pool-two-filters) | `one-pool-two-filters` | `decidable` | G14, and this is the row G14 exists for. One `Pool` mints both tokens; the gate marker on a `ladder!` transition selects which filter runs, not which pool is consulted. `#[judgmental(R)]` emits `Qualified<R>` and runs capability + disjointness; `#[authorial(R)]` emits `Authorized<'_, R>` and runs capability + standing. The cited test drives the same three principals through both filters over one subject and asserts they DISAGREE. Dropping the capability conjunct from `Pool::authorize` turns it red. | `rung/tests/gate_markers.rs::standing_alone_is_not_a_pen_and_disjointness_never_becomes_one` |
 | [3.5](rung-het-props.md#judgmental-qualifying-set) | `judgmental-qualifying-set` | `signature` | Both conjuncts are implemented and both are tested — competence by `gate_law.rs::competence_is_filtered_before_provenance_matters`, disjointness by `::p0_refuses_a_judge_who_authored_the_material`. What is parked is the set's own **edge**. `Pool::qualify_for` refuses a model with `π(a) = ∅`, because every candidate would then pass disjointness vacuously; the mirror on the *principal's* side is unguarded, so a principal declaring `π(p) = ∅` is disjoint from everything and is a universal judge admitted by construction. Het as written admits it. Whether that is a hole or the honest consequence of the definition is a change to **this proposition**, which is why the cited test presumes an answer and is parked rather than run: the engine invented the model-side guard on its own judgment once, and inventing its mirror unasked would be the same overreach twice. | — |
 | [3.51](rung-het-props.md#disjointness-against-argument) | `disjointness-against-argument` | `decidable` | G13. Disjointness is measured against the argument, and the token now remembers WHICH argument, so spending it elsewhere is a refusal rather than an unobservable mistake. `dispose` admits a token only against the **proposal**; `settle` only against the **model**. Until the binding landed this proposition was satisfied only by the caller passing the right reference — `qualify_for` was a pure alias for `qualify` and nothing downstream could tell the two apart. | `rung-het/tests/token_binding.rs::settle_refuses_a_token_minted_against_a_different_model` |
@@ -231,7 +231,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [4.4](rung-het-props.md#metric-carried-by-verdict-space) | `metric-carried-by-verdict-space` | `rationale` | — | — |
 | [4.5](rung-het-props.md#metric-measures-not-ranks) | `metric-measures-not-ranks` | `rationale` | — | — |
 | [4.51](rung-het-props.md#order-as-preference-is-hetopts) | `order-as-preference-is-hetopts` | `rationale` | — | — |
-| [4.6](rung-het-props.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `owed` | GAP — `Verdict` is Boolean (`Conforming | NonConforming`). No metric, no epsilon, so the satisfaction condition does not survive renaming ([4.11](rung-het-props.md#boolean-breaks-satisfaction)). The cited test is the gap as an assertion: two judges settle the same sentence with the same polarity, one barely persuaded and one certain, and the two verdicts are the same object. Deleting the `#[ignore]` reports whether an error bar has reached the caller. | **owed** — the test exists and is #[ignore]d: `Settled` does not yet carry an error bar, so nothing runs |
+| [4.6](rung-het-props.md#epsilon-reported-with-verdict) | `epsilon-reported-with-verdict` | `decidable` | HOLDS for every judge that reports a confidence. `Verdict` stays Boolean — it is the ruling's polarity — and the verdict space is beside it: `rung::VerdictPoint` is a point of $[0,1]$ or $\Delta^n$ ([4.2](rung-het-props.md#typical-verdict-spaces)), well formed by construction, and `VerdictPoint::distance` is $d$ (`|p − q|`, or total variation). A `Weight` is that point, the judge's confidence and the source that reported it; its fields are private and its only constructor is `Rendering::weighed`, which is what `Principal::rule` returns inside `Response::Rendered`. `Principal::judgment` seals the weight into the `Judgment` with the verdict, so `Judgment::epsilon` and `Settled::epsilon` (`1 − confidence`) are the judge's own and no body can state or alter one. The cited test settles one sentence through two judges of the same polarity, one barely persuaded and one certain, and asserts the two settlements differ by exactly their judges' ε; dropping the weight at the seal or at `settle`, or reporting a constant, turns it red. `rung/tests/verdict_space.rs` pins the seal (trybuild: no `Weight` outside the rendering path) and the metric's laws. A judge that reports no confidence — every prose LLM judge, and `From<Verdict>` — is **uncalibrated**: its ε is `None`, reported as absent rather than as a number nobody gave; a decidable settlement reports `Some(0.0)`. The limit is the one `Principal::rule` already has: the seal stops a body inventing confidence, not a whole fake judge. | `rung-het/tests/gate_law.rs::two_judges_of_differing_confidence_report_differing_verdicts` |
 | [4.7](rung-het-props.md#translation-invariance-is-candidates-burden) | `translation-invariance-is-candidates-burden` | `rationale` | — | — |
 
 ### The semantics
@@ -599,9 +599,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 131 |
+| `decidable` | 132 |
 | `judgmental` | 47 |
-| `owed` | 3 |
+| `owed` | 2 |
 | `rationale` | 148 |
 | `signature` | 62 |
 | **total** | **391** |
@@ -619,8 +619,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 3 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 221 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 235 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -733,8 +733,9 @@ look shorter than it is.
 - `dispatch_and_audit_read_one_roster`
 - `the_theory_audits_the_real_population_through_one_model`
 
-**`rung-driver/tests/dispatch.rs`** — 1 unclaimed
+**`rung-driver/tests/dispatch.rs`** — 2 unclaimed
 
+- `a_dispatched_record_carries_the_epsilon_the_judge_reported`
 - `a_dispatched_record_carries_the_sealed_provenance`
 
 **`rung-driver/tests/intake_discharge.rs`** — 3 unclaimed
@@ -812,12 +813,13 @@ look shorter than it is.
 - `a_judge_may_not_dispose_on_a_proposal_it_authored`
 - `het_places_no_bound_on_re_entry`
 
-**`rung-het/tests/gate_law.rs`** — 16 unclaimed
+**`rung-het/tests/gate_law.rs`** — 17 unclaimed
 
 - `a_judgment_rendered_by_another_principal_is_refused`
 - `a_judgmental_verdict_may_be_non_conforming`
 - `an_empty_pool_qualifies_no_one`
 - `an_exhausted_pool_reports_exhaustion_not_the_last_failure`
+- `an_unweighed_judge_reports_no_epsilon_and_a_decidable_one_reports_zero`
 - `decidable_sentence_reports_its_own_failure_reason`
 - `decidable_sentence_settles_without_any_principal`
 - `disjointness_and_containment_are_different_conditions`
@@ -955,4 +957,19 @@ look shorter than it is.
 - `an_answered_dispatch_still_produces_the_next_rung`
 - `calling_resume_without_a_pen_is_e0061`
 - `resume_refuses_a_pen_over_another_container`
+
+**`rung/tests/verdict_space.rs`** — 12 unclaimed
+
+- `a_distribution_that_is_not_one_is_refused`
+- `a_probability_outside_the_unit_interval_is_refused`
+- `a_rendering_refuses_a_confidence_outside_the_unit_interval_and_an_unnamed_source`
+- `a_rounded_distribution_is_accepted_and_normalised`
+- `a_weighed_rendering_reports_its_point_confidence_and_source`
+- `a_weight_cannot_be_constructed_outside_the_rendering_path`
+- `distance_is_non_negative_and_at_most_one`
+- `distance_is_symmetric`
+- `distance_is_undefined_across_spaces`
+- `distance_is_zero_on_itself`
+- `distance_satisfies_the_triangle_inequality`
+- `total_variation_reaches_one_on_disjoint_point_masses`
 

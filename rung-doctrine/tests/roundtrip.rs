@@ -244,11 +244,11 @@ fn the_corpus_triage_is_recorded() {
         }
     }
     println!("\n  corpus triage: {by_kind:?}\n");
-    assert_eq!(by_kind.get("decidable").copied(), Some(131));
+    assert_eq!(by_kind.get("decidable").copied(), Some(132));
     assert_eq!(by_kind.get("rationale").copied(), Some(148));
     assert_eq!(by_kind.get("signature").copied(), Some(62));
     assert_eq!(by_kind.get("judgmental").copied(), Some(47));
-    assert_eq!(by_kind.get("owed").copied(), Some(3));
+    assert_eq!(by_kind.get("owed").copied(), Some(2));
     assert_eq!(by_kind.values().sum::<usize>(), 391);
 }
 
@@ -804,8 +804,8 @@ fn no_proposition_leans_on_the_compiler_without_a_case() {
 /// instead of waiting for an audit.
 ///
 /// It was written because the sweep made exactly this error — citing
-/// `two_judges_of_differing_confidence_report_differing_verdicts`, which is
-/// parked until `Settled` carries an error bar. The audit caught it; this
+/// `two_judges_of_differing_confidence_report_differing_verdicts` while it was
+/// parked (before `Settled` carried an error bar). The audit caught it; this
 /// catches the next one sooner.
 #[test]
 fn no_proof_names_an_ignored_test() {

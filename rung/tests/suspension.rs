@@ -83,7 +83,7 @@ impl Principal for Person {
             // it and never reads it (raised-reference-is-opaque).
             Response::Deferred(Raised::new("q-13", matter))
         } else {
-            Response::Rendered(Verdict::Conforming)
+            Response::Rendered(Verdict::Conforming.into())
         }
     }
 }

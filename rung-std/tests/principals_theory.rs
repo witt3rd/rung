@@ -688,9 +688,12 @@ impl Principal for Dissenting {
         self.0.authored()
     }
     fn rule(&self, matter: &str) -> Response {
-        Response::Rendered(Verdict::NonConforming {
-            reason: format!("`{matter}` does not hold, and I am the one asked"),
-        })
+        Response::Rendered(
+            Verdict::NonConforming {
+                reason: format!("`{matter}` does not hold, and I am the one asked"),
+            }
+            .into(),
+        )
     }
 }
 
@@ -730,27 +733,27 @@ fn the_kind_partition_is_ruled_on_by_an_outside_and_not_computed() {
 /// verdict can carry its error bar, and that Het never read it as a preference.
 /// The second half holds — nothing here ranks by it, and
 /// [`nothing_in_the_workspace_orders_by_cost_or_epsilon`] enforces that. The
-/// first half does not: `Settled` has four fields and none of them is an error
-/// bar, so two principals whose declared ε differ by an order of magnitude
-/// return settlements that are the same object.
+/// first half does not: `Settled::epsilon` reports the ε a judge's oracle
+/// renders, and these principals' oracles render none, so two principals whose
+/// declared ε differ by an order of magnitude still return settlements that are
+/// the same object.
 ///
-/// This is a different gap from the one `rung-het` parks on
-/// `epsilon-reported-with-verdict`. That one asks whether a *judge's confidence*
-/// is expressible at all. This one asks whether the ε **the supplier already
-/// declares** reaches the caller — and the answer is that there is no field for
-/// it to reach.
+/// This is a different gap from `epsilon-reported-with-verdict`, which `rung`
+/// now closes: that one asks whether a *judge's confidence* is expressible and
+/// reaches the caller (it is, and does). This one asks whether the ε **the
+/// supplier already declares** reaches the caller — and nothing wires the
+/// declaration into a rendering.
 ///
 /// **Ignored, deliberately.** Nothing below is broken; ε is declared and unread
 /// by construction, and this theory says so in its own docs.
 #[test]
 #[ignore = "GAP: `Epsilon` is declared per principal and nothing reads it. \
-            `Settled::Judgmental` carries sentence, role, principal and a \
-            sealed `Judgment` — there is no field for an error bar, so the ε a \
-            supplier declares cannot reach the caller. Closing this needs a verdict \
-            space carrying a metric (rung-het-props.md#verdict-space-with-metric) \
-            and an ε on `Settled` sourced from the principal that rendered the \
-            verdict. Unpark by deleting this attribute once `Settled` carries \
-            the declared ε; the two settlements below must then differ by it."]
+            `Settled::epsilon` carries the ε a judge's oracle renders (a \
+            `Weight` sealed in the `Judgment`), but these principals render \
+            none, so the ε a supplier declares cannot reach the caller. Closing \
+            this needs the declared ε wired into the rendering of the principal \
+            that rendered the verdict. Unpark by deleting this attribute once \
+            it is; the two settlements below must then differ by it."]
 fn a_verdict_carries_the_declared_epsilon_of_the_principal_that_rendered_it() {
     let r = roster_a();
     let claimant = r.by_id("nine-b").expect("nine-b is on the bench");
