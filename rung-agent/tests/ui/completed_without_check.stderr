@@ -1,0 +1,5 @@
+error[E0599]: no associated function or constant named `default` found for struct `Completion` in the current scope
+ --> tests/ui/completed_without_check.rs:9:43
+  |
+9 |     let _ = Status::Completed(Completion::default());
+  |                                           ^^^^^^^ associated function or constant not found in `Completion`

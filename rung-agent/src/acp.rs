@@ -33,7 +33,7 @@ use agent_client_protocol::{
 use crate::args::{Args, IsolationMode};
 use crate::catalog::Kind;
 use crate::mcp::McpSpec;
-use crate::run::{JobEx, run_job_ex};
+use crate::run::{JobEx, Outcome, Status, run_job_ex};
 use crate::session::{Session, SessionStore};
 use crate::stream::{NotifyingToolset, ToolNotify};
 use rung_std::llm::{
@@ -467,6 +467,18 @@ fn send_text(
     ))
 }
 
+/// `_meta.rung` for a prompt response: the status and the turn check's
+/// reading. `None` while the check is off, so the response is as before.
+fn prompt_meta(o: &Outcome) -> Option<serde_json::Map<String, Value>> {
+    let tc = o.turn_check.as_ref()?;
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        "rung".into(),
+        serde_json::json!({"status": o.status.as_str(), "turn_check": tc}),
+    );
+    Some(meta)
+}
+
 /// The session's own system text: `_meta.systemPrompt` on `session/new`.
 fn session_system(meta: Option<&serde_json::Map<String, Value>>) -> Option<String> {
     meta?.get("systemPrompt")?.as_str().map(str::to_string)
@@ -755,20 +767,27 @@ pub(crate) async fn connect_agent(
                     let cancelled = flag.load(Ordering::SeqCst);
                     match out {
                         Ok(o) => {
+                            let meta = prompt_meta(&o);
                             send_text_if_unstreamed(
                                 &connection,
                                 session_id,
                                 o.text,
                                 &streamed_text,
                             )?;
-                            let reason = if cancelled || o.status == "cancelled" {
+                            let reason = if cancelled || o.status == Status::Cancelled {
                                 StopReason::Cancelled
-                            } else if o.status == "truncated" {
+                            } else if o.status == Status::Truncated {
                                 StopReason::MaxTokens
                             } else {
+                                // ACP has no "unverified": the turn ended, and
+                                // `_meta.rung` says what the check made of it.
                                 StopReason::EndTurn
                             };
-                            responder.respond(PromptResponse::new(reason))
+                            let mut response = PromptResponse::new(reason);
+                            if let Some(meta) = meta {
+                                response = response.meta(meta);
+                            }
+                            responder.respond(response)
                         }
                         Err(e) => responder.respond_with_error(Error::internal_error().data(e)),
                     }

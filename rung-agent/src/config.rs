@@ -25,6 +25,43 @@ struct FileConfig {
     /// Empty/omitted means use `--toolset`.
     #[serde(default)]
     tools: Option<Vec<String>>,
+    /// The turn check (`turn_check.rs`). Omitted means off.
+    #[serde(default)]
+    turn_check: Option<TurnCheckFile>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+struct TurnCheckFile {
+    #[serde(default)]
+    backend: Option<String>,
+    #[serde(default)]
+    base_url: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    /// Name of the env var holding the key. Never the key itself.
+    #[serde(default)]
+    api_key_env: Option<String>,
+    #[serde(default)]
+    timeout_secs: Option<u64>,
+}
+
+/// The turn check's one switch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TurnCheckBackend {
+    /// No check: turns report as they did before the check existed.
+    Off,
+    /// Jev over the System One API.
+    Jev,
+}
+
+/// Resolved turn-check settings. Holds the key's env var name, not the key.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TurnCheckSettings {
+    pub backend: TurnCheckBackend,
+    pub base_url: String,
+    pub model: String,
+    pub api_key_env: String,
+    pub timeout_secs: u64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -89,6 +126,51 @@ pub fn load_tool_groups() -> Result<Option<Vec<String>>, String> {
 
 pub fn load_tool_groups_from_path(path: &Path) -> Result<Option<Vec<String>>, String> {
     Ok(read_file(path)?.and_then(|f| f.tools))
+}
+
+/// `turn_check:` from the same YAML, then env. `RUNG_TURN_CHECK` (`off` |
+/// `jev`) is the switch and wins over the file; `RUNG_TURN_CHECK_BASE_URL`
+/// overrides the endpoint. Default: off.
+pub fn load_turn_check() -> Result<TurnCheckSettings, String> {
+    load_turn_check_from_path(&config_path())
+}
+
+pub fn load_turn_check_from_path(path: &Path) -> Result<TurnCheckSettings, String> {
+    let file = read_file(path)?;
+    resolve_turn_check(file.as_ref().and_then(|f| f.turn_check.as_ref()), |k| {
+        std::env::var(k).ok()
+    })
+}
+
+fn resolve_turn_check(
+    file: Option<&TurnCheckFile>,
+    getenv: impl Fn(&str) -> Option<String>,
+) -> Result<TurnCheckSettings, String> {
+    let env = |k: &str| {
+        getenv(k)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let from_file = |v: Option<&String>| v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let backend = env("RUNG_TURN_CHECK")
+        .or_else(|| from_file(file.and_then(|f| f.backend.as_ref())))
+        .unwrap_or_else(|| "off".into());
+    let backend = match backend.to_ascii_lowercase().as_str() {
+        "off" => TurnCheckBackend::Off,
+        "jev" => TurnCheckBackend::Jev,
+        other => return Err(format!("turn_check.backend: unknown '{other}' (off | jev)")),
+    };
+    Ok(TurnCheckSettings {
+        backend,
+        base_url: env("RUNG_TURN_CHECK_BASE_URL")
+            .or_else(|| from_file(file.and_then(|f| f.base_url.as_ref())))
+            .unwrap_or_else(|| rung_std::decide::DEFAULT_BASE_URL.into()),
+        model: from_file(file.and_then(|f| f.model.as_ref()))
+            .unwrap_or_else(|| rung_std::decide::DEFAULT_MODEL.into()),
+        api_key_env: from_file(file.and_then(|f| f.api_key_env.as_ref()))
+            .unwrap_or_else(|| "OPENROUTER_API_KEY".into()),
+        timeout_secs: file.and_then(|f| f.timeout_secs).unwrap_or(10),
+    })
 }
 
 pub fn load_from_path(path: &Path) -> Result<LlmConfig, String> {
@@ -360,6 +442,34 @@ llm:
         assert_eq!(c.model, "file-model");
         assert_eq!(c.api_key, "from-file-env");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn turn_check_is_off_by_default() {
+        let env: HashMap<&str, &str> = HashMap::new();
+        let t = resolve_turn_check(None, getenv(&env)).unwrap();
+        assert_eq!(t.backend, TurnCheckBackend::Off);
+        assert_eq!(t.model, "typesafe/jev-1.13");
+        assert_eq!(t.api_key_env, "OPENROUTER_API_KEY");
+    }
+
+    #[test]
+    fn turn_check_env_switch_wins_over_the_file() {
+        let file: FileConfig = serde_yaml::from_str(
+            "turn_check:\n  backend: jev\n  base_url: http://x/v1\n  api_key_env: K\n",
+        )
+        .unwrap();
+        let tc = file.turn_check.as_ref();
+        let none: HashMap<&str, &str> = HashMap::new();
+        let t = resolve_turn_check(tc, getenv(&none)).unwrap();
+        assert_eq!(t.backend, TurnCheckBackend::Jev);
+        assert_eq!(t.base_url, "http://x/v1");
+        assert_eq!(t.api_key_env, "K");
+        let off = HashMap::from([("RUNG_TURN_CHECK", "off")]);
+        let t = resolve_turn_check(tc, getenv(&off)).unwrap();
+        assert_eq!(t.backend, TurnCheckBackend::Off);
+        let bad = HashMap::from([("RUNG_TURN_CHECK", "maybe")]);
+        assert!(resolve_turn_check(tc, getenv(&bad)).is_err());
     }
 
     #[test]

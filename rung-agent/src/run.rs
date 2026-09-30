@@ -12,19 +12,71 @@ use rung_std::tools::{
     WithoutTask,
 };
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
 use crate::args::{Args, IsolationMode};
 use crate::catalog::{Kind, Scope};
 use crate::session::{Line, Session, SessionStore};
+use crate::turn_check::{self, Completion, Gate, Turn, TurnCheckReport, turncheck};
+
+/// How a job ended. Serialised as the status string hosts already read, plus
+/// `unverified` and `unchecked` from the turn check.
+///
+/// `Completed` holds a [`Completion`], which only a passed check or the
+/// switched-off check can make: nothing here can call a turn completed on the
+/// model's say-so while the check is on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Status {
+    Completed(Completion),
+    /// Cut off by the token limit (`finish_reason: length`).
+    Truncated,
+    /// The judge read the turn and did not pass it.
+    Unverified,
+    /// The check was on and no reading came back.
+    Unchecked,
+    Cancelled,
+    /// Started in the background.
+    Running,
+    /// Read back from the session file (poll); not a judgment made now.
+    Recorded(String),
+}
+
+impl Status {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Status::Completed(_) => "completed",
+            Status::Truncated => "truncated",
+            Status::Unverified => "unverified",
+            Status::Unchecked => "unchecked",
+            Status::Cancelled => "cancelled",
+            Status::Running => "running",
+            Status::Recorded(s) => s,
+        }
+    }
+}
+
+impl std::fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl Serialize for Status {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_str())
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Outcome {
     pub task_id: String,
     pub text: String,
-    pub status: String,
+    pub status: Status,
     pub api_calls: u32,
     pub isolation_path: Option<String>,
+    /// The turn check's reading. Absent while the check is off.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub turn_check: Option<TurnCheckReport>,
 }
 
 /// Wrap a roster so execute is observed (ACP tool-call updates).
@@ -337,9 +389,10 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         return Ok(Outcome {
             task_id: id,
             text: format!("pid={} log={}", launch.pid, launch.log.display()),
-            status: "running".into(),
+            status: Status::Running,
             api_calls: 0,
             isolation_path: sess.isolation_path,
+            turn_check: None,
         });
     }
 
@@ -358,9 +411,10 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         return Ok(Outcome {
             task_id: id,
             text: last_assistant(&sess.lines),
-            status: sess.status,
+            status: Status::Recorded(sess.status),
             api_calls: 0,
             isolation_path: sess.isolation_path.clone(),
+            turn_check: None,
         });
     }
 
@@ -435,6 +489,15 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             .filter(|s| !s.trim().is_empty());
     }
     let model = config.model.clone();
+    let turn_check_gate = match crate::config::load_turn_check() {
+        Ok(t) => Gate::from_settings(&t),
+        Err(e) => {
+            sess.status = "error".into();
+            sess.lines.push(Line::assistant(e.clone()));
+            let _ = store.save(&sess);
+            return Err(e);
+        }
+    };
 
     let scope = resolve_scope(args)?;
     let cap = args
@@ -493,37 +556,82 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
     {
         last.content = MessageContent::Blocks(blocks);
     }
-    let state = LoopState {
-        cancel: extra.cancel.clone(),
-        ..LoopState::new(cap, cap)
-    };
-    let carry = agentloop::Carry {
-        state,
+    let loop_carry = |tools: Arc<dyn Toolset>, config: LlmConfig| agentloop::Carry {
+        state: LoopState {
+            cancel: extra.cancel.clone(),
+            ..LoopState::new(cap, cap)
+        },
         tools,
         config,
         python: None,
     };
     let sent = thread.messages.len();
-    match agent::run(thread, carry) {
+    let system_text = thread.system_prompt.clone();
+    let request = args.prompt.clone().unwrap_or_default();
+    let earlier: Vec<ChatMessage> = sess
+        .lines
+        .iter()
+        .take(sess.lines.len().saturating_sub(1))
+        .filter(|l| l.role == "assistant")
+        .flat_map(|l| l.messages.clone().unwrap_or_default())
+        .collect();
+    let prior_actions = turn_check::prior_actions(&earlier);
+    match agent::run(thread, loop_carry(tools.clone(), config.clone())) {
         Ok(r) => {
-            sess.lines.push(turn_line(&r, sent));
-            let status = if r.truncated {
-                "truncated"
+            let first_calls = r.api_calls_made;
+            let ended = if r.truncated {
+                Ended {
+                    result: r,
+                    status: Status::Truncated,
+                    report: None,
+                    extra_calls: 0,
+                }
             } else {
-                "completed"
+                match turn_check_gate {
+                    Gate::Off(off) => Ended {
+                        result: r,
+                        status: Status::Completed(off.completion()),
+                        report: None,
+                        extra_calls: 0,
+                    },
+                    Gate::On(decider) => {
+                        let carry = turncheck::Carry {
+                            decider,
+                            request,
+                            prior_actions,
+                        };
+                        let rerun = |messages: Vec<ChatMessage>| {
+                            let thread = Thread {
+                                system_prompt: system_text.clone(),
+                                messages,
+                            };
+                            agent::run(thread, loop_carry(tools.clone(), config.clone()))
+                        };
+                        check_turn(Turn::first(r, sent), carry, rerun)
+                    }
+                }
             };
-            sess.status = status.into();
+            let Ended {
+                result: r,
+                status,
+                report,
+                extra_calls,
+            } = ended;
+            sess.lines.push(turn_line(&r, sent));
+            sess.status = status.as_str().into();
             store.save(&sess)?;
-            if let Some(em) = &emitter {
-                em.emit_result(&id, &r, &model, sess.isolation_path.as_deref());
-            }
-            Ok(Outcome {
+            let out = Outcome {
                 task_id: id,
-                text: r.final_response,
-                status: status.into(),
-                api_calls: r.api_calls_made,
+                text: r.final_response.clone(),
+                status,
+                api_calls: first_calls + extra_calls,
                 isolation_path: sess.isolation_path,
-            })
+                turn_check: report,
+            };
+            if let Some(em) = &emitter {
+                em.emit_result(&out, &r.usage, &model);
+            }
+            Ok(out)
         }
         Err(f) if f.kind == FailureKind::Interrupted => {
             sess.status = "interrupted".into();
@@ -531,9 +639,10 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             Ok(Outcome {
                 task_id: id,
                 text: String::new(),
-                status: "cancelled".into(),
+                status: Status::Cancelled,
                 api_calls: 0,
                 isolation_path: sess.isolation_path,
+                turn_check: None,
             })
         }
         Err(f) => {
@@ -545,6 +654,110 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             }
             Err(f.reason)
         }
+    }
+}
+
+/// A turn after its check: the result to persist and report, its status, and
+/// the reading. `extra_calls` counts the nudge re-run's model calls.
+struct Ended {
+    result: agent::AgentResult,
+    status: Status,
+    report: Option<TurnCheckReport>,
+    extra_calls: u32,
+}
+
+/// Drive the TurnCheck ladder: check, nudge once and check again if the turn
+/// narrated, then stop. `rerun` runs the agent loop on the given messages.
+fn check_turn(
+    turn: Turn,
+    carry: turncheck::Carry,
+    rerun: impl Fn(Vec<ChatMessage>) -> Result<agent::AgentResult, agent::Filtered>,
+) -> Ended {
+    let done = |result, status, report: &TurnCheckReport, extra_calls| Ended {
+        result,
+        status,
+        report: Some(report.clone()),
+        extra_calls,
+    };
+    let first = turncheck::Ended::new(turn, carry.clone());
+    let nudged = match turncheck::step(first) {
+        Ok(turncheck::StepOutcome::Completed(c)) => {
+            let c = c.into_payload();
+            let status = Status::Completed(c.completion());
+            let report = c.report().clone();
+            return done(c.into_result(), status, &report, 0);
+        }
+        Ok(turncheck::StepOutcome::Unverified(f)) => {
+            let f = f.into_payload();
+            let report = f.report().clone();
+            return done(f.into_result(), Status::Unverified, &report, 0);
+        }
+        Ok(turncheck::StepOutcome::Unchecked(u)) => {
+            let u = u.into_payload();
+            let report = u.report().clone();
+            return done(u.into_result(), Status::Unchecked, &report, 0);
+        }
+        Ok(turncheck::StepOutcome::Nudge(n)) => n.into_payload(),
+        Err(f) => {
+            // The step never fails; a failure would still not be a completion.
+            let t = f.token.payload;
+            return Ended {
+                result: t.into_result(),
+                status: Status::Unchecked,
+                report: None,
+                extra_calls: 0,
+            };
+        }
+    };
+    eprintln!("[rung-agent] turn check: the turn narrated; nudging once");
+    let second = match rerun(nudged.rerun_messages()) {
+        Ok(r) => r,
+        Err(_) => {
+            // The re-run failed: the narrated turn stands, unverified.
+            let f = nudged.into_flagged();
+            let report = f.report().clone();
+            return done(f.into_result(), Status::Unverified, &report, 0);
+        }
+    };
+    let extra = second.api_calls_made;
+    if second.truncated {
+        let report = TurnCheckReport {
+            nudged: true,
+            reading: Some(nudged.reading().clone()),
+            reason: None,
+        };
+        return done(second, Status::Truncated, &report, extra);
+    }
+    let again = turncheck::Ended::new(Turn::after_nudge(nudged, second), carry);
+    match turncheck::step(again) {
+        Ok(turncheck::StepOutcome::Completed(c)) => {
+            let c = c.into_payload();
+            let status = Status::Completed(c.completion());
+            let report = c.report().clone();
+            done(c.into_result(), status, &report, extra)
+        }
+        Ok(turncheck::StepOutcome::Unchecked(u)) => {
+            let u = u.into_payload();
+            let report = u.report().clone();
+            done(u.into_result(), Status::Unchecked, &report, extra)
+        }
+        Ok(turncheck::StepOutcome::Unverified(f)) => {
+            let f = f.into_payload();
+            let report = f.report().clone();
+            done(f.into_result(), Status::Unverified, &report, extra)
+        }
+        // The gate never nudges a nudged turn; if it did, still no completion.
+        Ok(turncheck::StepOutcome::Nudge(n)) => {
+            let f = n.into_payload().into_flagged();
+            let report = f.report().clone();
+            done(f.into_result(), Status::Unverified, &report, extra)
+        }
+        Err(f) => Ended {
+            result: f.token.payload.into_result(),
+            status: Status::Unchecked,
+            report: None,
+            extra_calls: extra,
+        },
     }
 }
 

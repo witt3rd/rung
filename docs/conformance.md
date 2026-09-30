@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 235 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 254 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -650,6 +650,31 @@ look shorter than it is.
 - `poll_completed_session`
 - `poll_completed_session_json`
 - `poll_missing_session`
+
+**`rung-agent/tests/turn_check.rs`** — 18 unclaimed
+
+- `a_32_iteration_turn_stays_under_the_ceiling_and_is_redacted`
+- `a_401_or_402_leaves_the_turn_unchecked`
+- `a_long_state_is_judged_and_escalated`
+- `a_malformed_answer_is_unchecked_never_completed`
+- `a_narrated_turn_is_nudged_and_completes_when_it_acts`
+- `a_real_messy_done_turn_is_escalated_not_nudged`
+- `a_turn_still_narrating_after_its_nudge_is_unverified`
+- `acp_carries_the_reading_in_meta_and_ends_the_turn`
+- `acp_with_the_check_off_has_no_meta`
+- `an_information_only_answer_completes_unflagged`
+- `an_unreachable_judge_leaves_the_turn_unchecked`
+- `flipping_only_claims_unperformed_still_nudges`
+- `flipping_the_narration_reading_brings_the_bug_back`
+- `no_key_leaves_the_turn_unchecked`
+- `off_output_is_byte_identical_to_before`
+- `the_blocked_with_error_case_is_escalated_not_nudged`
+- `the_proven_path_completes_with_outcome_done`
+- `the_stream_result_line_carries_the_reading`
+
+**`rung-agent/tests/ui.rs`** — 1 unclaimed
+
+- `a_completion_cannot_be_fabricated`
 
 **`rung-doctrine/tests/governed.rs`** — 9 unclaimed
 

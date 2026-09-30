@@ -1453,11 +1453,13 @@ dependencies = [
  "hyper",
  "hyper-util",
  "reqwest",
+ "rung",
  "rung-std",
  "serde",
  "serde_json",
  "serde_yaml",
  "tokio",
+ "trybuild",
  "uuid",
 ]
 

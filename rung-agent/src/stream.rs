@@ -18,7 +18,6 @@ use std::io::{self, Write};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use rung_std::agent::AgentResult;
 use rung_std::llm::{
     ContentBlockDelta, ContentBlockStart, StreamEvent, StreamListener, ToolDefinition, Usage,
 };
@@ -69,24 +68,22 @@ impl Emitter {
     }
 
     /// Final success line. Call once when the loop returns `Ok`.
-    pub fn emit_result(
-        &self,
-        task_id: &str,
-        r: &AgentResult,
-        model: &str,
-        isolation: Option<&str>,
-    ) {
+    pub fn emit_result(&self, out: &crate::run::Outcome, usage: &Usage, model: &str) {
+        let mut response = json!({
+            "task_id": out.task_id,
+            "text": out.text,
+            "status": out.status,
+            "api_calls": out.api_calls,
+            "usage": usage_json(usage),
+            "model": model,
+            "isolation_path": out.isolation_path,
+        });
+        if let Some(tc) = &out.turn_check {
+            response["turn_check"] = json!(tc);
+        }
         self.write(json!({
             "type": "result",
-            "response": {
-                "task_id": task_id,
-                "text": r.final_response,
-                "status": if r.truncated { "truncated" } else { "completed" },
-                "api_calls": r.api_calls_made,
-                "usage": usage_json(&r.usage),
-                "model": model,
-                "isolation_path": isolation,
-            }
+            "response": response,
         }));
     }
 

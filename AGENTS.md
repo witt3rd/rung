@@ -42,7 +42,7 @@ token is to go through the transition that produces it.
 - **`theory!`** declares sentences: decidable (a machine settles them) or
   judgmental (an outside with disjoint provenance settles them).
 - **`rung-std`** is the canonical blocks: `llm`, `agent`, `python`, `tools`,
-  `questions`, `principals`, `driver`.
+  `questions`, `principals`, `driver`, `decide`.
 - **`rung-het`** is the two-filter pool (judge vs author) over one population.
 - **`rung-driver`** is theory-blind dispatch over a carrier. It does not
   decide worth.
@@ -181,7 +181,7 @@ origin master`. When stable, branch, rebase onto `origin/master`, PR.
 |---|---|
 | `~/.rung/providers.yaml` | endpoint catalog + `default:` (driver) |
 | `~/.rung/auth.yaml` | provider → key (never commit) |
-| `$XDG_CONFIG_HOME/rung/config.yaml` | `rung-agent` LLM settings (`llm.api_key_env` optional; not the key) |
+| `$XDG_CONFIG_HOME/rung/config.yaml` | `rung-agent` LLM settings (`llm.api_key_env` optional; not the key); `turn_check` (off by default) |
 
 `$RUNG_HOME` overrides `~/.rung/`. `RUNG_CONFIG` overrides the XDG path.
 Env `RUNG_*` / `XAI_API_KEY` wins over the agent file.

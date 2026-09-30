@@ -8,6 +8,7 @@ description = "Headless composition of rung-std blocks: catalog, sessions, isola
 
 [dependencies]
 agent-client-protocol = { version = "2.0.0", features = ["unstable_session_fork"] }
+rung = { path = "../rung" }
 rung-std = { path = "../rung-std" }
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 serde = { version = "1", features = ["derive"] }
@@ -20,3 +21,6 @@ http-body-util = "0.1"
 bytes = "1"
 futures = "0.3"
 uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+trybuild = "1"

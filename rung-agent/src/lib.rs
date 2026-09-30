@@ -15,6 +15,10 @@
 //! (`RUNG_BASE_URL`, `RUNG_API_KEY` / `XAI_API_KEY`, `RUNG_MODEL`). Env wins.
 //! The file may name `api_key_env`; it does not hold the key. No key is
 //! required — LAN llama.cpp sends no Authorization header.
+//!
+//! Turn check ([`turn_check`]): off by default. `turn_check.backend: jev` in
+//! the same file, or `RUNG_TURN_CHECK=jev`, has Jev read each finished turn
+//! before it is reported `completed`.
 
 pub mod acp;
 pub(crate) mod acp_http;
@@ -27,8 +31,9 @@ pub mod mcp;
 pub mod run;
 pub mod session;
 pub mod stream;
+pub mod turn_check;
 
 pub use args::{Args, IsolationMode};
 pub use catalog::{Kind, Scope};
-pub use run::{Outcome, run_job};
+pub use run::{Outcome, Status, run_job};
 pub use session::{Line, Session, SessionStore};
