@@ -1745,6 +1745,10 @@ mod tests {
     ) -> (Result<agentloop::StepOutcome, String>, Arc<AtomicUsize>) {
         let mut cfg = dummy_llm();
         cfg.base_url = url;
+        // The idle timeout must fire before the whole-request timeout, or a
+        // stalled stream races two failures of different retryability.
+        cfg.timeout_secs = 10;
+        cfg.idle_timeout_secs = Some(1);
         let count = Arc::new(AtomicUsize::new(0));
         let mut c = ToolCollection::new("test");
         c.admit(CountingTool {
