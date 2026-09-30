@@ -1,0 +1,5 @@
+error[E0451]: field `_seal` of struct `Unjudged` is private
+ --> tests/ui/unjudged_is_sealed.rs:7:24
+  |
+7 |     let _ = Unjudged { _seal: () }.completion();
+  |                        ^^^^^ private field

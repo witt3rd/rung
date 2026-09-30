@@ -1,0 +1,16 @@
+error[E0624]: associated function `new` is private
+ --> tests/ui/checked_is_sealed.rs:9:16
+  |
+9 |       Completed::new(c)
+  |                  ^^^ private associated function
+  |
+ ::: src/turn_check.rs
+  |
+  | / ladder!(TurnCheck {
+  | |     carry {
+  | |         decider: Arc<dyn Decider>,
+  | |         request: String,
+... |
+  | |     },
+  | | });
+  | |__- private associated function defined here

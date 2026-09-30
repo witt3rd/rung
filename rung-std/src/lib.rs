@@ -1,7 +1,7 @@
 //! rung-std — the canonical building blocks.
 //!
 //! A block is admitted here when it recurs across independent projects and
-//! embeds no caller-specific knowledge. There are six:
+//! embeds no caller-specific knowledge. There are seven:
 //!
 //! | block | surface | what recurs |
 //! |---|---|---|
@@ -11,6 +11,7 @@
 //! | [`principals`] | `theory!` | who may be dispatched to — the law of the pool both gates draw from |
 //! | [`python`] | `ladder!` | one strike in a persistent, jailed CPython guest |
 //! | [`driver`] | neither | hold suspended runs; release the ones evidence answers |
+//! | [`decide`] | neither | ask a judge typed questions about a typed state; get distributions back |
 //!
 //! The first four exercise the two halves of the DSL: `ladder!` declares
 //! **arrows**, `theory!` declares **sentences**, and both live in `rung`.
@@ -99,6 +100,7 @@
 //!
 
 pub mod agent;
+pub mod decide;
 pub mod driver;
 pub mod issues;
 pub mod llm;

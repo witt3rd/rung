@@ -68,6 +68,30 @@ std-only OpenAI-compatible server. It serves SSE when the body has
 bodies. Point `RUNG_BASE_URL` at it and isolate `HOME`, `RUNG_CONFIG` and
 `RUNG_HOME`.
 
+## Turn check (rung-agent)
+
+`turn_check.rs` is a ladder after the agent loop: a judge (Jev, via
+`rung_std::decide`) reads the turn's final message against its actions.
+Arms: completed / nudge once / unverified / unchecked. Off by default; the
+switch is `turn_check.backend` or `RUNG_TURN_CHECK=off|jev`. Off must stay
+byte-identical (`off_output_is_byte_identical_to_before`).
+
+Tests replay `rung-agent/tests/fixtures/decide/turn_check/*.json` through
+a local mock of `/systemone`; CI never touches the network. After changing
+the question wording or the state builder, record again (stale and missing
+fixtures only; `rerecord` redoes all):
+
+```bash
+RUNG_DECIDE=record doppler run -p fleet -c dev_work -- \
+  cargo test -p rung-agent --test turn_check -- --test-threads=1
+```
+
+The recorder keeps a spend ledger and stops at `RUNG_DECIDE_BUDGET_USD`
+(default $0.02). A full record of the set costs about $0.0008. Build
+fixtures from real transcripts (`tests/fixtures/transcripts/`), not
+author-written easy ones: the one real done turn reads as unsure, and the
+gate escalates it to `unverified`.
+
 ## Config
 
 - Driver: `~/.rung/providers.yaml` + `auth.yaml`. Env first, then auth.yaml.
