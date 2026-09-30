@@ -288,6 +288,13 @@ fn text_of(response: &LlmResponse) -> String {
         .join("\n")
 }
 
+/// Strip `word` from the front of `line` only at a word boundary: the line
+/// must end there or continue with whitespace (`FAILSAFE` is not `FAILS`).
+fn strip_word<'a>(line: &'a str, word: &str) -> Option<&'a str> {
+    let rest = line.strip_prefix(word)?;
+    (rest.is_empty() || rest.starts_with(char::is_whitespace)).then_some(rest)
+}
+
 /// Read a reply into an answer, or `None` if it is not one of the three forms.
 ///
 /// Strict on purpose. A lenient reader — "it said the word holds somewhere, so
@@ -297,7 +304,7 @@ pub fn read_reply(text: &str) -> Option<Answer> {
     if line == "HOLDS" {
         return Some(Answer::holds());
     }
-    if let Some(why) = line.strip_prefix("FAILS") {
+    if let Some(why) = strip_word(line, "FAILS") {
         let why = why.trim();
         return Some(Answer::fails(if why.is_empty() {
             "no reason given".to_string()
@@ -305,7 +312,7 @@ pub fn read_reply(text: &str) -> Option<Answer> {
             why.to_string()
         }));
     }
-    if let Some(need) = line.strip_prefix("CANNOT-SETTLE") {
+    if let Some(need) = strip_word(line, "CANNOT-SETTLE") {
         let need = need.trim();
         return Some(Answer::Raised(Raised::new(
             if need.is_empty() {
@@ -322,3 +329,17 @@ pub fn read_reply(text: &str) -> Option<Answer> {
 /// The attempts a request starts with, re-exported so a caller configuring an
 /// endpoint does not have to reach into `rung_std`.
 pub const MAX_ATTEMPTS: u8 = DEFAULT_MAX_ATTEMPTS;
+
+#[cfg(test)]
+mod read_reply_tests {
+    use super::*;
+
+    #[test]
+    fn verdict_words_need_a_boundary() {
+        assert!(read_reply("FAILSAFE is not a verdict").is_none());
+        assert!(read_reply("CANNOT-SETTLEMENT is not a verdict").is_none());
+        assert!(read_reply("FAILS the cut").is_some());
+        assert!(read_reply("FAILS").is_some());
+        assert!(read_reply("CANNOT-SETTLE need x").is_some());
+    }
+}
