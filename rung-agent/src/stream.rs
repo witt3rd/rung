@@ -81,7 +81,7 @@ impl Emitter {
             "response": {
                 "task_id": task_id,
                 "text": r.final_response,
-                "status": "completed",
+                "status": if r.truncated { "truncated" } else { "completed" },
                 "api_calls": r.api_calls_made,
                 "usage": usage_json(&r.usage),
                 "model": model,
