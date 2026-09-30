@@ -507,7 +507,12 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
     match agent::run(thread, carry) {
         Ok(r) => {
             sess.lines.push(turn_line(&r, sent));
-            sess.status = "completed".into();
+            let status = if r.truncated {
+                "truncated"
+            } else {
+                "completed"
+            };
+            sess.status = status.into();
             store.save(&sess)?;
             if let Some(em) = &emitter {
                 em.emit_result(&id, &r, &model, sess.isolation_path.as_deref());
@@ -515,7 +520,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             Ok(Outcome {
                 task_id: id,
                 text: r.final_response,
-                status: "completed".into(),
+                status: status.into(),
                 api_calls: r.api_calls_made,
                 isolation_path: sess.isolation_path,
             })

@@ -455,6 +455,9 @@ pub struct AgentResult {
     pub transcript: Vec<ChatMessage>,
     pub api_calls_made: u32,
     pub usage: Usage,
+    /// The model's reply was cut off by the token limit (`finish_reason:
+    /// length`); `final_response` is incomplete.
+    pub truncated: bool,
 }
 
 fn closed(thread: &Thread, text: &str) -> Vec<ChatMessage> {
@@ -677,6 +680,7 @@ ladder!(AgentLoop {
             response.stop_reason
         };
 
+        let truncated = stop_reason == StopReason::MaxTokens;
         match stop_reason {
             StopReason::EndTurn | StopReason::MaxTokens | StopReason::StopSequence => {
                 let text = response_text(&response.content)
@@ -690,6 +694,7 @@ ladder!(AgentLoop {
                             final_response: done,
                             api_calls_made: next.api_call_count,
                             usage: next.usage.clone(),
+                            truncated,
                         })));
                     }
                     eprintln!(
@@ -731,6 +736,7 @@ ladder!(AgentLoop {
                     final_response: text,
                     api_calls_made: next.api_call_count,
                     usage: next.usage.clone(),
+                    truncated,
                 })))
             }
 
@@ -840,6 +846,7 @@ ladder!(AgentLoop {
                         final_response: text,
                         api_calls_made: next.api_call_count,
                         usage: next.usage.clone(),
+                        truncated: false,
                     })));
                 }
 
@@ -1528,6 +1535,38 @@ mod tests {
             },
             other => panic!("expected Blocks, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn length_finish_reason_is_truncated_not_plain_end_turn() {
+        let body = r#"{
+            "id": "cmpl-cut",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {"content": "The answer is cut o"},
+                "finish_reason": "length"
+            }]
+        }"#;
+        let (url, handle) = serve_json(body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(ToolRoster::new()),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("hi")],
+        };
+        let r = match run(thread, carry) {
+            Ok(r) => r,
+            Err(f) => panic!("run failed: {}", f.reason),
+        };
+        handle.join().unwrap();
+        assert_eq!(r.final_response, "The answer is cut o");
+        assert!(r.truncated, "length reply must be flagged truncated");
     }
 
     #[test]

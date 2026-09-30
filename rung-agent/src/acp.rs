@@ -763,6 +763,8 @@ pub(crate) async fn connect_agent(
                             )?;
                             let reason = if cancelled || o.status == "cancelled" {
                                 StopReason::Cancelled
+                            } else if o.status == "truncated" {
+                                StopReason::MaxTokens
                             } else {
                                 StopReason::EndTurn
                             };
