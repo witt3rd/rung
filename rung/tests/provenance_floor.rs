@@ -50,7 +50,7 @@ impl Principal for Newcomer {
         Prov::empty()
     }
     fn rule(&self, _matter: &str) -> Response {
-        Response::Rendered(Verdict::Conforming)
+        Response::Rendered(Verdict::Conforming.into())
     }
 }
 
@@ -68,7 +68,7 @@ impl Principal for Veteran {
         Prov::of(["folio", "annex"])
     }
     fn rule(&self, _matter: &str) -> Response {
-        Response::Rendered(Verdict::Conforming)
+        Response::Rendered(Verdict::Conforming.into())
     }
 }
 

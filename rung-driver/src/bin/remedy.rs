@@ -51,15 +51,18 @@ fn main() {
             "remedy",
         );
         println!("– {id}");
-        match oracle.ask(
-            judge_id,
-            &backing,
-            "Does this question meet the well-posedness standard above?",
-        ) {
-            rung_driver::Answer::Verdict(rung::Verdict::Conforming) => {
+        match oracle
+            .ask(
+                judge_id,
+                &backing,
+                "Does this question meet the well-posedness standard above?",
+            )
+            .into_verdict()
+        {
+            Ok(rung::Verdict::Conforming) => {
                 println!("  judge: WELL-POSED — no remedy is licensed.\n")
             }
-            rung_driver::Answer::Verdict(rung::Verdict::NonConforming { reason }) => {
+            Ok(rung::Verdict::NonConforming { reason }) => {
                 println!("  judge: NOT well-posed — {reason}");
                 // the author receives the judgment
                 let class = JudgmentClass::IllPosed;
@@ -90,7 +93,7 @@ fn main() {
                 );
                 println!();
             }
-            rung_driver::Answer::Raised(r) => {
+            Err(r) => {
                 println!("  judge deferred: {} ({})\n", r.reference(), r.matter())
             }
         }

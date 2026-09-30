@@ -59,7 +59,7 @@ impl Principal for Person {
         self.prov.clone()
     }
     fn rule(&self, _matter: &str) -> Response {
-        Response::Rendered(Verdict::Conforming)
+        Response::Rendered(Verdict::Conforming.into())
     }
 }
 

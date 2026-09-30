@@ -59,18 +59,21 @@ fn main() {
             "repair-judge",
         );
         println!("── judge of the repaired {id} …");
-        match oracle.ask(
-            judge_id,
-            &backing,
-            "Does this repaired question meet the well-posedness standard above?",
-        ) {
-            rung_driver::Answer::Verdict(Verdict::Conforming) => {
+        match oracle
+            .ask(
+                judge_id,
+                &backing,
+                "Does this repaired question meet the well-posedness standard above?",
+            )
+            .into_verdict()
+        {
+            Ok(Verdict::Conforming) => {
                 println!("  ✅ WELL-POSED — this repair is enactable.\n")
             }
-            rung_driver::Answer::Verdict(Verdict::NonConforming { reason }) => {
+            Ok(Verdict::NonConforming { reason }) => {
                 println!("  ❌ still not well-posed: {reason}\n")
             }
-            rung_driver::Answer::Raised(r) => {
+            Err(r) => {
                 println!("  ⏸ deferred: {} ({})\n", r.reference(), r.matter())
             }
         }

@@ -5,7 +5,8 @@
 //! sealed `Judgment`** (via `Provenanced`), never out of a field someone
 //! typed. That is what makes it the honest form an `attested` transcription
 //! cannot reach — nothing here can fabricate the provenance, because the seal
-//! is `rung`'s and this writer has no term for it.
+//! is `rung`'s and this writer has no term for it. The same holds for `ε`: it
+//! is read out of the seal (`Judgment::epsilon`), not set by this writer.
 //!
 //! Schema (see `judgments/README.md`): `proposition`, `role`, `tier`,
 //! `judges: [{id, provenance, verdict, on, epsilon?}]`.
@@ -21,6 +22,9 @@ pub struct DispatchedJudge {
     /// From the sealed [`Judgment`]'s provenance — never typed by hand.
     pub provenance: Vec<String>,
     pub verdict: String,
+    /// From the sealed [`Judgment::epsilon`] — the error bar the judge
+    /// reported with its verdict, never typed by hand. Absent when the judge
+    /// reported no confidence (an uncalibrated judge, e.g. a prose LLM judge).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub epsilon: Option<f64>,
     pub on: String,
@@ -42,9 +46,8 @@ pub struct DispatchedRecord {
 
 impl DispatchedRecord {
     /// Build the honest record from a real, sealed judgment: the provenance
-    /// rides out of `Provenanced`, so the writer cannot invent it.
-    /// Build the honest record from a real, sealed judgment: the provenance
-    /// rides out of `Provenanced`, so the writer cannot invent it.
+    /// rides out of `Provenanced` and ε out of [`Judgment::epsilon`], so the
+    /// writer can invent neither.
     pub fn from_judgment(proposition: &str, role: &str, judgment: &Judgment, on: &str) -> Self {
         let prov: Vec<String> = judgment
             .provenance()
@@ -59,7 +62,7 @@ impl DispatchedRecord {
                 id: judgment.judge_id().to_string(),
                 provenance: prov,
                 verdict: verdict_name(judgment.verdict()),
-                epsilon: None,
+                epsilon: judgment.epsilon(),
                 on: on.to_string(),
             }],
             reasoning: None,
@@ -84,7 +87,7 @@ impl DispatchedRecord {
                         id: r.judge().to_string(),
                         provenance: j.provenance().members().map(str::to_string).collect(),
                         verdict: verdict_name(j.verdict()),
-                        epsilon: None,
+                        epsilon: j.epsilon(),
                         on: r.object().to_string(),
                     }
                 })

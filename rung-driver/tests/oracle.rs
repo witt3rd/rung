@@ -26,7 +26,7 @@ impl Oracle for Answering {
 
 fn verdict(text: &str) -> Option<Verdict> {
     match read_reply(text) {
-        Some(Answer::Verdict(v)) => Some(v),
+        Some(Answer::Rendered(r)) => Some(r.into_verdict()),
         _ => None,
     }
 }

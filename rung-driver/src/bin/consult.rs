@@ -53,9 +53,9 @@ fn main() {
             "consult",
         );
         println!("\n  — {q}: asking the real model… (this calls OpenRouter)");
-        match oracle.ask(judge_id, &backing, claim) {
-            rung_driver::Answer::Verdict(v) => println!("  {q} → {v:?}"),
-            rung_driver::Answer::Raised(r) => {
+        match oracle.ask(judge_id, &backing, claim).into_verdict() {
+            Ok(v) => println!("  {q} → {v:?}"),
+            Err(r) => {
                 println!("  {q} → raised: {} ({})", r.reference(), r.matter())
             }
         }

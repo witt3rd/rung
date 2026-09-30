@@ -42,7 +42,7 @@
 //!     fn capable(&self, _: &str) -> bool { true }
 //!     fn id(&self) -> &str { "p" }
 //!     fn authored(&self) -> Prov { Prov::of(["p"]) }
-//!     fn rule(&self, _: &str) -> Response { Response::Rendered(Verdict::Conforming) }
+//!     fn rule(&self, _: &str) -> Response { Response::Rendered(Verdict::Conforming.into()) }
 //! }
 //! // `Principal` has no `cost_tier` — E0599, and nothing else.
 //! fn cost_invisible<P: Principal>(p: &P) -> u64 {
@@ -66,7 +66,7 @@
 //!     fn capable(&self, _: &str) -> bool { true }
 //!     fn id(&self) -> &str { "u" }
 //!     fn authored(&self) -> Prov { Prov::of(["u"]) }
-//!     fn rule(&self, _: &str) -> Response { Response::Rendered(Verdict::Conforming) }
+//!     fn rule(&self, _: &str) -> Response { Response::Rendered(Verdict::Conforming.into()) }
 //! }
 //! // `Undeclared: Priced` does not hold — E0277.
 //! fn no_image(p: Pool<Undeclared>) {
@@ -111,7 +111,7 @@
 //!     fn capable(&self, _: &str) -> bool { true }
 //!     fn id(&self) -> &str { self.name }
 //!     fn authored(&self) -> Prov { Prov::of([self.name]) }
-//!     fn rule(&self, _: &str) -> Response { Response::Rendered(Verdict::Conforming) }
+//!     fn rule(&self, _: &str) -> Response { Response::Rendered(Verdict::Conforming.into()) }
 //! }
 //! impl Priced for Judge {
 //!     fn cost_tier(&self) -> u64 { self.tier }
@@ -383,7 +383,7 @@ mod tests {
             Prov::of([self.name])
         }
         fn rule(&self, _: &str) -> Response {
-            Response::Rendered(Verdict::Conforming)
+            Response::Rendered(Verdict::Conforming.into())
         }
     }
     impl Priced for Judge {
@@ -474,7 +474,7 @@ mod tests {
                 Prov::of([self.name])
             }
             fn rule(&self, _: &str) -> Response {
-                Response::Rendered(Verdict::Conforming)
+                Response::Rendered(Verdict::Conforming.into())
             }
         }
         impl Priced for StewardJudge {

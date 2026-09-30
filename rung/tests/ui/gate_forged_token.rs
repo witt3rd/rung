@@ -29,7 +29,7 @@ impl Principal for Nobody {
         rung::Prov::empty()
     }
     fn rule(&self, _matter: &str) -> rung::Response {
-        rung::Response::Rendered(rung::Verdict::Conforming)
+        rung::Response::Rendered(rung::Verdict::Conforming.into())
     }
 }
 

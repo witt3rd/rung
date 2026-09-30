@@ -29,7 +29,7 @@ impl Principal for Universal {
         Prov::empty()
     }
     fn rule(&self, _matter: &str) -> Response {
-        Response::Rendered(Verdict::Conforming)
+        Response::Rendered(Verdict::Conforming.into())
     }
 }
 

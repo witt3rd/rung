@@ -226,8 +226,9 @@
 // every path below (`rung_het::Pool`, `rung_het::Qualified`, ..) still resolves.
 pub use rung::{
     AuthorizeError, Authorized, Consulted, Judgment, Judgmental, OutcomeNotFromJudge, Pool,
-    Principal, Prov, Provenanced, Qualified, QualifyError, Raised, Response, Role, SettleError,
-    Settled, Situated, StandingGate, Steward, Terminated, TokenNotBound, Verdict,
+    Principal, Prov, Provenanced, Qualified, QualifyError, Raised, Rendering, Response, Role,
+    SIMPLEX_TOLERANCE, SettleError, Settled, Situated, StandingGate, Steward, Terminated,
+    TokenNotBound, Verdict, VerdictPoint, Weight, WeightError,
 };
 
 // `theory!` and its helper macros moved to `rung` for the same reason the pool

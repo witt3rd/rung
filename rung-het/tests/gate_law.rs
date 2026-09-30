@@ -9,7 +9,8 @@
 //! only a doctest can assert that something does *not* compile.
 
 use rung_het::{
-    Consulted, Pool, Principal, Prov, Provenanced, QualifyError, Response, Role, Verdict, theory,
+    Consulted, Pool, Principal, Prov, Provenanced, QualifyError, Rendering, Response, Role,
+    Verdict, VerdictPoint, theory,
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -54,6 +55,8 @@ pub struct Judge {
     id: &'static str,
     prov: Vec<&'static str>,
     roles: Vec<&'static str>,
+    /// `(P(M ⊨ φ), confidence)` the oracle reports with its verdict, if any.
+    weight: Option<(f64, f64)>,
 }
 
 impl Principal for Judge {
@@ -71,9 +74,21 @@ impl Principal for Judge {
         Prov::of(self.prov.iter().copied())
     }
 
-    /// The oracle. The verdict is the outside's, not the caller's.
+    /// The oracle. The verdict is the outside's, not the caller's — and so is
+    /// its weight, when it reports one.
     fn rule(&self, _matter: &str) -> Response {
-        Response::Rendered(Verdict::Conforming)
+        match self.weight {
+            None => Response::Rendered(Verdict::Conforming.into()),
+            Some((p, confidence)) => Response::Rendered(
+                Rendering::weighed(
+                    Verdict::Conforming,
+                    VerdictPoint::probability(p).expect("p is in [0,1]"),
+                    confidence,
+                    self.id,
+                )
+                .expect("confidence is in [0,1]"),
+            ),
+        }
     }
 }
 
@@ -82,6 +97,15 @@ fn judge(id: &'static str, prov: &[&'static str], roles: &[&'static str]) -> Jud
         id,
         prov: prov.to_vec(),
         roles: roles.to_vec(),
+        weight: None,
+    }
+}
+
+/// A judge whose oracle reports `P(M ⊨ φ) = p` with `confidence`.
+fn weighed_judge(id: &'static str, roles: &[&'static str], p: f64, confidence: f64) -> Judge {
+    Judge {
+        weight: Some((p, confidence)),
+        ..judge(id, &[id], roles)
     }
 }
 
@@ -291,57 +315,103 @@ fn a_judgmental_verdict_may_be_non_conforming() {
     assert!(!settled.verdict().is_conforming());
 }
 
-/// **PARKED.** `epsilon-reported-with-verdict` — ε is reported alongside the
-/// verdict, as an honest error bar. `Verdict` is Boolean, so it is not.
+/// `epsilon-reported-with-verdict` — ε is reported alongside the verdict, as an
+/// honest error bar.
 ///
 /// Het's `verdict-space-with-metric` asks for a verdict space carrying a metric
-/// `d`, and 4.6 asks that every verdict arrive with its ε. Under a Boolean
-/// verdict space there is nothing to report and nothing to measure: a judge
-/// that is barely persuaded and a judge that is certain return the *same
-/// value*, and the satisfaction condition does not survive renaming
-/// (`boolean-breaks-satisfaction`).
+/// `d`, and 4.6 asks that every verdict arrive with its ε. The polarity alone
+/// cannot carry it: a judge that is barely persuaded and a judge that is
+/// certain return the *same* `Verdict` (`boolean-breaks-satisfaction`).
 ///
-/// The two settlements below are exactly that pair. They agree on polarity and
-/// on prose, and they are the same object — which is the gap, stated as an
-/// assertion rather than as a caveat in a doc comment.
+/// So the two settlements below agree on polarity and differ by ε — and the ε
+/// each reports is its own judge's, read out of the sealed `Judgment`. Nothing
+/// in this test hands a confidence to `settle`; the only place a number enters
+/// is each judge's oracle (`Principal::rule`).
 ///
-/// **Ignored, deliberately.** Nothing here is broken; `Verdict` is Boolean by
-/// declaration and says so in its own docs. This is parked so that the day a
-/// metric lands, deleting one attribute reports whether ε actually reaches the
-/// caller — rather than the gap living only in prose that nothing runs.
+/// This test was parked (ignored) while `Verdict` was the whole of what a
+/// `Settled` carried. It is the gap's own assertion, unparked: if the weight
+/// stops reaching the caller — dropped at the seal, dropped at `settle`, or
+/// reported as a made-up constant — the two settlements are equal again and
+/// this fails.
 #[test]
-#[ignore = "GAP: `Verdict` is Boolean (Conforming | NonConforming), so there is \
-            no metric d and no ε to report. Closing this needs a verdict space \
-            carrying a metric (rung-het-props.md#verdict-space-with-metric) and \
-            an ε on `Settled` (rung-het-props.md#epsilon-reported-with-verdict). \
-            Unpark by deleting this attribute once `Settled` carries an error \
-            bar; the two settlements below must then differ by it."]
 fn two_judges_of_differing_confidence_report_differing_verdicts() {
     let m = doc_by(&["augur"]);
-    let pool_a = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
-    let pool_b = Pool::new(vec![judge("smithy", &["smithy"], &[ChordReader::NAME])]);
+    // Barely persuaded, and certain.
+    let pool_a = Pool::new(vec![weighed_judge(
+        "forge",
+        &[ChordReader::NAME],
+        0.55,
+        0.1,
+    )]);
+    let pool_b = Pool::new(vec![weighed_judge(
+        "smithy",
+        &[ChordReader::NAME],
+        0.99,
+        0.98,
+    )]);
 
-    // Barely persuaded.
     let (qa, ja) = pool_a
         .consult::<ChordReader>(&m, "is_constitutive")
         .unwrap();
     let a = soul::is_constitutive::settle(&m, qa, ja)
         .expect("the licence was minted against this very argument");
 
-    // Certain.
     let (qb, jb) = pool_b
         .consult::<ChordReader>(&m, "is_constitutive")
         .unwrap();
     let b = soul::is_constitutive::settle(&m, qb, jb)
         .expect("the licence was minted against this very argument");
 
-    assert_ne!(
-        a.verdict(),
-        b.verdict(),
-        "epsilon-reported-with-verdict: two judgmental verdicts of the same \
-         polarity are still distinct judgments, and must be told apart by their \
-         ε. Under a Boolean verdict space they cannot be"
+    // The same polarity: the Boolean cannot tell them apart …
+    assert_eq!(a.verdict(), b.verdict());
+    // … and the ε can, because it reached the caller.
+    let (ea, eb) = (
+        a.epsilon().expect("forge reported ε"),
+        b.epsilon().expect("smithy reported ε"),
     );
+    assert!((ea - 0.9).abs() < 1e-12, "forge's ε is 1 − 0.1, got {ea}");
+    assert!(
+        (eb - 0.02).abs() < 1e-12,
+        "smithy's ε is 1 − 0.98, got {eb}"
+    );
+    assert_ne!(
+        a, b,
+        "epsilon-reported-with-verdict: two judgmental verdicts of the same \
+         polarity are still distinct judgments, and must be told apart by their ε"
+    );
+
+    // The point is the judge's too, and the metric measures between the two.
+    let (pa, pb) = match (&a, &b) {
+        (
+            rung_het::Settled::Judgmental { judgment: ja, .. },
+            rung_het::Settled::Judgmental { judgment: jb, .. },
+        ) => (
+            ja.weight().expect("weighed").point().clone(),
+            jb.weight().expect("weighed").point().clone(),
+        ),
+        _ => panic!("both settlements are judgmental"),
+    };
+    let d = pa.distance(&pb).expect("both are points of [0,1]");
+    assert!((d - 0.44).abs() < 1e-12, "d(0.55, 0.99) = 0.44, got {d}");
+}
+
+/// The other side of the same proposition: a judge that reports **no** weight
+/// is uncalibrated, and the settlement says so — `None`, not a fabricated 0.
+/// A decidable sentence is exact, and says that.
+#[test]
+fn an_unweighed_judge_reports_no_epsilon_and_a_decidable_one_reports_zero() {
+    let m = doc_by(&["augur"]);
+    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
+    let (q, j) = pool.consult::<ChordReader>(&m, "is_constitutive").unwrap();
+    assert!(j.weight().is_none());
+    let settled = soul::is_constitutive::settle(&m, q, j).unwrap();
+    assert_eq!(
+        settled.epsilon(),
+        None,
+        "an uncalibrated judge reports no ε"
+    );
+
+    assert_eq!(soul::within_budget::holds(&m).epsilon(), Some(0.0));
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -431,9 +501,12 @@ impl Principal for Contrarian {
         Prov::empty()
     }
     fn rule(&self, matter: &str) -> Response {
-        Response::Rendered(Verdict::NonConforming {
-            reason: format!("`{matter}` does not hold, and I am the one asked"),
-        })
+        Response::Rendered(
+            Verdict::NonConforming {
+                reason: format!("`{matter}` does not hold, and I am the one asked"),
+            }
+            .into(),
+        )
     }
 }
 
