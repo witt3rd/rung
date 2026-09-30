@@ -618,7 +618,10 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
                 extra_calls,
             } = ended;
             sess.lines.push(turn_line(&r, sent));
-            sess.status = status.as_str().into();
+            sess.status = match status {
+                Status::Cancelled => "interrupted".into(),
+                _ => status.as_str().into(),
+            };
             store.save(&sess)?;
             let out = Outcome {
                 task_id: id,
@@ -712,11 +715,15 @@ fn check_turn(
     eprintln!("[rung-agent] turn check: the turn narrated; nudging once");
     let second = match rerun(nudged.rerun_messages()) {
         Ok(r) => r,
-        Err(_) => {
-            // The re-run failed: the narrated turn stands, unverified.
+        Err(e) => {
+            let status = if e.kind == FailureKind::Interrupted {
+                Status::Cancelled
+            } else {
+                Status::Unverified
+            };
             let f = nudged.into_flagged();
             let report = f.report().clone();
-            return done(f.into_result(), Status::Unverified, &report, 0);
+            return done(f.into_result(), status, &report, 0);
         }
     };
     let extra = second.api_calls_made;
