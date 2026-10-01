@@ -238,7 +238,8 @@ Options:
   --background                      spawn a child, print task_id and pid
   --json                            emit one JSON Outcome object on stdout
   --stream                          emit NDJSON trace events on stdout
-  --max-iterations N
+  --max-iterations N                model calls per prompt, nested task included;
+                                    0 = no cap (default 32 implement, 16 explore/review)
   --system-prompt TEXT            system message; TEXT or @file path.
                                   Without it, RUNG_SYSTEM_PROMPT_FILE (a file
                                   path set by the host at spawn) is used.

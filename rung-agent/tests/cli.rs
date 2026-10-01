@@ -153,3 +153,115 @@ fn tempfile() -> std::path::PathBuf {
     std::fs::create_dir_all(&p).unwrap();
     p
 }
+
+/// OpenAI-compatible mock for a long job: `calls` tool calls, each with new
+/// input (a poll that moves on), then a final answer. SSE when asked.
+fn long_job_llm(calls: usize) -> String {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for i in 0..=calls {
+            let Ok((mut sock, _)) = listener.accept() else {
+                return;
+            };
+            let mut buf = Vec::new();
+            let mut chunk = [0u8; 65536];
+            let body = loop {
+                let n = sock.read(&mut chunk).unwrap_or(0);
+                if n == 0 {
+                    break String::new();
+                }
+                buf.extend_from_slice(&chunk[..n]);
+                let text = String::from_utf8_lossy(&buf).into_owned();
+                let Some(at) = text.find("\r\n\r\n") else {
+                    continue;
+                };
+                let len = text[..at]
+                    .lines()
+                    .find_map(|l| {
+                        l.to_ascii_lowercase()
+                            .strip_prefix("content-length:")
+                            .map(|v| v.trim().parse::<usize>().unwrap())
+                    })
+                    .unwrap_or(0);
+                if buf.len() >= at + 4 + len {
+                    break String::from_utf8_lossy(&buf[at + 4..at + 4 + len]).into_owned();
+                }
+            };
+            let stream =
+                serde_json::from_str::<serde_json::Value>(&body).is_ok_and(|b| b["stream"] == true);
+            let (message, finish) = if i < calls {
+                let args = format!("{{\"frame\": {i}}}");
+                (
+                    serde_json::json!({"content": null, "tool_calls": [{"index": 0, "id": format!("c{i}"),
+                        "type": "function", "function": {"name": "poll", "arguments": args}}]}),
+                    "tool_calls",
+                )
+            } else {
+                (serde_json::json!({"content": "rendered"}), "stop")
+            };
+            let (ctype, payload) = if stream {
+                let chunk = serde_json::json!({"id": "c", "model": "m",
+                    "choices": [{"delta": message, "finish_reason": finish}]});
+                (
+                    "text/event-stream",
+                    format!("data: {chunk}\n\ndata: [DONE]\n\n"),
+                )
+            } else {
+                let reply = serde_json::json!({"id": "c", "model": "m",
+                    "choices": [{"message": message, "finish_reason": finish}]});
+                ("application/json", reply.to_string())
+            };
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+                payload.len()
+            );
+            let _ = sock.write_all(resp.as_bytes());
+        }
+    });
+    format!("http://127.0.0.1:{port}/v1")
+}
+
+/// A job of 40 tool calls: the toolset default (32 model calls) stops it;
+/// the host's `--max-iterations` raises the cap, and `0` removes it.
+#[test]
+fn the_host_sets_the_per_prompt_call_cap() {
+    for (cap, finishes) in [(None, false), (Some("64"), true), (Some("0"), true)] {
+        let tmp = tempfile();
+        let mut c = bin();
+        c.current_dir(&tmp)
+            .env("HOME", &tmp)
+            .env("RUNG_CONFIG", tmp.join("none.yaml"))
+            .env("RUNG_HOME", &tmp)
+            .env("RUNG_BASE_URL", long_job_llm(40))
+            .env("RUNG_MODEL", "m")
+            .env("RUNG_API_KEY", "k")
+            .env("RUNG_PROTOCOL", "openai")
+            .env_remove("RUNG_SYSTEM_PROMPT_FILE")
+            .env_remove("RUNG_TURN_CHECK");
+        if let Some(n) = cap {
+            c.args(["--max-iterations", n]);
+        }
+        let out = c
+            .args(["--tools", "none", "--json", "render the piece"])
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        if finishes {
+            assert!(out.status.success(), "cap {cap:?}: {stderr}");
+            let o: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+            assert_eq!(o["status"], "completed", "cap {cap:?}");
+            assert_eq!(o["text"], "rendered", "cap {cap:?}");
+            assert_eq!(o["api_calls"], 41, "cap {cap:?}");
+        } else {
+            assert!(!out.status.success(), "cap {cap:?}: {stdout}");
+            assert!(
+                stderr.contains("max iterations (32)"),
+                "cap {cap:?}: {stderr}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}

@@ -48,8 +48,9 @@
 //! Shell waffle is never a strike ([`crate::python::classify_draft`]).
 //!
 //! Loop hardening (OpenCode / grok-build): last-step text-only nudge and
-//! empty tool schemas; tool results capped; identical name+input streaks
-//! warned then stopped; LLM failures keep a [`FailureKind`] (overflow is
+//! empty tool schemas; tool results capped; identical name+input calls
+//! that make no progress (same result, no wait) warned then stopped; LLM
+//! failures keep a [`FailureKind`] (overflow is
 //! not a content filter); usage is accumulated on the terminal payload.
 //!
 //! Nested work is [`NestedLoop`] admitted as the `task` tool: one child
@@ -67,16 +68,23 @@ use crate::tools::{
 };
 use serde_json::Value;
 
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 // ─── Carry data ────────────────────────────────────────────────────────────────
 
 /// Characters of a tool result kept in history. OpenCode prunes at 2k for
 /// compaction; live turns stay larger. 0 means no cap.
 pub const DEFAULT_TOOL_OUTPUT_LIMIT: usize = 8_192;
-/// Identical name+input in a row before we stop executing (OpenCode uses 3).
+/// Identical name+input calls in a row that made no progress before we
+/// warn, then stop (OpenCode uses 3, on input alone).
 pub const DOOM_STREAK: u32 = 3;
+/// A tool call that blocks at least this long waited on the world (a timer,
+/// a render, a build): repeating it is a poll, not a spin. A spin returns at
+/// machine speed.
+pub const WAIT_FLOOR: Duration = Duration::from_secs(1);
 
 const LAST_STEP_NUDGE: &str = "\
 CRITICAL: this is the last step. Tools are disabled. Reply with text only: \
@@ -122,13 +130,29 @@ impl LoopState {
     }
 }
 
-/// Consecutive identical tool calls. A streak of [`DOOM_STREAK`] warns;
-/// one more of the same stops the loop.
-#[derive(Clone, Debug, Default)]
+/// Consecutive identical tool calls that made no progress. A repeat makes
+/// progress when its result differs from the last one, or when it waited
+/// ([`WAIT_FLOOR`]). The [`DOOM_STREAK`]th call of a run without progress is
+/// answered with a warning instead of executing; one more stops the loop.
+#[derive(Clone, Debug)]
 pub struct ToolWatch {
-    last: Option<(String, String)>,
+    /// Name, input, and a digest of the result of the last executed call.
+    last: Option<(String, String, u64)>,
+    /// Calls in the current run without progress, the first included.
     streak: u32,
     warned: bool,
+    wait_floor: Duration,
+}
+
+impl Default for ToolWatch {
+    fn default() -> Self {
+        Self {
+            last: None,
+            streak: 0,
+            warned: false,
+            wait_floor: WAIT_FLOOR,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,33 +163,49 @@ pub enum Watch {
 }
 
 impl ToolWatch {
+    fn repeats(&self, name: &str, input: &str) -> bool {
+        self.last
+            .as_ref()
+            .is_some_and(|(n, i, _)| n == name && i == input)
+    }
+
+    /// Before a call: execute it, answer it with a warning, or stop the turn.
+    /// A warning returns the watch to thread on; the call did not run.
     pub fn observe(&self, name: &str, input: &Value) -> (Self, Watch) {
-        let fp = (
-            name.to_string(),
-            serde_json::to_string(input).unwrap_or_default(),
-        );
-        let same = self.last.as_ref() == Some(&fp);
-        let streak = if same {
-            self.streak.saturating_add(1)
-        } else {
-            1
+        let input = serde_json::to_string(input).unwrap_or_default();
+        if !self.repeats(name, &input) || self.streak.saturating_add(1) < DOOM_STREAK {
+            return (self.clone(), Watch::Execute);
+        }
+        if self.warned {
+            return (self.clone(), Watch::Stop);
+        }
+        let warned = Self {
+            warned: true,
+            ..self.clone()
         };
-        let warned = if same { self.warned } else { false };
-        let action = if streak > DOOM_STREAK && warned {
-            Watch::Stop
-        } else if streak >= DOOM_STREAK {
-            Watch::Warn
-        } else {
-            Watch::Execute
-        };
-        (
-            Self {
-                last: Some(fp),
-                streak,
-                warned: matches!(action, Watch::Warn) || warned,
+        (warned, Watch::Warn)
+    }
+
+    /// After a call ran: its result and how long it took. Same input and
+    /// result without a wait extends the run; anything else is progress.
+    pub fn ran(&self, name: &str, input: &Value, result: &str, elapsed: Duration) -> Self {
+        let input = serde_json::to_string(input).unwrap_or_default();
+        let mut h = DefaultHasher::new();
+        result.hash(&mut h);
+        let digest = h.finish();
+        let stalled = self.repeats(name, &input)
+            && self.last.as_ref().is_some_and(|(_, _, d)| *d == digest)
+            && elapsed < self.wait_floor;
+        Self {
+            last: Some((name.to_string(), input, digest)),
+            streak: if stalled {
+                self.streak.saturating_add(1)
+            } else {
+                1
             },
-            action,
-        )
+            warned: stalled && self.warned,
+            wait_floor: self.wait_floor,
+        }
     }
 }
 
@@ -815,25 +855,35 @@ ladder!(AgentLoop {
                                         ContentFiltered::new(Filtered {
                                             kind: FailureKind::DoomLoop,
                                             reason: format!(
-                                                "repeated {name} with the same input"
+                                                "repeated {name} with the same input and no progress"
                                             ),
                                         }),
                                     ));
                                 }
                                 Watch::Warn => (
                                     format!(
-                                        "Repeated {name} with the same input {DOOM_STREAK} times. Use the previous result or change the arguments."
+                                        "Repeated {name} with the same input and the same result {DOOM_STREAK} times. Use the previous result, wait before checking again, or change the arguments."
                                     ),
                                     Vec::new(),
                                     true,
                                 ),
-                                Watch::Execute => match tools.execute_output(name, input) {
-                                    Ok(out) => {
-                                        let (text, images) = admit_images(out, &next);
-                                        (text, images, false)
+                                Watch::Execute => {
+                                    let started = Instant::now();
+                                    let ran = tools.execute_output(name, input);
+                                    let seen = match &ran {
+                                        Ok(o) => o.text.as_str(),
+                                        Err(s) => s.as_str(),
+                                    };
+                                    next.watch =
+                                        next.watch.ran(name, input, seen, started.elapsed());
+                                    match ran {
+                                        Ok(out) => {
+                                            let (text, images) = admit_images(out, &next);
+                                            (text, images, false)
+                                        }
+                                        Err(e) => (format!("error: {e}"), Vec::new(), true),
                                     }
-                                    Err(e) => (format!("error: {e}"), Vec::new(), true),
-                                },
+                                }
                             };
                             if next.is_cancelled() {
                                 return Ok(StepOutcome::Interrupted(Interrupted::new(
@@ -1233,22 +1283,85 @@ mod tests {
         assert_eq!(cap_output(&s, 0), s);
     }
 
-    #[test]
-    fn doom_warns_on_third_then_stops() {
-        let input = serde_json::json!({"path": "a"});
+    /// Drive the watch over calls of one name and input: each gives its
+    /// result and how long it ran. Returns the action taken at each call.
+    fn watch_calls(calls: &[(&str, Duration)]) -> Vec<Watch> {
+        let input = serde_json::json!({"command": "sleep 270; tail log"});
         let mut w = ToolWatch::default();
         let mut actions = Vec::new();
-        for _ in 0..4 {
-            let (next, a) = w.observe("read_file", &input);
+        for (result, elapsed) in calls {
+            let (next, a) = w.observe("shell", &input);
             w = next;
+            if a == Watch::Execute {
+                w = w.ran("shell", &input, result, *elapsed);
+            }
             actions.push(a);
         }
+        actions
+    }
+
+    const INSTANT: Duration = Duration::ZERO;
+
+    #[test]
+    fn doom_warns_on_third_then_stops() {
+        let same = [("x", INSTANT); 4];
         assert_eq!(
-            actions,
+            watch_calls(&same),
             vec![Watch::Execute, Watch::Execute, Watch::Warn, Watch::Stop]
         );
+        let input = serde_json::json!({"path": "a"});
+        let mut w = ToolWatch::default();
+        for _ in 0..2 {
+            let (next, _) = w.observe("read_file", &input);
+            w = next.ran("read_file", &input, "x", INSTANT);
+        }
+        let (w, a) = w.observe("read_file", &input);
+        assert_eq!(a, Watch::Warn);
         let (_, a) = w.observe("read_file", &serde_json::json!({"path": "b"}));
         assert_eq!(a, Watch::Execute);
+    }
+
+    /// A poll whose output moves (a render log advancing) is progress.
+    #[test]
+    fn doom_spares_a_poll_whose_result_changes() {
+        let frames = [
+            "frame 1", "frame 2", "frame 3", "frame 4", "frame 5", "frame 6",
+        ];
+        let calls: Vec<_> = frames.iter().map(|f| (*f, INSTANT)).collect();
+        assert!(watch_calls(&calls).iter().all(|a| *a == Watch::Execute));
+    }
+
+    /// A poll that waits (a sleep in the call) is pacing, even when the
+    /// output has not moved yet.
+    #[test]
+    fn doom_spares_a_poll_that_waits() {
+        let waits = [("encoding", WAIT_FLOOR); 6];
+        assert!(watch_calls(&waits).iter().all(|a| *a == Watch::Execute));
+    }
+
+    /// Progress mid-run restarts the count: a stall needs DOOM_STREAK calls
+    /// in a row with the same result.
+    #[test]
+    fn doom_counts_only_an_unbroken_run_without_progress() {
+        use Watch::{Execute, Stop, Warn};
+        let moved = [
+            ("a", INSTANT),
+            ("b", INSTANT),
+            ("b", INSTANT),
+            ("b", INSTANT),
+            ("b", INSTANT),
+        ];
+        assert_eq!(
+            watch_calls(&moved),
+            vec![Execute, Execute, Execute, Warn, Stop]
+        );
+        let waited = [
+            ("a", INSTANT),
+            ("a", WAIT_FLOOR),
+            ("a", INSTANT),
+            ("a", INSTANT),
+        ];
+        assert_eq!(watch_calls(&waited), vec![Execute, Execute, Execute, Warn]);
     }
 
     fn dummy_llm() -> LlmConfig {
@@ -1661,6 +1774,98 @@ mod tests {
         };
         handle.join().unwrap();
         assert_ne!(f.kind, FailureKind::Refusal);
+    }
+
+    /// A `tail log` poll: `moves` advances the log each call; `pause` is the
+    /// sleep in the command.
+    #[derive(Debug)]
+    struct PollTool {
+        runs: Arc<AtomicUsize>,
+        moves: bool,
+        pause: Duration,
+    }
+
+    impl Tool for PollTool {
+        fn name(&self) -> &'static str {
+            "shell"
+        }
+        fn description(&self) -> &'static str {
+            "poll a render log"
+        }
+        fn input_schema(&self) -> serde_json::Value {
+            serde_json::json!({"type": "object"})
+        }
+        fn execute(&self, _input: &serde_json::Value) -> Result<String, String> {
+            let n = self.runs.fetch_add(1, Ordering::SeqCst);
+            std::thread::sleep(self.pause);
+            Ok(format!("frame {}", if self.moves { n } else { 0 }))
+        }
+    }
+
+    /// One model step that makes the same poll five times. Returns the
+    /// outcome and how many polls ran.
+    fn five_polls(moves: bool, pause: Duration) -> (agentloop::StepOutcome, usize) {
+        let call = r#"{"id": "c", "function": {"name": "shell", "arguments": "{\"command\":\"sleep 270; tail log\"}"}}"#;
+        let body = format!(
+            r#"{{"id": "cmpl-poll", "model": "gpt-4", "choices": [{{"message": {{"tool_calls": [{}]}}, "finish_reason": "tool_calls"}}]}}"#,
+            [call; 5].join(",")
+        );
+        let (url, handle) = serve_json(&body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+        let runs = Arc::new(AtomicUsize::new(0));
+        let mut c = ToolCollection::new("test");
+        c.admit(PollTool {
+            runs: runs.clone(),
+            moves,
+            pause,
+        });
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+        let mut state = LoopState::new(5, 5);
+        // A short floor so the waiting poll needs only a short sleep.
+        state.watch.wait_floor = Duration::from_millis(20);
+        let carry = agentloop::Carry {
+            state,
+            tools: Arc::new(roster),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("wait for the render")],
+        };
+        let calling = agentloop::calling(agentloop::Idle::new(thread, carry));
+        let Ok(outcome) = agentloop::step(calling) else {
+            panic!("step failed");
+        };
+        handle.join().unwrap();
+        (outcome, runs.load(Ordering::SeqCst))
+    }
+
+    #[test]
+    fn a_poll_whose_log_advances_is_not_a_doom_loop() {
+        let (outcome, runs) = five_polls(true, Duration::ZERO);
+        assert!(matches!(outcome, agentloop::StepOutcome::Iterate(_)));
+        assert_eq!(runs, 5);
+    }
+
+    #[test]
+    fn a_poll_that_sleeps_is_not_a_doom_loop() {
+        let (outcome, runs) = five_polls(false, Duration::from_millis(30));
+        assert!(matches!(outcome, agentloop::StepOutcome::Iterate(_)));
+        assert_eq!(runs, 5);
+    }
+
+    #[test]
+    fn the_same_call_with_the_same_result_is_still_a_doom_loop() {
+        let (outcome, runs) = five_polls(false, Duration::ZERO);
+        let agentloop::StepOutcome::ContentFiltered(f) = outcome else {
+            panic!("expected the doom loop to stop the turn");
+        };
+        assert_eq!(f.into_payload().kind, FailureKind::DoomLoop);
+        // Two ran, the third was answered with the warning, the fourth stopped.
+        assert_eq!(runs, 2);
     }
 
     #[test]
