@@ -442,6 +442,7 @@ pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
     #[derive(serde::Deserialize)]
     struct OpenAiMessage {
         content: Option<String>,
+        refusal: Option<String>,
         tool_calls: Option<Vec<OpenAiToolCall>>,
     }
     #[derive(serde::Deserialize)]
@@ -503,14 +504,27 @@ pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
         }
     }
 
-    if content_blocks.is_empty() {
-        return Err(RawCallError::NoContent);
-    }
-
     let mut stop_reason = match &choice {
         Some(c) => map_openai_finish_reason(c.finish_reason.as_deref()),
         None => StopReason::EndTurn,
     };
+    // A `message.refusal` is the model declining, whatever finish_reason says
+    // (structured outputs report it with `stop`): carry its text as the reason.
+    if let Some(refusal) = choice
+        .as_ref()
+        .and_then(|c| c.message.refusal.as_deref())
+        .filter(|r| !r.is_empty())
+        && content_blocks.is_empty()
+    {
+        content_blocks.push(ContentBlock::Text {
+            text: refusal.to_string(),
+        });
+        stop_reason = StopReason::Refusal;
+    }
+    // A refusal may legitimately carry no text; only other empties are errors.
+    if content_blocks.is_empty() && stop_reason != StopReason::Refusal {
+        return Err(RawCallError::NoContent);
+    }
     let has_tools = content_blocks.iter().any(|b| {
         matches!(
             b,
@@ -549,6 +563,7 @@ struct PendingTool {
 
 struct OpenAiSse {
     content: String,
+    refusal: String,
     tools: BTreeMap<usize, PendingTool>,
     stop_reason: StopReason,
     raw_finish_reason: Option<String>,
@@ -568,6 +583,7 @@ impl OpenAiSse {
     fn new(started: std::time::Instant) -> Self {
         Self {
             content: String::new(),
+            refusal: String::new(),
             tools: BTreeMap::new(),
             stop_reason: StopReason::EndTurn,
             raw_finish_reason: None,
@@ -679,6 +695,13 @@ impl OpenAiSse {
         }
 
         if let Some(text) = delta
+            .and_then(|delta| delta.get("refusal"))
+            .and_then(|value| value.as_str())
+        {
+            self.refusal.push_str(text);
+        }
+
+        if let Some(text) = delta
             .and_then(|delta| delta.get("content"))
             .and_then(|value| value.as_str())
             && !text.is_empty()
@@ -775,7 +798,13 @@ impl OpenAiSse {
             );
             blocks.push(block);
         }
-        if blocks.is_empty() {
+        if blocks.is_empty() && !self.refusal.is_empty() {
+            blocks.push(ContentBlock::Text {
+                text: std::mem::take(&mut self.refusal),
+            });
+            self.stop_reason = StopReason::Refusal;
+        }
+        if blocks.is_empty() && self.stop_reason != StopReason::Refusal {
             return Err(RawCallError::NoContent);
         }
         let has_tools = blocks.iter().any(|block| {
@@ -1108,6 +1137,31 @@ mod tests {
             response.usage.provider.as_ref().unwrap()["prompt_tokens"],
             100
         );
+    }
+
+    #[test]
+    fn sse_refusal_delta_is_a_refusal_with_its_reason() {
+        let lines = [
+            r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{"refusal":"Can't "}}]}"#.to_string(),
+            r#"data: {"choices":[{"index":0,"delta":{"refusal":"do that."},"finish_reason":"stop"}]}"#.to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        assert_eq!(resp.stop_reason, StopReason::Refusal);
+        assert!(
+            matches!(&resp.content[0], ContentBlock::Text { text } if text == "Can't do that.")
+        );
+    }
+
+    #[test]
+    fn sse_content_filter_with_no_content_is_a_refusal_not_no_content() {
+        let lines = [
+            r#"data: {"id":"c","model":"m","choices":[{"index":0,"delta":{},"finish_reason":"content_filter"}]}"#.to_string(),
+            "data: [DONE]".to_string(),
+        ];
+        let resp = parse_sse(&lines, None).unwrap();
+        assert_eq!(resp.stop_reason, StopReason::Refusal);
+        assert!(resp.content.is_empty());
     }
 
     #[test]
