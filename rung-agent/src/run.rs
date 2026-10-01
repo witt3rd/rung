@@ -102,7 +102,8 @@ pub struct JobEx {
 pub struct CatalogSpawn {
     pub config: LlmConfig,
     pub store: SessionStore,
-    pub max_iterations: u32,
+    /// The host's `--max-iterations`; `None` leaves the child's toolset default.
+    pub max_iterations: Option<u32>,
     pub emitter: Option<Arc<crate::stream::Emitter>>,
     pub extra: JobEx,
     /// The model takes images (`llm.images`); the child loop sends tool images.
@@ -177,13 +178,13 @@ fn drive(
     config: &LlmConfig,
     kind: Kind,
     lines: &[Line],
-    max_iterations: u32,
+    max_iterations: Option<u32>,
     emitter: Option<Arc<crate::stream::Emitter>>,
     extra: &JobEx,
     tool_images: bool,
 ) -> Result<(Line, u32), String> {
     let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
-    let cap = max_iterations.min(kind.max_iterations()).max(1);
+    let cap = kind.iteration_cap(max_iterations);
     let base: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
     let tools = wrap_tools(base, emitter.as_ref(), extra);
     let mut config = config.clone();
@@ -526,10 +527,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
     };
 
     let scope = resolve_scope(args)?;
-    let cap = args
-        .max_iterations
-        .unwrap_or_else(|| args.kind.max_iterations())
-        .max(1);
+    let cap = args.kind.iteration_cap(args.max_iterations);
     let mut roster: ToolRoster = scope.roster();
     if scope.allows_python() {
         let dir = origin.join(".rung").join("python");
@@ -541,7 +539,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         let spawn = CatalogSpawn {
             config: config.clone(),
             store: store.clone(),
-            max_iterations: cap,
+            max_iterations: args.max_iterations,
             emitter: emitter.clone(),
             extra: extra.clone(),
             tool_images,

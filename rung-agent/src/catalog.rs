@@ -45,10 +45,22 @@ impl Kind {
         matches!(self, Self::Implement)
     }
 
+    /// Default model calls per prompt: the runaway guard when the host names
+    /// no cap.
     pub fn max_iterations(self) -> u32 {
         match self {
             Self::Implement => 32,
             Self::Explore | Self::Review => 16,
+        }
+    }
+
+    /// Model calls a prompt may make: the host's `--max-iterations`, else
+    /// this toolset's default. `0` is no cap.
+    pub fn iteration_cap(self, requested: Option<u32>) -> u32 {
+        match requested {
+            None => self.max_iterations(),
+            Some(0) => u32::MAX,
+            Some(n) => n,
         }
     }
 
@@ -205,6 +217,17 @@ mod tests {
         }
         assert_eq!(Kind::parse("general-purpose").unwrap(), Kind::Implement);
         assert!(Kind::parse("plan").is_err());
+    }
+
+    /// The host's cap wins over the toolset default, for a nested `task`
+    /// child too; `0` is no cap.
+    #[test]
+    fn the_host_cap_wins_and_zero_is_none() {
+        assert_eq!(Kind::Implement.iteration_cap(None), 32);
+        assert_eq!(Kind::Explore.iteration_cap(None), 16);
+        assert_eq!(Kind::Explore.iteration_cap(Some(200)), 200);
+        assert_eq!(Kind::Implement.iteration_cap(Some(3)), 3);
+        assert_eq!(Kind::Review.iteration_cap(Some(0)), u32::MAX);
     }
 
     #[test]

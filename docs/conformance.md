@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 256 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 257 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -644,7 +644,7 @@ look shorter than it is.
 - `initialize_session_new_prompt_delete`
 - `token_rejects_without_bearer`
 
-**`rung-agent/tests/cli.rs`** — 6 unclaimed
+**`rung-agent/tests/cli.rs`** — 7 unclaimed
 
 - `background_unreachable_endpoint_records_error`
 - `help_exits_zero`
@@ -652,6 +652,7 @@ look shorter than it is.
 - `poll_completed_session`
 - `poll_completed_session_json`
 - `poll_missing_session`
+- `the_host_sets_the_per_prompt_call_cap`
 
 **`rung-agent/tests/turn_check.rs`** — 18 unclaimed
 
