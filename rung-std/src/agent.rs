@@ -58,11 +58,13 @@
 use rung::ladder;
 
 use crate::llm::{
-    ChatMessage, ContentBlock, DEFAULT_MAX_ATTEMPTS, LlmConfig, LlmFailure, LlmRequest, StopReason,
-    ToolDefinition, Usage,
+    ChatMessage, ContentBlock, DEFAULT_MAX_ATTEMPTS, ImageSource, LlmConfig, LlmFailure,
+    LlmRequest, StopReason, ToolDefinition, Usage,
 };
 use crate::python::{Draft, Sandbox, StrikeReply, classify_draft};
-use crate::tools::{MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, Toolset, WithoutTask};
+use crate::tools::{
+    MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, ToolOutput, Toolset, WithoutTask,
+};
 use serde_json::Value;
 
 use std::sync::Arc;
@@ -93,6 +95,9 @@ pub struct LoopState {
     pub tool_output_limit: usize,
     /// Shared cancel. Checked before an LLM call and around each tool.
     pub cancel: Option<Arc<AtomicBool>>,
+    /// The model takes images, so a tool's images go to it. Off by default:
+    /// each image is then an explicit note in the result text.
+    pub tool_images: bool,
 }
 
 impl LoopState {
@@ -106,6 +111,7 @@ impl LoopState {
             watch: ToolWatch::default(),
             tool_output_limit: DEFAULT_TOOL_OUTPUT_LIMIT,
             cancel: None,
+            tool_images: false,
         }
     }
 
@@ -195,6 +201,26 @@ pub fn cap_output(text: &str, limit: usize) -> String {
         end -= 1;
     }
     format!("{}\n[truncated {} chars]", &text[..end], text.len() - end)
+}
+
+/// Why a tool's image is not sent when [`LoopState::tool_images`] is off.
+pub const TEXT_ONLY_MODEL: &str = "this model is set to take text only (tool images off)";
+
+/// A tool's output as the result the model gets: text capped at the loop's
+/// limit, images kept when the model takes them and noted when it does not.
+/// Images have their own size cap ([`crate::llm::image::MAX_IMAGE_BYTES`]).
+fn admit_images(out: ToolOutput, state: &LoopState) -> (String, Vec<ImageSource>) {
+    let text = cap_output(&out.text, state.tool_output_limit);
+    if state.tool_images {
+        (text, out.images)
+    } else {
+        let text = ToolOutput {
+            text,
+            images: out.images,
+        }
+        .into_text(TEXT_ONLY_MODEL);
+        (text, Vec::new())
+    }
 }
 
 fn ensure_system(thread: &Thread) -> Vec<ChatMessage> {
@@ -783,7 +809,7 @@ ladder!(AgentLoop {
                             }
                             let (watch, action) = next.watch.observe(name, input);
                             next.watch = watch;
-                            let (content, is_error) = match action {
+                            let (content, images, is_error) = match action {
                                 Watch::Stop => {
                                     return Ok(StepOutcome::ContentFiltered(
                                         ContentFiltered::new(Filtered {
@@ -798,11 +824,15 @@ ladder!(AgentLoop {
                                     format!(
                                         "Repeated {name} with the same input {DOOM_STREAK} times. Use the previous result or change the arguments."
                                     ),
+                                    Vec::new(),
                                     true,
                                 ),
-                                Watch::Execute => match tools.execute(name, input) {
-                                    Ok(s) => (cap_output(&s, next.tool_output_limit), false),
-                                    Err(e) => (format!("error: {e}"), true),
+                                Watch::Execute => match tools.execute_output(name, input) {
+                                    Ok(out) => {
+                                        let (text, images) = admit_images(out, &next);
+                                        (text, images, false)
+                                    }
+                                    Err(e) => (format!("error: {e}"), Vec::new(), true),
                                 },
                             };
                             if next.is_cancelled() {
@@ -814,13 +844,20 @@ ladder!(AgentLoop {
                             }
                             if is_error {
                                 eprintln!("[rung-std] {call_id}:   -> {content}");
-                            } else {
+                            } else if images.is_empty() {
                                 eprintln!("[rung-std] {call_id}:   -> {:.120}", content);
+                            } else {
+                                eprintln!(
+                                    "[rung-std] {call_id}:   -> {:.120} (+{} image(s))",
+                                    content,
+                                    images.len()
+                                );
                             }
                             tool_result_blocks.push(
                                 crate::llm::MessageContentBlock::ToolResult {
                                     tool_use_id: id.clone(),
                                     content,
+                                    images,
                                     is_error,
                                     cache: None,
                                 },
@@ -1947,5 +1984,97 @@ mod tests {
             }
             _ => panic!("expected a reported failure"),
         }
+    }
+
+    /// A tool that hands back a rendered frame.
+    #[derive(Debug)]
+    struct Snapshot;
+
+    impl Tool for Snapshot {
+        fn name(&self) -> &'static str {
+            "snapshot"
+        }
+        fn description(&self) -> &'static str {
+            "render a frame"
+        }
+        fn input_schema(&self) -> serde_json::Value {
+            serde_json::json!({"type": "object"})
+        }
+        fn execute(&self, input: &serde_json::Value) -> Result<String, String> {
+            self.execute_output(input)
+                .map(|o| o.into_text(crate::tools::TEXT_ONLY_CALLER))
+        }
+        fn execute_output(&self, _input: &serde_json::Value) -> Result<ToolOutput, String> {
+            Ok(ToolOutput::text("frame 1")
+                .with_image(ImageSource::from_bytes(b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR")?))
+        }
+    }
+
+    /// One step on a reply that calls `snapshot`; the tool-result blocks the
+    /// next request will carry.
+    fn snapshot_result(tool_images: bool) -> (String, Vec<ImageSource>) {
+        let body = r#"{
+            "id": "cmpl-img",
+            "model": "m",
+            "choices": [{
+                "message": {"tool_calls": [
+                    {"id": "call_1", "function": {"name": "snapshot", "arguments": "{}"}}
+                ]},
+                "finish_reason": "tool_calls"
+            }]
+        }"#;
+        let (url, handle) = serve_json(body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+        let mut c = ToolCollection::new("test");
+        c.admit(Snapshot);
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+        let carry = agentloop::Carry {
+            state: LoopState {
+                tool_images,
+                ..LoopState::new(5, 5)
+            },
+            tools: Arc::new(WithoutTask::new(Arc::new(roster))),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("look at the frame")],
+        };
+        let calling = agentloop::calling(agentloop::Idle::new(thread, carry));
+        let outcome = agentloop::step(calling).unwrap_or_else(|_| panic!("step failed"));
+        handle.join().unwrap();
+        let agentloop::StepOutcome::Iterate(next) = outcome else {
+            panic!("expected Iterate");
+        };
+        match &next.payload.messages[2].content {
+            MessageContent::Blocks(blocks) => match &blocks[0] {
+                crate::llm::MessageContentBlock::ToolResult {
+                    content, images, ..
+                } => (content.clone(), images.clone()),
+                other => panic!("expected ToolResult, got {other:?}"),
+            },
+            other => panic!("expected Blocks, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn tool_image_reaches_the_tool_result_when_the_model_takes_images() {
+        let (content, images) = snapshot_result(true);
+        assert_eq!(content, "frame 1");
+        assert_eq!(images.len(), 1);
+        assert_eq!(images[0].media_type, "image/png");
+    }
+
+    #[test]
+    fn tool_image_is_an_explicit_note_for_a_text_only_model() {
+        let (content, images) = snapshot_result(false);
+        assert!(images.is_empty());
+        assert_eq!(
+            content,
+            format!("frame 1\n[image omitted: image/png, 16 bytes; {TEXT_ONLY_MODEL}]")
+        );
     }
 }

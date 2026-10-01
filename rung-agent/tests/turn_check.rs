@@ -481,6 +481,7 @@ fn tool_result(id: &str, content: &str, is_error: bool) -> ChatMessage {
         content: MessageContent::Blocks(vec![MessageContentBlock::ToolResult {
             tool_use_id: id.into(),
             content: content.into(),
+            images: Vec::new(),
             is_error,
             cache: None,
         }]),

@@ -3,9 +3,10 @@
 use super::cache::{self, Breakpoints};
 use super::error::{RawCallError, classify_http, header_pairs, parse_sse_error};
 use super::types::{
-    ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, LlmConfig, LlmResponse,
-    MessageContent, MessageContentBlock, ObservingListener, PreparedRequest, ResolvedProtocol,
-    StopReason, StreamEvent, StreamListener, ToolDefinition, Usage, map_anthropic_stop_reason,
+    ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, ImageSource, LlmConfig,
+    LlmResponse, MessageContent, MessageContentBlock, ObservingListener, PreparedRequest,
+    ResolvedProtocol, StopReason, StreamEvent, StreamListener, ToolDefinition, Usage,
+    map_anthropic_stop_reason,
 };
 use std::io::BufRead;
 use std::sync::Arc;
@@ -172,6 +173,30 @@ fn system_parts(msg: &ChatMessage, bp: &mut Breakpoints) -> Vec<serde_json::Valu
     }
 }
 
+/// A tool result's `content`: the plain string when there is no image (the
+/// shape sent before images existed), otherwise text then image blocks.
+/// Anthropic refuses an empty text block, so empty text is left out.
+fn tool_result_content(content: &str, images: &[ImageSource]) -> serde_json::Value {
+    if images.is_empty() {
+        return serde_json::json!(content);
+    }
+    let mut parts = Vec::with_capacity(images.len() + 1);
+    if !content.is_empty() {
+        parts.push(serde_json::json!({"type": "text", "text": content}));
+    }
+    for img in images {
+        parts.push(serde_json::json!({
+            "type": "image",
+            "source": {
+                "type": img.source_type,
+                "media_type": img.media_type,
+                "data": img.data,
+            }
+        }));
+    }
+    serde_json::Value::Array(parts)
+}
+
 fn anthropic_message(msg: &ChatMessage, bp: &mut Breakpoints) -> serde_json::Value {
     match &msg.content {
         MessageContent::Text(t) => serde_json::json!({"role": msg.role, "content": t}),
@@ -234,13 +259,14 @@ fn anthropic_message(msg: &ChatMessage, bp: &mut Breakpoints) -> serde_json::Val
                     MessageContentBlock::ToolResult {
                         tool_use_id,
                         content,
+                        images,
                         is_error,
                         cache,
                     } => {
                         let mut v = serde_json::json!({
                             "type": "tool_result",
                             "tool_use_id": tool_use_id,
-                            "content": content,
+                            "content": tool_result_content(content, images),
                         });
                         if *is_error {
                             v["is_error"] = serde_json::json!(true);
@@ -647,6 +673,57 @@ mod tests {
             cache: CachePolicy::None,
             stream_listener: None,
         }
+    }
+
+    #[test]
+    fn tool_result_image_is_sent_as_an_image_block() {
+        let img = ImageSource::base64("image/png", "iVBORw0KGgo=");
+        let msgs = vec![ChatMessage::user_with_blocks(vec![
+            MessageContentBlock::ToolResult {
+                tool_use_id: "t1".into(),
+                content: "image frame.png (image/png, 8 bytes)".into(),
+                images: vec![img],
+                is_error: false,
+                cache: None,
+            },
+        ])];
+        let p = prepare(&cfg(), &msgs, &[]).unwrap();
+        let block = &p.body["messages"][0]["content"][0];
+        assert_eq!(block["type"], "tool_result");
+        assert_eq!(block["tool_use_id"], "t1");
+        assert_eq!(
+            block["content"],
+            serde_json::json!([
+                {"type": "text", "text": "image frame.png (image/png, 8 bytes)"},
+                {"type": "image", "source": {
+                    "type": "base64", "media_type": "image/png", "data": "iVBORw0KGgo="
+                }}
+            ])
+        );
+    }
+
+    #[test]
+    fn tool_result_without_images_keeps_string_content() {
+        let msgs = vec![ChatMessage::tool_result("t1", "ok")];
+        let p = prepare(&cfg(), &msgs, &[]).unwrap();
+        assert_eq!(p.body["messages"][0]["content"][0]["content"], "ok");
+    }
+
+    #[test]
+    fn tool_result_image_only_has_no_empty_text_block() {
+        let msgs = vec![ChatMessage::user_with_blocks(vec![
+            MessageContentBlock::ToolResult {
+                tool_use_id: "t1".into(),
+                content: String::new(),
+                images: vec![ImageSource::base64("image/gif", "R0lG")],
+                is_error: false,
+                cache: None,
+            },
+        ])];
+        let p = prepare(&cfg(), &msgs, &[]).unwrap();
+        let content = &p.body["messages"][0]["content"][0]["content"];
+        assert_eq!(content.as_array().unwrap().len(), 1);
+        assert_eq!(content[0]["type"], "image");
     }
 
     #[test]

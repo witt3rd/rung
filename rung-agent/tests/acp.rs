@@ -355,6 +355,135 @@ fn second_turn_replays_first_turn_tool_calls() {
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
+const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
+
+/// Two ACP turns where turn 1 reads `frame.png`. Returns the recorded
+/// request bodies: turn 1's tool round, then turn 2.
+fn read_frame_turns(images: Option<&str>) -> (serde_json::Value, serde_json::Value) {
+    let tmp = tempfile();
+    let cwd = tmp.to_string_lossy().into_owned();
+    std::fs::write(tmp.join("frame.png"), PNG).unwrap();
+    let tool_call = json!({"id": "c", "model": "m", "choices": [{"message": {"tool_calls": [
+        {"id": "call_1", "type": "function", "function": {"name": "read_file", "arguments": "{\"path\":\"frame.png\"}"}}
+    ]}, "finish_reason": "tool_calls"}]});
+    let (url, bodies) = mock_llm(vec![tool_call, text_reply("seen"), text_reply("again")]);
+    let mut cmd = bin();
+    cmd.arg("--acp")
+        .current_dir(&tmp)
+        .env("HOME", &tmp)
+        .env("XDG_CONFIG_HOME", &tmp)
+        .env("RUNG_CONFIG", tmp.join("none.yaml"))
+        .env("RUNG_HOME", &tmp)
+        .env("RUNG_BASE_URL", &url)
+        .env("RUNG_MODEL", "m")
+        .env("RUNG_API_KEY", "k")
+        .env("RUNG_PROTOCOL", "openai")
+        .env_remove("RUNG_IMAGES")
+        .env_remove("RUNG_KEY_FILE")
+        .env_remove("RUNG_SYSTEM_PROMPT_FILE")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    if let Some(v) = images {
+        cmd.env("RUNG_IMAGES", v);
+    }
+    let mut child = cmd.spawn().unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut ask = |id: u32, method: &str, params: serde_json::Value| -> serde_json::Value {
+        let msg = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
+        writeln!(stdin, "{msg}").unwrap();
+        stdin.flush().unwrap();
+        loop {
+            let v = read_json(&mut stdout);
+            if v["id"] == id && v.get("method").is_none() {
+                return v;
+            }
+        }
+    };
+    ask(1, "initialize", json!({"protocolVersion": 1}));
+    let created = ask(2, "session/new", json!({"cwd": cwd, "mcpServers": []}));
+    let sid = created["result"]["sessionId"].as_str().unwrap().to_string();
+    let prompt = |t: &str| json!({"sessionId": sid, "prompt": [{"type": "text", "text": t}]});
+    let r1 = ask(3, "session/prompt", prompt("look at frame.png"));
+    assert_eq!(r1["result"]["stopReason"], "end_turn", "{r1}");
+    let r2 = ask(4, "session/prompt", prompt("and again"));
+    assert_eq!(r2["result"]["stopReason"], "end_turn", "{r2}");
+    let _ = bodies.recv().unwrap();
+    let tool_round = bodies.recv().unwrap();
+    let turn2 = bodies.recv().unwrap();
+    drop(stdin);
+    let _ = child.wait();
+    let _ = std::fs::remove_dir_all(&tmp);
+    (tool_round, turn2)
+}
+
+fn image_urls(body: &serde_json::Value) -> Vec<String> {
+    body["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|m| m["content"].as_array())
+        .flatten()
+        .filter(|p| p["type"] == "image_url")
+        .map(|p| p["image_url"]["url"].as_str().unwrap().to_string())
+        .collect()
+}
+
+/// With images on, the image `read_file` returned is in the next request
+/// as an image part right after the tool message, and is not replayed
+/// from session history on the next turn.
+#[test]
+fn tool_result_image_is_sent_to_a_model_that_takes_images() {
+    let (tool_round, turn2) = read_frame_turns(Some("on"));
+    let data = rung_std::llm::ImageSource::from_bytes(PNG).unwrap().data;
+    let msgs = tool_round["messages"].as_array().unwrap();
+    let at = msgs
+        .iter()
+        .position(|m| m["role"] == "tool" && m["tool_call_id"] == "call_1")
+        .expect("tool message");
+    assert!(
+        msgs[at]["content"]
+            .as_str()
+            .unwrap()
+            .contains("(image/png, 16 bytes)"),
+        "{tool_round}"
+    );
+    assert_eq!(msgs[at + 1]["role"], "user", "{tool_round}");
+    assert_eq!(
+        image_urls(&tool_round),
+        vec![format!("data:image/png;base64,{data}")]
+    );
+
+    assert!(image_urls(&turn2).is_empty(), "{turn2}");
+    assert!(
+        turn2.to_string().contains("not kept in session history"),
+        "{turn2}"
+    );
+    assert!(!turn2.to_string().contains(&data), "{turn2}");
+}
+
+/// Images are off by default: a text-only model gets a note, not the image.
+#[test]
+fn tool_result_image_is_a_note_for_a_text_only_model() {
+    let (tool_round, _) = read_frame_turns(None);
+    let data = rung_std::llm::ImageSource::from_bytes(PNG).unwrap().data;
+    assert!(image_urls(&tool_round).is_empty(), "{tool_round}");
+    let tool = tool_round["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["role"] == "tool")
+        .unwrap();
+    let content = tool["content"].as_str().unwrap();
+    assert!(
+        content
+            .contains("[image omitted: image/png, 16 bytes; this model is set to take text only"),
+        "{content}"
+    );
+    assert!(!tool_round.to_string().contains(&data), "{tool_round}");
+}
+
 fn tempfile() -> std::path::PathBuf {
     let p = std::env::temp_dir().join(format!(
         "rung-agent-acp-{}-{}",

@@ -5,13 +5,15 @@
 //! [`Spawn`] implementation owns how the child actually runs (nested
 //! [`crate::agent`] loop, or a test fake).
 
-use super::{Tool, ToolDefinition, Toolset};
+use super::{Tool, ToolDefinition, ToolOutput, Toolset};
 use serde_json::Value;
 use std::sync::Arc;
 
 /// Default max nesting. Same as OpenCode `subagent_depth` / grok
 /// `MAX_SUBAGENT_DEPTH`.
 pub const MAX_DEPTH: u32 = 1;
+
+const DEPTH_REFUSAL: &str = "subagent depth limit reached: child cannot spawn task";
 
 #[derive(Debug, Clone)]
 pub struct TaskRequest {
@@ -184,9 +186,15 @@ impl Toolset for WithoutTask {
     }
     fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
         if name == "task" {
-            return Err("subagent depth limit reached: child cannot spawn task".into());
+            return Err(DEPTH_REFUSAL.into());
         }
         self.inner.execute(name, input)
+    }
+    fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
+        if name == "task" {
+            return Err(DEPTH_REFUSAL.into());
+        }
+        self.inner.execute_output(name, input)
     }
 }
 

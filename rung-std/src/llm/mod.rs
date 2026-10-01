@@ -7,6 +7,7 @@
 mod anthropic;
 mod cache;
 mod error;
+pub mod image;
 mod openai;
 mod sse;
 mod types;

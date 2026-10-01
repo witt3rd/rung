@@ -14,7 +14,7 @@ mod task;
 mod todo;
 mod webfetch;
 
-use crate::llm::ToolDefinition;
+use crate::llm::{ImageSource, ToolDefinition};
 use serde_json::Value;
 
 pub use edit::EditFile;
@@ -25,6 +25,46 @@ pub use skill::Skill;
 pub use task::{MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, WithoutTask};
 pub use todo::Todo;
 pub use webfetch::WebFetch;
+
+// ─── Tool output ───────────────────────────────────────────────────────────────
+
+/// What a tool hands back: text, and any images for the model to look at.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ToolOutput {
+    pub text: String,
+    pub images: Vec<ImageSource>,
+}
+
+impl ToolOutput {
+    pub fn text(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            images: Vec::new(),
+        }
+    }
+
+    pub fn with_image(mut self, image: ImageSource) -> Self {
+        self.images.push(image);
+        self
+    }
+
+    /// Text only, for a caller that cannot carry images: each image becomes
+    /// an [`ImageSource::omitted_note`] saying why, so none vanishes silently.
+    pub fn into_text(self, why: &str) -> String {
+        let mut text = self.text;
+        for img in &self.images {
+            if !text.is_empty() {
+                text.push('\n');
+            }
+            text.push_str(&img.omitted_note(why));
+        }
+        text
+    }
+}
+
+/// Why an image is missing when a tool is run through the text-only
+/// [`Tool::execute`] / [`Toolset::execute`].
+pub const TEXT_ONLY_CALLER: &str = "this caller takes text only";
 
 // ─── Tool trait ────────────────────────────────────────────────────────────────
 
@@ -37,6 +77,13 @@ pub trait Tool: Send + Sync + std::fmt::Debug {
     fn description(&self) -> &'static str;
     fn input_schema(&self) -> Value;
     fn execute(&self, input: &Value) -> Result<String, String>;
+
+    /// Run the tool, keeping any images. The agent loop calls this. A tool
+    /// that returns images overrides it, and makes [`Tool::execute`]
+    /// `execute_output(..).map(|o| o.into_text(TEXT_ONLY_CALLER))`.
+    fn execute_output(&self, input: &Value) -> Result<ToolOutput, String> {
+        self.execute(input).map(ToolOutput::text)
+    }
 }
 
 // ─── ToolCollection ───────────────────────────────────────────────────────────
@@ -72,12 +119,12 @@ impl ToolCollection {
             .collect()
     }
 
-    fn execute(&self, name: &str, input: &Value) -> Option<Result<String, String>> {
+    fn find(&self, name: &str) -> Option<&dyn Tool> {
         self.tools
             .iter()
             .rev()
             .find(|(n, _)| n == name)
-            .map(|(_, t)| t.execute(input))
+            .map(|(_, t)| t.as_ref())
     }
 }
 
@@ -116,13 +163,20 @@ impl ToolRoster {
         out
     }
 
+    fn find(&self, name: &str) -> Result<&dyn Tool, String> {
+        self.collections
+            .iter()
+            .rev()
+            .find_map(|coll| coll.find(name))
+            .ok_or_else(|| format!("unknown tool: {name}"))
+    }
+
     pub fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
-        for coll in self.collections.iter().rev() {
-            if let Some(result) = coll.execute(name, input) {
-                return result;
-            }
-        }
-        Err(format!("unknown tool: {name}"))
+        self.find(name)?.execute(input)
+    }
+
+    pub fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
+        self.find(name)?.execute_output(input)
     }
 
     pub fn collection_of(&self, name: &str) -> Option<&'static str> {
@@ -144,6 +198,13 @@ impl Default for ToolRoster {
 pub trait Toolset: Send + Sync + std::fmt::Debug {
     fn definitions(&self) -> Vec<ToolDefinition>;
     fn execute(&self, name: &str, input: &Value) -> Result<String, String>;
+
+    /// Run a tool, keeping any images. The agent loop calls this. The
+    /// default wraps [`Toolset::execute`], so a wrapper that does not
+    /// override it hands on text only; every wrapper in rung forwards it.
+    fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
+        self.execute(name, input).map(ToolOutput::text)
+    }
 }
 
 impl Toolset for ToolRoster {
@@ -152,6 +213,9 @@ impl Toolset for ToolRoster {
     }
     fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
         self.execute(name, input)
+    }
+    fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
+        self.execute_output(name, input)
     }
 }
 
@@ -238,6 +302,71 @@ mod tests {
             .execute(&serde_json::json!({"path": p.to_str().unwrap()}))
             .unwrap_err();
         assert!(err.contains("binary"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
+
+    #[test]
+    fn read_file_returns_an_image_file_as_an_image() {
+        let dir = tmp("read-img");
+        // Named .bin: the content decides, not the extension.
+        let p = dir.join("frame-0001.bin");
+        std::fs::write(&p, PNG).unwrap();
+        let out = ReadFile
+            .execute_output(&serde_json::json!({"path": p.to_str().unwrap()}))
+            .unwrap();
+        assert_eq!(
+            out.text,
+            format!("image {} (image/png, {} bytes)", p.display(), PNG.len())
+        );
+        assert_eq!(out.images, vec![ImageSource::from_bytes(PNG).unwrap()]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_file_through_the_roster_keeps_the_image() {
+        let dir = tmp("read-img-roster");
+        let p = dir.join("frame.png");
+        std::fs::write(&p, PNG).unwrap();
+        let mut r = ToolRoster::new();
+        r.add(filesystem_tools());
+        let out =
+            Toolset::execute_output(&r, "read_file", &serde_json::json!({"path": p})).unwrap();
+        assert_eq!(out.images.len(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_file_text_only_caller_gets_a_note_not_the_data() {
+        let dir = tmp("read-img-text");
+        let p = dir.join("frame.png");
+        std::fs::write(&p, PNG).unwrap();
+        let text = ReadFile
+            .execute(&serde_json::json!({"path": p.to_str().unwrap()}))
+            .unwrap();
+        assert!(
+            text.ends_with(&format!(
+                "[image omitted: image/png, {} bytes; {TEXT_ONLY_CALLER}]",
+                PNG.len()
+            )),
+            "{text}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_file_refuses_an_image_over_the_cap_without_reading_it() {
+        let dir = tmp("read-img-big");
+        let p = dir.join("huge.png");
+        let mut f = std::fs::File::create(&p).unwrap();
+        std::io::Write::write_all(&mut f, PNG).unwrap();
+        f.set_len(crate::llm::image::MAX_IMAGE_BYTES as u64 + 1)
+            .unwrap();
+        let err = ReadFile
+            .execute_output(&serde_json::json!({"path": p.to_str().unwrap()}))
+            .unwrap_err();
+        assert!(err.contains("over the 3750000-byte limit"), "{err}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

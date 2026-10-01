@@ -1,12 +1,15 @@
 //! Read, write, list, glob, grep.
 
-use super::Tool;
 use super::fsutil::{
     self, DEFAULT_READ_LIMIT, GLOB_LIMIT, GREP_LIMIT, format_line, glob_match, read_text, resolve,
     walk_files, write_atomic,
 };
+use super::{TEXT_ONLY_CALLER, Tool, ToolOutput};
+use crate::llm::ImageSource;
+use crate::llm::image::{check_size, sniff};
 use regex::RegexBuilder;
 use serde_json::Value;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -18,7 +21,8 @@ impl Tool for ReadFile {
     }
     fn description(&self) -> &'static str {
         "Read a file or directory. Lines are `N→content` (1-indexed). \
-         Use offset/limit for large files (default 2000 lines). Do not include the `N→` prefix when editing."
+         Use offset/limit for large files (default 2000 lines). Do not include the `N→` prefix when editing. \
+         A PNG, JPEG, GIF or WebP image comes back as the image itself, so you can look at it."
     }
     fn input_schema(&self) -> Value {
         serde_json::json!({
@@ -32,41 +36,84 @@ impl Tool for ReadFile {
         })
     }
     fn execute(&self, input: &Value) -> Result<String, String> {
+        self.execute_output(input)
+            .map(|o| o.into_text(TEXT_ONLY_CALLER))
+    }
+    fn execute_output(&self, input: &Value) -> Result<ToolOutput, String> {
         let path = resolve(fsutil::req_str(input, "path")?);
         if path.is_dir() {
-            return list_dir(&path);
+            return list_dir(&path).map(ToolOutput::text);
         }
-        let offset = fsutil::opt_usize(input, "offset").unwrap_or(1).max(1);
-        let limit = fsutil::opt_usize(input, "limit").unwrap_or(DEFAULT_READ_LIMIT);
-        let (_bom, text) = read_text(&path)?;
-        let lines: Vec<&str> = text.split('\n').collect();
-        // split('\n') yields a trailing empty on files that end with newline
-        let n = if text.ends_with('\n') {
-            lines.len().saturating_sub(1)
-        } else {
-            lines.len()
-        };
-        if offset > n && n > 0 {
-            return Err(format!(
-                "offset {offset} exceeds {} lines in {}",
-                n,
-                path.display()
-            ));
+        if let Some(media_type) = image_type(&path) {
+            return read_image(&path, media_type);
         }
-        let start = offset - 1;
-        let end = (start + limit).min(n);
-        let mut out = Vec::new();
-        for (i, line) in lines.iter().enumerate().take(end).skip(start) {
-            out.push(format_line(i + 1, line));
+        read_lines(&path, input).map(ToolOutput::text)
+    }
+}
+
+/// The image type of a file from its first bytes, if it is one.
+fn image_type(path: &Path) -> Option<&'static str> {
+    let mut head = [0u8; 12];
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut n = 0;
+    while n < head.len() {
+        match f.read(&mut head[n..]) {
+            Ok(0) | Err(_) => break,
+            Ok(k) => n += k,
         }
-        if end < n {
-            out.push(format!("… {} more lines", n - end));
-        }
-        if out.is_empty() {
-            Ok(format!("{}: empty", path.display()))
-        } else {
-            Ok(out.join("\n"))
-        }
+    }
+    sniff(&head[..n])
+}
+
+/// An image file as an image the model sees. The size is checked before the
+/// file is read, so a huge file is refused without loading it.
+fn read_image(path: &Path, media_type: &str) -> Result<ToolOutput, String> {
+    let len = std::fs::metadata(path)
+        .map_err(|e| format!("{}: {e}", path.display()))?
+        .len();
+    check_size(media_type, usize::try_from(len).unwrap_or(usize::MAX))
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let image = ImageSource::from_bytes(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(ToolOutput::text(format!(
+        "image {} ({media_type}, {} bytes)",
+        path.display(),
+        bytes.len()
+    ))
+    .with_image(image))
+}
+
+fn read_lines(path: &Path, input: &Value) -> Result<String, String> {
+    let offset = fsutil::opt_usize(input, "offset").unwrap_or(1).max(1);
+    let limit = fsutil::opt_usize(input, "limit").unwrap_or(DEFAULT_READ_LIMIT);
+    let (_bom, text) = read_text(path)?;
+    let lines: Vec<&str> = text.split('\n').collect();
+    // split('\n') yields a trailing empty on files that end with newline
+    let n = if text.ends_with('\n') {
+        lines.len().saturating_sub(1)
+    } else {
+        lines.len()
+    };
+    if offset > n && n > 0 {
+        return Err(format!(
+            "offset {offset} exceeds {} lines in {}",
+            n,
+            path.display()
+        ));
+    }
+    let start = offset - 1;
+    let end = (start + limit).min(n);
+    let mut out = Vec::new();
+    for (i, line) in lines.iter().enumerate().take(end).skip(start) {
+        out.push(format_line(i + 1, line));
+    }
+    if end < n {
+        out.push(format!("… {} more lines", n - end));
+    }
+    if out.is_empty() {
+        Ok(format!("{}: empty", path.display()))
+    } else {
+        Ok(out.join("\n"))
     }
 }
 

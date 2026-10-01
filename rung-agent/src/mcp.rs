@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
-use rung_std::llm::ToolDefinition;
-use rung_std::tools::Toolset;
+use rung_std::llm::{ImageSource, ToolDefinition};
+use rung_std::tools::{TEXT_ONLY_CALLER, ToolOutput, Toolset};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -1367,6 +1367,11 @@ impl Toolset for McpRoster {
     }
 
     fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
+        self.execute_output(name, input)
+            .map(|o| o.into_text(TEXT_ONLY_CALLER))
+    }
+
+    fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
         let tool = self.tools.iter().find(|t| t.name == name).ok_or_else(|| {
             let err = McpToolError {
                 layer: "mcp".into(),
@@ -1433,7 +1438,39 @@ impl Toolset for McpRoster {
             .wire
             .call_tool(name, &tool.remote, &args, op_id.as_deref(), can_retry)?;
 
-        Ok(content_text(&result))
+        Ok(content_output(&result))
+    }
+}
+
+/// A successful `tools/call` result as tool output: its text items, and its
+/// `image` items, checked like any tool image. An image that fails the check
+/// becomes a note saying why. Image data never lands in the text.
+fn content_output(result: &Value) -> ToolOutput {
+    let Some(arr) = result.get("content").and_then(|c| c.as_array()) else {
+        return ToolOutput::text(result.to_string());
+    };
+    let mut parts = Vec::new();
+    let mut images = Vec::new();
+    for item in arr {
+        if let Some(t) = item.get("text").and_then(|t| t.as_str()) {
+            parts.push(t.to_string());
+        } else if item.get("type").and_then(|t| t.as_str()) == Some("image") {
+            let field = |k: &str| item.get(k).and_then(|v| v.as_str()).unwrap_or("");
+            match ImageSource::from_base64(field("mimeType"), field("data")) {
+                Ok(img) => images.push(img),
+                Err(e) => parts.push(format!("[image omitted: {e}]")),
+            }
+        }
+    }
+    if parts.is_empty() && images.is_empty() {
+        return ToolOutput::text(result.to_string());
+    }
+    if parts.is_empty() {
+        parts.push(format!("{} image(s)", images.len()));
+    }
+    ToolOutput {
+        text: parts.join("\n"),
+        images,
     }
 }
 
@@ -1478,6 +1515,14 @@ impl Toolset for WithMcp {
             self.inner.execute(name, input)
         }
     }
+
+    fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
+        if self.mcp.tools.iter().any(|t| t.name == name) {
+            self.mcp.execute_output(name, input)
+        } else {
+            self.inner.execute_output(name, input)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1506,6 +1551,43 @@ mod tests {
         assert_eq!(parse_rpc_body(json).unwrap()["result"]["ok"], true);
         let sse = "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"n\":1}}\n\n";
         assert_eq!(parse_rpc_body(sse).unwrap()["result"]["n"], 1);
+    }
+
+    #[test]
+    fn content_output_keeps_mcp_images_as_images() {
+        let png = "iVBORw0KGgoAAAANSUhEUg==";
+        let v = json!({"content":[
+            {"type":"text","text":"rendered"},
+            {"type":"image","mimeType":"image/png","data":png}
+        ]});
+        let out = content_output(&v);
+        assert_eq!(out.text, "rendered");
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(out.images[0].media_type, "image/png");
+        assert_eq!(out.images[0].data, png);
+    }
+
+    #[test]
+    fn content_output_image_only_is_not_dumped_as_json() {
+        let png = "iVBORw0KGgoAAAANSUhEUg==";
+        let v = json!({"content":[{"type":"image","mimeType":"image/png","data":png}]});
+        let out = content_output(&v);
+        assert_eq!(out.text, "1 image(s)");
+        assert!(!out.text.contains(png));
+        assert_eq!(out.images.len(), 1);
+    }
+
+    #[test]
+    fn content_output_notes_a_bad_image_instead_of_dropping_it() {
+        let v = json!({"content":[{"type":"image","mimeType":"image/bmp","data":"Qk0AAAA="}]});
+        let out = content_output(&v);
+        assert!(out.images.is_empty());
+        assert!(
+            out.text
+                .starts_with("[image omitted: not a supported image"),
+            "{}",
+            out.text
+        );
     }
 
     #[test]
@@ -1714,6 +1796,41 @@ mod tests {
             }
             _ => None,
         }
+    }
+
+    /// An MCP tool's image comes through `WithMcp` as an image, and a
+    /// text-only caller of the same tool gets a note, not base64.
+    #[test]
+    fn mcp_image_result_reaches_the_loop_as_an_image() {
+        let png = "iVBORw0KGgoAAAANSUhEUg==";
+        let tools =
+            json!([{"name": "render", "description": "render", "inputSchema": {"type": "object"}}]);
+        let server = MockServer::start(move |_method, _path, body| {
+            if let Some(action) = handle_mcp_handshake(body, tools.clone()) {
+                return action;
+            }
+            let parsed: Value = serde_json::from_str(body).unwrap();
+            let resp = json!({"jsonrpc": "2.0", "id": parsed["id"], "result": {"content": [
+                {"type": "text", "text": "frame 1"},
+                {"type": "image", "mimeType": "image/png", "data": png}
+            ]}});
+            MockAction::Respond(200, resp.to_string())
+        });
+        let spec = McpSpec::parse_http(&format!("mock={}", server.url())).unwrap();
+        let set = WithMcp {
+            inner: Arc::new(rung_std::tools::ToolRoster::new()),
+            mcp: Arc::new(McpRoster::connect(&[spec]).unwrap()),
+        };
+        let out = set.execute_output("render", &json!({})).unwrap();
+        assert_eq!(out.text, "frame 1");
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(out.images[0].data, png);
+        let text = set.execute("render", &json!({})).unwrap();
+        assert!(
+            text.starts_with("frame 1\n[image omitted: image/png, 16 bytes;"),
+            "{text}"
+        );
+        assert!(!text.contains(png));
     }
 
     #[test]
