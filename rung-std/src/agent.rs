@@ -921,7 +921,10 @@ ladder!(AgentLoop {
                 Ok(StepOutcome::ContentFiltered(ContentFiltered::new(
                     Filtered {
                         kind: FailureKind::Refusal,
-                        reason: "model refused the request".into(),
+                        reason: match response_text(&response.content) {
+                            Some(why) => format!("model refused the request: {why}"),
+                            None => "model refused the request (no reason given)".into(),
+                        },
                     },
                 )))
             }
@@ -1535,6 +1538,92 @@ mod tests {
             },
             other => panic!("expected Blocks, got {other:?}"),
         }
+    }
+
+    /// Run one turn against a mock JSON provider and return the failure reason.
+    fn refusal_reason(body: &str, protocol: Protocol) -> String {
+        let (url, handle) = serve_json(body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+        cfg.protocol = protocol;
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(ToolRoster::new()),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("hi")],
+        };
+        let f = match run(thread, carry) {
+            Ok(r) => panic!("refusal must not complete: {:?}", r.final_response),
+            Err(f) => f,
+        };
+        handle.join().unwrap();
+        assert_eq!(f.kind, FailureKind::Refusal);
+        f.reason
+    }
+
+    #[test]
+    fn openai_refusal_field_surfaces_its_reason() {
+        let reason = refusal_reason(
+            r#"{"id":"c","model":"m","choices":[{"message":{"content":null,"refusal":"I can't help with that."},"finish_reason":"stop"}]}"#,
+            Protocol::OpenAiChat,
+        );
+        assert!(reason.contains("I can't help with that."), "{reason}");
+        assert!(!reason.contains("no message content"), "{reason}");
+    }
+
+    #[test]
+    fn openai_content_filter_with_empty_content_is_a_refusal() {
+        let reason = refusal_reason(
+            r#"{"id":"c","model":"m","choices":[{"message":{"content":""},"finish_reason":"content_filter"}]}"#,
+            Protocol::OpenAiChat,
+        );
+        assert!(reason.starts_with("model refused the request"), "{reason}");
+        assert!(!reason.contains("no message content"), "{reason}");
+    }
+
+    #[test]
+    fn anthropic_refusal_stop_reason_with_empty_content_is_a_refusal() {
+        let reason = refusal_reason(
+            r#"{"id":"m","model":"claude","stop_reason":"refusal","content":[],"usage":{"input_tokens":1,"output_tokens":0}}"#,
+            Protocol::AnthropicMessages,
+        );
+        assert!(reason.starts_with("model refused the request"), "{reason}");
+    }
+
+    #[test]
+    fn anthropic_refusal_text_is_the_reason() {
+        let reason = refusal_reason(
+            r#"{"id":"m","model":"claude","stop_reason":"refusal","content":[{"type":"text","text":"Declined: policy."}],"usage":{"input_tokens":1,"output_tokens":3}}"#,
+            Protocol::AnthropicMessages,
+        );
+        assert!(reason.contains("Declined: policy."), "{reason}");
+    }
+
+    #[test]
+    fn empty_openai_reply_without_refusal_is_still_no_content() {
+        let body = r#"{"id":"c","model":"m","choices":[{"message":{"content":""},"finish_reason":"stop"}]}"#;
+        let (url, handle) = serve_json(body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(ToolRoster::new()),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("hi")],
+        };
+        let Err(f) = run(thread, carry) else {
+            panic!("empty reply must fail")
+        };
+        handle.join().unwrap();
+        assert_ne!(f.kind, FailureKind::Refusal);
     }
 
     #[test]
