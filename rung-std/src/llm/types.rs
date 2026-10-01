@@ -422,6 +422,11 @@ pub enum MessageContentBlock {
     ToolResult {
         tool_use_id: String,
         content: String,
+        /// Images the tool returned, sent after `content`. Empty for a
+        /// text-only result; an encoder that cannot carry them says so in
+        /// text rather than dropping them.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        images: Vec<ImageSource>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         is_error: bool,
         #[serde(skip)]
@@ -449,7 +454,7 @@ impl MessageContentBlock {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageSource {
     #[serde(rename = "type")]
     pub source_type: String,
@@ -522,6 +527,7 @@ impl ChatMessage {
             content: MessageContent::Blocks(vec![MessageContentBlock::ToolResult {
                 tool_use_id: tool_use_id.into(),
                 content: result.into(),
+                images: Vec::new(),
                 is_error: false,
                 cache: None,
             }]),

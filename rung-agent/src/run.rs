@@ -105,6 +105,8 @@ pub struct CatalogSpawn {
     pub max_iterations: u32,
     pub emitter: Option<Arc<crate::stream::Emitter>>,
     pub extra: JobEx,
+    /// The model takes images (`llm.images`); the child loop sends tool images.
+    pub tool_images: bool,
 }
 
 impl std::fmt::Debug for CatalogSpawn {
@@ -148,6 +150,7 @@ impl Spawn for CatalogSpawn {
             self.max_iterations,
             self.emitter.clone(),
             &self.extra,
+            self.tool_images,
         ) {
             Ok((line, api_calls)) => {
                 let text = line.text.clone();
@@ -177,6 +180,7 @@ fn drive(
     max_iterations: u32,
     emitter: Option<Arc<crate::stream::Emitter>>,
     extra: &JobEx,
+    tool_images: bool,
 ) -> Result<(Line, u32), String> {
     let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
     let cap = max_iterations.min(kind.max_iterations()).max(1);
@@ -203,6 +207,7 @@ fn drive(
     let thread = thread_from(lines, None, None);
     let state = LoopState {
         cancel: extra.cancel.clone(),
+        tool_images,
         ..LoopState::new(cap, cap)
     };
     let carry = agentloop::Carry {
@@ -273,18 +278,30 @@ fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<
 /// History cap for a replayed tool result. The call itself is kept whole.
 const HISTORY_TOOL_RESULT_CHARS: usize = 4000;
 
+/// Why a tool's image is missing from a replayed turn.
+const HISTORY_IMAGE: &str = "not kept in session history; call the tool again to look";
+
 /// The assistant line for a finished turn: the messages the loop added after
-/// the `sent` messages it was given, with large tool results shortened.
+/// the `sent` messages it was given, with large tool results shortened and
+/// tool images left as a note (a session file holds no image data).
 fn turn_line(r: &agent::AgentResult, sent: usize) -> Line {
     let mut turn: Vec<ChatMessage> = r.transcript.iter().skip(sent).cloned().collect();
     for m in &mut turn {
         if let MessageContent::Blocks(blocks) = &mut m.content {
             for b in blocks {
-                if let MessageContentBlock::ToolResult { content, .. } = b
-                    && content.chars().count() > HISTORY_TOOL_RESULT_CHARS
+                if let MessageContentBlock::ToolResult {
+                    content, images, ..
+                } = b
                 {
-                    let kept: String = content.chars().take(HISTORY_TOOL_RESULT_CHARS).collect();
-                    *content = format!("{kept}\n[… shortened in history]");
+                    if content.chars().count() > HISTORY_TOOL_RESULT_CHARS {
+                        let kept: String =
+                            content.chars().take(HISTORY_TOOL_RESULT_CHARS).collect();
+                        *content = format!("{kept}\n[… shortened in history]");
+                    }
+                    for img in images.drain(..) {
+                        content.push('\n');
+                        content.push_str(&img.omitted_note(HISTORY_IMAGE));
+                    }
                 }
             }
         }
@@ -498,6 +515,15 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             return Err(e);
         }
     };
+    let tool_images = match crate::config::load_tool_images() {
+        Ok(on) => on,
+        Err(e) => {
+            sess.status = "error".into();
+            sess.lines.push(Line::assistant(e.clone()));
+            let _ = store.save(&sess);
+            return Err(e);
+        }
+    };
 
     let scope = resolve_scope(args)?;
     let cap = args
@@ -518,6 +544,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             max_iterations: cap,
             emitter: emitter.clone(),
             extra: extra.clone(),
+            tool_images,
         };
         let mut tasks = ToolCollection::new("task");
         tasks.admit(Task::new(Arc::new(spawn), 0, MAX_DEPTH));
@@ -559,6 +586,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
     let loop_carry = |tools: Arc<dyn Toolset>, config: LlmConfig| agentloop::Carry {
         state: LoopState {
             cancel: extra.cancel.clone(),
+            tool_images,
             ..LoopState::new(cap, cap)
         },
         tools,

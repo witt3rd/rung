@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 254 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 256 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -630,11 +630,13 @@ Not filtered by crate: some of these test the tooling and will never cite a
 proposition. Excluding them by name would be the quiet narrowing that makes a queue
 look shorter than it is.
 
-**`rung-agent/tests/acp.rs`** — 3 unclaimed
+**`rung-agent/tests/acp.rs`** — 5 unclaimed
 
 - `fork_resume_does_not_replay_load_does`
 - `initialize_new_list_set_mode_close`
 - `second_turn_replays_first_turn_tool_calls`
+- `tool_result_image_is_a_note_for_a_text_only_model`
+- `tool_result_image_is_sent_to_a_model_that_takes_images`
 
 **`rung-agent/tests/acp_http.rs`** — 3 unclaimed
 

@@ -2,10 +2,10 @@
 
 use super::error::{RawCallError, classify_http, header_pairs, parse_sse_error};
 use super::types::{
-    ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, LlmConfig, LlmResponse,
-    MessageContent, MessageContentBlock, ObservingListener, PreparedRequest, ResolvedProtocol,
-    StopReason, StreamEvent, StreamListener, ToolDefinition, ToolDiagnostic, ToolErrorKind, Usage,
-    map_openai_finish_reason,
+    ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, ImageSource, LlmConfig,
+    LlmResponse, MessageContent, MessageContentBlock, ObservingListener, PreparedRequest,
+    ResolvedProtocol, StopReason, StreamEvent, StreamListener, ToolDefinition, ToolDiagnostic,
+    ToolErrorKind, Usage, map_openai_finish_reason,
 };
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -113,6 +113,14 @@ pub fn audio_format(mime: &str) -> &'static str {
     }
 }
 
+fn image_url_part(source: &ImageSource) -> serde_json::Value {
+    let url = format!("data:{};base64,{}", source.media_type, source.data);
+    serde_json::json!({
+        "type": "image_url",
+        "image_url": { "url": url }
+    })
+}
+
 fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
     let mut out: Vec<serde_json::Value> = Vec::new();
     for msg in messages {
@@ -124,17 +132,16 @@ fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
                 let mut text_parts: Vec<serde_json::Value> = Vec::new();
                 let mut tool_calls: Vec<serde_json::Value> = Vec::new();
                 let mut emitted_tool_result = false;
+                // A `tool` message carries text only on Chat Completions, so a
+                // tool's images go in one user message after the tool messages.
+                let mut tool_images: Vec<serde_json::Value> = Vec::new();
                 for block in blocks {
                     match block {
                         MessageContentBlock::Text { text, .. } => {
                             text_parts.push(serde_json::json!({"type": "text", "text": text}));
                         }
                         MessageContentBlock::Image { source, .. } => {
-                            let url = format!("data:{};base64,{}", source.media_type, source.data);
-                            text_parts.push(serde_json::json!({
-                                "type": "image_url",
-                                "image_url": { "url": url }
-                            }));
+                            text_parts.push(image_url_part(source));
                         }
                         MessageContentBlock::Audio { source, .. } => {
                             text_parts.push(serde_json::json!({
@@ -160,6 +167,7 @@ fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
                         MessageContentBlock::ToolResult {
                             tool_use_id,
                             content,
+                            images,
                             ..
                         } => {
                             out.push(serde_json::json!({
@@ -168,6 +176,13 @@ fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
                                 "content": content,
                             }));
                             emitted_tool_result = true;
+                            if !images.is_empty() {
+                                tool_images.push(serde_json::json!({
+                                    "type": "text",
+                                    "text": format!("Image(s) returned by tool call {tool_use_id}:"),
+                                }));
+                                tool_images.extend(images.iter().map(image_url_part));
+                            }
                         }
                         MessageContentBlock::Thinking { .. } => {
                             // OpenAI Chat has no thinking block. Anthropic
@@ -187,6 +202,11 @@ fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
                     out.push(assistant);
                 } else if !emitted_tool_result {
                     out.push(serde_json::json!({"role": msg.role, "content": text_parts}));
+                } else if !tool_images.is_empty() || !text_parts.is_empty() {
+                    // After the tool messages: the tools' images, then any
+                    // other part that sat beside the results. None is dropped.
+                    tool_images.extend(text_parts);
+                    out.push(serde_json::json!({"role": "user", "content": tool_images}));
                 }
             }
         }
@@ -863,6 +883,7 @@ mod tests {
         MessageContentBlock::ToolResult {
             tool_use_id: id.into(),
             content: content.into(),
+            images: Vec::new(),
             is_error: false,
             cache: None,
         }
@@ -909,6 +930,49 @@ mod tests {
                 "content": "Cargo.toml, src/"
             })]
         );
+    }
+
+    #[test]
+    fn openai_tool_result_images_follow_every_tool_message_as_user_images() {
+        let shot = MessageContentBlock::ToolResult {
+            tool_use_id: "t1".into(),
+            content: "image frame.png (image/png, 8 bytes)".into(),
+            images: vec![ImageSource::base64("image/png", "iVBORw0KGgo=")],
+            is_error: false,
+            cache: None,
+        };
+        let result = ChatMessage::user_with_blocks(vec![shot, tool_result("t2", "done")]);
+        let out = openai_messages(&[result]);
+        assert_eq!(
+            out,
+            vec![
+                serde_json::json!({
+                    "role": "tool",
+                    "tool_call_id": "t1",
+                    "content": "image frame.png (image/png, 8 bytes)"
+                }),
+                serde_json::json!({"role": "tool", "tool_call_id": "t2", "content": "done"}),
+                serde_json::json!({"role": "user", "content": [
+                    {"type": "text", "text": "Image(s) returned by tool call t1:"},
+                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgo="}}
+                ]}),
+            ]
+        );
+    }
+
+    #[test]
+    fn openai_text_beside_tool_results_is_not_dropped() {
+        let msg = ChatMessage::user_with_blocks(vec![
+            tool_result("t1", "ok"),
+            MessageContentBlock::Text {
+                text: "note".into(),
+                cache: None,
+            },
+        ]);
+        let out = openai_messages(&[msg]);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[1]["role"], "user");
+        assert_eq!(out[1]["content"][0]["text"], "note");
     }
 
     #[test]

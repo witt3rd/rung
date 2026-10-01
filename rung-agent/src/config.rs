@@ -87,6 +87,9 @@ struct LlmFile {
     reasoning_level: Option<String>,
     #[serde(default)]
     cache: Option<String>,
+    /// The model takes images, so tool results may carry them. Default off.
+    #[serde(default)]
+    images: Option<bool>,
 }
 
 /// Directory for the product config: `$XDG_CONFIG_HOME/rung`.
@@ -171,6 +174,37 @@ fn resolve_turn_check(
             .unwrap_or_else(|| "OPENROUTER_API_KEY".into()),
         timeout_secs: file.and_then(|f| f.timeout_secs).unwrap_or(10),
     })
+}
+
+/// Whether the model takes images in tool results: `RUNG_IMAGES` (`on` |
+/// `off`) wins over `llm.images` in the file. Default off, so a text-only
+/// model is never sent an image; each one is an explicit note instead.
+pub fn load_tool_images() -> Result<bool, String> {
+    load_tool_images_from_path(&config_path())
+}
+
+pub fn load_tool_images_from_path(path: &Path) -> Result<bool, String> {
+    let file = read_file(path)?;
+    resolve_tool_images(file.as_ref().and_then(|f| f.llm.as_ref()), |k| {
+        std::env::var(k).ok()
+    })
+}
+
+fn resolve_tool_images(
+    file: Option<&LlmFile>,
+    getenv: impl Fn(&str) -> Option<String>,
+) -> Result<bool, String> {
+    match getenv("RUNG_IMAGES")
+        .map(|s| s.trim().to_ascii_lowercase())
+        .filter(|s| !s.is_empty())
+    {
+        None => Ok(file.and_then(|f| f.images).unwrap_or(false)),
+        Some(s) => match s.as_str() {
+            "on" | "true" | "1" | "yes" => Ok(true),
+            "off" | "false" | "0" | "no" => Ok(false),
+            other => Err(format!("RUNG_IMAGES: unknown '{other}' (on | off)")),
+        },
+    }
 }
 
 pub fn load_from_path(path: &Path) -> Result<LlmConfig, String> {
@@ -470,6 +504,20 @@ llm:
         assert_eq!(t.backend, TurnCheckBackend::Off);
         let bad = HashMap::from([("RUNG_TURN_CHECK", "maybe")]);
         assert!(resolve_turn_check(tc, getenv(&bad)).is_err());
+    }
+
+    #[test]
+    fn tool_images_are_off_by_default_and_env_wins_over_the_file() {
+        let none: HashMap<&str, &str> = HashMap::new();
+        assert!(!resolve_tool_images(None, getenv(&none)).unwrap());
+        let file = parse_llm("llm:\n  images: true\n");
+        assert!(resolve_tool_images(Some(&file), getenv(&none)).unwrap());
+        let off = HashMap::from([("RUNG_IMAGES", "off")]);
+        assert!(!resolve_tool_images(Some(&file), getenv(&off)).unwrap());
+        let on = HashMap::from([("RUNG_IMAGES", "on")]);
+        assert!(resolve_tool_images(None, getenv(&on)).unwrap());
+        let bad = HashMap::from([("RUNG_IMAGES", "maybe")]);
+        assert!(resolve_tool_images(None, getenv(&bad)).is_err());
     }
 
     #[test]

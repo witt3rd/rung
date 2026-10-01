@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex};
 use rung_std::llm::{
     ContentBlockDelta, ContentBlockStart, StreamEvent, StreamListener, ToolDefinition, Usage,
 };
-use rung_std::tools::Toolset;
+use rung_std::tools::{ToolOutput, Toolset};
 
 use serde_json::{Value, json};
 
@@ -188,18 +188,30 @@ impl Toolset for ObservingToolset {
     }
 
     fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
-        match self.inner.execute(name, input) {
-            Ok(s) => {
-                if let Some((id, _)) = self.emitter.next_tool() {
-                    self.emitter.emit_tool_result(&id, &s, false);
-                }
-                Ok(s)
-            }
-            Err(e) => {
-                if let Some((id, _)) = self.emitter.next_tool() {
-                    self.emitter.emit_tool_result(&id, &e, true);
-                }
-                Err(e)
+        let result = self.inner.execute(name, input);
+        self.observe(result.as_deref().map_err(String::as_str));
+        result
+    }
+
+    fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
+        let result = self.inner.execute_output(name, input);
+        self.observe(
+            result
+                .as_ref()
+                .map(|o| o.text.as_str())
+                .map_err(String::as_str),
+        );
+        result
+    }
+}
+
+impl ObservingToolset {
+    /// One `tool_result` line. Text only: image data is not streamed.
+    fn observe(&self, result: Result<&str, &str>) {
+        if let Some((id, _)) = self.emitter.next_tool() {
+            match result {
+                Ok(s) => self.emitter.emit_tool_result(&id, s, false),
+                Err(e) => self.emitter.emit_tool_result(&id, e, true),
             }
         }
     }
@@ -243,10 +255,20 @@ impl<N: ToolNotify> Toolset for NotifyingToolset<N> {
         let id = format!("tool-{}", self.seq.fetch_add(1, Ordering::Relaxed));
         self.notify.started(&id, name, input);
         let result = self.inner.execute(name, input);
-        match &result {
-            Ok(s) => self.notify.finished(&id, name, Ok(s)),
-            Err(e) => self.notify.finished(&id, name, Err(e)),
-        }
+        self.notify
+            .finished(&id, name, result.as_deref().map_err(String::as_str));
+        result
+    }
+
+    fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
+        let id = format!("tool-{}", self.seq.fetch_add(1, Ordering::Relaxed));
+        self.notify.started(&id, name, input);
+        let result = self.inner.execute_output(name, input);
+        let text = result
+            .as_ref()
+            .map(|o| o.text.as_str())
+            .map_err(String::as_str);
+        self.notify.finished(&id, name, text);
         result
     }
 }
@@ -286,6 +308,53 @@ mod tests {
                 .unwrap()
                 .push(format!("end {id} {name} {}", result.is_ok()));
         }
+    }
+
+    #[derive(Debug)]
+    struct Frame;
+
+    impl Tool for Frame {
+        fn name(&self) -> &'static str {
+            "frame"
+        }
+        fn description(&self) -> &'static str {
+            "frame"
+        }
+        fn input_schema(&self) -> Value {
+            json!({"type": "object"})
+        }
+        fn execute(&self, _input: &Value) -> Result<String, String> {
+            Ok("text only".into())
+        }
+        fn execute_output(&self, _input: &Value) -> Result<ToolOutput, String> {
+            Ok(
+                ToolOutput::text("frame").with_image(rung_std::llm::ImageSource::base64(
+                    "image/png",
+                    "iVBORw0KGgo=",
+                )),
+            )
+        }
+    }
+
+    #[test]
+    fn wrappers_forward_tool_images() {
+        let mut c = ToolCollection::new("t");
+        c.admit(Frame);
+        let mut r = ToolRoster::new();
+        r.add(c);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let notifying = NotifyingToolset::new(Arc::new(r), Rec(log.clone()));
+        let observing = ObservingToolset {
+            inner: Arc::new(notifying),
+            emitter: Emitter::new(),
+        };
+        let out = observing.execute_output("frame", &json!({})).unwrap();
+        assert_eq!(out.text, "frame");
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(
+            *log.lock().unwrap(),
+            vec!["start tool-0 frame", "end tool-0 frame true"]
+        );
     }
 
     #[test]

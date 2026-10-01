@@ -55,9 +55,16 @@ abort (before LLM / around tools), prompt image/audio, MCP HTTP+stdio
 (`--mcp-http name=url`). MCP-over-ACP tunnel, ACP WebSocket upgrade, and
 Harbor `describe-image` (file vision tool) are still not claimed.
 
+Tool images: `Tool`/`Toolset::execute_output` returns `ToolOutput` (text +
+images); `read_file` returns PNG/JPEG/GIF/WebP as an image, MCP `image`
+items come through. They reach the model only with `llm.images: true` or
+`RUNG_IMAGES=on` (default off: each image is a `[image omitted: …]` note).
+A `Toolset` wrapper must forward `execute_output`, or it hands on text only.
+
 Session history: an assistant `Line` keeps the turn's full `messages`
 (tool-use, tool-result, final text) from `AgentResult.transcript`, and
-`thread_from` replays them. Tool results over 4000 chars are shortened. The
+`thread_from` replays them. Tool results over 4000 chars are shortened, and
+a tool result's images become a note (a session file holds no image data). The
 calls are never dropped: text-only history teaches the model to narrate
 actions instead of taking them (#128). Old sessions without `messages` still
 replay as text.
