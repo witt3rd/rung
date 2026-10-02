@@ -79,6 +79,16 @@ std-only OpenAI-compatible server. It serves SSE when the body has
 bodies. Point `RUNG_BASE_URL` at it and isolate `HOME`, `RUNG_CONFIG` and
 `RUNG_HOME`.
 
+ACP handlers run inside the connection's dispatch loop, which reads no
+other message until the handler returns. A handler that awaits a turn makes
+`session/cancel` a no-op. In `acp.rs` the turn, and any handler that writes
+a session file a turn also writes (close, delete, set_mode, fork), go
+through `queued`: spawned off the loop, one process-wide FIFO, because a
+turn sets the process cwd. Handlers that run beside a turn resolve paths
+against `Live::launch`, not the process cwd. Mid-turn tests:
+`rung-agent/tests/acp_concurrency.rs` (its mock answers each request on its
+own thread, with a delay).
+
 ## Turn check (rung-agent)
 
 `turn_check.rs` is a ladder after the agent loop: a judge (Jev, via
