@@ -412,6 +412,23 @@ fn terminal_cap_forced_answer_is_max_turn_requests() {
     assert_eq!(t.said, ["forced summary"]);
 }
 
+/// A plain answer on the only allowed call is a natural end.
+#[test]
+fn terminal_single_call_plain_answer_is_end_turn() {
+    let t = one_turn(
+        vec![text_reply("plain answer")],
+        &["--tools", "none", "--max-iterations", "1"],
+        None,
+    );
+    assert_eq!(
+        t.response["result"],
+        json!({"stopReason": "end_turn"}),
+        "{}",
+        t.response
+    );
+    assert_eq!(t.said, ["plain answer"]);
+}
+
 /// The cap ran out with no answer at all.
 #[test]
 fn terminal_cap_exhausted_is_max_turn_requests() {

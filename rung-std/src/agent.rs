@@ -516,9 +516,10 @@ pub struct AgentResult {
     /// The model's reply was cut off by the token limit (`finish_reason:
     /// length`); `final_response` is incomplete.
     pub truncated: bool,
-    /// The answer came from the last call the loop allowed ([`is_last_call`]):
-    /// the tools were withdrawn and the model was told to answer. The turn
-    /// ran into its cap; it did not finish on its own.
+    /// The cap cut the model off: the answer came from the last call the loop
+    /// allowed ([`is_last_call`], tools withdrawn, model told to answer) and
+    /// the model had already made earlier calls this turn. A plain answer on
+    /// the first and only allowed call is a natural end, not forced.
     pub forced: bool,
 }
 
@@ -795,7 +796,7 @@ ladder!(AgentLoop {
                             api_calls_made: next.api_call_count,
                             usage: next.usage.clone(),
                             truncated,
-                            forced: last_call,
+                            forced: last_call && state.api_call_count > 0,
                         })));
                     }
                     eprintln!(
@@ -838,7 +839,7 @@ ladder!(AgentLoop {
                     api_calls_made: next.api_call_count,
                     usage: next.usage.clone(),
                     truncated,
-                    forced: last_call,
+                    forced: last_call && state.api_call_count > 0,
                 })))
             }
 
@@ -990,7 +991,7 @@ ladder!(AgentLoop {
                         api_calls_made: next.api_call_count,
                         usage: next.usage.clone(),
                         truncated: false,
-                        forced: last_call,
+                        forced: last_call && state.api_call_count > 0,
                     })));
                 }
 
