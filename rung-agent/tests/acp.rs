@@ -570,9 +570,9 @@ fn session_ops_follow_session_cwd_not_process_cwd() {
     );
     ask(
         "session/set_mode",
-        json!({"sessionId": sid, "modeId": "plan"}),
+        json!({"sessionId": sid, "modeId": "review"}),
     );
-    assert_eq!(read(&sid)["kind"], "plan");
+    assert_eq!(read(&sid)["kind"], "review");
     ask("session/close", json!({"sessionId": sid}));
     assert_eq!(read(&sid)["status"], "closed");
     drop(stdin);

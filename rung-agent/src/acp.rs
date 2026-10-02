@@ -55,6 +55,8 @@ struct Inner {
     mcp: HashMap<String, Vec<McpSpec>>,
     /// session_id → per-session system text from `session/new` `_meta`.
     system: HashMap<String, String>,
+    /// session_id → absolute cwd whose store holds the session file.
+    cwds: HashMap<String, PathBuf>,
 }
 
 impl Live {
@@ -96,6 +98,28 @@ impl Live {
         g.cancelled.remove(id);
         g.mcp.remove(id);
         g.system.remove(id);
+        g.cwds.remove(id);
+    }
+
+    fn set_cwd(&self, id: &str, cwd: &Path) {
+        self.inner
+            .lock()
+            .expect("acp state")
+            .cwds
+            .insert(id.to_string(), cwd.to_path_buf());
+    }
+
+    /// The session's store: its remembered cwd, else the process cwd.
+    fn store(&self, id: &str) -> SessionStore {
+        let cwd = self
+            .inner
+            .lock()
+            .expect("acp state")
+            .cwds
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        store_at(&cwd)
     }
 
     fn set_system(&self, id: &str, text: Option<String>) {
@@ -568,6 +592,7 @@ pub(crate) async fn connect_agent(
                     let id = crate::session::new_id();
                     let sess = Session::new(&id, kind, &cwd);
                     store_at(&cwd).save(&sess).map_err(invalid)?;
+                    live.set_cwd(&id, &cwd);
                     live.set_kind(&id, kind);
                     live.set_mcp(&id, mcp_from_acp(&request.mcp_servers));
                     live.set_system(&id, session_system(request.meta.as_ref()));
@@ -588,6 +613,7 @@ pub(crate) async fn connect_agent(
                     let id = sid_str(&request.session_id);
                     let sess = store_at(&cwd).load(&id).map_err(invalid)?;
                     let kind = sess.kind().unwrap_or(Kind::Implement);
+                    live.set_cwd(&id, &cwd);
                     live.set_kind(&id, kind);
                     if let Some(last) = sess.lines.iter().rev().find(|l| l.role == "assistant") {
                         send_text(&connection, request.session_id.clone(), last.text.clone())?;
@@ -624,8 +650,7 @@ pub(crate) async fn connect_agent(
                             responder: Responder<DeleteSessionResponse>,
                             _connection: ConnectionTo<Client>| {
                     let id = sid_str(&request.session_id);
-                    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                    store_at(&cwd).delete(&id).map_err(invalid)?;
+                    live.store(&id).delete(&id).map_err(invalid)?;
                     live.drop_session(&id);
                     responder.respond(DeleteSessionResponse::new())
                 }
@@ -640,10 +665,10 @@ pub(crate) async fn connect_agent(
                             _connection: ConnectionTo<Client>| {
                     let id = sid_str(&request.session_id);
                     live.cancel(&id);
-                    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                    if let Ok(mut sess) = store_at(&cwd).load(&id) {
+                    let store = live.store(&id);
+                    if let Ok(mut sess) = store.load(&id) {
                         sess.status = "closed".into();
-                        let _ = store_at(&cwd).save(&sess);
+                        let _ = store.save(&sess);
                     }
                     responder.respond(CloseSessionResponse::new())
                 }
@@ -659,10 +684,10 @@ pub(crate) async fn connect_agent(
                     let id = sid_str(&request.session_id);
                     let kind = Kind::parse(request.mode_id.0.as_ref()).map_err(invalid)?;
                     live.set_kind(&id, kind);
-                    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                    if let Ok(mut sess) = store_at(&cwd).load(&id) {
+                    let store = live.store(&id);
+                    if let Ok(mut sess) = store.load(&id) {
                         sess.kind = kind.as_str().into();
-                        let _ = store_at(&cwd).save(&sess);
+                        let _ = store.save(&sess);
                     }
                     responder.respond(SetSessionModeResponse::new())
                 }
@@ -686,6 +711,7 @@ pub(crate) async fn connect_agent(
                     child.status = "new".into();
                     child.pid = Some(std::process::id());
                     store_at(&cwd).save(&child).map_err(invalid)?;
+                    live.set_cwd(&id, &cwd);
                     live.set_kind(&id, kind);
                     live.set_mcp(&id, live.mcp(&src));
                     responder
@@ -704,6 +730,7 @@ pub(crate) async fn connect_agent(
                     let id = sid_str(&request.session_id);
                     let sess = store_at(&cwd).load(&id).map_err(invalid)?;
                     let kind = sess.kind().unwrap_or(Kind::Implement);
+                    live.set_cwd(&id, &cwd);
                     live.set_kind(&id, kind);
                     responder.respond(ResumeSessionResponse::new().modes(modes(kind)))
                 }
@@ -724,7 +751,7 @@ pub(crate) async fn connect_agent(
                     let (mut text, blocks) = prompt_parts(&request.prompt);
                     let session_id = request.session_id.clone();
                     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                    if let Ok(sess) = store_at(&cwd).load(&id)
+                    if let Ok(sess) = live.store(&id).load(&id)
                         && let Ok(p) = PathBuf::from(&sess.cwd).canonicalize()
                     {
                         let _ = std::env::set_current_dir(p);
