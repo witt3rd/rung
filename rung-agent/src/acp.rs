@@ -1195,4 +1195,76 @@ mod tests {
         assert_eq!(job.prompt.as_deref(), Some("hello"));
         assert!(!job.acp);
     }
+
+    fn failed(kind: Option<FailureKind>) -> JobError {
+        JobError {
+            reason: "why".into(),
+            kind,
+        }
+    }
+
+    fn wire<T: serde::Serialize>(v: T) -> Value {
+        serde_json::to_value(v).unwrap()
+    }
+
+    /// An interrupt, or any failure after `session/cancel`, is `cancelled`
+    /// with nothing else: ACP says a cancel MUST end as `cancelled`.
+    #[test]
+    fn a_cancelled_failure_is_plain_cancelled() {
+        let plain = serde_json::json!({"stopReason": "cancelled"});
+        let r = prompt_failure(failed(Some(FailureKind::Interrupted)), false).unwrap();
+        assert_eq!(wire(r), plain);
+        let r = prompt_failure(failed(Some(FailureKind::Provider)), true).unwrap();
+        assert_eq!(wire(r), plain);
+        let r = prompt_failure(failed(None), true).unwrap();
+        assert_eq!(wire(r), plain);
+    }
+
+    /// A failure before the loop ran is not a turn's end: prose data, as before.
+    #[test]
+    fn a_setup_failure_keeps_its_prose_data() {
+        let e = prompt_failure(failed(None), false).unwrap_err();
+        assert_eq!(
+            wire(e),
+            serde_json::json!({"code": -32603, "message": "Internal error", "data": "why"})
+        );
+    }
+
+    /// Every loop failure kind has a wire state; only cap and refusal are results.
+    #[test]
+    fn every_failure_kind_has_a_terminal_state() {
+        use FailureKind::*;
+        let cases = [
+            (MaxIterations, "cap_exhausted", None),
+            (BudgetExhausted, "cap_exhausted", None),
+            (Refusal, "refused", None),
+            (Overflow, "overflow", None),
+            (DoomLoop, "doom_loop", None),
+            (ContentPolicy, "failed", Some("content_policy")),
+            (Auth, "failed", Some("auth")),
+            (Forbidden, "failed", Some("forbidden")),
+            (Quota, "failed", Some("quota")),
+            (Config, "failed", Some("config")),
+            (Provider, "failed", Some("provider")),
+        ];
+        for (kind, state, sub) in cases {
+            let mut terminal = serde_json::json!({"state": state, "reason": "why"});
+            if let Some(k) = sub {
+                terminal["kind"] = k.into();
+            }
+            let meta = serde_json::json!({"rung": {"terminal": terminal}});
+            let got = match prompt_failure(failed(Some(kind)), false) {
+                Ok(r) => wire(r),
+                Err(e) => wire(e),
+            };
+            let want = match kind {
+                MaxIterations | BudgetExhausted => {
+                    serde_json::json!({"stopReason": "max_turn_requests", "_meta": meta})
+                }
+                Refusal => serde_json::json!({"stopReason": "refusal", "_meta": meta}),
+                _ => serde_json::json!({"code": -32603, "message": "Internal error", "data": meta}),
+            };
+            assert_eq!(got, want, "{kind:?}");
+        }
+    }
 }
