@@ -496,3 +496,118 @@ fn tempfile() -> std::path::PathBuf {
     std::fs::create_dir_all(&p).unwrap();
     p
 }
+
+/// The session's cwd, not the launch cwd, owns its store: prompt, set_mode,
+/// close, delete all resolve through the cwd given at new/load/resume/fork
+/// even when the process runs elsewhere (E7).
+#[test]
+fn session_ops_follow_session_cwd_not_process_cwd() {
+    let tmp = tempfile();
+    let launch = tmp.join("launch");
+    let work = tmp.join("work");
+    std::fs::create_dir_all(&launch).unwrap();
+    std::fs::create_dir_all(&work).unwrap();
+    let (url, _bodies) = mock_llm(vec![
+        text_reply("one"),
+        text_reply("two"),
+        text_reply("three"),
+    ]);
+    let spawn = || {
+        bin()
+            .arg("--acp")
+            .current_dir(&launch)
+            .env("HOME", &tmp)
+            .env("XDG_CONFIG_HOME", &tmp)
+            .env("RUNG_CONFIG", tmp.join("none.yaml"))
+            .env("RUNG_HOME", &tmp)
+            .env("RUNG_BASE_URL", &url)
+            .env("RUNG_MODEL", "m")
+            .env("RUNG_API_KEY", "k")
+            .env("RUNG_PROTOCOL", "openai")
+            .env_remove("RUNG_KEY_FILE")
+            .env_remove("RUNG_SYSTEM_PROMPT_FILE")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap()
+    };
+    let wd = work.to_string_lossy().into_owned();
+    let sess_file = |id: &str| work.join(".rung/sessions").join(format!("{id}.json"));
+    let read = |id: &str| -> serde_json::Value {
+        serde_json::from_str(&std::fs::read_to_string(sess_file(id)).unwrap()).unwrap()
+    };
+
+    // Process 1: new in `work`, two prompts, set_mode, close.
+    let mut child = spawn();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut n = 0u32;
+    let mut ask = |method: &str, params: serde_json::Value| -> serde_json::Value {
+        n += 1;
+        let id = n;
+        let msg = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
+        writeln!(stdin, "{msg}").unwrap();
+        stdin.flush().unwrap();
+        loop {
+            let v = read_json(&mut stdout);
+            if v["id"] == id && v.get("method").is_none() {
+                return v;
+            }
+        }
+    };
+    ask("initialize", json!({"protocolVersion": 1}));
+    let created = ask("session/new", json!({"cwd": wd, "mcpServers": []}));
+    let sid = created["result"]["sessionId"].as_str().unwrap().to_string();
+    let prompt = |t: &str| json!({"sessionId": sid, "prompt": [{"type": "text", "text": t}]});
+    ask("session/prompt", prompt("first"));
+    ask("session/prompt", prompt("second"));
+    let after = read(&sid);
+    assert_eq!(after["lines"].as_array().unwrap().len(), 4, "{after}");
+    assert!(
+        !launch.join(".rung/sessions").exists(),
+        "session forked into the launch cwd"
+    );
+    ask(
+        "session/set_mode",
+        json!({"sessionId": sid, "modeId": "review"}),
+    );
+    assert_eq!(read(&sid)["kind"], "review");
+    ask("session/close", json!({"sessionId": sid}));
+    assert_eq!(read(&sid)["status"], "closed");
+    drop(stdin);
+    let _ = child.wait();
+
+    // Process 2: resume in `work` (fresh process, launch cwd elsewhere), prompt.
+    let mut child = spawn();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut n = 0u32;
+    let mut ask = |method: &str, params: serde_json::Value| -> serde_json::Value {
+        n += 1;
+        let id = n;
+        let msg = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
+        writeln!(stdin, "{msg}").unwrap();
+        stdin.flush().unwrap();
+        loop {
+            let v = read_json(&mut stdout);
+            if v["id"] == id && v.get("method").is_none() {
+                return v;
+            }
+        }
+    };
+    ask("initialize", json!({"protocolVersion": 1}));
+    let r = ask(
+        "session/resume",
+        json!({"sessionId": sid, "cwd": wd, "mcpServers": []}),
+    );
+    assert!(r.get("error").is_none(), "{r}");
+    ask("session/prompt", prompt("third"));
+    assert_eq!(read(&sid)["lines"].as_array().unwrap().len(), 6);
+    assert!(!launch.join(".rung/sessions").exists());
+    ask("session/delete", json!({"sessionId": sid}));
+    assert!(!sess_file(&sid).exists(), "delete missed the session cwd");
+    drop(stdin);
+    let _ = child.wait();
+    let _ = std::fs::remove_dir_all(&tmp);
+}
