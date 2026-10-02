@@ -1,6 +1,8 @@
 //! Persist role+text lines. An assistant line also keeps the turn's full
 //! message sequence (tool-use, tool-result, final text) so the next turn
-//! replays what the model actually did, not only what it said.
+//! replays what the model actually did, not only what it said. A turn that
+//! stopped without an answer keeps the steps that ran and records why it
+//! stopped in `failure`, which is never replayed to the model.
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -18,6 +20,12 @@ pub struct Line {
     /// assistant text. Absent on user lines and on older sessions.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub messages: Option<Vec<ChatMessage>>,
+    /// Why the turn stopped without an answer (error, refusal, interrupt).
+    /// It is not something the model said; `text` is empty and `messages`
+    /// holds only the steps that ran. Absent on answered turns and on older
+    /// sessions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<String>,
 }
 
 impl Line {
@@ -26,6 +34,7 @@ impl Line {
             role: "user".into(),
             text: text.into(),
             messages: None,
+            failure: None,
         }
     }
 
@@ -34,6 +43,17 @@ impl Line {
             role: "assistant".into(),
             text: text.into(),
             messages: None,
+            failure: None,
+        }
+    }
+
+    /// A turn that stopped for `why` after the steps in `messages` ran.
+    pub fn failed(why: impl Into<String>, messages: Vec<ChatMessage>) -> Self {
+        Self {
+            role: "assistant".into(),
+            text: String::new(),
+            messages: Some(messages),
+            failure: Some(why.into()),
         }
     }
 }
@@ -42,6 +62,7 @@ impl PartialEq for Line {
     fn eq(&self, other: &Self) -> bool {
         self.role == other.role
             && self.text == other.text
+            && self.failure == other.failure
             && serde_json::to_value(&self.messages).ok()
                 == serde_json::to_value(&other.messages).ok()
     }
@@ -207,6 +228,30 @@ mod tests {
         let got = store.load("abc-1").unwrap();
         assert_eq!(got, s);
         assert_eq!(got.kind().unwrap(), Kind::Explore);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_session_written_before_failure_loads() {
+        let old = r#"{"id":"old-1","kind":"implement","status":"error","cwd":"/w",
+            "lines":[{"role":"user","text":"do it"},{"role":"assistant","text":"boom"}]}"#;
+        let s: Session = serde_json::from_str(old).unwrap();
+        assert_eq!(s.lines[1], Line::assistant("boom"));
+        assert_eq!(s.lines[1].failure, None);
+    }
+
+    #[test]
+    fn a_failed_turn_round_trips() {
+        let dir = tmp();
+        let store = SessionStore::at(&dir);
+        let mut s = Session::new("abc-2", Kind::Implement, Path::new("/work"));
+        s.lines.push(Line::user("do it"));
+        s.lines.push(Line::failed("auth: bad key", Vec::new()));
+        store.save(&s).unwrap();
+        let got = store.load("abc-2").unwrap();
+        assert_eq!(got, s);
+        assert_eq!(got.lines[1].failure.as_deref(), Some("auth: bad key"));
+        assert_eq!(got.lines[1].text, "");
         let _ = fs::remove_dir_all(&dir);
     }
 

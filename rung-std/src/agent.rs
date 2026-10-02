@@ -275,36 +275,24 @@ fn ensure_system(thread: &Thread) -> Vec<ChatMessage> {
     messages
 }
 
-fn map_llm_failure(failure: LlmFailure) -> Filtered {
-    match failure {
-        LlmFailure::Auth(msg) => Filtered {
-            kind: FailureKind::Auth,
-            reason: format!("auth: {msg}"),
-        },
-        LlmFailure::Forbidden(msg) => Filtered {
-            kind: FailureKind::Forbidden,
-            reason: format!("forbidden: {msg}"),
-        },
-        LlmFailure::IdleTimeout { elapsed_secs } => Filtered {
-            kind: FailureKind::Provider,
-            reason: format!("idle-timeout after {elapsed_secs}s"),
-        },
-        LlmFailure::Config(msg) => Filtered {
-            kind: FailureKind::Config,
-            reason: format!("config: {msg}"),
-        },
-        LlmFailure::MaxRetries { last_error } => Filtered {
-            kind: FailureKind::Provider,
-            reason: format!("max retries exhausted: {last_error}"),
-        },
-        LlmFailure::ContentPolicy(msg) => Filtered {
-            kind: FailureKind::ContentPolicy,
-            reason: format!("content-policy: {msg}"),
-        },
-        LlmFailure::QuotaExceeded(msg) => Filtered {
-            kind: FailureKind::Quota,
-            reason: format!("quota: {msg}"),
-        },
+/// The failure for a non-retryable LLM error; `transcript` is what ran before it.
+fn map_llm_failure(failure: LlmFailure, transcript: Vec<ChatMessage>) -> Filtered {
+    let (kind, reason) = match failure {
+        LlmFailure::Auth(msg) => (FailureKind::Auth, format!("auth: {msg}")),
+        LlmFailure::Forbidden(msg) => (FailureKind::Forbidden, format!("forbidden: {msg}")),
+        LlmFailure::IdleTimeout { elapsed_secs } => (
+            FailureKind::Provider,
+            format!("idle-timeout after {elapsed_secs}s"),
+        ),
+        LlmFailure::Config(msg) => (FailureKind::Config, format!("config: {msg}")),
+        LlmFailure::MaxRetries { last_error } => (
+            FailureKind::Provider,
+            format!("max retries exhausted: {last_error}"),
+        ),
+        LlmFailure::ContentPolicy(msg) => {
+            (FailureKind::ContentPolicy, format!("content-policy: {msg}"))
+        }
+        LlmFailure::QuotaExceeded(msg) => (FailureKind::Quota, format!("quota: {msg}")),
         LlmFailure::InvalidRequest {
             message,
             classification,
@@ -312,18 +300,22 @@ fn map_llm_failure(failure: LlmFailure) -> Filtered {
             let overflow = classification
                 .as_deref()
                 .is_some_and(|c| c == "context-overflow");
-            Filtered {
-                kind: if overflow {
-                    FailureKind::Overflow
-                } else {
-                    FailureKind::Provider
-                },
-                reason: match classification {
-                    Some(c) => format!("invalid-request ({c}): {message}"),
-                    None => format!("invalid-request: {message}"),
-                },
-            }
+            let kind = if overflow {
+                FailureKind::Overflow
+            } else {
+                FailureKind::Provider
+            };
+            let reason = match classification {
+                Some(c) => format!("invalid-request ({c}): {message}"),
+                None => format!("invalid-request: {message}"),
+            };
+            (kind, reason)
         }
+    };
+    Filtered {
+        reason,
+        kind,
+        transcript,
     }
 }
 
@@ -537,6 +529,8 @@ fn closed(thread: &Thread, text: &str) -> Vec<ChatMessage> {
 pub struct LimitHit {
     pub api_calls_made: u32,
     pub usage: Usage,
+    /// The conversation so far (see [`Filtered::transcript`]).
+    pub transcript: Vec<ChatMessage>,
 }
 
 /// Budget exhausted (and no grace call available).
@@ -544,12 +538,17 @@ pub struct LimitHit {
 pub struct BudgetHit {
     pub api_calls_made: u32,
     pub usage: Usage,
+    /// The conversation so far (see [`Filtered::transcript`]).
+    pub transcript: Vec<ChatMessage>,
 }
 
 /// [`LoopState::cancel`] was set (ACP `session/cancel`, `session/close`).
 #[derive(Debug)]
 pub struct Interrupt {
     pub at_api_call: u32,
+    /// Every tool call that ran before the stop, with its result (see
+    /// [`Filtered::transcript`]).
+    pub transcript: Vec<ChatMessage>,
 }
 
 /// Why the loop stopped without an answer.
@@ -570,8 +569,31 @@ pub enum FailureKind {
 /// The model refused or an unrecoverable error occurred.
 #[derive(Debug)]
 pub struct Filtered {
+    /// Why the turn stopped. It is not something the model said: a caller
+    /// keeping history stores it beside the transcript, not in it.
     pub reason: String,
     pub kind: FailureKind,
+    /// The conversation up to the stop: the thread's messages plus every tool
+    /// call that ran, each with its result. A call that did not run is not
+    /// in it. As with [`AgentResult::transcript`], a caller persisting
+    /// history slices off what it passed in.
+    pub transcript: Vec<ChatMessage>,
+}
+
+/// The thread plus the part of an unfinished tool batch that ran: the
+/// assistant blocks and the results so far. `assistant` holds no call
+/// without a result in `results`.
+fn ran_so_far(
+    thread: &Thread,
+    assistant: Vec<crate::llm::MessageContentBlock>,
+    results: Vec<crate::llm::MessageContentBlock>,
+) -> Vec<ChatMessage> {
+    let mut m = thread.messages.clone();
+    if !results.is_empty() {
+        m.push(ChatMessage::assistant_with_blocks(assistant));
+        m.push(ChatMessage::user_with_blocks(results));
+    }
+    m
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -646,6 +668,7 @@ ladder!(AgentLoop {
         if state.is_cancelled() {
             return Ok(StepOutcome::Interrupted(Interrupted::new(Interrupt {
                 at_api_call: state.api_call_count,
+                transcript: thread.messages,
             })));
         }
 
@@ -654,6 +677,7 @@ ladder!(AgentLoop {
                 LimitHit {
                     api_calls_made: state.api_call_count,
                     usage: state.usage.clone(),
+                    transcript: thread.messages,
                 },
             )));
         }
@@ -664,6 +688,7 @@ ladder!(AgentLoop {
                 BudgetHit {
                     api_calls_made: state.api_call_count,
                     usage: state.usage.clone(),
+                    transcript: thread.messages,
                 },
             )));
         }
@@ -715,7 +740,7 @@ ladder!(AgentLoop {
                         (failure, _) => failure,
                     };
                     return Ok(StepOutcome::ContentFiltered(ContentFiltered::new(
-                        map_llm_failure(failure),
+                        map_llm_failure(failure, thread.messages.clone()),
                     )));
                 }
                 Err(f) => {
@@ -731,6 +756,7 @@ ladder!(AgentLoop {
         if next.is_cancelled() {
             return Ok(StepOutcome::Interrupted(Interrupted::new(Interrupt {
                 at_api_call: next.api_call_count,
+                transcript: thread.messages,
             })));
         }
 
@@ -841,9 +867,16 @@ ladder!(AgentLoop {
                                 },
                             );
                             if next.is_cancelled() {
+                                // This call does not run: keep only its siblings that did.
+                                assistant_blocks.pop();
                                 return Ok(StepOutcome::Interrupted(Interrupted::new(
                                     Interrupt {
                                         at_api_call: next.api_call_count,
+                                        transcript: ran_so_far(
+                                            &thread,
+                                            assistant_blocks,
+                                            tool_result_blocks,
+                                        ),
                                     },
                                 )));
                             }
@@ -851,11 +884,18 @@ ladder!(AgentLoop {
                             next.watch = watch;
                             let (content, images, is_error) = match action {
                                 Watch::Stop => {
+                                    // This call does not run: keep only its siblings that did.
+                                    assistant_blocks.pop();
                                     return Ok(StepOutcome::ContentFiltered(
                                         ContentFiltered::new(Filtered {
                                             kind: FailureKind::DoomLoop,
                                             reason: format!(
                                                 "repeated {name} with the same input and no progress"
+                                            ),
+                                            transcript: ran_so_far(
+                                                &thread,
+                                                assistant_blocks,
+                                                tool_result_blocks,
                                             ),
                                         }),
                                     ));
@@ -885,13 +925,6 @@ ladder!(AgentLoop {
                                     }
                                 }
                             };
-                            if next.is_cancelled() {
-                                return Ok(StepOutcome::Interrupted(Interrupted::new(
-                                    Interrupt {
-                                        at_api_call: next.api_call_count,
-                                    },
-                                )));
-                            }
                             if is_error {
                                 eprintln!("[rung-std] {call_id}:   -> {content}");
                             } else if images.is_empty() {
@@ -914,6 +947,19 @@ ladder!(AgentLoop {
                             );
                             executed_tools.push(name.clone());
                             tool_count += 1;
+                            if next.is_cancelled() {
+                                // This call ran: its result stays with it.
+                                return Ok(StepOutcome::Interrupted(Interrupted::new(
+                                    Interrupt {
+                                        at_api_call: next.api_call_count,
+                                        transcript: ran_so_far(
+                                            &thread,
+                                            assistant_blocks,
+                                            tool_result_blocks,
+                                        ),
+                                    },
+                                )));
+                            }
                         }
                         ContentBlock::InvalidToolUse { id, name, diagnostic } => {
                             eprintln!(
@@ -1012,6 +1058,7 @@ ladder!(AgentLoop {
                             Some(why) => format!("model refused the request: {why}"),
                             None => "model refused the request (no reason given)".into(),
                         },
+                        transcript: thread.messages.clone(),
                     },
                 )))
             }
@@ -1039,6 +1086,7 @@ pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filte
                 return Err(Filtered {
                     kind: FailureKind::Provider,
                     reason: format!("max iterations ({})", h.api_calls_made),
+                    transcript: h.transcript,
                 });
             }
             Ok(agentloop::StepOutcome::BudgetExhausted(b)) => {
@@ -1046,6 +1094,7 @@ pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filte
                 return Err(Filtered {
                     kind: FailureKind::Provider,
                     reason: format!("budget exhausted ({})", h.api_calls_made),
+                    transcript: h.transcript,
                 });
             }
             Ok(agentloop::StepOutcome::Interrupted(i)) => {
@@ -1053,6 +1102,7 @@ pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filte
                 return Err(Filtered {
                     kind: FailureKind::Interrupted,
                     reason: format!("interrupted at call {}", h.at_api_call),
+                    transcript: h.transcript,
                 });
             }
             Ok(agentloop::StepOutcome::ContentFiltered(f)) => return Err(f.into_payload()),
@@ -1400,12 +1450,15 @@ mod tests {
 
     #[test]
     fn overflow_is_not_a_content_filter() {
-        let f = map_llm_failure(LlmFailure::InvalidRequest {
-            message: "too long".into(),
-            classification: Some("context-overflow".into()),
-        });
+        let f = map_llm_failure(
+            LlmFailure::InvalidRequest {
+                message: "too long".into(),
+                classification: Some("context-overflow".into()),
+            },
+            Vec::new(),
+        );
         assert_eq!(f.kind, FailureKind::Overflow);
-        let auth = map_llm_failure(LlmFailure::Auth("bad key".into()));
+        let auth = map_llm_failure(LlmFailure::Auth("bad key".into()), Vec::new());
         assert_eq!(auth.kind, FailureKind::Auth);
     }
 
@@ -1866,6 +1919,96 @@ mod tests {
         assert_eq!(f.into_payload().kind, FailureKind::DoomLoop);
         // Two ran, the third was answered with the warning, the fourth stopped.
         assert_eq!(runs, 2);
+    }
+
+    /// The tool-use and tool-result blocks of a transcript's messages.
+    fn tool_blocks(transcript: &[ChatMessage]) -> (usize, usize) {
+        let mut uses = 0;
+        let mut results = 0;
+        for m in transcript {
+            if let MessageContent::Blocks(blocks) = &m.content {
+                for b in blocks {
+                    match b {
+                        crate::llm::MessageContentBlock::ToolUse { .. } => uses += 1,
+                        crate::llm::MessageContentBlock::ToolResult { .. } => results += 1,
+                        _ => {}
+                    }
+                }
+            }
+        }
+        (uses, results)
+    }
+
+    #[test]
+    fn a_doom_stop_keeps_the_calls_that_ran_and_not_the_stopped_one() {
+        let (outcome, _) = five_polls(false, Duration::ZERO);
+        let agentloop::StepOutcome::ContentFiltered(f) = outcome else {
+            panic!("expected the doom loop to stop the turn");
+        };
+        let t = f.into_payload().transcript;
+        // The ask, then the two polls that ran and the warned one, each
+        // with its result. The stopped fourth and the unseen fifth are not.
+        assert_eq!(t.len(), 3);
+        assert_eq!(t[1].role, "assistant");
+        assert_eq!(t[2].role, "user");
+        assert_eq!(tool_blocks(&t), (3, 3));
+    }
+
+    /// A tool that asks the loop to stop, as `session/cancel` would mid-batch.
+    #[derive(Debug)]
+    struct CancelTool(Arc<AtomicBool>);
+
+    impl Tool for CancelTool {
+        fn name(&self) -> &'static str {
+            "cancel"
+        }
+        fn description(&self) -> &'static str {
+            "sets the cancel flag"
+        }
+        fn input_schema(&self) -> serde_json::Value {
+            serde_json::json!({"type": "object"})
+        }
+        fn execute(&self, _input: &serde_json::Value) -> Result<String, String> {
+            self.0.store(true, Ordering::SeqCst);
+            Ok("cancelled".into())
+        }
+    }
+
+    #[test]
+    fn an_interrupt_after_a_tool_ran_keeps_that_tool_and_its_result() {
+        let body = r#"{"id": "cmpl-cancel", "model": "gpt-4", "choices": [{"message": {"tool_calls": [
+            {"id": "call_1", "function": {"name": "cancel", "arguments": "{}"}},
+            {"id": "call_2", "function": {"name": "cancel", "arguments": "{}"}}
+        ]}, "finish_reason": "tool_calls"}]}"#;
+        let (url, handle) = serve_json(body);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+        let flag = Arc::new(AtomicBool::new(false));
+        let mut c = ToolCollection::new("test");
+        c.admit(CancelTool(flag.clone()));
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+        let carry = agentloop::Carry {
+            state: LoopState {
+                cancel: Some(flag),
+                ..LoopState::new(5, 5)
+            },
+            tools: Arc::new(roster),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("go")],
+        };
+        let Err(f) = run(thread, carry) else {
+            panic!("the cancel flag must stop the turn");
+        };
+        handle.join().unwrap();
+        assert_eq!(f.kind, FailureKind::Interrupted);
+        assert_eq!(f.transcript.len(), 3);
+        assert_eq!(tool_blocks(&f.transcript), (1, 1));
+        assert!(!format!("{:?}", f.transcript).contains("call_2"));
     }
 
     #[test]

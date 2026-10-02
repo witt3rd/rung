@@ -355,6 +355,145 @@ fn second_turn_replays_first_turn_tool_calls() {
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
+/// Two ACP prompts on one session under `--tools none` where turn 1 ends in
+/// an error. Returns turn 1's JSON-RPC response, turn 2's request body and
+/// the session file after turn 2.
+fn failed_then_asked_again(
+    turn1: Vec<serde_json::Value>,
+) -> (serde_json::Value, serde_json::Value, serde_json::Value) {
+    let tmp = tempfile();
+    let cwd = tmp.to_string_lossy().into_owned();
+    let calls = turn1.len();
+    let mut replies = turn1;
+    replies.push(text_reply("second answer"));
+    let (url, bodies) = mock_llm(replies);
+    let mut child = bin()
+        .args(["--acp", "--tools", "none"])
+        .current_dir(&tmp)
+        .env("HOME", &tmp)
+        .env("XDG_CONFIG_HOME", &tmp)
+        .env("RUNG_CONFIG", tmp.join("none.yaml"))
+        .env("RUNG_HOME", &tmp)
+        .env("RUNG_BASE_URL", &url)
+        .env("RUNG_MODEL", "m")
+        .env("RUNG_API_KEY", "k")
+        .env("RUNG_PROTOCOL", "openai")
+        .env_remove("RUNG_KEY_FILE")
+        .env_remove("RUNG_SYSTEM_PROMPT_FILE")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut ask = |id: u32, method: &str, params: serde_json::Value| -> serde_json::Value {
+        let msg = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
+        writeln!(stdin, "{msg}").unwrap();
+        stdin.flush().unwrap();
+        loop {
+            let v = read_json(&mut stdout);
+            if v["id"] == id && v.get("method").is_none() {
+                return v;
+            }
+        }
+    };
+    ask(1, "initialize", json!({"protocolVersion": 1}));
+    let created = ask(2, "session/new", json!({"cwd": cwd, "mcpServers": []}));
+    let sid = created["result"]["sessionId"].as_str().unwrap().to_string();
+    let prompt = |t: &str| json!({"sessionId": sid, "prompt": [{"type": "text", "text": t}]});
+    let r1 = ask(3, "session/prompt", prompt("do it"));
+    let r2 = ask(4, "session/prompt", prompt("again"));
+    assert_eq!(r2["result"]["stopReason"], "end_turn", "{r2}");
+    for _ in 0..calls {
+        let _ = bodies.recv().unwrap();
+    }
+    let turn2 = bodies.recv().unwrap();
+    drop(stdin);
+    let _ = child.wait();
+    let file = tmp.join(".rung/sessions").join(format!("{sid}.json"));
+    let session = serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
+    let _ = std::fs::remove_dir_all(&tmp);
+    (r1, turn2, session)
+}
+
+/// The assistant messages a request body replays, as text.
+fn assistant_texts(body: &serde_json::Value) -> Vec<String> {
+    body["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["role"] == "assistant")
+        .filter_map(|m| m["content"].as_str().map(str::to_string))
+        .collect()
+}
+
+/// A turn stopped by the doom guard keeps the tool calls it made, and its
+/// failure is not replayed as something the assistant said (E2).
+#[test]
+fn doom_stopped_turn_keeps_its_calls_and_is_not_replayed_as_speech() {
+    let shell = |n: u32| {
+        json!({"id": "c", "model": "m", "choices": [{"message": {"tool_calls": [
+            {"id": format!("call_{n}"), "type": "function", "function": {"name": "shell", "arguments": "{\"command\":\"ls\"}"}}
+        ]}, "finish_reason": "tool_calls"}]})
+    };
+    let (r1, turn2, session) = failed_then_asked_again((1..=4).map(shell).collect());
+    let why = "repeated shell with the same input and no progress";
+    assert_eq!(r1["error"]["data"], why, "{r1}");
+
+    assert!(
+        !assistant_texts(&turn2).iter().any(|t| t.contains(why)),
+        "turn 2 replays the failure as assistant speech: {turn2}"
+    );
+    let msgs = turn2["messages"].as_array().unwrap();
+    for n in 1..=3 {
+        let id = format!("call_{n}");
+        assert!(
+            msgs.iter()
+                .any(|m| m["role"] == "assistant" && m["tool_calls"][0]["id"] == id),
+            "turn 2 lost turn 1's {id}: {turn2}"
+        );
+        assert!(
+            msgs.iter()
+                .any(|m| m["role"] == "tool" && m["tool_call_id"] == id),
+            "turn 2 lost turn 1's result for {id}: {turn2}"
+        );
+    }
+    // The stopped call never ran, so it is not in history.
+    assert!(!turn2.to_string().contains("call_4"), "{turn2}");
+
+    let lines = session["lines"].as_array().unwrap();
+    let failed = &lines[1];
+    assert_eq!(failed["role"], "assistant", "{session}");
+    assert_eq!(failed["failure"], why, "{session}");
+    assert_eq!(failed["text"], "", "{session}");
+}
+
+/// A refusal is recorded beside the turn, not replayed as the assistant's
+/// own words (E3).
+#[test]
+fn refused_turn_is_not_replayed_as_speech() {
+    let refusal = json!({"id": "c", "model": "m", "choices": [{"message": {
+        "content": null, "refusal": "I can't help with that."
+    }, "finish_reason": "stop"}]});
+    let (r1, turn2, session) = failed_then_asked_again(vec![refusal]);
+    let why = "model refused the request: I can't help with that.";
+    assert_eq!(r1["error"]["data"], why, "{r1}");
+
+    assert!(
+        !turn2.to_string().contains("refused"),
+        "turn 2 replays the refusal: {turn2}"
+    );
+    let roles: Vec<_> = turn2["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["role"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(roles, ["user", "user"], "{turn2}");
+    assert_eq!(session["lines"][1]["failure"], why, "{session}");
+}
+
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
 
 /// Two ACP turns where turn 1 reads `frame.png`. Returns the recorded
