@@ -77,6 +77,31 @@ pub struct Outcome {
     /// The turn check's reading. Absent while the check is off.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub turn_check: Option<TurnCheckReport>,
+    /// The answer was forced by the iteration cap ([`agent::AgentResult::forced`]).
+    /// ACP reports it; the CLI JSON stays as it was.
+    #[serde(skip)]
+    pub forced: bool,
+}
+
+/// Why a job gave no outcome. `kind` is set when the agent loop stopped the
+/// turn, and says why; it is `None` when the job failed before the loop ran
+/// (config, session, arguments). `reason` is the prose the CLI prints.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JobError {
+    pub reason: String,
+    pub kind: Option<FailureKind>,
+}
+
+impl From<String> for JobError {
+    fn from(reason: String) -> Self {
+        JobError { reason, kind: None }
+    }
+}
+
+impl std::fmt::Display for JobError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.reason)
+    }
 }
 
 /// Wrap a roster so execute is observed (ACP tool-call updates).
@@ -395,10 +420,10 @@ impl Drop for CwdGuard {
 }
 
 pub fn run_job(args: &Args, origin: &Path) -> Result<Outcome, String> {
-    run_job_ex(args, origin, JobEx::default())
+    run_job_ex(args, origin, JobEx::default()).map_err(|e| e.reason)
 }
 
-pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, String> {
+pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, JobError> {
     let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
     if let Some(id) = &args.task_id {
         crate::session::check_id(id)?;
@@ -438,6 +463,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             api_calls: 0,
             isolation_path: sess.isolation_path,
             turn_check: None,
+            forced: false,
         });
     }
 
@@ -447,7 +473,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
 
     if args.prompt.is_none() {
         if store.try_load(&id)?.is_none() {
-            return Err(format!("no session {id}"));
+            return Err(format!("no session {id}").into());
         }
         if sess.status == "running" && sess.pid.is_some_and(|p| !pid_alive(p)) {
             sess.status = "interrupted".into();
@@ -460,6 +486,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             api_calls: 0,
             isolation_path: sess.isolation_path.clone(),
             turn_check: None,
+            forced: false,
         });
     }
 
@@ -512,7 +539,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             sess.status = "error".into();
             sess.lines.push(Line::failed(e.clone(), Vec::new()));
             let _ = store.save(&sess);
-            return Err(e);
+            return Err(e.into());
         }
     };
     if let Some(em) = &emitter {
@@ -540,7 +567,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             sess.status = "error".into();
             sess.lines.push(Line::failed(e.clone(), Vec::new()));
             let _ = store.save(&sess);
-            return Err(e);
+            return Err(e.into());
         }
     };
     let tool_images = match crate::config::load_tool_images() {
@@ -549,7 +576,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             sess.status = "error".into();
             sess.lines.push(Line::failed(e.clone(), Vec::new()));
             let _ = store.save(&sess);
-            return Err(e);
+            return Err(e.into());
         }
     };
 
@@ -683,6 +710,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
                 api_calls: first_calls + extra_calls,
                 isolation_path: sess.isolation_path,
                 turn_check: report,
+                forced: r.forced,
             };
             if let Some(em) = &emitter {
                 em.emit_result(&out, &r.usage, &model);
@@ -700,6 +728,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
                 api_calls: 0,
                 isolation_path: sess.isolation_path,
                 turn_check: None,
+                forced: false,
             })
         }
         Err(f) => {
@@ -709,7 +738,10 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             if let Some(em) = &emitter {
                 em.emit_error(&id, &f.reason, &model);
             }
-            Err(f.reason)
+            Err(JobError {
+                reason: f.reason,
+                kind: Some(f.kind),
+            })
         }
     }
 }

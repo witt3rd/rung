@@ -43,9 +43,10 @@ use agent_client_protocol::{
 use crate::args::{Args, IsolationMode};
 use crate::catalog::Kind;
 use crate::mcp::McpSpec;
-use crate::run::{JobEx, Outcome, Status, run_job_ex};
+use crate::run::{JobError, JobEx, Outcome, Status, run_job_ex};
 use crate::session::{Session, SessionStore};
 use crate::stream::{NotifyingToolset, ToolNotify};
+use rung_std::agent::FailureKind;
 use rung_std::llm::{
     AudioSource, ContentBlockDelta, ImageSource, MessageContentBlock, StreamEvent,
 };
@@ -567,16 +568,113 @@ fn send_text(
     ))
 }
 
+/// How a turn ended when it did not end plainly. It rides as
+/// `_meta.rung.terminal` on a prompt result and as `data.rung.terminal` on a
+/// prompt error: `{"state", "reason"}`, plus `"kind"` for `failed`. A plain
+/// end (`end_turn`, `cancelled`, `max_tokens`) carries none, so those
+/// responses are as before.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Terminal {
+    /// The cap withdrew the tools on the last call and the model answered.
+    CapForced,
+    /// The cap (or budget) ran out with no answer.
+    CapExhausted,
+    Refused,
+    Overflow,
+    DoomLoop,
+    /// Any other unrecoverable failure; the kind names it.
+    Failed(&'static str),
+}
+
+impl Terminal {
+    /// The terminal for a loop failure. `None` for an interrupt: that is
+    /// `cancelled`, a plain end.
+    fn of(kind: FailureKind) -> Option<Terminal> {
+        Some(match kind {
+            FailureKind::Interrupted => return None,
+            FailureKind::MaxIterations | FailureKind::BudgetExhausted => Terminal::CapExhausted,
+            FailureKind::Refusal => Terminal::Refused,
+            FailureKind::Overflow => Terminal::Overflow,
+            FailureKind::DoomLoop => Terminal::DoomLoop,
+            FailureKind::ContentPolicy => Terminal::Failed("content_policy"),
+            FailureKind::Auth => Terminal::Failed("auth"),
+            FailureKind::Forbidden => Terminal::Failed("forbidden"),
+            FailureKind::Quota => Terminal::Failed("quota"),
+            FailureKind::Config => Terminal::Failed("config"),
+            FailureKind::Provider => Terminal::Failed("provider"),
+        })
+    }
+
+    fn state(self) -> &'static str {
+        match self {
+            Terminal::CapForced => "cap_forced",
+            Terminal::CapExhausted => "cap_exhausted",
+            Terminal::Refused => "refused",
+            Terminal::Overflow => "overflow",
+            Terminal::DoomLoop => "doom_loop",
+            Terminal::Failed(_) => "failed",
+        }
+    }
+
+    /// The ACP stop reason, where ACP has one. The rest are errors.
+    fn stop_reason(self) -> Option<StopReason> {
+        match self {
+            Terminal::CapForced | Terminal::CapExhausted => Some(StopReason::MaxTurnRequests),
+            Terminal::Refused => Some(StopReason::Refusal),
+            Terminal::Overflow | Terminal::DoomLoop | Terminal::Failed(_) => None,
+        }
+    }
+
+    fn json(self, reason: &str) -> Value {
+        let mut t = serde_json::json!({"state": self.state(), "reason": reason});
+        if let Terminal::Failed(kind) = self {
+            t["kind"] = kind.into();
+        }
+        t
+    }
+}
+
 /// `_meta.rung` for a prompt response: the status and the turn check's
-/// reading. `None` while the check is off, so the response is as before.
-fn prompt_meta(o: &Outcome) -> Option<serde_json::Map<String, Value>> {
-    let tc = o.turn_check.as_ref()?;
+/// reading while the check is on, and the terminal when the turn did not end
+/// plainly. `None` when there is neither, so the response is as before.
+fn prompt_meta(
+    o: Option<&Outcome>,
+    terminal: Option<(Terminal, &str)>,
+) -> Option<serde_json::Map<String, Value>> {
+    let mut rung = serde_json::Map::new();
+    if let Some(o) = o
+        && let Some(tc) = o.turn_check.as_ref()
+    {
+        rung.insert("status".into(), o.status.as_str().into());
+        rung.insert("turn_check".into(), serde_json::json!(tc));
+    }
+    if let Some((t, reason)) = terminal {
+        rung.insert("terminal".into(), t.json(reason));
+    }
+    if rung.is_empty() {
+        return None;
+    }
     let mut meta = serde_json::Map::new();
-    meta.insert(
-        "rung".into(),
-        serde_json::json!({"status": o.status.as_str(), "turn_check": tc}),
-    );
+    meta.insert("rung".into(), Value::Object(rung));
     Some(meta)
+}
+
+/// The response to a prompt whose job returned no outcome. A loop failure
+/// ACP has a stop reason for is a result; the rest are -32603 with the
+/// terminal as `data.rung.terminal`. A failure before the loop ran (config,
+/// session) is not a turn's end and stays a -32603 with prose `data`.
+fn prompt_failure(e: JobError, cancelled: bool) -> Result<PromptResponse, Error> {
+    if cancelled || e.kind == Some(FailureKind::Interrupted) {
+        return Ok(PromptResponse::new(StopReason::Cancelled));
+    }
+    let Some(t) = e.kind.and_then(Terminal::of) else {
+        return Err(Error::internal_error().data(e.reason));
+    };
+    match t.stop_reason() {
+        Some(stop) => Ok(PromptResponse::new(stop).meta(prompt_meta(None, Some((t, &e.reason))))),
+        None => Err(Error::internal_error()
+            .data(serde_json::json!({"rung": {"terminal": t.json(&e.reason)}}))),
+    }
 }
 
 /// The session's own system text: `_meta.systemPrompt` on `session/new`.
@@ -904,7 +1002,19 @@ pub(crate) async fn connect_agent(
                         let cancelled = flag.load(Ordering::SeqCst);
                         match out {
                             Ok(o) => {
-                                let meta = prompt_meta(&o);
+                                let plain = cancelled
+                                    || o.status == Status::Cancelled
+                                    || o.status == Status::Truncated;
+                                let forced = (o.forced && !plain).then(|| {
+                                    format!(
+                                        "iteration cap ({}) reached; the last call had no tools",
+                                        kind.iteration_cap(process.max_iterations)
+                                    )
+                                });
+                                let meta = prompt_meta(
+                                    Some(&o),
+                                    forced.as_deref().map(|r| (Terminal::CapForced, r)),
+                                );
                                 send_text_if_unstreamed(
                                     &connection,
                                     session_id,
@@ -915,6 +1025,8 @@ pub(crate) async fn connect_agent(
                                     StopReason::Cancelled
                                 } else if o.status == Status::Truncated {
                                     StopReason::MaxTokens
+                                } else if forced.is_some() {
+                                    StopReason::MaxTurnRequests
                                 } else {
                                     // ACP has no "unverified": the turn ended, and
                                     // `_meta.rung` says what the check made of it.
@@ -926,7 +1038,7 @@ pub(crate) async fn connect_agent(
                                 }
                                 Ok(response)
                             }
-                            Err(e) => Err(Error::internal_error().data(e)),
+                            Err(e) => prompt_failure(e, cancelled),
                         }
                     })
                 }

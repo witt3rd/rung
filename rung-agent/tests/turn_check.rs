@@ -703,6 +703,7 @@ fn check(name: &str, request: &str, turn: Vec<ChatMessage>, final_message: &str)
         api_calls_made: 1,
         usage: Usage::default(),
         truncated: false,
+        forced: false,
     };
     let carry = turncheck::Carry {
         decider: Arc::new(Recorded::from_env(fixture(name))),

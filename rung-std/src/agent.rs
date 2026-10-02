@@ -516,6 +516,10 @@ pub struct AgentResult {
     /// The model's reply was cut off by the token limit (`finish_reason:
     /// length`); `final_response` is incomplete.
     pub truncated: bool,
+    /// The answer came from the last call the loop allowed ([`is_last_call`]):
+    /// the tools were withdrawn and the model was told to answer. The turn
+    /// ran into its cap; it did not finish on its own.
+    pub forced: bool,
 }
 
 fn closed(thread: &Thread, text: &str) -> Vec<ChatMessage> {
@@ -564,6 +568,10 @@ pub enum FailureKind {
     Provider,
     DoomLoop,
     Interrupted,
+    /// The iteration cap was reached with no answer ([`LimitHit`]).
+    MaxIterations,
+    /// The budget ran out with no grace call left ([`BudgetHit`]).
+    BudgetExhausted,
 }
 
 /// The model refused or an unrecoverable error occurred.
@@ -787,6 +795,7 @@ ladder!(AgentLoop {
                             api_calls_made: next.api_call_count,
                             usage: next.usage.clone(),
                             truncated,
+                            forced: last_call,
                         })));
                     }
                     eprintln!(
@@ -829,6 +838,7 @@ ladder!(AgentLoop {
                     api_calls_made: next.api_call_count,
                     usage: next.usage.clone(),
                     truncated,
+                    forced: last_call,
                 })))
             }
 
@@ -980,6 +990,7 @@ ladder!(AgentLoop {
                         api_calls_made: next.api_call_count,
                         usage: next.usage.clone(),
                         truncated: false,
+                        forced: last_call,
                     })));
                 }
 
@@ -1084,7 +1095,7 @@ pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filte
             Ok(agentloop::StepOutcome::MaxIterations(m)) => {
                 let h = m.into_payload();
                 return Err(Filtered {
-                    kind: FailureKind::Provider,
+                    kind: FailureKind::MaxIterations,
                     reason: format!("max iterations ({})", h.api_calls_made),
                     transcript: h.transcript,
                 });
@@ -1092,7 +1103,7 @@ pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filte
             Ok(agentloop::StepOutcome::BudgetExhausted(b)) => {
                 let h = b.into_payload();
                 return Err(Filtered {
-                    kind: FailureKind::Provider,
+                    kind: FailureKind::BudgetExhausted,
                     reason: format!("budget exhausted ({})", h.api_calls_made),
                     transcript: h.transcript,
                 });
@@ -1497,6 +1508,37 @@ mod tests {
         };
         let err = run(thread, carry).expect_err("cancelled");
         assert_eq!(err.kind, FailureKind::Interrupted);
+    }
+
+    /// The cap and the budget are their own kinds, not a provider failure: a
+    /// host tells "ran out of calls" from "the provider broke" without prose.
+    #[test]
+    fn cap_and_budget_have_their_own_failure_kinds() {
+        let ended = |state: LoopState| {
+            let carry = agentloop::Carry {
+                state,
+                tools: Arc::new(ToolRoster::new()),
+                config: dummy_llm(),
+                python: None,
+            };
+            let thread = Thread {
+                system_prompt: String::new(),
+                messages: vec![ChatMessage::user("hi")],
+            };
+            run(thread, carry).expect_err("no call allowed")
+        };
+        let mut capped = LoopState::new(2, 5);
+        capped.api_call_count = 2;
+        let f = ended(capped);
+        assert_eq!(f.kind, FailureKind::MaxIterations);
+        assert_eq!(f.reason, "max iterations (2)");
+        let spent = LoopState {
+            grace_call: false,
+            ..LoopState::new(5, 0)
+        };
+        let f = ended(spent);
+        assert_eq!(f.kind, FailureKind::BudgetExhausted);
+        assert_eq!(f.reason, "budget exhausted (0)");
     }
 
     use std::sync::atomic::AtomicUsize;
