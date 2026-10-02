@@ -67,7 +67,11 @@ Session history: an assistant `Line` keeps the turn's full `messages`
 a tool result's images become a note (a session file holds no image data). The
 calls are never dropped: text-only history teaches the model to narrate
 actions instead of taking them (#128). Old sessions without `messages` still
-replay as text.
+replay as text. A turn that stops without an answer (error, refusal, doom,
+interrupt) stores `Line::failed`: the steps that ran, from
+`Filtered.transcript`, and the reason in `failure`, which is never replayed
+as assistant speech. An overflow turn stores nothing, not even its ask, so
+the request that overflowed is not sent again.
 
 ACP end-to-end with a model: `rung-agent/tests/acp.rs` `mock_llm` is a
 std-only OpenAI-compatible server. It serves SSE when the body has

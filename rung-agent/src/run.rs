@@ -164,11 +164,11 @@ impl Spawn for CatalogSpawn {
                     task_id: Some(id),
                 })
             }
-            Err(e) => {
+            Err((f, sent)) => {
                 sess.status = "error".into();
-                sess.lines.push(Line::assistant(e.clone()));
+                record_failure(&mut sess.lines, &f, sent);
                 let _ = self.store.save(&sess);
-                Err(e)
+                Err(f.reason)
             }
         }
     }
@@ -182,7 +182,7 @@ fn drive(
     emitter: Option<Arc<crate::stream::Emitter>>,
     extra: &JobEx,
     tool_images: bool,
-) -> Result<(Line, u32), String> {
+) -> Result<(Line, u32), (agent::Filtered, usize)> {
     let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
     let cap = kind.iteration_cap(max_iterations);
     let base: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
@@ -220,7 +220,7 @@ fn drive(
     let sent = thread.messages.len();
     match agent::run(thread, carry) {
         Ok(r) => Ok((turn_line(&r, sent), r.api_calls_made)),
-        Err(f) => Err(f.reason),
+        Err(f) => Err((f, sent)),
     }
 }
 
@@ -265,6 +265,10 @@ fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<
     for l in lines {
         match (l.role.as_str(), &l.messages) {
             ("user", _) => messages.push(ChatMessage::user(l.text.clone())),
+            // A turn that stopped replays the steps that ran, never its failure.
+            ("assistant", turn) if l.failure.is_some() => {
+                messages.extend(turn.iter().flatten().cloned())
+            }
             ("assistant", Some(turn)) if !turn.is_empty() => messages.extend(turn.iter().cloned()),
             ("assistant", _) => messages.push(ChatMessage::assistant(l.text.clone())),
             _ => {}
@@ -282,11 +286,11 @@ const HISTORY_TOOL_RESULT_CHARS: usize = 4000;
 /// Why a tool's image is missing from a replayed turn.
 const HISTORY_IMAGE: &str = "not kept in session history; call the tool again to look";
 
-/// The assistant line for a finished turn: the messages the loop added after
-/// the `sent` messages it was given, with large tool results shortened and
-/// tool images left as a note (a session file holds no image data).
-fn turn_line(r: &agent::AgentResult, sent: usize) -> Line {
-    let mut turn: Vec<ChatMessage> = r.transcript.iter().skip(sent).cloned().collect();
+/// The messages the loop added after the `sent` messages it was given, with
+/// large tool results shortened and tool images left as a note (a session
+/// file holds no image data).
+fn turn_history(transcript: &[ChatMessage], sent: usize) -> Vec<ChatMessage> {
+    let mut turn: Vec<ChatMessage> = transcript.iter().skip(sent).cloned().collect();
     for m in &mut turn {
         if let MessageContent::Blocks(blocks) = &mut m.content {
             for b in blocks {
@@ -307,11 +311,33 @@ fn turn_line(r: &agent::AgentResult, sent: usize) -> Line {
             }
         }
     }
+    turn
+}
+
+/// The assistant line for a finished turn.
+fn turn_line(r: &agent::AgentResult, sent: usize) -> Line {
     Line {
         role: "assistant".into(),
         text: r.final_response.clone(),
-        messages: Some(turn),
+        messages: Some(turn_history(&r.transcript, sent)),
+        failure: None,
     }
+}
+
+/// Record a turn that stopped without an answer: the steps that ran, and
+/// why it stopped beside them. An overflow keeps nothing of the turn, its
+/// ask included, so the request that overflowed is not sent again.
+fn record_failure(lines: &mut Vec<Line>, f: &agent::Filtered, sent: usize) {
+    if f.kind == FailureKind::Overflow {
+        if lines.last().is_some_and(|l| l.role == "user") {
+            lines.pop();
+        }
+        return;
+    }
+    lines.push(Line::failed(
+        f.reason.clone(),
+        turn_history(&f.transcript, sent),
+    ));
 }
 
 fn last_assistant(lines: &[Line]) -> String {
@@ -319,7 +345,7 @@ fn last_assistant(lines: &[Line]) -> String {
         .iter()
         .rev()
         .find(|l| l.role == "assistant")
-        .map(|l| l.text.clone())
+        .map(|l| l.failure.clone().unwrap_or_else(|| l.text.clone()))
         .unwrap_or_default()
 }
 
@@ -484,7 +510,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         Ok(c) => c,
         Err(e) => {
             sess.status = "error".into();
-            sess.lines.push(Line::assistant(e.clone()));
+            sess.lines.push(Line::failed(e.clone(), Vec::new()));
             let _ = store.save(&sess);
             return Err(e);
         }
@@ -512,7 +538,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         Ok(t) => Gate::from_settings(&t),
         Err(e) => {
             sess.status = "error".into();
-            sess.lines.push(Line::assistant(e.clone()));
+            sess.lines.push(Line::failed(e.clone(), Vec::new()));
             let _ = store.save(&sess);
             return Err(e);
         }
@@ -521,7 +547,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         Ok(on) => on,
         Err(e) => {
             sess.status = "error".into();
-            sess.lines.push(Line::assistant(e.clone()));
+            sess.lines.push(Line::failed(e.clone(), Vec::new()));
             let _ = store.save(&sess);
             return Err(e);
         }
@@ -665,6 +691,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         }
         Err(f) if f.kind == FailureKind::Interrupted => {
             sess.status = "interrupted".into();
+            record_failure(&mut sess.lines, &f, sent);
             let _ = store.save(&sess);
             Ok(Outcome {
                 task_id: id,
@@ -677,7 +704,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
         }
         Err(f) => {
             sess.status = "error".into();
-            sess.lines.push(Line::assistant(f.reason.clone()));
+            record_failure(&mut sess.lines, &f, sent);
             let _ = store.save(&sess);
             if let Some(em) = &emitter {
                 em.emit_error(&id, &f.reason, &model);
@@ -806,6 +833,7 @@ mod tests {
                 role: "system".into(),
                 text: "nope".into(),
                 messages: None,
+                failure: None,
             },
             Line::user("hi"),
         ];
@@ -857,6 +885,61 @@ mod tests {
         let second = format!("{:?}", t.messages[1]);
         assert!(second.contains("user"), "{second}");
         assert!(second.contains("q"), "{second}");
+    }
+
+    fn failure(kind: FailureKind, transcript: Vec<ChatMessage>) -> agent::Filtered {
+        agent::Filtered {
+            reason: "it broke".into(),
+            kind,
+            transcript,
+        }
+    }
+
+    #[test]
+    fn a_failed_turn_replays_its_steps_and_not_its_failure() {
+        let ran = vec![
+            ChatMessage::user("do it"),
+            ChatMessage::assistant("step one"),
+        ];
+        let mut lines = vec![Line::user("do it")];
+        record_failure(&mut lines, &failure(FailureKind::DoomLoop, ran), 1);
+        lines.push(Line::user("again"));
+        let t = thread_from(&lines, None, None);
+        let replay = format!("{:?}", t.messages);
+        assert_eq!(t.messages.len(), 3, "{replay}");
+        assert!(replay.contains("step one"), "{replay}");
+        assert!(!replay.contains("it broke"), "{replay}");
+        assert_eq!(lines[1].failure.as_deref(), Some("it broke"));
+    }
+
+    #[test]
+    fn a_failure_before_any_step_replays_nothing() {
+        let lines = vec![
+            Line::user("do it"),
+            Line::failed("config: no model", Vec::new()),
+            Line::user("again"),
+        ];
+        let t = thread_from(&lines, None, None);
+        assert_eq!(t.messages.len(), 2);
+        assert!(!format!("{:?}", t.messages).contains("no model"));
+    }
+
+    #[test]
+    fn an_overflowed_turn_keeps_nothing_of_itself() {
+        let mut lines = vec![
+            Line::user("first"),
+            Line::assistant("answer"),
+            Line::user("too much"),
+        ];
+        let ran = vec![ChatMessage::user("too much"), ChatMessage::assistant("x")];
+        record_failure(&mut lines, &failure(FailureKind::Overflow, ran), 1);
+        assert_eq!(lines, vec![Line::user("first"), Line::assistant("answer")]);
+    }
+
+    #[test]
+    fn the_recorded_view_shows_why_a_turn_stopped() {
+        let lines = vec![Line::user("q"), Line::failed("auth: bad key", Vec::new())];
+        assert_eq!(last_assistant(&lines), "auth: bad key");
     }
 
     #[test]
