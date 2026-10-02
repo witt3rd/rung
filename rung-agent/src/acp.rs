@@ -983,6 +983,7 @@ pub(crate) async fn connect_agent(
                         system_append: live.system(&id),
                     };
                     let turn_conn = connection.clone();
+                    let turn_process = process.clone();
                     queued(&live, &connection, responder, async move {
                         let connection = turn_conn;
                         let out = tokio::task::spawn_blocking(move || {
@@ -1008,7 +1009,7 @@ pub(crate) async fn connect_agent(
                                 let forced = (o.forced && !plain).then(|| {
                                     format!(
                                         "iteration cap ({}) reached; the last call had no tools",
-                                        kind.iteration_cap(process.max_iterations)
+                                        kind.iteration_cap(turn_process.max_iterations)
                                     )
                                 });
                                 let meta = prompt_meta(
