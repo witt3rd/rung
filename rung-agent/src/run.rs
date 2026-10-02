@@ -392,6 +392,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, S
             .prompt
             .as_ref()
             .ok_or_else(|| "background needs a prompt".to_string())?;
+        crate::background::child_args(args, &id)?;
         let mut sess = store
             .try_load(&id)?
             .unwrap_or_else(|| Session::new(&id, args.kind, &origin));

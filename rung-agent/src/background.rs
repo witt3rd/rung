@@ -24,11 +24,11 @@ pub fn spawn_child(
     task_id: &str,
     store: &SessionStore,
 ) -> Result<Launch, String> {
+    let argv = child_args(args, task_id)?;
     std::fs::create_dir_all(&store.dir).map_err(|e| format!("sessions dir: {e}"))?;
     let log = store.dir.join(format!("{task_id}.log"));
     let file = File::create(&log).map_err(|e| format!("log: {e}"))?;
     let err = file.try_clone().map_err(|e| format!("log: {e}"))?;
-    let argv = child_args(args, task_id)?;
     let mut cmd = Command::new(exe);
     cmd.current_dir(origin)
         .stdin(Stdio::null())
@@ -151,5 +151,11 @@ mod tests {
             env: vec![],
         });
         assert!(child_args(&a, "t").is_err());
+        let dir = std::env::temp_dir().join(format!("rung-bg-refuse-{}", std::process::id()));
+        let store = SessionStore::in_cwd(&dir);
+        let r = spawn_child(Path::new("/nonexistent"), &a, &dir, "t", &store);
+        assert!(r.is_err());
+        assert!(!store.dir.join("t.log").exists());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
