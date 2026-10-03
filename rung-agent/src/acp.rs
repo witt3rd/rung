@@ -695,7 +695,8 @@ impl Terminal {
 }
 
 /// `_meta.rung` for a prompt response: the status and the turn check's
-/// reading while the check is on, `elided` when a context overflow had the
+/// reading while the check is on, what memory did while it is not off,
+/// `elided` when a context overflow had the
 /// turn elide its oldest tool results, and the terminal when the turn did not
 /// end plainly. `None` when there is none of these, so the response is as
 /// before.
@@ -717,6 +718,11 @@ fn prompt_meta(
             "elided".into(),
             serde_json::json!({"tool_results": o.elided}),
         );
+    }
+    if let Some(o) = o
+        && let Some(m) = o.memory.as_ref()
+    {
+        rung.insert("memory".into(), serde_json::json!(m));
     }
     if let Some((t, reason)) = terminal {
         rung.insert("terminal".into(), t.json(reason));
@@ -770,6 +776,7 @@ fn job_args(process: &Args, id: String, kind: Kind, text: String) -> Args {
         acp_http: None,
         acp_token: None,
         mcp: Vec::new(),
+        memory: process.memory.clone(),
     }
 }
 

@@ -1,0 +1,5 @@
+error[E0451]: field `observation` of struct `Turnover` is private
+ --> tests/ui/turnover_needs_a_completion.rs:8:16
+  |
+8 |     Turnover { observation }
+  |                ^^^^^^^^^^^ private field

@@ -81,6 +81,9 @@ impl Emitter {
         if let Some(tc) = &out.turn_check {
             response["turn_check"] = json!(tc);
         }
+        if let Some(m) = &out.memory {
+            response["memory"] = json!(m);
+        }
         self.write(json!({
             "type": "result",
             "response": response,

@@ -412,6 +412,10 @@ trait Wire: Send + Sync {
     ) -> Result<Value, String>;
 
     fn set_cancel(&self, cancel: Option<Arc<AtomicBool>>);
+
+    /// Stop the server side for good: a stdio child is killed, so a read
+    /// blocked on it returns. HTTP has its own timeout and does nothing.
+    fn abort(&self) {}
 }
 
 pub struct HttpWire {
@@ -953,6 +957,12 @@ impl StdioWire {
 impl Wire for StdioWire {
     fn set_cancel(&self, _cancel: Option<Arc<AtomicBool>>) {}
 
+    fn abort(&self) {
+        if let Ok(mut child) = self._child.lock() {
+            let _ = child.kill();
+        }
+    }
+
     fn rpc(&self, method: &str, params: Value, notification: bool) -> Result<Value, String> {
         if is_session_cancelled() {
             return Err("mcp: execution cancelled".into());
@@ -1242,6 +1252,8 @@ struct RemoteTool {
 
 pub struct McpRoster {
     tools: Vec<RemoteTool>,
+    /// Every server connection, tools or not ([`McpRoster::abort`]).
+    wires: Vec<Arc<dyn Wire>>,
 }
 
 impl std::fmt::Debug for McpRoster {
@@ -1269,6 +1281,7 @@ impl McpRoster {
         cancel: Option<Arc<AtomicBool>>,
     ) -> Result<Self, String> {
         let mut tools = Vec::new();
+        let mut wires = Vec::new();
         let mut seen: HashMap<String, u32> = HashMap::new();
         for spec in specs {
             let wire: Arc<dyn Wire> = match spec {
@@ -1280,62 +1293,79 @@ impl McpRoster {
                 McpSpec::Stdio { .. } => Arc::new(StdioWire::spawn(spec)?),
             };
             handshake(&*wire, spec.name())?;
-            let listed = wire.rpc("tools/list", json!({}), false)?;
-            let arr = listed
-                .get("tools")
-                .and_then(|t| t.as_array())
-                .cloned()
-                .unwrap_or_default();
-            for t in arr {
-                let raw = t
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                    .ok_or("mcp tool missing name")?
-                    .to_string();
-                let n = seen.entry(raw.clone()).or_insert(0);
-                *n += 1;
-                let name = if *n == 1 {
-                    raw.clone()
-                } else {
-                    format!("{}__{raw}", spec.name())
-                };
-                let description = t
-                    .get("description")
-                    .and_then(|d| d.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let input_schema = t
-                    .get("inputSchema")
-                    .cloned()
-                    .unwrap_or_else(|| json!({"type": "object"}));
-
-                // Tool is idempotent ONLY if annotations declares idempotentHint: true
-                let annotations = t.get("annotations");
-                let idempotent_hint = annotations
-                    .and_then(|a| a.get("idempotentHint"))
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-
-                // Tool supports operation_id ONLY if inputSchema properties defines operation_id as string
-                let supports_operation_id = input_schema
-                    .get("properties")
-                    .and_then(|p| p.get("operation_id"))
-                    .is_some_and(|op| {
-                        op.get("type").and_then(|t| t.as_str()) == Some("string") || op.is_object()
-                    });
-
-                tools.push(RemoteTool {
-                    name,
-                    remote: raw,
-                    description,
-                    input_schema,
-                    idempotent_hint,
-                    supports_operation_id,
-                    wire: wire.clone(),
-                });
-            }
+            list_tools(&wire, spec, &mut seen, &mut tools)?;
+            wires.push(wire);
         }
-        Ok(Self { tools })
+        Ok(Self { tools, wires })
+    }
+
+    /// Connect one server, with `timeout` on HTTP calls, and hand back its
+    /// `initialize` result beside its tools. A memory provider declares
+    /// itself there (`memory.rs`).
+    pub fn connect_one(spec: &McpSpec, timeout: Duration) -> Result<(Self, Value), String> {
+        let wire: Arc<dyn Wire> = match spec {
+            McpSpec::Http { url, headers, .. } => {
+                Arc::new(HttpWire::new_with_timeout(url.clone(), headers, timeout)?)
+            }
+            McpSpec::Stdio { .. } => Arc::new(StdioWire::spawn(spec)?),
+        };
+        let init = match handshake(&*wire, spec.name()) {
+            Ok(v) => v,
+            Err(e) => {
+                wire.abort();
+                return Err(e);
+            }
+        };
+        let mut tools = Vec::new();
+        if let Err(e) = list_tools(&wire, spec, &mut HashMap::new(), &mut tools) {
+            wire.abort();
+            return Err(e);
+        }
+        Ok((
+            Self {
+                tools,
+                wires: vec![wire],
+            },
+            init,
+        ))
+    }
+
+    /// Move the tools whose server-side names are in `names` into a roster
+    /// of their own. The rest stay.
+    pub fn split_off(&mut self, names: &[&str]) -> Self {
+        let (taken, kept) = std::mem::take(&mut self.tools)
+            .into_iter()
+            .partition(|t| names.contains(&t.remote.as_str()));
+        self.tools = kept;
+        Self {
+            tools: taken,
+            wires: self.wires.clone(),
+        }
+    }
+
+    /// Whether a tool by this server-side name is here.
+    pub fn has(&self, remote: &str) -> bool {
+        self.tools.iter().any(|t| t.remote == remote)
+    }
+
+    /// Call a tool by its server-side name and hand back the whole
+    /// `tools/call` result (`content`, `structuredContent`, `_meta`). An
+    /// `isError` result is an `Err`.
+    pub fn call_raw(&self, remote: &str, args: &Value) -> Result<Value, String> {
+        let tool = self
+            .tools
+            .iter()
+            .find(|t| t.remote == remote)
+            .ok_or_else(|| format!("mcp: no tool {remote}"))?;
+        tool.wire
+            .call_tool(&tool.name, &tool.remote, args, None, false)
+    }
+
+    /// Stop every server behind this roster for good (`Wire::abort`).
+    pub fn abort(&self) {
+        for w in &self.wires {
+            w.abort();
+        }
     }
 
     pub fn set_cancel(&mut self, cancel: Option<Arc<AtomicBool>>) {
@@ -1349,7 +1379,72 @@ impl McpRoster {
     }
 }
 
-fn handshake(wire: &dyn Wire, name: &str) -> Result<(), String> {
+/// List `spec`'s tools onto `tools`. A name another server already used is
+/// prefixed with this server's name.
+fn list_tools(
+    wire: &Arc<dyn Wire>,
+    spec: &McpSpec,
+    seen: &mut HashMap<String, u32>,
+    tools: &mut Vec<RemoteTool>,
+) -> Result<(), String> {
+    let listed = wire.rpc("tools/list", json!({}), false)?;
+    let arr = listed
+        .get("tools")
+        .and_then(|t| t.as_array())
+        .cloned()
+        .unwrap_or_default();
+    for t in arr {
+        let raw = t
+            .get("name")
+            .and_then(|n| n.as_str())
+            .ok_or("mcp tool missing name")?
+            .to_string();
+        let n = seen.entry(raw.clone()).or_insert(0);
+        *n += 1;
+        let name = if *n == 1 {
+            raw.clone()
+        } else {
+            format!("{}__{raw}", spec.name())
+        };
+        let description = t
+            .get("description")
+            .and_then(|d| d.as_str())
+            .unwrap_or("")
+            .to_string();
+        let input_schema = t
+            .get("inputSchema")
+            .cloned()
+            .unwrap_or_else(|| json!({"type": "object"}));
+
+        // Tool is idempotent ONLY if annotations declares idempotentHint: true
+        let annotations = t.get("annotations");
+        let idempotent_hint = annotations
+            .and_then(|a| a.get("idempotentHint"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        // Tool supports operation_id ONLY if inputSchema properties defines operation_id as string
+        let supports_operation_id = input_schema
+            .get("properties")
+            .and_then(|p| p.get("operation_id"))
+            .is_some_and(|op| {
+                op.get("type").and_then(|t| t.as_str()) == Some("string") || op.is_object()
+            });
+
+        tools.push(RemoteTool {
+            name,
+            remote: raw,
+            description,
+            input_schema,
+            idempotent_hint,
+            supports_operation_id,
+            wire: wire.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn handshake(wire: &dyn Wire, name: &str) -> Result<Value, String> {
     let mut last = String::new();
     for ver in ["2025-03-26", "2024-11-05"] {
         match wire.rpc(
@@ -1361,10 +1456,10 @@ fn handshake(wire: &dyn Wire, name: &str) -> Result<(), String> {
             }),
             false,
         ) {
-            Ok(_) => {
+            Ok(init) => {
                 wire.rpc("notifications/initialized", json!({}), true)
                     .map_err(|e| format!("mcp {name} initialized: {e}"))?;
-                return Ok(());
+                return Ok(init);
             }
             Err(e) => last = e,
         }

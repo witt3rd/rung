@@ -1,0 +1,11 @@
+error[E0451]: fields `calls`, `cost_usd` and `latency_ms` of struct `Trace` are private
+  --> tests/ui/trace_is_sealed.rs:8:9
+   |
+ 7 |     let _ = Trace {
+   |             ----- in this type
+ 8 |         calls: 0,
+   |         ^^^^^ private field
+ 9 |         cost_usd: 0.0,
+   |         ^^^^^^^^ private field
+10 |         latency_ms: 0,
+   |         ^^^^^^^^^^ private field

@@ -1,0 +1,17 @@
+[package]
+name = "rung-memory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Memory groundwork for rung's product side: who owns memory, a graph-level store trait, and a typed recall outcome"
+publish = false
+
+[dependencies]
+rung = { path = "../rung" }
+rung-std = { path = "../rung-std" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+trybuild = "1"

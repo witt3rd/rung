@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 280 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 309 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -666,6 +666,19 @@ look shorter than it is.
 - `http_refusals_match_acp_server`
 - `initialize_session_new_prompt_delete`
 - `token_rejects_without_bearer`
+
+**`rung-agent/tests/acp_memory.rs`** — 10 unclaimed
+
+- `a_provider_without_the_marker_is_unavailable_and_the_turn_still_ends`
+- `a_slow_provider_times_out_and_the_turn_still_ends`
+- `an_mcp_provider_retains_and_recalls_through_its_hook_tools`
+- `an_unknown_setting_is_an_error_not_a_fallback`
+- `baseline_retains_in_one_session_and_recalls_in_the_next`
+- `external_adds_no_tool_to_the_default_toolset`
+- `external_from_config_yaml_is_the_same`
+- `external_from_env_opens_no_store_runs_no_hooks_and_adds_no_tools`
+- `external_from_the_flag_is_the_same`
+- `off_is_byte_for_byte_the_response_before_memory`
 
 **`rung-agent/tests/acp_overflow.rs`** — 3 unclaimed
 
@@ -916,6 +929,31 @@ look shorter than it is.
 - `p0_holds_here_too_without_the_library_knowing_the_domain`
 - `the_pass_is_indifferent_to_which_vocabulary_it_carries`
 - `wont_fix_closes_an_issue_that_remains_non_conforming`
+
+**`rung-memory/tests/memory.rs`** — 18 unclaimed
+
+- `a_failed_step_is_a_miss_carrying_the_calls_and_cost_so_far`
+- `a_provider_over_its_cost_budget_is_unavailable`
+- `a_provider_record_outside_the_scope_is_unavailable`
+- `a_record_from_another_scope_is_a_miss_not_evidence`
+- `an_undeclared_capability_is_never_called`
+- `baseline_declines_what_it_could_never_show_whole`
+- `baseline_is_a_graph_store_whose_neighbours_are_adjacent_records`
+- `baseline_recalls_what_it_retained_and_nothing_from_another_scope`
+- `baseline_tools_go_through_the_ladders`
+- `empty_is_absence_and_unavailable_is_failure`
+- `evidence_renders_as_quoted_data_with_provenance`
+- `found_carries_records_and_their_trace`
+- `retain_reaches_each_outcome_with_its_trace`
+- `retain_without_the_capability_never_calls_the_provider`
+- `the_budget_keeps_whole_records_only`
+- `the_registry_builds_baseline_and_refuses_reserved_names`
+- `walk_searches_follows_edges_and_fetches_and_sums_the_cost`
+- `walk_with_no_hits_fetches_nothing`
+
+**`rung-memory/tests/ui.rs`** — 1 unclaimed
+
+- `memory_outcomes_cannot_be_fabricated`
 
 **`rung-std/tests/driver.rs`** — 8 unclaimed
 

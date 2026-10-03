@@ -1,0 +1,16 @@
+error[E0624]: associated function `new` is private
+ --> tests/ui/stored_is_sealed.rs:8:13
+  |
+8 |       Stored::new(r)
+  |               ^^^ private associated function
+  |
+ ::: src/lib.rs
+  |
+  | / ladder!(Retain {
+  | |     carry {
+  | |         provider: Arc<dyn MemoryProvider>,
+  | |         scope: Scope,
+... |
+  | |     },
+  | | });
+  | |__- private associated function defined here

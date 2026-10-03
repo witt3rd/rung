@@ -77,6 +77,9 @@ pub struct Outcome {
     /// The turn check's reading. Absent while the check is off.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub turn_check: Option<TurnCheckReport>,
+    /// What memory did this turn. Absent while memory is off.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<crate::memory::MemoryReport>,
     /// The answer was forced by the iteration cap ([`agent::AgentResult::forced`]).
     /// ACP reports it; the CLI JSON stays as it was.
     #[serde(skip)]
@@ -468,6 +471,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             api_calls: 0,
             isolation_path: sess.isolation_path,
             turn_check: None,
+            memory: None,
             forced: false,
             elided: 0,
         });
@@ -492,6 +496,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             api_calls: 0,
             isolation_path: sess.isolation_path.clone(),
             turn_check: None,
+            memory: None,
             forced: false,
             elided: 0,
         });
@@ -587,6 +592,17 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         }
     };
 
+    let memory = match crate::memory::Hooks::load(args.memory.as_ref(), &origin) {
+        Ok(m) => m,
+        Err(e) => {
+            sess.status = "error".into();
+            sess.lines.push(Line::failed(e.clone(), Vec::new()));
+            let _ = store.save(&sess);
+            return Err(e.into());
+        }
+    };
+    let mut memory_report = memory.report();
+
     let scope = resolve_scope(args)?;
     let cap = args.kind.iteration_cap(args.max_iterations);
     let mut roster: ToolRoster = scope.roster();
@@ -610,6 +626,9 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         roster.add(tasks);
     }
     let mut base: Arc<dyn Toolset> = Arc::new(roster);
+    if let Some(outer) = memory.toolset(&id) {
+        base = Arc::new(crate::memory::Layered { inner: base, outer });
+    }
     if !args.mcp.is_empty() {
         let mut mcp = crate::mcp::McpRoster::connect(&args.mcp)?;
         mcp.set_cancel(extra.cancel.clone());
@@ -642,6 +661,22 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     {
         last.content = MessageContent::Blocks(blocks);
     }
+    // Recall: shown to this call only, in front of the ask. The session
+    // keeps the ask as the user wrote it, so a recall is never replayed.
+    let recent: Vec<String> = sess
+        .lines
+        .iter()
+        .filter(|l| l.role == "assistant" && l.failure.is_none() && !l.text.is_empty())
+        .map(|l| l.text.clone())
+        .collect();
+    if let Some((recalled, block)) = memory.recall(args.prompt.as_deref().unwrap_or(""), &recent) {
+        if let Some(block) = block {
+            crate::memory::inject(&mut thread, &block);
+        }
+        if let Some(m) = memory_report.as_mut() {
+            m.recall = Some(recalled);
+        }
+    }
     let loop_carry = |tools: Arc<dyn Toolset>, config: LlmConfig| agentloop::Carry {
         state: LoopState {
             cancel: extra.cancel.clone(),
@@ -655,6 +690,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     let sent = thread.messages.len();
     let system_text = thread.system_prompt.clone();
     let request = args.prompt.clone().unwrap_or_default();
+    let request_text = request.clone();
     let earlier: Vec<ChatMessage> = sess
         .lines
         .iter()
@@ -708,6 +744,21 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             // A nudge re-run is a second loop with its own elision.
             let elided = first_elided + if extra_calls > 0 { r.elided } else { 0 };
             sess.lines.push(turn_line(&r, sent));
+            // Retain: only a turn that holds a completion becomes memory.
+            if let Status::Completed(done) = &status {
+                let turn = crate::memory::Turnover::of(
+                    done,
+                    &request_text,
+                    &r.final_response,
+                    &id,
+                    sess.lines.len() - 1,
+                );
+                if let Some(kept) = memory.retain(turn)
+                    && let Some(m) = memory_report.as_mut()
+                {
+                    m.retain = Some(kept);
+                }
+            }
             sess.status = match status {
                 Status::Cancelled => "interrupted".into(),
                 _ => status.as_str().into(),
@@ -720,6 +771,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
                 api_calls: first_calls + extra_calls,
                 isolation_path: sess.isolation_path,
                 turn_check: report,
+                memory: memory_report,
                 forced: r.forced,
                 elided,
             };
@@ -739,6 +791,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
                 api_calls: 0,
                 isolation_path: sess.isolation_path,
                 turn_check: None,
+                memory: memory_report,
                 forced: false,
                 elided: 0,
             })

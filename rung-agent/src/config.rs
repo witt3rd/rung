@@ -4,12 +4,19 @@
 //! $XDG_CONFIG_HOME/rung/config.yaml   # or ~/.config/rung/config.yaml
 //! ```
 //!
+//! Memory (`memory:`): `provider` (`off` | `external` | `baseline` |
+//! `mcp:<url or command>`; default off), `scope`, `dir`, `timeout_secs`.
+//! `--memory` wins over `RUNG_MEMORY`, which wins over the file;
+//! `RUNG_MEMORY_SCOPE`, `RUNG_MEMORY_DIR`, `RUNG_MEMORY_TIMEOUT_SECS` win
+//! over their keys.
+//!
 //! Env wins over the file. When the file names an `api_key_env`, the key is
 //! read from that env var alone (no fallback chain). If the file sets no
 //! `api_key_env`, the env-vars `RUNG_API_KEY` then `XAI_API_KEY` are tried.
 //! A missing key is empty: LAN llama.cpp / vLLM do not authenticate. Cloud endpoints that
 //! need a key will 401 at the wire.
 
+use rung_memory::MemoryAuthority;
 use rung_std::llm::{CachePolicy, LlmConfig, Protocol};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -28,6 +35,35 @@ struct FileConfig {
     /// The turn check (`turn_check.rs`). Omitted means off.
     #[serde(default)]
     turn_check: Option<TurnCheckFile>,
+    /// Memory (`memory.rs`). Omitted means off.
+    #[serde(default)]
+    memory: Option<MemoryFile>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+struct MemoryFile {
+    /// `off` | `external` | `baseline` | `mcp:<url or command>`.
+    #[serde(default)]
+    provider: Option<String>,
+    /// Opaque scope key. Omitted: the repository root of the session cwd.
+    #[serde(default)]
+    scope: Option<String>,
+    /// Where a local provider keeps its store.
+    #[serde(default)]
+    dir: Option<String>,
+    /// Longest one provider call may take.
+    #[serde(default)]
+    timeout_secs: Option<u64>,
+}
+
+/// Resolved memory settings. `scope` and `dir` are `None` when left to
+/// their defaults, which depend on the session's cwd (`memory.rs`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct MemorySettings {
+    pub authority: MemoryAuthority,
+    pub scope: Option<String>,
+    pub dir: Option<PathBuf>,
+    pub timeout_secs: u64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -173,6 +209,46 @@ fn resolve_turn_check(
         api_key_env: from_file(file.and_then(|f| f.api_key_env.as_ref()))
             .unwrap_or_else(|| "OPENROUTER_API_KEY".into()),
         timeout_secs: file.and_then(|f| f.timeout_secs).unwrap_or(10),
+    })
+}
+
+/// `memory:` from the same YAML, then env, then the `--memory` flag. The
+/// setting is `--memory`, else `RUNG_MEMORY`, else `memory.provider`, else
+/// `off`; `RUNG_MEMORY_SCOPE` and `RUNG_MEMORY_DIR` win over `memory.scope`
+/// and `memory.dir`. An unknown value is an error.
+pub fn load_memory(flag: Option<&MemoryAuthority>) -> Result<MemorySettings, String> {
+    let file = read_file(&config_path())?;
+    resolve_memory(flag, file.as_ref().and_then(|f| f.memory.as_ref()), |k| {
+        std::env::var(k).ok()
+    })
+}
+
+fn resolve_memory(
+    flag: Option<&MemoryAuthority>,
+    file: Option<&MemoryFile>,
+    getenv: impl Fn(&str) -> Option<String>,
+) -> Result<MemorySettings, String> {
+    let env = |k: &str| {
+        getenv(k)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let from_file = |v: Option<&String>| v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let authority = MemoryAuthority::resolve(
+        flag.cloned(),
+        env("RUNG_MEMORY").as_deref(),
+        file.and_then(|f| f.provider.as_deref()),
+    )?;
+    Ok(MemorySettings {
+        authority,
+        scope: env("RUNG_MEMORY_SCOPE").or_else(|| from_file(file.and_then(|f| f.scope.as_ref()))),
+        dir: env("RUNG_MEMORY_DIR")
+            .or_else(|| from_file(file.and_then(|f| f.dir.as_ref())))
+            .map(PathBuf::from),
+        timeout_secs: match env("RUNG_MEMORY_TIMEOUT_SECS") {
+            Some(s) => parse_num("RUNG_MEMORY_TIMEOUT_SECS", &s)?,
+            None => file.and_then(|f| f.timeout_secs).unwrap_or(10),
+        },
     })
 }
 
@@ -518,6 +594,42 @@ llm:
         assert!(resolve_tool_images(None, getenv(&on)).unwrap());
         let bad = HashMap::from([("RUNG_IMAGES", "maybe")]);
         assert!(resolve_tool_images(None, getenv(&bad)).is_err());
+    }
+
+    #[test]
+    fn memory_is_off_by_default() {
+        let none: HashMap<&str, &str> = HashMap::new();
+        let m = resolve_memory(None, None, getenv(&none)).unwrap();
+        assert_eq!(m.authority, MemoryAuthority::Off);
+        assert_eq!((m.scope, m.dir, m.timeout_secs), (None, None, 10));
+    }
+
+    #[test]
+    fn memory_flag_beats_env_beats_file() {
+        let file: FileConfig = serde_yaml::from_str(
+            "memory:\n  provider: external\n  scope: team-a\n  dir: /m\n  timeout_secs: 3\n",
+        )
+        .unwrap();
+        let mf = file.memory.as_ref();
+        let none: HashMap<&str, &str> = HashMap::new();
+        let m = resolve_memory(None, mf, getenv(&none)).unwrap();
+        assert_eq!(m.authority, MemoryAuthority::External);
+        assert_eq!(m.scope.as_deref(), Some("team-a"));
+        assert_eq!(m.dir, Some(PathBuf::from("/m")));
+        assert_eq!(m.timeout_secs, 3);
+        let env = HashMap::from([
+            ("RUNG_MEMORY", "baseline"),
+            ("RUNG_MEMORY_SCOPE", "team-b"),
+            ("RUNG_MEMORY_DIR", "/n"),
+        ]);
+        let m = resolve_memory(None, mf, getenv(&env)).unwrap();
+        assert_eq!(m.authority, MemoryAuthority::provider("baseline"));
+        assert_eq!(m.scope.as_deref(), Some("team-b"));
+        assert_eq!(m.dir, Some(PathBuf::from("/n")));
+        let m = resolve_memory(Some(&MemoryAuthority::Off), mf, getenv(&env)).unwrap();
+        assert_eq!(m.authority, MemoryAuthority::Off);
+        let bad = HashMap::from([("RUNG_MEMORY", "x y")]);
+        assert!(resolve_memory(None, mf, getenv(&bad)).is_err());
     }
 
     #[test]

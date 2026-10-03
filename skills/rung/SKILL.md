@@ -122,6 +122,24 @@ fixtures from real transcripts (`tests/fixtures/transcripts/`), not
 author-written easy ones: the one real done turn reads as unsure, and the
 gate escalates it to `unverified`.
 
+## Memory (rung-memory + rung-agent)
+
+Contract and wire: `docs/rung-memory.md`. One setting, `--memory` >
+`RUNG_MEMORY` > `memory.provider` > `off`: `off`, `external` (caller owns
+memory: no store, no hooks, no memory tools), `baseline` (BM25, local),
+`mcp:<url|command>` (`rung-memory/1` marker, hidden hook tools
+`rung_memory_recall` / `rung_memory_retain`). Off must stay byte-identical
+(`off_is_byte_for_byte_the_response_before_memory`). Retain takes a
+`Turnover`, built only from a `Completion`. A recall block goes in front of
+the ask for that call only and is never stored in the session. Provider
+failures are outcomes, never a failed turn.
+
+Tests: `rung-agent/tests/acp_memory.rs` drives ACP with a mock model and
+the reference provider `rung-agent --memory-fixture` (stdio, `--file` to
+persist across the per-prompt respawn). `rung-agent --memory-check SETTING`
+runs the contract against any provider. Product crate, not kernel:
+`rung-memory` is `publish = false`.
+
 ## Config
 
 - Driver: `~/.rung/providers.yaml` + `auth.yaml`. Env first, then auth.yaml.
