@@ -92,8 +92,8 @@ the provider reported, failed calls included. `latency_ms` is rung's measure.
 - **Cost.** A recall whose reported cost exceeds the provider's declared
   `max_cost_usd` is `unavailable` (`memory budget spent`), not evidence. The
   default is `0`, so a provider that charges must declare its budget.
-- **Time.** Each hook call has `timeout_secs`. A call that runs over makes
-  the hook `unavailable`, stops the provider process, and makes every later
+- **Time.** Each hook call and each agent-facing memory tool call has `timeout_secs`. A hook that runs over makes
+  the hook `unavailable` (a tool call returns an error), stops the provider process, and makes every later
   hook in the run unavailable at once.
 - **Scope.** A record from a scope other than the one asked is `unavailable`,
   never evidence.
