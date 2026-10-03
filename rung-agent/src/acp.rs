@@ -17,7 +17,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use agent_client_protocol::schema::v1::{
@@ -487,11 +487,16 @@ struct ThoughtForwarder {
     connection: ConnectionTo<Client>,
     session_id: SessionId,
     streamed_text: Arc<AtomicBool>,
+    /// `used` of the last `usage_update` sent this turn.
+    last_used: Arc<AtomicU64>,
 }
 
 impl rung_std::llm::StreamListener for ThoughtForwarder {
     fn on_event(&self, event: StreamEvent) {
         let update = update_for_event(event, &self.streamed_text);
+        if let SessionUpdate::UsageUpdate(u) = &update {
+            self.last_used.store(u.used, Ordering::SeqCst);
+        }
         let _ = self
             .connection
             .send_notification(SessionNotification::new(self.session_id.clone(), update));
@@ -568,6 +573,61 @@ fn send_text(
     ))
 }
 
+/// The number after `needle` in `text` (`128,000` reads as 128000).
+fn number_after(text: &str, needle: &str) -> Option<u64> {
+    let rest = &text[text.find(needle)? + needle.len()..];
+    let digits: String = rest
+        .trim_start()
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == ',')
+        .filter(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok()
+}
+
+/// The token figures a provider gives when it refuses a request as over its
+/// context window: what the request held, and the window. OpenAI, OpenRouter
+/// and vLLM say "maximum context length is M tokens. However, your messages
+/// resulted in (you requested) N tokens"; Anthropic says "prompt is too long:
+/// N tokens > M maximum".
+fn stated_window(reason: &str) -> (Option<u64>, Option<u64>) {
+    let m = reason.to_ascii_lowercase();
+    let used = [
+        "resulted in",
+        "requested about",
+        "you requested",
+        "prompt is too long:",
+    ]
+    .iter()
+    .find_map(|n| number_after(&m, n));
+    let size = [
+        "maximum context length is",
+        "context length of",
+        "context window of",
+        "tokens >",
+    ]
+    .iter()
+    .find_map(|n| number_after(&m, n));
+    (used, size)
+}
+
+/// The `usage_update` sent before a typed overflow. `used` and `size` are
+/// the provider's figures when its refusal states them. Otherwise `used` is
+/// that of the turn's last `usage_update` and `size` is 0 (unknown), as on
+/// every other update. `_meta.rung.overflow` says which figures the provider
+/// stated (`null` where it did not).
+fn overflow_usage(reason: &str, last_used: u64) -> SessionUpdate {
+    let (used, size) = stated_window(reason);
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        "rung".into(),
+        serde_json::json!({"overflow": {"used": used, "size": size}}),
+    );
+    SessionUpdate::UsageUpdate(
+        UsageUpdate::new(used.unwrap_or(last_used), size.unwrap_or(0)).meta(meta),
+    )
+}
+
 /// How a turn ended when it did not end plainly. It rides as
 /// `_meta.rung.terminal` on a prompt result and as `data.rung.terminal` on a
 /// prompt error: `{"state", "reason"}`, plus `"kind"` for `failed`. A plain
@@ -635,8 +695,10 @@ impl Terminal {
 }
 
 /// `_meta.rung` for a prompt response: the status and the turn check's
-/// reading while the check is on, and the terminal when the turn did not end
-/// plainly. `None` when there is neither, so the response is as before.
+/// reading while the check is on, `elided` when a context overflow had the
+/// turn elide its oldest tool results, and the terminal when the turn did not
+/// end plainly. `None` when there is none of these, so the response is as
+/// before.
 fn prompt_meta(
     o: Option<&Outcome>,
     terminal: Option<(Terminal, &str)>,
@@ -647,6 +709,14 @@ fn prompt_meta(
     {
         rung.insert("status".into(), o.status.as_str().into());
         rung.insert("turn_check".into(), serde_json::json!(tc));
+    }
+    if let Some(o) = o
+        && o.elided > 0
+    {
+        rung.insert(
+            "elided".into(),
+            serde_json::json!({"tool_results": o.elided}),
+        );
     }
     if let Some((t, reason)) = terminal {
         rung.insert("terminal".into(), t.json(reason));
@@ -963,6 +1033,7 @@ pub(crate) async fn connect_agent(
                     let notify_conn = connection.clone();
                     let notify_sid = session_id.clone();
                     let streamed_text = Arc::new(AtomicBool::new(false));
+                    let last_used = Arc::new(AtomicU64::new(0));
                     let extra = JobEx {
                         cancel: Some(flag.clone()),
                         wrap_tools: Some(Arc::new(move |inner| {
@@ -978,6 +1049,7 @@ pub(crate) async fn connect_agent(
                             connection: connection.clone(),
                             session_id: session_id.clone(),
                             streamed_text: streamed_text.clone(),
+                            last_used: last_used.clone(),
                         })),
                         prompt_blocks: Some(blocks),
                         system_append: live.system(&id),
@@ -1039,7 +1111,16 @@ pub(crate) async fn connect_agent(
                                 }
                                 Ok(response)
                             }
-                            Err(e) => prompt_failure(e, cancelled),
+                            Err(e) => {
+                                if !cancelled && e.kind == Some(FailureKind::Overflow) {
+                                    let usage =
+                                        overflow_usage(&e.reason, last_used.load(Ordering::SeqCst));
+                                    connection.send_notification(SessionNotification::new(
+                                        session_id, usage,
+                                    ))?;
+                                }
+                                prompt_failure(e, cancelled)
+                            }
                         }
                     })
                 }
@@ -1126,6 +1207,32 @@ mod tests {
         );
         live.drop_session("s1");
         assert_eq!(live.system("s1"), None);
+    }
+
+    #[test]
+    fn an_overflow_reports_the_figures_the_provider_stated() {
+        let openai = "invalid-request (context-overflow): This model's maximum context length is 128,000 tokens. However, your messages resulted in 130,512 tokens.";
+        assert_eq!(stated_window(openai), (Some(130_512), Some(128_000)));
+        let openrouter = "This endpoint's maximum context length is 131072 tokens. However, you requested about 140000 tokens (139000 of text input).";
+        assert_eq!(stated_window(openrouter), (Some(140_000), Some(131_072)));
+        let anthropic = "invalid-request (context-overflow): prompt is too long: 210000 tokens > 200000 maximum";
+        assert_eq!(stated_window(anthropic), (Some(210_000), Some(200_000)));
+        assert_eq!(stated_window("request_too_large"), (None, None));
+
+        let SessionUpdate::UsageUpdate(u) = overflow_usage(openai, 7) else {
+            panic!("not a usage_update");
+        };
+        assert_eq!((u.used, u.size), (130_512, 128_000));
+        // Unstated: the turn's last measured context, and an unknown window.
+        let SessionUpdate::UsageUpdate(u) = overflow_usage("prompt too long", 7) else {
+            panic!("not a usage_update");
+        };
+        assert_eq!((u.used, u.size), (7, 0));
+        let meta = serde_json::to_value(u.meta).unwrap();
+        assert_eq!(
+            meta,
+            serde_json::json!({"rung": {"overflow": {"used": null, "size": null}}})
+        );
     }
 
     #[test]

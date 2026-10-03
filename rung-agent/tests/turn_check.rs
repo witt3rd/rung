@@ -704,6 +704,7 @@ fn check(name: &str, request: &str, turn: Vec<ChatMessage>, final_message: &str)
         usage: Usage::default(),
         truncated: false,
         forced: false,
+        elided: 0,
     };
     let carry = turncheck::Carry {
         decider: Arc::new(Recorded::from_env(fixture(name))),

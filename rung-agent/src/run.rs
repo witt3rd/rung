@@ -81,6 +81,11 @@ pub struct Outcome {
     /// ACP reports it; the CLI JSON stays as it was.
     #[serde(skip)]
     pub forced: bool,
+    /// Tool results elided after a context overflow this turn
+    /// ([`agent::AgentResult::elided`]). ACP reports it; the CLI JSON stays
+    /// as it was.
+    #[serde(skip)]
+    pub elided: usize,
 }
 
 /// Why a job gave no outcome. `kind` is set when the agent loop stopped the
@@ -464,6 +469,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             isolation_path: sess.isolation_path,
             turn_check: None,
             forced: false,
+            elided: 0,
         });
     }
 
@@ -487,6 +493,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             isolation_path: sess.isolation_path.clone(),
             turn_check: None,
             forced: false,
+            elided: 0,
         });
     }
 
@@ -659,6 +666,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     match agent::run(thread, loop_carry(tools.clone(), config.clone())) {
         Ok(r) => {
             let first_calls = r.api_calls_made;
+            let first_elided = r.elided;
             let ended = if r.truncated {
                 Ended {
                     result: r,
@@ -697,6 +705,8 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
                 report,
                 extra_calls,
             } = ended;
+            // A nudge re-run is a second loop with its own elision.
+            let elided = first_elided + if extra_calls > 0 { r.elided } else { 0 };
             sess.lines.push(turn_line(&r, sent));
             sess.status = match status {
                 Status::Cancelled => "interrupted".into(),
@@ -711,6 +721,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
                 isolation_path: sess.isolation_path,
                 turn_check: report,
                 forced: r.forced,
+                elided,
             };
             if let Some(em) = &emitter {
                 em.emit_result(&out, &r.usage, &model);
@@ -729,6 +740,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
                 isolation_path: sess.isolation_path,
                 turn_check: None,
                 forced: false,
+                elided: 0,
             })
         }
         Err(f) => {
