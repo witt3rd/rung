@@ -1,0 +1,190 @@
+{
+  "request": {
+    "model": "typesafe/jev-1.13",
+    "state": {
+      "pack": {
+        "epoch_tokens": 6500,
+        "header_reserve": 300,
+        "budget": 10000,
+        "turns_in_epoch": 12,
+        "at_break": true,
+        "mode": "free",
+        "cache_read_ratio_last10": 0.9,
+        "copy_flag": false,
+        "segments": [
+          {
+            "id": "s1",
+            "first_turn": 3,
+            "last_turn": 5,
+            "tokens": 900,
+            "gist": "segment 1",
+            "referenced_by_open_commitment": true,
+            "referenced_by_open_expectation": false
+          },
+          {
+            "id": "s2",
+            "first_turn": 6,
+            "last_turn": 8,
+            "tokens": 900,
+            "gist": "segment 2",
+            "referenced_by_open_commitment": false,
+            "referenced_by_open_expectation": false
+          },
+          {
+            "id": "s3",
+            "first_turn": 9,
+            "last_turn": 11,
+            "tokens": 900,
+            "gist": "segment 3",
+            "referenced_by_open_commitment": false,
+            "referenced_by_open_expectation": false
+          },
+          {
+            "id": "s4",
+            "first_turn": 12,
+            "last_turn": 14,
+            "tokens": 900,
+            "gist": "segment 4",
+            "referenced_by_open_commitment": false,
+            "referenced_by_open_expectation": false
+          }
+        ],
+        "last_turn": 14
+      },
+      "consolidate": {
+        "note_age_turns": 12,
+        "commits": 2,
+        "releases": 1,
+        "candidates": [
+          {
+            "id": "c10",
+            "kind": "trace",
+            "gist": "a trace"
+          },
+          {
+            "id": "c11",
+            "kind": "settled",
+            "gist": "e3 met"
+          }
+        ],
+        "rollover_imminent": true
+      }
+    },
+    "questions": {
+      "context_action": {
+        "type": "choice",
+        "instructions": "What should happen to the agent's context at this boundary?",
+        "criteria": {
+          "append": "Keep appending: the context has room and no break is due.",
+          "rollover_at_break": "Start a new epoch at the agent's next natural break.",
+          "rollover_now": "Start a new context epoch now."
+        }
+      },
+      "keep_s1": {
+        "type": "noul",
+        "instructions": "Will the agent likely need segment s1's exact text in the next epoch, rather than its gist?",
+        "criteria": {
+          "true": "Yes: the exact words will matter.",
+          "false": "No: the gist is enough."
+        }
+      },
+      "keep_s2": {
+        "type": "noul",
+        "instructions": "Will the agent likely need segment s2's exact text in the next epoch, rather than its gist?",
+        "criteria": {
+          "true": "Yes: the exact words will matter.",
+          "false": "No: the gist is enough."
+        }
+      },
+      "keep_s3": {
+        "type": "noul",
+        "instructions": "Will the agent likely need segment s3's exact text in the next epoch, rather than its gist?",
+        "criteria": {
+          "true": "Yes: the exact words will matter.",
+          "false": "No: the gist is enough."
+        }
+      },
+      "keep_s4": {
+        "type": "noul",
+        "instructions": "Will the agent likely need segment s4's exact text in the next epoch, rather than its gist?",
+        "criteria": {
+          "true": "Yes: the exact words will matter.",
+          "false": "No: the gist is enough."
+        }
+      },
+      "note_due": {
+        "type": "noul",
+        "instructions": "Should the agent be asked to update its carried note before anything is evicted?",
+        "criteria": {
+          "true": "Yes: enough has happened since its note that it may want to carry something.",
+          "false": "No: its note is recent enough."
+        }
+      },
+      "retain_c10": {
+        "type": "noul",
+        "instructions": "Is observation c10 worth keeping in long-term memory?",
+        "criteria": {
+          "true": "Yes: it records something worth remembering later.",
+          "false": "No: it is routine."
+        }
+      },
+      "retain_c11": {
+        "type": "noul",
+        "instructions": "Is observation c11 worth keeping in long-term memory?",
+        "criteria": {
+          "true": "Yes: it records something worth remembering later.",
+          "false": "No: it is routine."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "synthetic (authored, not recorded)",
+    "answers": {
+      "context_action": {
+        "type": "choice",
+        "choice": "rollover_now",
+        "probabilities": {
+          "append": 0.0,
+          "rollover_at_break": 0.0,
+          "rollover_now": 1.0
+        },
+        "confidence": 0.9
+      },
+      "keep_s1": {
+        "type": "noul",
+        "noul": 0.845
+      },
+      "keep_s2": {
+        "type": "noul",
+        "noul": 0.691
+      },
+      "keep_s3": {
+        "type": "noul",
+        "noul": 0.217
+      },
+      "keep_s4": {
+        "type": "noul",
+        "noul": 0.139
+      },
+      "note_due": {
+        "type": "noul",
+        "noul": 0.009
+      },
+      "retain_c10": {
+        "type": "noul",
+        "noul": 0.967
+      },
+      "retain_c11": {
+        "type": "noul",
+        "noul": 0.268
+      }
+    },
+    "usage": {
+      "input_tokens": 969,
+      "cost": 0.0
+    }
+  },
+  "model": "synthetic",
+  "recorded_at": "synthetic"
+}

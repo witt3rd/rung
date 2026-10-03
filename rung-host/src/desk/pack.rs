@@ -23,7 +23,10 @@ pub struct Segment {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PackInput {
+    /// The pack now.
     pub epoch_tokens: usize,
+    /// What the next turn's header will add (held back for the ceiling).
+    pub header_reserve: usize,
     pub budget: usize,
     pub turns_in_epoch: u64,
     pub at_break: bool,
@@ -36,14 +39,23 @@ pub struct PackInput {
 }
 
 impl PackInput {
+    /// The pack's share of the budget now.
     pub fn fraction(&self) -> f64 {
         self.epoch_tokens as f64 / self.budget.max(1) as f64
+    }
+
+    /// The share the next turn would start with.
+    pub fn next_fraction(&self) -> f64 {
+        (self.epoch_tokens + self.header_reserve) as f64 / self.budget.max(1) as f64
     }
 
     /// The pack's mechanical gate: is it worth asking at all?
     pub fn gate_open(&self, k: &Knobs) -> bool {
         let f = self.fraction();
-        self.copy_flag || f >= k.pack_floor || (self.at_break && f >= k.pack_break_floor)
+        self.copy_flag
+            || f >= k.pack_floor
+            || self.next_fraction() >= k.pack_ceiling
+            || (self.at_break && f >= k.pack_break_floor)
     }
 }
 
@@ -148,7 +160,7 @@ impl HostQuestion for Pack {
 
     fn rule(input: &PackInput, k: &Knobs, _ctx: &()) -> PackChoice {
         let f = input.fraction();
-        let action = if f >= k.pack_ceiling || input.copy_flag || (input.at_break && f >= k.pack_rule_break) {
+        let action = if input.next_fraction() >= k.pack_ceiling || input.copy_flag || (input.at_break && f >= k.pack_rule_break) {
             Action::Rollover
         } else {
             Action::Append
@@ -172,7 +184,7 @@ impl HostQuestion for Pack {
         if input.copy_flag {
             c.action = Action::Rollover;
             c.cause = "copy_loop".into();
-        } else if f >= k.pack_ceiling {
+        } else if input.next_fraction() >= k.pack_ceiling {
             c.action = Action::Rollover;
             c.cause = "ceiling".into();
         } else if f < k.pack_floor {

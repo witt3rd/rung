@@ -659,8 +659,8 @@ impl Host {
             (c, e)
         };
         let mut input = PackInput {
-            // What the next turn will start with: the pack and its header.
-            epoch_tokens: pack.tokens() + pack.header_reserve(),
+            epoch_tokens: pack.tokens(),
+            header_reserve: pack.header_reserve(),
             budget: pack.budget,
             turns_in_epoch: pack.turns_in_epoch(),
             at_break,
