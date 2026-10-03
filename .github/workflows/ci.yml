@@ -36,3 +36,5 @@ jobs:
         run: docs/_props.py check
       - name: proposition citations in Rust source
         run: docs/_props.py cited
+      - name: no consumer-specific names (one-way rule)
+        run: docs/_consumer_guard.py

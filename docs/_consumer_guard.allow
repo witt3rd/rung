@@ -1,0 +1,6 @@
+# path-prefix  # reason (exempt from docs/_consumer_guard.py)
+docs/.archive/  # archived history docs
+.archive/  # archived history
+docs/_consumer_guard.py  # the guard's own pattern list
+docs/_consumer_guard.allow  # the guard's own allow-list
+Cargo.lock  # generated
