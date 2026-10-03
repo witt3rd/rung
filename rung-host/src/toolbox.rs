@@ -566,7 +566,7 @@ pub fn confine(root: &Path, rel: &str) -> Result<PathBuf, String> {
     // The deepest existing ancestor must still be inside the root.
     let mut probe = joined.as_path();
     loop {
-        if probe.exists() {
+        if probe.symlink_metadata().is_ok() {
             let real = probe.canonicalize().map_err(|e| format!("{rel}: {e}"))?;
             if !real.starts_with(&real_root) {
                 return Err(format!("`{rel}` leaves your workspace"));
