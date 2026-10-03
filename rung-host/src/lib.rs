@@ -9,9 +9,24 @@
 //! See `docs/rung-host.md` for the design and the record vocabulary, and
 //! [`gates`] for the frozen acceptance gates.
 
+pub mod calendar;
 pub mod canon;
 pub mod clock;
+pub mod core;
+pub mod desk;
+pub mod engine;
 pub mod gates;
+pub mod governor;
+pub mod inbox;
+pub mod kernel;
+pub mod memory;
 pub mod notify;
+pub mod pack;
+pub mod presence;
 pub mod record;
+pub mod registers;
+pub mod render;
+pub mod sim;
+pub mod state;
 pub mod stop;
+pub mod toolbox;
