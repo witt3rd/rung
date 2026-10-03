@@ -288,8 +288,9 @@ fn tool_call_ids(body: &Value) -> Vec<String> {
 
 /// Two earlier turns each read a large file; the third prompt overflows.
 /// rung elides the oldest tool result, retries once and the turn ends
-/// normally. The retry keeps every call and every user message, and the
-/// session keeps the elision, so the next prompt is not sent over again.
+/// normally. The retry keeps every call and every user message. The elision
+/// is in-memory only: the stored history is untouched, so the next prompt
+/// overflows and elides again.
 #[test]
 fn an_overflowing_session_recovers_after_one_elision() {
     let dir = tempdir();
@@ -304,6 +305,7 @@ fn an_overflowing_session_recovers_after_one_elision() {
             text_reply("read b"),
             overflow(),
             text_reply("recovered"),
+            overflow(),
             text_reply("fourth"),
         ],
     );
@@ -341,10 +343,9 @@ fn an_overflowing_session_recovers_after_one_elision() {
     assert_eq!(user_texts(&retry), user_texts(&over), "{retry}");
     assert_eq!(user_texts(&retry), ["read a", "read b", "third"], "{retry}");
 
-    // The recovered turn is stored, and so is the elision.
     let session = acp.session().to_string();
     assert!(session.contains("recovered"), "{session}");
-    assert!(!session.contains("ALPHA-000"), "{session}");
+    assert!(session.contains("ALPHA-000"), "{session}");
     assert!(session.contains("BRAVO-000"), "{session}");
 
     let fourth = acp.prompt("fourth");
@@ -353,10 +354,13 @@ fn an_overflowing_session_recovers_after_one_elision() {
         "{}",
         fourth.response
     );
-    let next = acp.body();
-    let kept = tool_results(&next);
-    assert!(kept[0].1.starts_with(ELIDED), "{next}");
-    assert!(kept[1].1.contains("BRAVO-000"), "{next}");
+    let over4 = acp.body();
+    assert!(tool_results(&over4)[0].1.contains("ALPHA-000"), "{over4}");
+    let retry4 = acp.body();
+    let kept = tool_results(&retry4);
+    assert_eq!(kept[0].0, "call_a");
+    assert!(kept[0].1.starts_with(ELIDED), "{retry4}");
+    assert!(kept[1].1.contains("BRAVO-000"), "{retry4}");
 }
 
 /// Still over the window after the one elision: the typed `overflow`

@@ -183,9 +183,8 @@ impl Spawn for CatalogSpawn {
             &self.extra,
             self.tool_images,
         ) {
-            Ok((line, api_calls, transcript)) => {
+            Ok((line, api_calls)) => {
                 let text = line.text.clone();
-                keep_elisions(&mut sess.lines, 0, &transcript);
                 sess.lines.push(line);
                 sess.status = "completed".into();
                 self.store.save(&sess)?;
@@ -213,7 +212,7 @@ fn drive(
     emitter: Option<Arc<crate::stream::Emitter>>,
     extra: &JobEx,
     tool_images: bool,
-) -> Result<(Line, u32, Vec<ChatMessage>), (agent::Filtered, usize)> {
+) -> Result<(Line, u32), (agent::Filtered, usize)> {
     let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
     let cap = kind.iteration_cap(max_iterations);
     let base: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
@@ -250,7 +249,7 @@ fn drive(
     };
     let sent = thread.messages.len();
     match agent::run(thread, carry) {
-        Ok(r) => Ok((turn_line(&r, sent), r.api_calls_made, r.transcript)),
+        Ok(r) => Ok((turn_line(&r, sent), r.api_calls_made)),
         Err(f) => Err((f, sent)),
     }
 }
@@ -294,48 +293,20 @@ fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<
         messages.push(ChatMessage::user(m));
     }
     for l in lines {
-        messages.extend(replay(l));
+        match (l.role.as_str(), &l.messages) {
+            ("user", _) => messages.push(ChatMessage::user(l.text.clone())),
+            // A turn that stopped replays the steps that ran, never its failure.
+            ("assistant", turn) if l.failure.is_some() => {
+                messages.extend(turn.iter().flatten().cloned())
+            }
+            ("assistant", Some(turn)) if !turn.is_empty() => messages.extend(turn.iter().cloned()),
+            ("assistant", _) => messages.push(ChatMessage::assistant(l.text.clone())),
+            _ => {}
+        }
     }
     Thread {
         system_prompt,
         messages,
-    }
-}
-
-/// The messages one session line puts in the thread.
-fn replay(l: &Line) -> Vec<ChatMessage> {
-    match (l.role.as_str(), &l.messages) {
-        ("user", _) => vec![ChatMessage::user(l.text.clone())],
-        // A turn that stopped replays the steps that ran, never its failure.
-        ("assistant", turn) if l.failure.is_some() => turn.iter().flatten().cloned().collect(),
-        ("assistant", Some(turn)) if !turn.is_empty() => turn.clone(),
-        ("assistant", _) => vec![ChatMessage::assistant(l.text.clone())],
-        _ => Vec::new(),
-    }
-}
-
-/// Store the loop's elisions in the earlier turns they came from. `lines`
-/// were replayed by [`thread_from`] after `skip` prepared messages, and
-/// `transcript` starts with that replay as the loop last sent it: the same
-/// messages, but with the oldest tool results elided if the turn
-/// overflowed. A stored turn takes its messages back from there, so the
-/// next prompt does not overflow on the same history again. Only stored
-/// turns change; user lines are never touched.
-fn keep_elisions(lines: &mut [Line], skip: usize, transcript: &[ChatMessage]) {
-    let mut at = skip;
-    for l in lines {
-        let n = replay(l).len();
-        let Some(sent) = transcript.get(at..at + n) else {
-            return;
-        };
-        at += n;
-        if let Some(stored) = l.messages.as_mut()
-            && l.role == "assistant"
-            && stored.len() == n
-            && stored.as_slice() != sent
-        {
-            stored.clone_from_slice(sent);
-        }
     }
 }
 
@@ -736,11 +707,6 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             } = ended;
             // A nudge re-run is a second loop with its own elision.
             let elided = first_elided + if extra_calls > 0 { r.elided } else { 0 };
-            keep_elisions(
-                &mut sess.lines,
-                usize::from(user_material.is_some()),
-                &r.transcript,
-            );
             sess.lines.push(turn_line(&r, sent));
             sess.status = match status {
                 Status::Cancelled => "interrupted".into(),
@@ -1012,51 +978,6 @@ mod tests {
         let ran = vec![ChatMessage::user("too much"), ChatMessage::assistant("x")];
         record_failure(&mut lines, &failure(FailureKind::Overflow, ran), 1);
         assert_eq!(lines, vec![Line::user("first"), Line::assistant("answer")]);
-    }
-
-    #[test]
-    fn a_stored_turn_keeps_the_elision_of_its_tool_result() {
-        use rung_std::agent::ELIDED_TOOL_RESULT;
-        let call = ChatMessage::assistant_with_blocks(vec![MessageContentBlock::ToolUse {
-            id: "call_a".into(),
-            name: "read_file".into(),
-            input: serde_json::json!({}),
-            cache: None,
-        }]);
-        let turn = vec![
-            call.clone(),
-            ChatMessage::tool_result("call_a", "big result"),
-            ChatMessage::assistant("read"),
-        ];
-        let mut lines = vec![
-            Line::user("read a"),
-            Line {
-                role: "assistant".into(),
-                text: "read".into(),
-                messages: Some(turn.clone()),
-                failure: None,
-            },
-            Line::user("third"),
-        ];
-        let mut sent = thread_from(&lines, None, Some("material")).messages;
-        sent[3] = ChatMessage::tool_result("call_a", ELIDED_TOOL_RESULT);
-        sent.push(ChatMessage::assistant("recovered"));
-        let user_lines: Vec<Line> = lines.iter().filter(|l| l.role == "user").cloned().collect();
-        keep_elisions(&mut lines, 1, &sent);
-        let kept = lines[1].messages.as_ref().unwrap();
-        assert_eq!(kept[0], call);
-        assert_eq!(
-            kept[1],
-            ChatMessage::tool_result("call_a", ELIDED_TOOL_RESULT)
-        );
-        assert_eq!(kept[2], turn[2]);
-        let after: Vec<Line> = lines.iter().filter(|l| l.role == "user").cloned().collect();
-        assert_eq!(after, user_lines);
-        // A transcript that does not reach a line leaves it as it was.
-        let mut short = vec![lines[0].clone(), lines[1].clone()];
-        let before = short.clone();
-        keep_elisions(&mut short, 0, &sent[..2]);
-        assert_eq!(short, before);
     }
 
     #[test]

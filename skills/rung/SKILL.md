@@ -75,9 +75,9 @@ the request that overflowed is not sent again.
 
 Context overflow: the loop's `Overflowed => Calling` recover edge (`elide`,
 G8-guarded) elides the oldest tool results, oldest first until half their
-weight is gone, and retries once per turn. A turn that recovers stores the
-elision in the earlier lines too (`keep_elisions`), so the next prompt does
-not overflow on the same history. Still over: typed `overflow` on ACP, a
+weight is gone, and retries once per turn. The elision is in-memory for the
+retry only: stored history is never rewritten, so each prompt that overflows
+elides again. Still over: typed `overflow` on ACP, a
 `usage_update` with the provider's stated figures before it, nothing stored.
 Never retry overflow around `agent::run`: `Filtered` has no live thread and
 the turn's tool calls would run twice.
