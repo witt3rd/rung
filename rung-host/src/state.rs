@@ -118,9 +118,11 @@ impl State {
         s
     }
 
-    /// The canonical hash of the whole state.
+    /// The hash of the whole state. Every map in it is ordered (BTreeMap,
+    /// or a JSON value whose keys the record sorted), so its serialization
+    /// is a function of the state.
     pub fn hash(&self) -> String {
-        canon::hash(&canon::of(self))
+        canon::hash(&serde_json::to_vec(self).unwrap_or_default())
     }
 
     /// For each `turn.ended` line, the hash of the state replayed up to

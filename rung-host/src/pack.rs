@@ -53,6 +53,9 @@ pub fn flat_text(m: &ChatMessage) -> String {
     }
 }
 
+/// The least the pack holds back for a header, tokens.
+pub const HEADER_RESERVE_FLOOR: usize = 400;
+
 /// A turn's span in the log.
 #[derive(Debug, Clone, Serialize)]
 pub struct Span {
@@ -227,6 +230,20 @@ impl Pack {
         &self.spans
     }
 
+    /// Tokens to hold back for the next turn's header: the largest header
+    /// of the epoch's last ten turns, with a floor.
+    pub fn header_reserve(&self) -> usize {
+        let largest = self
+            .spans
+            .iter()
+            .rev()
+            .take(10)
+            .map(|s| self.log_bytes.get(s.start).copied().unwrap_or(0))
+            .max()
+            .unwrap_or(0);
+        canon::tokens(largest).max(HEADER_RESERVE_FLOOR) * 3 / 2
+    }
+
     pub fn turns_in_epoch(&self) -> u64 {
         self.spans.len() as u64
     }
@@ -246,12 +263,15 @@ impl Pack {
                 let first = ch[0].turn;
                 let last = ch[ch.len() - 1].turn;
                 let bytes: usize = ch.iter().map(|s| s.bytes).sum();
-                let text: String = ch
-                    .iter()
-                    .flat_map(|s| self.log[s.start..s.end].iter())
-                    .map(flat_text)
-                    .collect::<Vec<_>>()
-                    .join(" ");
+                // A gist needs only the first 150 characters.
+                let mut text = String::new();
+                for m in ch.iter().flat_map(|s| self.log[s.start..s.end].iter()) {
+                    if text.chars().count() >= 150 {
+                        break;
+                    }
+                    text.push_str(&flat_text(m));
+                    text.push(' ');
+                }
                 let (c, e) = is_ref(first, last);
                 Segment {
                     id: format!("s{}", i + 1),

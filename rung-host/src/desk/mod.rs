@@ -521,6 +521,8 @@ pub struct DeskState {
     pub candidates: Vec<Candidate>,
     /// Requests for groups outside the superset, by group.
     pub outside_requests: BTreeMap<String, u64>,
+    /// (cached, prompt) tokens of the last ten model calls.
+    pub cache_recent: VecDeque<(u64, u64)>,
 }
 
 /// Candidates kept waiting at most.
@@ -542,7 +544,7 @@ impl DeskState {
                 kind: kind.into(),
                 turn,
                 gist: crate::inbox::gist(&text),
-                text: text.chars().take(2_000).collect(),
+                text: text.chars().take(1_000).collect(),
             });
             if self.candidates.len() > MAX_WAITING_CANDIDATES {
                 self.candidates.remove(0);
@@ -550,6 +552,13 @@ impl DeskState {
         };
         match l.kind.as_str() {
             "desk.ask" => self.spent_today += l.f64("cost_usd"),
+            "llm.call" => {
+                self.cache_recent
+                    .push_back((l.u64("cached_tokens"), l.u64("prompt_tokens")));
+                while self.cache_recent.len() > 10 {
+                    self.cache_recent.pop_front();
+                }
+            }
             "decision.tools" => {
                 let on: Vec<String> = crate::inbox::ids(&l.get("choice")["enabled"]);
                 let turn = l.u64("turn");
@@ -647,6 +656,15 @@ impl DeskState {
             }
             _ => {}
         }
+    }
+
+    /// Cached over prompt tokens across the last ten calls.
+    pub fn cache_ratio(&self) -> f64 {
+        let (c, p) = self
+            .cache_recent
+            .iter()
+            .fold((0, 0), |(a, b), (c, p)| (a + c, b + p));
+        if p == 0 { 0.0 } else { c as f64 / p as f64 }
     }
 
     pub fn enabled(&self, group: &str) -> bool {

@@ -636,17 +636,23 @@ impl Host {
             let e = exp_turns.iter().any(|t| (first..=last).contains(t));
             (c, e)
         };
-        PackInput {
-            epoch_tokens: pack.tokens(),
+        let mut input = PackInput {
+            // What the next turn will start with: the pack and its header.
+            epoch_tokens: pack.tokens() + pack.header_reserve(),
             budget: pack.budget,
             turns_in_epoch: pack.turns_in_epoch(),
             at_break,
             mode: st.kernel.mode_label(),
-            cache_read_ratio_last10: 0.0,
+            cache_read_ratio_last10: canon::fixed(st.desk.cache_ratio()),
             copy_flag: st.kernel.copy_streak >= COPY_LOOP_TURNS,
-            segments: pack.segments(k.max_segments, &is_ref),
+            segments: Vec::new(),
             last_turn: pack.spans().last().map(|s| s.turn).unwrap_or(0),
+        };
+        // Segments only matter when the gate opens.
+        if input.gate_open(k) {
+            input.segments = pack.segments(k.max_segments, &is_ref);
         }
+        input
     }
 
     /// The rollover ask (when the pack's gate opens) and Consolidate.

@@ -101,6 +101,20 @@ impl Line {
     }
 }
 
+/// Sort every object's keys, at every depth.
+pub fn sort_keys(v: &mut Value) {
+    match v {
+        Value::Object(m) => {
+            m.sort_keys();
+            for x in m.values_mut() {
+                sort_keys(x);
+            }
+        }
+        Value::Array(a) => a.iter_mut().for_each(sort_keys),
+        _ => {}
+    }
+}
+
 fn strip_wall(v: &Value) -> Value {
     match v {
         Value::Object(m) => Value::Object(
@@ -291,6 +305,13 @@ impl Record {
         for k in ["seq", "at", "kind"] {
             assert!(!body.contains_key(k), "`{k}` is reserved in a record line");
         }
+        // Sorted, as a replay parses it: a live line and its replay are
+        // the same value, key order included.
+        let mut body = Value::Object(body);
+        sort_keys(&mut body);
+        let Value::Object(body) = body else {
+            unreachable!()
+        };
         let mut inner = self.inner.lock().expect("record");
         let line = Line {
             seq: inner.next_seq,
