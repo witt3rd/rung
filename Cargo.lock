@@ -1433,7 +1433,7 @@ dependencies = [
 
 [[package]]
 name = "rung"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "reqwest",
  "rung-macro",
@@ -1444,7 +1444,7 @@ dependencies = [
 
 [[package]]
 name = "rung-agent"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "agent-client-protocol",
  "bytes",
@@ -1465,7 +1465,7 @@ dependencies = [
 
 [[package]]
 name = "rung-doctrine"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "rung",
  "rung-het",
@@ -1474,7 +1474,7 @@ dependencies = [
 
 [[package]]
 name = "rung-driver"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "csv",
  "rung",
@@ -1486,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "rung-fixture"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "rung",
  "trybuild",
@@ -1494,7 +1494,7 @@ dependencies = [
 
 [[package]]
 name = "rung-het"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "rung",
  "rung-std",
@@ -1503,7 +1503,7 @@ dependencies = [
 
 [[package]]
 name = "rung-macro"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1512,7 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "rung-std"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "base64",
  "libc",
