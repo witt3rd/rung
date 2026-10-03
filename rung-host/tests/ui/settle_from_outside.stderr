@@ -1,0 +1,9 @@
+error[E0451]: fields `id` and `body` of struct `Settlement` are private
+ --> tests/ui/settle_from_outside.rs:7:9
+  |
+6 |     let _forged = Settlement {
+  |                   ---------- in this type
+7 |         id: "e1".to_string(),
+  |         ^^ private field
+8 |         body: serde_json::json!({"state": "met"}),
+  |         ^^^^ private field

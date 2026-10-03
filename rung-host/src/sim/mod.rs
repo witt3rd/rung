@@ -103,6 +103,7 @@ pub struct Scenario {
     /// Use this clock instead of a fresh `SimClock`.
     pub clock: Option<Arc<dyn Clock>>,
     pub stop: Option<Arc<StopAuthority>>,
+    pub notifier: Option<crate::notify::Notifier>,
 }
 
 impl Scenario {
@@ -136,6 +137,7 @@ impl Scenario {
             sources: Vec::new(),
             clock: None,
             stop: None,
+            notifier: None,
             dir,
         }
     }
@@ -172,6 +174,9 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
     let mut b = HostBuilder::new(sc.config, &sc.dir, clock, mock.clone());
     if let Some(s) = sc.stop {
         b.stop = s;
+    }
+    if let Some(n) = sc.notifier {
+        b.notifier = n;
     }
     b.desk = match sc.desk {
         DeskSpec::RuleOnly => DecisionDesk::rule_only(),

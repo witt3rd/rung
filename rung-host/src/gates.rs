@@ -299,17 +299,19 @@ pub fn g_c(lines: &[Line]) -> GateResult {
     let (mut free, mut committed, mut responding) = (0u64, 0u64, 0u64);
     let mut wrong = Vec::new();
     let mut in_commit = false;
+    // The agent's successful tool calls, by turn (a call is recorded once
+    // it has returned, so after the lines it wrote).
     let mut tool_calls: BTreeMap<u64, BTreeSet<String>> = BTreeMap::new();
+    for l in of(lines, "tool.call").filter(|l| l.get("ok") == &Value::Bool(true)) {
+        tool_calls
+            .entry(l.u64("turn"))
+            .or_default()
+            .insert(l.str("name").into());
+    }
     let mut unauthorised = 0;
     let (mut commits, mut releases) = (0, 0);
     for l in lines {
         match l.kind.as_str() {
-            "tool.call" if l.get("ok") == &Value::Bool(true) => {
-                tool_calls
-                    .entry(l.u64("turn"))
-                    .or_default()
-                    .insert(l.str("name").into());
-            }
             "kernel.commit" => {
                 commits += 1;
                 in_commit = true;

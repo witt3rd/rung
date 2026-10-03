@@ -269,6 +269,12 @@ impl Host {
         }
     }
 
+    /// The canonical bytes of the request the pack would send now.
+    pub fn request_bytes(&self) -> Vec<u8> {
+        let p = self.pack.lock().expect("pack");
+        crate::pack::request_bytes(p.tools(), p.system(), &p.thread().messages)
+    }
+
     pub fn record_lines(&self) -> std::io::Result<Vec<Line>> {
         Record::read_dir(self.core.record_dir())
     }
