@@ -305,8 +305,20 @@ impl DecisionDesk {
         &self.backend
     }
 
-    /// Ask the decider once for every question in `questions`.
+    /// Ask the decider once for every question in `questions`, within the
+    /// desk's timeout.
     pub fn ask(&self, state: Value, questions: BTreeMap<String, Question>, spent_today: f64) -> Asked {
+        self.ask_until(state, questions, spent_today, Instant::now() + self.timeout)
+    }
+
+    /// Ask, giving up at `deadline` (a boundary's asks share one budget).
+    pub fn ask_until(
+        &self,
+        state: Value,
+        questions: BTreeMap<String, Question>,
+        spent_today: f64,
+        deadline: Instant,
+    ) -> Asked {
         let started = Instant::now();
         let ask = Ask { state, questions };
         let est = ask.estimated_tokens() as f64 * JEV_USD_PER_INPUT_TOKEN;
@@ -335,7 +347,7 @@ impl DecisionDesk {
         std::thread::spawn(move || {
             let _ = tx.send(decider.decide(&sent));
         });
-        let left = self.timeout.saturating_sub(started.elapsed());
+        let left = deadline.saturating_duration_since(Instant::now());
         match rx.recv_timeout(left) {
             Ok(Ok(d)) => Asked {
                 cost_usd: d.usage.cost_usd,

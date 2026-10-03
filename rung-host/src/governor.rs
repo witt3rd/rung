@@ -283,10 +283,14 @@ pub fn on_failure(
     let down = || (st.rung + 1 < rungs).then_some((st.rung, st.rung + 1));
     match (f.origin, class) {
         (Origin::Platform, _) | (_, ProviderClass::Quota) => {
-            let until = f
-                .reset_at
-                .or_else(|| (retry > 0).then_some(now + retry))
-                .unwrap_or_else(|| next_midnight(now));
+            // A reset already past (the platform still refuses) backs off
+            // like any repeated failure rather than retrying at once.
+            let until = match f.reset_at {
+                Some(r) if r > now => r,
+                Some(_) => now + backoff(),
+                None if retry > 0 => now + retry,
+                None => next_midnight(now),
+            };
             Plan {
                 wait: Some(Wait {
                     class: "quota".into(),

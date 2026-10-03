@@ -1194,7 +1194,13 @@ pub fn g_m(lines: &[Line], ceiling: &[&str]) -> GateResult {
     let mut owner_deferred = 0;
     let mut last_boundary_seq = 0;
     let mut owner_waiting_at_boundary: BTreeSet<String> = BTreeSet::new();
-    let mut slow = Vec::new();
+    // Boundaries where the decider stalled, and what each boundary's asks
+    // cost together.
+    let mut delayed: BTreeSet<u64> = BTreeSet::new();
+    let mut ask_cost: BTreeMap<u64, f64> = BTreeMap::new();
+    for l in of(lines, "desk.ask") {
+        *ask_cost.entry(l.u64("boundary")).or_default() += l.f64("wall_us") / 1000.0;
+    }
     for l in lines {
         if l.kind == "boundary" {
             // Owners waiting before this boundary must be admitted at it.
@@ -1227,9 +1233,8 @@ pub fn g_m(lines: &[Line], ceiling: &[&str]) -> GateResult {
                     }
                 }
             }
-            let ms = l.f64("wall_us") / 1000.0;
             if l.get("delayed") == &Value::Bool(true) {
-                slow.push(ms);
+                delayed.insert(l.u64("boundary"));
             }
         }
         match l.kind.as_str() {
@@ -1269,6 +1274,10 @@ pub fn g_m(lines: &[Line], ceiling: &[&str]) -> GateResult {
         .filter(|l| l.str("cause") == "pack")
         .filter(|l| l.f64("tokens_before") < G_M_SOFT_FLOOR * budget)
         .count();
+    let slow: Vec<f64> = delayed
+        .iter()
+        .map(|b| ask_cost.get(b).copied().unwrap_or(0.0))
+        .collect();
     let worst_delayed = slow.iter().copied().fold(0.0, f64::max);
     let missing: Vec<&str> = FAMILIES
         .iter()

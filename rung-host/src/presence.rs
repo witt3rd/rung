@@ -139,6 +139,8 @@ pub struct Host {
     /// The previous call's prompt tokens (same epoch and model), for the
     /// cache efficiency expectation.
     last_call: Mutex<Option<(u64, String, u64, Millis)>>,
+    /// When this boundary's decisions must be made by.
+    desk_deadline: Mutex<Instant>,
     /// Retains decided at the boundary, done after the turn.
     deferred_retain: Mutex<Vec<crate::desk::Candidate>>,
 }
@@ -169,7 +171,9 @@ ladder!(Presence {
     boundary = |waking| {
         let carry = waking.carry().clone();
         carry.host.wake(&waking.payload);
-        Boundary::new(Edge::mint(1), carry)
+        // Boundaries count on across restarts.
+        let n = carry.host.core.state().boundary + 1;
+        Boundary::new(Edge::mint(n), carry)
     },
     step = |b| {
         let carry = b.carry().clone();
@@ -248,6 +252,7 @@ impl Host {
             switch_pending: Mutex::new(None),
             last_call: Mutex::new(None),
             deferred_retain: Mutex::new(Vec::new()),
+            desk_deadline: Mutex::new(Instant::now()),
         });
         Ok((host, recovered))
     }
@@ -364,8 +369,14 @@ impl Host {
 
     // ─── One boundary ────────────────────────────────────────────────────
 
+    fn desk_deadline(&self) -> Instant {
+        *self.desk_deadline.lock().expect("deadline")
+    }
+
     fn step(&self, edge: Edge) -> Next {
         let started = Instant::now();
+        // Every ask at this boundary shares one budget.
+        *self.desk_deadline.lock().expect("deadline") = started + self.desk.timeout;
         let core = self.core.clone();
         let now = core.now();
         let turn_next = core.state().turn + 1;
@@ -555,7 +566,7 @@ impl Host {
         qs.extend(Inject::questions(&iin));
         qs.extend(Tools::questions(&tin));
         let state = json!({"admit": ain, "inject": iin, "tools": tin});
-        let asked = self.desk.ask(state, qs, spent);
+        let asked = self.desk.ask_until(state, qs, spent, self.desk_deadline());
         core.emit("desk.ask", asked.line(n, &["admit", "inject", "tools"], self.desk.backend()));
         let a = self.desk.decide::<Admit>(&ain, &actx, &asked, n, turn);
         core.emit("decision.admit", a.line().clone());
@@ -693,7 +704,7 @@ impl Host {
         } else {
             json!({"consolidate": cin})
         };
-        let asked = self.desk.ask(state, qs, spent);
+        let asked = self.desk.ask_until(state, qs, spent, self.desk_deadline());
         let families: &[&str] = if gate { &["pack", "consolidate"] } else { &["consolidate"] };
         core.emit("desk.ask", asked.line(n, families, self.desk.backend()));
         let p = gate.then(|| {
@@ -1098,8 +1109,28 @@ impl Host {
             );
         }
         let copied = core.state().kernel.last_guard_turn == Some(turn);
-        // A failure: the governor's plan.
         let failure = out.failure.clone();
+        let elapsed = core.now() - started_at;
+        let mut body = json!({
+            "turn": turn, "turn_kind": kind.as_str(), "status": status, "calls": out.calls.len(),
+            "elapsed_ms": elapsed, "rung": rung, "model": model,
+            "final_text": final_text.chars().take(2_000).collect::<String>(),
+            "copied": copied,
+            "cost": {"calls": out.calls.len(), "prompt": prompt_sum, "cached": cached_sum,
+                     "cost_usd": canon::fixed(cost), "jev_usd": 0.0},
+            "wall_post_us": post.elapsed().as_micros() as u64,
+        });
+        if let Some(f) = &failure {
+            body["failure"] = f.to_value();
+        }
+        if let Some(cap) = cfg.governor.spend_cap_usd_day {
+            let spent = core.state().governor.paid_spent_today;
+            if spent >= cap {
+                core.stop.request(Why::SpendCap { spent_usd: spent, cap_usd: cap });
+            }
+        }
+        core.emit_hashed("turn.ended", body);
+        // A failure: the governor's plan, once the turn is on record.
         if let Some(f) = &failure {
             let (plan, cooldown) = {
                 let st = core.state();
@@ -1127,26 +1158,6 @@ impl Host {
                 self.switch(from, to, "down", &format!("provider {}", f.class_name()), cooldown.unwrap_or(0));
             }
         }
-        let elapsed = core.now() - started_at;
-        let mut body = json!({
-            "turn": turn, "turn_kind": kind.as_str(), "status": status, "calls": out.calls.len(),
-            "elapsed_ms": elapsed, "rung": rung, "model": model,
-            "final_text": final_text.chars().take(2_000).collect::<String>(),
-            "copied": copied,
-            "cost": {"calls": out.calls.len(), "prompt": prompt_sum, "cached": cached_sum,
-                     "cost_usd": canon::fixed(cost), "jev_usd": 0.0},
-            "wall_post_us": post.elapsed().as_micros() as u64,
-        });
-        if let Some(f) = &failure {
-            body["failure"] = f.to_value();
-        }
-        if let Some(cap) = cfg.governor.spend_cap_usd_day {
-            let spent = core.state().governor.paid_spent_today;
-            if spent >= cap {
-                core.stop.request(Why::SpendCap { spent_usd: spent, cap_usd: cap });
-            }
-        }
-        core.emit_hashed("turn.ended", body);
         core.sync();
     }
 }
