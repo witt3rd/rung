@@ -1,0 +1,80 @@
+{
+  "name": "cli_provider_failure",
+  "recorded_from": "rung-agent 0.1.13 (c0e23a8)",
+  "env": {
+    "HOME": "<tmp>",
+    "RUNG_API_KEY": "k",
+    "RUNG_BASE_URL": "<llm>",
+    "RUNG_CONFIG": "<tmp>/none.yaml",
+    "RUNG_HOME": "<tmp>",
+    "RUNG_MODEL": "m",
+    "RUNG_PROTOCOL": "openai",
+    "XDG_CONFIG_HOME": "<tmp>"
+  },
+  "files": {},
+  "llm": [
+    {
+      "__status": 401,
+      "__body": {
+        "error": {
+          "message": "bad key"
+        }
+      }
+    },
+    {
+      "__status": 401,
+      "__body": {
+        "error": {
+          "message": "bad key"
+        }
+      }
+    }
+  ],
+  "jev": [],
+  "mcp": null,
+  "steps": [
+    {
+      "argv": [
+        "--tools",
+        "none",
+        "--task-id",
+        "t-fail",
+        "hi"
+      ],
+      "stdin": null,
+      "acp": false,
+      "exchange": [],
+      "stderr": [
+        "[rung-std] call-0000: starting LLM call (attempt 1/32)",
+        "rung-agent: auth: bad key"
+      ],
+      "exit": 1
+    },
+    {
+      "argv": [
+        "--tools",
+        "none",
+        "--stream",
+        "--task-id",
+        "t-fail2",
+        "hi"
+      ],
+      "stdin": null,
+      "acp": false,
+      "exchange": [
+        "< {\"type\":\"result\",\"response\":{\"task_id\":\"t-fail2\",\"text\":\"\",\"status\":\"error\",\"error\":\"auth: bad key\",\"api_calls\":0,\"model\":\"m\",\"isolation_path\":null}}"
+      ],
+      "stderr": [
+        "[rung-std] call-0000: starting LLM call (attempt 1/32)",
+        "rung-agent: auth: bad key"
+      ],
+      "exit": 1
+    }
+  ],
+  "llm_requests": [
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}"
+  ],
+  "jev_requests": [],
+  "mcp_requests": []
+}

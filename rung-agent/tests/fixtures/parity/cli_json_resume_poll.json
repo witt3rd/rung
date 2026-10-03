@@ -1,0 +1,134 @@
+{
+  "name": "cli_json_resume_poll",
+  "recorded_from": "rung-agent 0.1.13 (c0e23a8)",
+  "env": {
+    "HOME": "<tmp>",
+    "RUNG_API_KEY": "k",
+    "RUNG_BASE_URL": "<llm>",
+    "RUNG_CONFIG": "<tmp>/none.yaml",
+    "RUNG_HOME": "<tmp>",
+    "RUNG_MODEL": "m",
+    "RUNG_PROTOCOL": "openai",
+    "XDG_CONFIG_HOME": "<tmp>"
+  },
+  "files": {
+    "notes/a.txt": "alpha\nbeta\n"
+  },
+  "llm": [
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "read_file",
+                  "arguments": "{\"path\":\"notes/a.txt\"}"
+                }
+              }
+            ]
+          },
+          "finish_reason": "tool_calls"
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": "a.txt holds alpha and beta"
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": "still alpha and beta"
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    }
+  ],
+  "jev": [],
+  "mcp": null,
+  "steps": [
+    {
+      "argv": [
+        "--tools",
+        "read",
+        "--json",
+        "--task-id",
+        "t-parity",
+        "what is in notes/a.txt?"
+      ],
+      "stdin": null,
+      "acp": false,
+      "exchange": [
+        "< {\"task_id\":\"t-parity\",\"text\":\"a.txt holds alpha and beta\",\"status\":\"completed\",\"api_calls\":2,\"isolation_path\":null}"
+      ],
+      "stderr": [
+        "[rung-std] call-0000: starting LLM call (attempt 1/32)",
+        "[rung-std] call-0000: executing tool 'read_file'",
+        "[rung-std] call-0000:   -> 1→alpha",
+        "2→beta",
+        "[rung-std] call-0000: tool_use — 1 tool(s), iterating",
+        "[rung-std] call-0001: starting LLM call (attempt 2/32)",
+        "[rung-std] call-0001: end_turn — a.txt holds alpha and beta"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "--tools",
+        "read",
+        "--task-id",
+        "t-parity",
+        "and now?"
+      ],
+      "stdin": null,
+      "acp": false,
+      "exchange": [
+        "< still alpha and beta"
+      ],
+      "stderr": [
+        "[rung-std] call-0000: starting LLM call (attempt 1/32)",
+        "[rung-std] call-0000: end_turn — still alpha and beta"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "--task-id",
+        "t-parity"
+      ],
+      "stdin": null,
+      "acp": false,
+      "exchange": [
+        "< task_id=t-parity status=completed",
+        "< still alpha and beta"
+      ],
+      "stderr": [],
+      "exit": 0
+    }
+  ],
+  "llm_requests": [
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"what is in notes/a.txt?\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"description\":\"Read a file or directory. Lines are `N→content` (1-indexed). Use offset/limit for large files (default 2000 lines). Do not include the `N→` prefix when editing. A PNG, JPEG, GIF or WebP image comes back as the image itself, so you can look at it.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"File or directory\"},\"offset\":{\"type\":\"integer\",\"description\":\"1-indexed start line (files only)\"},\"limit\":{\"type\":\"integer\",\"description\":\"Max lines (default 2000)\"}},\"required\":[\"path\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"list_files\",\"description\":\"List a directory. Directories end with `/`. Sorted.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Directory to list\"}},\"required\":[\"path\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"glob\",\"description\":\"Find files by glob (`*.rs`, `src/**/*.md`). Skips .git and target. Capped at 100.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"Glob pattern\"},\"path\":{\"type\":\"string\",\"description\":\"Directory to search (default cwd)\"}},\"required\":[\"pattern\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"grep\",\"description\":\"Search file contents with a regex. Optional glob filter. Skips binaries and .git/target. Returns path:line: text. Capped at 200 hits.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"Rust regex\"},\"path\":{\"type\":\"string\",\"description\":\"File or directory (default cwd)\"},\"glob\":{\"type\":\"string\",\"description\":\"Only files matching this glob\"},\"case_insensitive\":{\"type\":\"boolean\"}},\"required\":[\"pattern\"]}}}]}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"what is in notes/a.txt?\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"path\\\":\\\"notes/a.txt\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_1\",\"content\":\"1→alpha\\n2→beta\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"description\":\"Read a file or directory. Lines are `N→content` (1-indexed). Use offset/limit for large files (default 2000 lines). Do not include the `N→` prefix when editing. A PNG, JPEG, GIF or WebP image comes back as the image itself, so you can look at it.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"File or directory\"},\"offset\":{\"type\":\"integer\",\"description\":\"1-indexed start line (files only)\"},\"limit\":{\"type\":\"integer\",\"description\":\"Max lines (default 2000)\"}},\"required\":[\"path\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"list_files\",\"description\":\"List a directory. Directories end with `/`. Sorted.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Directory to list\"}},\"required\":[\"path\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"glob\",\"description\":\"Find files by glob (`*.rs`, `src/**/*.md`). Skips .git and target. Capped at 100.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"Glob pattern\"},\"path\":{\"type\":\"string\",\"description\":\"Directory to search (default cwd)\"}},\"required\":[\"pattern\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"grep\",\"description\":\"Search file contents with a regex. Optional glob filter. Skips binaries and .git/target. Returns path:line: text. Capped at 200 hits.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"Rust regex\"},\"path\":{\"type\":\"string\",\"description\":\"File or directory (default cwd)\"},\"glob\":{\"type\":\"string\",\"description\":\"Only files matching this glob\"},\"case_insensitive\":{\"type\":\"boolean\"}},\"required\":[\"pattern\"]}}}]}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"what is in notes/a.txt?\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"path\\\":\\\"notes/a.txt\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_1\",\"content\":\"1→alpha\\n2→beta\"},{\"role\":\"assistant\",\"content\":\"a.txt holds alpha and beta\"},{\"role\":\"user\",\"content\":\"and now?\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"description\":\"Read a file or directory. Lines are `N→content` (1-indexed). Use offset/limit for large files (default 2000 lines). Do not include the `N→` prefix when editing. A PNG, JPEG, GIF or WebP image comes back as the image itself, so you can look at it.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"File or directory\"},\"offset\":{\"type\":\"integer\",\"description\":\"1-indexed start line (files only)\"},\"limit\":{\"type\":\"integer\",\"description\":\"Max lines (default 2000)\"}},\"required\":[\"path\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"list_files\",\"description\":\"List a directory. Directories end with `/`. Sorted.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Directory to list\"}},\"required\":[\"path\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"glob\",\"description\":\"Find files by glob (`*.rs`, `src/**/*.md`). Skips .git and target. Capped at 100.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"Glob pattern\"},\"path\":{\"type\":\"string\",\"description\":\"Directory to search (default cwd)\"}},\"required\":[\"pattern\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"grep\",\"description\":\"Search file contents with a regex. Optional glob filter. Skips binaries and .git/target. Returns path:line: text. Capped at 200 hits.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"Rust regex\"},\"path\":{\"type\":\"string\",\"description\":\"File or directory (default cwd)\"},\"glob\":{\"type\":\"string\",\"description\":\"Only files matching this glob\"},\"case_insensitive\":{\"type\":\"boolean\"}},\"required\":[\"pattern\"]}}}]}"
+  ],
+  "jev_requests": [],
+  "mcp_requests": []
+}
