@@ -337,7 +337,7 @@ pub fn g_c(lines: &[Line]) -> GateResult {
             }
             "turn.started" => {
                 let turn = l.u64("turn");
-                let kind = l.str("kind");
+                let kind = l.str("turn_kind");
                 let expect = if now_admitted.contains(&turn) {
                     "responding"
                 } else if in_commit {

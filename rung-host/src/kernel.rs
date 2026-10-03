@@ -155,7 +155,7 @@ impl KernelState {
                 self.free_session_turns = 0;
                 push_recent(&mut self.recent, l.u64("turn"), &trace_text(&l.body));
             }
-            "turn.started" => match l.str("kind") {
+            "turn.started" => match l.str("turn_kind") {
                 "free" => {
                     self.free_session_open = true;
                     self.free_session_turns += 1;

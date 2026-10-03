@@ -220,3 +220,13 @@ pub fn temp_dir(name: &str) -> PathBuf {
     std::fs::create_dir_all(&d).expect("temp dir");
     d
 }
+
+/// Fail the whole test process if it is still running after `secs`: a
+/// deadlock or a wait on real time must not hang CI.
+pub fn test_timeout(secs: u64) {
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(secs));
+        eprintln!("test timeout: still running after {secs} s");
+        std::process::exit(101);
+    });
+}

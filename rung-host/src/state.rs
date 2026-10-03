@@ -54,7 +54,7 @@ impl PackMeta {
             "turn.ended" => self.note(format!(
                 "turn {} {} {}{}",
                 l.u64("turn"),
-                l.str("kind"),
+                l.str("turn_kind"),
                 l.str("status"),
                 match l.get("final_text").as_str() {
                     Some(t) if !t.is_empty() => format!(": {}", crate::inbox::gist(t)),

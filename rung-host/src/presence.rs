@@ -297,12 +297,11 @@ impl Host {
         );
         let now = core.now();
         let first = r.lines == 0;
-        let mut l1 = render::epoch_line(
-            core.state().pack.epoch + 1,
-            now,
-            &self.rung_model(core.state().governor.rung),
-            core.state().governor.rung,
-        );
+        let (epoch, rung) = {
+            let st = core.state();
+            (st.pack.epoch + 1, st.governor.rung)
+        };
+        let mut l1 = render::epoch_line(epoch, now, &self.rung_model(rung), rung);
         let mut gap = None;
         if first {
             for (id, title, why) in &self.cfg().seed_projects {
@@ -332,7 +331,8 @@ impl Host {
                 );
             }
             // A wait in progress when the host died is over.
-            if core.state().governor.degraded.is_some() {
+            let degraded = core.state().governor.degraded.is_some();
+            if degraded {
                 core.emit("degraded.ended", json!({"class": "interrupted", "waited_ms": 0}));
             }
             *self.down_since.lock().expect("down") = Some(last);
@@ -415,9 +415,10 @@ impl Host {
         core.emit("stimulus.accepted", crate::inbox::accepted_body(item));
         core.sync();
         if let (Some(c), Role::Owner) = (&item.control, item.role) {
+            let turn = core.state().turn;
             core.emit(
                 "stimulus.disposed",
-                json!({"id": item.id, "disposition": "control", "turn": core.state().turn}),
+                json!({"id": item.id, "disposition": "control", "turn": turn}),
             );
             match c.as_str() {
                 "stop" => core.stop.request(Why::Stopped { by: "owner".into() }),
@@ -695,7 +696,7 @@ impl Host {
                 let report = m.retain(&cand.text, attrs);
                 core.emit(
                     "memory.retain",
-                    json!({"turn": turn, "candidate": cand.id, "kind": cand.kind, "report": report}),
+                    json!({"turn": turn, "candidate": cand.id, "candidate_kind": cand.kind, "report": report}),
                 );
             }
         }
@@ -704,7 +705,8 @@ impl Host {
         {
             let cause = p.choice().cause.clone();
             if cause == "copy_loop" {
-                core.emit("copy.loop", json!({"turn": turn, "streak": core.state().kernel.copy_streak}));
+                let streak = core.state().kernel.copy_streak;
+                core.emit("copy.loop", json!({"turn": turn, "streak": streak}));
                 self.outbox(
                     turn,
                     &self.cfg().owner_channel.clone(),
@@ -871,7 +873,7 @@ impl Host {
         let pack_tokens = pack_tokens_before + header_tokens;
         core.emit(
             "turn.started",
-            json!({"turn": turn, "boundary": n, "kind": kind.as_str(), "mode": mode, "project": project,
+            json!({"turn": turn, "boundary": n, "turn_kind": kind.as_str(), "mode": mode, "project": project,
                    "model": model, "rung": rung, "epoch": epoch, "pack_tokens": pack_tokens,
                    "header_tokens": header_tokens, "enabled": enabled,
                    "wall_boundary_us": started.elapsed().as_micros() as u64}),
@@ -1094,7 +1096,7 @@ impl Host {
         }
         let elapsed = core.now() - started_at;
         let mut body = json!({
-            "turn": turn, "kind": kind.as_str(), "status": status, "calls": out.calls.len(),
+            "turn": turn, "turn_kind": kind.as_str(), "status": status, "calls": out.calls.len(),
             "elapsed_ms": elapsed, "rung": rung, "model": model,
             "final_text": final_text.chars().take(2_000).collect::<String>(),
             "copied": copied,
