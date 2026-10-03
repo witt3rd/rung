@@ -288,7 +288,7 @@ fn text_reply(text: &str) -> serde_json::Value {
 
 // ─── Terminal states on the wire ─────────────────────────────────────────────
 //
-// One turn per test, launched the way the Spire CONTROL host does
+// One turn per test, launched the way a host that launches rung as an ACP child does
 // (`--acp --tools none`, env isolated). Each asserts the exact
 // `session/prompt` response so a wire change shows here.
 

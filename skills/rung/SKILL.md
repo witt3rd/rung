@@ -31,7 +31,7 @@ are product, not `git-wt-new`. Do not use `git-wt-new` for those.
 A release is its own commit: bump `[workspace.package] version` in
 `Cargo.toml`, build so `Cargo.lock` follows, commit `release: X.Y.Z
 (workspace version matches tag)`, push master, then tag `vX.Y.Z` and push the
-tag. The version must match the tag. Downstream (agent-binding-host) pins tags.
+tag. The version must match the tag. Downstream consumers pin tags.
 Wait for CI on the release commit before you report the release.
 
 ## CI

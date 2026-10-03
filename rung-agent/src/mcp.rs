@@ -128,6 +128,9 @@ impl McpToolError {
     }
 }
 
+/// Redacts credentials from `text`: URL userinfo, bearer tokens and headers,
+/// and the values of well-known API-key env vars. Set `RUNG_REDACT_ENVS` to a
+/// comma-separated list of extra env var names whose values are also redacted.
 pub fn redact(text: &str) -> String {
     let mut out = redact_url_credentials(text);
     out = redact_tokens_and_headers(&out);
@@ -145,19 +148,30 @@ pub fn redact(text: &str) -> String {
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
         "RUNG_API_KEY",
-        "HOST_TOKEN",
-        "HOST_VENUE_KEY",
         "XAI_API_KEY",
     ];
-    for key in SECRET_ENVS {
-        if let Ok(val) = std::env::var(key) {
+    let extra = std::env::var("RUNG_REDACT_ENVS").unwrap_or_default();
+    let names = SECRET_ENVS
+        .iter()
+        .copied()
+        .chain(extra.split(',').map(str::trim).filter(|n| !n.is_empty()));
+    redact_env_values(&out, names, |k| std::env::var(k).ok())
+}
+
+fn redact_env_values<'a>(
+    text: &str,
+    names: impl Iterator<Item = &'a str>,
+    lookup: impl Fn(&str) -> Option<String>,
+) -> String {
+    let mut out = text.to_string();
+    for key in names {
+        if let Some(val) = lookup(key) {
             let val = val.trim();
             if val.len() >= 6 {
                 out = out.replace(val, "[REDACTED]");
             }
         }
     }
-
     out
 }
 
@@ -1531,6 +1545,23 @@ mod tests {
     use std::io::Read;
     use std::net::TcpListener;
     use std::sync::atomic::AtomicUsize;
+
+    #[test]
+    fn redact_env_values_masks_only_named_long_values() {
+        let lookup = |k: &str| match k {
+            "A" => Some(" s3cr3t-value-xyz ".to_string()),
+            "B" => Some("short".to_string()),
+            _ => None,
+        };
+        let out = redact_env_values(
+            "x s3cr3t-value-xyz short y",
+            ["A", "B", "C"].into_iter(),
+            lookup,
+        );
+        assert_eq!(out, "x [REDACTED] short y");
+        let none = redact_env_values("x s3cr3t-value-xyz", [].into_iter(), lookup);
+        assert_eq!(none, "x s3cr3t-value-xyz");
+    }
 
     #[test]
     fn parse_http_spec() {
