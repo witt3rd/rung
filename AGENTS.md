@@ -34,6 +34,7 @@ token is to go through the transition that produces it.
   XDG config belong in a product crate, not the kernel.
 - **No credential in a committed file.** Providers name `api_key_env`;
   `~/.rung/auth.yaml` is machine-local.
+- Rung is a general standalone harness and takes no dependency on any consumer: no consumer-specific names, types, ids or env vars in code, tests, docs or errors; consumers adapt to rung through generic extension points, never the reverse.
 
 ## Concepts
 
