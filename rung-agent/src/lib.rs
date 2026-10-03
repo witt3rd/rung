@@ -35,6 +35,7 @@ pub mod config;
 pub mod isolation;
 pub mod mcp;
 pub mod memory;
+pub mod memory_fixture;
 pub mod run;
 pub mod session;
 pub mod stream;

@@ -1,4 +1,4 @@
-//! Compile-fail pins for the turn check's seal.
+//! Compile-fail pins for the turn check's seal and the memory retain seal.
 
 /// `Status::Completed` cannot be built without a `Checked` (or the switched-off
 /// witness): the fields that would let a caller fabricate one are private.

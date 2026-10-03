@@ -7,6 +7,19 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let argv: Vec<String> = std::env::args().collect();
+    match argv.get(1).map(String::as_str) {
+        Some("--memory-fixture") => {
+            return match rung_agent::memory_fixture::serve(&argv[2..]) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    eprintln!("rung-agent: {e}");
+                    ExitCode::from(2)
+                }
+            };
+        }
+        Some("--memory-check") => return memory_check(argv.get(2)),
+        _ => {}
+    }
     let mut args = match Args::parse(&argv) {
         Ok(a) => a,
         Err(e) => {
@@ -82,6 +95,30 @@ fn main() -> ExitCode {
         Err(e) => {
             eprintln!("rung-agent: {e}");
             ExitCode::from(1)
+        }
+    }
+}
+
+/// `--memory-check SETTING`: run the provider contract and print each clause.
+fn memory_check(setting: Option<&String>) -> ExitCode {
+    let Some(setting) = setting else {
+        eprintln!("rung-agent: --memory-check needs a provider (baseline, mcp:URL, mcp:COMMAND)");
+        return ExitCode::from(2);
+    };
+    let dir = std::env::var("RUNG_MEMORY_DIR")
+        .ok()
+        .filter(|d| !d.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::env::temp_dir().join(format!("rung-memory-check-{}", std::process::id()))
+        });
+    let timeout = std::time::Duration::from_secs(10);
+    match rung_agent::memory_fixture::check(setting, &dir, timeout) {
+        Ok(clauses) if rung_agent::memory_fixture::report(&clauses) => ExitCode::SUCCESS,
+        Ok(_) => ExitCode::from(1),
+        Err(e) => {
+            eprintln!("rung-agent: {e}");
+            ExitCode::from(2)
         }
     }
 }

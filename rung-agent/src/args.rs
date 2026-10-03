@@ -236,6 +236,9 @@ rung-agent — headless agent (not a coding product; coding is one use)
   rung-agent --acp-http [ADDR]         ACP Streamable HTTP (experimental)
   rung-agent --task-id ID              print status / last answer
   rung-agent --task-id ID PROMPT       resume that session
+  rung-agent --memory-check SETTING    run the memory provider contract against a provider
+  rung-agent --memory-fixture [--file PATH]
+                                       serve the reference rung-memory/1 provider on stdio
 
 Options:
   --acp                             ACP JSON-RPC on stdin/stdout
