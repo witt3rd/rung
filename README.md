@@ -1,1 +1,244 @@
-AGENTS.md
+# AGENTS.md — rung
+
+A type ladder: the state machine *is* the type system. Declare rungs and
+transitions once; the compiler refuses any path that skips a rung.
+
+Custody is AGENTS.md + skills/; no `.agent/` folder, no inhabit, no formal
+handoff. On roger this tree is also an **acp-tempo identity** (`rung`).
+
+## Goals (the problem)
+
+You encode state machines by hand. A work item moves `Spec → Designed →
+Claimed → Active → Complete`. Each stage should only be reachable through
+the transition that produces it. Sealed constructors, private fields, runtime
+guards, convention, and review do not make that a compile error. The machine
+lives in comments and hope.
+
+rung makes a skipped step a compile error. The only way to hold a `Claimed`
+token is to go through the transition that produces it.
+
+## Merits (what is load-bearing)
+
+- **The compiler is the gate.** A skipped transition, a dropped token on an
+  error path, a non-exhaustive match on verdicts — compile errors. No runtime
+  guards for the graph.
+- **The type is the evidence.** Mid-ladder constructors are sealed and
+  module-private (G2). You cannot fabricate a verdict from outside.
+- **Linear consumption.** Tokens move by value, `#[must_use]`, `!Send +
+  !Sync`. Carry is immutable (G5). Recover edges are paired (G7/G9).
+- **Normative documents govern.** `docs/*-props.md` is law; `docs/*-notes.md`
+  is derivation. Where they disagree, props wins. Do not hand-edit generated
+  props or `docs/conformance.md`.
+- **Kernel vs product.** `rung-std` admits recurrent, domain-generic blocks
+  (J2). Session catalogs, resume, isolation worktrees, background spawn, and
+  XDG config belong in a product crate, not the kernel.
+- **No credential in a committed file.** Providers name `api_key_env`;
+  `~/.rung/auth.yaml` is machine-local.
+
+## Concepts
+
+- **`ladder!`** declares arrows (rungs, transitions, recover). The verb lives
+  on the arrow (`the-law`).
+- **`theory!`** declares sentences: decidable (a machine settles them) or
+  judgmental (an outside with disjoint provenance settles them).
+- **`rung-std`** is the canonical blocks: `llm`, `agent`, `python`, `tools`,
+  `questions`, `principals`, `driver`, `decide`.
+- **`rung-het`** is the two-filter pool (judge vs author) over one population.
+- **`rung-driver`** is theory-blind dispatch over a carrier. It does not
+  decide worth.
+- **A repo is an active intelligence** when it has a charter (`AGENTS.md`)
+  and lived experience (`skills/`).
+
+## Mechanisms
+
+### Workspace
+
+```text
+rung          ladder! runtime + re-export of the macro
+rung-macro    proc-macro crate (must be separate)
+rung-std      canonical blocks
+rung-het      Het: pool, gates, questions-of-rung
+rung-doctrine encoding of the proposition documents
+rung-driver   population → pool; audit-rectify driver
+rung-fixture  cross-crate consumption tests
+```
+
+Product CLI `rung-agent` (catalog, sessions, isolation, background, XDG
+`config.yaml`, `--acp` on stdio, `--acp-http` Streamable HTTP) is in
+the workspace. Kernel `task` is nested `Spawn`, depth 1. Catalog /
+resume / worktrees / background are product. `--acp` is ACP v1 on
+stdio (`agent-client-protocol` crate) — the only stable transport.
+`--acp-http [ADDR]` is the experimental Streamable HTTP RFD
+(`POST`/`GET`/`DELETE /acp`, `Acp-Connection-Id` / `Acp-Session-Id`,
+SSE GET streams) matching `@agentclientprotocol/sdk` `createHttpStream`
+/ `AcpServer`. HTTP/2 is accepted; HTTP/1.1 is served so the TS client
+works on localhost. WebSocket upgrade returns 426 until sacp HTTP
+lands. Baseline plus load/list/delete/close/set_mode/resume and
+unstable `session/fork`. Prompt emits tool-call `session/update`s;
+cancel is checked before each LLM call and around each tool. Session
+history keeps each turn's tool calls and results and replays them into the
+next turn. Prompt
+image, audio, and embedded context are claimed. MCP HTTP (and
+ACP-required stdio) tools are admitted for the session. Anvil holds
+the process as a pane.
+
+Harbor eval is out of tree (`rung-agent/python/rung_harbor`). Do not fork
+Harbor. The **validation suite** (`rung_harbor.suite`) is a capability
+ladder of Harbor *agent* tasks. Each `run` / `next` writes timestamped
+evidence under `rung-agent/harbor-runs/` (gitignored) and appends
+`index.jsonl`. Redo a case with `validate run <id>` — it always creates a
+new folder. Key: `doppler run -p fleet -c dev_work` (`OPENROUTER_API_KEY`).
+Suite model: `openrouter/~deepseek/deepseek-v4-flash-latest`.
+
+```bash
+PYTHONPATH=<rung>/rung-agent/python python3 -m rung_harbor.validate list
+PYTHONPATH=<rung>/rung-agent/python \
+  doppler run -p fleet -c dev_work -- \
+  python3 -m rung_harbor.validate next
+python3 -m rung_harbor.validate run cwd-capture
+python3 -m rung_harbor.validate show cwd-capture
+python3 -m rung_harbor.validate import   # seed from existing Harbor jobs/
+```
+
+### Commands
+
+```bash
+cargo fmt --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+cargo run -q -p rung-doctrine --bin render -- --check
+docs/_props.py check
+docs/_props.py cited
+```
+
+`docs/_props.py cited` treats kebab tokens in comments in `rung`, `rung-het`,
+and `rung-std` as proposition slugs. Wire names that are not slugs go in
+`NOT_A_CITATION` (`x-api-key`, `x-should-retry`).
+
+The crate rustdoc includes this file (`include_str` of `README.md`) as doctests.
+Unlabeled fences here are treated as Rust — label them. The block below is the
+Getting Started program; it is compiled and run.
+
+```rust
+use rung::ladder;
+
+struct Task;
+struct Job { step: u32 }
+struct Output { steps: u32 }
+
+ladder!(Workflow {
+    carry { task_id: String }
+
+    Pending(Task) => Running(Job) => {
+        Step -> Running
+        | Done(Output)
+    }
+} impl {
+    running = |pending| { Running::new(Job { step: 0 }, pending.carry().clone()) },
+    step = |running| {
+        let n = running.payload.step;
+        if n >= 3 {
+            return Ok(StepOutcome::Done(Done::new(Output { steps: n })));
+        }
+        Ok(StepOutcome::Step(Running::new(Job { step: n + 1 }, running.carry().clone())))
+    },
+});
+
+fn main() {
+    let p = workflow::Pending::new(Task, workflow::Carry { task_id: "t1".into() });
+    let mut r = workflow::running(p);
+    let out = loop {
+        match workflow::step(r) {
+            Ok(workflow::StepOutcome::Step(next)) => r = next,
+            Ok(workflow::StepOutcome::Done(d)) => break d.into_payload(),
+            Err(f) => panic!("{}", f.error),
+        }
+    };
+    assert_eq!(out.steps, 3);
+}
+```
+
+Required CI check is `check`. Merge method: rebase. Release: bump the
+workspace version in `Cargo.toml`, commit, then tag `vX.Y.Z` to match
+(procedure: `skills/rung/SKILL.md`).
+
+### House git
+
+House skill: `fleet_git`. Mainline is `master`. Merge method: rebase.
+Stage only files you touched; never `git add -A`.
+
+**Debugging / iteration:** work on `master`. Commit small batches; never
+leave uncommitted work. Session start: `git checkout master && git pull
+origin master`. When stable, branch, rebase onto `origin/master`, PR.
+
+**Parallel features:** `git wt-new` → `rung.wt/<branch>/`. After merge:
+`git wt-rm`, fast-forward `master`. Task isolation worktrees
+(`rung-task/{id}`) are product, not `git-wt-new`.
+
+### Configuration
+
+| file | holds |
+|---|---|
+| `~/.rung/providers.yaml` | endpoint catalog + `default:` (driver) |
+| `~/.rung/auth.yaml` | provider → key (never commit) |
+| `$XDG_CONFIG_HOME/rung/config.yaml` | `rung-agent` LLM settings (`llm.api_key_env` optional; not the key); `turn_check` (off by default) |
+
+`$RUNG_HOME` overrides `~/.rung/`. `RUNG_CONFIG` overrides the XDG path.
+`RUNG_REDACT_ENVS` (comma-separated env var names) adds consumer-specific credentials to the built-in redaction list.
+Env `RUNG_*` / `XAI_API_KEY` wins over the agent file.
+
+### Spec and CI
+
+| gate | catches |
+|---|---|
+| `cargo test --workspace` | a guarantee that stopped holding |
+| `render --check` | hand-edited `*-props.md` or `conformance.md` |
+| `docs/_props.py check` | stale number or dangling reference |
+| `docs/_props.py cited` | Rust comment citing a missing slug |
+
+`trybuild` `.stderr` pins refusals. Do not cite `compile_fail` doctests as
+evidence. `G1`–`G14` and `J1`–`J2` are labelled subtrees cited from Rust
+and test filenames.
+
+Five kinds — not a status field. The counts are the corpus; a test pins them.
+
+| kind | discharged by | count |
+|---|---|---:|
+| **decidable** | a proof — a test that fails when the proposition is violated | 132 |
+| **judgmental** | a principal, **disjoint** from what it judges | 47 |
+| **owed** | an author, with **standing** over it | 2 |
+| **signature** | nobody — it declares vocabulary | 62 |
+| **rationale** | nobody — it argues, or records a limit | 148 |
+
+### Map
+
+| you want | read |
+|---|---|
+| ladder language (normative) | `docs/rung-props.md` |
+| category | `docs/rung-ct-props.md` |
+| Het | `docs/rung-het-props.md` |
+| principals / questions (informative) | `docs/rung-std/` |
+| conformance view | `docs/conformance.md` |
+| questions docket | `.het/rung-questions/` |
+| crate rustdoc / doctest | `rung/src/lib.rs` |
+
+`rung-doctrine` is the source of the generated props. Render writes them;
+do not edit the markdown.
+
+The honest bootstrap measure is how many defects in rung the audit-rectify
+loop found and fixed. That number is still zero: machinery exists, no real
+judgment has been dispatched.
+
+### Caretaker
+
+Custody is AGENTS.md + `skills/`; no `.agent/` folder, no inhabit, no formal
+handoff. Lived experience for *this* repo: `skills/rung/SKILL.md`. House
+deltas are the `fleet_*` skills on the machine.
+
+## Scope and audience
+
+Maintainer: write access on `witt3rd/rung`. Debugging on `master`;
+worktrees only for parallel features. External contributors: PRs against
+`master`; follow CI; do not rewrite history.
+
+Last updated: 2026-09-28.

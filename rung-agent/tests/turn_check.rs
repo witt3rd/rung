@@ -46,7 +46,7 @@ fn transcript(name: &str) -> Value {
 }
 
 const NARRATE_REQUEST: &str = "Keep Mohak's test (whether we can think together without every idea turning into a task) as a note in notes.txt.";
-/// The #128 narration, as spire-venue saw it: the reply claims the note.
+/// The #128 narration, as a downstream host saw it: the reply claims the note.
 const NARRATION: &str = "I kept Mohak's test as a note in notes.txt.";
 /// A real answer from a rung-agent session (animus, 2026-08).
 const INFO_REQUEST: &str = "In one sentence: who built Animus?";
@@ -735,7 +735,7 @@ enum Checked {
     Unchecked(String),
 }
 
-/// A real worker turn (spire-venue agency probe A): a shell call that fails
+/// A real worker turn (probe A): a shell call that fails
 /// (`No module named 'PIL'`), three Python calls that decode the PNG by hand,
 /// and a shell call that writes and uploads the deliverable. The turn did
 /// what it says. The upload token in the request is registered as a secret

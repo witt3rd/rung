@@ -145,11 +145,16 @@ pub fn redact(text: &str) -> String {
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
         "RUNG_API_KEY",
-        "HOST_TOKEN",
-        "HOST_VENUE_KEY",
         "XAI_API_KEY",
     ];
-    for key in SECRET_ENVS {
+    // RUNG_REDACT_ENVS: comma-separated names of extra env vars whose values
+    // are redacted (for consumer-specific credentials).
+    let extra = std::env::var("RUNG_REDACT_ENVS").unwrap_or_default();
+    let names = SECRET_ENVS
+        .iter()
+        .copied()
+        .chain(extra.split(',').map(str::trim).filter(|n| !n.is_empty()));
+    for key in names {
         if let Ok(val) = std::env::var(key) {
             let val = val.trim();
             if val.len() >= 6 {
@@ -1531,6 +1536,23 @@ mod tests {
     use std::io::Read;
     use std::net::TcpListener;
     use std::sync::atomic::AtomicUsize;
+
+    #[test]
+    fn redact_env_names_extend_the_secret_list() {
+        // SAFETY: unique var names; no other test reads them.
+        unsafe {
+            std::env::set_var("RUNG_TEST_EXTRA_SECRET", "s3cr3t-value-xyz");
+            std::env::set_var("RUNG_REDACT_ENVS", "RUNG_TEST_EXTRA_SECRET");
+        }
+        assert_eq!(redact("x s3cr3t-value-xyz y"), "x [REDACTED] y");
+        unsafe {
+            std::env::remove_var("RUNG_REDACT_ENVS");
+        }
+        assert!(redact("x s3cr3t-value-xyz y").contains("s3cr3t-value-xyz"));
+        unsafe {
+            std::env::remove_var("RUNG_TEST_EXTRA_SECRET");
+        }
+    }
 
     #[test]
     fn parse_http_spec() {
