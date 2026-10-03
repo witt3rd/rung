@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 267 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 277 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -630,7 +630,7 @@ Not filtered by crate: some of these test the tooling and will never cite a
 proposition. Excluding them by name would be the quiet narrowing that makes a queue
 look shorter than it is.
 
-**`rung-agent/tests/acp.rs`** — 8 unclaimed
+**`rung-agent/tests/acp.rs`** — 18 unclaimed
 
 - `doom_stopped_turn_keeps_its_calls_and_is_not_replayed_as_speech`
 - `fork_resume_does_not_replay_load_does`
@@ -638,6 +638,16 @@ look shorter than it is.
 - `refused_turn_is_not_replayed_as_speech`
 - `second_turn_replays_first_turn_tool_calls`
 - `session_ops_follow_session_cwd_not_process_cwd`
+- `terminal_auth_failure_is_typed_error`
+- `terminal_cancelled_is_unchanged`
+- `terminal_cap_exhausted_is_max_turn_requests`
+- `terminal_cap_forced_answer_is_max_turn_requests`
+- `terminal_doom_loop_is_typed_error`
+- `terminal_end_turn_is_unchanged`
+- `terminal_overflow_is_typed_error`
+- `terminal_refusal_is_refusal`
+- `terminal_single_call_plain_answer_is_end_turn`
+- `terminal_truncated_is_unchanged`
 - `tool_result_image_is_a_note_for_a_text_only_model`
 - `tool_result_image_is_sent_to_a_model_that_takes_images`
 

@@ -246,7 +246,15 @@ fn mock_llm(
             let body: serde_json::Value = serde_json::from_str(&body).unwrap();
             let stream = body["stream"] == true;
             tx.send(body).unwrap();
-            let (ctype, payload) = if stream {
+            // `__delay_ms` holds the reply back; `__status` answers with that
+            // HTTP status and `__body` instead of a completion.
+            if let Some(ms) = reply["__delay_ms"].as_u64() {
+                std::thread::sleep(std::time::Duration::from_millis(ms));
+            }
+            let status = reply["__status"].as_u64().unwrap_or(200);
+            let (ctype, payload) = if status != 200 {
+                ("application/json", reply["__body"].to_string())
+            } else if stream {
                 let mut delta = reply["choices"][0]["message"].clone();
                 if let Some(calls) = delta.get_mut("tool_calls").and_then(|c| c.as_array_mut()) {
                     for (i, c) in calls.iter_mut().enumerate() {
@@ -265,7 +273,7 @@ fn mock_llm(
                 ("application/json", reply.to_string())
             };
             let resp = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+                "HTTP/1.1 {status} X\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
                 payload.len()
             );
             let _ = sock.write_all(resp.as_bytes());
@@ -276,6 +284,267 @@ fn mock_llm(
 
 fn text_reply(text: &str) -> serde_json::Value {
     json!({"id": "c", "model": "m", "choices": [{"message": {"content": text}, "finish_reason": "stop"}]})
+}
+
+// ─── Terminal states on the wire ─────────────────────────────────────────────
+//
+// One turn per test, launched the way the Spire CONTROL host does
+// (`--acp --tools none`, env isolated). Each asserts the exact
+// `session/prompt` response so a wire change shows here.
+
+fn shell_call() -> serde_json::Value {
+    json!({"id": "c", "model": "m", "choices": [{"message": {"tool_calls": [
+        {"id": "call_1", "type": "function", "function": {"name": "shell", "arguments": "{\"command\":\"ls\"}"}}
+    ]}, "finish_reason": "tool_calls"}]})
+}
+
+struct Turn {
+    /// The `session/prompt` response line.
+    response: serde_json::Value,
+    /// `agent_message_chunk` texts sent during the turn.
+    said: Vec<String>,
+    /// Request bodies the model saw.
+    bodies: Vec<serde_json::Value>,
+}
+
+/// Run one ACP prompt against `replies`. With `cancel_after`, send
+/// `session/cancel` that long after the prompt.
+fn one_turn(
+    replies: Vec<serde_json::Value>,
+    args: &[&str],
+    cancel_after: Option<std::time::Duration>,
+) -> Turn {
+    let tmp = tempfile();
+    let cwd = tmp.to_string_lossy().into_owned();
+    let (url, bodies) = mock_llm(replies);
+    let mut child = bin()
+        .arg("--acp")
+        .args(args)
+        .current_dir(&tmp)
+        .env("HOME", &tmp)
+        .env("XDG_CONFIG_HOME", &tmp)
+        .env("RUNG_CONFIG", tmp.join("none.yaml"))
+        .env("RUNG_HOME", &tmp)
+        .env("RUNG_BASE_URL", &url)
+        .env("RUNG_MODEL", "m")
+        .env("RUNG_API_KEY", "k")
+        .env("RUNG_PROTOCOL", "openai")
+        .env_remove("RUNG_TURN_CHECK")
+        .env_remove("RUNG_KEY_FILE")
+        .env_remove("RUNG_SYSTEM_PROMPT_FILE")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut said = Vec::new();
+    let mut send = |msg: serde_json::Value| {
+        writeln!(stdin, "{msg}").unwrap();
+        stdin.flush().unwrap();
+    };
+    let mut wait = |id: u32, said: &mut Vec<String>| loop {
+        let v = read_json(&mut stdout);
+        if v["id"] == id && v.get("method").is_none() {
+            return v;
+        }
+        let update = &v["params"]["update"];
+        if update["sessionUpdate"] == "agent_message_chunk" {
+            said.push(
+                update["content"]["text"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .into(),
+            );
+        }
+    };
+    let rpc = |id: u32, method: &str, params: serde_json::Value| json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
+    send(rpc(1, "initialize", json!({"protocolVersion": 1})));
+    wait(1, &mut said);
+    send(rpc(2, "session/new", json!({"cwd": cwd, "mcpServers": []})));
+    let created = wait(2, &mut said);
+    let sid = created["result"]["sessionId"].as_str().unwrap().to_string();
+    let prompt = json!({"sessionId": sid, "prompt": [{"type": "text", "text": "do it"}]});
+    send(rpc(3, "session/prompt", prompt));
+    if let Some(after) = cancel_after {
+        std::thread::sleep(after);
+        send(json!({"jsonrpc": "2.0", "method": "session/cancel", "params": {"sessionId": sid}}));
+    }
+    let response = wait(3, &mut said);
+    drop(stdin);
+    let _ = child.wait();
+    let _ = std::fs::remove_dir_all(&tmp);
+    Turn {
+        response,
+        said,
+        bodies: bodies.try_iter().collect(),
+    }
+}
+
+/// A model that finishes on its own: `end_turn`, nothing else (unchanged).
+#[test]
+fn terminal_end_turn_is_unchanged() {
+    let t = one_turn(vec![text_reply("done")], &["--tools", "none"], None);
+    assert_eq!(t.response["result"], json!({"stopReason": "end_turn"}));
+    assert_eq!(t.said, ["done"]);
+}
+
+/// The cap withdrew the tools on the last call and the model answered: the
+/// answer arrives, but the turn is `max_turn_requests`, not `end_turn`.
+#[test]
+fn terminal_cap_forced_answer_is_max_turn_requests() {
+    let t = one_turn(
+        vec![shell_call(), text_reply("forced summary")],
+        &["--tools", "none", "--max-iterations", "2"],
+        None,
+    );
+    assert!(t.bodies[1].get("tools").is_none(), "{}", t.bodies[1]);
+    assert_eq!(
+        t.response["result"],
+        json!({"stopReason": "max_turn_requests", "_meta": {"rung": {"terminal": {
+            "state": "cap_forced",
+            "reason": "iteration cap (2) reached; the last call had no tools",
+        }}}}),
+        "{}",
+        t.response
+    );
+    assert_eq!(t.said, ["forced summary"]);
+}
+
+/// A plain answer on the only allowed call is a natural end.
+#[test]
+fn terminal_single_call_plain_answer_is_end_turn() {
+    let t = one_turn(
+        vec![text_reply("plain answer")],
+        &["--tools", "none", "--max-iterations", "1"],
+        None,
+    );
+    assert_eq!(
+        t.response["result"],
+        json!({"stopReason": "end_turn"}),
+        "{}",
+        t.response
+    );
+    assert_eq!(t.said, ["plain answer"]);
+}
+
+/// The cap ran out with no answer at all.
+#[test]
+fn terminal_cap_exhausted_is_max_turn_requests() {
+    let t = one_turn(
+        vec![shell_call()],
+        &["--tools", "none", "--max-iterations", "1"],
+        None,
+    );
+    assert_eq!(
+        t.response["result"],
+        json!({"stopReason": "max_turn_requests", "_meta": {"rung": {"terminal": {
+            "state": "cap_exhausted",
+            "reason": "max iterations (1)",
+        }}}}),
+        "{}",
+        t.response
+    );
+    assert!(t.said.is_empty(), "{:?}", t.said);
+}
+
+/// `session/cancel` mid-turn: `cancelled`, nothing else (unchanged).
+#[test]
+fn terminal_cancelled_is_unchanged() {
+    let mut slow = text_reply("late");
+    slow["__delay_ms"] = json!(1500);
+    let t = one_turn(
+        vec![slow],
+        &["--tools", "none"],
+        Some(std::time::Duration::from_millis(300)),
+    );
+    assert_eq!(t.response["result"], json!({"stopReason": "cancelled"}));
+}
+
+/// A model refusal is ACP `refusal` with the model's reason, not -32603.
+#[test]
+fn terminal_refusal_is_refusal() {
+    let refusal = json!({"id": "c", "model": "m", "choices": [{"message": {
+        "content": null, "refusal": "I can't help with that."
+    }, "finish_reason": "stop"}]});
+    let t = one_turn(vec![refusal], &["--tools", "none"], None);
+    assert_eq!(
+        t.response["result"],
+        json!({"stopReason": "refusal", "_meta": {"rung": {"terminal": {
+            "state": "refused",
+            "reason": "model refused the request: I can't help with that.",
+        }}}}),
+        "{}",
+        t.response
+    );
+}
+
+/// Cut off by the token limit: `max_tokens`, nothing else (unchanged).
+#[test]
+fn terminal_truncated_is_unchanged() {
+    let cut = json!({"id": "c", "model": "m", "choices": [{"message": {"content": "half"}, "finish_reason": "length"}]});
+    let t = one_turn(vec![cut], &["--tools", "none"], None);
+    assert_eq!(t.response["result"], json!({"stopReason": "max_tokens"}));
+    assert_eq!(t.said, ["half"]);
+}
+
+/// The provider's context window is exceeded: an error whose data names
+/// the state, not prose alone.
+#[test]
+fn terminal_overflow_is_typed_error() {
+    let overflow = json!({"__status": 400, "__body": {"error": {
+        "message": "This model's maximum context length is 8192 tokens",
+        "code": "context_length_exceeded",
+    }}});
+    let t = one_turn(vec![overflow], &["--tools", "none"], None);
+    let error = &t.response["error"];
+    assert_eq!(error["code"], -32603, "{}", t.response);
+    assert_eq!(error["message"], "Internal error");
+    let terminal = &error["data"]["rung"]["terminal"];
+    assert_eq!(terminal["state"], "overflow", "{}", t.response);
+    assert!(
+        terminal["reason"]
+            .as_str()
+            .unwrap()
+            .starts_with("invalid-request (context-overflow): "),
+        "{}",
+        t.response
+    );
+    assert_eq!(terminal.as_object().unwrap().len(), 2, "{terminal}");
+}
+
+/// The same call with the same fast result, again and again: the doom
+/// guard stops the turn and the error says so in `state`.
+#[test]
+fn terminal_doom_loop_is_typed_error() {
+    let t = one_turn(vec![shell_call(); 4], &["--tools", "none"], None);
+    assert_eq!(
+        t.response["error"],
+        json!({"code": -32603, "message": "Internal error", "data": {"rung": {"terminal": {
+            "state": "doom_loop",
+            "reason": "repeated shell with the same input and no progress",
+        }}}}),
+        "{}",
+        t.response
+    );
+}
+
+/// Any other unrecoverable failure is `failed`, with its kind.
+#[test]
+fn terminal_auth_failure_is_typed_error() {
+    let denied = json!({"__status": 401, "__body": {"error": {"message": "bad key"}}});
+    let t = one_turn(vec![denied], &["--tools", "none"], None);
+    let error = &t.response["error"];
+    assert_eq!(error["code"], -32603, "{}", t.response);
+    let terminal = &error["data"]["rung"]["terminal"];
+    assert_eq!(terminal["state"], "failed", "{}", t.response);
+    assert_eq!(terminal["kind"], "auth", "{}", t.response);
+    assert!(
+        terminal["reason"].as_str().unwrap().starts_with("auth: "),
+        "{}",
+        t.response
+    );
 }
 
 /// Turn 2's request carries turn 1's tool-use and tool-result, not only its
@@ -439,7 +708,10 @@ fn doom_stopped_turn_keeps_its_calls_and_is_not_replayed_as_speech() {
     };
     let (r1, turn2, session) = failed_then_asked_again((1..=4).map(shell).collect());
     let why = "repeated shell with the same input and no progress";
-    assert_eq!(r1["error"]["data"], why, "{r1}");
+    assert_eq!(
+        r1["error"]["data"]["rung"]["terminal"]["reason"], why,
+        "{r1}"
+    );
 
     assert!(
         !assistant_texts(&turn2).iter().any(|t| t.contains(why)),
@@ -478,7 +750,10 @@ fn refused_turn_is_not_replayed_as_speech() {
     }, "finish_reason": "stop"}]});
     let (r1, turn2, session) = failed_then_asked_again(vec![refusal]);
     let why = "model refused the request: I can't help with that.";
-    assert_eq!(r1["error"]["data"], why, "{r1}");
+    assert_eq!(
+        r1["result"]["_meta"]["rung"]["terminal"]["reason"], why,
+        "{r1}"
+    );
 
     assert!(
         !turn2.to_string().contains("refused"),
