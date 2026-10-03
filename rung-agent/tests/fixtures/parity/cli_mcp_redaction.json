@@ -1,0 +1,96 @@
+{
+  "name": "cli_mcp_redaction",
+  "recorded_from": "rung-agent 0.1.13 (c0e23a8)",
+  "env": {
+    "HOME": "<tmp>",
+    "PARITY_TOKEN": "sekret-token-8812",
+    "RUNG_API_KEY": "k",
+    "RUNG_BASE_URL": "<llm>",
+    "RUNG_CONFIG": "<tmp>/none.yaml",
+    "RUNG_HOME": "<tmp>",
+    "RUNG_MODEL": "m",
+    "RUNG_PROTOCOL": "openai",
+    "RUNG_REDACT_ENVS": "PARITY_TOKEN",
+    "XDG_CONFIG_HOME": "<tmp>"
+  },
+  "files": {},
+  "llm": [
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"key\":\"k1\"}"
+                }
+              }
+            ]
+          },
+          "finish_reason": "tool_calls"
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": "the lookup failed"
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    }
+  ],
+  "jev": [],
+  "mcp": "backend refused token sekret-token-8812",
+  "steps": [
+    {
+      "argv": [
+        "--tools",
+        "none",
+        "--mcp-http",
+        "kv=<mcp>",
+        "--json",
+        "--task-id",
+        "t-mcp",
+        "look up k1"
+      ],
+      "stdin": null,
+      "acp": false,
+      "exchange": [
+        "< {\"task_id\":\"t-mcp\",\"text\":\"the lookup failed\",\"status\":\"completed\",\"api_calls\":2,\"isolation_path\":null}"
+      ],
+      "stderr": [
+        "[rung-std] call-0000: starting LLM call (attempt 1/32)",
+        "[rung-std] call-0000: executing tool 'lookup'",
+        "[mcp] operation-start tool=lookup rpc_id=3 operation_id=none",
+        "[mcp] error: {\"layer\":\"mcp\",\"method\":\"tools/call\",\"tool\":\"lookup\",\"request_id\":3,\"operation_id\":null,\"retryable\":false,\"outcome\":\"unknown\",\"corrective_action\":\"JSON-RPC error returned by MCP server.\",\"cause_chain\":[\"{\\\"code\\\":-32000,\\\"message\\\":\\\"backend refused token [REDACTED]\\\"}\"]}",
+        "[rung-std] call-0000:   -> error: {\"layer\":\"mcp\",\"method\":\"tools/call\",\"tool\":\"lookup\",\"request_id\":3,\"operation_id\":null,\"retryable\":false,\"outcome\":\"unknown\",\"corrective_action\":\"JSON-RPC error returned by MCP server.\",\"cause_chain\":[\"{\\\"code\\\":-32000,\\\"message\\\":\\\"backend refused token [REDACTED]\\\"}\"]}",
+        "[rung-std] call-0000: tool_use — 1 tool(s), iterating",
+        "[rung-std] call-0001: starting LLM call (attempt 2/32)",
+        "[rung-std] call-0001: end_turn — the lookup failed"
+      ],
+      "exit": 0
+    }
+  ],
+  "llm_requests": [
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"look up k1\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"description\":\"Look up a key.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\"}}}}}]}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"look up k1\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"key\\\":\\\"k1\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_1\",\"content\":\"error: {\\\"layer\\\":\\\"mcp\\\",\\\"method\\\":\\\"tools/call\\\",\\\"tool\\\":\\\"lookup\\\",\\\"request_id\\\":3,\\\"operation_id\\\":null,\\\"retryable\\\":false,\\\"outcome\\\":\\\"unknown\\\",\\\"corrective_action\\\":\\\"JSON-RPC error returned by MCP server.\\\",\\\"cause_chain\\\":[\\\"{\\\\\\\"code\\\\\\\":-32000,\\\\\\\"message\\\\\\\":\\\\\\\"backend refused token [REDACTED]\\\\\\\"}\\\"]}\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"description\":\"Look up a key.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\"}}}}}]}"
+  ],
+  "jev_requests": [],
+  "mcp_requests": [
+    "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",\"capabilities\":{},\"clientInfo\":{\"name\":\"rung-agent\",\"version\":\"0.1.13\"}},\"id\":1}",
+    "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\",\"params\":{}}",
+    "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"params\":{},\"id\":2}",
+    "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"lookup\",\"arguments\":{\"key\":\"k1\"}}}"
+  ]
+}

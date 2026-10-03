@@ -7,22 +7,11 @@ repository.workspace = true
 description = "Headless composition of rung-std blocks: catalog, sessions, isolation, a task CLI"
 
 [dependencies]
-agent-client-protocol = { version = "2.0.0", features = ["unstable_session_fork"] }
-rung = { path = "../rung" }
-rung-std = { path = "../rung-std" }
-rung-memory = { path = "../rung-memory" }
-reqwest = { version = "0.12", features = ["blocking", "json"] }
-serde = { version = "1", features = ["derive"] }
+rung-agent-core = { path = "../rung-agent-core" }
 serde_json = "1"
-serde_yaml = "0.9"
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "net", "io-util", "time"] }
-hyper = { version = "1", features = ["http1", "http2", "server"] }
-hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1", "http2"] }
-http-body-util = "0.1"
-bytes = "1"
-futures = "0.3"
-sha2 = "0.10"
-uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
+rung-std = { path = "../rung-std" }
+rung-memory = { path = "../rung-memory" }
+serde = { version = "1", features = ["derive"] }
 trybuild = "1"

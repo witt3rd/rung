@@ -132,7 +132,11 @@ impl Tool for Shell {
             .iter()
             .any(|pat| command.contains(pat));
         if destructive {
-            eprintln!("shell: destructive pattern — '{command}'");
+            crate::events::emit(
+                "rung-std",
+                "shell.destructive",
+                &format!("shell: destructive pattern — '{command}'"),
+            );
         }
         run(command, timeout())
     }

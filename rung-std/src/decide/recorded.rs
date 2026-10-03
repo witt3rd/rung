@@ -183,10 +183,14 @@ impl Recorded {
         let text = serde_json::to_string_pretty(&fixture).unwrap_or_default() + "\n";
         std::fs::write(&self.path, text)
             .unwrap_or_else(|e| panic!("write {}: {e}", self.path.display()));
-        eprintln!(
-            "[rung-std] recorded {} (cost ${cost:.6}, total ${:.6})",
-            self.path.display(),
-            spent + cost
+        crate::events::emit(
+            "rung-std",
+            "decide.recorded",
+            &format!(
+                "[rung-std] recorded {} (cost ${cost:.6}, total ${:.6})",
+                self.path.display(),
+                spent + cost
+            ),
         );
         Ok(response)
     }

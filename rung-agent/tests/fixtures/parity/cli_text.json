@@ -1,0 +1,55 @@
+{
+  "name": "cli_text",
+  "recorded_from": "rung-agent 0.1.13 (c0e23a8)",
+  "env": {
+    "HOME": "<tmp>",
+    "RUNG_API_KEY": "k",
+    "RUNG_BASE_URL": "<llm>",
+    "RUNG_CONFIG": "<tmp>/none.yaml",
+    "RUNG_HOME": "<tmp>",
+    "RUNG_MODEL": "m",
+    "RUNG_PROTOCOL": "openai",
+    "XDG_CONFIG_HOME": "<tmp>"
+  },
+  "files": {},
+  "llm": [
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": "hello there"
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    }
+  ],
+  "jev": [],
+  "mcp": null,
+  "steps": [
+    {
+      "argv": [
+        "--tools",
+        "none",
+        "say hello"
+      ],
+      "stdin": null,
+      "acp": false,
+      "exchange": [
+        "< hello there"
+      ],
+      "stderr": [
+        "[rung-std] call-0000: starting LLM call (attempt 1/32)",
+        "[rung-std] call-0000: end_turn — hello there"
+      ],
+      "exit": 0
+    }
+  ],
+  "llm_requests": [
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"say hello\"}]}"
+  ],
+  "jev_requests": [],
+  "mcp_requests": []
+}

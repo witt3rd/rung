@@ -102,7 +102,7 @@ ladder!(LlmCall {
                 .next_delay_ms
                 .take()
                 .unwrap_or_else(|| error::retry_delay_ms(attempt_index, None, false));
-            eprintln!("[rung-std] {call_id}: retrying after {delay_ms}ms (attempt {attempt_index})");
+            crate::events::emit("rung-std", "llm.retry", &format!("[rung-std] {call_id}: retrying after {delay_ms}ms (attempt {attempt_index})"));
             std::thread::sleep(std::time::Duration::from_millis(delay_ms));
         }
         Pending::new(req, carry)

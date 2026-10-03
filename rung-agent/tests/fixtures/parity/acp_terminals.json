@@ -1,0 +1,128 @@
+{
+  "name": "acp_terminals",
+  "recorded_from": "rung-agent 0.1.13 (c0e23a8)",
+  "env": {
+    "HOME": "<tmp>",
+    "RUNG_API_KEY": "k",
+    "RUNG_BASE_URL": "<llm>",
+    "RUNG_CONFIG": "<tmp>/none.yaml",
+    "RUNG_HOME": "<tmp>",
+    "RUNG_MODEL": "m",
+    "RUNG_PROTOCOL": "openai",
+    "XDG_CONFIG_HOME": "<tmp>"
+  },
+  "files": {
+    "d.txt": "epsilon\n"
+  },
+  "llm": [
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": null,
+            "refusal": "I can't help with that."
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    },
+    {
+      "__status": 401,
+      "__body": {
+        "error": {
+          "message": "bad key"
+        }
+      }
+    },
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "read_file",
+                  "arguments": "{\"path\":\"d.txt\"}"
+                }
+              }
+            ]
+          },
+          "finish_reason": "tool_calls"
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "model": "m",
+      "choices": [
+        {
+          "message": {
+            "content": "forced answer"
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    }
+  ],
+  "jev": [],
+  "mcp": null,
+  "steps": [
+    {
+      "argv": [
+        "--acp",
+        "--tools",
+        "read",
+        "--max-iterations",
+        "1"
+      ],
+      "stdin": null,
+      "acp": true,
+      "exchange": [
+        "> {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1}}",
+        "< {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":1,\"agentCapabilities\":{\"loadSession\":true,\"promptCapabilities\":{\"image\":true,\"audio\":true,\"embeddedContext\":true},\"mcpCapabilities\":{\"http\":true,\"sse\":false},\"sessionCapabilities\":{\"list\":{},\"delete\":{},\"fork\":{},\"resume\":{},\"close\":{}},\"auth\":{}},\"authMethods\":[],\"agentInfo\":{\"name\":\"rung-agent\",\"title\":\"rung-agent\",\"version\":\"0.1.13\"}}}",
+        "> {\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"session/new\",\"params\":{\"cwd\":\"<tmp>\",\"mcpServers\":[]}}",
+        "< {\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"sessionId\":\"<id1>\",\"modes\":{\"currentModeId\":\"implement\",\"availableModes\":[{\"id\":\"explore\",\"name\":\"Explore\",\"description\":\"Read and search only\"},{\"id\":\"implement\",\"name\":\"Implement\",\"description\":\"Edit, shell, nested task\"},{\"id\":\"review\",\"name\":\"Review\",\"description\":\"Read-only report\"}]}}}",
+        "> {\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"session/prompt\",\"params\":{\"sessionId\":\"<id1>\",\"prompt\":[{\"type\":\"text\",\"text\":\"do something bad\"}]}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"session_info_update\",\"_meta\":{\"rung\":{\"MessageStart\":{\"model\":\"m\",\"id\":\"c\"}}}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"usage_update\",\"used\":0,\"size\":0,\"_meta\":{\"rung\":{\"MessageDelta\":{\"stop_reason\":\"Refusal\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"non_cached_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0,\"thinking_tokens\":0,\"service_tier\":null,\"cost_usd\":null,\"ttft_ms\":null,\"duration_ms\":<t>,\"output_tokens_per_second\":null,\"provider\":null}}}}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"session_info_update\",\"_meta\":{\"rung\":\"MessageStop\"}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"stopReason\":\"refusal\",\"_meta\":{\"rung\":{\"terminal\":{\"state\":\"refused\",\"reason\":\"model refused the request: I can't help with that.\"}}}}}",
+        "> {\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"session/prompt\",\"params\":{\"sessionId\":\"<id1>\",\"prompt\":[{\"type\":\"text\",\"text\":\"try again\"}]}}",
+        "< {\"jsonrpc\":\"2.0\",\"id\":4,\"error\":{\"code\":-32603,\"message\":\"Internal error\",\"data\":{\"rung\":{\"terminal\":{\"state\":\"failed\",\"reason\":\"auth: bad key\",\"kind\":\"auth\"}}}}}",
+        "> {\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"session/prompt\",\"params\":{\"sessionId\":\"<id1>\",\"prompt\":[{\"type\":\"text\",\"text\":\"read d.txt\"}]}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"session_info_update\",\"_meta\":{\"rung\":{\"MessageStart\":{\"model\":\"m\",\"id\":\"c\"}}}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"session_info_update\",\"_meta\":{\"rung\":{\"ContentBlockStart\":{\"index\":0,\"block\":{\"ToolUse\":{\"id\":\"call_1\",\"name\":\"read_file\"}}}}}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"session_info_update\",\"_meta\":{\"rung\":{\"ContentBlockDelta\":{\"index\":0,\"delta\":{\"InputJsonDelta\":\"{\\\"path\\\":\\\"d.txt\\\"}\"}}}}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"session_info_update\",\"_meta\":{\"rung\":{\"ContentBlockStop\":{\"index\":0}}}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"usage_update\",\"used\":0,\"size\":0,\"_meta\":{\"rung\":{\"MessageDelta\":{\"stop_reason\":\"ToolUse\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"non_cached_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0,\"thinking_tokens\":0,\"service_tier\":null,\"cost_usd\":null,\"ttft_ms\":null,\"duration_ms\":<t>,\"output_tokens_per_second\":null,\"provider\":null}}}}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"session_info_update\",\"_meta\":{\"rung\":\"MessageStop\"}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"tool_call\",\"toolCallId\":\"tool-0\",\"title\":\"read_file\",\"kind\":\"read\",\"status\":\"in_progress\",\"rawInput\":{\"path\":\"d.txt\"}}}}",
+        "< {\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"<id1>\",\"update\":{\"sessionUpdate\":\"tool_call_update\",\"toolCallId\":\"tool-0\",\"status\":\"completed\",\"content\":[{\"type\":\"content\",\"content\":{\"type\":\"text\",\"text\":\"1→epsilon\"}}],\"rawOutput\":\"1→epsilon\"}}}",
+        "< {\"jsonrpc\":\"2.0\",\"id\":5,\"result\":{\"stopReason\":\"max_turn_requests\",\"_meta\":{\"rung\":{\"terminal\":{\"state\":\"cap_exhausted\",\"reason\":\"max iterations (1)\"}}}}}"
+      ],
+      "stderr": [
+        "[rung-std] call-0000: starting LLM call (attempt 1/1)",
+        "[rung-std] call-0001: starting LLM call (attempt 1/1)",
+        "[rung-std] call-0002: starting LLM call (attempt 1/1)",
+        "[rung-std] call-0002: executing tool 'read_file'",
+        "[rung-std] call-0002:   -> 1→epsilon",
+        "[rung-std] call-0002: tool_use — 1 tool(s), iterating"
+      ],
+      "exit": 0
+    }
+  ],
+  "llm_requests": [
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"do something bad\"}]},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"do something bad\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"try again\"}]},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"do something bad\"},{\"role\":\"user\",\"content\":\"try again\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"read d.txt\"}]},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}"
+  ],
+  "jev_requests": [],
+  "mcp_requests": []
+}

@@ -4,7 +4,7 @@ error[E0624]: associated function `new` is private
 9 |       Completed::new(c)
   |                  ^^^ private associated function
   |
- ::: src/turn_check.rs
+ ::: $WORKSPACE/rung-agent-core/src/turn_check.rs
   |
   | / ladder!(TurnCheck {
   | |     carry {
