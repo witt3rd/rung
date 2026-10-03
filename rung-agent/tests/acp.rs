@@ -709,7 +709,10 @@ fn doom_stopped_turn_keeps_its_calls_and_is_not_replayed_as_speech() {
     };
     let (r1, turn2, session) = failed_then_asked_again((1..=4).map(shell).collect());
     let why = "repeated shell with the same input and no progress";
-    assert_eq!(r1["error"]["data"], why, "{r1}");
+    assert_eq!(
+        r1["error"]["data"]["rung"]["terminal"]["reason"], why,
+        "{r1}"
+    );
 
     assert!(
         !assistant_texts(&turn2).iter().any(|t| t.contains(why)),
@@ -748,7 +751,10 @@ fn refused_turn_is_not_replayed_as_speech() {
     }, "finish_reason": "stop"}]});
     let (r1, turn2, session) = failed_then_asked_again(vec![refusal]);
     let why = "model refused the request: I can't help with that.";
-    assert_eq!(r1["error"]["data"], why, "{r1}");
+    assert_eq!(
+        r1["result"]["_meta"]["rung"]["terminal"]["reason"], why,
+        "{r1}"
+    );
 
     assert!(
         !turn2.to_string().contains("refused"),
