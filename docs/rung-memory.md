@@ -32,7 +32,7 @@ Other keys, each with an env override that wins over the file:
 
 | `memory:` key | env | default |
 |---|---|---|
-| `scope` | `RUNG_MEMORY_SCOPE` | the repository root of the session cwd (nearest `.git`, else the cwd) |
+| `scope` | `RUNG_MEMORY_SCOPE` | `rung-scope:<hex>`, a SHA-256 prefix of the git `origin` URL (else the canonical repository root path); never the raw path. A configured value is passed verbatim |
 | `dir` | `RUNG_MEMORY_DIR` | `<repository root>/.rung/memory`, or `$RUNG_HOME/memory` when `scope` is set |
 | `timeout_secs` | `RUNG_MEMORY_TIMEOUT_SECS` | `10` |
 

@@ -13,6 +13,11 @@
 //!   [`registry`]): rung recalls before the turn, admits the provider's tools,
 //!   and retains after a turn that holds a [`Completion`].
 //!
+//! The default scope key is `rung-scope:<hex>`, a hash of the git `origin`
+//! URL (else the canonical repo root path), so it reveals no path and a
+//! worktree shares memory with its main checkout. A configured `memory.scope`
+//! is passed verbatim.
+//!
 //! The provider sees an opaque scope key and bounded, redacted content, and
 //! owns who may see what. rung holds it to rung's caps ([`MAX_RECORDS`],
 //! [`MAX_CHARS`]) and to the provider's own declared budget, and times out its
@@ -40,7 +45,7 @@ use rung_memory::{
 };
 use rung_std::agent::Thread;
 use rung_std::llm::{MessageContent, MessageContentBlock, ToolDefinition};
-use rung_std::tools::{ToolOutput, Toolset};
+use rung_std::tools::{TEXT_ONLY_CALLER, ToolOutput, Toolset};
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -174,11 +179,7 @@ impl Hooks {
                     ));
                 }
                 let root = repo_root(origin);
-                let scope = Scope::new(
-                    s.scope
-                        .clone()
-                        .unwrap_or_else(|| root.to_string_lossy().into_owned()),
-                );
+                let scope = Scope::new(s.scope.clone().unwrap_or_else(|| default_scope(&root)));
                 let dir = s.dir.clone().unwrap_or_else(|| match s.scope {
                     None => root.join(".rung").join("memory"),
                     Some(_) => rung_home().join("memory"),
@@ -321,6 +322,35 @@ pub fn repo_root(dir: &Path) -> PathBuf {
         at = d.parent();
     }
     dir.to_path_buf()
+}
+
+/// `rung-scope:<hex>`: a SHA-256 prefix of the repository identity, the git
+/// `origin` URL when there is one (so a worktree and its main checkout share
+/// a scope, and a move keeps it), else the canonical root path. Never the
+/// path itself.
+pub fn default_scope(root: &Path) -> String {
+    use sha2::{Digest, Sha256};
+    let identity = origin_url(root).unwrap_or_else(|| {
+        root.canonicalize()
+            .unwrap_or_else(|_| root.to_path_buf())
+            .to_string_lossy()
+            .into_owned()
+    });
+    let digest = Sha256::digest(identity.as_bytes());
+    let hex: String = digest.iter().take(12).map(|b| format!("{b:02x}")).collect();
+    format!("rung-scope:{hex}")
+}
+
+fn origin_url(root: &Path) -> Option<String> {
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["config", "--get", "remote.origin.url"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())?;
+    let url = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    (!url.is_empty()).then_some(url)
 }
 
 fn rung_home() -> PathBuf {
@@ -692,9 +722,60 @@ impl MemoryProvider for McpProvider {
 
     fn toolset(self: Arc<Self>, _: &ToolContext) -> Option<Arc<dyn Toolset>> {
         if self.agent.is_empty() {
-            None
-        } else {
-            Some(self.agent.clone())
+            return None;
+        }
+        let hooks = self.hooks.clone();
+        Some(Arc::new(Bounded {
+            inner: self.agent.clone(),
+            timeout: self.timeout,
+            dead: self.dead.clone(),
+            abort: Box::new(move || hooks.abort()),
+        }))
+    }
+}
+
+/// The provider's agent tools under the per-call memory timeout. A call that
+/// runs over stops the server, like a hook that runs over.
+struct Bounded {
+    inner: Arc<dyn Toolset>,
+    timeout: Duration,
+    dead: Arc<AtomicBool>,
+    abort: Box<dyn Fn() + Send + Sync>,
+}
+
+impl std::fmt::Debug for Bounded {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Bounded")
+            .field("timeout", &self.timeout)
+            .finish()
+    }
+}
+
+impl Toolset for Bounded {
+    fn definitions(&self) -> Vec<ToolDefinition> {
+        self.inner.definitions()
+    }
+
+    fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
+        self.execute_output(name, input)
+            .map(|o| o.into_text(TEXT_ONLY_CALLER))
+    }
+
+    fn execute_output(&self, name: &str, input: &Value) -> Result<ToolOutput, String> {
+        if self.dead.load(Ordering::SeqCst) {
+            return Err("memory: an earlier call timed out".into());
+        }
+        let (inner, tool, args) = (self.inner.clone(), name.to_string(), input.clone());
+        match within(self.timeout, move || inner.execute_output(&tool, &args)) {
+            Some(r) => r,
+            None => {
+                self.dead.store(true, Ordering::SeqCst);
+                (self.abort)();
+                Err(format!(
+                    "memory: {name}: no answer within {}s",
+                    self.timeout.as_secs()
+                ))
+            }
         }
     }
 }
@@ -729,6 +810,101 @@ mod tests {
         std::fs::create_dir_all(base.join(".git")).unwrap();
         assert_eq!(repo_root(&deep), base);
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    fn git(dir: &Path, args: &[&str]) {
+        let ok = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "git {args:?}");
+    }
+
+    #[test]
+    fn default_scope_is_opaque_and_shared_by_origin() {
+        let base = std::env::temp_dir().join(format!("rung-scope-{}", std::process::id()));
+        let (a, b, c) = (base.join("main"), base.join("wt"), base.join("solo"));
+        for d in [&a, &b, &c] {
+            std::fs::create_dir_all(d).unwrap();
+            git(d, &["init", "-q"]);
+        }
+        for d in [&a, &b] {
+            git(d, &["remote", "add", "origin", "git@example.com:o/r.git"]);
+        }
+        let (ka, kb, kc) = (default_scope(&a), default_scope(&b), default_scope(&c));
+        assert_eq!(ka, kb, "same origin, same scope");
+        assert_ne!(ka, kc);
+        assert!(ka.starts_with("rung-scope:"));
+        for k in [&ka, &kc] {
+            assert!(
+                !k.contains(base.to_str().unwrap()) && !k.contains("example"),
+                "{k}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn configured_scope_is_passed_verbatim() {
+        let mut s = MemorySettings {
+            authority: MemoryAuthority::Provider {
+                name: "baseline".into(),
+                arg: None,
+            },
+            scope: Some("my key".into()),
+            dir: Some(std::env::temp_dir().join(format!("rung-verb-{}", std::process::id()))),
+            timeout_secs: 1,
+        };
+        let Hooks::On { scope, .. } =
+            Hooks::from_settings(&s, Path::new("."), &registry()).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(scope.as_str(), "my key");
+        s.scope = None;
+        let Hooks::On { scope, .. } =
+            Hooks::from_settings(&s, Path::new("."), &registry()).unwrap()
+        else {
+            panic!()
+        };
+        assert!(scope.as_str().starts_with("rung-scope:"));
+    }
+
+    #[derive(Debug)]
+    struct Hung;
+    impl Toolset for Hung {
+        fn definitions(&self) -> Vec<ToolDefinition> {
+            Vec::new()
+        }
+        fn execute(&self, _: &str, _: &Value) -> Result<String, String> {
+            std::thread::sleep(Duration::from_secs(5));
+            Ok("late".into())
+        }
+    }
+
+    #[test]
+    fn a_hung_provider_tool_errors_within_the_timeout() {
+        let aborted = Arc::new(AtomicBool::new(false));
+        let flag = aborted.clone();
+        let t = Bounded {
+            inner: Arc::new(Hung),
+            timeout: Duration::from_millis(100),
+            dead: Arc::new(AtomicBool::new(false)),
+            abort: Box::new(move || flag.store(true, Ordering::SeqCst)),
+        };
+        let started = std::time::Instant::now();
+        let e = t.execute_output("x", &json!({})).unwrap_err();
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert!(e.contains("no answer within"), "{e}");
+        assert!(aborted.load(Ordering::SeqCst));
+        assert!(
+            t.execute_output("x", &json!({}))
+                .unwrap_err()
+                .contains("earlier call")
+        );
     }
 
     #[test]

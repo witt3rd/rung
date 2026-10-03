@@ -403,7 +403,7 @@ fn an_mcp_provider_retains_and_recalls_through_its_hook_tools() {
     let kept = std::fs::read_to_string(&file).unwrap();
     assert!(kept.contains(&format!("\"session\":\"{a}\"")), "{kept}");
     assert!(
-        kept.contains(&format!("\"scope\":\"{}\"", cwd.display())),
+        kept.contains("\"scope\":\"rung-scope:") && !kept.contains(&cwd.display().to_string()),
         "{kept}"
     );
     sessions_hold_no_recall(&cwd);
