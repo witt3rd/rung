@@ -102,6 +102,7 @@
 pub mod agent;
 pub mod decide;
 pub mod driver;
+pub mod events;
 pub mod issues;
 pub mod llm;
 pub mod principals;

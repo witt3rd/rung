@@ -290,6 +290,10 @@ fn ensure_system(thread: &Thread) -> Vec<ChatMessage> {
     messages
 }
 
+const MAX_RETRIES: &str = "max retries exhausted: ";
+const IDLE_TIMEOUT: &str = "idle-timeout after ";
+const INVALID_REQUEST: &str = "invalid-request";
+
 /// The failure for a non-retryable LLM error; `transcript` is what ran before it.
 fn map_llm_failure(failure: LlmFailure, transcript: Vec<ChatMessage>) -> Filtered {
     let (kind, reason) = match failure {
@@ -297,13 +301,12 @@ fn map_llm_failure(failure: LlmFailure, transcript: Vec<ChatMessage>) -> Filtere
         LlmFailure::Forbidden(msg) => (FailureKind::Forbidden, format!("forbidden: {msg}")),
         LlmFailure::IdleTimeout { elapsed_secs } => (
             FailureKind::Provider,
-            format!("idle-timeout after {elapsed_secs}s"),
+            format!("{IDLE_TIMEOUT}{elapsed_secs}s"),
         ),
         LlmFailure::Config(msg) => (FailureKind::Config, format!("config: {msg}")),
-        LlmFailure::MaxRetries { last_error } => (
-            FailureKind::Provider,
-            format!("max retries exhausted: {last_error}"),
-        ),
+        LlmFailure::MaxRetries { last_error } => {
+            (FailureKind::Provider, format!("{MAX_RETRIES}{last_error}"))
+        }
         LlmFailure::ContentPolicy(msg) => {
             (FailureKind::ContentPolicy, format!("content-policy: {msg}"))
         }
@@ -321,8 +324,8 @@ fn map_llm_failure(failure: LlmFailure, transcript: Vec<ChatMessage>) -> Filtere
                 FailureKind::Provider
             };
             let reason = match classification {
-                Some(c) => format!("invalid-request ({c}): {message}"),
-                None => format!("invalid-request: {message}"),
+                Some(c) => format!("{INVALID_REQUEST} ({c}): {message}"),
+                None => format!("{INVALID_REQUEST}: {message}"),
             };
             (kind, reason)
         }
@@ -674,6 +677,108 @@ pub struct Filtered {
     pub transcript: Vec<ChatMessage>,
 }
 
+/// What kind of provider failure stopped a turn: enough for a caller to tell
+/// a rate limit from an outage from bad credentials, and to wait as told.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderClass {
+    /// 429 that was retried until the attempts ran out.
+    RateLimit,
+    /// The provider answered with a server error (5xx, 529).
+    Overloaded,
+    /// The request did not complete: connection, TLS, a cut stream.
+    Transport,
+    /// No chunk arrived within the idle deadline.
+    Timeout,
+    /// The key was refused, or the action is forbidden for it.
+    Auth,
+    /// A quota or billing limit (terminal, unlike a rate limit).
+    Quota,
+    /// The request could not be built from the settings.
+    Config,
+    /// The provider declined the content (policy).
+    Refused,
+    /// The request outgrew the model's context window.
+    Overflow,
+    /// The provider rejected the request as invalid.
+    Invalid,
+    /// The provider answered with output that could not be used.
+    Output,
+}
+
+/// A provider failure behind a stopped turn, typed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct ProviderFailure {
+    pub class: ProviderClass,
+    /// The wait the provider asked for, when it named one.
+    pub retry_after_ms: Option<u64>,
+}
+
+impl ProviderFailure {
+    /// The provider failure that stopped `f`, or `None` when the turn stopped
+    /// for a reason of its own (the cap, the budget, a doom loop, a refusal
+    /// by the model, an interrupt).
+    ///
+    /// Read from the kind and the reason `map_llm_failure` wrote, so the
+    /// two stay in one file; a test pins every arm.
+    pub fn of(f: &Filtered) -> Option<Self> {
+        let class = match f.kind {
+            FailureKind::Auth | FailureKind::Forbidden => ProviderClass::Auth,
+            FailureKind::Quota => ProviderClass::Quota,
+            FailureKind::Config => ProviderClass::Config,
+            FailureKind::ContentPolicy => ProviderClass::Refused,
+            FailureKind::Overflow => ProviderClass::Overflow,
+            FailureKind::Provider => {
+                let r = f.reason.as_str();
+                if let Some(last) = r.strip_prefix(MAX_RETRIES) {
+                    return Some(Self::of_last_error(last));
+                }
+                if r.starts_with(IDLE_TIMEOUT) {
+                    ProviderClass::Timeout
+                } else if r.starts_with(INVALID_REQUEST) {
+                    ProviderClass::Invalid
+                } else {
+                    ProviderClass::Transport
+                }
+            }
+            FailureKind::Refusal
+            | FailureKind::DoomLoop
+            | FailureKind::Interrupted
+            | FailureKind::MaxIterations
+            | FailureKind::BudgetExhausted => return None,
+        };
+        Some(Self {
+            class,
+            retry_after_ms: None,
+        })
+    }
+
+    /// The last attempt's error, as [`crate::llm::RawCallError`] shows it.
+    fn of_last_error(last: &str) -> Self {
+        let class = if last.starts_with("rate limited") {
+            ProviderClass::RateLimit
+        } else if last.starts_with("provider error") {
+            ProviderClass::Overloaded
+        } else if last.starts_with("idle timeout") {
+            ProviderClass::Timeout
+        } else if last.starts_with("invalid provider output")
+            || last.starts_with("response contained no message content")
+        {
+            ProviderClass::Output
+        } else {
+            ProviderClass::Transport
+        };
+        let retry_after_ms = last
+            .split_once("retry after ")
+            .and_then(|(_, ms)| ms.strip_suffix("ms"))
+            .and_then(|ms| ms.parse().ok());
+        Self {
+            class,
+            retry_after_ms,
+        }
+    }
+}
+
 /// The thread plus the part of an unfinished tool batch that ran: the
 /// assistant blocks and the results so far. `assistant` holds no call
 /// without a result in `results`.
@@ -797,11 +902,11 @@ ladder!(AgentLoop {
 
         // ── LLM call ─────────────────────────────────────────────────────
         let call_id = fresh_call_id();
-        eprintln!(
+        crate::events::emit("rung-std", "llm.call", &format!(
             "[rung-std] {call_id}: starting LLM call (attempt {}/{})",
             state.api_call_count + 1,
             state.max_iterations
-        );
+        ));
 
         let mut messages = ensure_system(&thread);
         if last_call {
@@ -844,9 +949,9 @@ ladder!(AgentLoop {
                         // One elision per turn, and only when it shrinks the
                         // thread (the guard on `elide` holds us to that).
                         if state.elided == 0 && elide_oldest_tool_results(&thread).is_some() {
-                            eprintln!(
+                            crate::events::emit("rung-std", "llm.overflow", &format!(
                                 "[rung-std] {call_id}: context overflow — eliding the oldest tool results, retrying once"
-                            );
+                            ));
                             return Ok(StepOutcome::Overflowed(Overflowed::new(calling)));
                         }
                         if state.elided > 0 {
@@ -859,7 +964,7 @@ ladder!(AgentLoop {
                     return Ok(StepOutcome::ContentFiltered(ContentFiltered::new(filtered)));
                 }
                 Err(f) => {
-                    eprintln!("[rung-std] {call_id}: retryable LLM error — {}", f.error);
+                    crate::events::emit("rung-std", "llm.retryable", &format!("[rung-std] {call_id}: retryable LLM error — {}", f.error));
                     last_retryable = Some(f.error.clone());
                     llm_pending = crate::llm::llmcall::retry(f);
                 }
@@ -895,7 +1000,7 @@ ladder!(AgentLoop {
                 if let Some(py) = python.as_ref() {
                     let turn = inline_turn(py, &text);
                     if let Some(done) = turn.done {
-                        eprintln!("[rung-std] {call_id}: end_turn — {done:.120}");
+                        crate::events::emit("rung-std", "turn.end", &format!("[rung-std] {call_id}: end_turn — {done:.120}"));
                         return Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
                             transcript: closed(&thread, &done),
                             final_response: done,
@@ -906,9 +1011,9 @@ ladder!(AgentLoop {
                             elided: next.elided,
                         })));
                     }
-                    eprintln!(
+                    crate::events::emit("rung-std", "python.inline", &format!(
                         "[rung-std] {call_id}: inline python — iterating"
-                    );
+                    ));
                     let mut updated_messages = thread.messages.clone();
                     updated_messages.push(ChatMessage::assistant(turn.assistant));
                     if let Some(follow) = turn.follow_up {
@@ -939,7 +1044,7 @@ ladder!(AgentLoop {
                         )))
                     };
                 }
-                eprintln!("[rung-std] {call_id}: end_turn — {text:.120}");
+                crate::events::emit("rung-std", "turn.end", &format!("[rung-std] {call_id}: end_turn — {text:.120}"));
                 Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
                     transcript: closed(&thread, &text),
                     final_response: text,
@@ -976,7 +1081,7 @@ ladder!(AgentLoop {
                             });
                         }
                         ContentBlock::ToolUse { id, name, input } => {
-                            eprintln!("[rung-std] {call_id}: executing tool '{name}'");
+                            crate::events::emit("rung-std", "tool.call", &format!("[rung-std] {call_id}: executing tool '{name}'"));
                             assistant_blocks.push(
                                 crate::llm::MessageContentBlock::ToolUse {
                                     id: id.clone(),
@@ -1045,15 +1150,15 @@ ladder!(AgentLoop {
                                 }
                             };
                             if is_error {
-                                eprintln!("[rung-std] {call_id}:   -> {content}");
+                                crate::events::emit("rung-std", "tool.result", &format!("[rung-std] {call_id}:   -> {content}"));
                             } else if images.is_empty() {
-                                eprintln!("[rung-std] {call_id}:   -> {:.120}", content);
+                                crate::events::emit("rung-std", "tool.result", &format!("[rung-std] {call_id}:   -> {:.120}", content));
                             } else {
-                                eprintln!(
+                                crate::events::emit("rung-std", "tool.result", &format!(
                                     "[rung-std] {call_id}:   -> {:.120} (+{} image(s))",
                                     content,
                                     images.len()
-                                );
+                                ));
                             }
                             tool_result_blocks.push(
                                 crate::llm::MessageContentBlock::ToolResult {
@@ -1081,9 +1186,9 @@ ladder!(AgentLoop {
                             }
                         }
                         ContentBlock::InvalidToolUse { id, name, diagnostic } => {
-                            eprintln!(
+                            crate::events::emit("rung-std", "tool.invalid", &format!(
                                 "[rung-std] {call_id}: invalid tool call '{name}' (id: '{id}'): {diagnostic}"
-                            );
+                            ));
                             invalid_tool_diagnostics
                                 .push((id.clone(), name.clone(), diagnostic.clone()));
                         }
@@ -1143,14 +1248,14 @@ ladder!(AgentLoop {
                 }
 
                 if invalid_tool_diagnostics.is_empty() {
-                    eprintln!(
+                    crate::events::emit("rung-std", "turn.iterate", &format!(
                         "[rung-std] {call_id}: tool_use — {tool_count} tool(s), iterating"
-                    );
+                    ));
                 } else {
-                    eprintln!(
+                    crate::events::emit("rung-std", "turn.iterate", &format!(
                         "[rung-std] {call_id}: tool_use — {tool_count} valid tool(s), {} invalid, iterating",
                         invalid_tool_diagnostics.len()
-                    );
+                    ));
                 }
 
                 let updated_thread = Thread {
@@ -1580,6 +1685,123 @@ mod tests {
         let mut n = LoopState::new(10, 2);
         n.api_call_count = 0;
         assert!(!is_last_call(&n));
+    }
+
+    #[test]
+    fn every_provider_failure_is_typed_and_a_turn_of_its_own_is_not() {
+        use crate::llm::RawCallError;
+        let typed = |failure| ProviderFailure::of(&map_llm_failure(failure, Vec::new()));
+        let class = |failure| typed(failure).map(|p| p.class);
+        let after = |raw: RawCallError| {
+            typed(LlmFailure::MaxRetries {
+                last_error: raw.to_string(),
+            })
+        };
+        assert_eq!(
+            class(LlmFailure::Auth("k".into())),
+            Some(ProviderClass::Auth)
+        );
+        assert_eq!(
+            class(LlmFailure::Forbidden("k".into())),
+            Some(ProviderClass::Auth)
+        );
+        assert_eq!(
+            class(LlmFailure::QuotaExceeded("q".into())),
+            Some(ProviderClass::Quota)
+        );
+        assert_eq!(
+            class(LlmFailure::Config("c".into())),
+            Some(ProviderClass::Config)
+        );
+        assert_eq!(
+            class(LlmFailure::ContentPolicy("p".into())),
+            Some(ProviderClass::Refused)
+        );
+        assert_eq!(
+            class(LlmFailure::IdleTimeout { elapsed_secs: 9 }),
+            Some(ProviderClass::Timeout)
+        );
+        assert_eq!(
+            class(LlmFailure::InvalidRequest {
+                message: "m".into(),
+                classification: Some("context-overflow".into()),
+            }),
+            Some(ProviderClass::Overflow)
+        );
+        assert_eq!(
+            class(LlmFailure::InvalidRequest {
+                message: "m".into(),
+                classification: None,
+            }),
+            Some(ProviderClass::Invalid)
+        );
+        assert_eq!(
+            after(RawCallError::RateLimit {
+                retry_after_ms: Some(3000),
+                context: None,
+            }),
+            Some(ProviderFailure {
+                class: ProviderClass::RateLimit,
+                retry_after_ms: Some(3000),
+            })
+        );
+        assert_eq!(
+            after(RawCallError::RateLimit {
+                retry_after_ms: None,
+                context: None,
+            }),
+            Some(ProviderFailure {
+                class: ProviderClass::RateLimit,
+                retry_after_ms: None,
+            })
+        );
+        assert_eq!(
+            after(RawCallError::ProviderInternal {
+                status: 503,
+                retry_after_ms: None,
+                context: None,
+            })
+            .map(|p| p.class),
+            Some(ProviderClass::Overloaded)
+        );
+        assert_eq!(
+            after(RawCallError::Transport {
+                message: "reset".into(),
+                observed: false,
+            })
+            .map(|p| p.class),
+            Some(ProviderClass::Transport)
+        );
+        assert_eq!(
+            after(RawCallError::IdleTimeout { elapsed_secs: 5 }).map(|p| p.class),
+            Some(ProviderClass::Timeout)
+        );
+        assert_eq!(
+            after(RawCallError::NoContent).map(|p| p.class),
+            Some(ProviderClass::Output)
+        );
+        assert_eq!(
+            after(RawCallError::InvalidProviderOutput {
+                message: "x".into(),
+                raw: None,
+            })
+            .map(|p| p.class),
+            Some(ProviderClass::Output)
+        );
+        for kind in [
+            FailureKind::Refusal,
+            FailureKind::DoomLoop,
+            FailureKind::Interrupted,
+            FailureKind::MaxIterations,
+            FailureKind::BudgetExhausted,
+        ] {
+            let f = Filtered {
+                reason: "stopped".into(),
+                kind,
+                transcript: Vec::new(),
+            };
+            assert_eq!(ProviderFailure::of(&f), None, "{kind:?}");
+        }
     }
 
     #[test]
