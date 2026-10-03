@@ -13,8 +13,10 @@
 ///   tools it wants as MCP tools. rung opens no store, recalls and retains
 ///   nothing, and admits no memory tools of its own, so it is never a second
 ///   source of truth.
-/// - `Provider(name)`: rung keeps memory through the registered provider
-///   called `name` ([`crate::Registry`]).
+/// - `Provider { name, arg }`: rung keeps memory through the registered
+///   provider called `name` ([`crate::Registry`]), written `name` or
+///   `name:arg` (`baseline`, `mcp:http://127.0.0.1:9000/mcp`). The name is
+///   case-insensitive; `arg` is kept as written and is the provider's to read.
 ///
 /// Every `match` on this enum has to say what it does in each case.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -22,7 +24,10 @@ pub enum MemoryAuthority {
     #[default]
     Off,
     External,
-    Provider(String),
+    Provider {
+        name: String,
+        arg: Option<String>,
+    },
 }
 
 /// Refuse a name that is reserved or not `[a-z0-9_-]+`.
@@ -44,22 +49,40 @@ pub(crate) fn check_provider_name(name: &str) -> Result<(), String> {
 }
 
 impl MemoryAuthority {
-    /// Parse one setting: `off`, `external`, or a provider name. Case and
-    /// surrounding space are ignored. Whether the provider exists is the
-    /// registry's question.
+    /// Parse one setting: `off`, `external`, `name` or `name:arg`. Space
+    /// around it is ignored, and case in all but `arg`. Whether the provider
+    /// exists is the registry's question.
     pub fn parse(s: &str) -> Result<Self, String> {
-        match s.trim().to_ascii_lowercase().as_str() {
-            "off" => Ok(Self::Off),
-            "external" => Ok(Self::External),
-            name => check_provider_name(name).map(|()| Self::Provider(name.to_string())),
+        let s = s.trim();
+        let (name, arg) = match s.split_once(':') {
+            Some((n, a)) => (n.trim().to_ascii_lowercase(), Some(a.trim().to_string())),
+            None => (s.to_ascii_lowercase(), None),
+        };
+        match (name.as_str(), arg) {
+            ("off", None) => Ok(Self::Off),
+            ("external", None) => Ok(Self::External),
+            (_, Some(a)) if a.is_empty() => Err(format!("'{s}': nothing after ':'")),
+            (n, arg) => check_provider_name(n).map(|()| Self::Provider {
+                name: n.to_string(),
+                arg,
+            }),
         }
     }
 
-    pub fn as_str(&self) -> &str {
+    /// The setting's name: `off`, `external`, or the provider's name.
+    pub fn name(&self) -> &str {
         match self {
             Self::Off => "off",
             Self::External => "external",
-            Self::Provider(name) => name,
+            Self::Provider { name, .. } => name,
+        }
+    }
+
+    /// Shorthand for a provider without an argument.
+    pub fn provider(name: &str) -> Self {
+        Self::Provider {
+            name: name.to_string(),
+            arg: None,
         }
     }
 
@@ -91,7 +114,13 @@ fn set(v: Option<&str>) -> Option<&str> {
 
 impl std::fmt::Display for MemoryAuthority {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+        match self {
+            Self::Provider {
+                name,
+                arg: Some(arg),
+            } => write!(f, "{name}:{arg}"),
+            other => f.write_str(other.name()),
+        }
     }
 }
 
@@ -117,9 +146,20 @@ mod tests {
         assert_eq!(MemoryAuthority::parse("off").unwrap(), MemoryAuthority::Off);
         assert_eq!(
             MemoryAuthority::parse("Baseline").unwrap(),
-            MemoryAuthority::Provider("baseline".into())
+            MemoryAuthority::provider("baseline")
         );
+        let mcp = MemoryAuthority::parse("MCP:http://Host:9/mcp").unwrap();
+        assert_eq!(
+            mcp,
+            MemoryAuthority::Provider {
+                name: "mcp".into(),
+                arg: Some("http://Host:9/mcp".into())
+            }
+        );
+        assert_eq!(mcp.to_string(), "mcp:http://Host:9/mcp");
         assert!(MemoryAuthority::parse("no such/thing").is_err());
+        assert!(MemoryAuthority::parse("mcp:").is_err());
+        assert!(MemoryAuthority::parse("off:x").is_err());
     }
 
     #[test]
@@ -135,7 +175,7 @@ mod tests {
         );
         assert_eq!(
             r(None, Some("baseline"), None).unwrap(),
-            Provider("baseline".into())
+            MemoryAuthority::provider("baseline")
         );
         assert_eq!(r(Some(External), None, None).unwrap(), External);
         // Blank counts as unset.

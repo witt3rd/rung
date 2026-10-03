@@ -48,6 +48,8 @@ pub struct Args {
     pub acp_token: Option<String>,
     /// MCP servers for this call (`--mcp-http name=url`).
     pub mcp: Vec<crate::mcp::McpSpec>,
+    /// Who owns memory (`--memory`). Wins over `RUNG_MEMORY` and the file.
+    pub memory: Option<rung_memory::MemoryAuthority>,
 }
 
 impl Args {
@@ -67,6 +69,7 @@ impl Args {
         let mut acp_http = None;
         let mut acp_token = None;
         let mut mcp = Vec::new();
+        let mut memory = None;
         let mut prompt_parts: Vec<String> = Vec::new();
         let mut rest = false;
         let mut it = argv.into_iter().peekable();
@@ -116,6 +119,9 @@ impl Args {
                 "--tools" => {
                     tools = Some(need("--tools", it.next())?);
                 }
+                "--memory" => {
+                    memory = Some(memory_flag(&need("--memory", it.next())?)?);
+                }
                 "--mcp-http" => {
                     mcp.push(crate::mcp::McpSpec::parse_http(&need(
                         "--mcp-http",
@@ -130,6 +136,9 @@ impl Args {
                 }
                 s if s.starts_with("--tools=") => {
                     tools = Some(s["--tools=".len()..].to_string());
+                }
+                s if s.starts_with("--memory=") => {
+                    memory = Some(memory_flag(&s["--memory=".len()..])?);
                 }
                 s if s.starts_with("--mcp-http=") => {
                     mcp.push(crate::mcp::McpSpec::parse_http(&s["--mcp-http=".len()..])?);
@@ -189,8 +198,13 @@ impl Args {
             acp_http,
             acp_token,
             mcp,
+            memory,
         })
     }
+}
+
+fn memory_flag(v: &str) -> Result<rung_memory::MemoryAuthority, String> {
+    rung_memory::MemoryAuthority::parse(v).map_err(|e| format!("--memory: {e}"))
 }
 
 pub(crate) const DEFAULT_ACP_HTTP: &str = "127.0.0.1:7331";
@@ -230,6 +244,9 @@ Options:
   --tools none|read,write,shell,web,skill,todo,python,task
                                     compose groups for this call (overrides --toolset and config)
   --mcp-http name=url               connect a streamable-HTTP MCP server; repeatable
+  --memory off|external|baseline|mcp:URL|mcp:COMMAND
+                                    who owns memory (default off; wins over RUNG_MEMORY
+                                    and config memory.provider)
   --toolset explore|implement|review
                                     named toolset (default implement)
   --type                            alias of --toolset
@@ -248,6 +265,7 @@ Options:
 
 Config: $XDG_CONFIG_HOME/rung/config.yaml  (llm: base_url, model, api_key_env, …)
         RUNG_CONFIG overrides the path. Env RUNG_* / XAI_API_KEY wins over the file.
+        memory: provider, scope, dir, timeout_secs (RUNG_MEMORY, RUNG_MEMORY_SCOPE, …)
         API key is optional; empty means no Authorization header.
 Sessions: <cwd>/.rung/sessions/<id>.json
 Worktrees: <repo>.wt/rung-task--<id>  (branch rung-task/<id>)
@@ -374,6 +392,17 @@ mod tests {
         .unwrap();
         assert_eq!(a.mcp.len(), 1);
         assert_eq!(a.mcp[0].name(), "mcp-server");
+    }
+
+    #[test]
+    fn parses_memory() {
+        use rung_memory::MemoryAuthority;
+        let a = Args::parse(["rung-agent", "--memory", "external", "q"]).unwrap();
+        assert_eq!(a.memory, Some(MemoryAuthority::External));
+        let b = Args::parse(["rung-agent", "--memory=mcp:http://h:1/mcp", "q"]).unwrap();
+        assert_eq!(b.memory.unwrap().to_string(), "mcp:http://h:1/mcp");
+        assert!(Args::parse(["rung-agent", "q"]).unwrap().memory.is_none());
+        assert!(Args::parse(["rung-agent", "--memory", "x y"]).is_err());
     }
 
     #[test]

@@ -1454,6 +1454,7 @@ dependencies = [
  "hyper-util",
  "reqwest",
  "rung",
+ "rung-memory",
  "rung-std",
  "serde",
  "serde_json",

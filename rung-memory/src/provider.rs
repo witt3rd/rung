@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use rung_std::tools::Toolset;
 
@@ -138,7 +139,13 @@ pub trait MemoryProvider: Send + Sync + fmt::Debug {
 /// provider that stores nothing ignores it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProviderSettings {
+    /// Where to keep a local store.
     pub dir: PathBuf,
+    /// The `arg` of `name:arg`, as written.
+    pub arg: Option<String>,
+    /// The longest one provider call may take; the provider enforces it on
+    /// its own transport.
+    pub timeout: Duration,
 }
 
 /// Builds a provider from its settings.
@@ -170,6 +177,10 @@ impl Registry {
         crate::authority::check_provider_name(name)?;
         self.factories.insert(name.to_string(), factory);
         Ok(())
+    }
+
+    pub fn contains(&self, name: &str) -> bool {
+        self.factories.contains_key(name)
     }
 
     pub fn names(&self) -> Vec<&str> {

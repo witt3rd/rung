@@ -545,21 +545,22 @@ fn baseline_tools_go_through_the_ladders() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+fn settings(dir: std::path::PathBuf) -> rung_memory::ProviderSettings {
+    rung_memory::ProviderSettings {
+        dir,
+        arg: None,
+        timeout: std::time::Duration::from_secs(1),
+    }
+}
+
 #[test]
 fn the_registry_builds_baseline_and_refuses_reserved_names() {
     let r = Registry::builtin();
     assert_eq!(r.names(), ["baseline"]);
     let dir = tmp("registry");
-    let p = r
-        .build(
-            "baseline",
-            &rung_memory::ProviderSettings { dir: dir.clone() },
-        )
-        .unwrap();
+    let p = r.build("baseline", &settings(dir.clone())).unwrap();
     assert_eq!(p.name(), "baseline");
-    let e = r
-        .build("nope", &rung_memory::ProviderSettings { dir })
-        .unwrap_err();
+    let e = r.build("nope", &settings(dir)).unwrap_err();
     assert!(e.contains("off | external | baseline"), "{e}");
     let mut r = Registry::empty();
     assert!(

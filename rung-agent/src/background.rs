@@ -83,6 +83,10 @@ pub fn child_args(args: &Args, task_id: &str) -> Result<Vec<String>, String> {
         v.push("--user-prompt".into());
         v.push(u.clone());
     }
+    if let Some(m) = &args.memory {
+        v.push("--memory".into());
+        v.push(m.to_string());
+    }
     for spec in &args.mcp {
         match spec {
             crate::mcp::McpSpec::Http { name, url, headers } if headers.is_empty() => {

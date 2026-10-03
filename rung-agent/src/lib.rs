@@ -19,6 +19,12 @@
 //! Turn check ([`turn_check`]): off by default. `turn_check.backend: jev` in
 //! the same file, or `RUNG_TURN_CHECK=jev`, has Jev read each finished turn
 //! before it is reported `completed`.
+//!
+//! Memory ([`memory`]): off by default. `--memory`, `RUNG_MEMORY` or
+//! `memory.provider` picks `external` (the caller owns memory; rung keeps
+//! none), `baseline` (lexical, local, offline), or `mcp:<url or command>` (a
+//! provider process speaking the `rung-memory/1` contract,
+//! `docs/rung-memory.md`).
 
 pub mod acp;
 pub(crate) mod acp_http;
@@ -28,6 +34,7 @@ pub mod catalog;
 pub mod config;
 pub mod isolation;
 pub mod mcp;
+pub mod memory;
 pub mod run;
 pub mod session;
 pub mod stream;
