@@ -26,6 +26,15 @@
 //!   a retry after a transient config or tool failure may legitimately
 //!   re-use the identical token.
 //!
+//! - **G8 (recovery progress — guarded).** `elide: Overflowed => Calling`
+//!   answers a provider context overflow: the same call again, with the
+//!   oldest tool results elided ([`elide_oldest_tool_results`]). The macro
+//!   wraps it in `must_progress`, so a retry that did not shrink the thread
+//!   panics instead of resending the request. `step` offers it once per turn
+//!   ([`LoopState::elided`]) and only when there is something to elide;
+//!   otherwise the overflow is `ContentFiltered` with
+//!   [`FailureKind::Overflow`].
+//!
 //! - **G11 (terminal payloads).** `EndTurn(AgentResult)` carries the
 //!   structured result out through the verdict.
 //!
@@ -51,7 +60,8 @@
 //! empty tool schemas; tool results capped; identical name+input calls
 //! that make no progress (same result, no wait) warned then stopped; LLM
 //! failures keep a [`FailureKind`] (overflow is
-//! not a content filter); usage is accumulated on the terminal payload.
+//! not a content filter, and is retried once with the oldest tool results
+//! elided); usage is accumulated on the terminal payload.
 //!
 //! Nested work is [`NestedLoop`] admitted as the `task` tool: one child
 //! AgentLoop, default depth 1, child roster without `task`.
@@ -60,7 +70,7 @@ use rung::ladder;
 
 use crate::llm::{
     ChatMessage, ContentBlock, DEFAULT_MAX_ATTEMPTS, ImageSource, LlmConfig, LlmFailure,
-    LlmRequest, StopReason, ToolDefinition, Usage,
+    LlmRequest, MessageContent, StopReason, ToolDefinition, Usage,
 };
 use crate::python::{Draft, Sandbox, StrikeReply, classify_draft};
 use crate::tools::{
@@ -106,6 +116,10 @@ pub struct LoopState {
     /// The model takes images, so a tool's images go to it. Off by default:
     /// each image is then an explicit note in the result text.
     pub tool_images: bool,
+    /// Tool results [`elide`](agentloop::elide) replaced after a context
+    /// overflow this turn. Nonzero means the turn's one elision is spent: a
+    /// second overflow ends the turn.
+    pub elided: usize,
 }
 
 impl LoopState {
@@ -120,6 +134,7 @@ impl LoopState {
             tool_output_limit: DEFAULT_TOOL_OUTPUT_LIMIT,
             cancel: None,
             tool_images: false,
+            elided: 0,
         }
     }
 
@@ -319,6 +334,72 @@ fn map_llm_failure(failure: LlmFailure, transcript: Vec<ChatMessage>) -> Filtere
     }
 }
 
+/// What an elided tool result says in place of its content.
+pub const ELIDED_TOOL_RESULT: &str = "[tool result elided: the conversation outgrew the model's context window. Call the tool again if you still need this result.]";
+
+/// What a tool result costs in the request: its text and its image data.
+fn result_weight(content: &str, images: &[ImageSource]) -> usize {
+    content.len() + images.iter().map(|i| i.data.len()).sum::<usize>()
+}
+
+/// The thread after a context overflow, with its oldest tool results
+/// elided, and how many were. Only tool results change: every call, every
+/// user message, the assistant text and the system prompt stay whole, so the
+/// model still sees what it did and can call a tool again.
+///
+/// Oldest first, until at least half of the tool-result weight is gone. A
+/// result is a candidate when its note would be smaller than it (an elided
+/// or short one is not). Deterministic, and in one batch, so a provider's
+/// prompt cache loses its prefix once. `None` when no result is a
+/// candidate: elision cannot shrink the thread.
+pub fn elide_oldest_tool_results(thread: &Thread) -> Option<(Thread, usize)> {
+    use crate::llm::MessageContentBlock::ToolResult;
+    let candidate = |content: &str, images: &[ImageSource]| {
+        result_weight(content, images) > ELIDED_TOOL_RESULT.len()
+    };
+    let total: usize = thread
+        .messages
+        .iter()
+        .filter_map(|m| match &m.content {
+            MessageContent::Blocks(b) => Some(b),
+            MessageContent::Text(_) => None,
+        })
+        .flatten()
+        .map(|b| match b {
+            ToolResult {
+                content, images, ..
+            } if candidate(content, images) => result_weight(content, images),
+            _ => 0,
+        })
+        .sum();
+    if total == 0 {
+        return None;
+    }
+    let mut out = thread.clone();
+    let (mut freed, mut n) = (0usize, 0usize);
+    'messages: for m in &mut out.messages {
+        let MessageContent::Blocks(blocks) = &mut m.content else {
+            continue;
+        };
+        for b in blocks {
+            if freed.saturating_mul(2) >= total {
+                break 'messages;
+            }
+            if let ToolResult {
+                content, images, ..
+            } = b
+                && candidate(content, images)
+            {
+                freed += result_weight(content, images);
+                *content = ELIDED_TOOL_RESULT.to_string();
+                images.clear();
+                n += 1;
+            }
+        }
+    }
+    Some((out, n))
+}
+
 /// System prompt for [`InlinePython::only_answer`] / [`InlinePython::only`].
 pub const PYTHON_ONLY_SYSTEM: &str = "\
 You write Python for a persistent CPython guest.
@@ -494,8 +575,9 @@ fn format_fail(err: &str) -> String {
 /// Each `Calling` rung holds one of these. When the step body returns a continue
 /// arm (`Iterate -> Calling` / `GraceIterate -> Calling`), it builds a new
 /// `Thread` with the accumulated conversation history so the next LLM call sees
-/// all prior messages.
-#[derive(Clone, Debug)]
+/// all prior messages. `PartialEq` is the [`elide`](agentloop::elide)
+/// recover edge's progress guard (G8): the elided thread must differ.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Thread {
     pub system_prompt: String,
     /// Accumulated conversation — system, user, assistant, and tool-result
@@ -521,6 +603,9 @@ pub struct AgentResult {
     /// the model had already made earlier calls this turn. A plain answer on
     /// the first and only allowed call is a natural end, not forced.
     pub forced: bool,
+    /// Tool results elided after a context overflow this turn
+    /// ([`elide_oldest_tool_results`]); 0 when the turn did not overflow.
+    pub elided: usize,
 }
 
 fn closed(thread: &Thread, text: &str) -> Vec<ChatMessage> {
@@ -648,14 +733,20 @@ ladder!(AgentLoop {
           | BudgetExhausted(BudgetHit)
           | Interrupted(Interrupt)
           | ContentFiltered(Filtered)
+          | Overflowed => Calling
           | Iterate -> Calling
           | GraceIterate -> Calling
       }
 
-    // Error-path recovery (G9): unguarded — a retry after an infrastructure
-    // failure may legitimately re-use the same token.
     recover {
+        // Error-path recovery (G9): unguarded — a retry after an
+        // infrastructure failure may legitimately re-use the same token.
         api_retry: Failed(Calling) => Calling
+        // Verdict recovery (G8): the provider refused the request as over its
+        // context window. Guarded — the retried thread must differ from the
+        // one that overflowed, so a retry that elided nothing panics rather
+        // than resend the same request.
+        elide: Overflowed => Calling
     }
 } impl {
     // Idle → Calling: thread the Thread payload and carry forward.
@@ -748,9 +839,24 @@ ladder!(AgentLoop {
                         }
                         (failure, _) => failure,
                     };
-                    return Ok(StepOutcome::ContentFiltered(ContentFiltered::new(
-                        map_llm_failure(failure, thread.messages.clone()),
-                    )));
+                    let mut filtered = map_llm_failure(failure, thread.messages.clone());
+                    if filtered.kind == FailureKind::Overflow {
+                        // One elision per turn, and only when it shrinks the
+                        // thread (the guard on `elide` holds us to that).
+                        if state.elided == 0 && elide_oldest_tool_results(&thread).is_some() {
+                            eprintln!(
+                                "[rung-std] {call_id}: context overflow — eliding the oldest tool results, retrying once"
+                            );
+                            return Ok(StepOutcome::Overflowed(Overflowed::new(calling)));
+                        }
+                        if state.elided > 0 {
+                            filtered.reason = format!(
+                                "{}; still over after eliding the {} oldest tool result(s)",
+                                filtered.reason, state.elided
+                            );
+                        }
+                    }
+                    return Ok(StepOutcome::ContentFiltered(ContentFiltered::new(filtered)));
                 }
                 Err(f) => {
                     eprintln!("[rung-std] {call_id}: retryable LLM error — {}", f.error);
@@ -797,6 +903,7 @@ ladder!(AgentLoop {
                             usage: next.usage.clone(),
                             truncated,
                             forced: last_call && state.api_call_count > 0,
+                            elided: next.elided,
                         })));
                     }
                     eprintln!(
@@ -840,6 +947,7 @@ ladder!(AgentLoop {
                     usage: next.usage.clone(),
                     truncated,
                     forced: last_call && state.api_call_count > 0,
+                    elided: next.elided,
                 })))
             }
 
@@ -992,6 +1100,7 @@ ladder!(AgentLoop {
                         usage: next.usage.clone(),
                         truncated: false,
                         forced: last_call && state.api_call_count > 0,
+                        elided: next.elided,
                     })));
                 }
 
@@ -1082,6 +1191,18 @@ ladder!(AgentLoop {
     api_retry = |f| {
         f.token
     },
+
+    // Overflowed → Calling: the same call again on a thread with its oldest
+    // tool results elided. The carry records the elision, which spends the
+    // turn's one retry. The macro wraps this body in `must_progress` (G8).
+    elide = |overflowed| {
+        let calling = overflowed.into_source();
+        let mut carry = calling.carry().clone();
+        let (thread, n) = elide_oldest_tool_results(&calling.payload)
+            .unwrap_or_else(|| (calling.payload.clone(), 0));
+        carry.state.elided = n;
+        Calling::new(thread, carry)
+    },
 });
 
 /// Drive [`AgentLoop`] from Idle to a terminal verdict.
@@ -1118,6 +1239,7 @@ pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filte
                 });
             }
             Ok(agentloop::StepOutcome::ContentFiltered(f)) => return Err(f.into_payload()),
+            Ok(agentloop::StepOutcome::Overflowed(o)) => calling = agentloop::elide(o),
             Err(failed) => calling = agentloop::api_retry(failed),
         }
     }
@@ -2467,5 +2589,227 @@ mod tests {
             content,
             format!("frame 1\n[image omitted: image/png, 16 bytes; {TEXT_ONLY_MODEL}]")
         );
+    }
+
+    // ─── Context overflow: one elision, one retry ───────────────────────────
+
+    fn tool_round(id: &str, result: &str) -> [ChatMessage; 2] {
+        [
+            ChatMessage::assistant_with_blocks(vec![crate::llm::MessageContentBlock::ToolUse {
+                id: id.into(),
+                name: "read_file".into(),
+                input: serde_json::json!({"path": id}),
+                cache: None,
+            }]),
+            ChatMessage::tool_result(id, result),
+        ]
+    }
+
+    /// A thread of user asks and tool rounds, oldest first.
+    fn history(results: &[(&str, usize)]) -> Thread {
+        let mut messages = vec![ChatMessage::user("the stable band")];
+        for (id, len) in results {
+            messages.extend(tool_round(id, &id.repeat(*len)));
+            messages.push(ChatMessage::user(format!("after {id}")));
+        }
+        Thread {
+            system_prompt: "system".into(),
+            messages,
+        }
+    }
+
+    /// Each tool result's content, in order.
+    fn results(thread: &Thread) -> Vec<String> {
+        thread
+            .messages
+            .iter()
+            .filter_map(|m| match &m.content {
+                MessageContent::Blocks(b) => Some(b),
+                MessageContent::Text(_) => None,
+            })
+            .flatten()
+            .filter_map(|b| match b {
+                crate::llm::MessageContentBlock::ToolResult { content, .. } => {
+                    Some(content.clone())
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn elision_takes_the_oldest_results_until_half_the_weight_is_gone() {
+        let thread = history(&[("a", 1000), ("b", 1000), ("c", 1000), ("d", 1000)]);
+        let (out, n) = elide_oldest_tool_results(&thread).expect("elidable");
+        assert_eq!(n, 2);
+        let got = results(&out);
+        assert_eq!(got[0], ELIDED_TOOL_RESULT);
+        assert_eq!(got[1], ELIDED_TOOL_RESULT);
+        assert_eq!(got[2], "c".repeat(1000));
+        assert_eq!(got[3], "d".repeat(1000));
+        // Deterministic: the same thread elides the same way.
+        assert_eq!(elide_oldest_tool_results(&thread).unwrap().0, out);
+    }
+
+    #[test]
+    fn elision_keeps_every_call_and_every_user_message() {
+        let thread = history(&[("a", 2000), ("b", 2000)]);
+        let (out, _) = elide_oldest_tool_results(&thread).unwrap();
+        assert_eq!(out.system_prompt, thread.system_prompt);
+        assert_eq!(out.messages.len(), thread.messages.len());
+        for (before, after) in thread.messages.iter().zip(&out.messages) {
+            let is_result = matches!(
+                &before.content,
+                MessageContent::Blocks(b) if b.iter().any(|b| matches!(
+                    b,
+                    crate::llm::MessageContentBlock::ToolResult { .. }
+                ))
+            );
+            if !is_result {
+                assert_eq!(before, after);
+            }
+        }
+    }
+
+    #[test]
+    fn elision_passes_over_results_its_note_would_not_shrink() {
+        let thread = history(&[("a", 10), ("b", 3000)]);
+        let (out, n) = elide_oldest_tool_results(&thread).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(results(&out), ["a".repeat(10), ELIDED_TOOL_RESULT.into()]);
+        // Elided again: nothing left to elide, so no retry is offered.
+        assert!(elide_oldest_tool_results(&out).is_none());
+        assert!(elide_oldest_tool_results(&history(&[("a", 10)])).is_none());
+    }
+
+    /// Answers each request with the next `(status, body)` and records the
+    /// request bodies.
+    fn serve_replies(
+        replies: Vec<(u16, String)>,
+    ) -> (
+        String,
+        std::sync::mpsc::Receiver<String>,
+        std::thread::JoinHandle<()>,
+    ) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let handle = std::thread::spawn(move || {
+            for (status, body) in replies {
+                let (mut socket, _) = listener.accept().unwrap();
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 16384];
+                let request = loop {
+                    let n = socket.read(&mut chunk).unwrap();
+                    buf.extend_from_slice(&chunk[..n]);
+                    let text = String::from_utf8_lossy(&buf).to_string();
+                    if let Some(at) = text.find("\r\n\r\n") {
+                        let len = text[..at]
+                            .lines()
+                            .find_map(|l| {
+                                l.to_ascii_lowercase()
+                                    .strip_prefix("content-length:")
+                                    .map(|v| v.trim().parse::<usize>().unwrap())
+                            })
+                            .unwrap_or(0);
+                        if buf.len() >= at + 4 + len {
+                            break String::from_utf8_lossy(&buf[at + 4..at + 4 + len]).to_string();
+                        }
+                    }
+                    if n == 0 {
+                        panic!("short request");
+                    }
+                };
+                tx.send(request).unwrap();
+                let resp = format!(
+                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = socket.write_all(resp.as_bytes());
+            }
+        });
+        (format!("http://127.0.0.1:{port}"), rx, handle)
+    }
+
+    fn overflow_reply() -> (u16, String) {
+        (
+            400,
+            r#"{"error": {"message": "This model's maximum context length is 100 tokens", "code": "context_length_exceeded"}}"#.into(),
+        )
+    }
+
+    fn answer_reply() -> (u16, String) {
+        (
+            200,
+            r#"{"id": "c", "model": "m", "choices": [{"message": {"content": "answer"}, "finish_reason": "stop"}]}"#.into(),
+        )
+    }
+
+    fn run_against(
+        replies: Vec<(u16, String)>,
+        thread: Thread,
+    ) -> (Result<AgentResult, Filtered>, Vec<String>) {
+        let (url, bodies, handle) = serve_replies(replies);
+        let mut config = dummy_llm();
+        config.base_url = url;
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(ToolRoster::new()),
+            config,
+            python: None,
+        };
+        let out = run(thread, carry);
+        handle.join().unwrap();
+        (out, bodies.try_iter().collect())
+    }
+
+    #[test]
+    fn an_overflow_elides_once_and_the_retry_goes_through_the_ladder() {
+        let thread = history(&[("a", 3000), ("b", 3000)]);
+        let (out, bodies) = run_against(vec![overflow_reply(), answer_reply()], thread);
+        let r = out.expect("recovered");
+        assert_eq!(r.final_response, "answer");
+        assert_eq!(r.elided, 1);
+        assert_eq!(bodies.len(), 2);
+        assert!(bodies[0].contains(&"a".repeat(3000)), "{}", bodies[0]);
+        assert!(!bodies[1].contains(&"a".repeat(3000)), "{}", bodies[1]);
+        assert!(bodies[1].contains(&"b".repeat(3000)), "{}", bodies[1]);
+        // The overflowed call was refused, not answered: it is not counted.
+        assert_eq!(r.api_calls_made, 1);
+        // The transcript carries the elision for a caller to keep.
+        let kept = Thread {
+            system_prompt: String::new(),
+            messages: r.transcript,
+        };
+        assert_eq!(results(&kept)[0], ELIDED_TOOL_RESULT);
+    }
+
+    #[test]
+    fn a_second_overflow_ends_the_turn_as_overflow() {
+        let thread = history(&[("a", 3000)]);
+        let (out, bodies) = run_against(vec![overflow_reply(), overflow_reply()], thread);
+        let f = out.expect_err("still over");
+        assert_eq!(f.kind, FailureKind::Overflow);
+        assert!(
+            f.reason
+                .ends_with("; still over after eliding the 1 oldest tool result(s)"),
+            "{}",
+            f.reason
+        );
+        assert_eq!(bodies.len(), 2, "one elision, one retry");
+    }
+
+    #[test]
+    fn an_overflow_with_nothing_to_elide_is_not_retried() {
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("x".repeat(5000))],
+        };
+        let (out, bodies) = run_against(vec![overflow_reply()], thread);
+        let f = out.expect_err("over");
+        assert_eq!(f.kind, FailureKind::Overflow);
+        assert!(!f.reason.contains("still over"), "{}", f.reason);
+        assert_eq!(bodies.len(), 1);
     }
 }

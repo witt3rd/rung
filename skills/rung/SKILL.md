@@ -73,6 +73,15 @@ interrupt) stores `Line::failed`: the steps that ran, from
 as assistant speech. An overflow turn stores nothing, not even its ask, so
 the request that overflowed is not sent again.
 
+Context overflow: the loop's `Overflowed => Calling` recover edge (`elide`,
+G8-guarded) elides the oldest tool results, oldest first until half their
+weight is gone, and retries once per turn. A turn that recovers stores the
+elision in the earlier lines too (`keep_elisions`), so the next prompt does
+not overflow on the same history. Still over: typed `overflow` on ACP, a
+`usage_update` with the provider's stated figures before it, nothing stored.
+Never retry overflow around `agent::run`: `Filtered` has no live thread and
+the turn's tool calls would run twice.
+
 ACP end-to-end with a model: `rung-agent/tests/acp.rs` `mock_llm` is a
 std-only OpenAI-compatible server. It serves SSE when the body has
 `"stream": true`, which the ACP path always sets, and it records request
@@ -125,7 +134,8 @@ gate escalates it to `unverified`.
 - Unique `edit` fail-closed: exact count > 1 does not fall through to indent
   match.
 - `docs/_props.py cited` kebab-tokens in comments are citations.
-- Overflow is `FailureKind::Overflow`, not a content filter.
+- Overflow is `FailureKind::Overflow`, not a content filter. The loop
+  elides and retries it once (`elide`) before it gets that far.
 - `rung-fixture` trybuild `a_match_missing_a_step_outcome_summand_is_e0004`
   can fail locally on roger (rustc diagnostic drift) while CI passes. Check it
   on a stash before blaming your change; CI is the gate.
