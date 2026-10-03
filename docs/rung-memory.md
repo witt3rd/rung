@@ -1,7 +1,7 @@
 # Memory in rung-agent: providers and the `rung-memory/1` contract
 
 Informative. The code is `rung-memory/` (provider model, store trait,
-ladders, `baseline`) and `rung-agent/src/memory.rs` (turn hooks, the MCP
+ladders, `baseline`) and `rung-agent-core/src/memory.rs` (turn hooks, the MCP
 adapter). This page is the contract a memory provider is held to.
 
 ## Who owns memory

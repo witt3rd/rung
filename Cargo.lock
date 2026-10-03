@@ -1494,6 +1494,18 @@ dependencies = [
 name = "rung-agent"
 version = "0.1.13"
 dependencies = [
+ "rung-agent-core",
+ "rung-memory",
+ "rung-std",
+ "serde",
+ "serde_json",
+ "trybuild",
+]
+
+[[package]]
+name = "rung-agent-core"
+version = "0.1.13"
+dependencies = [
  "agent-client-protocol",
  "bytes",
  "futures",
@@ -1509,7 +1521,6 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "tokio",
- "trybuild",
  "uuid",
 ]
 
