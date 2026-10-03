@@ -580,7 +580,9 @@ pub fn g_e(lines: &[Line]) -> GateResult {
     let (mut settled, mut met, mut missed) = (0, 0, 0);
     let (mut by_agent, mut surprise_wrong, mut verdict_wrong) = (0, 0, 0);
     let mut last_calibration = Value::Null;
-    for (i, l) in lines.iter().enumerate() {
+    let mut run = (0u64, 0.0f64, 0u64);
+    let mut bins: Vec<(u64, f64, u64)> = vec![(0, 0.0, 0); 10];
+    for l in lines {
         match l.kind.as_str() {
             "stimulus.accepted" => {
                 let item = l.get("item");
@@ -643,7 +645,18 @@ pub fn g_e(lines: &[Line]) -> GateResult {
                     }
                 }
                 last_calibration = l.get("calibration").clone();
-                let offline = calibration_from(&lines[..=i]);
+                // The same arithmetic as `calibration_from`, kept running.
+                if state == "met" || state == "missed" {
+                    let o = if state == "met" { 1.0 } else { 0.0 };
+                    run.0 += 1;
+                    run.1 += (p - o) * (p - o);
+                    run.2 += o as u64;
+                    let b = ((p * 10.0).floor() as usize).min(9);
+                    bins[b].0 += 1;
+                    bins[b].1 += p;
+                    bins[b].2 += o as u64;
+                }
+                let offline = calibration_value(run.0, run.1, run.2, &bins);
                 if offline != last_calibration {
                     g.check(false, format!("calibration differs at seq {}", l.seq));
                 }

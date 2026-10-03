@@ -227,7 +227,11 @@ impl MockEngine {
                         "check": {"stimulus_from": {"channel": "owner"}}}))]);
                 }
                 if self.p(self.cfg.p_long_work_responding) {
-                    rounds.push(vec![("web_fetch".into(), json!({"url": format!("slow://archive/{turn}")}))]);
+                    if on("web_read") {
+                        rounds.push(vec![("web_fetch".into(), json!({"url": format!("slow://archive/{turn}")}))]);
+                    } else {
+                        rounds.push(vec![("want_tools".into(), json!({"group": "web_read", "why": "an archive to fetch"}))]);
+                    }
                 }
             }
             "committed" => {

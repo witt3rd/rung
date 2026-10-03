@@ -139,6 +139,8 @@ pub struct Host {
     /// The previous call's prompt tokens (same epoch and model), for the
     /// cache efficiency expectation.
     last_call: Mutex<Option<(u64, String, u64, Millis)>>,
+    /// Retains decided at the boundary, done after the turn.
+    deferred_retain: Mutex<Vec<crate::desk::Candidate>>,
 }
 
 /// What survives a host-made change, for the next call's expectation.
@@ -245,6 +247,7 @@ impl Host {
             reset: Mutex::new(None),
             switch_pending: Mutex::new(None),
             last_call: Mutex::new(None),
+            deferred_retain: Mutex::new(Vec::new()),
         });
         Ok((host, recovered))
     }
@@ -373,18 +376,20 @@ impl Host {
             return self.halt(why);
         }
         core.notifier.alive();
+        let n = edge.n;
+        {
+            let (pending, mode) = {
+                let st = core.state();
+                (st.inbox.pending.len(), mode_value(&st))
+            };
+            core.emit("boundary", json!({"n": n, "mode": mode, "pending": pending}));
+        }
         self.poll_sources();
         if let Some(why) = core.stop.check() {
             return self.halt(why);
         }
         self.fire_calendar();
         self.settle();
-        let n = edge.n;
-        {
-            let pending = core.state().inbox.pending.len();
-            let mode = mode_value(&core.state());
-            core.emit("boundary", json!({"n": n, "mode": mode, "pending": pending}));
-        }
         self.probe_up();
         let (admit, inject, tools, kind) = self.decide(n, turn_next);
         // The governor: a world-imposed wait, never rest.
@@ -698,19 +703,18 @@ impl Host {
         });
         let c = self.desk.decide::<Consolidate>(&cin, &(), &asked, n, turn);
         core.emit("decision.consolidate", c.line().clone());
-        // Retain before anything is evicted.
-        if let Some(m) = &self.memory {
-            for cand in cands.iter().filter(|x| c.choice().retain.contains(&x.id)) {
-                let attrs = BTreeMap::from([
-                    ("source".to_string(), format!("host:{}", cand.kind)),
-                    ("turn".to_string(), cand.turn.to_string()),
-                ]);
-                let report = m.retain(&cand.text, attrs);
-                core.emit(
-                    "memory.retain",
-                    json!({"turn": turn, "candidate": cand.id, "candidate_kind": cand.kind, "report": report}),
-                );
-            }
+        let chosen: Vec<_> = cands
+            .into_iter()
+            .filter(|x| c.choice().retain.contains(&x.id))
+            .collect();
+        let rolling = p.as_ref().is_some_and(|p| p.choice().action == Action::Rollover);
+        if rolling {
+            // Retain before anything is evicted.
+            self.retain(turn, chosen);
+        } else {
+            // Nothing is evicted: retain after the turn, off the boundary's
+            // path (the candidates are already in the record).
+            *self.deferred_retain.lock().expect("retain") = chosen;
         }
         if let Some(p) = p
             && p.choice().action == Action::Rollover
@@ -730,6 +734,21 @@ impl Host {
             self.rollover(&cause, &keep, p.by(), None, None);
         }
         c.choice().note_line
+    }
+
+    fn retain(&self, turn: u64, chosen: Vec<crate::desk::Candidate>) {
+        let Some(m) = &self.memory else { return };
+        for cand in chosen {
+            let attrs = BTreeMap::from([
+                ("source".to_string(), format!("host:{}", cand.kind)),
+                ("turn".to_string(), cand.turn.to_string()),
+            ]);
+            let report = m.retain(&cand.text, attrs);
+            self.core.emit(
+                "memory.retain",
+                json!({"turn": turn, "candidate": cand.id, "candidate_kind": cand.kind, "report": report}),
+            );
+        }
     }
 
     pub(crate) fn outbox(&self, turn: u64, channel: &str, text: &str, source: &str) {
@@ -1024,6 +1043,8 @@ impl Host {
         if let Some(p) = prev_prompt.filter(|_| !out.calls.is_empty()) {
             *self.last_call.lock().expect("last call") = Some((epoch, model.to_string(), p, core.now()));
         }
+        let deferred = std::mem::take(&mut *self.deferred_retain.lock().expect("retain"));
+        self.retain(turn, deferred);
         // The turn's messages, verbatim, before the pack moves on.
         core.emit(
             "turn.log",
