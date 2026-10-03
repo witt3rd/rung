@@ -451,7 +451,6 @@ fn terminal_cap_exhausted_is_max_turn_requests() {
 
 /// `session/cancel` mid-turn: `cancelled`, nothing else (unchanged).
 #[test]
-#[ignore = "session/cancel cannot land mid-turn: prompt holds the ACP dispatch loop; tracked in follow-up"]
 fn terminal_cancelled_is_unchanged() {
     let mut slow = text_reply("late");
     slow["__delay_ms"] = json!(1500);
