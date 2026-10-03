@@ -155,15 +155,23 @@ pub fn redact(text: &str) -> String {
         .iter()
         .copied()
         .chain(extra.split(',').map(str::trim).filter(|n| !n.is_empty()));
+    redact_env_values(&out, names, |k| std::env::var(k).ok())
+}
+
+fn redact_env_values<'a>(
+    text: &str,
+    names: impl Iterator<Item = &'a str>,
+    lookup: impl Fn(&str) -> Option<String>,
+) -> String {
+    let mut out = text.to_string();
     for key in names {
-        if let Ok(val) = std::env::var(key) {
+        if let Some(val) = lookup(key) {
             let val = val.trim();
             if val.len() >= 6 {
                 out = out.replace(val, "[REDACTED]");
             }
         }
     }
-
     out
 }
 
@@ -1539,20 +1547,20 @@ mod tests {
     use std::sync::atomic::AtomicUsize;
 
     #[test]
-    fn redact_env_names_extend_the_secret_list() {
-        // SAFETY: unique var names; no other test reads them.
-        unsafe {
-            std::env::set_var("RUNG_TEST_EXTRA_SECRET", "s3cr3t-value-xyz");
-            std::env::set_var("RUNG_REDACT_ENVS", "RUNG_TEST_EXTRA_SECRET");
-        }
-        assert_eq!(redact("x s3cr3t-value-xyz y"), "x [REDACTED] y");
-        unsafe {
-            std::env::remove_var("RUNG_REDACT_ENVS");
-        }
-        assert!(redact("x s3cr3t-value-xyz y").contains("s3cr3t-value-xyz"));
-        unsafe {
-            std::env::remove_var("RUNG_TEST_EXTRA_SECRET");
-        }
+    fn redact_env_values_masks_only_named_long_values() {
+        let lookup = |k: &str| match k {
+            "A" => Some(" s3cr3t-value-xyz ".to_string()),
+            "B" => Some("short".to_string()),
+            _ => None,
+        };
+        let out = redact_env_values(
+            "x s3cr3t-value-xyz short y",
+            ["A", "B", "C"].into_iter(),
+            lookup,
+        );
+        assert_eq!(out, "x [REDACTED] short y");
+        let none = redact_env_values("x s3cr3t-value-xyz", [].into_iter(), lookup);
+        assert_eq!(none, "x s3cr3t-value-xyz");
     }
 
     #[test]
