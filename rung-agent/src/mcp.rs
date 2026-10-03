@@ -128,6 +128,9 @@ impl McpToolError {
     }
 }
 
+/// Redacts credentials from `text`: URL userinfo, bearer tokens and headers,
+/// and the values of well-known API-key env vars. Set `RUNG_REDACT_ENVS` to a
+/// comma-separated list of extra env var names whose values are also redacted.
 pub fn redact(text: &str) -> String {
     let mut out = redact_url_credentials(text);
     out = redact_tokens_and_headers(&out);
@@ -147,8 +150,6 @@ pub fn redact(text: &str) -> String {
         "RUNG_API_KEY",
         "XAI_API_KEY",
     ];
-    // RUNG_REDACT_ENVS: comma-separated names of extra env vars whose values
-    // are redacted (for consumer-specific credentials).
     let extra = std::env::var("RUNG_REDACT_ENVS").unwrap_or_default();
     let names = SECRET_ENVS
         .iter()
