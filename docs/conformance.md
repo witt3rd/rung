@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 260 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 267 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -640,6 +640,16 @@ look shorter than it is.
 - `session_ops_follow_session_cwd_not_process_cwd`
 - `tool_result_image_is_a_note_for_a_text_only_model`
 - `tool_result_image_is_sent_to_a_model_that_takes_images`
+
+**`rung-agent/tests/acp_concurrency.rs`** — 7 unclaimed
+
+- `http_cancel_lands_mid_turn`
+- `stdio_cancel_between_turns_is_a_no_op`
+- `stdio_cancel_lands_mid_turn`
+- `stdio_cancel_reaches_a_queued_turn`
+- `stdio_close_cancels_mid_turn`
+- `stdio_requests_answered_mid_turn`
+- `stdio_turns_stay_serialized`
 
 **`rung-agent/tests/acp_http.rs`** — 3 unclaimed
 

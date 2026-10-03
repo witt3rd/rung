@@ -61,7 +61,7 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
     eprintln!("rung-agent: ACP HTTP at http://{local}/acp");
     let state = Arc::new(HttpState {
         process: Arc::new(process.clone()),
-        live: Live::default(),
+        live: Live::new(),
         token: process.acp_token.clone(),
         connections: Mutex::new(HashMap::new()),
     });

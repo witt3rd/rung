@@ -5,6 +5,15 @@
 //! resume, and unstable `session/fork`. Prompt emits `ToolCall` /
 //! `ToolCallUpdate`. Cancel is checked before each LLM call and around each
 //! tool. Prompt image/audio/embedded context and MCP HTTP/stdio are claimed.
+//!
+//! The connection's dispatch loop runs each handler to completion before it
+//! reads the next message, so no handler may hold it for a turn. A prompt
+//! runs as a spawned task and the loop stays free for `session/cancel`,
+//! `session/close` and the rest. Work that must not overlap a turn (the turn
+//! itself, and the handlers that write a session file a turn also writes)
+//! goes through `queued`: one process-wide FIFO, so turns stay
+//! serialized in arrival order as when the loop held them, and the
+//! process-global cwd a turn sets is never changed under it.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -27,7 +36,8 @@ use agent_client_protocol::schema::v1::{
     UsageUpdate,
 };
 use agent_client_protocol::{
-    Agent, Client, ConnectTo, ConnectionTo, Error, Responder, Result as AcpResult, Stdio,
+    Agent, Client, ConnectTo, ConnectionTo, Error, JsonRpcResponse, Responder, Result as AcpResult,
+    Stdio,
 };
 
 use crate::args::{Args, IsolationMode};
@@ -41,25 +51,78 @@ use rung_std::llm::{
 };
 
 use serde_json::Value;
+use tokio::sync::oneshot;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) struct Live {
     inner: Arc<Mutex<Inner>>,
+    /// The process cwd at start. A turn moves the process cwd, so handlers
+    /// that run beside one resolve against this instead.
+    launch: Arc<PathBuf>,
 }
 
 #[derive(Default)]
 struct Inner {
     /// session_id → kind (cwd lives on the Session file).
     kinds: HashMap<String, Kind>,
+    /// session_id → the flag the next prompt takes. A cancel sets it and
+    /// removes it, so every turn that took it (running or queued) stops and
+    /// a later prompt starts clean.
     cancelled: HashMap<String, Arc<AtomicBool>>,
     mcp: HashMap<String, Vec<McpSpec>>,
     /// session_id → per-session system text from `session/new` `_meta`.
     system: HashMap<String, String>,
     /// session_id → absolute cwd whose store holds the session file.
     cwds: HashMap<String, PathBuf>,
+    /// Released when the last enqueued work ends; the next waits on it.
+    tail: Option<oneshot::Receiver<()>>,
+}
+
+/// A place in [`Live`]'s queue. [`Slot::ready`] waits for the work before
+/// it; dropping the slot lets the next one go, on every path out.
+struct Slot {
+    before: Option<oneshot::Receiver<()>>,
+    _done: oneshot::Sender<()>,
+}
+
+impl Slot {
+    async fn ready(mut self) -> Self {
+        if let Some(before) = self.before.take() {
+            // Err means the sender dropped: the work before is over.
+            let _ = before.await;
+        }
+        self
+    }
 }
 
 impl Live {
+    pub(crate) fn new() -> Self {
+        Live {
+            inner: Arc::default(),
+            launch: Arc::new(std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+        }
+    }
+
+    /// Take the next place in the process-wide queue. Synchronous, so
+    /// places follow message arrival order.
+    fn enqueue(&self) -> Slot {
+        let (done, after) = oneshot::channel();
+        let before = self.inner.lock().expect("acp state").tail.replace(after);
+        Slot {
+            before,
+            _done: done,
+        }
+    }
+
+    /// `cwd` made absolute against the launch cwd.
+    fn abs(&self, cwd: PathBuf) -> PathBuf {
+        if cwd.is_absolute() {
+            cwd
+        } else {
+            self.launch.join(cwd)
+        }
+    }
+
     fn kind(&self, id: &str) -> Kind {
         self.inner
             .lock()
@@ -78,6 +141,7 @@ impl Live {
             .insert(id.to_string(), kind);
     }
 
+    /// The flag a prompt arriving now takes; set by the next cancel.
     fn cancel_flag(&self, id: &str) -> Arc<AtomicBool> {
         self.inner
             .lock()
@@ -88,8 +152,13 @@ impl Live {
             .clone()
     }
 
+    /// Stop every turn of `id` that has arrived. One that arrives later
+    /// takes a fresh flag.
     fn cancel(&self, id: &str) {
-        self.cancel_flag(id).store(true, Ordering::SeqCst);
+        let flag = self.inner.lock().expect("acp state").cancelled.remove(id);
+        if let Some(flag) = flag {
+            flag.store(true, Ordering::SeqCst);
+        }
     }
 
     fn drop_session(&self, id: &str) {
@@ -109,7 +178,7 @@ impl Live {
             .insert(id.to_string(), cwd.to_path_buf());
     }
 
-    /// The session's store: its remembered cwd, else the process cwd.
+    /// The session's store: its remembered cwd, else the launch cwd.
     fn store(&self, id: &str) -> SessionStore {
         let cwd = self
             .inner
@@ -118,7 +187,7 @@ impl Live {
             .cwds
             .get(id)
             .cloned()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+            .unwrap_or_else(|| self.launch.to_path_buf());
         store_at(&cwd)
     }
 
@@ -243,14 +312,21 @@ impl ToolNotify for AcpNotify {
     }
 }
 
-fn abs_cwd(cwd: PathBuf) -> PathBuf {
-    if cwd.is_absolute() {
-        cwd
-    } else {
-        std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join(cwd)
-    }
+/// Answer `responder` with `work`, run off the dispatch loop once all work
+/// enqueued before it has ended. The spawned task never fails: an error
+/// would shut the connection down, so it goes to the client instead.
+fn queued<T: JsonRpcResponse>(
+    live: &Live,
+    connection: &ConnectionTo<Client>,
+    responder: Responder<T>,
+    work: impl Future<Output = AcpResult<T>> + Send + 'static,
+) -> AcpResult<()> {
+    let slot = live.enqueue();
+    connection.spawn(async move {
+        let _slot = slot.ready().await;
+        let _ = responder.respond_with_result(work.await);
+        Ok(())
+    })
 }
 
 fn store_at(cwd: &Path) -> SessionStore {
@@ -541,7 +617,7 @@ pub fn run(process: Args) -> Result<(), String> {
         if let Some(addr) = process.acp_http.clone() {
             crate::acp_http::listen(process, addr).await
         } else {
-            let live = Live::default();
+            let live = Live::new();
             connect_agent(Arc::new(process), live, Stdio::new())
                 .await
                 .map_err(|e| e.to_string())
@@ -587,7 +663,7 @@ pub(crate) async fn connect_agent(
                 async move |request: NewSessionRequest,
                             responder: Responder<NewSessionResponse>,
                             _connection: ConnectionTo<Client>| {
-                    let cwd = abs_cwd(request.cwd);
+                    let cwd = live.abs(request.cwd);
                     let kind = process.kind;
                     let id = crate::session::new_id();
                     let sess = Session::new(&id, kind, &cwd);
@@ -609,7 +685,7 @@ pub(crate) async fn connect_agent(
                 async move |request: LoadSessionRequest,
                             responder: Responder<LoadSessionResponse>,
                             connection: ConnectionTo<Client>| {
-                    let cwd = abs_cwd(request.cwd);
+                    let cwd = live.abs(request.cwd);
                     let id = sid_str(&request.session_id);
                     let sess = store_at(&cwd).load(&id).map_err(invalid)?;
                     let kind = sess.kind().unwrap_or(Kind::Implement);
@@ -624,22 +700,27 @@ pub(crate) async fn connect_agent(
             agent_client_protocol::on_receive_request!(),
         )
         .on_receive_request(
-            async move |request: ListSessionsRequest,
-                        responder: Responder<ListSessionsResponse>,
-                        _connection: ConnectionTo<Client>| {
-                let cwd = request.cwd.clone().map(abs_cwd).unwrap_or_else(|| {
-                    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-                });
-                let sessions = store_at(&cwd)
-                    .list()
-                    .map_err(invalid)?
-                    .into_iter()
-                    .map(|s| {
-                        SessionInfo::new(SessionId::new(s.id.clone()), PathBuf::from(&s.cwd))
-                            .title(s.kind)
-                    })
-                    .collect();
-                responder.respond(ListSessionsResponse::new(sessions))
+            {
+                let live = live.clone();
+                async move |request: ListSessionsRequest,
+                            responder: Responder<ListSessionsResponse>,
+                            _connection: ConnectionTo<Client>| {
+                    let cwd = request
+                        .cwd
+                        .clone()
+                        .map(|c| live.abs(c))
+                        .unwrap_or_else(|| live.launch.to_path_buf());
+                    let sessions = store_at(&cwd)
+                        .list()
+                        .map_err(invalid)?
+                        .into_iter()
+                        .map(|s| {
+                            SessionInfo::new(SessionId::new(s.id.clone()), PathBuf::from(&s.cwd))
+                                .title(s.kind)
+                        })
+                        .collect();
+                    responder.respond(ListSessionsResponse::new(sessions))
+                }
             },
             agent_client_protocol::on_receive_request!(),
         )
@@ -648,11 +729,18 @@ pub(crate) async fn connect_agent(
                 let live = live.clone();
                 async move |request: DeleteSessionRequest,
                             responder: Responder<DeleteSessionResponse>,
-                            _connection: ConnectionTo<Client>| {
+                            connection: ConnectionTo<Client>| {
+                    // Stop the session's turns now; delete after they end, so
+                    // a turn's last write cannot bring the file back.
                     let id = sid_str(&request.session_id);
-                    live.store(&id).delete(&id).map_err(invalid)?;
-                    live.drop_session(&id);
-                    responder.respond(DeleteSessionResponse::new())
+                    live.cancel(&id);
+                    let store = live.store(&id);
+                    let after = live.clone();
+                    queued(&live, &connection, responder, async move {
+                        store.delete(&id).map_err(invalid)?;
+                        after.drop_session(&id);
+                        Ok(DeleteSessionResponse::new())
+                    })
                 }
             },
             agent_client_protocol::on_receive_request!(),
@@ -662,15 +750,19 @@ pub(crate) async fn connect_agent(
                 let live = live.clone();
                 async move |request: CloseSessionRequest,
                             responder: Responder<CloseSessionResponse>,
-                            _connection: ConnectionTo<Client>| {
+                            connection: ConnectionTo<Client>| {
+                    // Stop the session's turns now; mark it closed after they
+                    // end, so a turn's last write does not undo it.
                     let id = sid_str(&request.session_id);
                     live.cancel(&id);
                     let store = live.store(&id);
-                    if let Ok(mut sess) = store.load(&id) {
-                        sess.status = "closed".into();
-                        let _ = store.save(&sess);
-                    }
-                    responder.respond(CloseSessionResponse::new())
+                    queued(&live, &connection, responder, async move {
+                        if let Ok(mut sess) = store.load(&id) {
+                            sess.status = "closed".into();
+                            let _ = store.save(&sess);
+                        }
+                        Ok(CloseSessionResponse::new())
+                    })
                 }
             },
             agent_client_protocol::on_receive_request!(),
@@ -680,16 +772,20 @@ pub(crate) async fn connect_agent(
                 let live = live.clone();
                 async move |request: SetSessionModeRequest,
                             responder: Responder<SetSessionModeResponse>,
-                            _connection: ConnectionTo<Client>| {
+                            connection: ConnectionTo<Client>| {
+                    // The next prompt takes the mode now; the file records it
+                    // after the turns before have written theirs.
                     let id = sid_str(&request.session_id);
                     let kind = Kind::parse(request.mode_id.0.as_ref()).map_err(invalid)?;
                     live.set_kind(&id, kind);
                     let store = live.store(&id);
-                    if let Ok(mut sess) = store.load(&id) {
-                        sess.kind = kind.as_str().into();
-                        let _ = store.save(&sess);
-                    }
-                    responder.respond(SetSessionModeResponse::new())
+                    queued(&live, &connection, responder, async move {
+                        if let Ok(mut sess) = store.load(&id) {
+                            sess.kind = kind.as_str().into();
+                            let _ = store.save(&sess);
+                        }
+                        Ok(SetSessionModeResponse::new())
+                    })
                 }
             },
             agent_client_protocol::on_receive_request!(),
@@ -699,23 +795,27 @@ pub(crate) async fn connect_agent(
                 let live = live.clone();
                 async move |request: ForkSessionRequest,
                             responder: Responder<ForkSessionResponse>,
-                            _connection: ConnectionTo<Client>| {
+                            connection: ConnectionTo<Client>| {
+                    // Fork a settled parent, not one a turn is writing.
                     let src = sid_str(&request.session_id);
-                    let cwd = abs_cwd(request.cwd);
-                    let parent = store_at(&cwd).load(&src).map_err(invalid)?;
-                    let id = crate::session::new_id();
-                    let kind = parent.kind().unwrap_or(Kind::Implement);
-                    let mut child = parent;
-                    child.id = id.clone();
-                    child.cwd = cwd.to_string_lossy().into_owned();
-                    child.status = "new".into();
-                    child.pid = Some(std::process::id());
-                    store_at(&cwd).save(&child).map_err(invalid)?;
-                    live.set_cwd(&id, &cwd);
-                    live.set_kind(&id, kind);
-                    live.set_mcp(&id, live.mcp(&src));
-                    responder
-                        .respond(ForkSessionResponse::new(SessionId::new(id)).modes(modes(kind)))
+                    let cwd = live.abs(request.cwd);
+                    let after = live.clone();
+                    queued(&live, &connection, responder, async move {
+                        let live = after;
+                        let parent = store_at(&cwd).load(&src).map_err(invalid)?;
+                        let id = crate::session::new_id();
+                        let kind = parent.kind().unwrap_or(Kind::Implement);
+                        let mut child = parent;
+                        child.id = id.clone();
+                        child.cwd = cwd.to_string_lossy().into_owned();
+                        child.status = "new".into();
+                        child.pid = Some(std::process::id());
+                        store_at(&cwd).save(&child).map_err(invalid)?;
+                        live.set_cwd(&id, &cwd);
+                        live.set_kind(&id, kind);
+                        live.set_mcp(&id, live.mcp(&src));
+                        Ok(ForkSessionResponse::new(SessionId::new(id)).modes(modes(kind)))
+                    })
                 }
             },
             agent_client_protocol::on_receive_request!(),
@@ -726,7 +826,7 @@ pub(crate) async fn connect_agent(
                 async move |request: ResumeSessionRequest,
                             responder: Responder<ResumeSessionResponse>,
                             _connection: ConnectionTo<Client>| {
-                    let cwd = abs_cwd(request.cwd);
+                    let cwd = live.abs(request.cwd);
                     let id = sid_str(&request.session_id);
                     let sess = store_at(&cwd).load(&id).map_err(invalid)?;
                     let kind = sess.kind().unwrap_or(Kind::Implement);
@@ -744,25 +844,22 @@ pub(crate) async fn connect_agent(
                 async move |request: PromptRequest,
                             responder: Responder<PromptResponse>,
                             connection: ConnectionTo<Client>| {
+                    // Everything the turn reads from `Live` is taken here, in
+                    // arrival order; the turn itself runs off the loop, after
+                    // the work queued before it.
                     let id = sid_str(&request.session_id);
                     let kind = live.kind(&id);
                     let flag = live.cancel_flag(&id);
-                    flag.store(false, Ordering::SeqCst);
                     let (mut text, blocks) = prompt_parts(&request.prompt);
-                    let session_id = request.session_id.clone();
-                    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                    if let Ok(sess) = live.store(&id).load(&id)
-                        && let Ok(p) = PathBuf::from(&sess.cwd).canonicalize()
-                    {
-                        let _ = std::env::set_current_dir(p);
-                    }
-                    let origin = std::env::current_dir().unwrap_or(cwd);
                     if blocks.is_empty() {
                         return responder.respond(PromptResponse::new(StopReason::EndTurn));
                     }
                     if text.is_empty() {
                         text = "(multimodal prompt)".into();
                     }
+                    let session_id = request.session_id.clone();
+                    let store = live.store(&id);
+                    let launch = live.launch.clone();
                     let mut args = job_args(&process, id.clone(), kind, text);
                     args.mcp = live.mcp(&id);
                     let notify_conn = connection.clone();
@@ -787,37 +884,51 @@ pub(crate) async fn connect_agent(
                         prompt_blocks: Some(blocks),
                         system_append: live.system(&id),
                     };
-                    let out =
-                        tokio::task::spawn_blocking(move || run_job_ex(&args, &origin, extra))
-                            .await
-                            .map_err(|e| Error::internal_error().data(e.to_string()))?;
-                    let cancelled = flag.load(Ordering::SeqCst);
-                    match out {
-                        Ok(o) => {
-                            let meta = prompt_meta(&o);
-                            send_text_if_unstreamed(
-                                &connection,
-                                session_id,
-                                o.text,
-                                &streamed_text,
-                            )?;
-                            let reason = if cancelled || o.status == Status::Cancelled {
-                                StopReason::Cancelled
-                            } else if o.status == Status::Truncated {
-                                StopReason::MaxTokens
-                            } else {
-                                // ACP has no "unverified": the turn ended, and
-                                // `_meta.rung` says what the check made of it.
-                                StopReason::EndTurn
-                            };
-                            let mut response = PromptResponse::new(reason);
-                            if let Some(meta) = meta {
-                                response = response.meta(meta);
+                    let turn_conn = connection.clone();
+                    queued(&live, &connection, responder, async move {
+                        let connection = turn_conn;
+                        let out = tokio::task::spawn_blocking(move || {
+                            // The process cwd is the turn's while it runs;
+                            // the queue keeps every other turn out.
+                            let cwd = store
+                                .load(&id)
+                                .ok()
+                                .and_then(|s| PathBuf::from(&s.cwd).canonicalize().ok())
+                                .unwrap_or_else(|| launch.to_path_buf());
+                            let _ = std::env::set_current_dir(&cwd);
+                            let origin = std::env::current_dir().unwrap_or(cwd);
+                            run_job_ex(&args, &origin, extra)
+                        })
+                        .await
+                        .map_err(|e| Error::internal_error().data(e.to_string()))?;
+                        let cancelled = flag.load(Ordering::SeqCst);
+                        match out {
+                            Ok(o) => {
+                                let meta = prompt_meta(&o);
+                                send_text_if_unstreamed(
+                                    &connection,
+                                    session_id,
+                                    o.text,
+                                    &streamed_text,
+                                )?;
+                                let reason = if cancelled || o.status == Status::Cancelled {
+                                    StopReason::Cancelled
+                                } else if o.status == Status::Truncated {
+                                    StopReason::MaxTokens
+                                } else {
+                                    // ACP has no "unverified": the turn ended, and
+                                    // `_meta.rung` says what the check made of it.
+                                    StopReason::EndTurn
+                                };
+                                let mut response = PromptResponse::new(reason);
+                                if let Some(meta) = meta {
+                                    response = response.meta(meta);
+                                }
+                                Ok(response)
                             }
-                            responder.respond(response)
+                            Err(e) => Err(Error::internal_error().data(e)),
                         }
-                        Err(e) => responder.respond_with_error(Error::internal_error().data(e)),
-                    }
+                    })
                 }
             },
             agent_client_protocol::on_receive_request!(),
@@ -894,7 +1005,7 @@ mod tests {
             Some("you are in a project channel")
         );
         assert_eq!(session_system(None), None);
-        let live = Live::default();
+        let live = Live::new();
         live.set_system("s1", session_system(Some(&meta)));
         assert_eq!(
             live.system("s1").as_deref(),
