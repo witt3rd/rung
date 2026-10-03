@@ -1,0 +1,27 @@
+error[E0004]: non-exhaustive patterns: `rung_memory::recall::StepOutcome::Unavailable(_)` not covered
+  --> tests/ui/unavailable_is_not_empty.rs:8:11
+   |
+ 8 |     match o {
+   |           ^ pattern `rung_memory::recall::StepOutcome::Unavailable(_)` not covered
+   |
+note: `rung_memory::recall::StepOutcome` defined here
+  --> src/lib.rs
+   |
+   | / ladder!(Recall {
+   | |     carry {
+   | |         provider: Arc<dyn MemoryProvider>,
+   | |         scope: Scope,
+...  |
+   | |           | Unavailable(Unreached)
+   | |             ----------- not covered
+...  |
+   | |     },
+   | | });
+   | |__^
+   = note: the matched value is of type `rung_memory::recall::StepOutcome`
+   = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+   |
+10 ~         StepOutcome::Empty(_) => 0,
+11 ~         rung_memory::recall::StepOutcome::Unavailable(_) => todo!(),
+   |

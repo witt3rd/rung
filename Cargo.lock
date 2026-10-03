@@ -1511,6 +1511,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rung-memory"
+version = "0.1.12"
+dependencies = [
+ "rung",
+ "rung-std",
+ "serde",
+ "serde_json",
+ "trybuild",
+]
+
+[[package]]
 name = "rung-std"
 version = "0.1.12"
 dependencies = [

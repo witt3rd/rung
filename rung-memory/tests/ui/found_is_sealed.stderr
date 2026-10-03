@@ -1,0 +1,16 @@
+error[E0624]: associated function `new` is private
+ --> tests/ui/found_is_sealed.rs:8:12
+  |
+8 |       Found::new(e)
+  |              ^^^ private associated function
+  |
+ ::: src/lib.rs
+  |
+  | / ladder!(Recall {
+  | |     carry {
+  | |         provider: Arc<dyn MemoryProvider>,
+  | |         scope: Scope,
+... |
+  | |     },
+  | | });
+  | |__- private associated function defined here

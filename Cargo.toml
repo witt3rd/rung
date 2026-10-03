@@ -6,7 +6,9 @@
 # serde/serde_derive, tokio/tokio-macros.) The example lives in `rung/examples/`
 # (Cargo-native: `cargo run -p rung --example metric_opt`).
 # `rung-agent` is the product: compose std blocks into a headless task CLI.
-members = ["rung", "rung-macro", "rung-std", "rung-het", "rung-doctrine", "rung-driver", "rung-fixture", "rung-agent"]
+# `rung-memory` is product too: memory providers, the store trait, and the
+# recall/retain ladders that `rung-agent` drives.
+members = ["rung", "rung-macro", "rung-std", "rung-het", "rung-doctrine", "rung-driver", "rung-fixture", "rung-agent", "rung-memory"]
 resolver = "2"
 
 [workspace.package]
