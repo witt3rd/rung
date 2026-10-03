@@ -10,7 +10,7 @@
 # host can import it. `rung-agent` is the thin shell over it: the headless
 # task CLI binary. `rung-memory` is product too: memory providers, the store
 # trait, and the recall/retain ladders that `rung-agent-core` drives.
-members = ["rung", "rung-macro", "rung-std", "rung-het", "rung-doctrine", "rung-driver", "rung-fixture", "rung-agent-core", "rung-agent", "rung-memory"]
+members = ["rung", "rung-macro", "rung-std", "rung-het", "rung-doctrine", "rung-driver", "rung-fixture", "rung-agent-core", "rung-agent", "rung-memory", "rung-host"]
 resolver = "2"
 
 [workspace.package]
