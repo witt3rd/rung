@@ -312,21 +312,22 @@ pub(crate) fn tool_commit(core: &Core, turn: u64, input: &Value) -> Result<Strin
         ));
     }
     let done_when = text(input, "done_when")?.to_string();
-    let (project, title, why, is_new) = if let Some(id) = input.get("project").and_then(Value::as_str) {
-        let Some(p) = st.registers.projects.get(id) else {
-            return Err(format!("no project `{id}`"));
+    let (project, title, why, is_new) =
+        if let Some(id) = input.get("project").and_then(Value::as_str) {
+            let Some(p) = st.registers.projects.get(id) else {
+                return Err(format!("no project `{id}`"));
+            };
+            if p.status == "done" || p.status == "abandoned" {
+                return Err(format!("project `{id}` is {}", p.status));
+            }
+            (id.to_string(), p.title.clone(), p.why.clone(), false)
+        } else if let Some(n) = input.get("new") {
+            let title = text(n, "title")?.to_string();
+            let why = text(n, "why")?.to_string();
+            (st.registers.next_id("p"), title, why, true)
+        } else {
+            return Err("name a `project` or describe a `new` one".into());
         };
-        if p.status == "done" || p.status == "abandoned" {
-            return Err(format!("project `{id}` is {}", p.status));
-        }
-        (id.to_string(), p.title.clone(), p.why.clone(), false)
-    } else if let Some(n) = input.get("new") {
-        let title = text(n, "title")?.to_string();
-        let why = text(n, "why")?.to_string();
-        (st.registers.next_id("p"), title, why, true)
-    } else {
-        return Err("name a `project` or describe a `new` one".into());
-    };
     let until = input
         .get("until_s")
         .and_then(Value::as_i64)
@@ -360,7 +361,9 @@ pub(crate) fn tool_commit(core: &Core, turn: u64, input: &Value) -> Result<Strin
             &format!("commitment `{title}`: until passed"),
         );
     }
-    Ok(format!("committed to `{project}` ({title}); release it when done"))
+    Ok(format!(
+        "committed to `{project}` ({title}); release it when done"
+    ))
 }
 
 /// `progress{next_step, note?}`.
@@ -426,7 +429,10 @@ pub fn owner_release(core: &Core, reason: &str) -> Result<String, String> {
 pub(crate) fn tool_trace(core: &Core, turn: u64, input: &Value) -> Result<String, String> {
     let what = text(input, "what_pulled")?;
     let went = text(input, "where_it_went")?;
-    let still = input.get("still_thinking").and_then(Value::as_str).unwrap_or("");
+    let still = input
+        .get("still_thinking")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     let sim = core
         .state()
         .kernel
@@ -466,7 +472,10 @@ mod tests {
         assert_eq!(k.next(false), TurnKind::Committed);
         assert_eq!(k.next(true), TurnKind::Responding);
         assert_eq!(k.mode_label(), "committed:p1");
-        let l = Line::parse(r#"{"seq":2,"at":6,"kind":"kernel.release","turn":4,"project":"p1","outcome":"done"}"#).unwrap();
+        let l = Line::parse(
+            r#"{"seq":2,"at":6,"kind":"kernel.release","turn":4,"project":"p1","outcome":"done"}"#,
+        )
+        .unwrap();
         k.apply(&l);
         assert_eq!(k.next(false), TurnKind::Free);
     }

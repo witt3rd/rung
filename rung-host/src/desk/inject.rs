@@ -75,7 +75,11 @@ pub fn build(st: &State, now: Millis, memory: &str) -> InjectInput {
         memory: memory.into(),
         expectations_due_1h: st.registers.expectations_due(now, HOUR),
         calendar_within_2h: st.calendar.within(now, 2 * HOUR),
-        note_age_turns: st.registers.note.as_ref().map(|(t, _)| st.turn.saturating_sub(*t)),
+        note_age_turns: st
+            .registers
+            .note
+            .as_ref()
+            .map(|(t, _)| st.turn.saturating_sub(*t)),
     }
 }
 
@@ -128,7 +132,12 @@ impl HostQuestion for Inject {
         q
     }
 
-    fn compose(_input: &InjectInput, d: &Decided, k: &Knobs, _ctx: &InjectCtx) -> Option<InjectChoice> {
+    fn compose(
+        _input: &InjectInput,
+        d: &Decided,
+        k: &Knobs,
+        _ctx: &InjectCtx,
+    ) -> Option<InjectChoice> {
         let cue = match choice(d, "recall_cue")? {
             "stimulus" => Cue::Stimulus,
             "commitment" => Cue::Commitment,
@@ -159,7 +168,12 @@ impl HostQuestion for Inject {
         }
     }
 
-    fn guard(input: &InjectInput, mut c: InjectChoice, _k: &Knobs, _ctx: &InjectCtx) -> InjectChoice {
+    fn guard(
+        input: &InjectInput,
+        mut c: InjectChoice,
+        _k: &Knobs,
+        _ctx: &InjectCtx,
+    ) -> InjectChoice {
         if input.memory == "off" || c.cue == Cue::None {
             c.recall = false;
             c.cue = Cue::None;

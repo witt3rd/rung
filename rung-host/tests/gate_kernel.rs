@@ -2,8 +2,6 @@
 
 mod common;
 
-use std::collections::BTreeMap;
-
 use common::*;
 use rung_host::clock::{DAY, HOUR};
 use rung_host::gates;
@@ -63,17 +61,35 @@ fn material_is_unranked_on_a_rich_register() {
     let mut seq = 0;
     let mut push = |kind: &str, body: serde_json::Value, at: i64| {
         seq += 1;
-        let serde_json::Value::Object(m) = body else { panic!() };
-        lines.push(Line { seq, at, kind: kind.into(), body: m });
+        let serde_json::Value::Object(m) = body else {
+            panic!()
+        };
+        lines.push(Line {
+            seq,
+            at,
+            kind: kind.into(),
+            body: m,
+        });
     };
     for k in 0..12 {
-        push("todo.added", serde_json::json!({"id": format!("t{k}"), "text": format!("todo {k}")}), SIM_START + k * 1000);
-        push("project.added", serde_json::json!({"id": format!("p{k}"), "title": format!("project {k}"), "why": "w", "status": "active"}), SIM_START + k * 1000);
-        push("question.added", serde_json::json!({"id": format!("q{k}"), "text": format!("question {k}")}), SIM_START + k * 1000);
+        push(
+            "todo.added",
+            serde_json::json!({"id": format!("t{k}"), "text": format!("todo {k}")}),
+            SIM_START + k * 1000,
+        );
+        push(
+            "project.added",
+            serde_json::json!({"id": format!("p{k}"), "title": format!("project {k}"), "why": "w", "status": "active"}),
+            SIM_START + k * 1000,
+        );
+        push(
+            "question.added",
+            serde_json::json!({"id": format!("q{k}"), "text": format!("question {k}")}),
+            SIM_START + k * 1000,
+        );
     }
     let st = State::replay(&lines);
     material_order_holds(&st.registers, &st.kernel);
-    let _: BTreeMap<u8, u8> = BTreeMap::new();
 }
 
 #[test]

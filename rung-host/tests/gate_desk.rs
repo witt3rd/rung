@@ -28,14 +28,42 @@ use serde_json::{Value, json};
 const NOW: i64 = SIM_START + 60 * MINUTE;
 
 fn admit_case(committed: bool) -> (AdmitInput, AdmitCtx) {
-    let w = |id: &str, kind, role, at, due, firm| Waiting { id: id.into(), kind, role, at, due, firm };
+    let w = |id: &str, kind, role, at, due, firm| Waiting {
+        id: id.into(),
+        kind,
+        role,
+        at,
+        due,
+        firm,
+    };
     let waiting = vec![
         w("o1", ItemKind::Peer, Role::Owner, NOW - 5_000, None, false),
         w("p1", ItemKind::Peer, Role::Peer, NOW - 60_000, None, false),
-        w("c1", ItemKind::Calendar, Role::Host, NOW - 1_000, Some(NOW - 1_000), true),
-        w("e1", ItemKind::Expectation, Role::Host, NOW - 2_000, None, false),
+        w(
+            "c1",
+            ItemKind::Calendar,
+            Role::Host,
+            NOW - 1_000,
+            Some(NOW - 1_000),
+            true,
+        ),
+        w(
+            "e1",
+            ItemKind::Expectation,
+            Role::Host,
+            NOW - 2_000,
+            None,
+            false,
+        ),
         // Waited past the peer maximum deferral.
-        w("p2", ItemKind::Peer, Role::Peer, NOW - 31 * MINUTE, None, false),
+        w(
+            "p2",
+            ItemKind::Peer,
+            Role::Peer,
+            NOW - 31 * MINUTE,
+            None,
+            false,
+        ),
     ];
     let items = waiting
         .iter()
@@ -52,12 +80,21 @@ fn admit_case(committed: bool) -> (AdmitInput, AdmitCtx) {
         .collect();
     let input = AdmitInput {
         now: NOW,
-        mode: if committed { json!({"committed": {"project": "p1"}}) } else { json!({"free": {"session_turns": 2}}) },
+        mode: if committed {
+            json!({"committed": {"project": "p1"}})
+        } else {
+            json!({"free": {"session_turns": 2}})
+        },
         items,
         interrupts_last_hour: 0,
         since_external_s: 5,
     };
-    let ctx = AdmitCtx { now: NOW, waiting, at_break: false, committed };
+    let ctx = AdmitCtx {
+        now: NOW,
+        waiting,
+        at_break: false,
+        committed,
+    };
     (input, ctx)
 }
 
@@ -73,7 +110,11 @@ fn inject_case(memory: &str) -> (InjectInput, InjectCtx) {
             calendar_within_2h: 0,
             note_age_turns: Some(9),
         },
-        InjectCtx { kind: TurnKind::Responding, first_committed: false, turn: 30 },
+        InjectCtx {
+            kind: TurnKind::Responding,
+            first_committed: false,
+            turn: 30,
+        },
     )
 }
 
@@ -87,7 +128,11 @@ fn tools_case() -> (ToolsInput, ToolsCtx) {
             uses_last_10: BTreeMap::new(),
             turns_since_switch: BTreeMap::from([("read".into(), 9), ("memory".into(), 9)]),
         },
-        ToolsCtx { kind: TurnKind::Free, turn: 30, wanted_recently: BTreeSet::from(["web_read".to_string()]) },
+        ToolsCtx {
+            kind: TurnKind::Free,
+            turn: 30,
+            wanted_recently: BTreeSet::from(["web_read".to_string()]),
+        },
     )
 }
 
@@ -122,8 +167,16 @@ fn consolidate_case() -> ConsolidateInput {
         commits: 2,
         releases: 1,
         candidates: vec![
-            CandidateView { id: "c10".into(), kind: "trace".into(), gist: "a trace".into() },
-            CandidateView { id: "c11".into(), kind: "settled".into(), gist: "e3 met".into() },
+            CandidateView {
+                id: "c10".into(),
+                kind: "trace".into(),
+                gist: "a trace".into(),
+            },
+            CandidateView {
+                id: "c11".into(),
+                kind: "settled".into(),
+                gist: "e3 met".into(),
+            },
         ],
         rollover_imminent: true,
     }
@@ -134,12 +187,21 @@ fn desk(step: Step, mode: DeskMode) -> DecisionDesk {
 }
 
 /// One family through one desk: (choice, by, elapsed).
-fn run<Q: HostQuestion>(d: &DecisionDesk, input: &Q::Input, ctx: &Q::Ctx) -> (Q::Choice, By, Duration, Value) {
+fn run<Q: HostQuestion>(
+    d: &DecisionDesk,
+    input: &Q::Input,
+    ctx: &Q::Ctx,
+) -> (Q::Choice, By, Duration, Value) {
     let t = Instant::now();
     let state = serde_json::to_value(input).unwrap();
     let asked = d.ask(state, Q::questions(input), 0.0);
     let dec = d.decide::<Q>(input, ctx, &asked, 1, 1);
-    (dec.choice().clone(), dec.by().clone(), t.elapsed(), dec.line().clone())
+    (
+        dec.choice().clone(),
+        dec.by().clone(),
+        t.elapsed(),
+        dec.line().clone(),
+    )
 }
 
 fn undecided_variants() -> Vec<Undecided> {
@@ -157,37 +219,78 @@ fn undecided_variants() -> Vec<Undecided> {
 }
 
 /// Every path for one family; `guard` checks the bound on every choice.
-fn every_path<Q: HostQuestion>(input: &Q::Input, ctx: &Q::Ctx, guard: &dyn Fn(&Q::Choice)) -> usize {
+fn every_path<Q: HostQuestion>(
+    input: &Q::Input,
+    ctx: &Q::Ctx,
+    guard: &dyn Fn(&Q::Choice),
+) -> usize {
     let mut paths = 0;
     let mut check = |d: &DecisionDesk, want: &dyn Fn(&By) -> bool, label: &str| {
         let (c, by, took, line) = run::<Q>(d, input, ctx);
         assert!(want(&by), "{} {label}: by {by:?}", Q::ID);
         assert!(line["by"].is_object(), "{} {label}: no provenance", Q::ID);
-        assert!(took <= Duration::from_millis(gates::G_M_BOUNDARY_COST_MS as u64), "{} {label}: {took:?}", Q::ID);
+        assert!(
+            took <= Duration::from_millis(gates::G_M_BOUNDARY_COST_MS as u64),
+            "{} {label}: {took:?}",
+            Q::ID
+        );
         guard(&c);
         paths += 1;
     };
-    let uniform = Step::Uniform { p: 0.9, pick: "now".into() };
-    check(&desk(uniform.clone(), DeskMode::Decide), &|b| matches!(b, By::Jev { backend, .. } if backend == "scripted"), "answered");
+    let uniform = Step::Uniform {
+        p: 0.9,
+        pick: "now".into(),
+    };
+    check(
+        &desk(uniform.clone(), DeskMode::Decide),
+        &|b| matches!(b, By::Jev { backend, .. } if backend == "scripted"),
+        "answered",
+    );
     for u in undecided_variants() {
         let label = u.to_string();
         let want = Why::Undecided(label.clone());
-        check(&desk(Step::Undecided(u), DeskMode::Decide), &|b| *b == By::Rule(want.clone()), &label);
+        check(
+            &desk(Step::Undecided(u), DeskMode::Decide),
+            &|b| *b == By::Rule(want.clone()),
+            &label,
+        );
     }
     check(
-        &desk(Step::Delay(gates::G_M_DELAY_MS, Box::new(uniform.clone())), DeskMode::Decide),
+        &desk(
+            Step::Delay(gates::G_M_DELAY_MS, Box::new(uniform.clone())),
+            DeskMode::Decide,
+        ),
         &|b| *b == By::Rule(Why::Timeout),
         "delay",
     );
     let mut capped = desk(uniform.clone(), DeskMode::Decide);
-    capped.cap = SpendCap { per_day: 0.0, per_ask: 0.001 };
+    capped.cap = SpendCap {
+        per_day: 0.0,
+        per_ask: 0.001,
+    };
     check(&capped, &|b| *b == By::Rule(Why::Capped), "capped");
-    check(&DecisionDesk::new(None, "none", DeskMode::Decide), &|b| *b == By::Rule(Why::NoDecider), "no decider");
-    check(&desk(uniform.clone(), DeskMode::RuleOnly), &|b| *b == By::Rule(Why::RuleOnly), "rule only");
-    check(&desk(Step::Answers(BTreeMap::new()), DeskMode::Decide), &|b| *b == By::Rule(Why::Incomplete), "incomplete");
+    check(
+        &DecisionDesk::new(None, "none", DeskMode::Decide),
+        &|b| *b == By::Rule(Why::NoDecider),
+        "no decider",
+    );
+    check(
+        &desk(uniform.clone(), DeskMode::RuleOnly),
+        &|b| *b == By::Rule(Why::RuleOnly),
+        "rule only",
+    );
+    check(
+        &desk(Step::Answers(BTreeMap::new()), DeskMode::Decide),
+        &|b| *b == By::Rule(Why::Incomplete),
+        "incomplete",
+    );
     let (_, by, _, line) = run::<Q>(&desk(uniform, DeskMode::Shadow), input, ctx);
     assert_eq!(by, By::Rule(Why::Shadow));
-    assert!(line.get("jev_choice").is_some() && line.get("agree").is_some(), "{} shadow logs the decider", Q::ID);
+    assert!(
+        line.get("jev_choice").is_some() && line.get("agree").is_some(),
+        "{} shadow logs the decider",
+        Q::ID
+    );
     paths + 1
 }
 
@@ -202,27 +305,47 @@ fn every_family_decides_on_every_path_and_its_guards_hold() {
         assert_eq!(c.forms["p2"], Form::Now, "past its maximum deferral");
     });
     let (ii, ic) = inject_case("off");
-    paths += every_path::<Inject>(&ii, &ic, &|c| assert!(!c.recall && c.cue == Cue::None, "no memory, no recall"));
+    paths += every_path::<Inject>(&ii, &ic, &|c| {
+        assert!(!c.recall && c.cue == Cue::None, "no memory, no recall")
+    });
     let (ti, tc) = tools_case();
     paths += every_path::<Tools>(&ti, &tc, &|c| {
         assert!(c.enabled.contains(&"core".to_string()));
-        assert!(c.enabled.iter().all(|g| ti.ceiling.contains(g)), "outside the ceiling: {:?}", c.enabled);
+        assert!(
+            c.enabled.iter().all(|g| ti.ceiling.contains(g)),
+            "outside the ceiling: {:?}",
+            c.enabled
+        );
     });
     let low = pack_case(0.2, false);
-    paths += every_path::<Pack>(&low, &(), &|c| assert_eq!(c.action, Action::Append, "below the floor"));
+    paths += every_path::<Pack>(&low, &(), &|c| {
+        assert_eq!(c.action, Action::Append, "below the floor")
+    });
     let high = pack_case(0.9, false);
     paths += every_path::<Pack>(&high, &(), &|c| {
         assert_eq!(c.action, Action::Rollover, "past the ceiling");
-        let kept: usize = high.segments.iter().filter(|s| c.keep.contains(&s.id)).map(|s| s.tokens).sum();
+        let kept: usize = high
+            .segments
+            .iter()
+            .filter(|s| c.keep.contains(&s.id))
+            .map(|s| s.tokens)
+            .sum();
         assert!(kept as f64 <= 0.15 * high.budget as f64, "kept {kept}");
     });
     let copy = pack_case(0.2, true);
     paths += every_path::<Pack>(&copy, &(), &|c| {
-        assert_eq!((c.action, c.cause.as_str()), (Action::Rollover, "copy_loop"));
+        assert_eq!(
+            (c.action, c.cause.as_str()),
+            (Action::Rollover, "copy_loop")
+        );
     });
     let ci = consolidate_case();
     paths += every_path::<Consolidate>(&ci, &(), &|c| {
-        assert!(c.retain.iter().all(|id| ci.candidates.iter().any(|x| &x.id == id)));
+        assert!(
+            c.retain
+                .iter()
+                .all(|id| ci.candidates.iter().any(|x| &x.id == id))
+        );
     });
     eprintln!("GATE G-m/paths PASS {{\"family_paths\":{paths}}}");
 }
@@ -231,19 +354,44 @@ fn every_family_decides_on_every_path_and_its_guards_hold() {
 fn adversarial_answers_stay_inside_the_guards() {
     // Interrupt nothing, enable everything, roll over below the floor.
     let (ai, ac) = admit_case(true);
-    let d = desk(Step::Uniform { p: 0.0, pick: "at_break".into() }, DeskMode::Decide);
+    let d = desk(
+        Step::Uniform {
+            p: 0.0,
+            pick: "at_break".into(),
+        },
+        DeskMode::Decide,
+    );
     let (c, _, _, _) = run::<Admit>(&d, &ai, &ac);
     assert_eq!((c.forms["o1"], c.forms["c1"]), (Form::Now, Form::Now));
     let mut answers = BTreeMap::new();
-    answers.insert("enable_web_read".to_string(), rung_std::decide::Answer::Noul { p: 1.0 });
-    answers.insert("enable_memory".to_string(), rung_std::decide::Answer::Noul { p: 1.0 });
-    answers.insert("enable_read".to_string(), rung_std::decide::Answer::Noul { p: 1.0 });
+    answers.insert(
+        "enable_web_read".to_string(),
+        rung_std::decide::Answer::Noul { p: 1.0 },
+    );
+    answers.insert(
+        "enable_memory".to_string(),
+        rung_std::decide::Answer::Noul { p: 1.0 },
+    );
+    answers.insert(
+        "enable_read".to_string(),
+        rung_std::decide::Answer::Noul { p: 1.0 },
+    );
     let (ti, tc) = tools_case();
     let (c, by, _, _) = run::<Tools>(&desk(Step::Answers(answers), DeskMode::Decide), &ti, &tc);
     assert!(matches!(by, By::Jev { .. }));
     assert!(!c.enabled.contains(&"web_read".to_string()));
     let low = pack_case(0.3, false);
-    let (c, _, _, _) = run::<Pack>(&desk(Step::Uniform { p: 1.0, pick: "rollover_now".into() }, DeskMode::Decide), &low, &());
+    let (c, _, _, _) = run::<Pack>(
+        &desk(
+            Step::Uniform {
+                p: 1.0,
+                pick: "rollover_now".into(),
+            },
+            DeskMode::Decide,
+        ),
+        &low,
+        &(),
+    );
     assert_eq!(c.action, Action::Append);
 }
 
@@ -262,7 +410,10 @@ fn recorded_asks() -> Vec<(&'static str, Ask)> {
         let mut q = Admit::questions(&ai);
         q.extend(Inject::questions(&ii));
         q.extend(Tools::questions(&ti));
-        Ask { state: json!({"admit": ai, "inject": ii, "tools": ti}), questions: q }
+        Ask {
+            state: json!({"admit": ai, "inject": ii, "tools": ti}),
+            questions: q,
+        }
     };
     let mut burst = boundary(false);
     if let Value::Object(m) = &mut burst.state {
@@ -273,7 +424,10 @@ fn recorded_asks() -> Vec<(&'static str, Ask)> {
         let c = consolidate_case();
         let mut q = Pack::questions(&p);
         q.extend(Consolidate::questions(&c));
-        Ask { state: json!({"pack": p, "consolidate": c}), questions: q }
+        Ask {
+            state: json!({"pack": p, "consolidate": c}),
+            questions: q,
+        }
     };
     vec![
         ("admit/peer-during-commit", boundary(true)),
@@ -291,7 +445,11 @@ fn synthetic_response(ask: &Ask) -> Value {
     for (id, a) in &d.answers {
         let v = match a {
             rung_std::decide::Answer::Noul { p } => json!({"type": "noul", "noul": p}),
-            rung_std::decide::Answer::Choice { choice, probabilities, confidence } => {
+            rung_std::decide::Answer::Choice {
+                choice,
+                probabilities,
+                confidence,
+            } => {
                 json!({"type": "choice", "choice": choice, "probabilities": probabilities, "confidence": confidence})
             }
         };
@@ -311,7 +469,11 @@ fn recorded_fixtures_replay_and_a_reworded_question_panics() {
                            "model": "synthetic", "recorded_at": "synthetic"});
             std::fs::write(&path, serde_json::to_string_pretty(&f).unwrap() + "\n").unwrap();
         }
-        let d = DecisionDesk::new(Some(Arc::new(Recorded::replay(&path))), "recorded", DeskMode::Decide);
+        let d = DecisionDesk::new(
+            Some(Arc::new(Recorded::replay(&path))),
+            "recorded",
+            DeskMode::Decide,
+        );
         let asked = d.ask(ask.state.clone(), ask.questions.clone(), 0.0);
         assert!(asked.result.is_ok(), "{name}: {:?}", asked.result.err());
         // Reword one question: the replay must refuse loudly.
@@ -325,9 +487,15 @@ fn recorded_fixtures_replay_and_a_reworded_question_panics() {
         let err = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| rec.decide(&reworded)));
         let msg = err.expect_err("a reworded question must panic");
         let text = msg.downcast_ref::<String>().cloned().unwrap_or_default();
-        assert!(text.contains("records a different request"), "{name} ({id}): {text}");
+        assert!(
+            text.contains("records a different request"),
+            "{name} ({id}): {text}"
+        );
     }
-    eprintln!("GATE G-m/recorded PASS {{\"fixtures\":{}}}", recorded_asks().len());
+    eprintln!(
+        "GATE G-m/recorded PASS {{\"fixtures\":{}}}",
+        recorded_asks().len()
+    );
 }
 
 // ─── The host run ────────────────────────────────────────────────────────────
@@ -339,12 +507,21 @@ fn a_host_on_an_adversarial_decider_keeps_its_guards() {
     sc.max_turns = Some(800);
     sc.world = busy_world(31, 6 * 3_600_000);
     sc.config.epoch_budget_tokens = 12_000;
-    sc.config.ceiling = ["core", "memory", "read", "workspace_write"].into_iter().map(String::from).collect();
+    sc.config.ceiling = ["core", "memory", "read", "workspace_write"]
+        .into_iter()
+        .map(String::from)
+        .collect();
     let policy = Scripted::policy(|_ask: &Ask, n: u64| {
-        let adversarial = if n % 2 == 0 {
-            Step::Uniform { p: 1.0, pick: "rollover_now".into() }
+        let adversarial = if n.is_multiple_of(2) {
+            Step::Uniform {
+                p: 1.0,
+                pick: "rollover_now".into(),
+            }
         } else {
-            Step::Uniform { p: 0.0, pick: "at_break".into() }
+            Step::Uniform {
+                p: 0.0,
+                pick: "at_break".into(),
+            }
         };
         match n % 300 {
             0 => Step::Delay(gates::G_M_DELAY_MS, Box::new(adversarial)),
@@ -352,7 +529,11 @@ fn a_host_on_an_adversarial_decider_keeps_its_guards() {
             _ => adversarial,
         }
     });
-    sc.desk = DeskSpec::Decider { decider: Arc::new(policy), backend: "scripted".into(), mode: DeskMode::Decide };
+    sc.desk = DeskSpec::Decider {
+        decider: Arc::new(policy),
+        backend: "scripted".into(),
+        mode: DeskMode::Decide,
+    };
     let out = sim::run(sc);
     let ceiling = ["core", "memory", "read", "workspace_write"];
     assert_gate(&gates::g_m(&out.lines, &ceiling));

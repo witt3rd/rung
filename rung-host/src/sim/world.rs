@@ -83,14 +83,20 @@ fn sentence(rng: &mut Rng, n: usize) -> String {
 
 impl FakeWorld {
     pub fn new(cfg: &WorldConfig) -> Self {
-        let mut rng = Rng::new(cfg.seed ^ 0x5eed_0f_0001);
+        let mut rng = Rng::new(cfg.seed ^ 0x005e_ed0f_0001);
         let mut events = Vec::new();
         for (k, at) in poisson(&mut rng, cfg.start, cfg.horizon, cfg.owner_per_hour)
             .into_iter()
             .enumerate()
         {
             let text = format!("owner asks: {}?", sentence(&mut rng, 6));
-            events.push(Item::message(&format!("own-{k}"), Role::Owner, "owner", at, &text));
+            events.push(Item::message(
+                &format!("own-{k}"),
+                Role::Owner,
+                "owner",
+                at,
+                &text,
+            ));
         }
         for (k, at) in poisson(&mut rng, cfg.start, cfg.horizon, cfg.peer_per_hour)
             .into_iter()
@@ -98,14 +104,26 @@ impl FakeWorld {
         {
             let p = rng.below(cfg.peers.max(1) as u64);
             let text = format!("peer {p} says: {}.", sentence(&mut rng, 8));
-            events.push(Item::message(&format!("peer-{k}"), Role::Peer, &format!("peer:{p}"), at, &text));
+            events.push(Item::message(
+                &format!("peer-{k}"),
+                Role::Peer,
+                &format!("peer:{p}"),
+                at,
+                &text,
+            ));
         }
         for (b, (at, count)) in cfg.bursts.iter().enumerate() {
             for j in 0..*count {
                 let p = rng.below(cfg.peers.max(1) as u64);
                 let text = format!("burst {b} from peer {p}: {}.", sentence(&mut rng, 5));
                 let t = at + (j as Millis * SECOND) / (*count as Millis).max(1);
-                events.push(Item::message(&format!("burst-{b}-{j}"), Role::Peer, &format!("peer:{p}"), t, &text));
+                events.push(Item::message(
+                    &format!("burst-{b}-{j}"),
+                    Role::Peer,
+                    &format!("peer:{p}"),
+                    t,
+                    &text,
+                ));
             }
         }
         if !cfg.fact_keys.is_empty() {

@@ -241,8 +241,7 @@ impl MemorySource {
 
 impl Source for MemorySource {
     fn poll(&mut self, now: Millis, seen: &BTreeSet<String>) -> Vec<Item> {
-        let (due, later): (Vec<Item>, Vec<Item>) =
-            self.queue.drain(..).partition(|i| i.at <= now);
+        let (due, later): (Vec<Item>, Vec<Item>) = self.queue.drain(..).partition(|i| i.at <= now);
         self.queue = later;
         due.into_iter().filter(|i| !seen.contains(&i.id)).collect()
     }
@@ -371,7 +370,11 @@ mod tests {
         s.apply(&line(1, "stimulus.accepted", accepted_body(&a)));
         s.apply(&line(2, "stimulus.accepted", accepted_body(&b)));
         assert_eq!(s.waiting().len(), 2);
-        s.apply(&line(3, "stimulus.admitted", json!({"turn": 1, "ids": ["a"], "digests": ["b"]})));
+        s.apply(&line(
+            3,
+            "stimulus.admitted",
+            json!({"turn": 1, "ids": ["a"], "digests": ["b"]}),
+        ));
         assert!(s.pending.is_empty());
         s.apply(&line(4, "stimulus.requeued", json!({"ids": ["a"]})));
         assert_eq!(s.waiting()[0].item.id, "a");
@@ -404,7 +407,11 @@ mod tests {
 
     #[test]
     fn a_gist_is_short_and_redacted() {
-        let g = gist(&format!("Authorization: Bearer {} {}", "a".repeat(40), "x ".repeat(300)));
+        let g = gist(&format!(
+            "Authorization: Bearer {} {}",
+            "a".repeat(40),
+            "x ".repeat(300)
+        ));
         assert!(g.chars().count() <= GIST_CHARS);
         assert!(!g.contains(&"a".repeat(40)), "{g}");
     }

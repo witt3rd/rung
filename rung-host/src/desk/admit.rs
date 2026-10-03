@@ -199,7 +199,10 @@ impl HostQuestion for Admit {
                     &[
                         ("now", "Shown in full at this boundary."),
                         ("at_break", "Held until the agent's next natural break."),
-                        ("digest", "One line in the next turn header, without displacing anything."),
+                        (
+                            "digest",
+                            "One line in the next turn header, without displacing anything.",
+                        ),
                     ],
                 ),
             );
@@ -244,7 +247,11 @@ impl HostQuestion for Admit {
     fn guard(input: &AdmitInput, mut c: AdmitChoice, k: &Knobs, ctx: &AdmitCtx) -> AdmitChoice {
         let mut forced = Vec::new();
         for w in &ctx.waiting {
-            let max = k.max_deferral.get(kind_key(w.kind)).copied().unwrap_or(Millis::MAX);
+            let max = k
+                .max_deferral
+                .get(kind_key(w.kind))
+                .copied()
+                .unwrap_or(Millis::MAX);
             let must = w.role == Role::Owner
                 || (w.firm && w.due.is_none_or(|d| d <= ctx.now))
                 || ctx.now - w.at >= max;
@@ -257,13 +264,13 @@ impl HostQuestion for Admit {
             }
         }
         // Only waiting items carry a form.
-        c.forms.retain(|id, _| ctx.waiting.iter().any(|w| &w.id == id));
+        c.forms
+            .retain(|id, _| ctx.waiting.iter().any(|w| &w.id == id));
         let owner_now = ctx
             .waiting
             .iter()
             .any(|w| w.role == Role::Owner && c.forms.get(&w.id) == Some(&Form::Now));
-        if ctx.committed && !owner_now && input.interrupts_last_hour >= k.max_interrupts_per_hour
-        {
+        if ctx.committed && !owner_now && input.interrupts_last_hour >= k.max_interrupts_per_hour {
             for (id, f) in c.forms.iter_mut() {
                 if *f == Form::Now && !forced.contains(id) {
                     *f = Form::AtBreak;

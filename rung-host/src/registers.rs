@@ -315,9 +315,21 @@ impl Registers {
                 }
             };
             if holds {
-                out.push(Settlement::new(id, e, true, "host".into(), &self.calibration));
+                out.push(Settlement::new(
+                    id,
+                    e,
+                    true,
+                    "host".into(),
+                    &self.calibration,
+                ));
             } else if now > e.due {
-                out.push(Settlement::new(id, e, false, "host".into(), &self.calibration));
+                out.push(Settlement::new(
+                    id,
+                    e,
+                    false,
+                    "host".into(),
+                    &self.calibration,
+                ));
             }
         }
         out
@@ -405,13 +417,28 @@ mod tests {
     #[test]
     fn decidable_expectations_settle_from_the_record() {
         let mut r = Registers::default();
-        r.apply(&line(1, 10, "expectation.made", json!({"id": "e1", "p": 0.8, "due": 100, "turn": 1,
-            "check": {"world_fact": {"key": "build", "equals": "green"}}})));
-        r.apply(&line(2, 10, "expectation.made", json!({"id": "e2", "p": 0.3, "due": 50, "turn": 1,
-            "check": {"stimulus_from": {"channel": "owner"}}})));
+        r.apply(&line(
+            1,
+            10,
+            "expectation.made",
+            json!({"id": "e1", "p": 0.8, "due": 100, "turn": 1,
+            "check": {"world_fact": {"key": "build", "equals": "green"}}}),
+        ));
+        r.apply(&line(
+            2,
+            10,
+            "expectation.made",
+            json!({"id": "e2", "p": 0.3, "due": 50, "turn": 1,
+            "check": {"stimulus_from": {"channel": "owner"}}}),
+        ));
         assert!(r.settle(20, None).is_empty());
-        r.apply(&line(3, 40, "stimulus.accepted", json!({"item": {"id": "w", "kind": "world", "role": "host",
-            "channel": "world", "at": 40, "text": "", "fact": {"key": "build", "value": "green"}}})));
+        r.apply(&line(
+            3,
+            40,
+            "stimulus.accepted",
+            json!({"item": {"id": "w", "kind": "world", "role": "host",
+            "channel": "world", "at": 40, "text": "", "fact": {"key": "build", "value": "green"}}}),
+        ));
         let s = r.settle(41, None);
         assert_eq!(s.len(), 1);
         assert_eq!((s[0].id(), s[0].state()), ("e1", "met"));

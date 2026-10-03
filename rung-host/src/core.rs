@@ -107,7 +107,9 @@ pub struct Core {
 
 impl std::fmt::Debug for Core {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Core").field("record", &self.record).finish()
+        f.debug_struct("Core")
+            .field("record", &self.record)
+            .finish()
     }
 }
 
@@ -147,7 +149,9 @@ impl Core {
     pub(crate) fn emit_sealed(&self, s: impl Sealed) -> Line {
         let mut st = self.state();
         let kind = s.kind();
-        let line = self.record.append_sealed(self.clock.now(), kind, s.into_body());
+        let line = self
+            .record
+            .append_sealed(self.clock.now(), kind, s.into_body());
         st.apply(&line);
         line
     }

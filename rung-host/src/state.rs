@@ -61,15 +61,26 @@ impl PackMeta {
                     _ => String::new(),
                 }
             )),
-            "kernel.commit" => self.note(format!("committed to {} ({})", l.str("project"), l.str("title"))),
+            "kernel.commit" => self.note(format!(
+                "committed to {} ({})",
+                l.str("project"),
+                l.str("title")
+            )),
             "kernel.release" => self.note(format!(
                 "released {} ({}, by {})",
                 l.str("project"),
                 l.str("outcome"),
                 l.str("released_by")
             )),
-            "expectation.settled" => self.note(format!("expectation {} {}", l.str("id"), l.str("state"))),
-            "model.switch" => self.note(format!("model {} → {} ({})", l.str("from"), l.str("to"), l.str("why"))),
+            "expectation.settled" => {
+                self.note(format!("expectation {} {}", l.str("id"), l.str("state")))
+            }
+            "model.switch" => self.note(format!(
+                "model {} → {} ({})",
+                l.str("from"),
+                l.str("to"),
+                l.str("why")
+            )),
             _ => {}
         }
     }

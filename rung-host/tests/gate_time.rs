@@ -71,14 +71,32 @@ fn due_items_fire_at_the_first_boundary_and_missed_ones_once() {
     let mut cal = Vec::new();
     // Before the gap: every 7 minutes, every third one firm.
     for k in 1..16 {
-        cal.push(entry(&format!("c{k}"), SIM_START + k * 7 * MINUTE + 13, k % 3 == 0, Missed::OnceLate));
+        cal.push(entry(
+            &format!("c{k}"),
+            SIM_START + k * 7 * MINUTE + 13,
+            k % 3 == 0,
+            Missed::OnceLate,
+        ));
     }
     // Inside the gap: missed while down.
-    cal.push(entry("down-late", gap_from + 30 * MINUTE, true, Missed::OnceLate));
-    cal.push(entry("down-skip", gap_from + 40 * MINUTE, false, Missed::Skip));
+    cal.push(entry(
+        "down-late",
+        gap_from + 30 * MINUTE,
+        true,
+        Missed::OnceLate,
+    ));
+    cal.push(entry(
+        "down-skip",
+        gap_from + 40 * MINUTE,
+        false,
+        Missed::Skip,
+    ));
     cal.push(Entry {
         id: "every-20m".into(),
-        when: When::Every { start: SIM_START + 5 * MINUTE, period: 20 * MINUTE },
+        when: When::Every {
+            start: SIM_START + 5 * MINUTE,
+            period: 20 * MINUTE,
+        },
         origin: Origin::Routine,
         text: "a standing routine".into(),
         firm: false,
@@ -86,10 +104,20 @@ fn due_items_fire_at_the_first_boundary_and_missed_ones_once() {
     });
     // After the gap.
     for k in 1..6 {
-        cal.push(entry(&format!("after{k}"), gap_to + k * 9 * MINUTE, k % 2 == 0, Missed::OnceLate));
+        cal.push(entry(
+            &format!("after{k}"),
+            gap_to + k * 9 * MINUTE,
+            k % 2 == 0,
+            Missed::OnceLate,
+        ));
     }
     // The decider never wants anything shown: firm items must still be.
-    let adversarial = || scripted(Step::Uniform { p: 0.0, pick: "at_break".into() });
+    let adversarial = || {
+        scripted(Step::Uniform {
+            p: 0.0,
+            pick: "at_break".into(),
+        })
+    };
     let mut sc = rung_host::sim::Scenario::new(&dir, 7);
     sc.until = Some(gap_from);
     sc.seed_calendar = cal;
@@ -103,7 +131,10 @@ fn due_items_fire_at_the_first_boundary_and_missed_ones_once() {
     sc.desk = adversarial();
     let out = sim::run(sc);
     assert_gate(&gates::g_d(&out.lines));
-    assert_gate(&gates::g_d_downtime(&out.lines, &["down-late", "down-skip", "every-20m"]));
+    assert_gate(&gates::g_d_downtime(
+        &out.lines,
+        &["down-late", "down-skip", "every-20m"],
+    ));
     assert_gate(&gates::g_k(&out.lines));
 }
 

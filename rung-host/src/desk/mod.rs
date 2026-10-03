@@ -56,8 +56,12 @@ pub trait HostQuestion {
 
     /// The choice from the decider's answers, or `None` when an answer it
     /// needs is missing (the rule then decides).
-    fn compose(input: &Self::Input, d: &Decided, k: &Knobs, ctx: &Self::Ctx)
-    -> Option<Self::Choice>;
+    fn compose(
+        input: &Self::Input,
+        d: &Decided,
+        k: &Knobs,
+        ctx: &Self::Ctx,
+    ) -> Option<Self::Choice>;
 
     /// The no-model choice.
     fn rule(input: &Self::Input, k: &Knobs, ctx: &Self::Ctx) -> Self::Choice;
@@ -307,7 +311,12 @@ impl DecisionDesk {
 
     /// Ask the decider once for every question in `questions`, within the
     /// desk's timeout.
-    pub fn ask(&self, state: Value, questions: BTreeMap<String, Question>, spent_today: f64) -> Asked {
+    pub fn ask(
+        &self,
+        state: Value,
+        questions: BTreeMap<String, Question>,
+        spent_today: f64,
+    ) -> Asked {
         self.ask_until(state, questions, spent_today, Instant::now() + self.timeout)
     }
 
@@ -604,7 +613,10 @@ impl DeskState {
                     turn: l.u64("turn"),
                 });
                 if l.get("outside") == &Value::Bool(true) {
-                    *self.outside_requests.entry(l.str("group").into()).or_default() += 1;
+                    *self
+                        .outside_requests
+                        .entry(l.str("group").into())
+                        .or_default() += 1;
                 }
                 if self.wants.len() > 20 {
                     self.wants.remove(0);

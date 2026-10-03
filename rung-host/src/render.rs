@@ -37,7 +37,10 @@ How this host works.
 
 /// The stable system text: identity, contract, rules, pinned memory.
 pub fn system(cfg: &HostConfig) -> String {
-    let mut s = format!("{}\n\n{HOST_CONTRACT}\n\n{FREE_TIME_RULES}", cfg.identity.trim());
+    let mut s = format!(
+        "{}\n\n{HOST_CONTRACT}\n\n{FREE_TIME_RULES}",
+        cfg.identity.trim()
+    );
     if !cfg.pinned.is_empty() {
         s.push_str("\n\nPinned:\n");
         for p in &cfg.pinned {
@@ -179,7 +182,12 @@ pub fn header(h: &HeaderCtx) -> String {
         }
     }
     for i in &h.digests {
-        out.push(format!("digest: [{}/{}] {}", i.channel, i.id, clip(&i.text, 160)));
+        out.push(format!(
+            "digest: [{}/{}] {}",
+            i.channel,
+            i.id,
+            clip(&i.text, 160)
+        ));
     }
     if let Some(c) = h.commitment {
         let resumed = if h.resumed && h.kind == TurnKind::Committed {
@@ -196,7 +204,10 @@ pub fn header(h: &HeaderCtx) -> String {
         ));
         out.push(format!(
             "  next step: {} · {} turns since progress{}",
-            c.next_step.as_deref().map(|s| clip(s, 160)).unwrap_or_else(|| "(none yet)".into()),
+            c.next_step
+                .as_deref()
+                .map(|s| clip(s, 160))
+                .unwrap_or_else(|| "(none yet)".into()),
             h.turns_since_progress,
             match c.until {
                 Some(u) if h.now > u => format!(" · `until` passed {} ago", span(h.now - u)),
@@ -215,7 +226,9 @@ pub fn header(h: &HeaderCtx) -> String {
         out.push(c.clone());
     }
     if h.note_line {
-        out.push("Context will roll over soon; update your note if you want anything carried.".into());
+        out.push(
+            "Context will roll over soon; update your note if you want anything carried.".into(),
+        );
     }
     if let Some(r) = &h.recall {
         out.push(r.clone());
@@ -225,7 +238,10 @@ pub fn header(h: &HeaderCtx) -> String {
 
 /// The epoch header: the slow layer's first line.
 pub fn epoch_line(epoch: u64, now: Millis, model: &str, rung: usize) -> String {
-    format!("[epoch {epoch} · started {} · model {model} (rung {rung})]", iso(now))
+    format!(
+        "[epoch {epoch} · started {} · model {model} (rung {rung})]",
+        iso(now)
+    )
 }
 
 /// The recovered line, when an epoch starts after a gap.
@@ -252,7 +268,11 @@ pub fn slow(
     s.push_str(note.unwrap_or("(none yet)"));
     s.push_str("\n## Registers\n");
     match kernel.commitment() {
-        Some(c) => s.push_str(&format!("commitment: {} ({})\n", c.project, clip(&c.title, 80))),
+        Some(c) => s.push_str(&format!(
+            "commitment: {} ({})\n",
+            c.project,
+            clip(&c.title, 80)
+        )),
         None => s.push_str("commitment: none (free time)\n"),
     }
     let active: Vec<String> = reg
@@ -262,11 +282,24 @@ pub fn slow(
         .map(|(id, p)| format!("{id} {}", clip(&p.title, 40)))
         .take(8)
         .collect();
-    s.push_str(&format!("projects: {}\n", if active.is_empty() { "none".into() } else { active.join("; ") }));
-    let open = reg.expectations.values().filter(|e| e.state == ExpState::Open).count();
+    s.push_str(&format!(
+        "projects: {}\n",
+        if active.is_empty() {
+            "none".into()
+        } else {
+            active.join("; ")
+        }
+    ));
+    let open = reg
+        .expectations
+        .values()
+        .filter(|e| e.state == ExpState::Open)
+        .count();
     let todo = reg.todo.values().filter(|t| !t.done).count();
     let qs = reg.questions.values().filter(|q| q.open).count();
-    s.push_str(&format!("open expectations: {open} · todo open: {todo} · open questions: {qs}\n"));
+    s.push_str(&format!(
+        "open expectations: {open} · todo open: {todo} · open questions: {qs}\n"
+    ));
     let cal = reg.calibration.value();
     if cal["n"].as_u64().unwrap_or(0) > 0 {
         s.push_str(&format!(

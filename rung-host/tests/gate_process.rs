@@ -6,7 +6,7 @@ mod common;
 
 use std::collections::BTreeSet;
 use std::os::unix::net::UnixDatagram;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -19,16 +19,23 @@ use rung_host::state::State;
 const BIN: &str = env!("CARGO_BIN_EXE_rung-host");
 
 fn now_ms() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
 }
 
 fn spawn(state: &Path, extra: &[&str], env: &[(&str, String)]) -> Child {
     let mut c = Command::new(BIN);
-    c.args(["sim", "--clock", "real", "--state", state.to_str().unwrap()]).args(extra);
+    c.args(["sim", "--clock", "real", "--state", state.to_str().unwrap()])
+        .args(extra);
     for (k, v) in env {
         c.env(k, v);
     }
-    c.stdout(Stdio::null()).stderr(Stdio::null()).spawn().expect("spawn rung-host")
+    c.stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn rung-host")
 }
 
 fn lines(state: &Path) -> Vec<Line> {
@@ -82,7 +89,10 @@ fn calls(state: &Path) -> Vec<(u64, u64, i64, i64)> {
         .unwrap_or_default()
         .lines()
         .filter_map(|l| {
-            let v: Vec<i64> = l.split_whitespace().filter_map(|x| x.parse().ok()).collect();
+            let v: Vec<i64> = l
+                .split_whitespace()
+                .filter_map(|x| x.parse().ok())
+                .collect();
             (v.len() == 4).then(|| (v[0] as u64, v[1] as u64, v[2], v[3]))
         })
         .collect()
@@ -97,8 +107,7 @@ fn mid_turn() -> StopCase {
     let (elapsed, code) = stop(c);
     let in_flight = calls(&dir)
         .into_iter()
-        .filter(|(_, _, s, _)| *s <= sent)
-        .next_back()
+        .rfind(|(_, _, s, _)| *s <= sent)
         .map(|(_, _, s, d)| (s + d - sent).max(0) as u64)
         .unwrap_or(0);
     StopCase {
@@ -114,7 +123,10 @@ fn in_wait(case: &str, args: &[&str], class: &str) -> StopCase {
     let dir = sim::temp_dir(&format!("gate-h-{case}"));
     let c = spawn(&dir, args, &[]);
     let class = class.to_string();
-    wait_for(&dir, 60, case, |ls| ls.iter().any(|l| l.kind == "degraded" && l.str("class") == class));
+    wait_for(&dir, 60, case, |ls| {
+        ls.iter()
+            .any(|l| l.kind == "degraded" && l.str("class") == class)
+    });
     std::thread::sleep(Duration::from_millis(200));
     let (elapsed, code) = stop(c);
     StopCase {
@@ -131,7 +143,8 @@ fn wedged(watchdog_ms: u64) -> Option<u64> {
     let dir = sim::temp_dir("gate-h-wedged");
     let sock_path = dir.join("notify.sock");
     let sock = UnixDatagram::bind(&sock_path).unwrap();
-    sock.set_read_timeout(Some(Duration::from_millis(20))).unwrap();
+    sock.set_read_timeout(Some(Duration::from_millis(20)))
+        .unwrap();
     let mut c = spawn(
         &dir,
         &["--call-ms", "20,40", "--wedge-at", "8", "--no-memory"],
@@ -145,11 +158,11 @@ fn wedged(watchdog_ms: u64) -> Option<u64> {
     let mut pings = 0;
     let started = Instant::now();
     let detected = loop {
-        if let Ok(n) = sock.recv(&mut buf) {
-            if &buf[..n] == b"WATCHDOG=1" {
-                last = Some(Instant::now());
-                pings += 1;
-            }
+        if let Ok(n) = sock.recv(&mut buf)
+            && &buf[..n] == b"WATCHDOG=1"
+        {
+            last = Some(Instant::now());
+            pings += 1;
         }
         if let Some(t) = last
             && t.elapsed() > Duration::from_millis(watchdog_ms)
@@ -165,7 +178,10 @@ fn wedged(watchdog_ms: u64) -> Option<u64> {
     // A healthy loop pinged before it wedged.
     assert!(pings >= 1, "no watchdog pings before the wedge");
     // It wedged at the scripted turn, not before.
-    let started_turns = lines(&dir).iter().filter(|l| l.kind == "turn.started").count();
+    let started_turns = lines(&dir)
+        .iter()
+        .filter(|l| l.kind == "turn.started")
+        .count();
     assert!(started_turns >= 8, "wedged early: {started_turns} turns");
     detected
 }
@@ -175,8 +191,24 @@ fn a_stop_is_prompt_from_a_turn_and_from_any_wait_and_the_watchdog_fires() {
     sim::test_timeout(600);
     let cases = vec![
         mid_turn(),
-        in_wait("backoff", &["--call-ms", "10,10", "--fault", "outage", "--backoff-ms", "30000", "--no-memory"], "backoff"),
-        in_wait("paced", &["--call-ms", "10,10", "--quota", "1000,1", "--no-memory"], "paced"),
+        in_wait(
+            "backoff",
+            &[
+                "--call-ms",
+                "10,10",
+                "--fault",
+                "outage",
+                "--backoff-ms",
+                "30000",
+                "--no-memory",
+            ],
+            "backoff",
+        ),
+        in_wait(
+            "paced",
+            &["--call-ms", "10,10", "--quota", "1000,1", "--no-memory"],
+            "paced",
+        ),
     ];
     let watchdog_ms = 3_000;
     let detect = wedged(watchdog_ms);
@@ -233,5 +265,4 @@ fn fifty_kills_lose_nothing_and_restore_everything() {
     let replayed = State::replay_hashes(&ls);
     assert_gate(&gates::g_i(&ls, kills, &replayed));
     assert_gate(&gates::g_k(&ls));
-    let _: Option<PathBuf> = None;
 }

@@ -47,7 +47,11 @@ pub fn build(st: &State, k: &Knobs, rollover_imminent: bool) -> (ConsolidateInpu
         .cloned()
         .collect();
     let input = ConsolidateInput {
-        note_age_turns: st.registers.note.as_ref().map(|(t, _)| st.turn.saturating_sub(*t)),
+        note_age_turns: st
+            .registers
+            .note
+            .as_ref()
+            .map(|(t, _)| st.turn.saturating_sub(*t)),
         commits: st.kernel.commits,
         releases: st.kernel.releases,
         candidates: cands
@@ -98,7 +102,12 @@ impl HostQuestion for Consolidate {
         q
     }
 
-    fn compose(input: &ConsolidateInput, d: &Decided, k: &Knobs, _ctx: &()) -> Option<ConsolidateChoice> {
+    fn compose(
+        input: &ConsolidateInput,
+        d: &Decided,
+        k: &Knobs,
+        _ctx: &(),
+    ) -> Option<ConsolidateChoice> {
         let old = input.note_age_turns.is_none_or(|a| a > k.note_age_turns);
         let note_line = noul(d, "note_due")? >= k.note_p || (input.rollover_imminent && old);
         let mut retain = Vec::new();
@@ -122,7 +131,12 @@ impl HostQuestion for Consolidate {
         }
     }
 
-    fn guard(input: &ConsolidateInput, mut c: ConsolidateChoice, _k: &Knobs, _ctx: &()) -> ConsolidateChoice {
+    fn guard(
+        input: &ConsolidateInput,
+        mut c: ConsolidateChoice,
+        _k: &Knobs,
+        _ctx: &(),
+    ) -> ConsolidateChoice {
         let ids = considered(input);
         c.retain.retain(|id| ids.contains(id));
         c.considered = ids;

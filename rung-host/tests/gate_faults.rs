@@ -24,17 +24,51 @@ fn injected_faults_degrade_and_recover_but_never_kill() {
     let a = Some("mock/a".to_string());
     sc.faults = vec![
         // The primary model's provider rate-limits, with Retry-After.
-        Fault { from: at(0, 20), to: at(0, 35), kind: FaultKind::ProviderRateLimit { retry_after_ms: 30_000 }, model: a.clone() },
+        Fault {
+            from: at(0, 20),
+            to: at(0, 35),
+            kind: FaultKind::ProviderRateLimit {
+                retry_after_ms: 30_000,
+            },
+            model: a.clone(),
+        },
         // A 5xx burst on the primary.
-        Fault { from: at(1, 30), to: at(1, 34), kind: FaultKind::ServerError, model: a.clone() },
+        Fault {
+            from: at(1, 30),
+            to: at(1, 34),
+            kind: FaultKind::ServerError,
+            model: a.clone(),
+        },
         // The platform's own 429, with a reset two minutes on.
-        Fault { from: at(2, 30), to: at(2, 40), kind: FaultKind::PlatformRateLimit { reset_in_ms: 2 * MINUTE }, model: None },
+        Fault {
+            from: at(2, 30),
+            to: at(2, 40),
+            kind: FaultKind::PlatformRateLimit {
+                reset_in_ms: 2 * MINUTE,
+            },
+            model: None,
+        },
         // Nothing answers for ten minutes.
-        Fault { from: at(3, 0), to: at(3, 10), kind: FaultKind::Outage, model: None },
+        Fault {
+            from: at(3, 0),
+            to: at(3, 10),
+            kind: FaultKind::Outage,
+            model: None,
+        },
         // The credential is refused for forty minutes.
-        Fault { from: at(4, 0), to: at(4, 40), kind: FaultKind::Auth, model: None },
+        Fault {
+            from: at(4, 0),
+            to: at(4, 40),
+            kind: FaultKind::Auth,
+            model: None,
+        },
         // The account's daily quota runs out: wait for UTC midnight.
-        Fault { from: at(6, 0), to: SIM_START + DAY, kind: FaultKind::DailyQuota, model: None },
+        Fault {
+            from: at(6, 0),
+            to: SIM_START + DAY,
+            kind: FaultKind::DailyQuota,
+            model: None,
+        },
     ];
     // Hours of turns: memory is exercised elsewhere.
     sc.memory = false;

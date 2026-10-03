@@ -41,7 +41,9 @@ struct Opts {
 
 fn parse() -> Result<Opts, String> {
     let mut a = std::env::args().skip(1);
-    let cmd = a.next().ok_or("usage: rung-host sim|canon --state DIR ...")?;
+    let cmd = a
+        .next()
+        .ok_or("usage: rung-host sim|canon --state DIR ...")?;
     let mut o = Opts {
         cmd,
         state: None,
@@ -72,7 +74,10 @@ fn parse() -> Result<Opts, String> {
             "--clock" => o.real = v()? == "real",
             "--call-ms" => {
                 let (x, y) = pair(v()?)?;
-                o.call_ms = Some((x.parse().map_err(|_| "--call-ms")?, y.parse().map_err(|_| "--call-ms")?));
+                o.call_ms = Some((
+                    x.parse().map_err(|_| "--call-ms")?,
+                    y.parse().map_err(|_| "--call-ms")?,
+                ));
             }
             "--wedge-at" => o.wedge_at = Some(v()?.parse().map_err(|e| format!("{f}: {e}"))?),
             "--inbox" => o.inbox = Some(PathBuf::from(v()?)),
@@ -81,9 +86,14 @@ fn parse() -> Result<Opts, String> {
             "--backoff-ms" => o.backoff_ms = Some(v()?.parse().map_err(|e| format!("{f}: {e}"))?),
             "--quota" => {
                 let (x, y) = pair(v()?)?;
-                o.quota = Some((x.parse().map_err(|_| "--quota")?, y.parse().map_err(|_| "--quota")?));
+                o.quota = Some((
+                    x.parse().map_err(|_| "--quota")?,
+                    y.parse().map_err(|_| "--quota")?,
+                ));
             }
-            "--owner-per-hour" => o.owner_per_hour = v()?.parse().map_err(|e| format!("{f}: {e}"))?,
+            "--owner-per-hour" => {
+                o.owner_per_hour = v()?.parse().map_err(|e| format!("{f}: {e}"))?
+            }
             "--no-memory" => o.memory = false,
             other => return Err(format!("unknown flag {other}")),
         }
@@ -131,7 +141,8 @@ fn scenario(o: &Opts, state: &std::path::Path) -> Result<Scenario, String> {
         sc = sc.quota(rpd, rpm);
     }
     if let Some(dir) = &o.inbox {
-        let src: Box<dyn Source> = Box::new(DirSource::new(dir).map_err(|e| format!("inbox: {e}"))?);
+        let src: Box<dyn Source> =
+            Box::new(DirSource::new(dir).map_err(|e| format!("inbox: {e}"))?);
         sc.sources.push(src);
     }
     sc.notifier = Some(Notifier::from_env());

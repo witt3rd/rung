@@ -163,8 +163,14 @@ pub struct RunOutput {
 
 /// Build the host a scenario describes (without running it).
 pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEngine>) {
-    let clock: Arc<dyn Clock> = sc.clock.unwrap_or_else(|| Arc::new(SimClock::new(sc.start)));
-    let mock = Arc::new(MockEngine::new(sc.mock, clock.clone(), FaultInjector::new(sc.faults)));
+    let clock: Arc<dyn Clock> = sc
+        .clock
+        .unwrap_or_else(|| Arc::new(SimClock::new(sc.start)));
+    let mock = Arc::new(MockEngine::new(
+        sc.mock,
+        clock.clone(),
+        FaultInjector::new(sc.faults),
+    ));
     let mut world = sc.world;
     if world.horizon == 0 {
         world.horizon = 1;
@@ -187,7 +193,10 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
         } => DecisionDesk::new(Some(decider), &backend, mode),
     };
     if sc.memory {
-        b.memory = Some(Arc::new(MemoryHost::baseline(&sc.dir.join("memory"), "host")));
+        b.memory = Some(Arc::new(MemoryHost::baseline(
+            &sc.dir.join("memory"),
+            "host",
+        )));
     }
     b.sources = sources;
     b.judge = Some(Arc::new(SeededJudge {

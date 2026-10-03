@@ -34,10 +34,23 @@ fn canonical_bytes_are_stable_across_two_processes() {
     let run = |name: &str| {
         let dir = sim::temp_dir(name);
         let out = std::process::Command::new(bin)
-            .args(["canon", "--state", dir.to_str().unwrap(), "--seed", "5", "--turns", "300", "--no-memory"])
+            .args([
+                "canon",
+                "--state",
+                dir.to_str().unwrap(),
+                "--seed",
+                "5",
+                "--turns",
+                "300",
+                "--no-memory",
+            ])
             .output()
             .expect("run rung-host");
-        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     };
     assert_gate(&gates::g_l_stable(&run("canon-a"), &run("canon-b")));

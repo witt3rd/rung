@@ -129,7 +129,11 @@ impl GovState {
         while self.recent.front().is_some_and(|t| *t <= l.at - MINUTE) {
             self.recent.pop_front();
         }
-        while self.turn_starts.front().is_some_and(|t| *t <= l.at - MINUTE) {
+        while self
+            .turn_starts
+            .front()
+            .is_some_and(|t| *t <= l.at - MINUTE)
+        {
             self.turn_starts.pop_front();
         }
         match l.kind.as_str() {
@@ -211,8 +215,16 @@ pub fn must_wait(st: &GovState, cfg: &GovConfig, kind: TurnKind, now: Millis) ->
     }
     let q = cfg.quota.as_ref()?;
     let need = st.expected_calls(cfg);
-    let today = if day(now) == st.day { st.requests_today } else { 0 };
-    let unreserved = if day(now) == st.day { st.unreserved_today } else { 0 };
+    let today = if day(now) == st.day {
+        st.requests_today
+    } else {
+        0
+    };
+    let unreserved = if day(now) == st.day {
+        st.unreserved_today
+    } else {
+        0
+    };
     if today + need > q.rpd {
         return Some(Wait {
             class: "quota".into(),
@@ -304,7 +316,10 @@ pub fn on_failure(
         }
         (
             Origin::Provider,
-            ProviderClass::RateLimit | ProviderClass::Overloaded | ProviderClass::Transport | ProviderClass::Timeout,
+            ProviderClass::RateLimit
+            | ProviderClass::Overloaded
+            | ProviderClass::Transport
+            | ProviderClass::Timeout,
         ) => Plan {
             wait: Some(Wait {
                 class: "backoff".into(),

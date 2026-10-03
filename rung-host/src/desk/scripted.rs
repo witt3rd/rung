@@ -17,7 +17,10 @@ use rung_std::decide::{Answer, Ask, Decided, Decider, Question, Undecided, Usage
 pub enum Step {
     /// Answer every question: a Noul with `p`, a Choice with `pick` when it
     /// is an option (else the first option).
-    Uniform { p: f64, pick: String },
+    Uniform {
+        p: f64,
+        pick: String,
+    },
     /// Answer from a map of question id → answer; unlisted questions are
     /// left unanswered (an incomplete reply).
     Answers(BTreeMap<String, Answer>),
@@ -45,7 +48,9 @@ pub struct Scripted {
 
 impl std::fmt::Debug for Scripted {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Scripted").field("model", &self.model).finish()
+        f.debug_struct("Scripted")
+            .field("model", &self.model)
+            .finish()
     }
 }
 
@@ -92,9 +97,11 @@ impl Scripted {
                 *last = Some(s.clone());
                 s
             }
-            None => last.clone().unwrap_or(Step::Undecided(Undecided::Unavailable(
-                "script ran out".into(),
-            ))),
+            None => last
+                .clone()
+                .unwrap_or(Step::Undecided(Undecided::Unavailable(
+                    "script ran out".into(),
+                ))),
         }
     }
 
@@ -203,10 +210,7 @@ mod tests {
     fn ask() -> Ask {
         let mut questions = BTreeMap::new();
         questions.insert("n".into(), Question::noul("?", "y", "n"));
-        questions.insert(
-            "c".into(),
-            Question::choice("?", &[("a", "A"), ("b", "B")]),
-        );
+        questions.insert("c".into(), Question::choice("?", &[("a", "A"), ("b", "B")]));
         Ask {
             state: json!({}),
             questions,

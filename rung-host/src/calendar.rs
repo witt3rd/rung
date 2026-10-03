@@ -44,7 +44,10 @@ pub enum Missed {
 pub enum When {
     At(Millis),
     /// Every `period` ms from `start`.
-    Every { start: Millis, period: Millis },
+    Every {
+        start: Millis,
+        period: Millis,
+    },
 }
 
 /// One calendar entry.
@@ -205,13 +208,23 @@ mod tests {
         assert!(c.due(99, None).is_empty());
         let f = c.due(120, None);
         assert_eq!((f[0].due, f[0].late_by_ms, f[0].missed), (100, 20, false));
-        c.apply(&line(2, 120, "calendar.fired", json!({"id": "r", "due": 100})));
+        c.apply(&line(
+            2,
+            120,
+            "calendar.fired",
+            json!({"id": "r", "due": 100}),
+        ));
         assert_eq!(c.next_due(), Some(150));
         // Down from 130 to 400: several slots missed, fired once on waking.
         let f = c.due(400, Some(130));
         assert_eq!(f.len(), 1);
         assert!(f[0].missed && f[0].fire);
-        c.apply(&line(3, 400, "calendar.fired", json!({"id": "r", "due": 150})));
+        c.apply(&line(
+            3,
+            400,
+            "calendar.fired",
+            json!({"id": "r", "due": 150}),
+        ));
         assert_eq!(c.next_due(), Some(450));
     }
 

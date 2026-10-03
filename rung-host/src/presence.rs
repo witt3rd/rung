@@ -98,7 +98,12 @@ pub struct HostBuilder {
 }
 
 impl HostBuilder {
-    pub fn new(config: HostConfig, state_dir: &Path, clock: Arc<dyn Clock>, engine: Arc<dyn TurnEngine>) -> Self {
+    pub fn new(
+        config: HostConfig,
+        state_dir: &Path,
+        clock: Arc<dyn Clock>,
+        engine: Arc<dyn TurnEngine>,
+    ) -> Self {
         Self {
             config,
             state_dir: state_dir.to_path_buf(),
@@ -347,15 +352,26 @@ impl Host {
             // A wait in progress when the host died is over.
             let degraded = core.state().governor.degraded.is_some();
             if degraded {
-                core.emit("degraded.ended", json!({"class": "interrupted", "waited_ms": 0}));
+                core.emit(
+                    "degraded.ended",
+                    json!({"class": "interrupted", "waited_ms": 0}),
+                );
             }
             *self.down_since.lock().expect("down") = Some(last);
             l1.push('\n');
             l1.push_str(&render::recovered_line(last, now, last_turn, requeue.len()));
             gap = Some(now - last);
         }
+        // No fsync between the waking lines (the pack is empty: nothing is
+        // evicted), so a kill lands between them only in a tiny window.
+        self.rollover(
+            if first { "start" } else { "wake" },
+            &[],
+            &By::Rule(crate::desk::Why::NothingToAsk),
+            Some(l1),
+            gap,
+        );
         core.sync();
-        self.rollover(if first { "start" } else { "wake" }, &[], &By::Rule(crate::desk::Why::NothingToAsk), Some(l1), gap);
         core.notifier.ready();
     }
 
@@ -380,7 +396,9 @@ impl Host {
         let core = self.core.clone();
         let now = core.now();
         let turn_next = core.state().turn + 1;
-        if self.limits.max_turns.is_some_and(|m| turn_next > m) || self.limits.until.is_some_and(|u| now >= u) {
+        if self.limits.max_turns.is_some_and(|m| turn_next > m)
+            || self.limits.until.is_some_and(|u| now >= u)
+        {
             core.stop.request(Why::Stopped { by: "limit".into() });
         }
         if let Some(why) = core.stop.check() {
@@ -393,7 +411,10 @@ impl Host {
                 let st = core.state();
                 (st.inbox.pending.len(), mode_value(&st))
             };
-            core.emit("boundary", json!({"n": n, "mode": mode, "pending": pending}));
+            core.emit(
+                "boundary",
+                json!({"n": n, "mode": mode, "pending": pending}),
+            );
         }
         self.poll_sources();
         if let Some(why) = core.stop.check() {
@@ -414,7 +435,9 @@ impl Host {
         }
         let (now_items, digests) = self.admit(edge, &admit, turn_next);
         let note_line = self.consolidate_and_pack(n, turn_next, kind);
-        self.turn(n, turn_next, kind, now_items, digests, inject, tools, note_line, started);
+        self.turn(
+            n, turn_next, kind, now_items, digests, inject, tools, note_line, started,
+        );
         Next::Again(Edge::mint(n + 1))
     }
 
@@ -531,7 +554,13 @@ impl Host {
         }
         let pending = self.switch_pending.lock().expect("switch").take();
         if pending.is_some() {
-            self.rollover("model_switch", &[], &By::Rule(crate::desk::Why::NothingToAsk), None, None);
+            self.rollover(
+                "model_switch",
+                &[],
+                &By::Rule(crate::desk::Why::NothingToAsk),
+                None,
+                None,
+            );
         }
     }
 
@@ -549,7 +578,11 @@ impl Host {
         let core = &*self.core;
         let k = &self.desk.knobs;
         let now = core.now();
-        let mem = self.memory.as_ref().map(|m| m.name().to_string()).unwrap_or_else(|| "off".into());
+        let mem = self
+            .memory
+            .as_ref()
+            .map(|m| m.name().to_string())
+            .unwrap_or_else(|| "off".into());
         let (ain, actx, iin, tin, tctx, spent, first_committed) = {
             let st = core.state();
             let (ain, actx) = crate::desk::admit::build(&st, now, k);
@@ -559,7 +592,10 @@ impl Host {
             let preview = Admit::guard(&ain, Admit::rule(&ain, k, &actx), k, &actx);
             let pkind = st.kernel.next(!preview.now().is_empty());
             let (tin, tctx) = crate::desk::tools::build(&st, &self.cfg().ceiling, pkind, k);
-            let first = st.kernel.commitment().is_some_and(|c| c.since_turn + 1 == turn);
+            let first = st
+                .kernel
+                .commitment()
+                .is_some_and(|c| c.since_turn + 1 == turn);
             (ain, actx, iin, tin, tctx, st.desk.spent_today, first)
         };
         let mut qs = Admit::questions(&ain);
@@ -567,7 +603,10 @@ impl Host {
         qs.extend(Tools::questions(&tin));
         let state = json!({"admit": ain, "inject": iin, "tools": tin});
         let asked = self.desk.ask_until(state, qs, spent, self.desk_deadline());
-        core.emit("desk.ask", asked.line(n, &["admit", "inject", "tools"], self.desk.backend()));
+        core.emit(
+            "desk.ask",
+            asked.line(n, &["admit", "inject", "tools"], self.desk.backend()),
+        );
         let a = self.desk.decide::<Admit>(&ain, &actx, &asked, n, turn);
         core.emit("decision.admit", a.line().clone());
         let kind = core.state().kernel.next(!a.choice().now().is_empty());
@@ -581,7 +620,12 @@ impl Host {
         let tctx = crate::desk::tools::ToolsCtx { kind, ..tctx };
         let t = self.desk.decide::<Tools>(&tin, &tctx, &asked, n, turn);
         core.emit("decision.tools", t.line().clone());
-        (a.into_choice(), i.into_choice(), t.into_choice().enabled, kind)
+        (
+            a.into_choice(),
+            i.into_choice(),
+            t.into_choice().enabled,
+            kind,
+        )
     }
 
     /// Wait out a world-imposed interval.
@@ -645,7 +689,10 @@ impl Host {
         let k = &self.desk.knobs;
         let st = core.state();
         let pack = self.pack.lock().expect("pack");
-        let commit_turns = st.kernel.commitment().map(|c| (c.since_turn, c.last_progress_turn));
+        let commit_turns = st
+            .kernel
+            .commitment()
+            .map(|c| (c.since_turn, c.last_progress_turn));
         let exp_turns: Vec<u64> = st
             .registers
             .expectations
@@ -654,7 +701,8 @@ impl Host {
             .map(|e| e.turn)
             .collect();
         let is_ref = |first: u64, last: u64| {
-            let c = commit_turns.is_some_and(|(a, b)| (first..=last).contains(&a) || (first..=last).contains(&b));
+            let c = commit_turns
+                .is_some_and(|(a, b)| (first..=last).contains(&a) || (first..=last).contains(&b));
             let e = exp_turns.iter().any(|t| (first..=last).contains(t));
             (c, e)
         };
@@ -705,7 +753,11 @@ impl Host {
             json!({"consolidate": cin})
         };
         let asked = self.desk.ask_until(state, qs, spent, self.desk_deadline());
-        let families: &[&str] = if gate { &["pack", "consolidate"] } else { &["consolidate"] };
+        let families: &[&str] = if gate {
+            &["pack", "consolidate"]
+        } else {
+            &["consolidate"]
+        };
         core.emit("desk.ask", asked.line(n, families, self.desk.backend()));
         let p = gate.then(|| {
             let d = self.desk.decide::<PackFamily>(&pin, &(), &asked, n, turn);
@@ -718,7 +770,9 @@ impl Host {
             .into_iter()
             .filter(|x| c.choice().retain.contains(&x.id))
             .collect();
-        let rolling = p.as_ref().is_some_and(|p| p.choice().action == Action::Rollover);
+        let rolling = p
+            .as_ref()
+            .is_some_and(|p| p.choice().action == Action::Rollover);
         if rolling {
             // Retain before anything is evicted.
             self.retain(turn, chosen);
@@ -771,9 +825,19 @@ impl Host {
     }
 
     /// Start a new epoch. The record is fsynced first: log before forget.
-    fn rollover(&self, cause: &str, keep: &[String], by: &By, l1: Option<String>, gap: Option<Millis>) {
+    fn rollover(
+        &self,
+        cause: &str,
+        keep: &[String],
+        by: &By,
+        l1: Option<String>,
+        gap: Option<Millis>,
+    ) {
         let core = &*self.core;
-        core.sync();
+        // Log before forget: what the epoch held is on disk first.
+        if !matches!(cause, "start" | "wake") {
+            core.sync();
+        }
         let k = &self.desk.knobs;
         let mut pack = self.pack.lock().expect("pack");
         let kept = pack.segment_text(k.max_segments, keep);
@@ -781,7 +845,8 @@ impl Host {
         let st = core.state();
         let to = st.pack.epoch + 1;
         let rung = st.governor.rung;
-        let l1 = l1.unwrap_or_else(|| render::epoch_line(to, core.now(), &self.rung_model(rung), rung));
+        let l1 =
+            l1.unwrap_or_else(|| render::epoch_line(to, core.now(), &self.rung_model(rung), rung));
         let note = st.registers.note.as_ref().map(|(_, t)| t.as_str());
         // The outline of the epoch that is ending.
         let outline = st.pack.outline.clone();
@@ -799,9 +864,17 @@ impl Host {
             body["gap_ms"] = g.into();
         }
         core.emit("epoch.rollover", body);
-        let validity = if cause == "model_switch" { Validity::Nothing } else { Validity::Stable };
+        let validity = if cause == "model_switch" {
+            Validity::Nothing
+        } else {
+            Validity::Stable
+        };
         *self.reset.lock().expect("reset") = Some((
-            if cause == "model_switch" { "model_switch".into() } else { "rollover".into() },
+            if cause == "model_switch" {
+                "model_switch".into()
+            } else {
+                "rollover".into()
+            },
             validity,
         ));
     }
@@ -829,15 +902,26 @@ impl Host {
             let item = |id: &String| st.inbox.in_flight.get(id).map(|(_, p)| p.item.clone());
             let admitted: Vec<Item> = now_ids.iter().filter_map(item).collect();
             let digests: Vec<Item> = digest_ids.iter().filter_map(item).collect();
-            let quota = cfg.governor.quota.as_ref().map(|q| (q.rpd.saturating_sub(st.governor.requests_today), q.rpd));
+            let quota = cfg
+                .governor
+                .quota
+                .as_ref()
+                .map(|q| (q.rpd.saturating_sub(st.governor.requests_today), q.rpd));
             let rung = st.governor.rung;
             let model = self.rung_model(rung);
             let mut notices = Vec::new();
             if let Some(w) = &st.governor.degraded {
-                notices.push(format!("the last wait was the world's: {} ({})", w.class, w.why));
+                notices.push(format!(
+                    "the last wait was the world's: {} ({})",
+                    w.class, w.why
+                ));
             }
             let resumed = kind == TurnKind::Committed
-                && st.pack.outline.last().is_some_and(|o| o.contains(" responding "));
+                && st
+                    .pack
+                    .outline
+                    .last()
+                    .is_some_and(|o| o.contains(" responding "));
             let exp_digest = inject.expectations.then(|| {
                 let due: Vec<String> = st
                     .registers
@@ -847,18 +931,41 @@ impl Host {
                     .take(5)
                     .map(|(id, e)| format!("{id} due {}", crate::clock::iso(e.due)))
                     .collect();
-                format!("expectations due within 1h: {}", if due.is_empty() { "none".into() } else { due.join(", ") })
+                format!(
+                    "expectations due within 1h: {}",
+                    if due.is_empty() {
+                        "none".into()
+                    } else {
+                        due.join(", ")
+                    }
+                )
             });
             let cal_digest = inject.calendar.then(|| {
                 let ahead: Vec<String> = st
                     .calendar
                     .entries
                     .values()
-                    .filter(|s| s.next_due.is_some_and(|d| d >= now && d <= now + 2 * crate::clock::HOUR))
+                    .filter(|s| {
+                        s.next_due
+                            .is_some_and(|d| d >= now && d <= now + 2 * crate::clock::HOUR)
+                    })
                     .take(5)
-                    .map(|s| format!("{} at {}", s.entry.id, crate::clock::iso(s.next_due.unwrap_or(0))))
+                    .map(|s| {
+                        format!(
+                            "{} at {}",
+                            s.entry.id,
+                            crate::clock::iso(s.next_due.unwrap_or(0))
+                        )
+                    })
                     .collect();
-                format!("calendar within 2h: {}", if ahead.is_empty() { "none".into() } else { ahead.join(", ") })
+                format!(
+                    "calendar within 2h: {}",
+                    if ahead.is_empty() {
+                        "none".into()
+                    } else {
+                        ahead.join(", ")
+                    }
+                )
             });
             let h = render::HeaderCtx {
                 turn,
@@ -874,7 +981,8 @@ impl Host {
                 commitment: st.kernel.commitment(),
                 turns_since_progress: st.kernel.turns_since_progress,
                 resumed,
-                material: (kind == TurnKind::Free).then(|| render::material(&st.registers, &st.kernel, now)),
+                material: (kind == TurnKind::Free)
+                    .then(|| render::material(&st.registers, &st.kernel, now)),
                 recall: None,
                 expectations: exp_digest,
                 calendar: cal_digest,
@@ -895,7 +1003,14 @@ impl Host {
             let before = pack.tokens();
             pack.begin_turn(turn, kind.as_str(), header_full.clone());
             let ht = pack.tokens() - before;
-            (st.governor.rung, self.rung_model(st.governor.rung), pack.epoch, before, pack.thread(), ht)
+            (
+                st.governor.rung,
+                self.rung_model(st.governor.rung),
+                pack.epoch,
+                before,
+                pack.thread(),
+                ht,
+            )
         };
         let deadline = now + cfg.turn_bound_ms;
         let enabled_set: BTreeSet<String> = enabled.iter().cloned().collect();
@@ -910,7 +1025,10 @@ impl Host {
         ));
         let (mode, project) = {
             let st = core.state();
-            (st.kernel.mode_label(), st.kernel.commitment().map(|c| c.project.clone()))
+            (
+                st.kernel.mode_label(),
+                st.kernel.commitment().map(|c| c.project.clone()),
+            )
         };
         let pack_tokens = pack_tokens_before + header_tokens;
         core.emit(
@@ -921,7 +1039,8 @@ impl Host {
                    "wall_boundary_us": started.elapsed().as_micros() as u64}),
         );
         let cancel = Arc::new(AtomicBool::new(false));
-        let watcher = (!core.clock.is_sim()).then(|| spawn_watcher(core.clone(), cancel.clone(), deadline));
+        let watcher =
+            (!core.clock.is_sim()).then(|| spawn_watcher(core.clone(), cancel.clone(), deadline));
         let session = format!("epoch-{epoch}");
         let out = self.engine.turn(TurnRequest {
             turn,
@@ -941,7 +1060,21 @@ impl Host {
             let _ = h.join();
         }
         let post = Instant::now();
-        self.finish(turn, kind, rung, &model, epoch, pack_tokens_before, out, header_logged, recall_on, now, admitted, digests, post);
+        self.finish(
+            turn,
+            kind,
+            rung,
+            &model,
+            epoch,
+            pack_tokens_before,
+            out,
+            header_logged,
+            recall_on,
+            now,
+            admitted,
+            digests,
+            post,
+        );
     }
 
     fn recall(&self, turn: u64, inject: &InjectChoice, now_ids: &[String]) -> Option<String> {
@@ -963,7 +1096,12 @@ impl Host {
                     .commitment()
                     .map(|c| format!("{} {}", c.title, c.next_step.clone().unwrap_or_default()))
                     .unwrap_or_default(),
-                Cue::Note => st.registers.note.as_ref().map(|(_, t)| t.clone()).unwrap_or_default(),
+                Cue::Note => st
+                    .registers
+                    .note
+                    .as_ref()
+                    .map(|(_, t)| t.clone())
+                    .unwrap_or_default(),
                 Cue::None => String::new(),
             };
             let context = st.kernel.recent.iter().map(|(_, t)| t.clone()).collect();
@@ -1001,7 +1139,11 @@ impl Host {
         let cfg = self.cfg();
         let (s_hash, l_hash, stable_tokens) = {
             let p = self.pack.lock().expect("pack");
-            (p.s_hash().to_string(), p.l_hash().to_string(), p.stable_tokens() as u64)
+            (
+                p.s_hash().to_string(),
+                p.l_hash().to_string(),
+                p.stable_tokens() as u64,
+            )
         };
         // Every model call, with the cache expectation.
         let mut reset = self.reset.lock().expect("reset").take();
@@ -1012,7 +1154,12 @@ impl Host {
                 .filter(|(e, m, _, _)| *e == epoch && m == model)
                 .map(|x| x.2)
         };
-        let mut last_at = self.last_call.lock().expect("last call").as_ref().map(|x| x.3);
+        let mut last_at = self
+            .last_call
+            .lock()
+            .expect("last call")
+            .as_ref()
+            .map(|x| x.3);
         let mut cost = 0.0;
         let (mut prompt_sum, mut cached_sum) = (0u64, 0u64);
         for (i, c) in out.calls.iter().enumerate() {
@@ -1042,17 +1189,28 @@ impl Host {
             prompt_sum += u64::from(u.input_tokens);
             cached_sum += u64::from(u.cache_read_input_tokens);
             if let Some(cause) = break_cause {
-                core.emit("cache.break", json!({"turn": turn, "call": i + 1, "cause": cause}));
+                core.emit(
+                    "cache.break",
+                    json!({"turn": turn, "call": i + 1, "cause": cause}),
+                );
             } else if expected > 0 && (u.cache_read_input_tokens as f64) < 0.5 * expected as f64 {
                 let idle = last_at.map(|t| at - t).unwrap_or(0);
-                let cause = if idle > cfg.cache_ttl_ms { "ttl" } else { "provider" };
-                core.emit("cache.cold", json!({"turn": turn, "call": i + 1, "cause": cause, "idle_ms": idle}));
+                let cause = if idle > cfg.cache_ttl_ms {
+                    "ttl"
+                } else {
+                    "provider"
+                };
+                core.emit(
+                    "cache.cold",
+                    json!({"turn": turn, "call": i + 1, "cause": cause, "idle_ms": idle}),
+                );
             }
             prev_prompt = Some(u64::from(u.input_tokens));
             last_at = Some(at);
         }
         if let Some(p) = prev_prompt.filter(|_| !out.calls.is_empty()) {
-            *self.last_call.lock().expect("last call") = Some((epoch, model.to_string(), p, core.now()));
+            *self.last_call.lock().expect("last call") =
+                Some((epoch, model.to_string(), p, core.now()));
         }
         let deferred = std::mem::take(&mut *self.deferred_retain.lock().expect("retain"));
         self.retain(turn, deferred);
@@ -1062,9 +1220,16 @@ impl Host {
             json!({"turn": turn, "header": header, "recall": recall_on,
                    "messages": serde_json::to_value(&out.messages).unwrap_or(Value::Null)}),
         );
-        self.pack.lock().expect("pack").end_turn(out.messages.clone());
+        self.pack
+            .lock()
+            .expect("pack")
+            .end_turn(out.messages.clone());
         // The batch.
-        let ids: Vec<String> = admitted.iter().chain(digests.iter()).map(|i| i.id.clone()).collect();
+        let ids: Vec<String> = admitted
+            .iter()
+            .chain(digests.iter())
+            .map(|i| i.id.clone())
+            .collect();
         let stopped = core.stop.raised();
         let status = match out.ended {
             Ended::Completed => "completed",
@@ -1075,18 +1240,30 @@ impl Host {
         match out.ended {
             Ended::Completed | Ended::Bounded => {
                 for i in &admitted {
-                    core.emit("stimulus.disposed", json!({"id": i.id, "disposition": "answered", "turn": turn}));
+                    core.emit(
+                        "stimulus.disposed",
+                        json!({"id": i.id, "disposition": "answered", "turn": turn}),
+                    );
                 }
                 for i in &digests {
-                    core.emit("stimulus.disposed", json!({"id": i.id, "disposition": "digested", "turn": turn}));
+                    core.emit(
+                        "stimulus.disposed",
+                        json!({"id": i.id, "disposition": "digested", "turn": turn}),
+                    );
                 }
             }
             Ended::Cancelled if !stopped => {
                 for i in &admitted {
-                    core.emit("stimulus.disposed", json!({"id": i.id, "disposition": "answered", "turn": turn}));
+                    core.emit(
+                        "stimulus.disposed",
+                        json!({"id": i.id, "disposition": "answered", "turn": turn}),
+                    );
                 }
                 for i in &digests {
-                    core.emit("stimulus.disposed", json!({"id": i.id, "disposition": "digested", "turn": turn}));
+                    core.emit(
+                        "stimulus.disposed",
+                        json!({"id": i.id, "disposition": "digested", "turn": turn}),
+                    );
                 }
             }
             _ => {
@@ -1126,7 +1303,10 @@ impl Host {
         if let Some(cap) = cfg.governor.spend_cap_usd_day {
             let spent = core.state().governor.paid_spent_today;
             if spent >= cap {
-                core.stop.request(Why::SpendCap { spent_usd: spent, cap_usd: cap });
+                core.stop.request(Why::SpendCap {
+                    spent_usd: spent,
+                    cap_usd: cap,
+                });
             }
         }
         core.emit_hashed("turn.ended", body);
@@ -1135,8 +1315,17 @@ impl Host {
             let (plan, cooldown) = {
                 let st = core.state();
                 let jitter = jitter(cfg.seed, turn);
-                let plan = governor::on_failure(&st.governor, &cfg.governor, f, cfg.ladder.len(), core.now(), jitter);
-                let cd = plan.step_down.map(|(from, _)| governor::cooldown_for(&st.governor, &cfg.governor, from));
+                let plan = governor::on_failure(
+                    &st.governor,
+                    &cfg.governor,
+                    f,
+                    cfg.ladder.len(),
+                    core.now(),
+                    jitter,
+                );
+                let cd = plan
+                    .step_down
+                    .map(|(from, _)| governor::cooldown_for(&st.governor, &cfg.governor, from));
                 (plan, cd)
             };
             if let Some(w) = &plan.wait {
@@ -1155,7 +1344,13 @@ impl Host {
                 );
             }
             if let Some((from, to)) = plan.step_down {
-                self.switch(from, to, "down", &format!("provider {}", f.class_name()), cooldown.unwrap_or(0));
+                self.switch(
+                    from,
+                    to,
+                    "down",
+                    &format!("provider {}", f.class_name()),
+                    cooldown.unwrap_or(0),
+                );
             }
         }
         core.sync();

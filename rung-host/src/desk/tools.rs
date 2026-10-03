@@ -39,7 +39,12 @@ pub struct ToolsChoice {
     pub enabled: Vec<String>,
 }
 
-pub fn build(st: &State, ceiling: &BTreeSet<String>, kind: TurnKind, k: &Knobs) -> (ToolsInput, ToolsCtx) {
+pub fn build(
+    st: &State,
+    ceiling: &BTreeSet<String>,
+    kind: TurnKind,
+    k: &Knobs,
+) -> (ToolsInput, ToolsCtx) {
     let turn = st.turn + 1;
     let mut uses = BTreeMap::new();
     for m in &st.desk.uses {

@@ -104,6 +104,9 @@ struct Script {
     expects: u64,
 }
 
+/// The previous request of a session: (session, messages, stable bytes).
+type Previous = (String, Vec<ChatMessage>, Vec<u8>);
+
 pub struct MockEngine {
     pub cfg: MockConfig,
     clock: Arc<dyn Clock>,
@@ -111,14 +114,16 @@ pub struct MockEngine {
     pub faults: Mutex<FaultInjector>,
     cache: Mutex<BTreeMap<String, ProviderCache>>,
     /// The previous request of the current session: (session, msgs, stable).
-    session: Mutex<Option<(String, Vec<ChatMessage>, Vec<u8>)>>,
+    session: Mutex<Option<Previous>>,
     script: Mutex<Script>,
     pub captured: Mutex<Vec<Captured>>,
 }
 
 impl std::fmt::Debug for MockEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MockEngine").field("seed", &self.cfg.seed).finish()
+        f.debug_struct("MockEngine")
+            .field("seed", &self.cfg.seed)
+            .finish()
     }
 }
 
@@ -152,7 +157,10 @@ fn read_header(text: &str) -> Read {
             }
         } else if line.starts_with("Context will roll over soon") {
             r.note_line = true;
-        } else if line.trim_start().starts_with('p') && line.contains("(seed,") && r.seed_project.is_none() {
+        } else if line.trim_start().starts_with('p')
+            && line.contains("(seed,")
+            && r.seed_project.is_none()
+        {
             r.seed_project = line.trim_start().split(':').next().map(str::to_string);
         }
     }
@@ -168,9 +176,30 @@ fn last_user_text(msgs: &[ChatMessage]) -> String {
 }
 
 const WORDS: &[&str] = &[
-    "anticipation", "calendar", "cache", "garden", "notes", "theory", "proof", "river", "lamp",
-    "music", "letters", "kernel", "budget", "station", "paper", "sketch", "harbor", "signal",
-    "weather", "trip", "spiral", "lattice", "ember", "quarry",
+    "anticipation",
+    "calendar",
+    "cache",
+    "garden",
+    "notes",
+    "theory",
+    "proof",
+    "river",
+    "lamp",
+    "music",
+    "letters",
+    "kernel",
+    "budget",
+    "station",
+    "paper",
+    "sketch",
+    "harbor",
+    "signal",
+    "weather",
+    "trip",
+    "spiral",
+    "lattice",
+    "ember",
+    "quarry",
 ];
 
 impl MockEngine {
@@ -206,7 +235,10 @@ impl MockEngine {
         let on = |g: &str| r.enabled.iter().any(|x| x == g);
         let mut s = self.script.lock().expect("script");
         if r.note_line {
-            rounds.push(vec![("note".into(), json!({"text": format!("carried at turn {turn}: {}", self.words(6))}))]);
+            rounds.push(vec![(
+                "note".into(),
+                json!({"text": format!("carried at turn {turn}: {}", self.words(6))}),
+            )]);
         }
         match r.kind.as_str() {
             "responding" => {
@@ -228,24 +260,40 @@ impl MockEngine {
                 }
                 if self.p(self.cfg.p_long_work_responding) {
                     if on("web_read") {
-                        rounds.push(vec![("web_fetch".into(), json!({"url": format!("slow://archive/{turn}")}))]);
+                        rounds.push(vec![(
+                            "web_fetch".into(),
+                            json!({"url": format!("slow://archive/{turn}")}),
+                        )]);
                     } else {
-                        rounds.push(vec![("want_tools".into(), json!({"group": "web_read", "why": "an archive to fetch"}))]);
+                        rounds.push(vec![(
+                            "want_tools".into(),
+                            json!({"group": "web_read", "why": "an archive to fetch"}),
+                        )]);
                     }
                 }
             }
             "committed" => {
                 s.committed_turns += 1;
                 if s.committed_turns >= s.commit_len.max(1) {
-                    let outcome = ["done", "done", "paused", "abandoned"][self.rng.lock().expect("rng").below(4) as usize];
-                    rounds.push(vec![("release".into(), json!({"outcome": outcome, "reason": format!("{}", self.words(4))}))]);
+                    let outcome = ["done", "done", "paused", "abandoned"]
+                        [self.rng.lock().expect("rng").below(4) as usize];
+                    rounds.push(vec![(
+                        "release".into(),
+                        json!({"outcome": outcome, "reason": self.words(4)}),
+                    )]);
                     s.committed_turns = 0;
                 } else {
                     if self.p(self.cfg.p_long_work) {
                         if on("web_read") {
-                            rounds.push(vec![("web_fetch".into(), json!({"url": format!("slow://dataset/{turn}")}))]);
+                            rounds.push(vec![(
+                                "web_fetch".into(),
+                                json!({"url": format!("slow://dataset/{turn}")}),
+                            )]);
                         } else {
-                            rounds.push(vec![("want_tools".into(), json!({"group": "web_read", "why": "a dataset to fetch"}))]);
+                            rounds.push(vec![(
+                                "want_tools".into(),
+                                json!({"group": "web_read", "why": "a dataset to fetch"}),
+                            )]);
                         }
                     }
                     if on("workspace_write") && self.p(0.3) {
@@ -261,9 +309,13 @@ impl MockEngine {
                     s.commit_len = 3 + self.rng.lock().expect("rng").below(12);
                     s.committed_turns = 0;
                     let args = match (&r.seed_project, self.p(0.5)) {
-                        (Some(p), true) => json!({"project": p, "done_when": "a first model exists"}),
-                        _ => json!({"new": {"title": format!("project {}: {}", s.projects, self.words(3)), "why": self.words(5)},
-                                    "done_when": format!("{} is written", self.words(2))}),
+                        (Some(p), true) => {
+                            json!({"project": p, "done_when": "a first model exists"})
+                        }
+                        _ => {
+                            json!({"new": {"title": format!("project {}: {}", s.projects, self.words(3)), "why": self.words(5)},
+                                    "done_when": format!("{} is written", self.words(2))})
+                        }
                     };
                     calls.push(("commit".into(), args));
                 }
@@ -283,10 +335,16 @@ impl MockEngine {
                     calls.push(("todo_add".into(), json!({"text": self.words(5), "priority": self.rng.lock().expect("rng").f64()})));
                 }
                 if self.p(self.cfg.p_note) {
-                    calls.push(("note".into(), json!({"text": format!("note {turn}: {}", self.words(8))})));
+                    calls.push((
+                        "note".into(),
+                        json!({"text": format!("note {turn}: {}", self.words(8))}),
+                    ));
                 }
                 if self.p(self.cfg.p_want) {
-                    calls.push(("want_tools".into(), json!({"group": "web_read", "why": "to look something up"})));
+                    calls.push((
+                        "want_tools".into(),
+                        json!({"group": "web_read", "why": "to look something up"}),
+                    ));
                 }
                 if self.p(self.cfg.p_disabled) {
                     let off = ["ws_write", "web_fetch", "memory_search"]
@@ -304,7 +362,9 @@ impl MockEngine {
                     let copy = if s.copying > 0 {
                         s.copying -= 1;
                         true
-                    } else if self.cfg.copy_every > 0 && s.traces.is_multiple_of(self.cfg.copy_every) {
+                    } else if self.cfg.copy_every > 0
+                        && s.traces.is_multiple_of(self.cfg.copy_every)
+                    {
                         s.copying = self.cfg.copy_run.saturating_sub(1);
                         true
                     } else {
@@ -315,7 +375,10 @@ impl MockEngine {
                         _ => (format!("{} at turn {turn}", self.words(4)), self.words(9)),
                     };
                     s.last_trace = Some((what.clone(), went.clone()));
-                    rounds.push(vec![("trace".into(), json!({"what_pulled": what, "where_it_went": went}))]);
+                    rounds.push(vec![(
+                        "trace".into(),
+                        json!({"what_pulled": what, "where_it_went": went}),
+                    )]);
                 }
             }
         }
@@ -324,6 +387,7 @@ impl MockEngine {
 
     /// Serve one request: the byte-level common prefix with this model's
     /// cached previous request, in tokens; then cache this one.
+    #[allow(clippy::too_many_arguments)]
     fn serve(
         &self,
         model: &str,
@@ -400,7 +464,10 @@ impl MockEngine {
 
     fn log_call(&self, turn: u64, call: u32, start: Millis, dur: Millis) {
         if let Some(p) = &self.cfg.call_log
-            && let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p)
+            && let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(p)
         {
             let _ = writeln!(f, "{turn} {call} {start} {dur}");
         }
@@ -439,7 +506,11 @@ impl TurnEngine for MockEngine {
                 ended = Ended::Bounded;
                 break;
             }
-            let (fault, evict) = self.faults.lock().expect("faults").on_call(self.clock.now(), &req.model);
+            let (fault, evict) = self
+                .faults
+                .lock()
+                .expect("faults")
+                .on_call(self.clock.now(), &req.model);
             let dur = {
                 let mut rng = self.rng.lock().expect("rng");
                 let (a, b) = self.cfg.call_ms;

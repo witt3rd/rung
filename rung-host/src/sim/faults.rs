@@ -73,16 +73,21 @@ impl FaultInjector {
                     f.to = now;
                     continue;
                 }
-                FaultKind::ProviderRateLimit { retry_after_ms } => {
-                    fail(ProviderClass::RateLimit, Some(*retry_after_ms), Origin::Provider, None)
-                }
+                FaultKind::ProviderRateLimit { retry_after_ms } => fail(
+                    ProviderClass::RateLimit,
+                    Some(*retry_after_ms),
+                    Origin::Provider,
+                    None,
+                ),
                 FaultKind::PlatformRateLimit { reset_in_ms } => fail(
                     ProviderClass::RateLimit,
                     None,
                     Origin::Platform,
                     Some(f.from + reset_in_ms),
                 ),
-                FaultKind::ServerError => fail(ProviderClass::Overloaded, None, Origin::Provider, None),
+                FaultKind::ServerError => {
+                    fail(ProviderClass::Overloaded, None, Origin::Provider, None)
+                }
                 FaultKind::Outage => fail(ProviderClass::Transport, None, Origin::Provider, None),
                 FaultKind::Auth => fail(ProviderClass::Auth, None, Origin::Provider, None),
                 FaultKind::DailyQuota => fail(

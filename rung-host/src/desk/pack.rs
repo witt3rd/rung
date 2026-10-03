@@ -116,9 +116,15 @@ impl HostQuestion for Pack {
             Question::choice(
                 "What should happen to the agent's context at this boundary?",
                 &[
-                    ("append", "Keep appending: the context has room and no break is due."),
+                    (
+                        "append",
+                        "Keep appending: the context has room and no break is due.",
+                    ),
                     ("rollover_now", "Start a new context epoch now."),
-                    ("rollover_at_break", "Start a new epoch at the agent's next natural break."),
+                    (
+                        "rollover_at_break",
+                        "Start a new epoch at the agent's next natural break.",
+                    ),
                 ],
             ),
         );
@@ -160,7 +166,10 @@ impl HostQuestion for Pack {
 
     fn rule(input: &PackInput, k: &Knobs, _ctx: &()) -> PackChoice {
         let f = input.fraction();
-        let action = if input.next_fraction() >= k.pack_ceiling || input.copy_flag || (input.at_break && f >= k.pack_rule_break) {
+        let action = if input.next_fraction() >= k.pack_ceiling
+            || input.copy_flag
+            || (input.at_break && f >= k.pack_rule_break)
+        {
             Action::Rollover
         } else {
             Action::Append

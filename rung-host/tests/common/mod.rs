@@ -31,12 +31,19 @@ pub fn cache_and_ladder_faults() -> Vec<Fault> {
     let mut f = Vec::new();
     for k in 1..12 {
         let at = SIM_START + k * 23 * MINUTE;
-        f.push(Fault { from: at, to: at + 1, kind: FaultKind::CacheEvict, model: None });
+        f.push(Fault {
+            from: at,
+            to: at + 1,
+            kind: FaultKind::CacheEvict,
+            model: None,
+        });
     }
     f.push(Fault {
         from: SIM_START + 2 * HOUR,
         to: SIM_START + 2 * HOUR + 5 * MINUTE,
-        kind: FaultKind::ProviderRateLimit { retry_after_ms: 20_000 },
+        kind: FaultKind::ProviderRateLimit {
+            retry_after_ms: 20_000,
+        },
         model: Some("mock/a".into()),
     });
     f
