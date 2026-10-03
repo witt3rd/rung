@@ -60,7 +60,7 @@ cargo test -p rung-host --locked -- --nocapture 2>&1 | grep '^GATE'
 
 ## Changes to the gate evaluators after they were frozen
 
-No threshold changed. Four evaluator fixes, each in its own commit:
+No threshold changed. Four evaluator fixes, each named in the commit that made it:
 
 1. G-c read the turn kind from a field named `kind`, which the record
    reserves; the turn lines name it `turn_kind`.
