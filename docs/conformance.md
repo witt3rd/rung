@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 322 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 330 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -629,6 +629,17 @@ reads it as incidental and deletes it, because nothing says otherwise.
 Not filtered by crate: some of these test the tooling and will never cite a
 proposition. Excluding them by name would be the quiet narrowing that makes a queue
 look shorter than it is.
+
+**`rung-agent-core/tests/engine.rs`** — 8 unclaimed
+
+- `a_disabled_tool_stays_declared_is_refused_and_never_runs`
+- `a_rate_limit_is_typed_with_the_wait_the_provider_asked_for`
+- `a_streaming_turn_records_each_call_as_served`
+- `a_turn_runs_on_the_callers_thread_and_touches_no_session_store`
+- `a_turn_with_no_sink_set_reports_to_standard_error`
+- `an_auth_failure_is_typed_on_the_report`
+- `an_engine_keeps_across_turns_and_the_caller_owns_the_thread`
+- `the_mcp_roster_lives_across_turns_and_reconnects_when_a_server_is_gone`
 
 **`rung-agent/tests/acp.rs`** — 18 unclaimed
 

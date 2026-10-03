@@ -48,7 +48,9 @@ Wire identifiers that look like slugs: add to `NOT_A_CITATION` in
 skill), `task` as nested `Spawn` (depth 1). Named catalogs, session resume,
 background child, isolation worktrees, XDG `config.yaml`, ACP v1 stdio
 (`rung-agent --acp`) and experimental Streamable HTTP
-(`rung-agent --acp-http [ADDR]`, optional `--acp-token`) = `rung-agent`.
+(`rung-agent --acp-http [ADDR]`, optional `--acp-token`) = product:
+the library `rung-agent-core` (turn engine in `engine.rs`), with
+`rung-agent` its thin binary shell.
 HTTP matches the TS experimental `AcpServer` / `createHttpStream` (not a
 third shape). ACP also: resume, unstable fork, tool-call updates, real
 abort (before LLM / around tools), prompt image/audio, MCP HTTP+stdio

@@ -7,17 +7,15 @@ use std::sync::atomic::AtomicBool;
 
 use rung_std::agent::{self, FailureKind, LoopState, Thread, agentloop};
 use rung_std::llm::{ChatMessage, LlmConfig, MessageContent, MessageContentBlock};
-use rung_std::tools::{
-    MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, ToolCollection, ToolRoster, Toolset,
-    WithoutTask,
-};
+use rung_std::tools::{Spawn, TaskRequest, TaskResult, Toolset, WithoutTask};
 
 use serde::{Serialize, Serializer};
 
 use crate::args::{Args, IsolationMode};
-use crate::catalog::{Kind, Scope};
+use crate::catalog::Kind;
+use crate::engine::{Engine, EngineSpec, TurnCtl, TurnDone};
 use crate::session::{Line, Session, SessionStore};
-use crate::turn_check::{self, Completion, Gate, Turn, TurnCheckReport, turncheck};
+use crate::turn_check::{Completion, TurnCheckReport};
 
 /// How a job ended. Serialised as the status string hosts already read, plus
 /// `unverified` and `unchecked` from the turn check.
@@ -273,18 +271,6 @@ fn wrap_tools(
         Some(w) => w(tools),
         None => tools,
     }
-}
-
-fn resolve_scope(args: &Args) -> Result<Scope, String> {
-    if let Some(spec) = &args.tools {
-        return Scope::parse(spec);
-    }
-    if let Some(list) = crate::config::load_tool_groups()?
-        && !list.is_empty()
-    {
-        return Scope::from_config_list(&list);
-    }
-    Ok(Scope::from_kind(args.kind))
 }
 
 fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<&str>) -> Thread {
@@ -554,27 +540,19 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             return Err(e.into());
         }
     };
-    if let Some(em) = &emitter {
-        config.stream_listener = Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>);
-    }
-    // The ACP prompt path forwards thinking deltas to the client even
-    // though the final text is sent at turn end.
-    if config.stream_listener.is_none()
-        && let Some(listener) = &extra.stream_listener
-    {
-        config.stream_listener = Some(listener.clone());
-    }
+    // The stream emitter (`--stream`) or, on the ACP prompt path, the
+    // client's forwarder of thinking and message deltas.
+    let listener: Option<Arc<dyn rung_std::llm::StreamListener>> = match &emitter {
+        Some(em) => Some(em.clone() as Arc<dyn rung_std::llm::StreamListener>),
+        None => extra.stream_listener.clone(),
+    };
     // Reasoning visibility: RUNG_REASONING (e.g. "medium") maps to
     // reasoning_effort / thinking budget. GLM-class models emit
     // reasoning_content deltas regardless; this asks for them.
-    if config.reasoning_level.is_none() {
-        config.reasoning_level = std::env::var("RUNG_REASONING")
-            .ok()
-            .filter(|s| !s.trim().is_empty());
-    }
+    crate::engine::reasoning_from_env(&mut config);
     let model = config.model.clone();
-    let turn_check_gate = match crate::config::load_turn_check() {
-        Ok(t) => Gate::from_settings(&t),
+    let turn_check = match crate::config::load_turn_check() {
+        Ok(t) => t,
         Err(e) => {
             sess.status = "error".into();
             sess.lines.push(Line::failed(e.clone(), Vec::new()));
@@ -603,43 +581,32 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     };
     let mut memory_report = memory.report();
 
-    let scope = resolve_scope(args)?;
-    let cap = args.kind.iteration_cap(args.max_iterations);
-    let mut roster: ToolRoster = scope.roster();
-    if scope.allows_python() {
-        let dir = origin.join(".rung").join("python");
-        let sb = rung_std::python::Sandbox::open(rung_std::python::SandboxConfig::in_dir(&dir))
-            .map_err(|e| format!("python sandbox: {e}"))?;
-        roster.add(sb.collection());
-    }
-    if scope.allows_task() {
-        let spawn = CatalogSpawn {
-            config: config.clone(),
-            store: store.clone(),
-            max_iterations: args.max_iterations,
-            emitter: emitter.clone(),
-            extra: extra.clone(),
-            tool_images,
-        };
-        let mut tasks = ToolCollection::new("task");
-        tasks.admit(Task::new(Arc::new(spawn), 0, MAX_DEPTH));
-        roster.add(tasks);
-    }
-    let mut base: Arc<dyn Toolset> = Arc::new(roster);
-    if let Some(outer) = memory.toolset(&id) {
-        base = Arc::new(crate::memory::Layered { inner: base, outer });
-    }
-    if !args.mcp.is_empty() {
-        let mut mcp = crate::mcp::McpRoster::connect(&args.mcp)?;
-        mcp.set_cancel(extra.cancel.clone());
-        if !mcp.is_empty() {
-            base = Arc::new(crate::mcp::WithMcp {
-                inner: base,
-                mcp: Arc::new(mcp),
-            });
-        }
-    }
-    let tools = wrap_tools(base, emitter.as_ref(), &extra);
+    let spec = EngineSpec {
+        llm: config,
+        kind: args.kind,
+        scope: crate::engine::resolve_scope(args)?,
+        max_iterations: args.max_iterations,
+        turn_check,
+        tool_images,
+        mcp: args.mcp.clone(),
+        workspace: origin.clone(),
+    };
+    // The nested `task` child streams to the same listener as this turn.
+    let mut task_config = spec.llm.clone();
+    task_config.stream_listener = listener.clone();
+    let spawn = CatalogSpawn {
+        config: task_config,
+        store: store.clone(),
+        max_iterations: args.max_iterations,
+        emitter: emitter.clone(),
+        extra: extra.clone(),
+        tool_images,
+    };
+    let engine = Engine::build(spec)?
+        .with_task(Arc::new(spawn))
+        .with_outer(memory.toolset(&id))
+        .connect()?;
+
     let system_prompt = resolve_system_prompt(&origin, args.system_prompt.as_ref())?;
     let system_prompt = match (system_prompt, extra.system_append.as_deref()) {
         (base, None) => base,
@@ -677,20 +644,8 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             m.recall = Some(recalled);
         }
     }
-    let loop_carry = |tools: Arc<dyn Toolset>, config: LlmConfig| agentloop::Carry {
-        state: LoopState {
-            cancel: extra.cancel.clone(),
-            tool_images,
-            ..LoopState::new(cap, cap)
-        },
-        tools,
-        config,
-        python: None,
-    };
     let sent = thread.messages.len();
-    let system_text = thread.system_prompt.clone();
-    let request = args.prompt.clone().unwrap_or_default();
-    let request_text = request.clone();
+    let request_text = args.prompt.clone().unwrap_or_default();
     let earlier: Vec<ChatMessage> = sess
         .lines
         .iter()
@@ -698,51 +653,22 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         .filter(|l| l.role == "assistant")
         .flat_map(|l| l.messages.clone().unwrap_or_default())
         .collect();
-    let prior_actions = turn_check::prior_actions(&earlier);
-    match agent::run(thread, loop_carry(tools.clone(), config.clone())) {
-        Ok(r) => {
-            let first_calls = r.api_calls_made;
-            let first_elided = r.elided;
-            let ended = if r.truncated {
-                Ended {
-                    result: r,
-                    status: Status::Truncated,
-                    report: None,
-                    extra_calls: 0,
-                }
-            } else {
-                match turn_check_gate {
-                    Gate::Off(off) => Ended {
-                        result: r,
-                        status: Status::Completed(off.completion()),
-                        report: None,
-                        extra_calls: 0,
-                    },
-                    Gate::On(decider) => {
-                        let carry = turncheck::Carry {
-                            decider,
-                            request,
-                            prior_actions,
-                        };
-                        let rerun = |messages: Vec<ChatMessage>| {
-                            let thread = Thread {
-                                system_prompt: system_text.clone(),
-                                messages,
-                            };
-                            agent::run(thread, loop_carry(tools.clone(), config.clone()))
-                        };
-                        check_turn(Turn::first(r, sent), carry, rerun)
-                    }
-                }
-            };
-            let Ended {
-                result: r,
-                status,
-                report,
-                extra_calls,
-            } = ended;
-            // A nudge re-run is a second loop with its own elision.
-            let elided = first_elided + if extra_calls > 0 { r.elided } else { 0 };
+    let ctl = TurnCtl {
+        cancel: extra.cancel.clone(),
+        stream_listener: listener,
+        wrap_tools: tool_wraps(emitter.as_ref(), &extra),
+        request: request_text.clone(),
+        earlier,
+        ..TurnCtl::default()
+    };
+    match engine.turn(thread, ctl).outcome {
+        Ok(TurnDone {
+            result: r,
+            status,
+            turn_check: report,
+            api_calls,
+            elided,
+        }) => {
             sess.lines.push(turn_line(&r, sent));
             // Retain: only a turn that holds a completion becomes memory.
             if let Status::Completed(done) = &status {
@@ -768,7 +694,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
                 task_id: id,
                 text: r.final_response.clone(),
                 status,
-                api_calls: first_calls + extra_calls,
+                api_calls,
                 isolation_path: sess.isolation_path,
                 turn_check: report,
                 memory: memory_report,
@@ -811,112 +737,23 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     }
 }
 
-/// A turn after its check: the result to persist and report, its status, and
-/// the reading. `extra_calls` counts the nudge re-run's model calls.
-struct Ended {
-    result: agent::AgentResult,
-    status: Status,
-    report: Option<TurnCheckReport>,
-    extra_calls: u32,
-}
-
-/// Drive the TurnCheck ladder: check, nudge once and check again if the turn
-/// narrated, then stop. `rerun` runs the agent loop on the given messages.
-fn check_turn(
-    turn: Turn,
-    carry: turncheck::Carry,
-    rerun: impl Fn(Vec<ChatMessage>) -> Result<agent::AgentResult, agent::Filtered>,
-) -> Ended {
-    let done = |result, status, report: &TurnCheckReport, extra_calls| Ended {
-        result,
-        status,
-        report: Some(report.clone()),
-        extra_calls,
-    };
-    let first = turncheck::Ended::new(turn, carry.clone());
-    let nudged = match turncheck::step(first) {
-        Ok(turncheck::StepOutcome::Completed(c)) => {
-            let c = c.into_payload();
-            let status = Status::Completed(c.completion());
-            let report = c.report().clone();
-            return done(c.into_result(), status, &report, 0);
-        }
-        Ok(turncheck::StepOutcome::Unverified(f)) => {
-            let f = f.into_payload();
-            let report = f.report().clone();
-            return done(f.into_result(), Status::Unverified, &report, 0);
-        }
-        Ok(turncheck::StepOutcome::Unchecked(u)) => {
-            let u = u.into_payload();
-            let report = u.report().clone();
-            return done(u.into_result(), Status::Unchecked, &report, 0);
-        }
-        Ok(turncheck::StepOutcome::Nudge(n)) => n.into_payload(),
-        Err(f) => {
-            // The step never fails; a failure would still not be a completion.
-            let t = f.token.payload;
-            return Ended {
-                result: t.into_result(),
-                status: Status::Unchecked,
-                report: None,
-                extra_calls: 0,
-            };
-        }
-    };
-    eprintln!("[rung-agent] turn check: the turn narrated; nudging once");
-    let second = match rerun(nudged.rerun_messages()) {
-        Ok(r) => r,
-        Err(e) => {
-            let status = if e.kind == FailureKind::Interrupted {
-                Status::Cancelled
-            } else {
-                Status::Unverified
-            };
-            let f = nudged.into_flagged();
-            let report = f.report().clone();
-            return done(f.into_result(), status, &report, 0);
-        }
-    };
-    let extra = second.api_calls_made;
-    if second.truncated {
-        let report = TurnCheckReport {
-            nudged: true,
-            reading: Some(nudged.reading().clone()),
-            reason: None,
-        };
-        return done(second, Status::Truncated, &report, extra);
+/// The turn's tool wrappers, innermost first: the `--stream` observer, then
+/// the caller's (ACP tool-call updates).
+fn tool_wraps(emitter: Option<&Arc<crate::stream::Emitter>>, extra: &JobEx) -> Vec<WrapTools> {
+    let mut wraps: Vec<WrapTools> = Vec::new();
+    if let Some(em) = emitter {
+        let em = em.clone();
+        wraps.push(Arc::new(move |inner| {
+            Arc::new(crate::stream::ObservingToolset {
+                inner,
+                emitter: em.clone(),
+            })
+        }));
     }
-    let again = turncheck::Ended::new(Turn::after_nudge(nudged, second), carry);
-    match turncheck::step(again) {
-        Ok(turncheck::StepOutcome::Completed(c)) => {
-            let c = c.into_payload();
-            let status = Status::Completed(c.completion());
-            let report = c.report().clone();
-            done(c.into_result(), status, &report, extra)
-        }
-        Ok(turncheck::StepOutcome::Unchecked(u)) => {
-            let u = u.into_payload();
-            let report = u.report().clone();
-            done(u.into_result(), Status::Unchecked, &report, extra)
-        }
-        Ok(turncheck::StepOutcome::Unverified(f)) => {
-            let f = f.into_payload();
-            let report = f.report().clone();
-            done(f.into_result(), Status::Unverified, &report, extra)
-        }
-        // The gate never nudges a nudged turn; if it did, still no completion.
-        Ok(turncheck::StepOutcome::Nudge(n)) => {
-            let f = n.into_payload().into_flagged();
-            let report = f.report().clone();
-            done(f.into_result(), Status::Unverified, &report, extra)
-        }
-        Err(f) => Ended {
-            result: f.token.payload.into_result(),
-            status: Status::Unchecked,
-            report: None,
-            extra_calls: extra,
-        },
+    if let Some(w) = &extra.wrap_tools {
+        wraps.push(w.clone());
     }
+    wraps
 }
 
 #[cfg(test)]

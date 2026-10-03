@@ -40,6 +40,28 @@ pub fn set_session_cancel(cancel: Option<Arc<AtomicBool>>) -> CancelScopeGuard {
     CancelScopeGuard
 }
 
+/// Puts back the flag that was set before [`scope_session_cancel`].
+pub struct RestoreCancelGuard(Option<Arc<AtomicBool>>);
+
+impl Drop for RestoreCancelGuard {
+    fn drop(&mut self) {
+        let prev = self.0.take();
+        SESSION_CANCEL.with(|c| *c.borrow_mut() = prev);
+    }
+}
+
+/// Set this thread's session cancel flag until the guard drops, then put
+/// back the one that was set before (unlike [`set_session_cancel`], whose
+/// guard clears it).
+pub fn scope_session_cancel(cancel: Option<Arc<AtomicBool>>) -> RestoreCancelGuard {
+    RestoreCancelGuard(SESSION_CANCEL.with(|c| c.replace(cancel)))
+}
+
+/// Whether this thread has a session cancel flag set.
+pub fn has_session_cancel() -> bool {
+    SESSION_CANCEL.with(|c| c.borrow().is_some())
+}
+
 pub fn is_session_cancelled() -> bool {
     SESSION_CANCEL.with(|c| {
         c.borrow()
@@ -416,6 +438,12 @@ trait Wire: Send + Sync {
     /// Stop the server side for good: a stdio child is killed, so a read
     /// blocked on it returns. HTTP has its own timeout and does nothing.
     fn abort(&self) {}
+
+    /// Whether the server side is still there: a stdio child that exited
+    /// is not. HTTP has no such signal and is taken as alive.
+    fn alive(&self) -> bool {
+        true
+    }
 }
 
 pub struct HttpWire {
@@ -580,9 +608,13 @@ impl Wire for HttpWire {
         });
 
         // Dedicated operation-start log BEFORE FIRST SEND
-        eprintln!(
-            "[mcp] operation-start tool={tool_name} rpc_id={rpc_id} operation_id={}",
-            op_id.unwrap_or("none")
+        rung_std::events::emit(
+            "mcp",
+            "mcp.start",
+            &format!(
+                "[mcp] operation-start tool={tool_name} rpc_id={rpc_id} operation_id={}",
+                op_id.unwrap_or("none")
+            ),
         );
         record_session_start(tool_name, rpc_id, op_id);
 
@@ -619,7 +651,11 @@ impl Wire for HttpWire {
                         cause_chain: vec!["cancelled: execution cancelled".into()],
                     };
                     let err_str = err.to_json_string();
-                    eprintln!("[mcp] error: {}", redact(&err_str));
+                    rung_std::events::emit(
+                        "mcp",
+                        "mcp.error",
+                        &format!("[mcp] error: {}", redact(&err_str)),
+                    );
                     record_session_error(&err_str);
                     return Err(err_str);
                 }
@@ -638,7 +674,11 @@ impl Wire for HttpWire {
                         cause_chain: vec!["timeout: total budget expired".into()],
                     };
                     let err_str = err.to_json_string();
-                    eprintln!("[mcp] error: {}", redact(&err_str));
+                    rung_std::events::emit(
+                        "mcp",
+                        "mcp.error",
+                        &format!("[mcp] error: {}", redact(&err_str)),
+                    );
                     record_session_error(&err_str);
                     return Err(err_str);
                 }
@@ -694,7 +734,7 @@ impl Wire for HttpWire {
                             cause_chain: vec!["cancelled: execution cancelled in-flight".into()],
                         };
                         let err_str = err.to_json_string();
-                        eprintln!("[mcp] error: {}", redact(&err_str));
+                        rung_std::events::emit("mcp", "mcp.error", &format!("[mcp] error: {}", redact(&err_str)));
                         record_session_error(&err_str);
                         return Err(err_str);
                     }
@@ -723,7 +763,11 @@ impl Wire for HttpWire {
                             can_retry,
                         );
                         let err_str = err.to_json_string();
-                        eprintln!("[mcp] error: {}", redact(&err_str));
+                        rung_std::events::emit(
+                            "mcp",
+                            "mcp.error",
+                            &format!("[mcp] error: {}", redact(&err_str)),
+                        );
                         record_session_error(&err_str);
                         return Err(err_str);
                     }
@@ -750,7 +794,11 @@ impl Wire for HttpWire {
                         cause_chain: vec![format!("http {status}: {redacted_body}")],
                     };
                     let err_str = err.to_json_string();
-                    eprintln!("[mcp] error: {}", redact(&err_str));
+                    rung_std::events::emit(
+                        "mcp",
+                        "mcp.error",
+                        &format!("[mcp] error: {}", redact(&err_str)),
+                    );
                     record_session_error(&err_str);
                     return Err(err_str);
                 }
@@ -771,7 +819,11 @@ impl Wire for HttpWire {
                             cause_chain: vec![redact(&e)],
                         };
                         let err_str = err.to_json_string();
-                        eprintln!("[mcp] error: {}", redact(&err_str));
+                        rung_std::events::emit(
+                            "mcp",
+                            "mcp.error",
+                            &format!("[mcp] error: {}", redact(&err_str)),
+                        );
                         record_session_error(&err_str);
                         return Err(err_str);
                     }
@@ -795,7 +847,11 @@ impl Wire for HttpWire {
                         )],
                     };
                     let err_str = err.to_json_string();
-                    eprintln!("[mcp] error: {}", redact(&err_str));
+                    rung_std::events::emit(
+                        "mcp",
+                        "mcp.error",
+                        &format!("[mcp] error: {}", redact(&err_str)),
+                    );
                     record_session_error(&err_str);
                     return Err(err_str);
                 }
@@ -813,7 +869,11 @@ impl Wire for HttpWire {
                         cause_chain: vec![redact(&err_val.to_string())],
                     };
                     let err_str = err.to_json_string();
-                    eprintln!("[mcp] error: {}", redact(&err_str));
+                    rung_std::events::emit(
+                        "mcp",
+                        "mcp.error",
+                        &format!("[mcp] error: {}", redact(&err_str)),
+                    );
                     record_session_error(&err_str);
                     return Err(err_str);
                 }
@@ -832,7 +892,11 @@ impl Wire for HttpWire {
                         cause_chain: vec!["mcp: response missing result object".into()],
                     };
                     let err_str = err.to_json_string();
-                    eprintln!("[mcp] error: {}", redact(&err_str));
+                    rung_std::events::emit(
+                        "mcp",
+                        "mcp.error",
+                        &format!("[mcp] error: {}", redact(&err_str)),
+                    );
                     record_session_error(&err_str);
                     return Err(err_str);
                 };
@@ -886,7 +950,11 @@ impl Wire for HttpWire {
                         cause_chain,
                     };
                     let err_str = err.to_json_string();
-                    eprintln!("[mcp] error: {}", redact(&err_str));
+                    rung_std::events::emit(
+                        "mcp",
+                        "mcp.error",
+                        &format!("[mcp] error: {}", redact(&err_str)),
+                    );
                     record_session_error(&err_str);
                     return Err(err_str);
                 }
@@ -905,7 +973,11 @@ impl Wire for HttpWire {
                         cause_chain: vec!["mcp: result object missing content array".into()],
                     };
                     let err_str = err.to_json_string();
-                    eprintln!("[mcp] error: {}", redact(&err_str));
+                    rung_std::events::emit(
+                        "mcp",
+                        "mcp.error",
+                        &format!("[mcp] error: {}", redact(&err_str)),
+                    );
                     record_session_error(&err_str);
                     return Err(err_str);
                 }
@@ -961,6 +1033,12 @@ impl Wire for StdioWire {
         if let Ok(mut child) = self._child.lock() {
             let _ = child.kill();
         }
+    }
+
+    fn alive(&self) -> bool {
+        self._child
+            .lock()
+            .is_ok_and(|mut child| matches!(child.try_wait(), Ok(None)))
     }
 
     fn rpc(&self, method: &str, params: Value, notification: bool) -> Result<Value, String> {
@@ -1027,9 +1105,13 @@ impl Wire for StdioWire {
             }
         });
 
-        eprintln!(
-            "[mcp] operation-start tool={tool_name} rpc_id={rpc_id} operation_id={}",
-            op_id.unwrap_or("none")
+        rung_std::events::emit(
+            "mcp",
+            "mcp.start",
+            &format!(
+                "[mcp] operation-start tool={tool_name} rpc_id={rpc_id} operation_id={}",
+                op_id.unwrap_or("none")
+            ),
         );
         record_session_start(tool_name, rpc_id, op_id);
 
@@ -1368,7 +1450,14 @@ impl McpRoster {
         }
     }
 
-    pub fn set_cancel(&mut self, cancel: Option<Arc<AtomicBool>>) {
+    /// Whether every server behind this roster is still there
+    /// (a stdio server that exited is not); a session-lived holder
+    /// reconnects when not.
+    pub fn alive(&self) -> bool {
+        self.wires.iter().all(|w| w.alive())
+    }
+
+    pub fn set_cancel(&self, cancel: Option<Arc<AtomicBool>>) {
         for tool in &self.tools {
             tool.wire.set_cancel(cancel.clone());
         }
@@ -1494,7 +1583,11 @@ impl Toolset for McpRoster {
                 cause_chain: vec![format!("unknown tool: {name}")],
             };
             let err_str = err.to_json_string();
-            eprintln!("[mcp] error: {}", redact(&err_str));
+            rung_std::events::emit(
+                "mcp",
+                "mcp.error",
+                &format!("[mcp] error: {}", redact(&err_str)),
+            );
             err_str
         })?;
 
@@ -1512,7 +1605,11 @@ impl Toolset for McpRoster {
                 cause_chain: vec!["params.arguments expected object structural error".into()],
             };
             let err_str = err.to_json_string();
-            eprintln!("[mcp] error: {}", redact(&err_str));
+            rung_std::events::emit(
+                "mcp",
+                "mcp.error",
+                &format!("[mcp] error: {}", redact(&err_str)),
+            );
             return Err(err_str);
         }
 

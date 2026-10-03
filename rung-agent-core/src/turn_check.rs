@@ -562,7 +562,11 @@ impl Unread {
 }
 
 fn unread(result: AgentResult, nudged: bool, why: &Undecided) -> Unread {
-    eprintln!("[rung-agent] turn check: not checked ({why})");
+    rung_std::events::emit(
+        "rung-agent",
+        "turncheck.unchecked",
+        &format!("[rung-agent] turn check: not checked ({why})"),
+    );
     Unread {
         result,
         report: TurnCheckReport {

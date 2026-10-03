@@ -192,7 +192,11 @@ impl Hooks {
                 let provider = match registry.build(name, &settings) {
                     Ok(p) => p,
                     Err(why) => {
-                        eprintln!("[rung-agent] memory: provider {name} is unavailable ({why})");
+                        rung_std::events::emit(
+                            "rung-agent",
+                            "memory.unavailable",
+                            &format!("[rung-agent] memory: provider {name} is unavailable ({why})"),
+                        );
                         Arc::new(Down {
                             name: name.clone(),
                             why,
@@ -261,9 +265,13 @@ impl Hooks {
         };
         let (report, evidence) = rung_memory::recall_outcome(provider.clone(), scope.clone(), cue);
         if report.status == "unavailable" {
-            eprintln!(
-                "[rung-agent] memory: recall unavailable ({})",
-                report.reason.as_deref().unwrap_or("")
+            rung_std::events::emit(
+                "rung-agent",
+                "memory.recall_unavailable",
+                &format!(
+                    "[rung-agent] memory: recall unavailable ({})",
+                    report.reason.as_deref().unwrap_or("")
+                ),
             );
         }
         Some((report, evidence.map(|e| e.render())))
@@ -279,9 +287,13 @@ impl Hooks {
         }
         let report = rung_memory::retain_now(provider.clone(), scope.clone(), turn.observation);
         if report.status == "unretained" {
-            eprintln!(
-                "[rung-agent] memory: retain failed ({})",
-                report.reason.as_deref().unwrap_or("")
+            rung_std::events::emit(
+                "rung-agent",
+                "memory.retain_failed",
+                &format!(
+                    "[rung-agent] memory: retain failed ({})",
+                    report.reason.as_deref().unwrap_or("")
+                ),
             );
         }
         Some(report)

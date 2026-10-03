@@ -58,7 +58,11 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
         .await
         .map_err(|e| format!("bind {bind}: {e}"))?;
     let local = listener.local_addr().map_err(|e| e.to_string())?;
-    eprintln!("rung-agent: ACP HTTP at http://{local}/acp");
+    rung_std::events::emit(
+        "rung-agent",
+        "acp.listen",
+        &format!("rung-agent: ACP HTTP at http://{local}/acp"),
+    );
     let state = Arc::new(HttpState {
         process: Arc::new(process.clone()),
         live: Live::new(),

@@ -1,6 +1,16 @@
 //! Headless agent — composes rung-std blocks. Not a coding product;
 //! coding is one thing it can do when given write/shell tools.
 //!
+//! This crate is the agent as a library. The `rung-agent` binary is a thin
+//! shell over it (argv in, exit code out); a host imports it directly.
+//!
+//! Turn engine ([`engine`]): [`engine::Engine`] is built from values
+//! ([`engine::EngineSpec`]) and runs one turn on a caller-assembled thread
+//! ([`engine::Engine::turn`]), with no session-store side effects, its
+//! diagnostics to the caller's sink and a typed provider failure on the
+//! report. [`run::run_job`] is the CLI's job around it: load the session,
+//! assemble the thread, run the turn, save.
+//!
 //! Tool access is a **scope** (`--tools` / config `tools:`). `--toolset
 //! explore|implement|review` names a preset. `--type` is an alias of `--toolset`.
 //!
@@ -32,6 +42,7 @@ pub mod args;
 pub mod background;
 pub mod catalog;
 pub mod config;
+pub mod engine;
 pub mod isolation;
 pub mod mcp;
 pub mod memory;
