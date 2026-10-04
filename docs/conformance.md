@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 388 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 389 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1036,9 +1036,10 @@ look shorter than it is.
 - `no_stage_of_the_startup_ladder_can_be_skipped_or_forged`
 - `startup_lists_recovers_and_hands_off_or_refuses`
 
-**`rung-host/tests/gate_time.rs`** — 4 unclaimed
+**`rung-host/tests/gate_time.rs`** — 5 unclaimed
 
 - `due_items_fire_at_the_first_boundary_and_missed_ones_once`
+- `g_d_holds_when_every_ask_times_out`
 - `only_the_host_settles_expectations_and_calibration_recomputes`
 - `owner_stimuli_under_load_are_admitted_at_the_next_boundary`
 - `thirty_quiet_minutes_have_no_rest`
