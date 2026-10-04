@@ -1,0 +1,305 @@
+{
+ "data": [
+  {
+   "id": "stealth/space-bunny-alpha",
+   "canonical_slug": "stealth/space-bunny-alpha",
+   "name": "Space Bunny Alpha",
+   "created": 1790000000,
+   "description": "Space Bunny Alpha.",
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0",
+    "request": "0",
+    "image": "0",
+    "web_search": "0",
+    "internal_reasoning": "0"
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {},
+   "expiration_date": "2026-10-05"
+  },
+  {
+   "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+   "canonical_slug": "nvidia/nemotron-3-ultra-550b-a55b:free",
+   "name": "Nemotron 3 Ultra (free)",
+   "created": 1790000000,
+   "description": "Nemotron 3 Ultra (free).",
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0",
+    "request": "0",
+    "image": "0",
+    "web_search": "0",
+    "internal_reasoning": "0"
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "max_tokens",
+    "temperature",
+    "tools",
+    "tool_choice",
+    "reasoning",
+    "include_reasoning"
+   ],
+   "default_parameters": {},
+   "expiration_date": null
+  },
+  {
+   "id": "qwen/qwen3.8-27b:free",
+   "canonical_slug": "qwen/qwen3.8-27b:free",
+   "name": "Qwen3.8 27B (free)",
+   "created": 1790000000,
+   "description": "Qwen3.8 27B (free).",
+   "context_length": 262144,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0",
+    "request": "0",
+    "image": "0",
+    "web_search": "0",
+    "internal_reasoning": "0"
+   },
+   "top_provider": {
+    "context_length": 262144,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "max_tokens",
+    "temperature",
+    "tools",
+    "tool_choice",
+    "reasoning",
+    "include_reasoning"
+   ],
+   "default_parameters": {},
+   "expiration_date": null
+  },
+  {
+   "id": "google/gemma-4-31b-it:free",
+   "canonical_slug": "google/gemma-4-31b-it:free",
+   "name": "Gemma 4 31B (free)",
+   "created": 1790000000,
+   "description": "Gemma 4 31B (free).",
+   "context_length": 262144,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0",
+    "request": "0",
+    "image": "0",
+    "web_search": "0",
+    "internal_reasoning": "0"
+   },
+   "top_provider": {
+    "context_length": 262144,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "max_tokens",
+    "temperature",
+    "top_p"
+   ],
+   "default_parameters": {},
+   "expiration_date": null
+  },
+  {
+   "id": "nvidia/nemotron-3-super-120b-a12b:free",
+   "canonical_slug": "nvidia/nemotron-3-super-120b-a12b:free",
+   "name": "Nemotron 3 Super (free)",
+   "created": 1790000000,
+   "description": "Nemotron 3 Super (free).",
+   "context_length": 262144,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0",
+    "request": "0",
+    "image": "0",
+    "web_search": "0",
+    "internal_reasoning": "0"
+   },
+   "top_provider": {
+    "context_length": 262144,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "max_tokens",
+    "temperature",
+    "tools",
+    "tool_choice",
+    "reasoning",
+    "include_reasoning"
+   ],
+   "default_parameters": {},
+   "expiration_date": null
+  },
+  {
+   "id": "test/paid-model",
+   "canonical_slug": "test/paid-model",
+   "name": "A paid model",
+   "created": 1790000000,
+   "description": "A paid model.",
+   "context_length": 128000,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.0000003",
+    "completion": "0.0000012",
+    "request": "0",
+    "image": "0",
+    "web_search": "0",
+    "internal_reasoning": "0"
+   },
+   "top_provider": {
+    "context_length": 128000,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "max_tokens",
+    "temperature",
+    "tools",
+    "tool_choice",
+    "reasoning",
+    "include_reasoning"
+   ],
+   "default_parameters": {},
+   "expiration_date": null
+  },
+  {
+   "id": "test/unrelated:free",
+   "canonical_slug": "test/unrelated:free",
+   "name": "Unrelated (free)",
+   "created": 1790000000,
+   "description": "Unrelated (free).",
+   "context_length": 32768,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0",
+    "request": "0",
+    "image": "0",
+    "web_search": "0",
+    "internal_reasoning": "0"
+   },
+   "top_provider": {
+    "context_length": 32768,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "max_tokens",
+    "temperature",
+    "tools",
+    "tool_choice",
+    "reasoning",
+    "include_reasoning"
+   ],
+   "default_parameters": {},
+   "expiration_date": null
+  }
+ ]
+}

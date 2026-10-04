@@ -1,0 +1,194 @@
+{
+ "stealth/space-bunny-alpha": {
+  "data": {
+   "id": "stealth/space-bunny-alpha",
+   "name": "stealth/space-bunny-alpha",
+   "created": 1790000000,
+   "description": "",
+   "architecture": {},
+   "endpoints": [
+    {
+     "name": "Stealth | stealth/space-bunny-alpha",
+     "model_name": "stealth/space-bunny-alpha",
+     "context_length": 1000000,
+     "pricing": {
+      "prompt": "0",
+      "completion": "0"
+     },
+     "provider_name": "Stealth",
+     "tag": "stealth",
+     "quantization": "unknown",
+     "max_completion_tokens": 65536,
+     "max_prompt_tokens": null,
+     "supported_parameters": [
+      "tools",
+      "max_tokens"
+     ],
+     "status": 0,
+     "uptime_last_30m": 99.0,
+     "supports_implicit_caching": false
+    }
+   ]
+  }
+ },
+ "nvidia/nemotron-3-ultra-550b-a55b:free": {
+  "data": {
+   "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+   "name": "nvidia/nemotron-3-ultra-550b-a55b:free",
+   "created": 1790000000,
+   "description": "",
+   "architecture": {},
+   "endpoints": [
+    {
+     "name": "Nvidia | nvidia/nemotron-3-ultra-550b-a55b:free",
+     "model_name": "nvidia/nemotron-3-ultra-550b-a55b:free",
+     "context_length": 1000000,
+     "pricing": {
+      "prompt": "0",
+      "completion": "0"
+     },
+     "provider_name": "Nvidia",
+     "tag": "nvidia",
+     "quantization": "unknown",
+     "max_completion_tokens": 65536,
+     "max_prompt_tokens": null,
+     "supported_parameters": [
+      "tools",
+      "max_tokens"
+     ],
+     "status": -2,
+     "uptime_last_30m": 99.0,
+     "supports_implicit_caching": false
+    }
+   ]
+  }
+ },
+ "qwen/qwen3.8-27b:free": {
+  "data": {
+   "id": "qwen/qwen3.8-27b:free",
+   "name": "qwen/qwen3.8-27b:free",
+   "created": 1790000000,
+   "description": "",
+   "architecture": {},
+   "endpoints": [
+    {
+     "name": "Alibaba | qwen/qwen3.8-27b:free",
+     "model_name": "qwen/qwen3.8-27b:free",
+     "context_length": 262144,
+     "pricing": {
+      "prompt": "0",
+      "completion": "0"
+     },
+     "provider_name": "Alibaba",
+     "tag": "alibaba",
+     "quantization": "unknown",
+     "max_completion_tokens": 65536,
+     "max_prompt_tokens": null,
+     "supported_parameters": [
+      "tools",
+      "max_tokens"
+     ],
+     "status": 0,
+     "uptime_last_30m": 99.0,
+     "supports_implicit_caching": false
+    }
+   ]
+  }
+ },
+ "google/gemma-4-31b-it:free": {
+  "data": {
+   "id": "google/gemma-4-31b-it:free",
+   "name": "google/gemma-4-31b-it:free",
+   "created": 1790000000,
+   "description": "",
+   "architecture": {},
+   "endpoints": [
+    {
+     "name": "Google | google/gemma-4-31b-it:free",
+     "model_name": "google/gemma-4-31b-it:free",
+     "context_length": 262144,
+     "pricing": {
+      "prompt": "0",
+      "completion": "0"
+     },
+     "provider_name": "Google",
+     "tag": "google",
+     "quantization": "unknown",
+     "max_completion_tokens": 65536,
+     "max_prompt_tokens": null,
+     "supported_parameters": [
+      "tools",
+      "max_tokens"
+     ],
+     "status": 0,
+     "uptime_last_30m": 99.0,
+     "supports_implicit_caching": false
+    }
+   ]
+  }
+ },
+ "nvidia/nemotron-3-super-120b-a12b:free": {
+  "data": {
+   "id": "nvidia/nemotron-3-super-120b-a12b:free",
+   "name": "nvidia/nemotron-3-super-120b-a12b:free",
+   "created": 1790000000,
+   "description": "",
+   "architecture": {},
+   "endpoints": [
+    {
+     "name": "Nvidia | nvidia/nemotron-3-super-120b-a12b:free",
+     "model_name": "nvidia/nemotron-3-super-120b-a12b:free",
+     "context_length": 262144,
+     "pricing": {
+      "prompt": "0",
+      "completion": "0"
+     },
+     "provider_name": "Nvidia",
+     "tag": "nvidia",
+     "quantization": "unknown",
+     "max_completion_tokens": 65536,
+     "max_prompt_tokens": null,
+     "supported_parameters": [
+      "tools",
+      "max_tokens"
+     ],
+     "status": 0,
+     "uptime_last_30m": 99.0,
+     "supports_implicit_caching": false
+    }
+   ]
+  }
+ },
+ "test/paid-model": {
+  "data": {
+   "id": "test/paid-model",
+   "name": "test/paid-model",
+   "created": 1790000000,
+   "description": "",
+   "architecture": {},
+   "endpoints": [
+    {
+     "name": "Paid | test/paid-model",
+     "model_name": "test/paid-model",
+     "context_length": 128000,
+     "pricing": {
+      "prompt": "0",
+      "completion": "0"
+     },
+     "provider_name": "Paid",
+     "tag": "paid",
+     "quantization": "unknown",
+     "max_completion_tokens": 65536,
+     "max_prompt_tokens": null,
+     "supported_parameters": [
+      "tools",
+      "max_tokens"
+     ],
+     "status": 0,
+     "uptime_last_30m": 99.0,
+     "supports_implicit_caching": false
+    }
+   ]
+  }
+ }
+}

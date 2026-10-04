@@ -1387,6 +1387,8 @@ pub struct HttpSeen {
     pub path: String,
     /// The connection came from a loopback address.
     pub loopback: bool,
+    /// It carried an `Authorization` header.
+    pub auth: bool,
     /// The request body as JSON (`Null` when it had none).
     pub body: Value,
     pub status: u16,
@@ -1708,6 +1710,272 @@ pub fn g_n(lines: &[Line], seen: &[HttpSeen]) -> GateResult {
     g
 }
 
+// ─── G-o the model ladder's listing filter ───────────────────────────────────
+
+/// G-o: the listing is refreshed this often, ms (6 h).
+pub const G_O_REFRESH_MS: i64 = 6 * 3_600_000;
+/// G-o: a failed listing is tried again within this, ms (15 min).
+pub const G_O_RETRY_MS: i64 = 15 * 60_000;
+/// G-o: a due listing may wait for the boundary after a running turn, ms
+/// (the default turn bound).
+pub const G_O_SLACK_MS: i64 = 120_000;
+
+/// Days since 1970-01-01 of a `YYYY-MM-DD` date (proleptic Gregorian).
+fn days_of(date: &str) -> Option<i64> {
+    let mut it = date.get(..10)?.split('-');
+    let (y, m, d): (i64, i64, i64) = (
+        it.next()?.parse().ok()?,
+        it.next()?.parse().ok()?,
+        it.next()?.parse().ok()?,
+    );
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some(era * 146_097 + doe - 719_468)
+}
+
+/// What the filter must say of `model` at `now`, from the listing and the
+/// endpoint answers the scripted router served: `(available, why)`.
+///
+/// Available when it is listed, its `expiration_date` (if any) has not
+/// begun, its prompt and completion prices are zero, it takes `tools`, and
+/// one of its endpoints has a status of at least 0.
+pub fn listing_oracle(
+    listing: &Value,
+    endpoints: &BTreeMap<String, Value>,
+    model: &str,
+    now: i64,
+) -> (bool, &'static str) {
+    let Some(m) = listing["data"]
+        .as_array()
+        .and_then(|d| d.iter().find(|m| m["id"] == model))
+    else {
+        return (false, "not_listed");
+    };
+    if let Some(day) = m["expiration_date"].as_str().and_then(days_of)
+        && now >= day * 86_400_000
+    {
+        return (false, "expired");
+    }
+    let zero = |v: &Value| {
+        v.as_str()
+            .and_then(|s| s.parse::<f64>().ok())
+            .or_else(|| v.as_f64())
+            == Some(0.0)
+    };
+    if !(zero(&m["pricing"]["prompt"]) && zero(&m["pricing"]["completion"])) {
+        return (false, "not_free");
+    }
+    let tools = m["supported_parameters"]
+        .as_array()
+        .is_some_and(|p| p.iter().any(|x| x == "tools"));
+    if !tools {
+        return (false, "no_tools");
+    }
+    let up = endpoints.get(model).is_some_and(|e| {
+        e["data"]["endpoints"].as_array().is_some_and(|eps| {
+            eps.iter()
+                .any(|x| x["status"].as_i64().is_some_and(|s| s >= 0))
+        })
+    });
+    if !up {
+        return (false, "endpoint_down");
+    }
+    (true, "ok")
+}
+
+/// G-o: the ladder lists the router's models at start and every 6 hours
+/// (keyless GETs), keeps only the configured rungs that are available and
+/// free, and walks only those:
+///
+/// - the first `ladder.listed` comes before the first turn;
+/// - every successful listing's verdict per rung is the oracle's
+///   ([`listing_oracle`]) at its time; a rung's expiry is seen;
+/// - a failed listing keeps the previous verdicts and is retried within
+///   15 minutes; a successful one is refreshed within 6 hours;
+/// - every turn runs on a rung the latest listing called available;
+/// - a listing that takes the current rung away is followed by a switch to
+///   an available rung before the next turn;
+/// - a provider's 429 steps down to the next *available* rung (skipping at
+///   least once), a probe goes up to the nearest available one;
+/// - every listing GET is keyless and each one is on record; loopback, $0.
+pub fn g_o(
+    lines: &[Line],
+    seen: &[HttpSeen],
+    listing: &Value,
+    endpoints: &BTreeMap<String, Value>,
+    ladder: &[String],
+) -> GateResult {
+    let mut g = GateResult::new("G-o");
+    let listed: Vec<&Line> = of(lines, "ladder.listed").collect();
+    let first_turn = of(lines, "turn.started").map(|l| l.seq).next();
+    let at_start = match (listed.first(), first_turn) {
+        (Some(l), Some(t)) => l.seq < t,
+        _ => false,
+    };
+    let flags = |l: &Line| -> Vec<bool> {
+        l.get("rungs")
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .map(|r| r["available"].as_bool().unwrap_or(false))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let (mut ok_n, mut failed_n, mut verdict_bad, mut kept_bad) = (0, 0, 0, 0);
+    let (mut late_refresh, mut late_retry) = (0, 0);
+    let mut expired_seen = false;
+    let mut prev: Option<&Line> = None;
+    for (i, l) in listed.iter().enumerate() {
+        let ok = l.get("ok").as_bool().unwrap_or(false);
+        let rungs = l.get("rungs").as_array().cloned().unwrap_or_default();
+        if rungs.len() != ladder.len() {
+            verdict_bad += 1;
+        }
+        if ok {
+            ok_n += 1;
+            for (r, model) in ladder.iter().enumerate() {
+                let want = listing_oracle(listing, endpoints, model, l.at);
+                let got = rungs.get(r).map(|x| {
+                    (
+                        x["available"].as_bool().unwrap_or(false),
+                        x["why"].as_str().unwrap_or("").to_string(),
+                    )
+                });
+                if got != Some((want.0, want.1.to_string())) {
+                    verdict_bad += 1;
+                }
+                if want.1 == "expired" {
+                    expired_seen = expired_seen
+                        || prev.is_some_and(|p| flags(p).get(r) == Some(&true));
+                }
+            }
+        } else {
+            failed_n += 1;
+            if let Some(p) = prev
+                && flags(p) != flags(l)
+            {
+                kept_bad += 1;
+            }
+        }
+        if let Some(next) = listed.get(i + 1) {
+            let limit = if ok { G_O_REFRESH_MS } else { G_O_RETRY_MS };
+            if next.at - l.at > limit + G_O_SLACK_MS {
+                if ok {
+                    late_refresh += 1;
+                } else {
+                    late_retry += 1;
+                }
+            }
+        }
+        prev = Some(l);
+    }
+    // Walk the record: availability, the current rung, switches.
+    let mut avail: Vec<bool> = Vec::new();
+    let mut current: Option<usize> = None;
+    let (mut off_rung, mut stranded) = (0, 0);
+    let (mut down_bad, mut up_bad, mut skipped) = (0, 0, 0);
+    let mut owe_switch = false;
+    for l in lines {
+        match l.kind.as_str() {
+            "ladder.listed" => {
+                avail = flags(l);
+                if let Some(c) = current
+                    && avail.get(c) == Some(&false)
+                    && avail.iter().any(|a| *a)
+                {
+                    owe_switch = true;
+                }
+            }
+            "model.switch" => {
+                let (from, to) = (l.u64("rung_from") as usize, l.u64("rung_to") as usize);
+                let why = l.str("why");
+                if why.starts_with("provider") {
+                    let want = (from + 1..ladder.len()).find(|r| avail.get(*r) != Some(&false));
+                    if want != Some(to) {
+                        down_bad += 1;
+                    }
+                    if to > from + 1 {
+                        skipped += 1;
+                    }
+                } else if why.starts_with("probe") {
+                    let want = (0..from).rev().find(|r| avail.get(*r) != Some(&false));
+                    if want != Some(to) {
+                        up_bad += 1;
+                    }
+                }
+                if avail.get(to) != Some(&false) {
+                    owe_switch = false;
+                }
+                current = Some(to);
+            }
+            "turn.started" => {
+                let r = l.u64("rung") as usize;
+                if avail.get(r) == Some(&false) && avail.iter().any(|a| *a) {
+                    off_rung += 1;
+                }
+                if owe_switch {
+                    stranded += 1;
+                    owe_switch = false;
+                }
+                current = Some(r);
+            }
+            _ => {}
+        }
+    }
+    let gets: Vec<&HttpSeen> = seen.iter().filter(|h| h.method == "GET").collect();
+    let model_gets = gets.iter().filter(|h| h.path.ends_with("/models")).count();
+    let keyed_gets = gets.iter().filter(|h| h.auth).count();
+    let not_loopback = seen.iter().filter(|h| !h.loopback).count();
+    let cost: f64 = of(lines, "llm.call").map(|l| l.f64("cost_usd")).sum();
+    g.put("listings", listed.len());
+    g.put("ok_listings", ok_n);
+    g.put("failed_listings", failed_n);
+    g.put("listed_at_start", at_start);
+    g.put("verdict_mismatch", verdict_bad);
+    g.put("failed_not_kept", kept_bad);
+    g.put("expired_seen", expired_seen);
+    g.put("late_refresh", late_refresh);
+    g.put("late_retry", late_retry);
+    g.put("turns_on_unavailable", off_rung);
+    g.put("stranded_after_listing", stranded);
+    g.put("down_mismatch", down_bad);
+    g.put("down_skips", skipped);
+    g.put("up_mismatch", up_bad);
+    g.put("model_gets", model_gets);
+    g.put("keyed_gets", keyed_gets);
+    g.put("not_loopback", not_loopback);
+    g.put("cost_usd", cost);
+    g.check(at_start, "the models were not listed before the first turn");
+    g.check(
+        ok_n >= 2 && failed_n >= 1,
+        "the run did not see both successful and failed listings",
+    );
+    g.check(verdict_bad == 0, "a listing's verdict differs from the oracle's");
+    g.check(kept_bad == 0, "a failed listing changed the verdicts");
+    g.check(expired_seen, "no rung was seen to expire");
+    g.check(late_refresh == 0, "a listing was refreshed later than 6 hours");
+    g.check(late_retry == 0, "a failed listing was retried later than 15 minutes");
+    g.check(off_rung == 0, "a turn ran on a rung the listing called unavailable");
+    g.check(stranded == 0, "a listing took the current rung away and no switch followed");
+    g.check(
+        down_bad == 0 && skipped > 0,
+        "a provider step-down did not land on the next available rung, or none skipped one",
+    );
+    g.check(up_bad == 0, "a probe did not go to the nearest available rung above");
+    g.check(
+        model_gets == listed.len(),
+        "the listing GETs and the ladder.listed lines differ in number",
+    );
+    g.check(keyed_gets == 0, "a listing GET carried a key");
+    g.check(not_loopback == 0, "a request left loopback");
+    g.check(cost == 0.0, "money was spent");
+    g
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1720,6 +1988,15 @@ mod tests {
             kind: kind.into(),
             body: m,
         }
+    }
+
+    #[test]
+    fn days_of_matches_the_calendar() {
+        assert_eq!(days_of("1970-01-01"), Some(0));
+        // 2026-10-03T00:00Z, where simulated runs start.
+        assert_eq!(days_of("2026-10-03").map(|d| d * 86_400_000), Some(1_790_985_600_000));
+        assert_eq!(days_of("2000-03-01"), Some(11_017));
+        assert_eq!(days_of("nope"), None);
     }
 
     #[test]
