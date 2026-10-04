@@ -22,7 +22,7 @@ pub use files::{Glob, Grep, ListFiles, ReadFile, WriteFile};
 pub use patch::ApplyPatch;
 pub use shell::Shell;
 pub use skill::Skill;
-pub use task::{MAX_DEPTH, Spawn, Task, TaskRequest, TaskResult, WithoutTask};
+pub use task::{MAX_DEPTH, Spawn, TASK_COMPLETED, Task, TaskRequest, TaskResult, WithoutTask};
 pub use todo::Todo;
 pub use webfetch::WebFetch;
 

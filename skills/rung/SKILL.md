@@ -106,7 +106,8 @@ own thread, with a delay).
 `rung_std::decide`) reads the turn's final message against its actions.
 Arms: completed / nudge once / unverified / unchecked. Off by default; the
 switch is `turn_check.backend` or `RUNG_TURN_CHECK=off|jev`. Off must stay
-byte-identical (`off_output_is_byte_identical_to_before`).
+byte-identical (`off_output_is_byte_identical_to_before`). A nested `task`
+spawn (depth 1) is checked like a top-level turn when the check is on.
 
 Tests replay `rung-agent/tests/fixtures/decide/turn_check/*.json` through
 a local mock of `/systemone`; CI never touches the network. After changing

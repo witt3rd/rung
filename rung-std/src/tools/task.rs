@@ -30,7 +30,14 @@ pub struct TaskResult {
     pub text: String,
     pub api_calls: u32,
     pub task_id: Option<String>,
+    /// The child's end, as the result's `state` tag carries it:
+    /// [`TASK_COMPLETED`] unless the [`Spawn`] judged the child's turn and it did
+    /// not pass (a product's turn check: `unverified`, `unchecked`, …).
+    pub state: String,
 }
+
+/// The `state` of a child that ran to its end and was not judged otherwise.
+pub const TASK_COMPLETED: &str = "completed";
 
 /// How a child agent is actually run. The default is a nested AgentLoop;
 /// tests inject a fake.
@@ -139,7 +146,8 @@ impl Tool for Task {
                     .map(|id| format!(" id=\"{}\"", xml_esc(id)))
                     .unwrap_or_default();
                 Ok(format!(
-                    "<task description=\"{label}\" state=\"completed\" calls=\"{}\"{id}>\n{}\n</task>",
+                    "<task description=\"{label}\" state=\"{}\" calls=\"{}\"{id}>\n{}\n</task>",
+                    xml_esc(&r.state),
                     r.api_calls,
                     r.text.trim()
                 ))
@@ -212,6 +220,7 @@ mod tests {
                 text: format!("done: {}", req.prompt),
                 api_calls: 2,
                 task_id: None,
+                state: TASK_COMPLETED.into(),
             })
         }
     }
@@ -262,6 +271,7 @@ mod tests {
                     text: "ok".into(),
                     api_calls: 1,
                     task_id: req.task_id.clone(),
+                    state: "unverified".into(),
                 })
             }
         }
@@ -276,6 +286,7 @@ mod tests {
             }))
             .unwrap();
         assert!(out.contains("id=\"abc-1\""), "{out}");
+        assert!(out.contains("state=\"unverified\""), "{out}");
         let got = cap.0.lock().unwrap().clone().unwrap();
         assert_eq!(got.subagent_type.as_deref(), Some("explore"));
         assert_eq!(got.task_id.as_deref(), Some("abc-1"));

@@ -138,6 +138,9 @@ enum Jev {
     Fixture(&'static str),
     /// Replay this fixture with its response edited.
     Mutated(&'static str, fn(&mut Value)),
+    /// Answer any request with this fixture's recorded response (a mock
+    /// reading; the request is not compared).
+    Answer(&'static str),
     /// Answer with this HTTP status.
     Status(u16),
 }
@@ -163,6 +166,18 @@ fn mock_jev(replies: Vec<Jev>, tmp: &Path) -> String {
             let (name, edit) = match reply {
                 Jev::Status(code) => {
                     respond(&mut sock, code, "application/json", r#"{"error":"mock"}"#);
+                    continue;
+                }
+                Jev::Answer(n) => {
+                    let f: Value =
+                        serde_json::from_str(&std::fs::read_to_string(fixture(n)).unwrap())
+                            .unwrap();
+                    respond(
+                        &mut sock,
+                        200,
+                        "application/json",
+                        &f["response"].to_string(),
+                    );
                     continue;
                 }
                 Jev::Fixture(n) => (n, None),
@@ -618,6 +633,80 @@ fn the_stream_result_line_carries_the_reading() {
     assert_eq!(last["response"]["status"], "completed");
     assert_eq!(last["response"]["api_calls"], 1);
     assert_eq!(last["response"]["turn_check"]["outcome"], "answered");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+// ─── 10 · A nested `task` child is checked like a top-level turn ────────────
+
+fn task_reply() -> Value {
+    let args = json!({"description": "keep note", "prompt": NARRATE_REQUEST}).to_string();
+    json!({"id": "c", "model": "m", "choices": [{"message": {"content": null, "tool_calls": [
+        {"id": "t1", "type": "function", "function": {"name": "task", "arguments": args}}
+    ]}, "finish_reason": "tool_calls"}]})
+}
+
+/// The parent's session file as text, and the one child session's status.
+fn parent_and_child(tmp: &Path, parent: &str) -> (String, String) {
+    let dir = tmp.join(".rung/sessions");
+    let text = std::fs::read_to_string(dir.join(format!("{parent}.json"))).unwrap();
+    let child: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(|e| {
+            let name = e.unwrap().file_name().to_string_lossy().into_owned();
+            let id = name.strip_suffix(".json")?.to_string();
+            (id != parent).then_some(id)
+        })
+        .collect();
+    assert_eq!(child.len(), 1, "one child session: {child:?}");
+    (text, session_status(tmp, &child[0]))
+}
+
+/// A child that only narrates is nudged once, narrates again, and comes back
+/// to the parent as `state="unverified"`, never `completed` on its own say-so.
+#[test]
+fn a_narrating_task_child_is_checked_and_not_completed() {
+    let tmp = tempdir();
+    let llm = mock_llm(vec![
+        task_reply(),
+        text_reply(NARRATION),
+        text_reply(NARRATION),
+        text_reply("The subagent says the note is kept."),
+    ]);
+    let jev = mock_jev(
+        vec![
+            Jev::Answer("narrated_note"),
+            Jev::Answer("narrated_note"),
+            Jev::Answer("info_answer"),
+        ],
+        &tmp,
+    );
+    let r = run(agent(&tmp, &llm, Some(&jev)), "task", NARRATE_REQUEST);
+    let parent = r.out["task_id"].as_str().unwrap();
+    let (text, child) = parent_and_child(&tmp, parent);
+    assert_eq!(child, "unverified", "{}\n{}", r.stdout, r.stderr);
+    assert!(text.contains(r#"state=\"unverified\""#), "{text}");
+    assert!(!text.contains(r#"state=\"completed\""#), "{text}");
+    assert_eq!(r.out["api_calls"], 2, "the parent's own calls");
+    assert_eq!(r.out["turn_check"]["outcome"], "answered", "{}", r.stdout);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// With the check off the child completes as it did before, unjudged.
+#[test]
+fn with_the_check_off_a_task_child_completes_as_before() {
+    let tmp = tempdir();
+    let llm = mock_llm(vec![
+        task_reply(),
+        text_reply(NARRATION),
+        text_reply("The subagent says the note is kept."),
+    ]);
+    let r = run(agent(&tmp, &llm, None), "task", NARRATE_REQUEST);
+    assert_eq!(r.out["status"], "completed", "{}", r.stderr);
+    assert!(r.out.get("turn_check").is_none());
+    let parent = r.out["task_id"].as_str().unwrap();
+    let (text, child) = parent_and_child(&tmp, parent);
+    assert_eq!(child, "completed");
+    assert!(text.contains(r#"state=\"completed\""#), "{text}");
     let _ = std::fs::remove_dir_all(&tmp);
 }
 

@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 332 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 334 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -723,7 +723,7 @@ look shorter than it is.
 - `cli_text`
 - `cli_turn_check`
 
-**`rung-agent/tests/turn_check.rs`** — 19 unclaimed
+**`rung-agent/tests/turn_check.rs`** — 21 unclaimed
 
 - `a_32_iteration_turn_stays_under_the_ceiling_and_is_redacted`
 - `a_401_or_402_leaves_the_turn_unchecked`
@@ -731,6 +731,7 @@ look shorter than it is.
 - `a_long_state_is_judged_and_escalated`
 - `a_malformed_answer_is_unchecked_never_completed`
 - `a_narrated_turn_is_nudged_and_completes_when_it_acts`
+- `a_narrating_task_child_is_checked_and_not_completed`
 - `a_real_messy_done_turn_is_escalated_not_nudged`
 - `a_turn_still_narrating_after_its_nudge_is_unverified`
 - `acp_carries_the_reading_in_meta_and_ends_the_turn`
@@ -744,6 +745,7 @@ look shorter than it is.
 - `the_blocked_with_error_case_is_escalated_not_nudged`
 - `the_proven_path_completes_with_outcome_done`
 - `the_stream_result_line_carries_the_reading`
+- `with_the_check_off_a_task_child_completes_as_before`
 
 **`rung-agent/tests/ui.rs`** — 1 unclaimed
 
