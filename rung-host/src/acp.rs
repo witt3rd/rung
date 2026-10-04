@@ -54,6 +54,7 @@ use serde_json::{Map, Value, json};
 
 use crate::calendar::{Entry, Missed, Origin, When};
 use crate::clock::SECOND;
+use crate::core::lock;
 use crate::inbox::{Item, Role};
 use crate::presence::Host;
 use crate::record::{Line, Record};
@@ -379,12 +380,12 @@ impl Acp {
         let (tx, rx) = mpsc::channel::<Line>();
         let tx = Mutex::new(tx);
         host.core.observe(Box::new(move |l: &Line| {
-            let _ = tx.lock().expect("observer").send(l.clone());
+            let _ = lock(&tx).send(l.clone());
         }));
         let b2 = bridge.clone();
         std::thread::spawn(move || {
             for l in rx {
-                b2.lock().expect("bridge").on_line(&l);
+                lock(&b2).on_line(&l);
             }
         });
         let seed = host.core.now().unsigned_abs();
@@ -401,7 +402,7 @@ impl Acp {
     }
 
     fn channel_of(&self, session: &str) -> Option<(Role, String)> {
-        let b = self.bridge.lock().expect("bridge");
+        let b = lock(&self.bridge);
         b.sessions.get(session).map(|c| (c.role, c.channel.clone()))
     }
 
@@ -520,7 +521,7 @@ impl Acp {
                     };
                     let session = me.fresh("ch");
                     me.host.open_channel(&session, role, &channel);
-                    me.bridge.lock().expect("bridge").sessions.insert(
+                    lock(&me.bridge).sessions.insert(
                         session.clone(),
                         Channel {
                             role,
@@ -555,7 +556,7 @@ impl Acp {
                         .rev()
                         .find(|l| l.kind == "outbox.queued" && l.str("channel") == channel)
                         .map(|l| l.str("text").to_string());
-                    let mut b = me2.bridge.lock().expect("bridge");
+                    let mut b = lock(&me2.bridge);
                     b.sessions.insert(
                         session.clone(),
                         Channel {
@@ -615,7 +616,7 @@ impl Acp {
                     let item = me4.item(role, &channel, &text.join("\n"));
                     // Registered before it is recorded, so no line about it
                     // can pass the bridge unseen.
-                    me4.bridge.lock().expect("bridge").prompts.insert(
+                    lock(&me4.bridge).prompts.insert(
                         item.id.clone(),
                         Prompt {
                             session,
@@ -635,7 +636,7 @@ impl Acp {
                     let session = n.session_id.0.to_string();
                     let role = me5.channel_of(&session).map(|c| c.0);
                     let ids: Vec<(String, bool)> = {
-                        let b = me5.bridge.lock().expect("bridge");
+                        let b = lock(&me5.bridge);
                         b.prompts
                             .iter()
                             .filter(|(_, p)| p.session == session)
@@ -650,7 +651,7 @@ impl Acp {
                         if role == Some(Role::Owner) {
                             me5.host.cut_turn();
                         }
-                        me5.bridge.lock().expect("bridge").respond(
+                        lock(&me5.bridge).respond(
                             &id,
                             StopReason::Cancelled,
                             json!({"disposition": "in_turn"}),

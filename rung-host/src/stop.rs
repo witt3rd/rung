@@ -14,6 +14,8 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use serde::Serialize;
 
+use crate::core::lock;
+
 /// Why the host halted. Never the model's choice.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case", tag = "why")]
@@ -67,7 +69,7 @@ impl StopAuthority {
 
     /// Ask the host to stop.
     pub fn request(&self, why: Why) {
-        let mut w = self.why.lock().expect("stop");
+        let mut w = lock(&self.why);
         if w.is_none() {
             *w = Some(why);
         }
@@ -99,7 +101,7 @@ impl StopAuthority {
             }
         }
         if self.raised.load(Ordering::SeqCst) {
-            self.why.lock().expect("stop").clone()
+            lock(&self.why).clone()
         } else {
             None
         }
