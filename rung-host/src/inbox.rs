@@ -318,11 +318,10 @@ impl Source for DirSource {
             match serde_json::from_str::<MsgFile>(&body) {
                 Ok(m) => {
                     let role = m.role.filter(|r| *r != Role::Host).unwrap_or(Role::Peer);
-                    // Only an owner file may use the `owner` channel (or a
-                    // calendar/host channel); anyone else is `peer:<id>`.
+                    // Only an owner file may name its channel; anyone else
+                    // is pinned to `peer:<id>`.
                     let channel = match (role, m.channel) {
                         (Role::Owner, c) => c.unwrap_or_else(|| "owner".into()),
-                        (_, Some(c)) if c.starts_with("peer:") => c,
                         _ => format!("peer:{id}"),
                     };
                     let mut item = Item::message(&id, role, &channel, now, &m.text);
@@ -434,5 +433,19 @@ mod tests {
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].role, Role::Peer);
         assert_eq!(got[0].channel, "peer:h");
+    }
+
+    #[test]
+    fn a_non_owner_file_cannot_claim_another_peer_channel() {
+        let guard = crate::sim::temp_dir_guard("dir-peer-channel");
+        let d = guard.path().join("inbox");
+        let mut src = DirSource::new(&d).unwrap();
+        fs::write(
+            d.join("m.msg"),
+            r#"{"role":"peer","channel":"peer:other-id","text":"x"}"#,
+        )
+        .unwrap();
+        let got = src.poll(1, &BTreeSet::new());
+        assert_eq!(got[0].channel, "peer:m");
     }
 }
