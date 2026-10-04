@@ -456,7 +456,8 @@ pub struct CallUsage {
 /// A turn that ended with an answer (checked or not).
 #[derive(Debug)]
 pub struct TurnDone {
-    /// The loop's result to keep (after a nudge, the second loop's).
+    /// The loop's result to keep (after a nudge, the second loop's; after a
+    /// nudge that stopped, the first answer with the re-run's steps).
     pub result: agent::AgentResult,
     pub status: Status,
     /// The turn check's reading; `None` while the check is off.
@@ -620,7 +621,7 @@ fn check_turn(
             } else {
                 Status::Unverified
             };
-            let f = nudged.into_flagged();
+            let f = nudged.rerun_stopped(e);
             let report = f.report().clone();
             return done(f.into_result(), status, &report, 0);
         }

@@ -34,7 +34,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rung::ladder;
-use rung_std::agent::AgentResult;
+use rung_std::agent::{AgentResult, FailureKind, Filtered};
 use rung_std::decide::{Ask, Decided, Decider, JevDecider, Question, Undecided};
 use rung_std::llm::{ChatMessage, MessageContent, MessageContentBlock};
 use serde::Serialize;
@@ -513,7 +513,7 @@ impl Nudged {
         m.push(ChatMessage::user(NUDGE));
         m
     }
-    /// Give up on the re-run (it failed): the first reading escalates.
+    /// Give up on the nudge: the first reading escalates.
     pub fn into_flagged(self) -> Flagged {
         Flagged {
             result: self.result,
@@ -523,6 +523,17 @@ impl Nudged {
                 reason: None,
             },
         }
+    }
+    /// The re-run stopped without an answer: the first reading escalates,
+    /// and the turn keeps the nudge and the steps the re-run ran before it
+    /// stopped. The answer is still the first one. An overflow keeps only
+    /// the first loop, so what overflowed is not sent again.
+    pub fn rerun_stopped(self, stop: Filtered) -> Flagged {
+        let mut f = self.into_flagged();
+        if stop.kind != FailureKind::Overflow {
+            f.result.transcript = stop.transcript;
+        }
+        f
     }
 }
 
@@ -711,6 +722,56 @@ mod tests {
         };
         assert_eq!(arm(&r, f), Arm::Escalate);
         assert_eq!(arm(&r, Facts::default()), Arm::Ask);
+    }
+
+    fn nudged_after(answer: &str) -> (Nudged, Vec<ChatMessage>) {
+        let first = vec![ChatMessage::user("do it"), ChatMessage::assistant(answer)];
+        let nudged = Nudged {
+            result: AgentResult {
+                final_response: answer.into(),
+                transcript: first,
+                api_calls_made: 1,
+                usage: Default::default(),
+                truncated: false,
+                forced: false,
+                elided: 0,
+            },
+            sent: 1,
+            reading: reading("narrated", 1.0, 0.97),
+        };
+        let mut ran = nudged.rerun_messages();
+        ran.push(ChatMessage::assistant("step after the nudge"));
+        (nudged, ran)
+    }
+
+    fn stop(kind: FailureKind, transcript: Vec<ChatMessage>) -> Filtered {
+        Filtered {
+            reason: "it broke".into(),
+            kind,
+            transcript,
+        }
+    }
+
+    #[test]
+    fn a_stopped_rerun_keeps_its_steps_and_the_first_answer() {
+        let (nudged, ran) = nudged_after("I did it");
+        let f = nudged.rerun_stopped(stop(FailureKind::DoomLoop, ran.clone()));
+        assert!(f.report().nudged);
+        let r = f.into_result();
+        assert_eq!(r.final_response, "I did it");
+        let kept = format!("{:?}", r.transcript);
+        assert_eq!(kept, format!("{ran:?}"));
+        assert!(!kept.contains("it broke"), "{kept}");
+    }
+
+    #[test]
+    fn an_overflowed_rerun_keeps_only_the_first_loop() {
+        let (nudged, ran) = nudged_after("I did it");
+        let first = format!("{:?}", nudged.result().transcript);
+        let r = nudged
+            .rerun_stopped(stop(FailureKind::Overflow, ran))
+            .into_result();
+        assert_eq!(format!("{:?}", r.transcript), first);
     }
 
     #[test]
