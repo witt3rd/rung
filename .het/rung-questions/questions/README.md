@@ -4,7 +4,7 @@
 
 Every open question about advancing the ladder language gets its own document here, so it can **receive an answer over time** rather than living as a bullet buried in a design doc where it is easy to lose and impossible to track. When a question resolves, its answer **folds upward** into the normative surfaces — `rung-props.md` (the guarantees), `RUNG-CT.md` (the theory), the macro itself — and the question document records *that it happened, and where.*
 
-This is the `outer-loop/bets/` and `augur/genesis/meta/questions/` pattern, applied to rung itself. The same laws that keep those registries from decaying into a bitbucket apply here. rung is a language for declaring the objects and legal arrows of a category; this registry is the same discipline pointed at rung's own frontier — and, fittingly, its own lifecycle (`open → resolved`) is itself a ladder.
+This is the a sibling bets registry and a sibling question registry pattern, applied to rung itself. The same laws that keep those registries from decaying into a bitbucket apply here. rung is a language for declaring the objects and legal arrows of a category; this registry is the same discipline pointed at rung's own frontier — and, fittingly, its own lifecycle (`open → resolved`) is itself a ladder.
 
 ---
 

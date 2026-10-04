@@ -18,6 +18,9 @@ PATTERNS = [
     re.compile(r"spire|host-gw|janus|HOST_TOKEN|HOST_VENUE_KEY|agent-binding", re.I),
     # named consumer systems, and real people's names in test text/fixtures
     re.compile(r"animus|mohak|donald@|thompson <|downstream host", re.I),
+    # consumer/product/agent names (whole-word, so `forged`/`unforgeable` stay clean)
+    # and personal names used as principal ids or attributions
+    re.compile(r"\b(augur|cookie|forge|donald|thompson|outer-loop)s?\b", re.I),
     re.compile(r"[a-z0-9]_venue|venue_[a-z0-9]", re.I),
     re.compile(r"[a-z]Venue|venue[A-Z]"),  # camelCase identifiers, case-sensitive
 ]

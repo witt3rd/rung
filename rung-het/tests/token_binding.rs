@@ -117,8 +117,8 @@ fn doc_by(authors: &[&'static str]) -> Doc {
 /// comparison the caller cannot reach.
 #[test]
 fn dispose_refuses_a_token_minted_against_the_model() {
-    // The model is authored by `donald`. The proposal is authored by `academy`.
-    let model = doc_by(&["donald"]);
+    // The model is authored by `human`. The proposal is authored by `academy`.
+    let model = doc_by(&["human"]);
     let pool = Pool::new(vec![principal("academy", &["academy"], &["cabinet"])]);
     let academy = principal("academy", &["academy"], &["cabinet"]);
 
@@ -158,41 +158,40 @@ fn dispose_refuses_a_token_minted_against_the_model() {
 // 2. settle accepts a token minted against a DIFFERENT model
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Two models. `forge` is disjoint from `augur`'s document and qualifies
+/// Two models. `bob` is disjoint from `alice`'s document and qualifies
 /// honestly against it. That token then discharges the judgmental sentence on
-/// `forge`'s **own** document — the argument the token was never measured
+/// `bob`'s **own** document — the argument the token was never measured
 /// against.
 ///
 /// `settle` consumes the token by value, so it cannot be spent twice. Spending
 /// it *once, on the wrong model* is what the binding closes: the token records
-/// `π(augurs)` and `settle` admits it only against `π(forges)`.
+/// `π(alices)` and `settle` admits it only against `π(bobs)`.
 #[test]
 fn settle_refuses_a_token_minted_against_a_different_model() {
-    let augurs = doc_by(&["augur"]);
-    let forges = doc_by(&["forge"]);
-    let pool = Pool::new(vec![principal("forge", &["forge"], &[])]);
+    let alices = doc_by(&["alice"]);
+    let bobs = doc_by(&["bob"]);
+    let pool = Pool::new(vec![principal("bob", &["bob"], &[])]);
 
-    // Honest route against forge's own doc: refused.
+    // Honest route against bob's own doc: refused.
     assert!(
-        pool.qualify::<Reviewer>(&forges).is_err(),
-        "forge shares provenance with its own doc"
+        pool.qualify::<Reviewer>(&bobs).is_err(),
+        "bob shares provenance with its own doc"
     );
 
     // Token minted honestly against a *different* model.
     let token = pool
-        .qualify::<Reviewer>(&augurs)
-        .expect("forge is disjoint from augur's doc");
+        .qualify::<Reviewer>(&alices)
+        .expect("bob is disjoint from alice's doc");
 
     // `judgment` is the sealed form and may DEFER — a principal that has not
     // answered has no Judgment to hand over (suspension-is-the-residual). This
     // one answers.
-    let Consulted::Rendered(judgment) =
-        principal("forge", &["forge"], &[]).judgment("is_constitutive")
+    let Consulted::Rendered(judgment) = principal("bob", &["bob"], &[]).judgment("is_constitutive")
     else {
-        panic!("forge answers when asked");
+        panic!("bob answers when asked");
     };
-    let refused = doc::is_constitutive::settle(&forges, token, judgment).expect_err(
-        "P0: forge settled a judgmental sentence on its own document \
+    let refused = doc::is_constitutive::settle(&bobs, token, judgment).expect_err(
+        "P0: bob settled a judgmental sentence on its own document \
          with a licence minted against another",
     );
 
@@ -202,17 +201,17 @@ fn settle_refuses_a_token_minted_against_a_different_model() {
     let rung_het::SettleError::TokenNotBound(refused) = refused else {
         panic!("expected the binding refusal, got {refused:?}")
     };
-    assert_eq!(refused.principal, "forge");
+    assert_eq!(refused.principal, "bob");
     assert_eq!(refused.role, Reviewer::NAME);
     assert_eq!(
         refused.minted_against,
-        augurs.provenance(),
-        "the licence was measured against augur's document"
+        alices.provenance(),
+        "the licence was measured against alice's document"
     );
     assert_eq!(
         refused.applied_to,
-        forges.provenance(),
-        "and spent on forge's own"
+        bobs.provenance(),
+        "and spent on bob's own"
     );
 }
 
@@ -254,7 +253,7 @@ fn settle_refuses_a_token_minted_against_a_different_model() {
 fn a_principal_with_no_provenance_is_refused() {
     let pool = Pool::new(vec![principal("ghost", &[], &["cabinet"])]);
 
-    for model in [doc_by(&["donald"]), doc_by(&["augur"]), doc_by(&["forge"])] {
+    for model in [doc_by(&["human"]), doc_by(&["alice"]), doc_by(&["bob"])] {
         assert!(
             pool.qualify::<Reviewer>(&model).is_err(),
             "a principal with no declared provenance is disjoint from every \

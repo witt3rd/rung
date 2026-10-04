@@ -69,7 +69,7 @@ principals:
   #
   # Last in the escalation chain, and the only principal here whose provenance
   # is a genuine record rather than an estimate.
-  - id: donald
+  - id: human
     kind: human
     capabilities: [reasoning, structured-outputs, web-research, code-generation, file-editing]
     standing: [rung-props.md, rung-het-props.md, rung-ct-props.md, docs]

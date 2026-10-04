@@ -122,7 +122,7 @@ fn doc_by(authors: &[&'static str]) -> SoulDoc {
 
 #[test]
 fn decidable_sentence_settles_without_any_principal() {
-    let m = doc_by(&["augur"]);
+    let m = doc_by(&["alice"]);
 
     // Note the call: no pool, no principal, no token. There is no parameter
     // through which an outside could enter.
@@ -139,7 +139,7 @@ fn decidable_sentence_settles_without_any_principal() {
 fn decidable_sentence_reports_its_own_failure_reason() {
     let m = SoulDoc {
         chars: 20_000,
-        authors: vec!["augur"],
+        authors: vec!["alice"],
     };
     let settled = soul::within_budget::holds(&m);
 
@@ -155,9 +155,9 @@ fn decidable_sentence_reports_its_own_failure_reason() {
 
 #[test]
 fn p0_refuses_a_judge_who_authored_the_material() {
-    // The failure Het exists to forbid: Augur judging a document Augur wrote.
-    let m = doc_by(&["augur"]);
-    let pool = Pool::new(vec![judge("augur", &["augur"], &[ChordReader::NAME])]);
+    // The failure Het exists to forbid: Alice judging a document Alice wrote.
+    let m = doc_by(&["alice"]);
+    let pool = Pool::new(vec![judge("alice", &["alice"], &[ChordReader::NAME])]);
 
     let err = pool
         .qualify::<ChordReader>(&m)
@@ -165,8 +165,8 @@ fn p0_refuses_a_judge_who_authored_the_material() {
 
     match err {
         QualifyError::NonIdentityViolated { principal, shared } => {
-            assert_eq!(principal, "augur");
-            assert_eq!(shared, vec!["augur".to_string()]);
+            assert_eq!(principal, "alice");
+            assert_eq!(shared, vec!["alice".to_string()]);
         }
         other => panic!("expected NonIdentityViolated, got {other:?}"),
     }
@@ -174,24 +174,24 @@ fn p0_refuses_a_judge_who_authored_the_material() {
 
 #[test]
 fn p0_admits_a_judge_with_disjoint_provenance() {
-    let m = doc_by(&["augur"]);
-    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
+    let m = doc_by(&["alice"]);
+    let pool = Pool::new(vec![judge("bob", &["bob"], &[ChordReader::NAME])]);
 
     let q = pool
         .qualify::<ChordReader>(&m)
         .expect("a disjoint, capable judge qualifies");
 
-    assert_eq!(q.principal_id(), "forge");
+    assert_eq!(q.principal_id(), "bob");
     assert_eq!(q.role_name(), ChordReader::NAME);
 }
 
 #[test]
 fn p0_refuses_on_partial_overlap_not_only_identity() {
     // Co-authorship is overlap. Disjointness is the condition, not equality.
-    let m = doc_by(&["donald", "augur"]);
+    let m = doc_by(&["human", "alice"]);
     let pool = Pool::new(vec![judge(
-        "augur",
-        &["augur", "elsewhere"],
+        "alice",
+        &["alice", "elsewhere"],
         &[ChordReader::NAME],
     )]);
 
@@ -218,12 +218,12 @@ fn p0_is_not_vacuous_when_the_model_claims_no_author() {
 #[test]
 fn competence_is_filtered_before_provenance_matters() {
     // Disjoint, but cannot play the role. Both conjuncts of dispatch-is-two-operations are live.
-    let m = doc_by(&["augur"]);
-    let pool = Pool::new(vec![judge("forge", &["forge"], &[Cartographer::NAME])]);
+    let m = doc_by(&["alice"]);
+    let pool = Pool::new(vec![judge("bob", &["bob"], &[Cartographer::NAME])]);
 
     match pool.qualify::<ChordReader>(&m).unwrap_err() {
         QualifyError::NotCapable { principal, role } => {
-            assert_eq!(principal, "forge");
+            assert_eq!(principal, "bob");
             assert_eq!(role, ChordReader::NAME);
         }
         other => panic!("expected NotCapable, got {other:?}"),
@@ -234,23 +234,23 @@ fn competence_is_filtered_before_provenance_matters() {
 fn qualification_walks_the_pool_and_takes_any_survivor() {
     // Het no-preference-among-judges: dispatch to *a* qualifying judge. Not the best — Het has no
     // worth-law and must not rank. First survivor is Het-correct.
-    let m = doc_by(&["augur"]);
+    let m = doc_by(&["alice"]);
     let pool = Pool::new(vec![
-        judge("augur", &["augur"], &[ChordReader::NAME]), // fails P0
-        judge("cookie", &["cookie"], &[Cartographer::NAME]), // wrong role
-        judge("forge", &["forge"], &[ChordReader::NAME]), // qualifies
+        judge("alice", &["alice"], &[ChordReader::NAME]), // fails P0
+        judge("carol", &["carol"], &[Cartographer::NAME]), // wrong role
+        judge("bob", &["bob"], &[ChordReader::NAME]),     // qualifies
     ]);
 
-    let q = pool.qualify::<ChordReader>(&m).expect("forge qualifies");
-    assert_eq!(q.principal_id(), "forge");
+    let q = pool.qualify::<ChordReader>(&m).expect("bob qualifies");
+    assert_eq!(q.principal_id(), "bob");
 }
 
 #[test]
 fn an_exhausted_pool_reports_exhaustion_not_the_last_failure() {
-    let m = doc_by(&["augur"]);
+    let m = doc_by(&["alice"]);
     let pool = Pool::new(vec![
-        judge("augur", &["augur"], &[ChordReader::NAME]),
-        judge("cookie", &["cookie"], &[Cartographer::NAME]),
+        judge("alice", &["alice"], &[ChordReader::NAME]),
+        judge("carol", &["carol"], &[Cartographer::NAME]),
     ]);
 
     assert_eq!(
@@ -261,7 +261,7 @@ fn an_exhausted_pool_reports_exhaustion_not_the_last_failure() {
 
 #[test]
 fn an_empty_pool_qualifies_no_one() {
-    let m = doc_by(&["augur"]);
+    let m = doc_by(&["alice"]);
     let pool: Pool<Judge> = Pool::new(vec![]);
     assert_eq!(
         pool.qualify::<ChordReader>(&m).unwrap_err(),
@@ -275,8 +275,8 @@ fn an_empty_pool_qualifies_no_one() {
 
 #[test]
 fn judgmental_sentence_records_the_principal_that_settled_it() {
-    let m = doc_by(&["augur"]);
-    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
+    let m = doc_by(&["alice"]);
+    let pool = Pool::new(vec![judge("bob", &["bob"], &[ChordReader::NAME])]);
     // The licence and the judgment come from the same principal, in one act:
     // `consult` qualifies and then *asks*. The verdict is never the caller's.
     let (q, judgment) = pool.consult::<ChordReader>(&m, "is_constitutive").unwrap();
@@ -294,7 +294,7 @@ fn judgmental_sentence_records_the_principal_that_settled_it() {
         } => {
             assert_eq!(sentence, "is_constitutive");
             assert_eq!(role, ChordReader::NAME);
-            assert_eq!(principal, "forge");
+            assert_eq!(principal, "bob");
         }
         other => panic!("expected a judgmental settlement, got {other:?}"),
     }
@@ -306,7 +306,7 @@ fn a_judgmental_verdict_may_be_non_conforming() {
     // it does is now the *principal's* doing — `Contrarian::rule` returns
     // non-conforming, and this test has no parameter through which it could
     // have arranged the outcome itself.
-    let m = doc_by(&["augur"]);
+    let m = doc_by(&["alice"]);
     let pool = Pool::new(vec![Contrarian]);
     let (q, judgment) = pool.consult::<ChordReader>(&m, "is_constitutive").unwrap();
 
@@ -335,14 +335,9 @@ fn a_judgmental_verdict_may_be_non_conforming() {
 /// this fails.
 #[test]
 fn two_judges_of_differing_confidence_report_differing_verdicts() {
-    let m = doc_by(&["augur"]);
+    let m = doc_by(&["alice"]);
     // Barely persuaded, and certain.
-    let pool_a = Pool::new(vec![weighed_judge(
-        "forge",
-        &[ChordReader::NAME],
-        0.55,
-        0.1,
-    )]);
+    let pool_a = Pool::new(vec![weighed_judge("bob", &[ChordReader::NAME], 0.55, 0.1)]);
     let pool_b = Pool::new(vec![weighed_judge(
         "smithy",
         &[ChordReader::NAME],
@@ -366,10 +361,10 @@ fn two_judges_of_differing_confidence_report_differing_verdicts() {
     assert_eq!(a.verdict(), b.verdict());
     // … and the ε can, because it reached the caller.
     let (ea, eb) = (
-        a.epsilon().expect("forge reported ε"),
+        a.epsilon().expect("bob reported ε"),
         b.epsilon().expect("smithy reported ε"),
     );
-    assert!((ea - 0.9).abs() < 1e-12, "forge's ε is 1 − 0.1, got {ea}");
+    assert!((ea - 0.9).abs() < 1e-12, "bob's ε is 1 − 0.1, got {ea}");
     assert!(
         (eb - 0.02).abs() < 1e-12,
         "smithy's ε is 1 − 0.98, got {eb}"
@@ -400,8 +395,8 @@ fn two_judges_of_differing_confidence_report_differing_verdicts() {
 /// A decidable sentence is exact, and says that.
 #[test]
 fn an_unweighed_judge_reports_no_epsilon_and_a_decidable_one_reports_zero() {
-    let m = doc_by(&["augur"]);
-    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
+    let m = doc_by(&["alice"]);
+    let pool = Pool::new(vec![judge("bob", &["bob"], &[ChordReader::NAME])]);
     let (q, j) = pool.consult::<ChordReader>(&m, "is_constitutive").unwrap();
     assert!(j.weight().is_none());
     let settled = soul::is_constitutive::settle(&m, q, j).unwrap();
@@ -452,8 +447,8 @@ fn disjointness_and_containment_are_different_conditions() {
     // The authorial gate is out of scope, but the asymmetry is the point:
     // judgment demands disjointness, authorship demands containment. A pair
     // that satisfies one fails the other.
-    let author = Prov::of(["donald", "augur"]);
-    let outcome = Prov::of(["augur"]);
+    let author = Prov::of(["human", "alice"]);
+    let outcome = Prov::of(["alice"]);
 
     assert!(
         outcome.contained_in(&author),
@@ -468,8 +463,8 @@ fn disjointness_and_containment_are_different_conditions() {
 #[test]
 fn empty_provenance_overlaps_nothing() {
     // Stated so the vacuity is visible in a test rather than only in a doc.
-    assert!(!Prov::empty().overlaps(&Prov::of(["augur"])));
-    assert!(!Prov::of(["augur"]).overlaps(&Prov::empty()));
+    assert!(!Prov::empty().overlaps(&Prov::of(["alice"])));
+    assert!(!Prov::of(["alice"]).overlaps(&Prov::empty()));
 }
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -512,11 +507,11 @@ impl Principal for Contrarian {
 
 #[test]
 fn the_verdict_comes_from_the_oracle_and_not_from_the_caller() {
-    let m = doc_by(&["augur"]);
+    let m = doc_by(&["alice"]);
     let pool = Pool::new(vec![Contrarian]);
     let (q, judgment) = pool
         .consult::<ChordReader>(&m, "is_constitutive")
-        .expect("the contrarian is capable and disjoint from augur");
+        .expect("the contrarian is capable and disjoint from alice");
 
     // Nothing in this test states a verdict. There is no parameter for one.
     let settled = soul::is_constitutive::settle(&m, q, judgment)
@@ -533,14 +528,14 @@ fn the_verdict_comes_from_the_oracle_and_not_from_the_caller() {
 fn a_judgment_rendered_by_another_principal_is_refused() {
     // Both principals are real, both are capable, both are disjoint from the
     // document. Nothing here is forged: the licence was honestly minted for
-    // `forge`, and the judgment was honestly rendered by `bellows`. What is
+    // `bob`, and the judgment was honestly rendered by `bellows`. What is
     // wrong is the *pairing* — the receipt would name a judge that did not
     // rule on this, which is the constant arrow wearing a second disguise.
-    let m = doc_by(&["augur"]);
-    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
-    let (q, _forges_own) = pool
+    let m = doc_by(&["alice"]);
+    let pool = Pool::new(vec![judge("bob", &["bob"], &[ChordReader::NAME])]);
+    let (q, _bobs_own) = pool
         .consult::<ChordReader>(&m, "is_constitutive")
-        .expect("forge qualifies");
+        .expect("bob qualifies");
 
     let bellows = judge("bellows", &["bellows"], &[ChordReader::NAME]);
     let Consulted::Rendered(borrowed) = bellows.judgment("is_constitutive") else {
@@ -549,7 +544,7 @@ fn a_judgment_rendered_by_another_principal_is_refused() {
 
     match soul::is_constitutive::settle(&m, q, borrowed) {
         Err(rung_het::SettleError::OutcomeNotFromJudge(e)) => {
-            assert_eq!(e.licensed, "forge");
+            assert_eq!(e.licensed, "bob");
             assert_eq!(e.ruled, "bellows");
         }
         other => panic!("π(f(a)) ⊆ π(p) is asserted where the judgment is spent; got {other:?}"),
@@ -562,14 +557,14 @@ fn a_settled_receipt_carries_the_judges_provenance() {
     //   π(f(a)) ⊆ π(p)  ∧  π(p) ∩ π(a) = ∅  ⟹  π(f(a)) ∩ π(a) = ∅
     // The first conjunct is what `settle` asserts; the second is what G13's
     // mint already guaranteed. Output admissibility is the conclusion.
-    let m = doc_by(&["augur"]);
-    let pool = Pool::new(vec![judge("forge", &["forge"], &[ChordReader::NAME])]);
+    let m = doc_by(&["alice"]);
+    let pool = Pool::new(vec![judge("bob", &["bob"], &[ChordReader::NAME])]);
     let (q, judgment) = pool
         .consult::<ChordReader>(&m, "is_constitutive")
-        .expect("forge qualifies");
+        .expect("bob qualifies");
 
     let judged = judgment.provenance();
-    assert!(judged.contains("forge"));
+    assert!(judged.contains("bob"));
     assert!(
         !judged.overlaps(&m.provenance()),
         "admissibility-subcategories: π(f(a)) ∩ π(a) = ∅, derived rather than \

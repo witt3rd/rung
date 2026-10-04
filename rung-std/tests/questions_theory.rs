@@ -10,7 +10,7 @@
 //! | id prefix | `q` | `d` |
 //! | namespace | `rung-questions` | `atlas-decisions` |
 //! | container | `questions` | `specs/decisions` |
-//! | roles held by | `forge` / `external-reviewer` | `atlas-bot` / `guild-reviewer` |
+//! | roles held by | `reviewer-a` / `external-reviewer` | `atlas-bot` / `guild-reviewer` |
 //! | edges | five unacknowledged of five | three unacknowledged of five |
 //! | lifecycle path | resolved, and blocked re-entry | parked re-entry |
 //!

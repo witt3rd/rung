@@ -21,7 +21,7 @@
 //!
 //! A secondary guarantee, also structural: `Folded` is a mandatory rung before
 //! any terminal. There is no edge from `Evaluated` to `Resolved`. The day-one
-//! bug in `augur/genesis/meta/questions/` (a question filed resolved while the
+//! bug in a sibling question tracker (a question filed resolved while the
 //! fold was still owed) is a compile error here.
 //!
 //! ## Running

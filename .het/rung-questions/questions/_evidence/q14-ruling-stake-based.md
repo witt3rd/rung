@@ -1,6 +1,6 @@
 **RULING (Q14):** What provenance does a model principal carry?
 
-**JUDGED BY:** human last-resort principal (`donald`), out of band. Written down
+**JUDGED BY:** human last-resort principal (`human`), out of band. Written down
 afterwards — `tier: attested`, in the terms of `judgments/README.md`: an
 exchange a reader can audit, because nothing here can tell a faithful
 transcription from an invention.

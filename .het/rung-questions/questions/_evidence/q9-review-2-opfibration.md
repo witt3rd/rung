@@ -1,6 +1,6 @@
 # Q9 Answered — The Opfibration and the Dependent Optic
 
-**Status:** RESOLVED (External CT Review) · **for:** Donald & Forge ⚒️
+**Status:** RESOLVED (External CT Review) · **for:** the maintainer & an agent
 
 Your instinct is mathematically exact: the stopgap mechanism (`_reach.py`) is computing the deflationary, $(-1)$-categorical shadow (boolean reachability) of a much richer $1$-categorical structure. You have hit the exact boundary where the local state machine (Level 0) embeds into a global topology (Level 1).
 

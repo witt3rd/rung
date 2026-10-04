@@ -247,7 +247,7 @@ fn model_provenance_is_derived_from_the_commission_record() {
 
     // The human's provenance is real, and is what a *declared* record looks
     // like: something that actually disqualifies.
-    let human = p.by_id("donald").expect("declared");
+    let human = p.by_id("human").expect("declared");
     assert!(human.family.is_none());
     assert!(!human.provenance.is_empty());
 }
@@ -372,7 +372,7 @@ fn an_out_of_band_principal_is_not_reachable_by_a_model() {
         resolve(&p, &Backing::Outside, &sys()),
         Err(Unreachable::NotServedByAModel)
     ));
-    assert_eq!(p.by_id("donald").unwrap().backing, Backing::Outside);
+    assert_eq!(p.by_id("human").unwrap().backing, Backing::Outside);
 }
 
 /// Per-provider settings are honoured, so one endpoint's limits are not
