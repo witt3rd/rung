@@ -302,6 +302,22 @@ impl CacheHint {
     }
 }
 
+/// Where an explicit prompt-cache breakpoint goes: the end of a part of the
+/// request that the caller keeps byte-identical across calls.
+///
+/// Lowered per protocol: Anthropic `cache_control` on that part (under the
+/// four-marker cap, in invalidation order); on the OpenAI-compatible wire a
+/// `cache_control` on the part's last content block, which routers that
+/// forward to an explicit-cache provider honour and others ignore.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CacheBreakpoint {
+    /// After the system text.
+    System,
+    /// After the `n`th message that is not a system message (0-based).
+    Message(usize),
+}
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 pub struct LlmConfig {
@@ -322,6 +338,15 @@ pub struct LlmConfig {
     pub protocol: Protocol,
     pub cache: CachePolicy,
     pub stream_listener: Option<Arc<dyn StreamListener>>,
+    /// A request-level session id. On the OpenAI-compatible wire it is sent
+    /// as `session_id` (a router's sticky-routing key, so calls of one
+    /// session reach one provider and its warm cache); set it only for a
+    /// route that takes the field. Anthropic has none: a no-op there.
+    /// `None` sends nothing.
+    pub session_id: Option<String>,
+    /// Explicit prompt-cache breakpoints, in addition to what
+    /// [`CachePolicy`] places. Empty places none.
+    pub cache_breakpoints: Vec<CacheBreakpoint>,
 }
 
 impl Clone for LlmConfig {
@@ -343,6 +368,8 @@ impl Clone for LlmConfig {
             protocol: self.protocol,
             cache: self.cache,
             stream_listener: self.stream_listener.clone(),
+            session_id: self.session_id.clone(),
+            cache_breakpoints: self.cache_breakpoints.clone(),
         }
     }
 }
@@ -373,6 +400,8 @@ impl std::fmt::Debug for LlmConfig {
                     &"None"
                 },
             )
+            .field("session_id", &self.session_id)
+            .field("cache_breakpoints", &self.cache_breakpoints)
             .finish()
     }
 }
@@ -585,6 +614,22 @@ impl LlmRequest {
 
 pub trait StreamListener: Send + Sync {
     fn on_event(&self, event: StreamEvent);
+
+    /// One HTTP attempt was answered with a non-2xx status, before any
+    /// retry. Nothing by default; a caller that must tell who refused a call
+    /// (a router's own rate limit, or the provider behind it) reads it here.
+    fn on_http_failure(&self, _failure: &HttpFailure) {}
+}
+
+/// A non-2xx answer to one HTTP attempt, as a [`StreamListener`] sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpFailure {
+    pub status: u16,
+    /// The rate-limit headers only (`retry-after*`, `x-ratelimit-*`),
+    /// lower-cased names, in the order received.
+    pub headers: Vec<(String, String)>,
+    /// The body with the key redacted, truncated like an error's context.
+    pub body: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -638,6 +683,14 @@ impl StreamListener for ObservingListener {
         self.observed.store(true, Ordering::SeqCst);
         if let Some(inner) = &self.inner {
             inner.on_event(event);
+        }
+    }
+
+    /// Passed through; a refused attempt delivered no tokens, so it does not
+    /// count as observed.
+    fn on_http_failure(&self, failure: &HttpFailure) {
+        if let Some(inner) = &self.inner {
+            inner.on_http_failure(failure);
         }
     }
 }

@@ -1,11 +1,11 @@
 //! OpenAI-compatible `/v1/chat/completions` protocol.
 
-use super::error::{RawCallError, classify_http, header_pairs, parse_sse_error};
+use super::error::{RawCallError, classify_http, header_pairs, http_failure, parse_sse_error};
 use super::types::{
-    ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, ImageSource, LlmConfig,
-    LlmResponse, MessageContent, MessageContentBlock, ObservingListener, PreparedRequest,
-    ResolvedProtocol, StopReason, StreamEvent, StreamListener, ToolDefinition, ToolDiagnostic,
-    ToolErrorKind, Usage, map_openai_finish_reason,
+    CacheBreakpoint, ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, ImageSource,
+    LlmConfig, LlmResponse, MessageContent, MessageContentBlock, ObservingListener,
+    PreparedRequest, ResolvedProtocol, StopReason, StreamEvent, StreamListener, ToolDefinition,
+    ToolDiagnostic, ToolErrorKind, Usage, map_openai_finish_reason,
 };
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -55,8 +55,11 @@ fn request_body(
 ) -> serde_json::Value {
     let mut body = serde_json::json!({
         "model": config.model,
-        "messages": openai_messages(messages),
+        "messages": lowered_messages(config, messages),
     });
+    if let Some(id) = &config.session_id {
+        body["session_id"] = serde_json::json!(id);
+    }
     // 0 = no cap: the field is optional here, and a cap on a reasoning
     // model cuts off the answer, not the cost.
     if config.max_tokens > 0 {
@@ -103,6 +106,51 @@ fn request_body(
     body
 }
 
+/// The wire messages with the caller's explicit cache breakpoints: a
+/// `cache_control` on the last content block of the wire message that ends
+/// each marked part. A string content becomes one text block to carry it; a
+/// message with no content (an assistant's bare tool calls) takes none.
+fn lowered_messages(config: &LlmConfig, messages: &[ChatMessage]) -> Vec<serde_json::Value> {
+    let (mut out, ends) = openai_messages_ends(messages);
+    for bp in &config.cache_breakpoints {
+        let ours = match bp {
+            CacheBreakpoint::System => messages.iter().rposition(|m| m.role == "system"),
+            CacheBreakpoint::Message(n) => messages
+                .iter()
+                .enumerate()
+                .filter(|(_, m)| m.role != "system")
+                .nth(*n)
+                .map(|(i, _)| i),
+        };
+        // The part's last wire message, when it lowered to any.
+        let Some(wire) = ours.and_then(|i| {
+            let start = if i == 0 { 0 } else { ends[i - 1] };
+            (ends[i] > start).then(|| ends[i] - 1)
+        }) else {
+            continue;
+        };
+        mark_cache(&mut out[wire]);
+    }
+    out
+}
+
+fn mark_cache(message: &mut serde_json::Value) {
+    let marker = serde_json::json!({"type": "ephemeral"});
+    match message.get_mut("content") {
+        Some(serde_json::Value::String(text)) => {
+            let text = std::mem::take(text);
+            message["content"] =
+                serde_json::json!([{"type": "text", "text": text, "cache_control": marker}]);
+        }
+        Some(serde_json::Value::Array(parts)) => {
+            if let Some(last) = parts.last_mut() {
+                last["cache_control"] = marker;
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Convert our messages to OpenAI `/v1/chat/completions` wire format.
 pub fn audio_format(mime: &str) -> &'static str {
     let m = mime.to_ascii_lowercase();
@@ -121,8 +169,16 @@ fn image_url_part(source: &ImageSource) -> serde_json::Value {
     })
 }
 
+#[cfg(test)]
 fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
+    openai_messages_ends(messages).0
+}
+
+/// The wire messages, and for each of ours the wire length once it is
+/// lowered (one message can become several: a tool result per call).
+fn openai_messages_ends(messages: &[ChatMessage]) -> (Vec<serde_json::Value>, Vec<usize>) {
     let mut out: Vec<serde_json::Value> = Vec::new();
+    let mut ends = Vec::with_capacity(messages.len());
     for msg in messages {
         match &msg.content {
             MessageContent::Text(text) => {
@@ -210,8 +266,9 @@ fn openai_messages(messages: &[ChatMessage]) -> Vec<serde_json::Value> {
                 }
             }
         }
+        ends.push(out.len());
     }
-    out
+    (out, ends)
 }
 
 fn send(
@@ -242,6 +299,9 @@ fn send(
     if !(200..300).contains(&status) {
         let headers = header_pairs(response.headers());
         let body = response.text().unwrap_or_default();
+        if let Some(l) = listener {
+            l.on_http_failure(&http_failure(status, &headers, &body, &config.api_key));
+        }
         return Err(classify_http(
             "POST",
             url,
@@ -1016,6 +1076,8 @@ mod tests {
             protocol: Protocol::OpenAiChat,
             cache: CachePolicy::None,
             stream_listener: None,
+            session_id: None,
+            cache_breakpoints: Vec::new(),
         };
         let plain = request_body(&cfg(), &[ChatMessage::user("hi")], &[]);
         assert!(plain.get("stream").is_none());
@@ -1046,6 +1108,8 @@ mod tests {
             protocol: Protocol::OpenAiChat,
             cache: CachePolicy::None,
             stream_listener: None,
+            session_id: None,
+            cache_breakpoints: Vec::new(),
         };
         let body = request_body(&cfg, &[ChatMessage::user("hi")], &[]);
         assert!(body.get("max_tokens").is_none());
@@ -1186,6 +1250,8 @@ mod tests {
             protocol: Protocol::OpenAiChat,
             cache: CachePolicy::None,
             stream_listener: Some(Arc::new(Capture(tx))),
+            session_id: None,
+            cache_breakpoints: Vec::new(),
         };
         let call = std::thread::spawn(move || raw_call(&config, &[ChatMessage::user("hi")], &[]));
 

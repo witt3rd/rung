@@ -1,7 +1,9 @@
 //! Prompt-cache placement. Runs before protocol lowering so each wire format
 //! only has to honour `CacheHint`s already on the parts.
 
-use super::types::{CacheHint, CachePolicy, ChatMessage, MessageContent, ToolDefinition};
+use super::types::{
+    CacheBreakpoint, CacheHint, CachePolicy, ChatMessage, MessageContent, ToolDefinition,
+};
 
 const ANTHROPIC_BREAKPOINT_CAP: u32 = 4;
 
@@ -58,6 +60,26 @@ pub fn apply(policy: CachePolicy, tools: &mut [ToolDefinition], messages: &mut [
     // Latest user message — the load-bearing boundary for tool-use loops.
     if let Some(user) = messages.iter_mut().rev().find(|m| m.role == "user") {
         mark_message(user, hint);
+    }
+}
+
+/// Stamp the caller's explicit breakpoints, whatever the policy. Run it
+/// before [`apply`], which leaves an already marked part alone.
+pub fn stamp(breakpoints: &[CacheBreakpoint], messages: &mut [ChatMessage]) {
+    let hint = CacheHint::ephemeral();
+    for bp in breakpoints {
+        let at = match bp {
+            CacheBreakpoint::System => messages.iter().rposition(|m| m.role == "system"),
+            CacheBreakpoint::Message(n) => messages
+                .iter()
+                .enumerate()
+                .filter(|(_, m)| m.role != "system")
+                .nth(*n)
+                .map(|(i, _)| i),
+        };
+        if let Some(i) = at {
+            mark_message(&mut messages[i], hint);
+        }
     }
 }
 

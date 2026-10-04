@@ -1672,6 +1672,8 @@ mod tests {
             protocol: Protocol::OpenAiChat,
             cache: CachePolicy::None,
             stream_listener: None,
+            session_id: None,
+            cache_breakpoints: Vec::new(),
         }
     }
 

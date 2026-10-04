@@ -373,6 +373,8 @@ fn resolve(
         protocol,
         cache,
         stream_listener: None,
+        session_id: None,
+        cache_breakpoints: Vec::new(),
     })
 }
 
@@ -424,6 +426,8 @@ pub fn dummy() -> LlmConfig {
         protocol: Protocol::OpenAiChat,
         cache: CachePolicy::None,
         stream_listener: None,
+        session_id: None,
+        cache_breakpoints: Vec::new(),
     }
 }
 

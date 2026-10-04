@@ -374,6 +374,28 @@ pub fn classify_http(
     }
 }
 
+/// What a [`super::StreamListener`] is shown of a non-2xx answer: the
+/// status, the rate-limit headers, and the body redacted and truncated as an
+/// error's context holds it.
+pub(crate) fn http_failure(
+    status: u16,
+    headers: &[(String, String)],
+    body: &str,
+    secret: &str,
+) -> super::types::HttpFailure {
+    let headers = headers
+        .iter()
+        .filter(|(k, _)| k.starts_with("retry-after") || k.starts_with("x-ratelimit-"))
+        .cloned()
+        .collect();
+    let (body, _) = redact_and_truncate(body, secret);
+    super::types::HttpFailure {
+        status,
+        headers,
+        body: body.unwrap_or_default(),
+    }
+}
+
 /// 429 and 5xx except Cloudflare origin-TLS 525/526.
 pub fn is_retryable_status(status: u16) -> bool {
     if matches!(status, 525 | 526) {

@@ -14,10 +14,11 @@ mod types;
 
 pub use error::{HttpContext, LlmFailure, RawCallError, RequestClassification, retry_delay_ms};
 pub use types::{
-    AudioSource, CacheHint, CachePolicy, ChatMessage, ContentBlock, ContentBlockDelta,
-    ContentBlockStart, DEFAULT_MAX_ATTEMPTS, ImageSource, LlmConfig, LlmRequest, LlmResponse,
-    MessageContent, MessageContentBlock, PreparedRequest, Protocol, ResolvedProtocol, StopReason,
-    StreamEvent, StreamListener, ToolDefinition, ToolDiagnostic, ToolErrorKind, Usage,
+    AudioSource, CacheBreakpoint, CacheHint, CachePolicy, ChatMessage, ContentBlock,
+    ContentBlockDelta, ContentBlockStart, DEFAULT_MAX_ATTEMPTS, HttpFailure, ImageSource,
+    LlmConfig, LlmRequest, LlmResponse, MessageContent, MessageContentBlock, PreparedRequest,
+    Protocol, ResolvedProtocol, StopReason, StreamEvent, StreamListener, ToolDefinition,
+    ToolDiagnostic, ToolErrorKind, Usage,
 };
 
 use rung::ladder;
@@ -148,6 +149,8 @@ mod tests {
             protocol: Protocol::OpenAiChat,
             cache: CachePolicy::None,
             stream_listener: None,
+            session_id: None,
+            cache_breakpoints: Vec::new(),
         };
         let p = prepare(&config, &[ChatMessage::user("hi")], &[]).unwrap();
         assert!(p.url.ends_with("/chat/completions"));

@@ -482,6 +482,10 @@ impl StreamListener for CallRecorder {
         }
         self.inner.on_event(event);
     }
+
+    fn on_http_failure(&self, failure: &rung_std::llm::HttpFailure) {
+        self.inner.on_http_failure(failure);
+    }
 }
 
 /// Refuses calls to disabled tools; passes the rest through.

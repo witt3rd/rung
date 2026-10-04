@@ -1,7 +1,7 @@
 //! Anthropic `/v1/messages` protocol.
 
 use super::cache::{self, Breakpoints};
-use super::error::{RawCallError, classify_http, header_pairs, parse_sse_error};
+use super::error::{RawCallError, classify_http, header_pairs, http_failure, parse_sse_error};
 use super::types::{
     ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, ImageSource, LlmConfig,
     LlmResponse, MessageContent, MessageContentBlock, ObservingListener, PreparedRequest,
@@ -70,6 +70,7 @@ fn request_body(
 ) -> Result<serde_json::Value, RawCallError> {
     let mut tools = tools.to_vec();
     let mut messages = messages.to_vec();
+    cache::stamp(&config.cache_breakpoints, &mut messages);
     cache::apply(config.cache, &mut tools, &mut messages);
 
     let mut breakpoints = Breakpoints::new();
@@ -329,6 +330,9 @@ fn send(
     if !(200..300).contains(&status) {
         let headers = header_pairs(response.headers());
         let body = response.text().unwrap_or_default();
+        if let Some(l) = listener {
+            l.on_http_failure(&http_failure(status, &headers, &body, &config.api_key));
+        }
         return Err(classify_http(
             "POST",
             url,
@@ -672,6 +676,8 @@ mod tests {
             protocol: Protocol::AnthropicMessages,
             cache: CachePolicy::None,
             stream_listener: None,
+            session_id: None,
+            cache_breakpoints: Vec::new(),
         }
     }
 
