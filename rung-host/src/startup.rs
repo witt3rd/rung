@@ -322,6 +322,15 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
                 if tokens.is_empty() {
                     return Err(refuse("acp.tokens: http needs at least one role token"));
                 }
+                // One token, one role: a shared value would leave it with
+                // whichever role came last. The value is never printed.
+                for (i, (t, r)) in tokens.iter().enumerate() {
+                    if let Some((_, other)) = tokens[..i].iter().find(|(u, _)| u == t) {
+                        return Err(refuse(format!(
+                            "acp.tokens: {other:?} and {r:?} share one token value"
+                        )));
+                    }
+                }
                 AcpPlan::Http {
                     addr: addr.clone(),
                     tokens,
