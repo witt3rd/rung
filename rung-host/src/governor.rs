@@ -201,6 +201,7 @@ impl GovState {
                 let n = l.u64("probes");
                 self.requests_today += n;
                 self.unreserved_today += n;
+                self.recent.extend((0..n).map(|_| l.at));
             }
             "model.switch" => {
                 let from = l.u64("rung_from") as usize;
@@ -630,6 +631,7 @@ mod tests {
                 .clone(),
         });
         assert_eq!((st.requests_today, st.unreserved_today), (5, 5));
+        assert_eq!(st.recent.len(), 5, "probes count toward rpm pacing");
     }
 
     #[test]

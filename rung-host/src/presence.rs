@@ -698,7 +698,18 @@ impl Host {
             .unwrap_or_default();
         let mut verdicts = Vec::new();
         let mut refused = Vec::new();
+        // The governor gates each probe like any request: the state as it
+        // will stand once the probes already sent are recorded.
+        let mut gov = core.state().governor.clone();
         for (rung, model) in standing {
+            let now = core.now();
+            if governor::must_wait(&gov, &self.cfg().governor, TurnKind::Responding, now).is_some()
+            {
+                break;
+            }
+            gov.requests_today += 1;
+            gov.unreserved_today += 1;
+            gov.recent.push_back(now);
             core.notifier.alive();
             let v = match prober.probe(&model) {
                 crate::ladder::Probed::Routes => {
