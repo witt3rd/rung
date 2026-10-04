@@ -90,7 +90,7 @@ cargo test -p rung-host --locked -- --nocapture 2>&1 | grep '^GATE'
 
 ## Changes to the gate evaluators after they were frozen
 
-No threshold changed. Six evaluator changes, each named in the commit that made it:
+No threshold changed. Seven evaluator changes, each named in the commit that made it:
 
 1. G-c read the turn kind from a field named `kind`, which the record
    reserves; the turn lines name it `turn_kind`.
@@ -113,6 +113,6 @@ No threshold changed. Six evaluator changes, each named in the commit that made 
    switches land on a standing rung, and requires the run to see a
    refusal. The scenario gains one refused rung and one turn refused on
    every attempt. This is a stricter gate, not a looser one.
-6. G-b counts a long call cut short for a waiting owner (`why:
+7. G-b counts a long call cut short for a waiting owner (`why:
    owner_waiting`, with its own commit-or-steps message) as long work, as
    it counts one refused at the deadline (#159).
