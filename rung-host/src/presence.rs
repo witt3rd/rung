@@ -871,12 +871,7 @@ impl Host {
                 w.why,
                 crate::clock::iso(w.until)
             );
-            let line = core.emit(
-                "outbox.queued",
-                json!({"turn": turn, "channel": channel, "text": text,
-                       "source": crate::inbox::ACK_SOURCE, "item": id}),
-            );
-            write_outbox(core, &line);
+            self.outbox_for(turn, &channel, &text, crate::inbox::ACK_SOURCE, Some(&id));
         }
     }
 
@@ -1025,10 +1020,17 @@ impl Host {
     }
 
     pub(crate) fn outbox(&self, turn: u64, channel: &str, text: &str, source: &str) {
-        let line = self.core.emit(
-            "outbox.queued",
-            json!({"turn": turn, "channel": channel, "text": text, "source": source}),
-        );
+        self.outbox_for(turn, channel, text, source, None);
+    }
+
+    /// The one path for a host message: `outbox.queued`, then the outbox
+    /// file. `item` names the stimulus it answers (an acknowledgement).
+    fn outbox_for(&self, turn: u64, channel: &str, text: &str, source: &str, item: Option<&str>) {
+        let mut body = json!({"turn": turn, "channel": channel, "text": text, "source": source});
+        if let Some(id) = item {
+            body["item"] = id.into();
+        }
+        let line = self.core.emit("outbox.queued", body);
         write_outbox(&self.core, &line);
     }
 

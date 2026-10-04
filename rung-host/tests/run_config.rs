@@ -505,12 +505,9 @@ fn a_pacing_wait_sends_no_acknowledgement() {
     });
     let d = root.display();
     std::fs::create_dir_all(root.join("inbox")).unwrap();
-    std::fs::write(
-        root.join("inbox/m1.msg"),
-        r#"{"role":"owner","text":"Are you there?"}"#,
-    )
-    .unwrap();
     let cfg = root.join("rung-host.yaml");
+    // One request a minute: after the first free turn the host waits on
+    // pacing, a wait an owner item may cut.
     std::fs::write(
         &cfg,
         format!(
@@ -520,13 +517,48 @@ fn a_pacing_wait_sends_no_acknowledgement() {
         ),
     )
     .unwrap();
-    let o = run(&cfg, Some(2), Some("k"));
-    assert_eq!(o.status.code(), Some(0));
+    let mut child = Command::new(BIN)
+        .args(["run", "--config", cfg.to_str().unwrap(), "--turns", "2"])
+        .env(KEY_ENV, "k")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("run rung-host");
+    // The owner writes while the host is in its pacing wait.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while !lines(&root.join("state"))
+        .iter()
+        .any(|l| l.kind == "degraded" && l.str("class") == "paced")
+    {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the run never waited on pacing"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    std::fs::write(
+        root.join("inbox/m1.msg"),
+        r#"{"role":"owner","text":"Are you there?"}"#,
+    )
+    .unwrap();
+    assert!(child.wait().unwrap().success());
     let ls = lines(&root.join("state"));
+    let wait = ls
+        .iter()
+        .find(|l| l.kind == "degraded" && l.str("class") == "paced")
+        .unwrap();
+    let ended = ls
+        .iter()
+        .find(|l| l.kind == "degraded.ended" && l.seq > wait.seq)
+        .unwrap();
+    let accepted = ls
+        .iter()
+        .find(|l| l.kind == "stimulus.accepted" && l.get("item")["id"] == "m1")
+        .expect("the owner item was accepted");
     assert!(
-        ls.iter()
-            .any(|l| l.kind == "degraded" && l.str("class") == "paced"),
-        "the run never waited on pacing"
+        wait.seq < accepted.seq && accepted.seq < ended.seq,
+        "the owner item did not arrive during the pacing wait"
     );
     assert!(
         !ls.iter()
