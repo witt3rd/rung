@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 
 use crate::clock::{Millis, SECOND};
 use crate::core::Core;
-use crate::gates::LONG_WORK_MESSAGE;
+use crate::gates::{LONG_WORK_MESSAGE, OWNER_CUT_MESSAGE};
 use crate::kernel;
 use crate::memory::MemoryHost;
 use crate::registers::Check;
@@ -249,6 +249,24 @@ impl WebReader for NoWeb {
     }
 }
 
+/// A call that has run this long is cut as soon as an owner stimulus waits
+/// (#159): a long call would otherwise hold the owner for the whole tool
+/// deadline, since admission happens only at a boundary.
+pub const OWNER_CUT_AFTER_MS: Millis = SECOND;
+
+/// How often a real-clock call looks for a waiting owner once it has run
+/// [`OWNER_CUT_AFTER_MS`].
+const OWNER_POLL_MS: u64 = 100;
+
+/// What can cut a long tool call short: an owner stimulus waiting.
+pub(crate) trait Interrupt: Send + Sync {
+    /// Take in what has arrived by now; true when an owner stimulus waits.
+    fn owner_waiting(&self) -> bool;
+    /// The next arrival a source knows of (a simulated world), so a
+    /// simulated clock can step through a call.
+    fn next_arrival(&self) -> Option<Millis>;
+}
+
 /// The host's toolset for one turn.
 pub struct HostTools {
     pub(crate) core: Arc<Core>,
@@ -260,6 +278,7 @@ pub struct HostTools {
     pub(crate) web: Arc<dyn WebReader>,
     pub(crate) workspace: PathBuf,
     defs: Vec<ToolDefinition>,
+    interrupt: Option<Arc<dyn Interrupt>>,
 }
 
 impl std::fmt::Debug for HostTools {
@@ -294,7 +313,39 @@ impl HostTools {
             web,
             workspace,
             defs,
+            interrupt: None,
         }
+    }
+
+    /// Cut a long call short when `i` says an owner waits.
+    pub(crate) fn with_interrupt(mut self, i: Arc<dyn Interrupt>) -> Self {
+        self.interrupt = Some(i);
+        self
+    }
+
+    /// On a simulated clock, step through `[start, end)` (a call that runs
+    /// past [`OWNER_CUT_AFTER_MS`]) to the first time an owner waits, from
+    /// the cut-off on. The clock is left there on a cut, else at `end`.
+    fn sim_cut(&self, start: Millis, end: Millis) -> bool {
+        let clock = &self.core.clock;
+        let to = |t: Millis| clock.advance(t - clock.now());
+        let Some(i) = &self.interrupt else {
+            to(end);
+            return false;
+        };
+        let mut t = start + OWNER_CUT_AFTER_MS;
+        while t < end {
+            to(t);
+            if i.owner_waiting() {
+                return true;
+            }
+            match i.next_arrival() {
+                Some(n) if n < end => t = n.max(t + 1),
+                _ => break,
+            }
+        }
+        to(end);
+        false
     }
 
     fn refuse(&self, name: &str, group: &str, why: &str, message: String) -> String {
@@ -322,13 +373,21 @@ impl HostTools {
         let deadline = self.deadline_ms();
         let clock = self.core.clock.clone();
         let overran = || Err(self.refuse(name, group, "overran", LONG_WORK_MESSAGE.into()));
+        let cut = || Err(self.refuse(name, group, "owner_waiting", OWNER_CUT_MESSAGE.into()));
         if clock.is_sim() {
+            let start = clock.now();
             let (out, took) = f();
+            let ran = took.min(deadline);
+            if ran > OWNER_CUT_AFTER_MS {
+                if self.sim_cut(start, start + ran) {
+                    return cut();
+                }
+            } else {
+                clock.advance(ran);
+            }
             if took > deadline {
-                clock.advance(deadline);
                 return overran();
             }
-            clock.advance(took);
             return out;
         }
         let (tx, rx) = std::sync::mpsc::channel();
@@ -337,9 +396,29 @@ impl HostTools {
             clock.advance(took);
             let _ = tx.send(out);
         });
-        match rx.recv_timeout(std::time::Duration::from_millis(deadline.max(0) as u64)) {
-            Ok(out) => out,
-            Err(_) => overran(),
+        let started = std::time::Instant::now();
+        let deadline = std::time::Duration::from_millis(deadline.max(0) as u64);
+        let after = std::time::Duration::from_millis(OWNER_CUT_AFTER_MS as u64);
+        loop {
+            let left = deadline.saturating_sub(started.elapsed());
+            let slice = if self.interrupt.is_some() {
+                left.min(std::time::Duration::from_millis(OWNER_POLL_MS))
+            } else {
+                left
+            };
+            match rx.recv_timeout(slice) {
+                Ok(out) => return out,
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return overran(),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+            }
+            if started.elapsed() >= deadline {
+                return overran();
+            }
+            if started.elapsed() >= after
+                && self.interrupt.as_ref().is_some_and(|i| i.owner_waiting())
+            {
+                return cut();
+            }
         }
     }
 
@@ -597,7 +676,8 @@ impl Toolset for HostTools {
             return Err(self.refuse(name, group, "disabled", msg));
         }
         let out = self.run(name, group, input);
-        let refused_long = matches!(&out, Err(m) if m == LONG_WORK_MESSAGE);
+        let refused_long =
+            matches!(&out, Err(m) if m == LONG_WORK_MESSAGE || m == OWNER_CUT_MESSAGE);
         if !refused_long {
             self.core.emit(
                 "tool.call",
@@ -639,6 +719,66 @@ mod tests {
             std::os::unix::fs::symlink("/tmp", root.join("out")).unwrap();
             assert!(confine(&root, "out/x").is_err());
         }
+    }
+
+    /// An owner stimulus that arrives at `at` (a simulated world's schedule).
+    struct OwnerAt {
+        core: Arc<Core>,
+        at: Millis,
+    }
+
+    impl Interrupt for OwnerAt {
+        fn owner_waiting(&self) -> bool {
+            self.core.clock.now() >= self.at
+        }
+        fn next_arrival(&self) -> Option<Millis> {
+            (self.core.clock.now() < self.at).then_some(self.at)
+        }
+    }
+
+    fn slow_fetch(interrupt_at: Option<Millis>) -> (Result<String, String>, Millis) {
+        let guard = crate::sim::temp_dir_guard("owner-cut");
+        let sc = crate::sim::Scenario::new(guard.path(), 1);
+        let (host, _, _) = crate::sim::build(sc);
+        let core = host.core.clone();
+        let start = core.clock.now();
+        let mut tools = HostTools::new(
+            core.clone(),
+            1,
+            [WEB_READ.to_string()].into(),
+            start + 120 * SECOND,
+            None,
+            Arc::new(crate::sim::FakeWeb),
+            guard.path().join("ws"),
+        );
+        if let Some(t) = interrupt_at {
+            tools = tools.with_interrupt(Arc::new(OwnerAt {
+                core: core.clone(),
+                at: start + t,
+            }));
+        }
+        let out = tools.run("web_fetch", WEB_READ, &json!({"url": "slow://archive"}));
+        (out, core.clock.now() - start)
+    }
+
+    /// #159: a long call no longer holds an owner who arrives during it for
+    /// the whole 30 s tool deadline; it is cut once the owner waits.
+    #[test]
+    fn a_long_call_is_cut_when_the_owner_waits() {
+        let (out, took) = slow_fetch(Some(5 * SECOND));
+        assert_eq!(out, Err(OWNER_CUT_MESSAGE.to_string()));
+        assert_eq!(took, 5 * SECOND);
+        // Arriving before the cut-off: the call still runs that long.
+        let (out, took) = slow_fetch(Some(200));
+        assert_eq!(out, Err(OWNER_CUT_MESSAGE.to_string()));
+        assert_eq!(took, OWNER_CUT_AFTER_MS);
+        // No owner: the deadline, as before.
+        let (out, took) = slow_fetch(Some(10 * 60 * SECOND));
+        assert_eq!(out, Err(LONG_WORK_MESSAGE.to_string()));
+        assert_eq!(took, 30 * SECOND);
+        let (out, took) = slow_fetch(None);
+        assert_eq!(out, Err(LONG_WORK_MESSAGE.to_string()));
+        assert_eq!(took, 30 * SECOND);
     }
 
     #[test]

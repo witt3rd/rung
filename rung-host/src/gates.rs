@@ -34,6 +34,9 @@ pub const G_B_ADMISSION_SLACK_MS: f64 = 100.0;
 /// G-b / G-h: what a refused long tool call tells the agent.
 pub const LONG_WORK_MESSAGE: &str =
     "too long for one turn; break it into steps, or commit to it as a project.";
+/// G-b: what a long tool call cut short because an owner stimulus waits
+/// tells the agent (#159).
+pub const OWNER_CUT_MESSAGE: &str = "cut short: the owner is waiting. Too long for one turn; break it into steps, or commit to it as a project.";
 /// G-c: scripted turns.
 pub const G_C_TURNS: u64 = 2_000;
 /// G-c: random register scores under which the free-time material must
@@ -281,10 +284,19 @@ pub fn g_b(lines: &[Line]) -> GateResult {
     let p95_admit = quantile(&admission, 0.95);
     let bias = admission_bias(lines);
     let over = durations.iter().filter(|d| **d > bound).count();
+    // Long work is refused at the tool deadline, or cut sooner when an
+    // owner stimulus waits (#159).
     let long: Vec<&Line> = of(lines, "tool.refused")
-        .filter(|l| l.str("why") == "overran")
+        .filter(|l| matches!(l.str("why"), "overran" | "owner_waiting"))
         .collect();
-    let long_ok = long.iter().all(|l| l.str("message") == LONG_WORK_MESSAGE);
+    let long_ok = long.iter().all(|l| match l.str("why") {
+        "overran" => l.str("message") == LONG_WORK_MESSAGE,
+        _ => l.str("message") == OWNER_CUT_MESSAGE,
+    });
+    let cut = long
+        .iter()
+        .filter(|l| l.str("why") == "owner_waiting")
+        .count();
     g.put("owner_stimuli", admission.len());
     g.put("owner_never_admitted", arrived.len());
     g.put("admission_p95_ms", p95_admit);
@@ -292,6 +304,7 @@ pub fn g_b(lines: &[Line]) -> GateResult {
     g.put("turns_over_bound", over);
     g.put("turn_bound_ms", bound);
     g.put("long_work_refused", long.len());
+    g.put("long_work_cut_for_owner", cut);
     // Evidence for #159 (no threshold): what an arrival uniform in time
     // waits for the next boundary, and owner items the host left past it.
     g.put("cycle_residual_p95_ms", bias.residual_p95_ms);
