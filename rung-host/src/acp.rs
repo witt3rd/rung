@@ -229,6 +229,7 @@ impl Bridge {
             "stimulus.disposed" => {
                 let id = l.str("id").to_string();
                 let d = l.str("disposition").to_string();
+                self.items.remove(&id);
                 if d == "withdrawn" {
                     self.respond(&id, StopReason::Cancelled, json!({"disposition": d}));
                 } else if self.prompts.contains_key(&id) {
@@ -757,4 +758,58 @@ pub fn serve_stdio(acp: Arc<Acp>, principal: Principal) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     rt.block_on(acp.serve(principal, Stdio::new()))
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line(seq: u64, kind: &str, body: Value) -> Line {
+        let Value::Object(body) = body else { panic!() };
+        Line {
+            seq,
+            at: 0,
+            kind: kind.into(),
+            body,
+        }
+    }
+
+    #[test]
+    fn bridge_forgets_items_and_owners_once_a_turn_is_over() {
+        let mut b = Bridge::default();
+        let mut seq = 0;
+        let mut next = || {
+            seq += 1;
+            seq
+        };
+        for turn in 1..=200u64 {
+            let ids: Vec<String> = (0..3).map(|i| format!("i{turn}-{i}")).collect();
+            for id in &ids {
+                let it = json!({"id": id, "role": "owner", "channel": "owner"});
+                b.on_line(&line(next(), "stimulus.accepted", json!({"item": it})));
+            }
+            b.on_line(&line(
+                next(),
+                "stimulus.admitted",
+                json!({"turn": turn, "ids": ids}),
+            ));
+            assert_eq!(b.owner.get(&turn).map(String::as_str), Some("owner"));
+            for id in &ids {
+                b.on_line(&line(
+                    next(),
+                    "stimulus.disposed",
+                    json!({"id": id, "turn": turn, "disposition": "answered"}),
+                ));
+            }
+            b.on_line(&line(
+                next(),
+                "turn.ended",
+                json!({"turn": turn, "status": "ok", "final_text": ""}),
+            ));
+        }
+        assert!(b.items.is_empty());
+        assert!(b.owner.is_empty());
+        assert!(b.batch.is_empty());
+        assert!(b.disposed.is_empty());
+    }
 }
