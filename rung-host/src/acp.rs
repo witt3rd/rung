@@ -113,7 +113,6 @@ struct Channel {
 struct Prompt {
     session: String,
     channel: String,
-    role: Role,
     responder: Responder<PromptResponse>,
     /// The turn it is in, once admitted.
     turn: Option<u64>,
@@ -130,6 +129,11 @@ struct Bridge {
     held: HashMap<String, Vec<String>>,
     /// turn → items disposed in it: (id, disposition).
     disposed: BTreeMap<u64, Vec<(String, String)>>,
+    /// Every accepted item's role and channel, by item id.
+    items: HashMap<String, (Role, String)>,
+    /// turn → the channel owning its work: the highest role among all
+    /// admitted non-host items, prompted or not.
+    owner: BTreeMap<u64, String>,
     /// turn → every prompt admitted in it: (item, channel).
     batch: BTreeMap<u64, Vec<(String, String)>>,
 }
@@ -140,11 +144,7 @@ impl Bridge {
     /// text and tool calls; every other channel sees only what the agent
     /// sends to it.
     fn owning_channel(&self, turn: u64) -> Option<String> {
-        self.prompts
-            .values()
-            .filter(|p| p.turn == Some(turn))
-            .max_by_key(|p| rank(p.role))
-            .map(|p| p.channel.clone())
+        self.owner.get(&turn).cloned()
     }
 
     fn text(&self, session: &str, text: &str) {
@@ -182,12 +182,35 @@ impl Bridge {
 
     fn on_line(&mut self, l: &Line) {
         match l.kind.as_str() {
+            "stimulus.accepted" => {
+                let it = l.get("item");
+                if let (Some(id), Some(ch), Ok(role)) = (
+                    it["id"].as_str(),
+                    it["channel"].as_str(),
+                    serde_json::from_value::<Role>(it["role"].clone()),
+                ) {
+                    self.items.insert(id.to_string(), (role, ch.to_string()));
+                }
+            }
             "stimulus.admitted" => {
                 let turn = l.u64("turn");
                 let ids: Vec<String> = crate::inbox::ids(l.get("ids"))
                     .into_iter()
                     .chain(crate::inbox::ids(l.get("digests")))
                     .collect();
+                let top = ids
+                    .iter()
+                    .filter_map(|id| self.items.get(id))
+                    .filter(|(r, _)| *r != Role::Host)
+                    .fold(None::<&(Role, String)>, |best, x| match best {
+                        Some(b) if rank(b.0) >= rank(x.0) => Some(b),
+                        _ => Some(x),
+                    })
+                    .map(|(_, c)| c.clone());
+                match top {
+                    Some(c) => self.owner.insert(turn, c),
+                    None => self.owner.remove(&turn),
+                };
                 for id in &ids {
                     if let Some(p) = self.prompts.get_mut(id) {
                         p.turn = Some(turn);
@@ -294,7 +317,7 @@ impl Bridge {
                 let final_text = l.str("final_text").to_string();
                 let status = l.str("status").to_string();
                 let batch = self.batch.remove(&turn).unwrap_or_default();
-                let owner = self.owning_channel(turn);
+                let owner = self.owner.remove(&turn);
                 for (id, d) in self.disposed.remove(&turn).unwrap_or_default() {
                     let Some(p) = self.prompts.get(&id) else {
                         continue;
@@ -596,7 +619,6 @@ impl Acp {
                         Prompt {
                             session,
                             channel,
-                            role,
                             responder,
                             turn: None,
                             streamed: false,

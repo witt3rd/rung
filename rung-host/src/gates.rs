@@ -2139,18 +2139,15 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
         "observer" => 1,
         _ => 0,
     };
-    let prompt_items: BTreeSet<String> = responses
-        .values()
-        .flatten()
-        .filter_map(|(_, r)| r["result"]["_meta"]["rung"]["item"].as_str())
-        .map(str::to_string)
-        .collect();
     let mut owning: BTreeMap<u64, (i32, String)> = BTreeMap::new();
-    for item in &prompt_items {
-        let (Some(turn), Some(ch)) = (admitted_turn.get(item), item_channel.get(item)) else {
+    for (item, turn) in &admitted_turn {
+        let Some(ch) = item_channel.get(item) else {
             continue;
         };
         let r = rank(item_role.get(item).map_or("", String::as_str));
+        if r == 0 {
+            continue;
+        }
         let e = owning.entry(*turn).or_insert((r, ch.clone()));
         if r > e.0 {
             *e = (r, ch.clone());

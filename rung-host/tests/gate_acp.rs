@@ -363,3 +363,87 @@ fn acp_peer_sees_nothing_of_the_owners_shared_turn() {
     c.response(stop, 20);
     let _ = c.child.wait();
 }
+
+#[test]
+fn acp_peer_sees_nothing_of_a_turn_that_also_answers_an_owner_stimulus() {
+    sim::test_timeout(600);
+    let guard = sim::temp_dir_guard("gate-p-share-stimulus");
+    let state = guard.path().to_path_buf();
+    let mut c = Client::start(&state, "1500,1500", &["--send-owner-only"]);
+    let cwd = state.to_string_lossy().to_string();
+    let init = c.request(
+        "initialize",
+        json!({"protocolVersion": 1, "clientCapabilities": {}}),
+    );
+    c.response(init, 20);
+    let new = |c: &mut Client, role: &str, channel: &str| -> String {
+        let id = c.request(
+            "session/new",
+            json!({"cwd": cwd, "mcpServers": [], "_meta": {"rung": {"role": role, "channel": channel}}}),
+        );
+        c.response(id, 20)["result"]["sessionId"]
+            .as_str()
+            .expect("a session id")
+            .to_string()
+    };
+    let owner = new(&mut c, "owner", "");
+    let peer = new(&mut c, "peer", "alice");
+
+    let s = c.request(
+        "_rung/stimulus",
+        json!({"sessionId": owner, "text": "keep busy"}),
+    );
+    c.response(s, 20);
+    wait_record(&state, 30, "the first turn to start", |ls| {
+        ls.iter().any(|l| l.kind == "stimulus.admitted")
+    });
+    let pp = c.request(
+        "session/prompt",
+        json!({"sessionId": peer, "prompt": [{"type": "text", "text": "anything for me?"}]}),
+    );
+    let s2 = c.request(
+        "_rung/stimulus",
+        json!({"sessionId": owner, "text": "private owner errand"}),
+    );
+    let ack = c.response(s2, 20);
+    let owner_item = ack["result"]["id"].as_str().unwrap_or("").to_string();
+    let rp = c.response(pp, 120);
+    c.drain(Duration::from_millis(100));
+
+    let peer_item = rp["result"]["_meta"]["rung"]["item"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let together = lines(&state).iter().any(|l| {
+        l.kind == "stimulus.admitted" && {
+            let ids: Vec<&str> = ["ids", "digests"]
+                .iter()
+                .filter_map(|k| l.get(k).as_array())
+                .flatten()
+                .filter_map(|x| x.as_str().or_else(|| x["id"].as_str()))
+                .collect();
+            ids.contains(&owner_item.as_str()) && ids.contains(&peer_item.as_str())
+        }
+    });
+    assert!(together, "the stimulus and the prompt did not share a turn");
+    assert_eq!(rp["result"]["_meta"]["rung"]["admitted_with"], json!([]));
+
+    let updates = |kind: &str| -> usize {
+        c.run
+            .wire
+            .iter()
+            .filter(|(out, m)| {
+                !*out
+                    && m["method"] == "session/update"
+                    && m["params"]["sessionId"] == peer.as_str()
+                    && m["params"]["update"]["sessionUpdate"] == kind
+            })
+            .count()
+    };
+    assert_eq!(updates("agent_message_chunk"), 0, "peer got text");
+    assert_eq!(updates("tool_call"), 0, "peer got tool calls");
+
+    let stop = c.request("_rung/stop", json!({"sessionId": owner}));
+    c.response(stop, 20);
+    let _ = c.child.wait();
+}
