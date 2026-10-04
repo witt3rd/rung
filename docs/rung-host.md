@@ -28,8 +28,9 @@ explicit stop. A boundary:
 1. checks the stop authority;
 2. polls the stimulus sources (memory, `*.msg` directory, the fake world)
    — each item is recorded and fsynced on arrival. A `*.msg` file never
-   speaks as `host`, and only an `owner` file may use the `owner` channel
-   (others land on `peer:<id>`); violations are moved to `rejected/`;
+   speaks as `host` (it is downgraded to `peer`), and only an `owner` file
+   may name its channel (any other file is pinned to `peer:<id>`); only
+   unparseable files are moved to `rejected/`;
 3. fires due calendar items and settles due expectations;
 4. asks the decision desk one combined question set (Admit, Inject,
    Tools), falling back to each family's rule;
