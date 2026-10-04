@@ -627,8 +627,8 @@ mod tests {
 
     #[test]
     fn paths_stay_in_the_workspace() {
-        let root = std::env::temp_dir().join(format!("rung-host-ws-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        let guard = crate::sim::temp_dir_guard("ws");
+        let root = guard.path().join("ws");
         assert!(confine(&root, "a/b.txt").is_ok());
         assert!(confine(&root, "../x").is_err());
         assert!(confine(&root, "/etc/passwd").is_err());
@@ -639,6 +639,5 @@ mod tests {
             std::os::unix::fs::symlink("/tmp", root.join("out")).unwrap();
             assert!(confine(&root, "out/x").is_err());
         }
-        let _ = std::fs::remove_dir_all(&root);
     }
 }

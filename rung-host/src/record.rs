@@ -391,16 +391,17 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn dir(name: &str) -> PathBuf {
-        let d =
-            std::env::temp_dir().join(format!("rung-host-record-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&d);
-        d
+    /// A fresh record directory that does not exist yet, inside a guarded
+    /// temp dir that is removed when the test passes (keep the guard).
+    fn dir(name: &str) -> (crate::sim::TempDir, PathBuf) {
+        let guard = crate::sim::temp_dir_guard(&format!("record-{name}"));
+        let d = guard.path().join("rec");
+        (guard, d)
     }
 
     #[test]
     fn lines_round_trip_and_seq_continues() {
-        let d = dir("rt");
+        let (_guard, d) = dir("rt");
         let o = Record::open(&d).unwrap();
         o.record.append(5, "a", json!({"x": 1}));
         o.record.append(6, "b", json!({"y": [1, 2]}));
@@ -415,7 +416,7 @@ mod tests {
 
     #[test]
     fn a_torn_tail_is_cut_and_reported() {
-        let d = dir("torn");
+        let (_guard, d) = dir("torn");
         let o = Record::open(&d).unwrap();
         o.record.append(1, "a", json!({}));
         drop(o);
@@ -434,7 +435,7 @@ mod tests {
 
     #[test]
     fn segments_rotate_and_read_in_order() {
-        let d = dir("rot");
+        let (_guard, d) = dir("rot");
         let o = Record::open_with(&d, 100).unwrap();
         for i in 0..20 {
             o.record.append(i, "k", json!({"i": i}));
@@ -448,7 +449,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "sealed entry")]
     fn the_generic_append_refuses_sealed_kinds() {
-        let d = dir("sealed");
+        let (_guard, d) = dir("sealed");
         let o = Record::open(&d).unwrap();
         o.record.append(1, "kernel.commit", json!({}));
     }

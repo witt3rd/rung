@@ -108,8 +108,8 @@ mod tests {
 
     #[test]
     fn messages_reach_the_socket() {
-        let path = std::env::temp_dir().join(format!("rung-host-notify-{}", std::process::id()));
-        let _ = std::fs::remove_file(&path);
+        let guard = crate::sim::temp_dir_guard("notify");
+        let path = guard.path().join("notify.sock");
         let server = UnixDatagram::bind(&path).unwrap();
         server
             .set_read_timeout(Some(Duration::from_secs(2)))
