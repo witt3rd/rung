@@ -1,0 +1,10 @@
+error[E0624]: method `emit` is private
+ --> tests/ui/emit_from_outside.rs:3:10
+  |
+3 |     core.emit("kernel.progress", serde_json::json!({}));
+  |          ^^^^ private method
+  |
+ ::: src/core.rs
+  |
+  |     pub(crate) fn emit(&self, kind: &str, body: Value) -> Line {
+  |     ---------------------------------------------------------- private method defined here

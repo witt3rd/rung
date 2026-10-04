@@ -1563,6 +1563,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rung-host"
+version = "0.1.13"
+dependencies = [
+ "libc",
+ "rung",
+ "rung-agent-core",
+ "rung-memory",
+ "rung-std",
+ "serde",
+ "serde_json",
+ "sha2",
+ "trybuild",
+]
+
+[[package]]
 name = "rung-macro"
 version = "0.1.13"
 dependencies = [

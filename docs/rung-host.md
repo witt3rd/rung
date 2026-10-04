@@ -1,0 +1,199 @@
+# rung-host — the continuous host
+
+`rung-host` is a product crate (J2): one long-lived agent and everything
+around its turns. It imports `rung-agent-core` as a library (never the
+`rung-agent` binary). Nothing in it is kernel; nothing in the kernel
+changed for it.
+
+This document is informative. It describes slice 1: the host against a
+scripted mock engine, a fake world and a fault injector, at $0. ACP
+outward, the real engine adapter, the model ladder's startup listing
+filter and live runs are later slices. Delegation to workers is a final
+extension; only its extension point exists (the `crew` group name and the
+`crew.*` record kinds are reserved, and the inbox admits external
+completion items).
+
+## The loop
+
+```text
+Waking(Recovered) => Boundary(Edge) => { Again -> Boundary | Halted(Why) }
+```
+
+There is no resting rung. After every turn the next boundary begins. The
+only waits are ones the world imposes (provider backoff, a quota, a
+blocked credential), and each is recorded as `degraded`, never as rest.
+Only the stop authority reaches `Halted`: a signal, a stop file, or an
+explicit stop. A boundary:
+
+1. checks the stop authority;
+2. polls the stimulus sources (memory, `*.msg` directory, the fake world)
+   — each item is recorded and fsynced on arrival;
+3. fires due calendar items and settles due expectations;
+4. asks the decision desk one combined question set (Admit, Inject,
+   Tools), falling back to each family's rule;
+5. picks the turn kind: **Responding** (an item was admitted now),
+   **Committed** (the agent committed to a project) or **Free** (the
+   default);
+6. lets the governor make it wait (backoff, quota, pacing);
+7. admits the batch (consuming the boundary's sealed `Edge`);
+8. when the pack's gate opens, asks Pack and Consolidate, retains, and
+   rolls the epoch over;
+9. appends one turn header to the pack and runs one bounded turn;
+10. records every model call, the turn's messages and its end (fsync),
+    disposes the batch or requeues it, and goes again.
+
+## Free time and the kernel
+
+Free time is the default mode. A free-time turn shows the agent its own
+material — todo items, projects, open questions, open expectations,
+integrity facts, recent traces — in creation order, never ranked. The
+agent picks. Only the agent's tools change the mode:
+
+| tool | effect |
+|---|---|
+| `commit` | mode → Committed; one commitment at a time |
+| `progress` | the next committed header shows the agent's own next step |
+| `release` | mode → Free; a natural break |
+| `trace` | ends a free session; a retain candidate |
+| `want_tools` | a request; the Tools family decides at the next boundary |
+
+The owner's one override is a release (`released_by: owner`). The host
+never times a commitment out; its header states facts (turns committed,
+turns since progress, an `until` passed).
+
+A persistent copy loop (a trace or answer over 0.8 trigram Jaccard
+similarity to a recent one on three consecutive turns) triggers a
+mechanical context intervention: an early rollover and one owner message.
+It changes the context, never the topic.
+
+## The decision desk
+
+Five families decide the host's mechanics, each with bounded state, atomic
+Noul and Choice questions (`rung_std::decide`), composition in code, hard
+bounds, a rule fallback and a logged provenance:
+
+| family | decides | guard that always wins |
+|---|---|---|
+| Admit | interrupt now, wait for a break, or show as a digest line | owner items are `now` without asking; firm due calendar items are `now`; every kind has a maximum deferral; at most 6 interruptions of a commitment per hour |
+| Inject | recall block and cue; expectation and calendar digests | one recall block per turn; everything goes in the newest header |
+| Tools | which groups are callable | `core` is always on; never outside the operator ceiling; hysteresis |
+| Pack | append, roll over now, or at the next break; which segments stay verbatim | roll over at 85% of the epoch budget; never below 40% except on a copy loop; kept text ≤ 15% of the budget |
+| Consolidate | whether to offer the agent a note line; what to retain | only the agent's own text and host observations are retained |
+
+The backend is any `Decider`: Jev, `Recorded` replay, or the `Scripted`
+test decider. A decider that is unavailable, times out (1.9 s, inside the
+2 s boundary budget), answers `Undecided`, or would break the spend cap
+gives way to the rule, and the record says why (`by: {"rule": "timeout"}`).
+`Shadow` mode lets the rule decide and logs the decider's answer beside it.
+
+## The pack
+
+```text
+STABLE   tool superset (canonical JSON, sorted) · system: identity, host contract, free-time rules · pinned memory
+SLOW     epoch header (id, start, gap, model) · carried note · register digest · previous-epoch outline + kept segments
+LOG      turn k header · the turn's messages, verbatim · turn k+1 header · …   (append-only within the epoch)
+```
+
+- Every request inside an epoch is a byte-prefix extension of the one
+  before (gate G-l). The time and other volatile facts ride in each turn's
+  header, at the end.
+- Tools are enabled by a host-side call gate; their definitions never
+  change, so the cached prefix holds on every provider. A disabled tool's
+  call returns `{"error":"not enabled this turn","group":…,"ask":"want_tools"}`.
+- A rollover starts a new epoch (and a new session id). It rebuilds the
+  slow layer from the record; nothing in the stable layer changes. The
+  record is fsynced before anything is evicted.
+- A model switch on the ladder also starts a new epoch.
+
+## The governor
+
+- **Pacer**: a daily request quota (`rpd`), a per-minute limit (`rpm`), a
+  share reserved for Responding turns (25%), released linearly over the
+  UTC day. Waits are `degraded: paced`, interruptible by stop and by an
+  owner item the reserve can serve.
+- **Backoff**: a provider 429, 5xx, transport failure or timeout waits
+  max(`Retry-After`, jittered exponential), capped at 15 min, and steps
+  down the model ladder (cooldown 2 min doubling to 30 min); the next
+  boundary after the cooldown probes back up. A platform 429
+  (`X-RateLimit-Reset`) waits for its reset and does not step down. An auth
+  failure is `degraded: blocked`: probe every 15 min, one owner message per
+  incident, never exit.
+- **Spend cap**: for paid providers only; reaching it halts
+  (`Halted(SpendCap)`).
+
+## Stop and supervision
+
+`StopAuthority` takes SIGTERM/SIGINT, a stop file, or an explicit stop. It
+is checked at each boundary, raises the running turn's cancel flag, and
+every wait polls it. `sd_notify`: `READY=1` at start, `WATCHDOG=1` from the
+loop thread at each boundary and during waits, `STOPPING=1` on halt. A
+wedged loop misses its pings and the supervisor restarts it; the record
+makes any kill recoverable.
+
+## Durability and restart
+
+The record is the truth; every register is a projection of it. On waking,
+the host replays the record, cuts a torn last line, requeues any stimulus
+that was admitted to a turn that never ended (`interrupted_by_restart`),
+fires calendar items missed during the gap once (late), restores the mode
+from the `kernel.*` lines, and starts a new epoch whose header states the
+gap: *not running from T1 to T2*. Each `turn.ended` line carries the hash of
+the projection as it stood before that line, so a replay can prove the
+rebuilt state equals the state the live process had.
+
+## The record
+
+One NDJSON line per event, canonical JSON (sorted keys), `{seq, at, kind,
+…}`; `at` is milliseconds since the Unix epoch on the host clock. Fields
+named `wall_*` are wall-clock measurements and differ between runs.
+
+| kind | holds |
+|---|---|
+| `host.start` | `pid`, `config` (`engine`, `turn_bound_ms`, `epoch_budget_tokens`, `ladder`, `ceiling`, …) |
+| `recovered` | `gap_ms`, `last_at`, `torn_bytes`, `requeued`, `mode` |
+| `boundary` | `n`, `mode`, `pending` |
+| `stimulus.accepted` | `item {id, kind, role, channel, at, due?, urgency?, firm, text, fact?}` |
+| `stimulus.admitted` | `turn`, `boundary`, `ids` (shown now), `digests` (one header line each) |
+| `stimulus.requeued` | `ids`, `why` |
+| `stimulus.disposed` | `id`, `disposition` (`answered`, `digested`), `turn` |
+| `stimulus.rejected` | `file`, `why` |
+| `calendar.added` / `.fired` / `.skipped` / `.removed` | an entry; a fire has `id`, `due`, `late_by_ms`, `missed`, `firm`, `item_id` |
+| `decision.<family>` | `boundary`, `turn`, `input_hash`, `questions_hash`, `answers`, `choice`, `by` (`{"jev": {backend, model, cost_usd}}` or `{"rule": why}`), `rule_choice` and `agree` in shadow mode, `wall_us` |
+| `turn.started` | `turn`, `turn_kind`, `mode`, `project`, `model`, `rung`, `epoch`, `pack_tokens`, `header_tokens`, `enabled`, `wall_boundary_us` |
+| `tool.call` / `tool.refused` | `turn`, `name`, `group`, `ok`; a refusal has `why` (`disabled`, `overran`) and `message` |
+| `llm.call` | `turn`, `call`, `epoch`, `rung`, `model_requested`, `model_served`, `provider`, `prompt_tokens`, `cached_tokens`, `cache_write_tokens`, `completion_tokens`, `reasoning_tokens`, `cost_usd`, `latency_ms`, `prefix {s_hash, l_hash, log_len_bytes, expected_cached_tokens}` |
+| `cache.break` / `cache.cold` | `turn`, `call`, `cause` |
+| `turn.log` | `turn`, `header` (recall stripped), `messages` (verbatim, as sent) |
+| `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at}`, `cost`, `projection`, `wall_post_us` |
+| `kernel.commit` / `.progress` / `.release` / `.trace` | the agent's own tool calls (`via`, `released_by`, `similarity`) |
+| `note.written`, `todo.*`, `project.added`, `question.*` | the agent's registers |
+| `expectation.made` / `.revised` / `.settled` | the expectation register; a settlement has `state`, `p`, `surprise`, `settled_by`, `calibration` |
+| `outbox.queued` | `channel`, `text`, `source` |
+| `tools.wanted` | `group`, `why` |
+| `memory.recall` / `memory.retain` | the provider's report |
+| `degraded` / `degraded.ended` | `class` (`paced`, `quota`, `backoff`, `blocked`), `until`, `why`; `waited_ms` |
+| `model.switch` | `from`, `to`, `direction` (`down`, `up`), `why` |
+| `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms` |
+| `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |
+| `halted` | `why` |
+
+## Gates (slice 1)
+
+The gates are frozen in `rung-host/src/gates.rs` (thresholds and
+evaluators) and run by `rung-host/tests/`. All are automated, seeded and
+free.
+
+| id | measure | pass when |
+|---|---|---|
+| G-a no rest | 30 min, no stimuli, no quota pressure | idle wall time outside turns (excluding declared `degraded`) ≤ 2%; boundary → next turn p99 ≤ 50 ms; every boundary has `decision.*` lines |
+| G-b responsiveness | owner stimuli under load | admission p95 ≤ p95 turn + 100 ms; no turn past its bound; scripted long work refused with the commit-or-steps message |
+| G-c free-time kernel | 2,000 scripted turns | no admitted item and no commitment → free turn, 100%; after `commit`, committed until `release` (interruptions return); material order identical under 100 random register scores; no `kernel.commit`/`kernel.release` except from the agent's tools or the owner's release (trybuild) |
+| G-d schedule | due and missed items | each due item fired at the first boundary after due, once, lateness recorded; items missed during downtime fired once; firm items admitted at that boundary regardless of the decider |
+| G-e expectations | scripted expectations | only the host (or a disjoint judge) settles (trybuild); surprise and calibration recomputed from the record match exactly |
+| G-g provider failure | the injected faults | never exits; requeued items admitted exactly once; `Retry-After` honoured; provider 429 → step down, later probe up; platform 429 → wait for reset, no step down |
+| G-h stop | SIGTERM mid-turn, in backoff, in a paced wait; a wedged loop | ≤ remaining mock call + 1 s; ≤ 1 s from a wait; the watchdog fires |
+| G-i restart | 50 random `kill -9` | every stimulus exactly one disposition; rebuilt projections equal the live ones; mode restored; a new epoch with the gap |
+| G-j bounded context | 10,000 turns | the pack never exceeds the epoch budget; every turn starts at ≤ 85%; the record grows linearly; the copy guard fires |
+| G-l cache discipline | 10,000 turns | within an epoch each request is a byte-prefix of the next; `s_hash` changes only at a swap, `l_hash` only at a rollover; canonical bytes stable across 2 processes; mock cache efficiency ≥ 0.98 outside recorded breaks |
+| G-m decisions | scripted answers, every `Undecided`, 3 s delays, cap exhaustion | every family returns a choice on every path with the right `by`; guards hold under adversarial answers; a 3 s delay costs ≤ 2 s per boundary; `Recorded` replay panics on a reworded question |
+| G-k cost | the whole slice | $0: loopback only, no live model, no live Jev |

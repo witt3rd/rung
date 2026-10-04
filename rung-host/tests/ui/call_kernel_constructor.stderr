@@ -1,0 +1,10 @@
+error[E0624]: associated function `release` is private
+ --> tests/ui/call_kernel_constructor.rs:5:32
+  |
+5 |     let _forged = KernelEntry::release(serde_json::json!({"project": "p1"}));
+  |                                ^^^^^^^ private associated function
+  |
+ ::: src/kernel.rs
+  |
+  |     fn release(body: Value) -> Self {
+  |     ------------------------------- private associated function defined here

@@ -1,0 +1,301 @@
+{
+  "request": {
+    "model": "typesafe/jev-1.13",
+    "state": {
+      "admit": {
+        "now": 1790989200000,
+        "mode": {
+          "free": {
+            "session_turns": 2
+          }
+        },
+        "items": [
+          {
+            "id": "p1",
+            "kind": "peer",
+            "role": "peer",
+            "age_s": 60,
+            "gist": "item p1"
+          },
+          {
+            "id": "c1",
+            "kind": "calendar",
+            "role": "host",
+            "age_s": 1,
+            "due_in_s": -1,
+            "gist": "item c1"
+          },
+          {
+            "id": "e1",
+            "kind": "expectation",
+            "role": "host",
+            "age_s": 2,
+            "gist": "item e1"
+          },
+          {
+            "id": "p2",
+            "kind": "peer",
+            "role": "peer",
+            "age_s": 1860,
+            "gist": "item p2"
+          }
+        ],
+        "interrupts_last_hour": 0,
+        "since_external_s": 5
+      },
+      "inject": {
+        "focus": [
+          "owner asks about the calendar"
+        ],
+        "free_session_turns": 1,
+        "turns_since_recall": 4,
+        "recall_hits_last": 1,
+        "memory": "baseline",
+        "expectations_due_1h": 1,
+        "calendar_within_2h": 0,
+        "note_age_turns": 9
+      },
+      "tools": {
+        "kind": "free",
+        "enabled": [
+          "core",
+          "read"
+        ],
+        "ceiling": [
+          "core",
+          "memory",
+          "read"
+        ],
+        "wants": [
+          [
+            "web_read",
+            "to look something up"
+          ]
+        ],
+        "uses_last_10": {},
+        "turns_since_switch": {
+          "memory": 9,
+          "read": 9
+        }
+      }
+    },
+    "questions": {
+      "enable_memory": {
+        "type": "noul",
+        "instructions": "Should the tool group `memory` be callable in the turn about to run?",
+        "criteria": {
+          "true": "Yes: the turn plausibly needs it, or the agent asked for it with a reason.",
+          "false": "No: the turn does not need it."
+        }
+      },
+      "enable_read": {
+        "type": "noul",
+        "instructions": "Should the tool group `read` be callable in the turn about to run?",
+        "criteria": {
+          "true": "Yes: the turn plausibly needs it, or the agent asked for it with a reason.",
+          "false": "No: the turn does not need it."
+        }
+      },
+      "form_c1": {
+        "type": "choice",
+        "instructions": "How should waiting item c1 reach the agent?",
+        "criteria": {
+          "at_break": "Held until the agent's next natural break.",
+          "digest": "One line in the next turn header, without displacing anything.",
+          "now": "Shown in full at this boundary."
+        }
+      },
+      "form_e1": {
+        "type": "choice",
+        "instructions": "How should waiting item e1 reach the agent?",
+        "criteria": {
+          "at_break": "Held until the agent's next natural break.",
+          "digest": "One line in the next turn header, without displacing anything.",
+          "now": "Shown in full at this boundary."
+        }
+      },
+      "form_p1": {
+        "type": "choice",
+        "instructions": "How should waiting item p1 reach the agent?",
+        "criteria": {
+          "at_break": "Held until the agent's next natural break.",
+          "digest": "One line in the next turn header, without displacing anything.",
+          "now": "Shown in full at this boundary."
+        }
+      },
+      "form_p2": {
+        "type": "choice",
+        "instructions": "How should waiting item p2 reach the agent?",
+        "criteria": {
+          "at_break": "Held until the agent's next natural break.",
+          "digest": "One line in the next turn header, without displacing anything.",
+          "now": "Shown in full at this boundary."
+        }
+      },
+      "include_calendar": {
+        "type": "noul",
+        "instructions": "Should the next turn header list the calendar items ahead?",
+        "criteria": {
+          "true": "Yes: one is close enough to matter to this turn.",
+          "false": "No: none bears on this turn."
+        }
+      },
+      "include_expectations": {
+        "type": "noul",
+        "instructions": "Should the next turn header list the expectations coming due?",
+        "criteria": {
+          "true": "Yes: one is due soon enough to matter to this turn.",
+          "false": "No: none bears on this turn."
+        }
+      },
+      "interrupt_c1": {
+        "type": "noul",
+        "instructions": "Should waiting item c1 be shown to the agent at this boundary, displacing the planned continuation, rather than wait for the agent's next break? Judge urgency and relevance from the state only.",
+        "criteria": {
+          "true": "Show it now: waiting would cost the agent or the sender something real.",
+          "false": "It can wait for the next break without real cost."
+        }
+      },
+      "interrupt_e1": {
+        "type": "noul",
+        "instructions": "Should waiting item e1 be shown to the agent at this boundary, displacing the planned continuation, rather than wait for the agent's next break? Judge urgency and relevance from the state only.",
+        "criteria": {
+          "true": "Show it now: waiting would cost the agent or the sender something real.",
+          "false": "It can wait for the next break without real cost."
+        }
+      },
+      "interrupt_p1": {
+        "type": "noul",
+        "instructions": "Should waiting item p1 be shown to the agent at this boundary, displacing the planned continuation, rather than wait for the agent's next break? Judge urgency and relevance from the state only.",
+        "criteria": {
+          "true": "Show it now: waiting would cost the agent or the sender something real.",
+          "false": "It can wait for the next break without real cost."
+        }
+      },
+      "interrupt_p2": {
+        "type": "noul",
+        "instructions": "Should waiting item p2 be shown to the agent at this boundary, displacing the planned continuation, rather than wait for the agent's next break? Judge urgency and relevance from the state only.",
+        "criteria": {
+          "true": "Show it now: waiting would cost the agent or the sender something real.",
+          "false": "It can wait for the next break without real cost."
+        }
+      },
+      "recall_cue": {
+        "type": "choice",
+        "instructions": "If memory is recalled, what should the recall be about?",
+        "criteria": {
+          "commitment": "The current commitment.",
+          "none": "Nothing: do not recall.",
+          "note": "The agent's carried note.",
+          "stimulus": "The items waiting to be shown."
+        }
+      },
+      "recall_useful": {
+        "type": "noul",
+        "instructions": "Would one block of recalled long-term memory help the turn about to run?",
+        "criteria": {
+          "true": "Yes: something remembered bears on what the turn is about.",
+          "false": "No: the turn needs nothing from memory."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "synthetic (authored, not recorded)",
+    "answers": {
+      "enable_memory": {
+        "type": "noul",
+        "noul": 0.216
+      },
+      "enable_read": {
+        "type": "noul",
+        "noul": 0.583
+      },
+      "form_c1": {
+        "type": "choice",
+        "choice": "digest",
+        "probabilities": {
+          "at_break": 0.0,
+          "digest": 1.0,
+          "now": 0.0
+        },
+        "confidence": 0.9
+      },
+      "form_e1": {
+        "type": "choice",
+        "choice": "digest",
+        "probabilities": {
+          "at_break": 0.0,
+          "digest": 1.0,
+          "now": 0.0
+        },
+        "confidence": 0.9
+      },
+      "form_p1": {
+        "type": "choice",
+        "choice": "digest",
+        "probabilities": {
+          "at_break": 0.0,
+          "digest": 1.0,
+          "now": 0.0
+        },
+        "confidence": 0.9
+      },
+      "form_p2": {
+        "type": "choice",
+        "choice": "at_break",
+        "probabilities": {
+          "at_break": 1.0,
+          "digest": 0.0,
+          "now": 0.0
+        },
+        "confidence": 0.9
+      },
+      "include_calendar": {
+        "type": "noul",
+        "noul": 0.337
+      },
+      "include_expectations": {
+        "type": "noul",
+        "noul": 0.146
+      },
+      "interrupt_c1": {
+        "type": "noul",
+        "noul": 0.826
+      },
+      "interrupt_e1": {
+        "type": "noul",
+        "noul": 0.056
+      },
+      "interrupt_p1": {
+        "type": "noul",
+        "noul": 0.671
+      },
+      "interrupt_p2": {
+        "type": "noul",
+        "noul": 0.423
+      },
+      "recall_cue": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "commitment": 0.0,
+          "none": 1.0,
+          "note": 0.0,
+          "stimulus": 0.0
+        },
+        "confidence": 0.9
+      },
+      "recall_useful": {
+        "type": "noul",
+        "noul": 0.435
+      }
+    },
+    "usage": {
+      "input_tokens": 1668,
+      "cost": 0.0
+    }
+  },
+  "model": "synthetic",
+  "recorded_at": "synthetic"
+}

@@ -1,0 +1,21 @@
+[package]
+name = "rung-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The continuous rung host: one agent that never rests, its record, inbox, calendar, registers, free-time kernel, decision desk and layered context pack"
+publish = false
+
+[dependencies]
+rung = { path = "../rung" }
+rung-std = { path = "../rung-std" }
+rung-agent-core = { path = "../rung-agent-core" }
+rung-memory = { path = "../rung-memory" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+libc = "0.2"
+
+[dev-dependencies]
+trybuild = "1"
