@@ -130,7 +130,7 @@ pub struct JobEx {
 /// Nested `task` Spawn: pick a catalog kind, persist a child session, run a
 /// depth-capped loop. Isolation stays the process cwd (parent already chdir'd).
 ///
-/// The child's end is settled like a top-level turn's ([`settle`]): while the
+/// The child's end is settled like a top-level turn's (`settle`): while the
 /// turn check is on, the child is `completed` only when its check passed, and
 /// the `task` result's `state` and the child session's status say otherwise.
 #[derive(Clone)]

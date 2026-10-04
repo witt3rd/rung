@@ -1,6 +1,6 @@
 //! A declared principal, made dispatchable.
 //!
-//! [`Configured`] is the bridge from a [`PrincipalDecl`](rung_std::principals::PrincipalDecl) —
+//! [`Configured`] is the bridge from a [`rung_std::principals::PrincipalDecl`] —
 //! the unified principals model — to `rung`'s `Principal` and `Steward`, which
 //! is what a `Pool` can run its filters against.
 //!
@@ -125,7 +125,7 @@ impl<O: Oracle> Configured<O> {
 
     /// A principal whose provenance is **derived** from the commission record,
     /// keyed on its family. Use this (or
-    /// [`population_pool_with_log`](crate::population_pool_with_log)) for a
+    /// [`population_pool_with_log`]) for a
     /// population of models; the plain [`Configured::new`] keeps `authored` as
     /// the principal's own static declaration, which is right for a person and
     /// wrong for a discontinuous kind.

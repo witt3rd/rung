@@ -31,7 +31,7 @@ pub struct Capability {
     pub recall: bool,
     /// Answers [`MemoryProvider::retain`]: the product retains after a turn.
     pub retain: bool,
-    /// Contributes agent tools ([`MemoryProvider::tools`]).
+    /// Contributes agent tools (`MemoryProvider::tools`).
     pub tools: bool,
 }
 

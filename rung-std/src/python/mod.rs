@@ -7,7 +7,7 @@
 //!
 //! Stands alone: [`Sandbox::open`] then [`Sandbox::strike`]. The agent
 //! consumes it two ways, and they are not exclusive:
-//! - as a named [`Tool`](crate::tools::Tool) via [`Sandbox::as_tool`]
+//! - as a named [`Tool`] via [`Sandbox::as_tool`]
 //!   (one roster entry among others)
 //! - as the action channel: no tool schema on the wire, the model writes
 //!   Python, [`extract_python`] pulls it out, the guest strikes. See

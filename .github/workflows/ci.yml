@@ -21,6 +21,8 @@ jobs:
         run: cargo fmt --check
       - name: clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: rustdoc
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
       - name: test
         run: cargo test --workspace --locked
 

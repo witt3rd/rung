@@ -1310,7 +1310,7 @@ ladder!(AgentLoop {
     },
 });
 
-/// Drive [`AgentLoop`] from Idle to a terminal verdict.
+/// Drive `AgentLoop` from Idle to a terminal verdict.
 pub fn run(thread: Thread, carry: agentloop::Carry) -> Result<AgentResult, Filtered> {
     let mut calling = agentloop::calling(agentloop::Idle::new(thread, carry));
     loop {

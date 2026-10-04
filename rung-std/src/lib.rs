@@ -45,7 +45,7 @@
 //!
 //! ## Configuration — full parity
 //!
-//! [`LlmConfig`] carries every parameter that may affect request behaviour:
+//! [`LlmConfig`](llm::LlmConfig) carries every parameter that may affect request behaviour:
 //!
 //! | Field | Wire |
 //! |---|---|

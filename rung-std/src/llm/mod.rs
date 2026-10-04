@@ -1,8 +1,8 @@
 //! One blocking LLM call, with retry — the first canonical building block.
 //!
 //! The verb lives on the arrow: a state cannot call an endpoint, only a
-//! transition can (`the-law`). Provider quirks live in [`anthropic`] and
-//! [`openai`]; callers see one request, one verdict.
+//! transition can (`the-law`). Provider quirks live in `anthropic` and
+//! `openai`; callers see one request, one verdict.
 
 mod anthropic;
 mod cache;
