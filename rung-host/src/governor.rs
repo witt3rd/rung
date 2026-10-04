@@ -204,12 +204,15 @@ pub fn must_wait(st: &GovState, cfg: &GovConfig, kind: TurnKind, now: Millis) ->
     {
         return Some(w.clone());
     }
-    if st.turn_starts.len() as u32 >= cfg.turns_per_minute {
-        let oldest = st.turn_starts.front().copied().unwrap_or(now);
+    // Only starts still inside the minute count (the state prunes on
+    // apply, which a long idle does not trigger).
+    let starts = st.turn_starts.iter().filter(|t| **t > now - MINUTE);
+    if starts.clone().count() as u32 >= cfg.turns_per_minute {
+        let oldest = starts.clone().next().copied().unwrap_or(now);
         return Some(Wait {
             class: "rate_ceiling".into(),
             until: oldest + MINUTE,
-            why: format!("{} turns in a minute", st.turn_starts.len()),
+            why: format!("{} turns in a minute", starts.count()),
             owner_wakes: false,
         });
     }
@@ -446,5 +449,20 @@ mod tests {
         let p = on_failure(&st, &cfg, &f, 1, 0, 0.9);
         assert_eq!(p.wait.unwrap().until, cfg.backoff_cap_ms);
         assert_eq!(p.step_down, None, "no rung below the last");
+    }
+
+    #[test]
+    fn stale_turn_starts_do_not_trip_the_rate_ceiling() {
+        let cfg = GovConfig {
+            turns_per_minute: 2,
+            ..GovConfig::default()
+        };
+        let mut st = GovState::default();
+        st.turn_starts.extend([1_000, 2_000]);
+        let now = 10 * MINUTE;
+        assert!(must_wait(&st, &cfg, TurnKind::Free, now).is_none());
+        let w = must_wait(&st, &cfg, TurnKind::Free, 2_500).expect("fresh starts count");
+        assert_eq!(w.class, "rate_ceiling");
+        assert_eq!(w.until, 1_000 + MINUTE);
     }
 }

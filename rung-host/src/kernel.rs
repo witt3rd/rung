@@ -332,7 +332,7 @@ pub(crate) fn tool_commit(core: &Core, turn: u64, input: &Value) -> Result<Strin
         .get("until_s")
         .and_then(Value::as_i64)
         .filter(|s| *s > 0)
-        .map(|s| core.clock.now() + s * SECOND);
+        .map(|s| core.clock.now().saturating_add(s.saturating_mul(SECOND)));
     let checkpoint_every = input.get("checkpoint_every").and_then(Value::as_u64);
     drop(st);
     if is_new {

@@ -385,7 +385,7 @@ impl HostTools {
                     json!({"id": id, "turn": turn, "claim": str_of("claim")?,
                            "about": input.get("about").and_then(Value::as_str).unwrap_or(""),
                            "warrant": input.get("warrant").and_then(Value::as_str).unwrap_or(""),
-                           "p": p, "due": core.clock.now() + due_in * SECOND, "check": check}),
+                           "p": p, "due": core.clock.now().saturating_add(due_in.saturating_mul(SECOND)), "check": check}),
                 );
                 Ok(format!(
                     "expectation {id} recorded; the host will settle it"
@@ -639,5 +639,27 @@ mod tests {
             std::os::unix::fs::symlink("/tmp", root.join("out")).unwrap();
             assert!(confine(&root, "out/x").is_err());
         }
+    }
+
+    #[test]
+    fn a_huge_due_in_saturates() {
+        let guard = crate::sim::temp_dir_guard("huge-due");
+        let sc = crate::sim::Scenario::new(guard.path(), 1);
+        let (host, _, _) = crate::sim::build(sc);
+        let tools = HostTools::new(
+            host.core.clone(),
+            1,
+            BTreeSet::new(),
+            0,
+            None,
+            Arc::new(NoWeb),
+            guard.path().join("ws"),
+        );
+        let input = json!({"claim": "c", "p": 0.5, "due_in_s": i64::MAX,
+            "check": {"stimulus_from": {"channel": "owner"}}});
+        assert!(tools.run("expect", CORE, &input).is_ok());
+        let lines = host.record_lines().unwrap();
+        let l = lines.iter().find(|l| l.kind == "expectation.made").unwrap();
+        assert_eq!(l.get("due").as_i64(), Some(i64::MAX));
     }
 }
