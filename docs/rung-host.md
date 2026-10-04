@@ -151,7 +151,8 @@ Two transports serve it. `--acp` serves one local client on stdio.
 `--acp-http ADDR` serves Streamable HTTP (`rung-agent-core`'s stack,
 loopback by default) with one operator bearer token per role, each read
 from the env var a `--acp-token-env ROLE=ENV_VAR` flag names (a token never
-rides the command line or reaches the record; two roles may not share a token value, exit 2). A request without a known
+rides the command line or reaches the record; two roles may not share a
+token value, exit 2). A request without a known
 token is refused (401); a connection's principal is the role of the token
 it initialized with, and a later request on it with another token is
 refused (403). Without at least one token the HTTP surface does not
