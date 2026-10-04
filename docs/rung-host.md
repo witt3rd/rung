@@ -8,7 +8,8 @@ changed for it.
 This document is informative. It describes slice 1 — the host against a
 scripted mock engine, a fake world and a fault injector, at $0 — and what
 slice 2 adds: the real engine adapter, the model ladder's listing filter,
-ACP outward and the startup-handoff ladder (below). Live runs are later. Delegation to workers is a final
+ACP outward and the startup-handoff ladder (below). The first live run (slice 3) is in
+[`rung-host-live-v1-prereg.md`](rung-host-live-v1-prereg.md) and `rung-host/live/`. Delegation to workers is a final
 extension; only its extension point exists (the `crew` group name and the
 `crew.*` record kinds are reserved, and the inbox admits external
 completion items).

@@ -1,0 +1,5 @@
+publishing = "0.7.0"
+project = "Rung"
+
+[scan]
+words = []

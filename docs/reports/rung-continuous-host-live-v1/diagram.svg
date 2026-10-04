@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 544" font-family="Publishing Sans">
+<g font-size="24" fill="#1d2433">
+<line x1="500" y1="51.0" x2="1520" y2="51.0" stroke="#dcd9d0" stroke-width="2"/>
+<text x="484" y="57.0" text-anchor="end" font-size="22" font-weight="700">space-bunny-alpha</text>
+<line x1="500" y1="113.0" x2="1520" y2="113.0" stroke="#dcd9d0" stroke-width="2"/>
+<text x="484" y="119.0" text-anchor="end" font-size="22" font-weight="700">nemotron-3-ultra-550b-a55b:free</text>
+<line x1="500" y1="175.0" x2="1520" y2="175.0" stroke="#dcd9d0" stroke-width="2"/>
+<text x="484" y="181.0" text-anchor="end" font-size="22" font-weight="700">qwen3.8-27b:free</text>
+<line x1="500" y1="237.0" x2="1520" y2="237.0" stroke="#dcd9d0" stroke-width="2"/>
+<text x="484" y="243.0" text-anchor="end" font-size="22" font-weight="700">gemma-4-31b-it:free</text>
+<line x1="500" y1="299.0" x2="1520" y2="299.0" stroke="#dcd9d0" stroke-width="2"/>
+<text x="484" y="305.0" text-anchor="end" font-size="22" font-weight="700">nemotron-3-super-120b-a12b:free</text>
+<line x1="500" y1="361.0" x2="1520" y2="361.0" stroke="#dcd9d0" stroke-width="2"/>
+<text x="484" y="367.0" text-anchor="end" font-size="22" font-weight="400">waiting (backoff)</text>
+<line x1="500" y1="423.0" x2="1520" y2="423.0" stroke="#dcd9d0" stroke-width="2"/>
+<text x="484" y="429.0" text-anchor="end" font-size="22" font-weight="400">owner messages</text>
+<line x1="500.0" y1="20" x2="500.0" y2="464" stroke="#dcd9d0" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="500.0" y="490" text-anchor="middle" fill="#4a5163" font-size="22">0 min</text>
+<line x1="693.9866669033388" y1="20" x2="693.9866669033388" y2="464" stroke="#dcd9d0" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="693.9866669033388" y="490" text-anchor="middle" fill="#4a5163" font-size="22">5 min</text>
+<line x1="887.9733338066776" y1="20" x2="887.9733338066776" y2="464" stroke="#dcd9d0" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="887.9733338066776" y="490" text-anchor="middle" fill="#4a5163" font-size="22">10 min</text>
+<line x1="1081.9600007100166" y1="20" x2="1081.9600007100166" y2="464" stroke="#dcd9d0" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="1081.9600007100166" y="490" text-anchor="middle" fill="#4a5163" font-size="22">15 min</text>
+<line x1="1275.9466676133552" y1="20" x2="1275.9466676133552" y2="464" stroke="#dcd9d0" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="1275.9466676133552" y="490" text-anchor="middle" fill="#4a5163" font-size="22">20 min</text>
+<line x1="1469.9333345166942" y1="20" x2="1469.9333345166942" y2="464" stroke="#dcd9d0" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="1469.9333345166942" y="490" text-anchor="middle" fill="#4a5163" font-size="22">25 min</text>
+<rect x="497.1247980890411" y="35.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="500.2495961780823" y="347.0" width="2.0452660913841783" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="499.4228934696227" y="97.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="502.48173609191673" y="347.0" width="4.824448405886017" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="507.4426217868581" y="159.0" width="22.097021226959328" height="32" rx="4" fill="#b4462b"/>
+<circle cx="538.1849821354763" cy="423.0" r="9" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+<rect x="529.5396430138175" y="347.0" width="10.237323034712176" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="536.9140499598079" y="221.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="539.9935844932384" y="347.0" width="16.748808820434306" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="553.9273272694538" y="283.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="556.9861698917479" y="347.0" width="38.355043780128085" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="592.4569590497949" y="283.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="595.5888699832892" y="347.0" width="45.02107227714987" height="28" rx="3" fill="#d9d4c7"/>
+<circle cx="674.4289311461442" cy="423.0" r="9" fill="#5b4bd6"/>
+<rect x="640.7237477716891" y="159.0" width="33.705183374455146" height="32" rx="4" fill="#2f7d4f"/>
+<rect x="674.5614887018614" y="159.0" width="27.278405099947577" height="32" rx="4" fill="#2f7d4f"/>
+<circle cx="701.8418336684781" cy="423.0" r="9" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+<circle cx="709.6982936780632" cy="423.0" r="9" fill="#5b4bd6"/>
+<rect x="701.9937898908856" y="159.0" width="7.7051504094006305" height="32" rx="4" fill="#2f7d4f"/>
+<rect x="709.8334377226726" y="159.0" width="14.57939126223198" height="32" rx="4" fill="#b4462b"/>
+<rect x="724.4128289849045" y="347.0" width="2" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="723.009339253519" y="221.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="726.0940467647334" y="347.0" width="3.4775343153538643" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="726.6892663246754" y="283.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="729.7558684136455" y="347.0" width="8.546405921538053" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="735.4885015354108" y="283.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="738.6275253133582" y="347.0" width="11.799562325507054" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="747.6023222613013" y="283.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="750.7400527948026" y="347.0" width="28.3311060790096" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="776.1797914072781" y="283.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<rect x="779.2651455407156" y="347.0" width="56.56780531345976" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="832.9946064099281" y="283.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<circle cx="887.4217650504493" cy="423.0" r="9" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+<rect x="836.0961260989409" y="347.0" width="159.97304472850726" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="993.1887959387052" y="159.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<circle cx="1081.4588684871828" cy="423.0" r="9" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+<circle cx="1275.4746333905573" cy="423.0" r="9" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+<rect x="997.8266900295924" y="347.0" width="288.31333030731014" height="28" rx="3" fill="#d9d4c7"/>
+<rect x="1283.2635251814977" y="221.0" width="6" height="32" rx="4" fill="#b4462b"/>
+<circle cx="1430.6853054465878" cy="423.0" r="9" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+<rect x="1286.3353002482522" y="347.0" width="233.66469975174778" height="28" rx="3" fill="#d9d4c7"/>
+<text x="484" y="81.0" text-anchor="end" fill="#4a5163" font-size="17">listed; the router refused it for this account</text>
+<text x="484" y="143.0" text-anchor="end" fill="#4a5163" font-size="17">listed; the router refused it for this account</text>
+<text x="484" y="205.0" text-anchor="end" fill="#4a5163" font-size="17">listed; routes (provider 429s upstream)</text>
+<text x="484" y="267.0" text-anchor="end" fill="#4a5163" font-size="17">listed; the router refused it for this account</text>
+<text x="484" y="329.0" text-anchor="end" fill="#4a5163" font-size="17">listed; the router refused it for this account</text>
+<rect x="60" y="504" width="26" height="22" rx="4" fill="#2f7d4f"/>
+<text x="96" y="522" font-size="22">turn completed</text>
+<rect x="310" y="504" width="26" height="22" rx="4" fill="#b4462b"/>
+<text x="346" y="522" font-size="22">turn failed</text>
+<rect x="560" y="504" width="26" height="22" rx="4" fill="#d9d4c7"/>
+<text x="596" y="522" font-size="22">backoff wait</text>
+<circle cx="820" cy="515" r="9" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+<text x="838" y="522" font-size="22">owner message arrives</text>
+<circle cx="1120" cy="515" r="9" fill="#5b4bd6"/>
+<text x="1138" y="522" font-size="22">answered</text>
+</g></svg>
