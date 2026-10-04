@@ -2,6 +2,7 @@
 name = "rung-agent-core"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "The rung agent as a library: catalog, sessions, the turn engine, MCP, memory hooks, the turn check and ACP; rung-agent is a thin shell over it"

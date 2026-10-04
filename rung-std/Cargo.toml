@@ -2,6 +2,7 @@
 name = "rung-std"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Standard library of reusable rung ladders (LlmCall, etc.)"

@@ -78,3 +78,18 @@ jobs:
           fi
       - name: release build of rung-agent
         run: cargo build -p rung-agent --release --locked
+
+  # The declared MSRV (`rust-version` in Cargo.toml, set by the newest
+  # dependency floor). Compiles every target and runs unit tests there.
+  # trybuild `.stderr` files pin the *stable* compiler's wording and drift
+  # across rustc releases, so the UI suites run only in `check`.
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: Swatinem/rust-cache@v2
+      - name: build every target
+        run: cargo check --workspace --all-targets --locked
+      - name: unit tests
+        run: cargo test --workspace --lib --bins --locked

@@ -14,10 +14,12 @@ use rung::Role;
 struct SpecData;
 struct LoopState;
 
+#[derive(Clone, Copy)]
 struct Reviewer;
 impl Role for Reviewer {
     const NAME: &'static str = "reviewer";
 }
+#[derive(Clone, Copy)]
 struct Curator;
 impl Role for Curator {
     const NAME: &'static str = "curator";
