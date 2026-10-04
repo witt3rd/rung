@@ -13,9 +13,9 @@ use serde::{Serialize, Serializer};
 
 use crate::args::{Args, IsolationMode};
 use crate::catalog::Kind;
-use crate::engine::{Engine, EngineSpec, TurnCtl, TurnDone};
+use crate::engine::{Ended, Engine, EngineSpec, TurnCtl, TurnDone, settle};
 use crate::session::{Line, Session, SessionStore};
-use crate::turn_check::{Completion, TurnCheckReport};
+use crate::turn_check::{Completion, Gate, TurnCheckReport};
 
 /// How a job ended. Serialised as the status string hosts already read, plus
 /// `unverified` and `unchecked` from the turn check.
@@ -129,6 +129,10 @@ pub struct JobEx {
 
 /// Nested `task` Spawn: pick a catalog kind, persist a child session, run a
 /// depth-capped loop. Isolation stays the process cwd (parent already chdir'd).
+///
+/// The child's end is settled like a top-level turn's ([`settle`]): while the
+/// turn check is on, the child is `completed` only when its check passed, and
+/// the `task` result's `state` and the child session's status say otherwise.
 #[derive(Clone)]
 pub struct CatalogSpawn {
     pub config: LlmConfig,
@@ -139,6 +143,8 @@ pub struct CatalogSpawn {
     pub extra: JobEx,
     /// The model takes images (`llm.images`); the child loop sends tool images.
     pub tool_images: bool,
+    /// The turn check the child's end passes through (the parent's switch).
+    pub gate: Arc<Gate>,
 }
 
 impl std::fmt::Debug for CatalogSpawn {
@@ -183,16 +189,19 @@ impl Spawn for CatalogSpawn {
             self.emitter.clone(),
             &self.extra,
             self.tool_images,
+            &self.gate,
+            &req.prompt,
         ) {
-            Ok((line, api_calls)) => {
+            Ok((line, api_calls, status)) => {
                 let text = line.text.clone();
                 sess.lines.push(line);
-                sess.status = "completed".into();
+                sess.status = session_status(&status);
                 self.store.save(&sess)?;
                 Ok(TaskResult {
                     text,
                     api_calls,
                     task_id: Some(id),
+                    state: status.as_str().into(),
                 })
             }
             Err((f, sent)) => {
@@ -205,6 +214,26 @@ impl Spawn for CatalogSpawn {
     }
 }
 
+/// The session status a turn's end is saved as.
+fn session_status(status: &Status) -> String {
+    match status {
+        Status::Cancelled => "interrupted".into(),
+        s => s.as_str().into(),
+    }
+}
+
+/// Assistant messages of the turns before the last line (the current ask),
+/// for the turn check's prior actions.
+fn earlier_of(lines: &[Line]) -> Vec<ChatMessage> {
+    lines
+        .iter()
+        .take(lines.len().saturating_sub(1))
+        .filter(|l| l.role == "assistant")
+        .flat_map(|l| l.messages.clone().unwrap_or_default())
+        .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
 fn drive(
     config: &LlmConfig,
     kind: Kind,
@@ -213,7 +242,9 @@ fn drive(
     emitter: Option<Arc<crate::stream::Emitter>>,
     extra: &JobEx,
     tool_images: bool,
-) -> Result<(Line, u32), (agent::Filtered, usize)> {
+    gate: &Gate,
+    request: &str,
+) -> Result<(Line, u32, Status), (agent::Filtered, usize)> {
     let _cancel_guard = crate::mcp::set_session_cancel(extra.cancel.clone());
     let cap = kind.iteration_cap(max_iterations);
     let base: Arc<dyn Toolset> = Arc::new(WithoutTask::new(Arc::new(kind.roster())));
@@ -249,8 +280,35 @@ fn drive(
         python: None,
     };
     let sent = thread.messages.len();
-    match agent::run(thread, carry) {
-        Ok(r) => Ok((turn_line(&r, sent), r.api_calls_made)),
+    let system_prompt = thread.system_prompt.clone();
+    match agent::run(thread, carry.clone()) {
+        Ok(r) => {
+            let first = r.api_calls_made;
+            let ended = match gate {
+                // Off is what it was: the child's end is its completion.
+                Gate::Off(off) => Ended {
+                    result: r,
+                    status: Status::Completed(off.completion()),
+                    report: None,
+                    extra_calls: 0,
+                },
+                Gate::On(_) => {
+                    let rerun = |messages| {
+                        let system_prompt = system_prompt.clone();
+                        agent::run(
+                            Thread {
+                                system_prompt,
+                                messages,
+                            },
+                            carry.clone(),
+                        )
+                    };
+                    settle(gate, r, sent, request, &earlier_of(lines), rerun)
+                }
+            };
+            let line = turn_line(&ended.result, sent);
+            Ok((line, first + ended.extra_calls, ended.status))
+        }
         Err(f) => Err((f, sent)),
     }
 }
@@ -601,6 +659,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         emitter: emitter.clone(),
         extra: extra.clone(),
         tool_images,
+        gate: Arc::new(Gate::from_settings(&spec.turn_check)),
     };
     let engine = Engine::build(spec)?
         .with_task(Arc::new(spawn))
@@ -646,13 +705,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     }
     let sent = thread.messages.len();
     let request_text = args.prompt.clone().unwrap_or_default();
-    let earlier: Vec<ChatMessage> = sess
-        .lines
-        .iter()
-        .take(sess.lines.len().saturating_sub(1))
-        .filter(|l| l.role == "assistant")
-        .flat_map(|l| l.messages.clone().unwrap_or_default())
-        .collect();
+    let earlier = earlier_of(&sess.lines);
     let ctl = TurnCtl {
         cancel: extra.cancel.clone(),
         stream_listener: listener,
@@ -685,10 +738,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
                     m.retain = Some(kept);
                 }
             }
-            sess.status = match status {
-                Status::Cancelled => "interrupted".into(),
-                _ => status.as_str().into(),
-            };
+            sess.status = session_status(&status);
             store.save(&sess)?;
             let out = Outcome {
                 task_id: id,

@@ -1410,6 +1410,7 @@ impl Spawn for NestedLoop {
                 text: r.final_response,
                 api_calls: r.api_calls_made,
                 task_id: req.task_id.clone(),
+                state: crate::tools::TASK_COMPLETED.into(),
             }),
             Err(f) => Err(f.reason),
         }

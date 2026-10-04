@@ -275,45 +275,21 @@ impl Engine {
             Ok(r) => {
                 let first_calls = r.api_calls_made;
                 let first_elided = r.elided;
-                let ended = if r.truncated {
-                    Ended {
-                        result: r,
-                        status: Status::Truncated,
-                        report: None,
-                        extra_calls: 0,
+                let rerun = |messages: Vec<ChatMessage>| {
+                    let thread = Thread {
+                        system_prompt: system_text.clone(),
+                        messages,
+                    };
+                    let out = agent::run(
+                        thread,
+                        self.carry(tools.clone(), config.clone(), ctl.cancel.clone()),
+                    );
+                    if let Err(f) = &out {
+                        *rerun_failure.borrow_mut() = ProviderFailure::of(f);
                     }
-                } else {
-                    match &self.gate {
-                        Gate::Off(off) => Ended {
-                            result: r,
-                            status: Status::Completed(off.completion()),
-                            report: None,
-                            extra_calls: 0,
-                        },
-                        Gate::On(decider) => {
-                            let carry = turncheck::Carry {
-                                decider: decider.clone(),
-                                request: ctl.request.clone(),
-                                prior_actions: turn_check::prior_actions(&ctl.earlier),
-                            };
-                            let rerun = |messages: Vec<ChatMessage>| {
-                                let thread = Thread {
-                                    system_prompt: system_text.clone(),
-                                    messages,
-                                };
-                                let out = agent::run(
-                                    thread,
-                                    self.carry(tools.clone(), config.clone(), ctl.cancel.clone()),
-                                );
-                                if let Err(f) = &out {
-                                    *rerun_failure.borrow_mut() = ProviderFailure::of(f);
-                                }
-                                out
-                            };
-                            check_turn(Turn::first(r, sent), carry, rerun)
-                        }
-                    }
+                    out
                 };
+                let ended = settle(&self.gate, r, sent, &ctl.request, &ctl.earlier, rerun);
                 let Ended {
                     result,
                     status,
@@ -558,11 +534,52 @@ impl Toolset for Gated {
 
 /// A turn after its check: the result to persist and report, its status, and
 /// the reading. `extra_calls` counts the nudge re-run's model calls.
-struct Ended {
-    result: agent::AgentResult,
-    status: Status,
-    report: Option<TurnCheckReport>,
-    extra_calls: u32,
+pub(crate) struct Ended {
+    pub(crate) result: agent::AgentResult,
+    pub(crate) status: Status,
+    pub(crate) report: Option<TurnCheckReport>,
+    pub(crate) extra_calls: u32,
+}
+
+/// Settle a loop that ran to its end: truncated, completed unjudged while the
+/// check is off, else the TurnCheck ladder's verdict. A top-level turn and a
+/// nested `task` child ([`crate::run::CatalogSpawn`]) both end here, so a
+/// child is never `completed` on its own say-so while the check is on.
+///
+/// `sent` is how many messages the loop was given; `request` and `earlier`
+/// are what the check reads; `rerun` runs the loop again for the one nudge.
+pub(crate) fn settle(
+    gate: &Gate,
+    r: agent::AgentResult,
+    sent: usize,
+    request: &str,
+    earlier: &[ChatMessage],
+    rerun: impl Fn(Vec<ChatMessage>) -> Result<agent::AgentResult, agent::Filtered>,
+) -> Ended {
+    if r.truncated {
+        return Ended {
+            result: r,
+            status: Status::Truncated,
+            report: None,
+            extra_calls: 0,
+        };
+    }
+    match gate {
+        Gate::Off(off) => Ended {
+            result: r,
+            status: Status::Completed(off.completion()),
+            report: None,
+            extra_calls: 0,
+        },
+        Gate::On(decider) => {
+            let carry = turncheck::Carry {
+                decider: decider.clone(),
+                request: request.to_string(),
+                prior_actions: turn_check::prior_actions(earlier),
+            };
+            check_turn(Turn::first(r, sent), carry, rerun)
+        }
+    }
 }
 
 /// Drive the TurnCheck ladder: check, nudge once and check again if the turn
