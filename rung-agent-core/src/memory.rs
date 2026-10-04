@@ -188,6 +188,7 @@ impl Hooks {
                     dir,
                     arg: arg.clone(),
                     timeout: Duration::from_secs(s.timeout_secs.max(1)),
+                    token: s.token.clone(),
                 };
                 let provider = match registry.build(name, &settings) {
                     Ok(p) => p,
@@ -494,6 +495,16 @@ pub struct McpProvider {
     /// Set when a call timed out: the server was stopped, and every later
     /// call is unavailable at once.
     dead: Arc<AtomicBool>,
+    /// The bearer, if any, kept only to scrub it from error text.
+    secret: Option<String>,
+}
+
+/// `text` with every copy of the bearer `secret` removed.
+fn scrub_token(text: &str, secret: Option<&str>) -> String {
+    match secret {
+        Some(s) if !s.is_empty() => redact(&text.replace(s, "[redacted]")),
+        _ => redact(text),
+    }
 }
 
 /// Parse `mcp:<arg>`: an `http(s)://` URL, or a command and its arguments
@@ -533,7 +544,19 @@ fn within<T: Send + 'static>(
 
 fn mcp_factory(s: &ProviderSettings) -> Result<Arc<dyn MemoryProvider>, String> {
     let spec = mcp_spec(s.arg.as_deref().unwrap_or(""))?;
-    Ok(Arc::new(McpProvider::connect(&spec, s.timeout)?))
+    let spec = match (spec, &s.token) {
+        (McpSpec::Http { name, url, .. }, Some(t)) => McpSpec::Http {
+            name,
+            url,
+            headers: vec![("Authorization".into(), format!("Bearer {}", t.expose()))],
+        },
+        (spec, _) => spec,
+    };
+    let secret = s.token.as_ref().map(|t| t.expose().to_string());
+    let scrub = |e: String| scrub_token(&e, secret.as_deref());
+    let mut p = McpProvider::connect(&spec, s.timeout).map_err(scrub)?;
+    p.secret = secret;
+    Ok(Arc::new(p))
 }
 
 impl McpProvider {
@@ -579,6 +602,7 @@ impl McpProvider {
             budget,
             timeout,
             dead: Arc::new(AtomicBool::new(false)),
+            secret: None,
         })
     }
 
@@ -591,7 +615,12 @@ impl McpProvider {
         let hooks = self.hooks.clone();
         let result = match within(self.timeout, move || hooks.call_raw(tool, &args)) {
             Some(Ok(v)) => v,
-            Some(Err(e)) => return Err(Miss::new(Why::Unreachable(redact(&e)))),
+            Some(Err(e)) => {
+                return Err(Miss::new(Why::Unreachable(scrub_token(
+                    &e,
+                    self.secret.as_deref(),
+                ))));
+            }
             None => {
                 self.dead.store(true, Ordering::SeqCst);
                 self.hooks.abort();
@@ -869,6 +898,7 @@ mod tests {
             scope: Some("my key".into()),
             dir: Some(std::env::temp_dir().join(format!("rung-verb-{}", std::process::id()))),
             timeout_secs: 1,
+            token: None,
         };
         let Hooks::On { scope, .. } =
             Hooks::from_settings(&s, Path::new("."), &registry()).unwrap()
@@ -951,6 +981,7 @@ mod tests {
             scope: None,
             dir: None,
             timeout_secs: 1,
+            token: None,
         };
         let e = Hooks::from_settings(&s, Path::new("/tmp"), &registry()).unwrap_err();
         assert!(e.contains("baseline | mcp"), "{e}");
@@ -966,11 +997,140 @@ mod tests {
             scope: Some("k".into()),
             dir: None,
             timeout_secs: 1,
+            token: None,
         };
         let hooks = Hooks::from_settings(&s, Path::new("/tmp"), &registry()).unwrap();
         let (r, block) = hooks.recall("what is the deploy branch", &[]).unwrap();
         assert_eq!(r.status, "unavailable");
         assert!(block.is_none());
         assert!(hooks.toolset("s").is_none());
+    }
+    /// A one-thread HTTP MCP memory provider that records the
+    /// `Authorization` header of every request and answers 401 without the
+    /// expected bearer.
+    fn bearer_server(want: &'static str) -> (String, Arc<std::sync::Mutex<Vec<Option<String>>>>) {
+        use std::io::{Read, Write};
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/mcp", l.local_addr().unwrap());
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let log = seen.clone();
+        std::thread::spawn(move || {
+            for mut c in l.incoming().flatten() {
+                let mut buf = Vec::new();
+                let mut tmp = [0u8; 4096];
+                let (head, len) = loop {
+                    let n = c.read(&mut tmp).unwrap_or(0);
+                    buf.extend_from_slice(&tmp[..n]);
+                    if let Some(p) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let h = String::from_utf8_lossy(&buf[..p]).to_string();
+                        let len = h
+                            .lines()
+                            .find_map(|l| {
+                                let (k, v) = l.split_once(':')?;
+                                k.eq_ignore_ascii_case("content-length")
+                                    .then(|| v.trim().parse::<usize>().unwrap())
+                            })
+                            .unwrap_or(0);
+                        buf.drain(..p + 4);
+                        break (h, len);
+                    }
+                    if n == 0 {
+                        break (String::new(), 0);
+                    }
+                };
+                while buf.len() < len {
+                    let n = c.read(&mut tmp).unwrap_or(0);
+                    if n == 0 {
+                        break;
+                    }
+                    buf.extend_from_slice(&tmp[..n]);
+                }
+                let auth = head.lines().find_map(|l| {
+                    let (k, v) = l.split_once(':')?;
+                    k.eq_ignore_ascii_case("authorization")
+                        .then(|| v.trim().to_string())
+                });
+                log.lock().unwrap().push(auth.clone());
+                let body: Value = serde_json::from_slice(&buf).unwrap_or(json!({}));
+                let id = body.get("id").cloned();
+                let result = match body.get("method").and_then(Value::as_str) {
+                    Some("initialize") => json!({
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {"experimental": {MARKER: {"recall": true, "retain": true}}},
+                        "serverInfo": {"name": "p", "version": "1"}}),
+                    Some("tools/list") => json!({"tools": [
+                        {"name": RECALL_TOOL, "description": "r", "inputSchema": {"type": "object"}},
+                        {"name": RETAIN_TOOL, "description": "r", "inputSchema": {"type": "object"}}]}),
+                    Some("tools/call") => json!({"content": [], "structuredContent": {
+                        "records": [{"id": "r1", "text": "one"}, {"id": "r2", "text": "two"}]}}),
+                    _ => json!(null),
+                };
+                let (status, out) = if auth.as_deref() == Some(want) {
+                    (
+                        "200 OK",
+                        json!({"jsonrpc": "2.0", "id": id, "result": result}),
+                    )
+                } else {
+                    ("401 Unauthorized", json!({}))
+                };
+                let out = out.to_string();
+                let _ = write!(
+                    c,
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{out}",
+                    out.len()
+                );
+            }
+        });
+        (url, seen)
+    }
+
+    fn http_settings(url: &str, token: Option<&str>) -> MemorySettings {
+        MemorySettings {
+            authority: MemoryAuthority::Provider {
+                name: "mcp".into(),
+                arg: Some(url.into()),
+            },
+            scope: Some("k".into()),
+            dir: None,
+            timeout_secs: 5,
+            token: token.map(|t| rung_memory::Token::new(t).unwrap()),
+        }
+    }
+
+    #[test]
+    fn the_bearer_rides_every_call_and_recall_lists_injected_ids() {
+        let secret = "s3cret-bearer-value";
+        let (url, seen) = bearer_server("Bearer s3cret-bearer-value");
+        let s = http_settings(&url, Some(secret));
+        assert!(!format!("{s:?}").contains(secret));
+        let hooks = Hooks::from_settings(&s, Path::new("/tmp"), &registry()).unwrap();
+        let (r, block) = hooks.recall("what", &[]).unwrap();
+        assert_eq!(r.status, "found");
+        assert_eq!(r.injected, ["r1", "r2"]);
+        assert!(block.is_some());
+        let seen = seen.lock().unwrap();
+        assert!(seen.len() >= 4, "{seen:?}");
+        assert!(
+            seen.iter()
+                .all(|a| a.as_deref() == Some("Bearer s3cret-bearer-value")),
+            "{seen:?}"
+        );
+        let wire = serde_json::to_string(&hooks.report().unwrap()).unwrap()
+            + &serde_json::to_string(&r).unwrap()
+            + &format!("{r:?}{block:?}");
+        assert!(!wire.contains(secret), "{wire}");
+    }
+
+    #[test]
+    fn a_wrong_or_missing_bearer_is_unavailable_and_never_echoes_the_token() {
+        let (url, _) = bearer_server("Bearer right-right-right");
+        for token in [Some("wrong-wrong-wrong"), None] {
+            let s = http_settings(&url, token);
+            let hooks = Hooks::from_settings(&s, Path::new("/tmp"), &registry()).unwrap();
+            let (r, _) = hooks.recall("what", &[]).unwrap();
+            assert_eq!(r.status, "unavailable");
+            let text = format!("{r:?}");
+            assert!(!text.contains("wrong-wrong-wrong"), "{text}");
+        }
     }
 }

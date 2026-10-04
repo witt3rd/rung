@@ -113,7 +113,14 @@ fn memory_check(setting: Option<&String>) -> ExitCode {
             std::env::temp_dir().join(format!("rung-memory-check-{}", std::process::id()))
         });
     let timeout = std::time::Duration::from_secs(10);
-    match rung_agent::memory_fixture::check(setting, &dir, timeout) {
+    let token = match rung_agent::config::load_memory(None) {
+        Ok(s) => s.token,
+        Err(e) => {
+            eprintln!("rung-agent: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    match rung_agent::memory_fixture::check(setting, &dir, timeout, token) {
         Ok(clauses) if rung_agent::memory_fixture::report(&clauses) => ExitCode::SUCCESS,
         Ok(_) => ExitCode::from(1),
         Err(e) => {

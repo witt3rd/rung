@@ -146,6 +146,38 @@ pub struct ProviderSettings {
     /// The longest one provider call may take; the provider enforces it on
     /// its own transport.
     pub timeout: Duration,
+    /// An optional bearer for a provider reached over HTTP. A provider on
+    /// another transport ignores it.
+    pub token: Option<Token>,
+}
+
+/// A secret that never prints: `Debug` shows `Token(..)`, and there is no
+/// `Display`. Read it with [`Token::expose`] only to put it on the wire.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Token(String);
+
+impl Token {
+    /// A bearer token: non-empty visible ASCII, no whitespace. The error
+    /// never carries the value.
+    pub fn new(value: &str) -> Result<Self, String> {
+        let v = value.trim();
+        if v.is_empty() {
+            return Err("is empty".into());
+        }
+        if !v.bytes().all(|b| b.is_ascii_graphic()) {
+            return Err("must be visible ASCII without whitespace".into());
+        }
+        Ok(Self(v.to_string()))
+    }
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Token(..)")
+    }
 }
 
 /// Builds a provider from its settings.

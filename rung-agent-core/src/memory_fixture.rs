@@ -228,7 +228,12 @@ pub struct Clause {
 
 /// Run the contract against the provider `setting` names. It writes one
 /// probe note into a scope of its own (`rung-memory-check:<uuid>`).
-pub fn check(setting: &str, dir: &Path, timeout: Duration) -> Result<Vec<Clause>, String> {
+pub fn check(
+    setting: &str,
+    dir: &Path,
+    timeout: Duration,
+    token: Option<rung_memory::Token>,
+) -> Result<Vec<Clause>, String> {
     let authority = MemoryAuthority::parse(setting)?;
     let MemoryAuthority::Provider { name, arg } = &authority else {
         return Err(format!(
@@ -242,6 +247,7 @@ pub fn check(setting: &str, dir: &Path, timeout: Duration) -> Result<Vec<Clause>
             dir: dir.to_path_buf(),
             arg: arg.clone(),
             timeout,
+            token,
         },
     );
     let mut out = Vec::new();

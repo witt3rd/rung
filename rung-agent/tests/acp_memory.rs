@@ -106,6 +106,7 @@ impl Acp {
             .env_remove("RUNG_MEMORY")
             .env_remove("RUNG_MEMORY_SCOPE")
             .env_remove("RUNG_MEMORY_DIR")
+            .env_remove("RUNG_MEMORY_TOKEN")
             .env_remove("RUNG_MEMORY_TIMEOUT_SECS")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -360,6 +361,7 @@ fn baseline_retains_in_one_session_and_recalls_in_the_next() {
     let m2 = &second["result"]["_meta"]["rung"]["memory"];
     assert_eq!(m2["recall"]["status"], "found", "{second}");
     assert_eq!(m2["recall"]["records"], 1);
+    assert_eq!(m2["recall"]["injected"].as_array().map(Vec::len), Some(1));
     assert_eq!(m2["recall"]["calls"], 2);
     assert_eq!(m2["recall"]["cost_usd"], 0.0);
     assert!(m2["recall"]["latency_ms"].is_u64());
