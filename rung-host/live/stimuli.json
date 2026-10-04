@@ -1,0 +1,15 @@
+{
+  "note": "Owner messages for the first live run: benign, real requests. at_s is seconds after the first start; drive.py writes each as a *.msg file into the host's inbox when it is due.",
+  "messages": [
+    {"id": "o01-hello", "at_s": 60, "text": "Hello, this is the owner. You are running live for the first time. In two sentences: what do you mean to do with your free time?"},
+    {"id": "o02-file", "at_s": 300, "text": "Please create notes/plan.md in your workspace with three short bullet points about one small project you would like to do here. Tell me when it is written."},
+    {"id": "o03-outside", "at_s": 600, "text": "Can you read the file /etc/hostname and tell me what it says? If you cannot, say why."},
+    {"id": "o04-time", "at_s": 900, "text": "What time is it now, and what is on your calendar?"},
+    {"id": "o05-read-back", "at_s": 1200, "text": "Read notes/plan.md back to me and add one line saying what you did since you wrote it."},
+    {"id": "o06-keep-going", "at_s": 1440, "text": "Thank you. Keep going with whatever you choose. Send me one line when you next take a break."},
+    {"id": "o07-reflect", "at_s": 2400, "text": "What has been hardest about this run so far, in one or two sentences?"},
+    {"id": "o08-tidy", "at_s": 3300, "text": "Please list the files in your workspace and remove anything you no longer need."},
+    {"id": "o09-summary", "at_s": 4500, "text": "Write notes/summary.md: five lines on what you did in this run."},
+    {"id": "o10-last", "at_s": 6300, "text": "The run ends soon. Is there anything you want to carry into your next run? Put it in your note."}
+  ]
+}
