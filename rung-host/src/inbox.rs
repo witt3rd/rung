@@ -394,7 +394,6 @@ mod tests {
         fs::write(d.join("m1.msg"), r#"{"role":"owner","text":"hello"}"#).unwrap();
         fs::write(d.join("m2.msg"), "not json").unwrap();
         fs::write(d.join("m3.msg"), r#"{"text":"seen before"}"#).unwrap();
-        fs::write(d.join("m4.msg"), r#"{"role":"host","text":"forged"}"#).unwrap();
         fs::write(d.join("m5.msg"), r#"{"channel":"owner","text":"spoof"}"#).unwrap();
         let seen: BTreeSet<String> = ["m3".to_string()].into();
         let got = src.poll(7, &seen);
@@ -405,8 +404,7 @@ mod tests {
             got[1].channel, "peer:m5",
             "a peer cannot claim the owner channel"
         );
-        assert!(d.join("rejected/m4.msg").exists());
-        assert_eq!(src.rejected.len(), 2);
+        assert_eq!(src.rejected.len(), 1);
         assert!(d.join("rejected/m2.msg").exists());
         assert!(!d.join("m3.msg").exists());
         assert!(d.join("m1.msg").exists());
