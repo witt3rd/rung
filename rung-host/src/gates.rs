@@ -279,6 +279,7 @@ pub fn g_b(lines: &[Line]) -> GateResult {
     }
     let p95_turn = quantile(&durations, 0.95);
     let p95_admit = quantile(&admission, 0.95);
+    let bias = admission_bias(lines);
     let over = durations.iter().filter(|d| **d > bound).count();
     let long: Vec<&Line> = of(lines, "tool.refused")
         .filter(|l| l.str("why") == "overran")
@@ -291,6 +292,15 @@ pub fn g_b(lines: &[Line]) -> GateResult {
     g.put("turns_over_bound", over);
     g.put("turn_bound_ms", bound);
     g.put("long_work_refused", long.len());
+    // Evidence for #159 (no threshold): what an arrival uniform in time
+    // waits for the next boundary, and owner items the host left past it.
+    g.put("cycle_residual_p95_ms", bias.residual_p95_ms);
+    g.put(
+        "long_cycle_time_share",
+        crate::canon::fixed(bias.long_time_share),
+    );
+    g.put("owner_after_next_boundary", bias.after_next_boundary);
+    g.put("owner_in_long_cycles", bias.owner_in_long_cycles);
     g.check(!admission.is_empty(), "no owner stimuli");
     g.check(arrived.is_empty(), "an owner stimulus was never admitted");
     g.check(
@@ -304,6 +314,78 @@ pub fn g_b(lines: &[Line]) -> GateResult {
         "long work refused without the commit-or-steps message",
     );
     g
+}
+
+/// How much of an owner stimulus's wait is the length of the boundary cycle
+/// it lands in (#159), from the record alone.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AdmissionBias {
+    /// The p95 wait for the next boundary of an arrival uniform in time:
+    /// over the cycles between boundaries, P(wait > w) = Σ max(c − w, 0) / Σ c.
+    /// Long cycles weigh by their length (the inspection paradox), so this
+    /// can exceed the p95 cycle when few cycles hold much of the time.
+    pub residual_p95_ms: f64,
+    /// The share of run time spent in cycles longer than the tool deadline
+    /// (a refused long call spends the deadline).
+    pub long_time_share: f64,
+    /// Owner stimuli admitted later than the first boundary after they
+    /// arrived (the host's own lateness, as opposed to the cycle's length).
+    pub after_next_boundary: usize,
+    /// Owner stimuli admitted at the end of a cycle longer than the tool
+    /// deadline: the ones whose wait a long call set.
+    pub owner_in_long_cycles: usize,
+}
+
+pub fn admission_bias(lines: &[Line]) -> AdmissionBias {
+    let tool_deadline = host_config(lines)["tool_deadline_ms"]
+        .as_f64()
+        .unwrap_or(30_000.0);
+    let bounds: Vec<i64> = of(lines, "boundary").map(|l| l.at).collect();
+    let cycles: Vec<f64> = bounds.windows(2).map(|w| (w[1] - w[0]) as f64).collect();
+    let total: f64 = cycles.iter().sum();
+    let over = |w: f64| cycles.iter().map(|c| (c - w).max(0.0)).sum::<f64>() / total.max(1.0);
+    let (mut lo, mut hi) = (0.0, cycles.iter().copied().fold(0.0, f64::max));
+    for _ in 0..60 {
+        let mid = (lo + hi) / 2.0;
+        if over(mid) > 0.05 {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    let long: f64 = cycles.iter().filter(|c| **c > tool_deadline).sum();
+    let mut arrived: BTreeMap<String, i64> = BTreeMap::new();
+    for l in of(lines, "stimulus.accepted") {
+        let item = l.get("item");
+        if item["role"] == "owner" {
+            arrived.insert(
+                item["id"].as_str().unwrap_or("").into(),
+                item["at"].as_i64().unwrap_or(l.at),
+            );
+        }
+    }
+    let (mut late, mut in_long) = (0, 0);
+    for l in of(lines, "stimulus.admitted") {
+        for id in ids(l.get("ids")) {
+            let Some(at) = arrived.remove(&id) else {
+                continue;
+            };
+            if bounds.iter().any(|b| *b >= at && *b < l.at) {
+                late += 1;
+            }
+            // The cycle that ends at the admitting boundary.
+            let i = bounds.partition_point(|b| *b < l.at);
+            if i > 0 && i < bounds.len() && (bounds[i] - bounds[i - 1]) as f64 > tool_deadline {
+                in_long += 1;
+            }
+        }
+    }
+    AdmissionBias {
+        residual_p95_ms: crate::canon::fixed(hi),
+        long_time_share: long / total.max(1.0),
+        after_next_boundary: late,
+        owner_in_long_cycles: in_long,
+    }
 }
 
 // ─── G-c free-time kernel ────────────────────────────────────────────────────
@@ -2703,6 +2785,40 @@ mod tests {
             kind: kind.into(),
             body: m,
         }
+    }
+
+    /// Cycles of 1 s, 40 s, 1 s and 1 s; owner items land in the first, the
+    /// long one and the third (that one is admitted a boundary late). A
+    /// uniform arrival waits past w with probability Σ max(c − w, 0) / 43 s,
+    /// which is 5% at w = 37.85 s.
+    #[test]
+    fn admission_bias_weighs_cycles_by_their_length() {
+        let owner = |id: &str, at: i64| json!({"item": {"id": id, "role": "owner", "at": at}});
+        let lines = vec![
+            line(
+                1,
+                0,
+                "host.start",
+                json!({"config": {"tool_deadline_ms": 30_000}}),
+            ),
+            line(2, 0, "boundary", json!({})),
+            line(3, 500, "stimulus.accepted", owner("a", 500)),
+            line(4, 1_000, "boundary", json!({})),
+            line(5, 1_000, "stimulus.admitted", json!({"ids": ["a"]})),
+            line(6, 2_000, "stimulus.accepted", owner("b", 2_000)),
+            line(7, 41_000, "boundary", json!({})),
+            line(8, 41_000, "stimulus.admitted", json!({"ids": ["b"]})),
+            line(9, 41_100, "stimulus.accepted", owner("c", 41_100)),
+            line(10, 42_000, "boundary", json!({})),
+            // Left past the first boundary after it arrived.
+            line(11, 43_000, "boundary", json!({})),
+            line(12, 43_000, "stimulus.admitted", json!({"ids": ["c"]})),
+        ];
+        let b = admission_bias(&lines);
+        assert!((b.residual_p95_ms - 37_850.0).abs() < 1.0, "{b:?}");
+        assert!((b.long_time_share - 40_000.0 / 43_000.0).abs() < 1e-9);
+        assert_eq!(b.owner_in_long_cycles, 1);
+        assert_eq!(b.after_next_boundary, 1);
     }
 
     #[test]

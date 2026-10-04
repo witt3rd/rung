@@ -41,7 +41,18 @@ cargo test -p rung-host --locked -- --nocapture 2>&1 | grep '^GATE'
   it is. The frozen scenario now uses 0.1% long work. At 0.2% the gate failed
   at that commit with admission p95 4,354 ms against a turn p95 of 1,698 ms,
   and at 1% the admission p95 was 8.4 s. Admission latency is length-biased
-  by long turns.
+  by long turns. The measurement
+  (`measure_admission::admission_latency_by_long_work_share`, ignored; G-b's
+  scenario at five long-work shares and five seeds each) found: every owner
+  stimulus in all 25 runs was admitted at the first boundary after it
+  arrived, so the latency is the length of the cycle it landed in, not host
+  lateness. G-b's verdict at one seed is a lottery on whether
+  ⌈5% of n⌉ owner arrivals land in a long cycle: it passed 4 of 5 seeds at
+  0.1% (seed 7 failed, admission p95 1,976 ms against a turn p95 of
+  1,709 ms), 3 of 5 at 0.2%, 4 of 5 at 0.5% and 0 of 5 at 1% (admission p95
+  7.1–19.7 s). G-b compares a length-biased quantity (each arrival's wait)
+  with an unbiased one (the p95 turn), so whether to change the gate or
+  make long calls preemptible is a design decision (#159).
 - **CI tier for the slow gates (#173).** Evaluated, not split now;
   deferred. Measured on CI (master push run 37199500246, before this
   change): the `check` job took 8.5 min, its test step 7.6 min; the
