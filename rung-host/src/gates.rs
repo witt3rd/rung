@@ -920,6 +920,10 @@ pub fn g_i(lines: &[Line], kills: usize, replayed: &BTreeMap<u64, String>) -> Ga
             Some(k) => &rest[..=k],
             None => rest,
         };
+        // Died while waking, wrote nothing else: the next restart is checked.
+        if run.len() == 1 && next_start.is_some() {
+            continue;
+        }
         let rec = run.iter().find(|l| l.kind == "recovered");
         match rec {
             None => no_recovered += 1,

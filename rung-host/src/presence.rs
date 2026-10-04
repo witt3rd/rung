@@ -309,11 +309,11 @@ impl Host {
     fn wake(&self, r: &Recovered) {
         let core = &*self.core;
         let cfg_v = serde_json::to_value(self.cfg()).unwrap_or(Value::Null);
-        core.emit(
+        let mut pre: Vec<(&'static str, Value)> = vec![(
             "host.start",
             json!({"pid": std::process::id(), "config": cfg_v, "desk": self.desk.backend(),
                    "desk_mode": self.desk.mode, "memory": self.memory.as_ref().map(|m| m.name().to_string())}),
-        );
+        )];
         let now = core.now();
         let first = r.lines == 0;
         let (epoch, rung) = {
@@ -324,13 +324,13 @@ impl Host {
         let mut gap = None;
         if first {
             for (id, title, why) in &self.cfg().seed_projects {
-                core.emit(
+                pre.push((
                     "project.added",
                     json!({"id": id, "title": title, "why": why, "status": "seed", "turn": 0}),
-                );
+                ));
             }
             for e in &self.seed_calendar {
-                core.emit("calendar.added", crate::calendar::added_body(e));
+                pre.push(("calendar.added", crate::calendar::added_body(e)));
             }
         } else {
             let last = r.last_at.unwrap_or(now);
@@ -338,38 +338,37 @@ impl Host {
                 let st = core.state();
                 (st.inbox.in_flight_ids(), st.turn, st.kernel.mode_label())
             };
-            core.emit(
+            pre.push((
                 "recovered",
                 json!({"gap_ms": now - last, "last_at": last, "torn_bytes": r.torn_bytes,
                        "requeued": requeue, "mode": mode, "last_turn": last_turn}),
-            );
+            ));
             if !requeue.is_empty() {
-                core.emit(
+                pre.push((
                     "stimulus.requeued",
                     json!({"ids": requeue, "why": "interrupted_by_restart"}),
-                );
+                ));
             }
             // A wait in progress when the host died is over.
-            let degraded = core.state().governor.degraded.is_some();
-            if degraded {
-                core.emit(
+            if core.state().governor.degraded.is_some() {
+                pre.push((
                     "degraded.ended",
                     json!({"class": "interrupted", "waited_ms": 0}),
-                );
+                ));
             }
             *self.down_since.lock().expect("down") = Some(last);
             l1.push('\n');
             l1.push_str(&render::recovered_line(last, now, last_turn, requeue.len()));
             gap = Some(now - last);
         }
-        // No fsync between the waking lines (the pack is empty: nothing is
-        // evicted), so a kill lands between them only in a tiny window.
+        // The waking lines are one write: a kill cannot land between them.
         self.rollover(
             if first { "start" } else { "wake" },
             &[],
             &By::Rule(crate::desk::Why::NothingToAsk),
             Some(l1),
             gap,
+            pre,
         );
         core.sync();
         core.notifier.ready();
@@ -560,6 +559,7 @@ impl Host {
                 &By::Rule(crate::desk::Why::NothingToAsk),
                 None,
                 None,
+                Vec::new(),
             );
         }
     }
@@ -796,7 +796,7 @@ impl Host {
                 );
             }
             let keep = p.choice().keep.clone();
-            self.rollover(&cause, &keep, p.by(), None, None);
+            self.rollover(&cause, &keep, p.by(), None, None, Vec::new());
         }
         c.choice().note_line
     }
@@ -832,6 +832,7 @@ impl Host {
         by: &By,
         l1: Option<String>,
         gap: Option<Millis>,
+        pre: Vec<(&'static str, Value)>,
     ) {
         let core = &*self.core;
         // Log before forget: what the epoch held is on disk first.
@@ -863,7 +864,9 @@ impl Host {
         if let Some(g) = gap {
             body["gap_ms"] = g.into();
         }
-        core.emit("epoch.rollover", body);
+        let mut lines = pre;
+        lines.push(("epoch.rollover", body));
+        core.emit_many(lines);
         let validity = if cause == "model_switch" {
             Validity::Nothing
         } else {

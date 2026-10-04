@@ -235,10 +235,20 @@ fn fifty_kills_lose_nothing_and_restore_everything() {
         }
     };
     let mut kills = 0;
-    for _ in 0..gates::G_I_KILLS {
+    let mut kill_log: Vec<(usize, u64)> = Vec::new();
+    for i in 0..gates::G_I_KILLS {
         write_msgs(3, &mut rng);
         let mut c = spawn(&dir, &args, &[]);
-        std::thread::sleep(Duration::from_millis(80 + rng.below(400)));
+        // Each kill lands on a run that has woken (its host.start is written).
+        wait_for(
+            &dir,
+            30,
+            &format!("kill index {i} (seed 50) to wake"),
+            |ls| ls.iter().filter(|l| l.kind == "host.start").count() > i,
+        );
+        let sleep = 80 + rng.below(400);
+        kill_log.push((i, sleep));
+        std::thread::sleep(Duration::from_millis(sleep));
         c.kill().unwrap(); // SIGKILL
         let _ = c.wait();
         kills += 1;
@@ -258,11 +268,18 @@ fn fifty_kills_lose_nothing_and_restore_everything() {
             .collect();
         accepted.len() >= sent && accepted.is_subset(&disposed)
     };
-    wait_for(&dir, 300, "the inbox to drain", pending);
+    let ctx = format!(
+        "kill index {kills} (drain run), RNG seed 50, kills (index, sleep ms): {kill_log:?}"
+    );
+    wait_for(&dir, 300, &format!("the inbox to drain; {ctx}"), pending);
     let (_, code) = stop(c);
-    assert_eq!(code, Some(0));
+    assert_eq!(code, Some(0), "non-zero exit; {ctx}");
     let ls = lines(&dir);
     let replayed = State::replay_hashes(&ls);
-    assert_gate(&gates::g_i(&ls, kills, &replayed));
+    let gi = gates::g_i(&ls, kills, &replayed);
+    if !gi.pass {
+        eprintln!("G-i failed; RNG seed 50; kills (index, sleep ms): {kill_log:?}");
+    }
+    assert_gate(&gi);
     assert_gate(&gates::g_k(&ls));
 }

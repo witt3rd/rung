@@ -145,6 +145,16 @@ impl Core {
         line
     }
 
+    /// Append several lines in one write and apply them, under one lock.
+    pub(crate) fn emit_many(&self, lines: Vec<(&str, Value)>) -> Vec<Line> {
+        let mut st = self.state();
+        let out = self.record.append_many(self.clock.now(), lines);
+        for l in &out {
+            st.apply(l);
+        }
+        out
+    }
+
     /// Append a sealed line and apply it.
     pub(crate) fn emit_sealed(&self, s: impl Sealed) -> Line {
         let mut st = self.state();

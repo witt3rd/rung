@@ -286,13 +286,24 @@ impl Record {
         self.write(at, kind, body)
     }
 
+    /// Append several lines with one write syscall (consecutive seqs).
+    pub(crate) fn append_many(&self, at: Millis, items: Vec<(&str, Value)>) -> Vec<Line> {
+        for (k, _) in &items {
+            assert!(
+                !SEALED_KINDS.contains(k),
+                "`{k}` is written only through its sealed entry"
+            );
+        }
+        self.write_many(at, items)
+    }
+
     /// Append a sealed kind. Only the sealed entry types call this.
     pub(crate) fn append_sealed(&self, at: Millis, kind: &'static str, body: Value) -> Line {
         debug_assert!(SEALED_KINDS.contains(&kind));
         self.write(at, kind, body)
     }
 
-    fn write(&self, at: Millis, kind: &str, body: Value) -> Line {
+    fn make_line(seq: u64, at: Millis, kind: &str, body: Value) -> Line {
         let body = match body {
             Value::Object(m) => m,
             Value::Null => Map::new(),
@@ -312,15 +323,28 @@ impl Record {
         let Value::Object(body) = body else {
             unreachable!()
         };
-        let mut inner = self.inner.lock().expect("record");
-        let line = Line {
-            seq: inner.next_seq,
+        Line {
+            seq,
             at,
             kind: kind.to_string(),
             body,
-        };
-        let mut text = line.text().into_bytes();
-        text.push(b'\n');
+        }
+    }
+
+    fn write(&self, at: Millis, kind: &str, body: Value) -> Line {
+        self.write_many(at, vec![(kind, body)]).remove(0)
+    }
+
+    fn write_many(&self, at: Millis, items: Vec<(&str, Value)>) -> Vec<Line> {
+        let mut inner = self.inner.lock().expect("record");
+        let mut lines = Vec::new();
+        let mut text = Vec::new();
+        for (i, (kind, body)) in items.into_iter().enumerate() {
+            let line = Self::make_line(inner.next_seq + i as u64, at, kind, body);
+            text.extend_from_slice(line.text().as_bytes());
+            text.push(b'\n');
+            lines.push(line);
+        }
         if inner.size > 0 && inner.size + text.len() as u64 > self.max_segment {
             let _ = inner.file.sync_all();
             let next = inner.segment + 1;
@@ -338,8 +362,8 @@ impl Record {
             .write_all(&text)
             .unwrap_or_else(|e| panic!("record: write: {e}"));
         inner.size += text.len() as u64;
-        inner.next_seq += 1;
-        line
+        inner.next_seq += lines.len() as u64;
+        lines
     }
 
     /// fsync the open segment.
