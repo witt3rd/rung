@@ -7,9 +7,32 @@ git tags only.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-05
+
+Patch bump: additions are backward compatible and `rung-host` is
+`publish = false`.
+
 ### Added
-- `rung-host`: ACP outward gate adapter and startup handoff (#178); the model
-  ladder is filtered by the router listing (#177).
+- Memory: recall report lists injected record ids; optional bearer for MCP
+  HTTP providers (#175). Marked context block stored in the session once (#184).
+- `rung-host`: Engine adapter and ladder listing filter (#165, #177); ACP outward
+  gate adapter and startup handoff (#178); ACP over Streamable HTTP with
+  per-role bearer tokens (#182); startup-handoff ladder and `run --config`
+  (#196).
+
+### Fixed
+- `rung-host`: non-owner `*.msg` files pinned to their own peer channel (#166);
+  poisoned mutexes recovered via one shared lock helper (#194); kernel commit
+  and release atomic under concurrency (#192).
+- Leaked test temp dirs removed and temp-root CI check added (#185, #193).
+
+### Documentation and CI
+- `release-check` CI job: tag, lockfile, publish flags, release build (#187).
+- MSRV 1.88 declared with an MSRV CI job (#189).
+- Examples and doctests run in CI (#180); CI gates listed in AGENTS.md and
+  skills (#179); docs map and CHANGELOG (#181, #188, #190); extra property,
+  trybuild and carrier tests (#186, #191).
+- Release commit (this one).
 
 ## [0.2.0] - 2026-10-04
 
