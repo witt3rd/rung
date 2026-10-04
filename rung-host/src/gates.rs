@@ -2488,9 +2488,8 @@ pub fn g_q(lines: &[Line], run: &HttpAcpRun) -> GateResult {
     let cap_ok = is_err(&rp("peer_opens_owner"))
         && is_ok(&rp("peer_opens_peer"))
         && is_ok(&rp("owner_opens_owner"));
-    let bound_ok = st("switched_post") == 403
-        && st("switched_get") == 403
-        && st("switched_delete") == 403;
+    let bound_ok =
+        st("switched_post") == 403 && st("switched_get") == 403 && st("switched_delete") == 403;
     let prompt = rp("peer_prompt");
     let meta = &prompt["result"]["_meta"]["rung"];
     let item = meta["item"].as_str().unwrap_or("");
@@ -2506,7 +2505,9 @@ pub fn g_q(lines: &[Line], run: &HttpAcpRun) -> GateResult {
         && run.refused_starts.get("unset_token_env") == Some(&2);
     let leaked = lines.iter().any(|l| {
         let t = l.text();
-        run.tokens.iter().any(|tok| !tok.is_empty() && t.contains(tok.as_str()))
+        run.tokens
+            .iter()
+            .any(|tok| !tok.is_empty() && t.contains(tok.as_str()))
     });
     let loopback = run.bound.starts_with("127.0.0.1:") || run.bound.starts_with("[::1]:");
     g.put("status", json!(run.status));
@@ -2520,12 +2521,24 @@ pub fn g_q(lines: &[Line], run: &HttpAcpRun) -> GateResult {
     g.put("refused_starts", json!(run.refused_starts));
     g.put("token_in_record", leaked);
     g.put("bound", run.bound.clone());
-    g.check(auth_ok, "a request with no or an unknown token was not refused 401");
+    g.check(
+        auth_ok,
+        "a request with no or an unknown token was not refused 401",
+    );
     g.check(init_ok, "a known token could not initialize");
     g.check(cap_ok, "a token's role did not cap its channels");
-    g.check(bound_ok, "a connection accepted another token after initialize");
-    g.check(prompt_ok, "a prompt over HTTP was not answered as the record says");
-    g.check(stop_ok, "the peer's stop was not refused, or the owner's did not halt and exit 0 in time");
+    g.check(
+        bound_ok,
+        "a connection accepted another token after initialize",
+    );
+    g.check(
+        prompt_ok,
+        "a prompt over HTTP was not answered as the record says",
+    );
+    g.check(
+        stop_ok,
+        "the peer's stop was not refused, or the owner's did not halt and exit 0 in time",
+    );
     g.check(starts_ok, "a start without usable tokens was not refused");
     g.check(!leaked, "a token reached the record");
     g.check(loopback, "the listener did not bind loopback");

@@ -131,7 +131,10 @@ fn request(addr: &str, method: &str, headers: &[(&str, &str)], body: Option<&[u8
         }
     }
     let mut body = Vec::new();
-    match headers.get("content-length").and_then(|n| n.parse::<usize>().ok()) {
+    match headers
+        .get("content-length")
+        .and_then(|n| n.parse::<usize>().ok())
+    {
         Some(n) => {
             body.resize(n, 0);
             reader.read_exact(&mut body).unwrap();
@@ -147,7 +150,13 @@ fn request(addr: &str, method: &str, headers: &[(&str, &str)], body: Option<&[u8
     }
 }
 
-fn post(addr: &str, token: Option<&str>, conn: Option<&str>, sess: Option<&str>, m: &Value) -> Http {
+fn post(
+    addr: &str,
+    token: Option<&str>,
+    conn: Option<&str>,
+    sess: Option<&str>,
+    m: &Value,
+) -> Http {
     let auth = token.map(|t| format!("Bearer {t}"));
     let mut h: Vec<(&str, &str)> = vec![("Content-Type", "application/json")];
     if let Some(a) = &auth {
@@ -235,7 +244,11 @@ fn init(addr: &str, token: &str) -> (u16, String) {
         None,
         &json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": 1}}),
     );
-    let conn = r.headers.get("acp-connection-id").cloned().unwrap_or_default();
+    let conn = r
+        .headers
+        .get("acp-connection-id")
+        .cloned()
+        .unwrap_or_default();
     (r.status, conn)
 }
 
@@ -249,13 +262,23 @@ fn acp_over_http_caps_each_connection_by_its_token() {
 
     // Starts without usable tokens are refused.
     let refused = sim::temp_dir_guard("gate-q-refused");
-    let code = |c: &mut Command| c.stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap();
+    let code = |c: &mut Command| {
+        c.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+    };
     let no_tokens = code(command(refused.path()).args(["--acp-http", "127.0.0.1:0"]));
     run.refused_starts
         .insert("no_tokens".into(), no_tokens.code().unwrap_or(-1));
     let unset = code(
         command(refused.path())
-            .args(["--acp-http", "127.0.0.1:0", "--acp-token-env", "owner=G_Q_UNSET"])
+            .args([
+                "--acp-http",
+                "127.0.0.1:0",
+                "--acp-token-env",
+                "owner=G_Q_UNSET",
+            ])
             .env_remove("G_Q_UNSET"),
     );
     run.refused_starts
@@ -299,13 +322,20 @@ fn acp_over_http_caps_each_connection_by_its_token() {
         .insert("peer_opens_owner".into(), reply(&peer_rx, 2, 20));
     new(PEER_TOKEN, &peer_conn, 3, "peer");
     let peer_new = reply(&peer_rx, 3, 20);
-    run.replies.insert("peer_opens_peer".into(), peer_new.clone());
+    run.replies
+        .insert("peer_opens_peer".into(), peer_new.clone());
     new(OWNER_TOKEN, &owner_conn, 4, "owner");
     let owner_new = reply(&owner_rx, 4, 20);
     run.replies
         .insert("owner_opens_owner".into(), owner_new.clone());
-    let peer_sid = peer_new["result"]["sessionId"].as_str().unwrap_or("").to_string();
-    let owner_sid = owner_new["result"]["sessionId"].as_str().unwrap_or("").to_string();
+    let peer_sid = peer_new["result"]["sessionId"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let owner_sid = owner_new["result"]["sessionId"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
 
     // Another valid token on the owner's connection.
     let switched = post(
@@ -369,7 +399,10 @@ fn acp_over_http_caps_each_connection_by_its_token() {
         if let Some(s) = server.child.try_wait().unwrap() {
             break s.code().unwrap_or(-1);
         }
-        assert!(t.elapsed() < limit, "the host did not exit after the owner's stop");
+        assert!(
+            t.elapsed() < limit,
+            "the host did not exit after the owner's stop"
+        );
         std::thread::sleep(Duration::from_millis(10));
     };
     run.exit = Some((code, t.elapsed().as_millis() as u64));

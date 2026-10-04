@@ -10,6 +10,7 @@
 //!               [--fault outage|none] [--backoff-ms MS] [--quota RPD,RPM]
 //!               [--owner-per-hour X] [--no-memory] [--no-commit]
 //!               [--acp [--acp-role owner|peer|observer]] [--send-owner-only]
+//!               [--acp-http ADDR --acp-token-env ROLE=ENV_VAR ...]
 //! rung-host canon --state DIR [--seed N]   # print the hash of a seeded run's request bytes
 //! ```
 
@@ -42,6 +43,35 @@ struct Opts {
     acp: bool,
     send_owner_only: bool,
     acp_role: rung_host::inbox::Role,
+    acp_http: Option<String>,
+    /// (role, the env var holding its token).
+    acp_tokens: Vec<(rung_host::inbox::Role, String)>,
+}
+
+fn role(s: &str) -> Result<rung_host::inbox::Role, String> {
+    match s {
+        "owner" => Ok(rung_host::inbox::Role::Owner),
+        "peer" => Ok(rung_host::inbox::Role::Peer),
+        "observer" => Ok(rung_host::inbox::Role::Observer),
+        other => Err(format!("unknown role {other}")),
+    }
+}
+
+/// The role tokens, read from the env vars the flags name (a token never
+/// rides the command line).
+fn tokens(o: &Opts) -> Result<Vec<(String, rung_host::inbox::Role)>, String> {
+    let mut out = Vec::new();
+    for (r, env) in &o.acp_tokens {
+        let t = std::env::var(env)
+            .ok()
+            .filter(|t| !t.trim().is_empty())
+            .ok_or(format!("--acp-token-env: {env} is not set"))?;
+        out.push((t.trim().to_string(), *r));
+    }
+    if o.acp_http.is_some() && out.is_empty() {
+        return Err("--acp-http needs at least one --acp-token-env ROLE=ENV_VAR".into());
+    }
+    Ok(out)
 }
 
 fn parse() -> Result<Opts, String> {
@@ -68,6 +98,8 @@ fn parse() -> Result<Opts, String> {
         acp: false,
         send_owner_only: false,
         acp_role: rung_host::inbox::Role::Owner,
+        acp_http: None,
+        acp_tokens: Vec::new(),
     };
     while let Some(f) = a.next() {
         let mut v = || a.next().ok_or(format!("{f} needs a value"));
@@ -107,13 +139,14 @@ fn parse() -> Result<Opts, String> {
             "--no-commit" => o.no_commit = true,
             "--acp" => o.acp = true,
             "--send-owner-only" => o.send_owner_only = true,
-            "--acp-role" => {
-                o.acp_role = match v()?.as_str() {
-                    "owner" => rung_host::inbox::Role::Owner,
-                    "peer" => rung_host::inbox::Role::Peer,
-                    "observer" => rung_host::inbox::Role::Observer,
-                    other => return Err(format!("--acp-role: unknown role {other}")),
-                }
+            "--acp-role" => o.acp_role = role(&v()?)?,
+            "--acp-http" => o.acp_http = Some(v()?),
+            "--acp-token-env" => {
+                let spec = v()?;
+                let (r, env) = spec
+                    .split_once('=')
+                    .ok_or("--acp-token-env: ROLE=ENV_VAR")?;
+                o.acp_tokens.push((role(r)?, env.to_string()));
             }
             other => return Err(format!("unknown flag {other}")),
         }
@@ -197,8 +230,15 @@ fn main() -> ExitCode {
     match o.cmd.as_str() {
         "sim" => {
             let (host, rec, _mock) = sim::build(sc);
-            if o.acp {
-                return serve_acp(host, rec, o.acp_role);
+            if o.acp || o.acp_http.is_some() {
+                let toks = match tokens(&o) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        eprintln!("rung-host: {e}");
+                        return ExitCode::from(2);
+                    }
+                };
+                return serve_acp(host, rec, o.acp_role, o.acp_http.clone(), toks);
             }
             match host.run(rec) {
                 Why::Stopped { .. } => ExitCode::SUCCESS,
@@ -217,23 +257,39 @@ fn main() -> ExitCode {
     }
 }
 
-/// Run the host with ACP outward on stdio: the loop on its own thread, one
-/// local client on stdin/stdout. The process ends when the host halts.
+/// Run the host with ACP outward: the loop on its own thread, and one local
+/// client on stdio or Streamable HTTP clients by role token. The process
+/// ends when the host halts.
 fn serve_acp(
     host: Arc<rung_host::presence::Host>,
     rec: rung_host::presence::Recovered,
     role: rung_host::inbox::Role,
+    http: Option<String>,
+    tokens: Vec<(String, rung_host::inbox::Role)>,
 ) -> ExitCode {
     let acp = rung_host::acp::Acp::attach(host.clone());
+    let failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (f2, h2) = (failed.clone(), host.clone());
     let looped = std::thread::spawn(move || host.run(rec));
     std::thread::spawn(move || {
-        if let Err(e) = rung_host::acp::serve_stdio(acp, rung_host::acp::Principal { role }) {
+        let served = match http {
+            Some(addr) => rung_host::acp::serve_http(acp, &addr, tokens),
+            None => rung_host::acp::serve_stdio(acp, rung_host::acp::Principal { role }),
+        };
+        // A listener that cannot serve stops the host; a stdio client that
+        // went away does not.
+        if let Err(e) = served {
             eprintln!("rung-host: acp: {e}");
+            f2.store(true, std::sync::atomic::Ordering::SeqCst);
+            h2.core.stop.request(Why::Stopped { by: "acp".into() });
         }
     });
     let why = looped.join();
     // Let the bridge answer what the halt left open.
     std::thread::sleep(std::time::Duration::from_millis(300));
+    if failed.load(std::sync::atomic::Ordering::SeqCst) {
+        return ExitCode::from(2);
+    }
     match why {
         Ok(Why::Stopped { .. }) => ExitCode::SUCCESS,
         _ => ExitCode::from(3),
