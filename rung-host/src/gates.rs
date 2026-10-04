@@ -2033,7 +2033,9 @@ fn text_of_chunk(m: &Value) -> Option<(String, String)> {
 /// - an answered prompt's response names the item and the turn that
 ///   disposed it, as the record does; its streamed text ends with what the
 ///   agent sent that channel in that turn (or the turn's final text when it
-///   sent nothing); the turn's tool calls were streamed to it;
+///   sent nothing and its channel is the highest-role channel with a prompt
+///   admitted in that turn; any other channel gets neither the final text
+///   nor tool calls); its `admitted_with` names no other channel's items;
 /// - a cancelled prompt is answered `cancelled` and its item was withdrawn
 ///   (or was already in a turn); at least one cancel is exercised;
 /// - an agent-initiated message reaches the opted-in client as
@@ -2093,12 +2095,17 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
     let mut finals: BTreeMap<u64, String> = BTreeMap::new();
     let mut tools: BTreeMap<u64, usize> = BTreeMap::new();
     let mut item_channel: BTreeMap<String, String> = BTreeMap::new();
+    let mut item_role: BTreeMap<String, String> = BTreeMap::new();
     for l in lines {
         match l.kind.as_str() {
             "stimulus.accepted" => {
                 let it = l.get("item");
                 if let (Some(id), Some(ch)) = (it["id"].as_str(), it["channel"].as_str()) {
                     item_channel.insert(id.to_string(), ch.to_string());
+                    item_role.insert(
+                        id.to_string(),
+                        it["role"].as_str().unwrap_or("").to_lowercase(),
+                    );
                 }
             }
             "stimulus.disposed" => {
@@ -2126,8 +2133,31 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
             _ => {}
         }
     }
+    let rank = |r: &str| match r {
+        "owner" => 3,
+        "peer" => 2,
+        "observer" => 1,
+        _ => 0,
+    };
+    let prompt_items: BTreeSet<String> = responses
+        .values()
+        .flatten()
+        .filter_map(|(_, r)| r["result"]["_meta"]["rung"]["item"].as_str())
+        .map(str::to_string)
+        .collect();
+    let mut owning: BTreeMap<u64, (i32, String)> = BTreeMap::new();
+    for item in &prompt_items {
+        let (Some(turn), Some(ch)) = (admitted_turn.get(item), item_channel.get(item)) else {
+            continue;
+        };
+        let r = rank(item_role.get(item).map_or("", String::as_str));
+        let e = owning.entry(*turn).or_insert((r, ch.clone()));
+        if r > e.0 {
+            *e = (r, ch.clone());
+        }
+    }
     let (mut prompts, mut not_one, mut refused_ok, mut observer_prompts) = (0, 0, 0, 0);
-    let (mut answered, mut answer_bad, mut tools_bad) = (0, 0, 0);
+    let (mut answered, mut answer_bad, mut tools_bad, mut foreign) = (0, 0, 0, 0);
     let (mut cancelled, mut cancel_bad) = (0, 0);
     let mut answered_channels: BTreeSet<(u64, String)> = BTreeSet::new();
     for (id, req) in &requests {
@@ -2171,18 +2201,39 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
                     .filter(|(s, _)| *s == sid)
                     .map(|(_, t)| t)
                     .collect();
+                let owns = owning.get(&turn).is_some_and(|(_, c)| *c == channel);
                 let want: Vec<String> = match sends.get(&(turn, channel.clone())) {
                     Some(v) if !v.is_empty() => v.clone(),
-                    _ => finals
+                    _ if owns => finals
                         .get(&turn)
                         .filter(|t| !t.is_empty())
                         .map(|t| vec![t.clone()])
                         .unwrap_or_default(),
+                    _ => Vec::new(),
                 };
                 let tail_ok =
                     chunks.len() >= want.len() && chunks[chunks.len() - want.len()..] == want[..];
-                if !rec_ok || !tail_ok || want.is_empty() {
+                if !rec_ok || !tail_ok || (owns && want.is_empty()) {
                     answer_bad += 1;
+                }
+                let sent_here: BTreeSet<&String> = sends
+                    .iter()
+                    .filter(|((_, c), _)| *c == channel)
+                    .flat_map(|(_, v)| v)
+                    .collect();
+                if !owns && chunks.iter().any(|t| !sent_here.contains(t)) {
+                    foreign += 1;
+                }
+                let mine: BTreeSet<&String> = item_channel
+                    .iter()
+                    .filter(|(_, c)| **c == channel)
+                    .map(|(i, _)| i)
+                    .collect();
+                if meta["admitted_with"].as_array().is_some_and(|a| {
+                    a.iter()
+                        .any(|x| x.as_str().is_none_or(|x| !mine.contains(&x.to_string())))
+                }) {
+                    foreign += 1;
                 }
                 answered_channels.insert((turn, channel));
                 let calls = run.wire[sent_at..*at]
@@ -2194,7 +2245,12 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
                             && m["params"]["update"]["sessionUpdate"] == "tool_call"
                     })
                     .count();
-                if calls < tools.get(&turn).copied().unwrap_or(0) {
+                let want_calls = if owns {
+                    tools.get(&turn).copied().unwrap_or(0)
+                } else {
+                    0
+                };
+                if calls < want_calls || (!owns && calls > 0) {
                     tools_bad += 1;
                 }
             }
@@ -2321,6 +2377,7 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
     g.put("answered", answered);
     g.put("answer_mismatch", answer_bad);
     g.put("tool_updates_missing", tools_bad);
+    g.put("foreign_output", foreign);
     g.put("cancels_sent", cancels_sent);
     g.put("cancelled", cancelled);
     g.put("cancel_mismatch", cancel_bad);
@@ -2351,7 +2408,11 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
     );
     g.check(
         tools_bad == 0,
-        "an answered prompt missed its turn's tool calls",
+        "an owning channel missed its turn's tool calls, or another channel got them",
+    );
+    g.check(
+        foreign == 0,
+        "a channel received output of work it does not own, or another channel's item id",
     );
     g.check(
         cancels_sent > 0 && cancelled > 0 && cancel_bad == 0,

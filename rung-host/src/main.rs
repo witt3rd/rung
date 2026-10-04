@@ -9,7 +9,7 @@
 //!               [--call-ms A,B] [--wedge-at TURN] [--inbox DIR] [--stop-file PATH]
 //!               [--fault outage|none] [--backoff-ms MS] [--quota RPD,RPM]
 //!               [--owner-per-hour X] [--no-memory] [--no-commit]
-//!               [--acp [--acp-role owner|peer|observer]]
+//!               [--acp [--acp-role owner|peer|observer]] [--send-owner-only]
 //! rung-host canon --state DIR [--seed N]   # print the hash of a seeded run's request bytes
 //! ```
 
@@ -40,6 +40,7 @@ struct Opts {
     memory: bool,
     no_commit: bool,
     acp: bool,
+    send_owner_only: bool,
     acp_role: rung_host::inbox::Role,
 }
 
@@ -65,6 +66,7 @@ fn parse() -> Result<Opts, String> {
         memory: true,
         no_commit: false,
         acp: false,
+        send_owner_only: false,
         acp_role: rung_host::inbox::Role::Owner,
     };
     while let Some(f) = a.next() {
@@ -104,6 +106,7 @@ fn parse() -> Result<Opts, String> {
             "--no-memory" => o.memory = false,
             "--no-commit" => o.no_commit = true,
             "--acp" => o.acp = true,
+            "--send-owner-only" => o.send_owner_only = true,
             "--acp-role" => {
                 o.acp_role = match v()?.as_str() {
                     "owner" => rung_host::inbox::Role::Owner,
@@ -126,6 +129,7 @@ fn scenario(o: &Opts, state: &std::path::Path) -> Result<Scenario, String> {
         sc.mock.call_ms = ms;
     }
     sc.mock.wedge_at_turn = o.wedge_at;
+    sc.mock.send_owner_only = o.send_owner_only;
     if o.no_commit {
         sc.mock.p_commit = 0.0;
     }

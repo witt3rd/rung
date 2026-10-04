@@ -30,7 +30,7 @@ struct Client {
 }
 
 impl Client {
-    fn start(state: &Path) -> Self {
+    fn start(state: &Path, call_ms: &str, extra: &[&str]) -> Self {
         let log = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -44,10 +44,11 @@ impl Client {
                 "--state",
                 state.to_str().unwrap(),
                 "--call-ms",
-                "20,40",
+                call_ms,
                 "--no-commit",
                 "--acp",
             ])
+            .args(extra)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(log.map_or_else(Stdio::null, Stdio::from))
@@ -153,7 +154,7 @@ fn acp_outward_serves_channels_to_one_agent() {
     sim::test_timeout(600);
     let guard = sim::temp_dir_guard("gate-p");
     let state = guard.path().to_path_buf();
-    let mut c = Client::start(&state);
+    let mut c = Client::start(&state, "20,40", &[]);
     let cwd = state.to_string_lossy().to_string();
 
     let init = c.request(
@@ -277,4 +278,88 @@ fn acp_outward_serves_channels_to_one_agent() {
     let g = gates::g_p(&ls, &c.run);
     assert_gate_in(&state, &ls, &g);
     assert_gate_in(&state, &ls, &gates::g_k(&ls));
+}
+
+#[test]
+fn acp_peer_sees_nothing_of_the_owners_shared_turn() {
+    sim::test_timeout(600);
+    let guard = sim::temp_dir_guard("gate-p-share");
+    let state = guard.path().to_path_buf();
+    let mut c = Client::start(&state, "1500,1500", &["--send-owner-only"]);
+    let cwd = state.to_string_lossy().to_string();
+    let init = c.request(
+        "initialize",
+        json!({"protocolVersion": 1, "clientCapabilities": {}}),
+    );
+    c.response(init, 20);
+    let new = |c: &mut Client, role: &str, channel: &str| -> String {
+        let id = c.request(
+            "session/new",
+            json!({"cwd": cwd, "mcpServers": [], "_meta": {"rung": {"role": role, "channel": channel}}}),
+        );
+        c.response(id, 20)["result"]["sessionId"]
+            .as_str()
+            .expect("a session id")
+            .to_string()
+    };
+    let owner = new(&mut c, "owner", "");
+    let peer = new(&mut c, "peer", "alice");
+
+    // Hold the host in a turn, so both prompts queue and are admitted
+    // together in the next one.
+    let s = c.request(
+        "_rung/stimulus",
+        json!({"sessionId": owner, "text": "keep busy"}),
+    );
+    c.response(s, 20);
+    wait_record(&state, 30, "the first turn to start", |ls| {
+        ls.iter().any(|l| l.kind == "stimulus.admitted")
+    });
+    let pp = c.request(
+        "session/prompt",
+        json!({"sessionId": peer, "prompt": [{"type": "text", "text": "owner secrets?"}]}),
+    );
+    let po = c.request(
+        "session/prompt",
+        json!({"sessionId": owner, "prompt": [{"type": "text", "text": "private owner work"}]}),
+    );
+    let rp = c.response(pp, 120);
+    let ro = c.response(po, 120);
+    c.drain(Duration::from_millis(100));
+
+    let (mp, mo) = (
+        &rp["result"]["_meta"]["rung"],
+        &ro["result"]["_meta"]["rung"],
+    );
+    assert_eq!(mp["turn"], mo["turn"], "the prompts did not share a turn");
+    assert_eq!(mp["admitted_with"], json!([]), "peer saw a foreign item id");
+    assert_eq!(
+        mo["admitted_with"],
+        json!([]),
+        "owner saw a foreign item id"
+    );
+
+    let updates = |sid: &str, kind: &str| -> usize {
+        c.run
+            .wire
+            .iter()
+            .filter(|(out, m)| {
+                !*out
+                    && m["method"] == "session/update"
+                    && m["params"]["sessionId"] == sid
+                    && m["params"]["update"]["sessionUpdate"] == kind
+            })
+            .count()
+    };
+    assert_eq!(updates(&peer, "agent_message_chunk"), 0, "peer got text");
+    assert_eq!(updates(&peer, "tool_call"), 0, "peer got tool calls");
+    assert!(
+        updates(&owner, "agent_message_chunk") > 0,
+        "owner got no text"
+    );
+    assert!(updates(&owner, "tool_call") > 0, "owner got no tool calls");
+
+    let stop = c.request("_rung/stop", json!({"sessionId": owner}));
+    c.response(stop, 20);
+    let _ = c.child.wait();
 }

@@ -11,7 +11,12 @@
 //!   when it sent nothing), the turn's tool calls as `tool_call`s, and the
 //!   response's `_meta.rung` names `{item, turn, disposition,
 //!   admitted_with}`. Several channels' prompts may share one turn; each
-//!   still gets exactly one response.
+//!   still gets exactly one response. A channel sees only output of work it
+//!   owns: when a turn admitted prompts from several channels, the final
+//!   text and tool calls go only to the highest-role channel among them
+//!   (owner > peer > observer; every session of that channel), and any
+//!   other channel gets only what the agent sends to it. `admitted_with`
+//!   lists only item ids of the same channel.
 //! - An agent-initiated message (a send with no open prompt from that
 //!   channel in its turn) goes to the channel's clients as an `_rung/outbox`
 //!   notification when they opted in at `initialize`
@@ -108,6 +113,7 @@ struct Channel {
 struct Prompt {
     session: String,
     channel: String,
+    role: Role,
     responder: Responder<PromptResponse>,
     /// The turn it is in, once admitted.
     turn: Option<u64>,
@@ -124,11 +130,23 @@ struct Bridge {
     held: HashMap<String, Vec<String>>,
     /// turn → items disposed in it: (id, disposition).
     disposed: BTreeMap<u64, Vec<(String, String)>>,
-    /// turn → every item admitted in it.
-    batch: BTreeMap<u64, Vec<String>>,
+    /// turn → every prompt admitted in it: (item, channel).
+    batch: BTreeMap<u64, Vec<(String, String)>>,
 }
 
 impl Bridge {
+    /// The channel that owns a turn's work: the highest role among the
+    /// channels with a prompt admitted in it. Only it sees the turn's final
+    /// text and tool calls; every other channel sees only what the agent
+    /// sends to it.
+    fn owning_channel(&self, turn: u64) -> Option<String> {
+        self.prompts
+            .values()
+            .filter(|p| p.turn == Some(turn))
+            .max_by_key(|p| rank(p.role))
+            .map(|p| p.channel.clone())
+    }
+
     fn text(&self, session: &str, text: &str) {
         if text.is_empty() {
             return;
@@ -173,9 +191,10 @@ impl Bridge {
                 for id in &ids {
                     if let Some(p) = self.prompts.get_mut(id) {
                         p.turn = Some(turn);
+                        let c = p.channel.clone();
+                        self.batch.entry(turn).or_default().push((id.clone(), c));
                     }
                 }
-                self.batch.entry(turn).or_default().extend(ids);
             }
             "stimulus.requeued" => {
                 for id in crate::inbox::ids(l.get("ids")) {
@@ -204,10 +223,11 @@ impl Bridge {
                 } else {
                     ToolCallStatus::Failed
                 };
+                let owner = self.owning_channel(turn);
                 let sessions: Vec<String> = self
                     .prompts
                     .values()
-                    .filter(|p| p.turn == Some(turn))
+                    .filter(|p| p.turn == Some(turn) && Some(&p.channel) == owner.as_ref())
                     .map(|p| p.session.clone())
                     .collect();
                 for s in sessions {
@@ -274,16 +294,23 @@ impl Bridge {
                 let final_text = l.str("final_text").to_string();
                 let status = l.str("status").to_string();
                 let batch = self.batch.remove(&turn).unwrap_or_default();
+                let owner = self.owning_channel(turn);
                 for (id, d) in self.disposed.remove(&turn).unwrap_or_default() {
                     let Some(p) = self.prompts.get(&id) else {
                         continue;
                     };
                     let (s, streamed) = (p.session.clone(), p.streamed);
+                    let mine = Some(&p.channel) == owner.as_ref();
+                    let channel = p.channel.clone();
                     self.flush_held(&s);
-                    if !streamed {
+                    if !streamed && mine {
                         self.text(&s, &final_text);
                     }
-                    let with: Vec<&String> = batch.iter().filter(|x| **x != id).collect();
+                    let with: Vec<&String> = batch
+                        .iter()
+                        .filter(|(x, c)| *x != id && *c == channel)
+                        .map(|(x, _)| x)
+                        .collect();
                     self.respond(
                         &id,
                         StopReason::EndTurn,
@@ -569,6 +596,7 @@ impl Acp {
                         Prompt {
                             session,
                             channel,
+                            role,
                             responder,
                             turn: None,
                             streamed: false,
