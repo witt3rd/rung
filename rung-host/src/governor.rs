@@ -450,4 +450,19 @@ mod tests {
         assert_eq!(p.wait.unwrap().until, cfg.backoff_cap_ms);
         assert_eq!(p.step_down, None, "no rung below the last");
     }
+
+    #[test]
+    fn stale_turn_starts_do_not_trip_the_rate_ceiling() {
+        let cfg = GovConfig {
+            turns_per_minute: 2,
+            ..GovConfig::default()
+        };
+        let mut st = GovState::default();
+        st.turn_starts.extend([1_000, 2_000]);
+        let now = 10 * MINUTE;
+        assert!(must_wait(&st, &cfg, TurnKind::Free, now).is_none());
+        let w = must_wait(&st, &cfg, TurnKind::Free, 2_500).expect("fresh starts count");
+        assert_eq!(w.class, "rate_ceiling");
+        assert_eq!(w.until, 1_000 + MINUTE);
+    }
 }

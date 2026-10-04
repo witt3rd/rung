@@ -1404,3 +1404,55 @@ pub(crate) fn write_outbox(core: &Core, line: &Line) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn host(name: &str, outbox: Option<PathBuf>) -> (Arc<Host>, crate::sim::TempDir) {
+        let guard = crate::sim::temp_dir_guard(name);
+        let mut sc = crate::sim::Scenario::new(guard.path(), 1);
+        sc.config.outbox_dir = outbox;
+        let (h, _, _) = crate::sim::build(sc);
+        (h, guard)
+    }
+
+    #[test]
+    fn a_duplicate_id_is_accepted_once() {
+        let (h, _g) = host("dup-accept", None);
+        h.accept(&Item::message("dup1", Role::Peer, "peer:x", 1, "hi"));
+        h.accept(&Item::message("dup1", Role::Peer, "peer:x", 2, "again"));
+        let n = h
+            .record_lines()
+            .unwrap()
+            .iter()
+            .filter(|l| l.kind == "stimulus.accepted")
+            .count();
+        assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn the_outbox_write_leaves_a_whole_msg_and_no_tmp() {
+        let g = crate::sim::temp_dir_guard("outbox-atomic");
+        let out = g.path().join("out");
+        let (h, _g) = host("outbox-host", Some(out.clone()));
+        let line = h.core.emit("note.written", json!({"text": "hello"}));
+        write_outbox(&h.core, &line);
+        let name = format!("{:010}", line.seq);
+        let body = std::fs::read_to_string(out.join(format!("{name}.msg"))).unwrap();
+        assert_eq!(Line::parse(&body).unwrap().seq, line.seq);
+        let names: Vec<String> = std::fs::read_dir(&out)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert!(names.iter().all(|n| !n.ends_with(".tmp")), "{names:?}");
+    }
+
+    #[test]
+    fn a_huge_until_s_saturates() {
+        let (h, _g) = host("huge-until", None);
+        let input = json!({"new": {"title": "t", "why": "w"}, "done_when": "d",
+            "until_s": i64::MAX});
+        assert!(kernel::tool_commit(&h.core, 1, &input).is_ok());
+    }
+}

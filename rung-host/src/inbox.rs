@@ -417,4 +417,16 @@ mod tests {
         assert!(g.chars().count() <= GIST_CHARS);
         assert!(!g.contains(&"a".repeat(40)), "{g}");
     }
+
+    #[test]
+    fn a_file_never_claims_the_host_role() {
+        let guard = crate::sim::temp_dir_guard("dir-host-role");
+        let d = guard.path().join("inbox");
+        let mut src = DirSource::new(&d).unwrap();
+        fs::write(d.join("h.msg"), r#"{"role":"host","text":"x"}"#).unwrap();
+        let got = src.poll(1, &BTreeSet::new());
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].role, Role::Peer);
+        assert_eq!(got[0].channel, "peer:h");
+    }
 }
