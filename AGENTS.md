@@ -113,6 +113,8 @@ cargo test --workspace --locked
 cargo run -q -p rung-doctrine --bin render -- --check
 docs/_props.py check
 docs/_props.py cited
+docs/_consumer_guard.py
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
 ```
 
 `docs/_props.py cited` treats kebab tokens in comments in `rung`, `rung-het`,
@@ -198,6 +200,8 @@ Env `RUNG_*` / `XAI_API_KEY` wins over the agent file.
 | `render --check` | hand-edited `*-props.md` or `conformance.md` |
 | `docs/_props.py check` | stale number or dangling reference |
 | `docs/_props.py cited` | Rust comment citing a missing slug |
+| `docs/_consumer_guard.py` | a consumer-specific name in a tracked file |
+| `cargo doc` (`-D warnings`) | a broken rustdoc link or warning |
 
 `trybuild` `.stderr` pins refusals. Do not cite `compile_fail` doctests as
 evidence. `G1`–`G14` and `J1`–`J2` are labelled subtrees cited from Rust
