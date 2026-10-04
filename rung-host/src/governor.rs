@@ -196,6 +196,13 @@ impl GovState {
             "ladder.refused" => {
                 self.unavailable.insert(l.u64("rung") as usize);
             }
+            // Each keyed probe is one request against the day's quota.
+            "ladder.probed" => {
+                let n = l.u64("probes");
+                self.requests_today += n;
+                self.unreserved_today += n;
+                self.recent.extend((0..n).map(|_| l.at));
+            }
             "model.switch" => {
                 let from = l.u64("rung_from") as usize;
                 let to = l.u64("rung_to") as usize;
@@ -609,6 +616,22 @@ mod tests {
             "rungs": [{"rung": 3, "available": true}]}),
         ));
         assert!(!st.unavailable.contains(&3), "the next listing frees it");
+    }
+
+    #[test]
+    fn each_keyed_probe_counts_against_the_days_quota() {
+        let mut st = GovState::default();
+        st.apply(&Line {
+            seq: 1,
+            at: 1_000,
+            kind: "ladder.probed".into(),
+            body: serde_json::json!({"probes": 5, "rungs": []})
+                .as_object()
+                .unwrap()
+                .clone(),
+        });
+        assert_eq!((st.requests_today, st.unreserved_today), (5, 5));
+        assert_eq!(st.recent.len(), 5, "probes count toward rpm pacing");
     }
 
     #[test]

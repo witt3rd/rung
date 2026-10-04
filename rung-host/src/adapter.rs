@@ -287,19 +287,8 @@ pub fn origin_of(f: Option<&HttpFailure>, now: Millis) -> (Origin, Option<Millis
 /// the model's endpoints were excluded for this account (data policy,
 /// guardrails). Its reason codes, or `None` for any other failure.
 pub fn unroutable(f: Option<&HttpFailure>) -> Option<Vec<String>> {
-    let f = f.filter(|f| f.status == 404)?;
-    let body: Value = serde_json::from_str(&f.body).ok()?;
-    let reasons = body["error"]["metadata"]["ineligibility_reasons"].as_array()?;
-    let mut out: Vec<String> = reasons
-        .iter()
-        .filter_map(|r| r["reason"].as_str().map(String::from))
-        .collect();
-    out.sort();
-    out.dedup();
-    if out.is_empty() {
-        out.push("unspecified".into());
-    }
-    Some(out)
+    let f = f?;
+    crate::ladder::refusal(f.status, &f.body)
 }
 
 /// `X-RateLimit-Reset`: ms since the epoch, seconds since the epoch, or

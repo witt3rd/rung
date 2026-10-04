@@ -566,3 +566,258 @@ fn a_pacing_wait_sends_no_acknowledgement() {
         "an acknowledgement went out during a pacing wait"
     );
 }
+
+fn openrouter_fixture(name: &str) -> Value {
+    let p = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/openrouter")
+        .join(name);
+    serde_json::from_str(&std::fs::read_to_string(p).unwrap()).unwrap()
+}
+
+/// A router that lists from the recorded fixtures, refuses `refused` for
+/// the account on every request, and rate-limits turn 2 of the rest.
+fn listing_router(refused: &'static str) -> LoopbackProvider {
+    let listing = openrouter_fixture("models.json");
+    let endpoints: std::collections::BTreeMap<String, Value> =
+        serde_json::from_value(openrouter_fixture("endpoints.json")).unwrap();
+    LoopbackProvider::start(move |r: &Request<'_>| {
+        if r.method == "GET" {
+            let path = r.path.strip_prefix("/api/v1").unwrap_or(r.path);
+            if path == "/models" {
+                return Reply::json(200, &listing);
+            }
+            if let Some(id) = path
+                .strip_prefix("/models/")
+                .and_then(|p| p.strip_suffix("/endpoints"))
+            {
+                return match endpoints.get(id) {
+                    Some(v) => Reply::json(200, v),
+                    None => Reply::json(404, &json!({"error": {"message": "no such model"}})),
+                };
+            }
+            return Reply::json(404, &json!({}));
+        }
+        let model = r.body["model"].as_str().unwrap_or("").to_string();
+        if model == refused {
+            return Reply::json(
+                404,
+                &json!({"error": {"code": 404,
+                    "message": "0 endpoints out of 1 requested are available matching your guardrail restrictions and data policy.",
+                    "metadata": {"ineligibility_reasons": [{"reason": "zdr-violation-by-guardrail", "endpoint_count": 1}]}}}),
+            );
+        }
+        if rung_host::gates::request_turn(r.body) == Some(2) {
+            return Reply::provider_429("Upstream", 1);
+        }
+        let served = Served {
+            model,
+            prompt: 10,
+            cached: 0,
+            cache_write: 0,
+            completion: 1,
+            cost_usd: 0.0,
+        };
+        Reply::completion("Upstream", Some("OK"), &[], served)
+    })
+}
+
+fn probe_config(root: &Path, url: &str, extra: &str) -> std::path::PathBuf {
+    let d = root.display();
+    let cfg = root.join("rung-host.yaml");
+    std::fs::write(
+        &cfg,
+        format!(
+            "state: {d}/state\nengine:\n  kind: agent\n  base_url: {url}\n  api_key_env: {KEY_ENV}\n\
+             ladder:\n  - qwen/qwen3.8-27b:free\n  - nvidia/nemotron-3-super-120b-a12b:free\n\
+             memory: false\nbackoff_base_ms: 20\n{extra}"
+        ),
+    )
+    .unwrap();
+    cfg
+}
+
+#[test]
+fn a_keyed_probe_at_start_finds_a_refused_rung_before_any_turn() {
+    sim::test_timeout(300);
+    let guard = sim::temp_dir_guard("run-config-probe");
+    let root = guard.path().to_path_buf();
+    let refused = "nvidia/nemotron-3-super-120b-a12b:free";
+    let provider = listing_router(refused);
+    let cfg = probe_config(&root, &provider.url, "");
+    let o = run(&cfg, Some(4), Some("k"));
+    assert_eq!(
+        o.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&o.stderr)
+    );
+    let ls = lines(&root.join("state"));
+    let first_turn = ls.iter().find(|l| l.kind == "turn.started").unwrap();
+    let probed = ls
+        .iter()
+        .find(|l| l.kind == "ladder.probed")
+        .expect("the ladder was probed");
+    assert!(probed.seq < first_turn.seq, "probed after the first turn");
+    let verdicts: Vec<(String, String)> = probed
+        .get("rungs")
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["model"].as_str().unwrap().to_string(),
+                r["verdict"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        verdicts,
+        vec![
+            ("qwen/qwen3.8-27b:free".to_string(), "routes".to_string()),
+            (refused.to_string(), "refused".to_string())
+        ]
+    );
+    let r = ls
+        .iter()
+        .find(|l| l.kind == "ladder.refused")
+        .expect("the refusal is on record");
+    assert_eq!(r.str("by"), "probe");
+    assert!(r.seq < first_turn.seq);
+    // The rate limit on turn 2 finds nothing standing below: no turn ever
+    // lands on the refused rung.
+    assert!(
+        ls.iter()
+            .any(|l| l.kind == "turn.ended" && l.str("status") == "failed")
+    );
+    assert!(
+        !ls.iter()
+            .any(|l| l.kind == "turn.started" && l.str("model") == refused),
+        "a turn ran on the rung the probe found refused"
+    );
+    // The probes carried the key; the listing did not.
+    let seen = provider.seen();
+    let probes: Vec<_> = seen
+        .iter()
+        .filter(|h| {
+            h.method == "POST" && h.body["max_tokens"] == 1 && h.body.get("tools").is_none()
+        })
+        .collect();
+    assert_eq!(probes.len(), 2, "one probe per standing rung");
+    assert!(probes.iter().all(|h| h.auth));
+    assert!(seen.iter().filter(|h| h.method == "GET").all(|h| !h.auth));
+}
+
+#[test]
+fn probes_can_be_turned_off_and_ride_only_with_the_listing() {
+    sim::test_timeout(300);
+    for (name, extra) in [
+        ("off", "probe: false\n"),
+        ("no-listing", "listing: false\n"),
+    ] {
+        let guard = sim::temp_dir_guard(&format!("run-config-probe-{name}"));
+        let root = guard.path().to_path_buf();
+        let provider = listing_router("nvidia/nemotron-3-super-120b-a12b:free");
+        let cfg = probe_config(&root, &provider.url, extra);
+        let o = run(&cfg, Some(1), Some("k"));
+        assert_eq!(o.status.code(), Some(0), "{name}");
+        let ls = lines(&root.join("state"));
+        assert!(
+            !ls.iter().any(|l| l.kind == "ladder.probed"),
+            "{name}: probed"
+        );
+        assert!(
+            provider.seen().iter().all(|h| h.body["max_tokens"] != 1),
+            "{name}: a probe request went out"
+        );
+    }
+}
+
+#[test]
+fn probes_pass_the_governor_and_a_held_probe_is_on_record() {
+    sim::test_timeout(300);
+    let guard = sim::temp_dir_guard("run-config-probe-paced");
+    let root = guard.path().to_path_buf();
+    let provider = listing_router("nvidia/nemotron-3-super-120b-a12b:free");
+    // One request a minute: the first probe spends it, the second is held.
+    let cfg = probe_config(
+        &root,
+        &provider.url,
+        "quota:\n  rpd: 1000\n  rpm: 1\nrun_for_s: 2\n",
+    );
+    let o = run(&cfg, None, Some("k"));
+    assert_eq!(
+        o.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&o.stderr)
+    );
+    let ls = lines(&root.join("state"));
+    let probed = ls
+        .iter()
+        .find(|l| l.kind == "ladder.probed")
+        .expect("the ladder was probed");
+    let verdicts: Vec<String> = probed
+        .get("rungs")
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["verdict"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(verdicts, vec!["routes".to_string(), "skipped".to_string()]);
+    assert!(
+        probed.get("rungs")[1]["why"]
+            .as_str()
+            .unwrap()
+            .starts_with("paced")
+    );
+    assert_eq!(probed.u64("probes"), 1);
+    let sent = provider
+        .seen()
+        .iter()
+        .filter(|h| h.method == "POST" && h.body["max_tokens"] == 1)
+        .count();
+    assert_eq!(sent, 1, "a probe went out past the pacer");
+    // The probe is in the pacer's window: the first turn waits on it.
+    assert!(
+        ls.iter()
+            .any(|l| l.kind == "degraded" && l.str("class") == "paced"),
+        "the probe did not count against the minute"
+    );
+}
+
+#[test]
+fn a_probe_that_refuses_the_current_rung_names_itself_in_the_switch() {
+    sim::test_timeout(300);
+    let guard = sim::temp_dir_guard("run-config-probe-current");
+    let root = guard.path().to_path_buf();
+    let refused = "nvidia/nemotron-3-super-120b-a12b:free";
+    let provider = listing_router(refused);
+    let d = root.display();
+    let cfg = root.join("rung-host.yaml");
+    std::fs::write(
+        &cfg,
+        format!(
+            "state: {d}/state\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
+             ladder:\n  - {refused}\n  - qwen/qwen3.8-27b:free\nmemory: false\n",
+            provider.url
+        ),
+    )
+    .unwrap();
+    let o = run(&cfg, Some(1), Some("k"));
+    assert_eq!(o.status.code(), Some(0));
+    let ls = lines(&root.join("state"));
+    let first_turn = ls.iter().find(|l| l.kind == "turn.started").unwrap();
+    let switch = ls
+        .iter()
+        .find(|l| l.kind == "model.switch")
+        .expect("a switch off the refused rung");
+    assert!(switch.seq < first_turn.seq);
+    assert!(
+        switch
+            .str("why")
+            .starts_with("refused (probe): zdr-violation-by-guardrail"),
+        "{}",
+        switch.str("why")
+    );
+    assert_eq!(first_turn.str("model"), "qwen/qwen3.8-27b:free");
+}
