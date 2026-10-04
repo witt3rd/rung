@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 396 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 397 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1001,11 +1001,12 @@ look shorter than it is.
 - `canonical_bytes_are_stable_across_two_processes`
 - `ten_thousand_turns_stay_bounded_and_cache_clean`
 
-**`rung-host/tests/gate_desk.rs`** — 4 unclaimed
+**`rung-host/tests/gate_desk.rs`** — 5 unclaimed
 
 - `a_host_on_an_adversarial_decider_keeps_its_guards`
 - `adversarial_answers_stay_inside_the_guards`
 - `every_family_decides_on_every_path_and_its_guards_hold`
+- `pack_guard_honours_break_floor`
 - `recorded_fixtures_replay_and_a_reworded_question_panics`
 
 **`rung-host/tests/gate_engine.rs`** — 1 unclaimed
