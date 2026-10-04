@@ -317,7 +317,9 @@ impl Source for DirSource {
             };
             match serde_json::from_str::<MsgFile>(&body) {
                 Ok(m) => {
-                    let role = m.role.unwrap_or(Role::Peer);
+                    // `host` is the host's own role (calendar, expectations);
+                    // a file never claims it.
+                    let role = m.role.filter(|r| *r != Role::Host).unwrap_or(Role::Peer);
                     let channel = m.channel.unwrap_or_else(|| match role {
                         Role::Owner => "owner".into(),
                         _ => format!("peer:{id}"),

@@ -385,7 +385,7 @@ impl HostTools {
                     json!({"id": id, "turn": turn, "claim": str_of("claim")?,
                            "about": input.get("about").and_then(Value::as_str).unwrap_or(""),
                            "warrant": input.get("warrant").and_then(Value::as_str).unwrap_or(""),
-                           "p": p, "due": core.clock.now() + due_in * SECOND, "check": check}),
+                           "p": p, "due": core.clock.now().saturating_add(due_in.saturating_mul(SECOND)), "check": check}),
                 );
                 Ok(format!(
                     "expectation {id} recorded; the host will settle it"

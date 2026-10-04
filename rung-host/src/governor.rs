@@ -204,12 +204,15 @@ pub fn must_wait(st: &GovState, cfg: &GovConfig, kind: TurnKind, now: Millis) ->
     {
         return Some(w.clone());
     }
-    if st.turn_starts.len() as u32 >= cfg.turns_per_minute {
-        let oldest = st.turn_starts.front().copied().unwrap_or(now);
+    // Only starts still inside the minute count (the state prunes on
+    // apply, which a long idle does not trigger).
+    let starts = st.turn_starts.iter().filter(|t| **t > now - MINUTE);
+    if starts.clone().count() as u32 >= cfg.turns_per_minute {
+        let oldest = starts.clone().next().copied().unwrap_or(now);
         return Some(Wait {
             class: "rate_ceiling".into(),
             until: oldest + MINUTE,
-            why: format!("{} turns in a minute", st.turn_starts.len()),
+            why: format!("{} turns in a minute", starts.count()),
             owner_wakes: false,
         });
     }

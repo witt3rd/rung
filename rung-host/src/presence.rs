@@ -456,6 +456,12 @@ impl Host {
     /// Record an item, durable before anything else.
     fn accept(&self, item: &Item) {
         let core = &*self.core;
+        // An id already accepted is never recorded twice: a second line
+        // would overwrite the pending or in-flight copy and break
+        // one-disposal-per-item.
+        if core.state().inbox.seen.contains(&item.id) {
+            return;
+        }
         core.emit("stimulus.accepted", crate::inbox::accepted_body(item));
         core.sync();
         if let (Some(c), Role::Owner) = (&item.control, item.role) {
@@ -1390,6 +1396,11 @@ fn spawn_watcher(
 pub(crate) fn write_outbox(core: &Core, line: &Line) {
     if let Some(dir) = &core.config.outbox_dir {
         let _ = std::fs::create_dir_all(dir);
-        let _ = std::fs::write(dir.join(format!("{:010}.msg", line.seq)), line.text());
+        // Write then rename: a reader of `*.msg` never sees a partial file.
+        let name = format!("{:010}", line.seq);
+        let tmp = dir.join(format!("{name}.tmp"));
+        if std::fs::write(&tmp, line.text()).is_ok() {
+            let _ = std::fs::rename(&tmp, dir.join(format!("{name}.msg")));
+        }
     }
 }
