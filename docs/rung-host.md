@@ -5,10 +5,11 @@ around its turns. It imports `rung-agent-core` as a library (never the
 `rung-agent` binary). Nothing in it is kernel; nothing in the kernel
 changed for it.
 
-This document is informative. It describes slice 1: the host against a
-scripted mock engine, a fake world and a fault injector, at $0. ACP
-outward, the real engine adapter, the model ladder's startup listing
-filter and live runs are later slices. Delegation to workers is a final
+This document is informative. It describes slice 1 — the host against a
+scripted mock engine, a fake world and a fault injector, at $0 — and what
+slice 2 adds: the real engine adapter (below). ACP outward, the model
+ladder's startup listing filter, the startup ladder and live runs are
+later. Delegation to workers is a final
 extension; only its extension point exists (the `crew` group name and the
 `crew.*` record kinds are reserved, and the inbox admits external
 completion items).
@@ -105,6 +106,34 @@ LOG      turn k header · the turn's messages, verbatim · turn k+1 header · �
   record is fsynced before anything is evicted.
 - A model switch on the ladder also starts a new epoch.
 
+## The engine adapter
+
+`rung_host::adapter::AgentEngine` runs each turn on `rung-agent-core`'s
+`Engine`, against an OpenAI-compatible route (a router, or a local
+server):
+
+- the host's toolset (the stable superset and its call gate) is the
+  turn's whole toolset; the engine's own roster is empty;
+- the caller owns the thread: the turn gets the pack's thread and gives
+  back what it added, verbatim — nothing the host sent is shortened or
+  rewritten. If the engine had to elide old tool results after a context
+  overflow (its last resort), `turn.ended` says `rewritten: true`;
+- each call carries the turn's model (the ladder's rung), the epoch's
+  session id (`session_id`, a router's sticky-routing key) and two explicit
+  cache breakpoints, at the end of the stable layer (the system text) and
+  of the slow layer (the first message). The reasoning effort is pinned
+  (`medium` by default) for the agent's life;
+- every call is recorded as served (`llm.call`): the model, usage, cached
+  and cache-write tokens (`prompt_tokens_details`), cost, and latency on
+  the host clock. `provider` is the route's host: a stream does not name
+  the provider behind a router;
+- a 429 is the platform's when it carries `X-RateLimit-*` and no upstream
+  provider metadata (its `X-RateLimit-Reset` becomes `reset_at`); otherwise
+  it is the provider's. Only a provider's steps the ladder down.
+
+The key is read by the caller from the environment variable its
+configuration names; it never reaches the record.
+
 ## The governor
 
 - **Pacer**: a daily request quota (`rpd`), a per-minute limit (`rpm`), a
@@ -164,7 +193,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `llm.call` | `turn`, `call`, `epoch`, `rung`, `model_requested`, `model_served`, `provider`, `prompt_tokens`, `cached_tokens`, `cache_write_tokens`, `completion_tokens`, `reasoning_tokens`, `cost_usd`, `latency_ms`, `prefix {s_hash, l_hash, log_len_bytes, expected_cached_tokens}` |
 | `cache.break` / `cache.cold` | `turn`, `call`, `cause` |
 | `turn.log` | `turn`, `header` (recall stripped), `messages` (verbatim, as sent) |
-| `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at}`, `cost`, `projection`, `wall_post_us` |
+| `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at}`, `rewritten` (only when true), `cost`, `projection`, `wall_post_us` |
 | `kernel.commit` / `.progress` / `.release` / `.trace` | the agent's own tool calls (`via`, `released_by`, `similarity`) |
 | `note.written`, `todo.*`, `project.added`, `question.*` | the agent's registers |
 | `expectation.made` / `.revised` / `.settled` | the expectation register; a settlement has `state`, `p`, `surprise`, `settled_by`, `calibration` |

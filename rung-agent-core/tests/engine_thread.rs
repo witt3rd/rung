@@ -273,3 +273,30 @@ fn a_turns_listener_sees_each_refused_attempt() {
     );
     let _ = std::fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn a_turn_may_name_its_model_and_session_over_the_specs() {
+    let tmp = tempdir("override");
+    let (url, bodies) = mock_llm(vec![text_reply("a"), text_reply("b")]);
+    let engine = Engine::new(spec(&url, "none", &tmp)).unwrap();
+    let thread = || Thread {
+        system_prompt: "s".into(),
+        messages: vec![ChatMessage::user("hi")],
+    };
+    let _ = engine.turn(thread(), ctl());
+    let _ = engine.turn(
+        thread(),
+        TurnCtl {
+            model: Some("ladder/rung-1".into()),
+            session_id: Some("epoch-3".into()),
+            ..ctl()
+        },
+    );
+    let first = bodies.recv().unwrap();
+    assert_eq!(first["model"], "spec-model");
+    assert!(first.get("session_id").is_none(), "unset sends nothing");
+    let second = bodies.recv().unwrap();
+    assert_eq!(second["model"], "ladder/rung-1");
+    assert_eq!(second["session_id"], "epoch-3");
+    let _ = std::fs::remove_dir_all(&tmp);
+}

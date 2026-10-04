@@ -2,11 +2,11 @@
 //!
 //! [`TurnEngine::turn`] runs one bounded turn on the thread the host
 //! assembled, with the host's tools and `rung-agent-core`'s
-//! [`TurnCtl`] (cancel flag, sink), and reports every model call. In this
-//! slice the only engine is the scripted [`crate::sim::MockEngine`]; the
-//! adapter over `rung_agent_core::engine::Engine` is the next slice's, and
-//! it maps `TurnReport` (its `calls`, `failure` and messages) onto
-//! [`EngineTurn`].
+//! [`TurnCtl`] (cancel flag, sink), and reports every model call. Two
+//! engines implement it: the scripted [`crate::sim::MockEngine`] and the
+//! real [`crate::adapter::AgentEngine`] over
+//! `rung_agent_core::engine::Engine`, which maps a `TurnReport` (its
+//! `calls`, `failure` and messages) onto [`EngineTurn`].
 
 use std::sync::Arc;
 
@@ -113,6 +113,9 @@ pub struct EngineTurn {
     pub calls: Vec<CallRecord>,
     pub failure: Option<HostFailure>,
     pub ended: Ended,
+    /// The engine rewrote what it was given inside the turn (a context
+    /// overflow's elision, its last resort): that call's prefix broke.
+    pub rewritten: bool,
 }
 
 /// Runs one turn. Send + Sync so the host can hold it in its carry.
