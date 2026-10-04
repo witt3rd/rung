@@ -1423,33 +1423,15 @@ mod tests {
     use crate::llm::{CachePolicy, LlmConfig, MessageContent, Protocol};
     use crate::python::{Jail, SandboxConfig};
     use crate::tools::{Tool, ToolCollection, ToolRoster};
-    use std::path::PathBuf;
     use std::time::Duration;
 
-    fn tmp() -> PathBuf {
-        let p = std::env::temp_dir().join(format!(
-            "rung-agent-py-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&p).unwrap();
-        p
-    }
-
-    fn sandbox() -> (PathBuf, Sandbox) {
-        let dir = tmp();
-        let mut c = SandboxConfig::in_dir(&dir);
+    fn sandbox() -> (rung_testkit::TempDir, Sandbox) {
+        let dir = rung_testkit::TempDir::new("agent-py");
+        let mut c = SandboxConfig::in_dir(dir.path());
         c.jail = Jail::Off;
         c.strike_timeout = Duration::from_secs(8);
         let sb = Sandbox::open(c).unwrap();
         (dir, sb)
-    }
-
-    fn cleanup(dir: &PathBuf) {
-        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[derive(Debug)]
@@ -1480,26 +1462,24 @@ mod tests {
 
     #[test]
     fn exclusive_sends_no_tool_schemas() {
-        let (dir, sb) = sandbox();
+        let (_dir, sb) = sandbox();
         let roster = roster_with_named();
         let py = InlinePython::only_answer(sb);
         assert!(wire_definitions(Some(&py), &roster).is_empty());
         assert_eq!(wire_definitions(None, &roster).len(), 1);
-        cleanup(&dir);
     }
 
     #[test]
     fn also_keeps_tool_schemas() {
-        let (dir, sb) = sandbox();
+        let (_dir, sb) = sandbox();
         let roster = roster_with_named();
         let py = InlinePython::also(sb);
         assert_eq!(wire_definitions(Some(&py), &roster).len(), 1);
-        cleanup(&dir);
     }
 
     #[test]
     fn waffle_nudges_even_when_also() {
-        let (dir, sb) = sandbox();
+        let (_dir, sb) = sandbox();
         let py = InlinePython::also(sb);
         let turn = inline_turn(
             &py,
@@ -1512,41 +1492,37 @@ mod tests {
                 .unwrap_or("")
                 .contains("not Python")
         );
-        cleanup(&dir);
     }
 
     #[test]
     fn prose_ends_when_after_waffle_is_end_turn() {
-        let (dir, sb) = sandbox();
+        let (_dir, sb) = sandbox();
         let py = InlinePython::only(sb);
         let turn = inline_turn(&py, "The answer is 4.");
         assert_eq!(turn.done.as_deref(), Some("The answer is 4."));
-        cleanup(&dir);
     }
 
     #[test]
     fn only_answer_finishes_on_ok_strike() {
-        let (dir, sb) = sandbox();
+        let (_dir, sb) = sandbox();
         let py = InlinePython::only_answer(sb);
         let turn = inline_turn(&py, "```python\nprint(2+2)\n```");
         assert_eq!(turn.done.as_deref(), Some("4"));
         assert!(turn.follow_up.is_none());
-        cleanup(&dir);
     }
 
     #[test]
     fn only_continues_with_the_result() {
-        let (dir, sb) = sandbox();
+        let (_dir, sb) = sandbox();
         let py = InlinePython::only(sb);
         let turn = inline_turn(&py, "print(6*7)");
         assert!(turn.done.is_none());
         assert!(turn.follow_up.as_deref().unwrap_or("").contains("42"));
-        cleanup(&dir);
     }
 
     #[test]
     fn failed_strike_comes_back_as_follow_up() {
-        let (dir, sb) = sandbox();
+        let (_dir, sb) = sandbox();
         let py = InlinePython::only_answer(sb);
         let turn = inline_turn(&py, "```python\n1/0\n```");
         assert!(turn.done.is_none());
@@ -1556,7 +1532,6 @@ mod tests {
                 .unwrap_or("")
                 .contains("ZeroDivisionError")
         );
-        cleanup(&dir);
     }
 
     #[test]

@@ -31,11 +31,8 @@ fn entry(name: &str, dir: &std::path::Path) -> CatalogEntry {
     }
 }
 
-fn mkdir(tag: &str) -> std::path::PathBuf {
-    let p = std::env::temp_dir().join(format!("rung-catalog-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&p);
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn mkdir(tag: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("catalog-{tag}"))
 }
 
 #[test]
@@ -144,9 +141,6 @@ fn admit_evict_and_route_are_higher_order_edits() {
         Err(EnactError::ObjectNotFound { .. }) => {}
         other => panic!("expected ObjectNotFound, got {other:?}"),
     }
-
-    let _ = std::fs::remove_dir_all(&qdir);
-    let _ = std::fs::remove_dir_all(&idir);
 }
 
 #[test]
@@ -169,6 +163,4 @@ fn every_carrier_is_present_is_lived_not_declared() {
             .verdict()
             .is_conforming()
     );
-
-    let _ = std::fs::remove_dir_all(&present);
 }

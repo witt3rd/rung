@@ -42,12 +42,8 @@ fn entry(name: &str, dir: &Path) -> CatalogEntry {
 
 #[test]
 fn questions_discharges_a_work_item_and_issues_admits_it() {
-    let qdir = std::env::temp_dir().join(format!("rung-releg-q-{}", std::process::id()));
-    let idir = std::env::temp_dir().join(format!("rung-releg-i-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&qdir);
-    let _ = std::fs::remove_dir_all(&idir);
-    std::fs::create_dir_all(&qdir).unwrap();
-    std::fs::create_dir_all(&idir).unwrap();
+    let qdir = rung_testkit::TempDir::new("releg-q");
+    let idir = rung_testkit::TempDir::new("releg-i");
 
     // The questions carrier holds a work-item: a Mode-B subject the authentic
     // cut says is "a decision / work item, not a determinate question."
@@ -151,7 +147,4 @@ Work item: {question_body}
             .verdict()
             .is_conforming()
     );
-
-    let _ = std::fs::remove_dir_all(&qdir);
-    let _ = std::fs::remove_dir_all(&idir);
 }

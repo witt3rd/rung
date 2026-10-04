@@ -1576,6 +1576,7 @@ dependencies = [
  "rung-agent-core",
  "rung-memory",
  "rung-std",
+ "rung-testkit",
  "serde",
  "serde_json",
  "serde_yaml",

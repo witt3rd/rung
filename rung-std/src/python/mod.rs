@@ -359,29 +359,12 @@ ladder!(PythonStrike {
 mod tests {
     use super::*;
 
-    fn tmp() -> PathBuf {
-        let p = std::env::temp_dir().join(format!(
-            "rung-py-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&p).unwrap();
-        p
-    }
-
-    fn cfg(jail: Jail) -> (PathBuf, SandboxConfig) {
-        let dir = tmp();
-        let mut c = SandboxConfig::in_dir(&dir);
+    fn cfg(jail: Jail) -> (rung_testkit::TempDir, SandboxConfig) {
+        let dir = rung_testkit::TempDir::new("py");
+        let mut c = SandboxConfig::in_dir(dir.path());
         c.jail = jail;
         c.strike_timeout = Duration::from_secs(8);
         (dir, c)
-    }
-
-    fn cleanup(dir: &PathBuf) {
-        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
@@ -396,32 +379,29 @@ mod tests {
 
     #[test]
     fn last_expression_is_the_value() {
-        let (dir, cfg) = cfg(Jail::Off);
+        let (_dir, cfg) = cfg(Jail::Off);
         let sb = Sandbox::open(cfg).unwrap();
         let r = sb.strike("2 + 2").unwrap();
         assert!(r.ok, "{r:?}");
         assert_eq!(r.value, serde_json::json!(4));
-        cleanup(&dir);
     }
 
     #[test]
     fn print_goes_to_stdout() {
-        let (dir, cfg) = cfg(Jail::Off);
+        let (_dir, cfg) = cfg(Jail::Off);
         let sb = Sandbox::open(cfg).unwrap();
         let r = sb.strike("print('hi')").unwrap();
         assert!(r.ok);
         assert_eq!(r.display(), "hi");
-        cleanup(&dir);
     }
 
     #[test]
     fn namespace_survives_a_strike() {
-        let (dir, cfg) = cfg(Jail::Off);
+        let (_dir, cfg) = cfg(Jail::Off);
         let sb = Sandbox::open(cfg).unwrap();
         let _ = sb.strike("x = 21").unwrap();
         let r = sb.strike("x * 2").unwrap();
         assert_eq!(r.value, serde_json::json!(42));
-        cleanup(&dir);
     }
 
     #[test]
@@ -432,18 +412,17 @@ mod tests {
             let sb = Sandbox::open(cfg.clone()).unwrap();
             let _ = sb.strike("x = 1").unwrap();
         }
-        let mut cfg2 = SandboxConfig::in_dir(&dir);
+        let mut cfg2 = SandboxConfig::in_dir(dir.path());
         cfg2.store = store;
         cfg2.jail = Jail::Off;
         let sb = Sandbox::open(cfg2).unwrap();
         let r = sb.strike("x").unwrap();
         assert_eq!(r.value, serde_json::json!(1));
-        cleanup(&dir);
     }
 
     #[test]
     fn python_error_is_a_failed_strike_not_a_dead_guest() {
-        let (dir, cfg) = cfg(Jail::Off);
+        let (_dir, cfg) = cfg(Jail::Off);
         let sb = Sandbox::open(cfg).unwrap();
         let r = sb.strike("1/0").unwrap();
         assert!(!r.ok);
@@ -455,42 +434,38 @@ mod tests {
         );
         let still = sb.strike("3").unwrap();
         assert_eq!(still.value, serde_json::json!(3));
-        cleanup(&dir);
     }
 
     #[test]
     fn timeout_kills_a_runaway() {
-        let (dir, mut cfg) = cfg(Jail::Off);
+        let (_dir, mut cfg) = cfg(Jail::Off);
         cfg.strike_timeout = Duration::from_millis(400);
         let sb = Sandbox::open(cfg).unwrap();
         let err = sb.strike("import time\ntime.sleep(30)").unwrap_err();
         assert!(matches!(err, SandboxError::Timeout { .. }), "{err}");
         let r = sb.strike("1 + 1").unwrap();
         assert_eq!(r.value, serde_json::json!(2));
-        cleanup(&dir);
     }
 
     #[test]
     fn tool_execute_round_trips() {
-        let (dir, cfg) = cfg(Jail::Off);
+        let (_dir, cfg) = cfg(Jail::Off);
         let sb = Sandbox::open(cfg).unwrap();
         let tool = sb.as_tool();
         let out = tool
             .execute(&serde_json::json!({"code": "print(2+2)"}))
             .unwrap();
         assert_eq!(out, "4");
-        cleanup(&dir);
     }
 
     #[test]
     fn reset_drops_the_namespace() {
-        let (dir, cfg) = cfg(Jail::Off);
+        let (_dir, cfg) = cfg(Jail::Off);
         let sb = Sandbox::open(cfg).unwrap();
         let _ = sb.strike("x = 1").unwrap();
         let _ = sb.reset().unwrap();
         let r = sb.strike("x").unwrap();
         assert!(!r.ok);
-        cleanup(&dir);
     }
 
     #[test]
@@ -498,10 +473,9 @@ mod tests {
         if !bwrap_ok() {
             return;
         }
-        let (dir, cfg) = cfg(Jail::Required);
+        let (_dir, cfg) = cfg(Jail::Required);
         let sb = Sandbox::open(cfg).unwrap();
         let r = sb.strike("1 + 1").unwrap();
         assert_eq!(r.value, serde_json::json!(2));
-        cleanup(&dir);
     }
 }
