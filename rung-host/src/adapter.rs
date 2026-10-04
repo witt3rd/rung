@@ -257,9 +257,14 @@ pub fn origin_of(f: Option<&HttpFailure>, now: Millis) -> (Origin, Option<Millis
         // the provider's side.
         return (Origin::Provider, None);
     };
-    let body: Value = serde_json::from_str(&f.body).unwrap_or(Value::Null);
-    let meta = &body["error"]["metadata"];
-    if meta.get("provider_name").is_some() || meta.get("provider_code").is_some() {
+    let provider_meta = match serde_json::from_str::<Value>(&f.body) {
+        Ok(body) => {
+            let meta = &body["error"]["metadata"];
+            meta.get("provider_name").is_some() || meta.get("provider_code").is_some()
+        }
+        Err(_) => f.body.contains("\"provider_name\"") || f.body.contains("\"provider_code\""),
+    };
+    if provider_meta {
         return (Origin::Provider, None);
     }
     let header = |name: &str| {
@@ -471,6 +476,15 @@ mod tests {
         assert_eq!(origin_of(Some(&rel), 1_000).1, Some(31_000));
         let none = f(&[("x-ratelimit-remaining", "0")], "{}");
         assert_eq!(origin_of(Some(&none), 0), (Origin::Platform, None));
+    }
+
+    #[test]
+    fn a_truncated_provider_body_is_still_the_providers() {
+        let x = f(
+            &[("x-ratelimit-remaining", "0")],
+            r#"{"error":{"code":429,"metadata":{"provider_name":"Up","raw":"aaaa"#,
+        );
+        assert_eq!(origin_of(Some(&x), 0), (Origin::Provider, None));
     }
 
     #[test]
