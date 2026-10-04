@@ -302,6 +302,56 @@ fn a_turn_still_narrating_after_its_nudge_is_unverified() {
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
+/// The nudge re-run writes the note, then its next call is refused. The
+/// turn stays unverified with the first reading, and the session record
+/// keeps what the re-run did after the nudge: the `write_file` call and its
+/// result, not only the narration before it.
+#[test]
+fn a_failed_rerun_keeps_the_steps_it_ran() {
+    let tmp = tempdir();
+    let refusal = json!({"id": "c", "model": "m", "choices": [{"message": {
+        "content": null, "refusal": "I can't help with that."
+    }, "finish_reason": "stop"}]});
+    let llm = mock_llm(vec![text_reply(NARRATION), write_note_reply(), refusal]);
+    let jev = mock_jev(vec![Jev::Fixture("narrated_note")], &tmp);
+    let r = run(agent(&tmp, &llm, Some(&jev)), "write", NARRATE_REQUEST);
+    assert_eq!(r.out["status"], "unverified", "{}\n{}", r.stdout, r.stderr);
+    assert_eq!(r.out["text"], NARRATION);
+    assert_eq!(r.out["turn_check"]["nudged"], true);
+    assert_eq!(r.out["turn_check"]["outcome"], "narrated");
+    assert!(tmp.join("notes.txt").exists(), "the re-run wrote the note");
+
+    let id = r.out["task_id"].as_str().unwrap();
+    assert_eq!(session_status(&tmp, id), "unverified");
+    let p = tmp.join(".rung/sessions").join(format!("{id}.json"));
+    let s: Value = serde_json::from_str(&std::fs::read_to_string(p).unwrap()).unwrap();
+    let line = &s["lines"][1];
+    assert_eq!(line["role"], "assistant", "{s}");
+    assert_eq!(line["text"], NARRATION, "{s}");
+    assert!(line.get("failure").is_none(), "the turn has an answer: {s}");
+    let blocks: Vec<&Value> = line["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|m| m["content"].as_array())
+        .flatten()
+        .collect();
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b["type"] == "tool_use" && b["id"] == "c1" && b["name"] == "write_file"),
+        "the re-run's call is gone from the record: {s}"
+    );
+    assert!(
+        blocks
+            .iter()
+            .any(|b| b["type"] == "tool_result" && b["tool_use_id"] == "c1"),
+        "the re-run's result is gone from the record: {s}"
+    );
+    assert!(!s.to_string().contains("refused"), "{s}");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
 // ─── 6 · Mutation sibling of 1 ───────────────────────────────────────────────
 
 /// The regression depends on the judge's answer. Flip the narration reading
