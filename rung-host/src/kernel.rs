@@ -456,6 +456,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn an_absurd_until_does_not_overflow() {
+        let guard = crate::sim::temp_dir_guard("kernel-until");
+        let o = crate::record::Record::open(guard.path().join("rec")).unwrap();
+        let core = Core::new(
+            o.record,
+            crate::state::State::default(),
+            std::sync::Arc::new(crate::clock::SimClock::new(1_000)),
+            std::sync::Arc::new(crate::stop::StopAuthority::default()),
+            crate::notify::Notifier::none(),
+            crate::core::HostConfig::new(guard.path().join("ws")),
+        );
+        let r = tool_commit(
+            &core,
+            1,
+            &json!({"new": {"title": "t", "why": "w"}, "done_when": "d", "until_s": i64::MAX}),
+        );
+        assert!(r.is_ok(), "{r:?}");
+    }
+
+    #[test]
     fn similarity_is_trigram_jaccard() {
         assert_eq!(similarity("the same words", "The  same words"), 1.0);
         assert!(similarity("cache efficiency", "calendar lateness") < 0.2);

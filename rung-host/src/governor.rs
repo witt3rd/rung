@@ -432,6 +432,19 @@ mod tests {
     }
 
     #[test]
+    fn the_turn_rate_ceiling_ignores_starts_older_than_a_minute() {
+        let cfg = GovConfig {
+            turns_per_minute: 2,
+            ..GovConfig::default()
+        };
+        let mut st = GovState::default();
+        st.turn_starts.extend([1_000, 2_000]);
+        assert!(must_wait(&st, &cfg, TurnKind::Free, 3_000).is_some());
+        // No line has been applied since; the starts are stale at 70 s.
+        assert!(must_wait(&st, &cfg, TurnKind::Free, 70_000).is_none());
+    }
+
+    #[test]
     fn backoff_is_capped() {
         let cfg = GovConfig::default();
         let st = GovState {
