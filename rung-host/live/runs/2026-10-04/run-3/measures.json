@@ -1,0 +1,339 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "stop-file:/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live3/STOP",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 1577.4,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "stealth/space-bunny-alpha",
+  "completed_by_model": {
+   "qwen/qwen3.8-27b:free": 3
+  },
+  "first_turn_model": "stealth/space-bunny-alpha",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": true,
+    "model": "stealth/space-bunny-alpha",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "google/gemma-4-31b-it:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": true,
+  "turns_by_status": {
+   "completed": 3,
+   "failed": 15
+  }
+ },
+ "L3": {
+  "at_bottom": 7,
+  "exercised": true,
+  "not_stepped": 0,
+  "pass": true,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 2,
+  "provider_failures": 15,
+  "stepped_down": 8,
+  "switches": [
+   {
+    "direction": "down",
+    "from": "stealth/space-bunny-alpha",
+    "to": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "unroutable: zdr-violation-by-guardrail"
+   },
+   {
+    "direction": "down",
+    "from": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "to": "qwen/qwen3.8-27b:free",
+    "why": "unroutable: free-model-training-violation-by-account, free-model-training-violation-by-guardrail, zdr-violation-by-guardrail"
+   },
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "unroutable: zdr-violation-by-guardrail"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "qwen/qwen3.8-27b:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "unroutable: zdr-violation-by-guardrail"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "qwen/qwen3.8-27b:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "unroutable: zdr-violation-by-guardrail"
+   }
+  ],
+  "unroutable": 12
+ },
+ "L4": {
+  "cache_breaks": {
+   "model_switch": 2
+  },
+  "cache_cold": {},
+  "cache_efficiency": 0.7575,
+  "cache_write_tokens": 0,
+  "cached_tokens": 34048,
+  "calls": 10,
+  "epochs": 2,
+  "pass": true,
+  "prompt_tokens": 44949,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 316729,
+  "admission_ms_p50": 16684,
+  "admission_ms_p95": 316729,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": 210701,
+  "disposed_ms_p50": 210701,
+  "owner_items": 6,
+  "pass": false,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 210701,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 2673,
+    "waited_in": {
+     "backoff": 15623
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 12150,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 234,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 168208,
+    "waited_in": {
+     "backoff": 247040
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 316729,
+    "waited_in": {
+     "backoff": 445653
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 16684,
+    "waited_in": {
+     "backoff": 445653
+    }
+   },
+   {
+    "admitted": false,
+    "boundary_gap": null,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": null,
+    "waited_in": null
+   }
+  ],
+  "turn_ms_p50": 204,
+  "turn_ms_p95": 52126
+ },
+ "L6": {
+  "accepted": 9,
+  "disposed": 2,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 2
+  },
+  "open_at_stop": [
+   "cal-cal-checkin-1791125409092",
+   "exp-e2",
+   "o03-outside",
+   "o04-time",
+   "o05-read-back",
+   "cal-cal-firm-status-1791126069092",
+   "o06-keep-going"
+  ],
+  "pass": true
+ },
+ "L7": {
+  "asks": 33,
+  "by_jev": 0,
+  "decisions": 99,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 25,
+   "{\"rule\": \"shadow\"}": 74
+  },
+  "jev_charged_usd": 0.001745,
+  "jev_cost_usd": 0.001745,
+  "jev_ms_max": 347.367,
+  "jev_ms_p50": 193.974,
+  "jev_ms_p95": 287.862,
+  "outcomes": {
+   "answered": 33
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 8
+   },
+   "inject": {
+    "agree": 14,
+    "disagree": 19
+   },
+   "tools": {
+    "agree": 12,
+    "disagree": 21
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {},
+  "agent_write_calls": 1,
+  "outside": {},
+  "pass": true,
+  "traces": 1,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live3/state/workspace",
+  "write_syscalls": {
+   "mkdir": 8,
+   "openat": 5,
+   "unlink": 6
+  }
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.001745,
+  "jev_usd": 0.001745,
+  "pass": true,
+  "total_usd": 0.001745
+ },
+ "extra": {
+  "calendar_fired": 2,
+  "completion_tokens": 6559,
+  "degraded": {
+   "backoff": 15
+  },
+  "degraded_waited_s": {
+   "backoff": 1403
+  },
+  "kernel": {
+   "kernel.trace": 2
+  },
+  "llm_calls": 10,
+  "llm_latency_ms_p50": 20356,
+  "llm_latency_ms_p95": 28548,
+  "outbox": 2,
+  "reasoning_tokens": 4425,
+  "rollovers": 11,
+  "served": {
+   "qwen/qwen3.8-27b:free": 10
+  },
+  "tool_calls": {
+   "expect": 1,
+   "memory_keep": 3,
+   "memory_search": 2,
+   "note": 1,
+   "send": 2,
+   "trace": 2,
+   "ws_list": 1,
+   "ws_write": 1
+  },
+  "turn_kinds": {
+   "free": 9,
+   "responding": 9
+  },
+  "turns": 18
+ },
+ "lines": 354,
+ "run": "run-3"
+}

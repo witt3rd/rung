@@ -1,0 +1,4 @@
+792621 mkdir("/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live1/state/inbox", 0777) = 0
+792621 mkdir("/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live1/state", 0777) = -1 EEXIST (File exists)
+792621 mkdir("/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live1/state/record", 0777) = 0
+792621 openat(AT_FDCWD, "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live1/state/record/seg-00000001.ndjson", O_WRONLY|O_CREAT|O_APPEND|O_CLOEXEC, 0666) = 3

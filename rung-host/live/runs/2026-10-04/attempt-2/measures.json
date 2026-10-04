@@ -1,0 +1,218 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "stop-file:/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live2/STOP",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 131.0,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "stealth/space-bunny-alpha",
+  "completed_by_model": {},
+  "first_turn_model": "stealth/space-bunny-alpha",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": true,
+    "model": "stealth/space-bunny-alpha",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "google/gemma-4-31b-it:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": false,
+  "turns_by_status": {
+   "failed": 6
+  }
+ },
+ "L3": {
+  "at_bottom": 1,
+  "exercised": true,
+  "not_stepped": 0,
+  "pass": true,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 0,
+  "provider_failures": 6,
+  "stepped_down": 4,
+  "switches": [
+   {
+    "direction": "down",
+    "from": "stealth/space-bunny-alpha",
+    "to": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "provider invalid"
+   },
+   {
+    "direction": "down",
+    "from": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "to": "qwen/qwen3.8-27b:free",
+    "why": "provider invalid"
+   },
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider invalid"
+   }
+  ],
+  "unroutable": 5
+ },
+ "L4": {
+  "cache_breaks": {},
+  "cache_cold": {},
+  "cache_efficiency": null,
+  "cache_write_tokens": 0,
+  "cached_tokens": 0,
+  "calls": 0,
+  "epochs": 0,
+  "pass": true,
+  "prompt_tokens": 0,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 56584,
+  "admission_ms_p50": 56584,
+  "admission_ms_p95": 56584,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": null,
+  "disposed_ms_p50": null,
+  "owner_items": 1,
+  "pass": false,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 56584,
+    "waited_in": {
+     "backoff": 59106
+    }
+   }
+  ],
+  "turn_ms_p50": 112,
+  "turn_ms_p95": 2259
+ },
+ "L6": {
+  "accepted": 1,
+  "disposed": 0,
+  "disposed_twice": [],
+  "dispositions": {},
+  "open_at_stop": [
+   "o01-hello"
+  ],
+  "pass": true
+ },
+ "L7": {
+  "asks": 12,
+  "by_jev": 0,
+  "decisions": 36,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 12,
+   "{\"rule\": \"shadow\"}": 24
+  },
+  "jev_charged_usd": 0.000541,
+  "jev_cost_usd": 0.000541,
+  "jev_ms_max": 724.417,
+  "jev_ms_p50": 197.377,
+  "jev_ms_p95": 724.417,
+  "outcomes": {
+   "answered": 12
+  },
+  "pass": true,
+  "per_family": {
+   "inject": {
+    "agree": 10,
+    "disagree": 2
+   },
+   "tools": {
+    "agree": 5,
+    "disagree": 7
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {},
+  "agent_write_calls": 0,
+  "outside": {},
+  "pass": true,
+  "traces": 1,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live2/state/workspace",
+  "write_syscalls": {
+   "mkdir": 3,
+   "openat": 1,
+   "unlink": 1
+  }
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.000541,
+  "jev_usd": 0.000541,
+  "pass": true,
+  "total_usd": 0.000541
+ },
+ "extra": {
+  "calendar_fired": 0,
+  "completion_tokens": 0,
+  "degraded": {
+   "backoff": 6
+  },
+  "degraded_waited_s": {
+   "backoff": 125
+  },
+  "kernel": {},
+  "llm_calls": 0,
+  "llm_latency_ms_p50": null,
+  "llm_latency_ms_p95": null,
+  "outbox": 0,
+  "reasoning_tokens": 0,
+  "rollovers": 5,
+  "served": {},
+  "tool_calls": {},
+  "turn_kinds": {
+   "free": 5,
+   "responding": 1
+  },
+  "turns": 6
+ },
+ "lines": 111,
+ "run": "attempt-2"
+}

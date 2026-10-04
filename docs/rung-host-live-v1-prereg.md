@@ -69,3 +69,37 @@ own: it is neither a pass nor a fail and is reported as such.
   6-hour listing refresh, or many epoch rollovers.
 - Cache behaviour on a caching provider: the free endpoints report none.
 - The agent's quality. Turns are recorded verbatim; they are not graded.
+
+## Deviations (2026-10-04, written after the run)
+
+Added after the run; nothing above was changed. The record of every
+attempt is under `rung-host/live/runs/2026-10-04/`.
+
+1. **Attempt 1** (14:28:06–14:29:02Z, 56 s). Every turn met a router 404:
+   no endpoint of the top rung was open to the account's data policy. The
+   host read it as an invalid request and retried the same rung every
+   2 s; it was stopped by its stop file. Fixed before the next attempt
+   (`fix(rung-host): step down past a rung the router will not route`).
+   The analyzer reads this attempt's L3 as "not exercised" because the
+   failures were not yet classed as the provider side's; in substance it
+   is a fail.
+2. **Attempt 2** (14:35:43–14:37:55Z, 2 min 12 s). The host stepped past
+   the unroutable rungs, met a provider 429 on the one rung that routes,
+   stepped down to the bottom and stayed there: a probe tried only the
+   rung just above, which was still cooling. Stopped and fixed (`fix:
+   probe past a rung still cooling`).
+3. **Run 3** (14:43:08–15:09:27Z) is the window of record. Its run limit
+   (1,500 s) was passed by 79 s: a backoff that began before the limit ran
+   past it, and the host was stopped by its stop file. Fixed after the run
+   (`fix(rung-host): a run limit ends a degraded wait`); the evidence comes
+   from the binary as it ran.
+4. **Not extended.** L5 failed in run 3, so under the extension rule above
+   the run was not extended. Live wall time across all three: 29 min 27 s
+   of the 2-hour cap.
+5. **Analyzer corrections after seeing data**, neither changing a
+   threshold: L5 counts an item as deferred only when a boundary later than
+   the next one after its acceptance admits it (an item accepted inside a
+   boundary's poll may be admitted by that boundary), and L5 is "not
+   exercised" when no owner item arrived.
+6. L8's trace covers the host process. The driver's own writes of `*.msg`
+   files into the inbox are outside it by design.
