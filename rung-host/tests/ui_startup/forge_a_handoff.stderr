@@ -1,0 +1,11 @@
+error[E0451]: fields `host`, `recovered` and `acp` of struct `Handoff` are private
+  --> tests/ui_startup/forge_a_handoff.rs:9:9
+   |
+ 8 |     let _ = rung_host::startup::Handoff {
+   |             --------------------------- in this type
+ 9 |         host,
+   |         ^^^^ private field
+10 |         recovered,
+   |         ^^^^^^^^^ private field
+11 |         acp,
+   |         ^^^ private field

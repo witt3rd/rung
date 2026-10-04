@@ -7,8 +7,8 @@ changed for it.
 
 This document is informative. It describes slice 1 — the host against a
 scripted mock engine, a fake world and a fault injector, at $0 — and what
-slice 2 adds: the real engine adapter, the model ladder's listing filter
-and ACP outward (below). The startup ladder and live runs are later. Delegation to workers is a final
+slice 2 adds: the real engine adapter, the model ladder's listing filter,
+ACP outward and the startup-handoff ladder (below). Live runs are later. Delegation to workers is a final
 extension; only its extension point exists (the `crew` group name and the
 `crew.*` record kinds are reserved, and the inbox admits external
 completion items).
@@ -161,6 +161,47 @@ it initialized with, and a later request on it with another token is
 refused (403). Without at least one token the HTTP surface does not
 start.
 
+## The startup-handoff ladder
+
+`rung-host run --config rung-host.yaml` starts a host through a ladder:
+
+```text
+Configured(Plan) => Listed(Plan) => Recovered(Opening) => { Handed(Handoff) | Refused(Refusal) }
+```
+
+- **Configured**: the file is read (unknown fields refused), checked, the
+  keys read from the env vars it names, the engine built. A refusal
+  (exit 2) names the problem and touches no state.
+- **Listed**: the router's models are listed at start, before the record
+  is opened. The host records that listing (`ladder.listed` with
+  `at_start: true`) at its first boundary, before its first turn; a failed
+  listing does not stop the start.
+- **Recovered**: the record is opened and replayed; a restart recovers
+  here.
+- **Handed** to the Presence loop, with ACP outward when configured; or
+  **Refused** when the record cannot be opened.
+
+Each stage is a rung: mid-ladder tokens have no public constructor, and a
+`Plan` is built only by configuring, so no stage can be skipped or forged.
+
+```yaml
+state: /var/lib/rung-host            # required; workspace defaults to <state>/workspace
+engine:
+  kind: agent                        # or mock
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY    # the env var's name, never the key
+  reasoning: medium                  # pinned for the agent's life
+ladder: [ ... ]                      # default: the ruled free ladder
+listing: true                        # list at start and every 6 h (default for agent)
+quota: { rpd: 1000, rpm: 20 }        # optional
+memory: true                         # baseline memory under the state dir
+acp: { http: "127.0.0.1:7878", tokens: { owner: RUNG_HOST_OWNER_TOKEN } }   # or { stdio: owner }
+```
+
+Other optional keys: `workspace`, `identity`, `owner_channel`,
+`epoch_budget_tokens`, `turn_bound_s`, `backoff_base_ms`, `seed_projects`
+(`[{id, title, why}]`), and under `engine`: `step_cap`, `timeout_s`.
+
 ## The engine adapter
 
 `rung_host::adapter::AgentEngine` runs each turn on `rung-agent-core`'s
@@ -278,7 +319,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `memory.recall` / `memory.retain` | the provider's report |
 | `degraded` / `degraded.ended` | `class` (`paced`, `quota`, `backoff`, `blocked`), `until`, `why`; `waited_ms` |
 | `model.switch` | `from`, `to`, `direction` (`down`, `up`), `why` (`provider …`, `probe: …`, `listing: …`) |
-| `ladder.listed` | `ok`, `error` (when not), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`; `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
+| `ladder.listed` | `ok`, `error` (when not), `at_start` (the startup ladder's listing), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`; `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
 | `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms` |
 | `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |
 | `halted` | `why` |
@@ -317,3 +358,4 @@ router documents. No live model, no live Jev, no key.
 | G-o ladder listing filter | 13 simulated hours on a seven-rung ladder against recorded-shape listing fixtures: one rung expires, one endpoint is down, one takes no tools, one is unlisted, one is paid; one refresh fails | listed before the first turn; each listing's verdict per rung is the oracle's (listed, not expired, prompt and completion free, takes `tools`, an endpoint at status ≥ 0); the expiry seen; a failed listing keeps the verdicts and is retried within 15 min; refreshed within 6 h; every turn on an available rung; a rung taken away is switched off before the next turn; a provider 429 steps down to the next available rung (skipping one), a probe up to the nearest available; listing GETs keyless and each on record; loopback, $0 |
 | G-p ACP outward | the binary on stdio (`sim --acp`, real clock, mock engine) and one JSON-RPC client: owner, peer and observer channels; a no-reply stimulus; prompts from two channels; a cancel; owner-only extensions from a peer; the owner's calendar entry; status, list, load; the owner's stop with a prompt open | every prompt exactly one response; the observer's refused; an answered prompt names the item and turn the record disposed it in, its streamed text ends with the agent's sends to that channel in that turn (or, for the highest-role channel in the turn, the final text), its turn's tool calls streamed; the final text and tool calls only to the highest-role channel admitted in the turn, no other channel's output or item ids to any other channel; a cancelled prompt answered `cancelled`, its item withdrawn or already in a turn; an agent-initiated message delivered as `_rung/outbox`, matching the record; `_rung/stimulus` on disk before its ack; the peer's stop, calendar and release refused; the owner's calendar entry added and fired; status reports the now set; list shows every channel, load reopens one; the owner's stop halts the host, answers open prompts, exit 0 within 5 s; mock engine, $0 |
 | G-q ACP over HTTP | the binary on Streamable HTTP (`sim --acp-http 127.0.0.1:0`, owner and peer tokens from env vars) and a raw HTTP client; refused starts without usable tokens | no or an unknown token refused 401; a token's role caps its channels (the peer token cannot open an owner channel); another valid token on an initialized connection refused 403 for POST, GET and DELETE; a peer prompt answered `end_turn` naming an item the record disposed in that turn; the peer's stop refused, the owner's halts and exits 0 within 5 s; no tokens or an unset token env var refuse to start (exit 2); no token in the record; bound to loopback |
+| G-r startup-handoff ladder | `rung-host run --config FILE` against the loopback router: a first run, a restart on the same state, an unknown config field, an unset key env var, an unreachable router; and compile-fail cases | each process lists the models at start, before its record exists, and records that listing (`at_start`) before its first turn; the restart recovers the record and lists again; turns run on the real adapter, $0; a bad field or unset key refused (exit 2) naming it, the state untouched; an unreachable router does not stop the start (listing recorded failed, turns fail and back off, ends by its limit); no stage can be skipped (recovering takes a `Listed`, not a `Configured`) and no mid-ladder rung, plan or handoff can be built from outside |

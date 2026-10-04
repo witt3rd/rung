@@ -30,6 +30,7 @@ pub mod record;
 pub mod registers;
 pub mod render;
 pub mod sim;
+pub mod startup;
 pub mod state;
 pub mod stop;
 pub mod toolbox;
