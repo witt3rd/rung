@@ -194,6 +194,7 @@ engine:
   reasoning: medium                  # pinned for the agent's life
 ladder: [ ... ]                      # default: the ruled free ladder
 listing: true                        # list at start and every 6 h (default for agent)
+probe: true                          # with each listing, one keyed probe per standing rung (default with listing)
 quota: { rpd: 1000, rpm: 20 }        # optional
 memory: true                         # baseline memory under the state dir
 acp: { http: "127.0.0.1:7878", tokens: { owner: RUNG_HOST_OWNER_TOKEN } }   # or { stdio: owner }
@@ -279,6 +280,15 @@ listing keeps it unavailable. If nothing below a refused current rung
 stands, the host switches to the best standing rung (a `model.switch`
 whose `why` starts `refused:`).
 
+With every successful listing — so at start and every six hours — the host
+also probes, with the route's key, each rung the listing left standing (so
+only free models): one tiny chat request (one user word, at most one output
+token, no tools). A refusal for this account is a `ladder.refused` line
+(`by: probe`) before any turn can land on the rung; every verdict
+(`routes`, `refused`, `unknown`) is one `ladder.probed` line, and each
+probe counts as one request against the day's quota. `probe: false` turns
+probes off; with `listing: false` there are none.
+
 ## The governor
 
 - **Pacer**: a daily request quota (`rpd`), a per-minute limit (`rpm`), a
@@ -361,7 +371,8 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `memory.recall` / `memory.retain` | the provider's report |
 | `degraded` / `degraded.ended` | `class` (`paced`, `quota`, `backoff`, `blocked`), `until`, `why`; `waited_ms` |
 | `model.switch` | `from`, `to`, `direction` (`down`, `up`), `why` (`provider …`, `probe: …`, `listing: …`) |
-| `ladder.refused` | `rung`, `model`, `reasons` (the router's `ineligibility_reasons`): unavailable until the next listing |
+| `ladder.refused` | `rung`, `model`, `reasons` (the router's `ineligibility_reasons`), `by` (`probe` when a keyed probe found it): unavailable until the next listing |
+| `ladder.probed` | `probes`, `rungs [{rung, model, verdict, reasons?, error?}]` (`verdict`: `routes`, `refused`, `unknown`) |
 | `ladder.listed` | `ok`, `error` (when not), `at_start` (the startup ladder's listing), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`; `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
 | `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms` |
 | `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |

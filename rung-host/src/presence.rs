@@ -98,6 +98,9 @@ pub struct HostBuilder {
     /// Lists the router's models for the ladder's filter; `None`: the
     /// configured ladder is walked as it is.
     pub lister: Option<Arc<dyn crate::ladder::Lister>>,
+    /// Asks the router, keyed, whether it routes each rung the listing
+    /// left standing (at start and with every listing); `None`: no probes.
+    pub prober: Option<Arc<dyn crate::ladder::Prober>>,
     /// A listing made at start, before the record was opened (the startup
     /// ladder's): recorded at the first boundary, before the first turn.
     pub initial_listing: Option<Value>,
@@ -126,6 +129,7 @@ impl HostBuilder {
             segment_bytes: crate::record::SEGMENT_BYTES,
             seed_calendar: Vec::new(),
             lister: None,
+            prober: None,
             initial_listing: None,
         }
     }
@@ -144,6 +148,7 @@ pub struct Host {
     limits: Limits,
     seed_calendar: Vec<Entry>,
     lister: Option<Arc<dyn crate::ladder::Lister>>,
+    prober: Option<Arc<dyn crate::ladder::Prober>>,
     initial_listing: Mutex<Option<Value>>,
     /// Set on waking after a gap: when the host stopped running.
     down_since: Mutex<Option<Millis>>,
@@ -259,6 +264,7 @@ impl Host {
             limits: b.limits,
             seed_calendar: b.seed_calendar,
             lister: b.lister,
+            prober: b.prober,
             initial_listing: Mutex::new(b.initial_listing),
             down_since: Mutex::new(None),
             reset: Mutex::new(None),
@@ -662,7 +668,64 @@ impl Host {
                 None => return,
             }
         };
+        if line.get("ok").as_bool().unwrap_or(false) {
+            self.probe_ladder(&line);
+        }
         self.after_listing(&line, rungs);
+    }
+
+    /// One keyed probe of each rung a successful listing left standing (so
+    /// only free models): a refusal for this account makes the rung
+    /// unavailable until the next listing (`ladder.refused`), before any
+    /// turn can land on it. One `ladder.probed` line holds every verdict.
+    fn probe_ladder(&self, listing: &Line) {
+        let Some(prober) = &self.prober else { return };
+        let core = &*self.core;
+        let standing: Vec<(usize, String)> = listing
+            .get("rungs")
+            .as_array()
+            .map(|rs| {
+                rs.iter()
+                    .filter(|r| r["available"] == true)
+                    .filter_map(|r| {
+                        Some((
+                            r["rung"].as_u64()? as usize,
+                            r["model"].as_str()?.to_string(),
+                        ))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut verdicts = Vec::new();
+        let mut refused = Vec::new();
+        for (rung, model) in standing {
+            core.notifier.alive();
+            let v = match prober.probe(&model) {
+                crate::ladder::Probed::Routes => {
+                    json!({"rung": rung, "model": model, "verdict": "routes"})
+                }
+                crate::ladder::Probed::Refused(reasons) => {
+                    refused.push(
+                        json!({"rung": rung, "model": model, "reasons": reasons, "by": "probe"}),
+                    );
+                    json!({"rung": rung, "model": model, "verdict": "refused", "reasons": reasons})
+                }
+                crate::ladder::Probed::Unknown(e) => {
+                    json!({"rung": rung, "model": model, "verdict": "unknown", "error": e})
+                }
+            };
+            verdicts.push(v);
+        }
+        if verdicts.is_empty() {
+            return;
+        }
+        let probes = verdicts.len();
+        let mut lines: Vec<(&'static str, Value)> = vec![(
+            "ladder.probed",
+            json!({"rungs": verdicts, "probes": probes}),
+        )];
+        lines.extend(refused.into_iter().map(|r| ("ladder.refused", r)));
+        core.emit_many(lines);
     }
 
     /// List now, when due.

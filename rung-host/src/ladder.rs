@@ -97,6 +97,105 @@ impl Lister for HttpLister {
     }
 }
 
+/// A router's "no endpoint for you" refusal: a 404 whose error names why the
+/// model's endpoints were excluded for this account (data policy,
+/// guardrails). Its reason codes, sorted, or `None` for any other answer.
+pub fn refusal(status: u16, body: &str) -> Option<Vec<String>> {
+    if status != 404 {
+        return None;
+    }
+    let body: Value = serde_json::from_str(body).ok()?;
+    let reasons = body["error"]["metadata"]["ineligibility_reasons"].as_array()?;
+    let mut out: Vec<String> = reasons
+        .iter()
+        .filter_map(|r| r["reason"].as_str().map(String::from))
+        .collect();
+    out.sort();
+    out.dedup();
+    if out.is_empty() {
+        out.push("unspecified".into());
+    }
+    Some(out)
+}
+
+/// What one keyed probe of a model found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Probed {
+    /// The router served it.
+    Routes,
+    /// The router refused it for this account, with its reasons.
+    Refused(Vec<String>),
+    /// Anything else (a rate limit, a 5xx, a transport error): says nothing
+    /// about the account's policy.
+    Unknown(String),
+}
+
+/// Asks the router, with the account's key, whether it will route a model.
+pub trait Prober: Send + Sync {
+    fn probe(&self, model: &str) -> Probed;
+}
+
+/// One tiny keyed chat request per model: one user word, at most one
+/// output token, no tools.
+pub struct HttpProber {
+    base: String,
+    key: String,
+    timeout: Duration,
+}
+
+impl std::fmt::Debug for HttpProber {
+    // The key is never printed.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HttpProber")
+            .field("base", &self.base)
+            .field("has_key", &!self.key.is_empty())
+            .finish()
+    }
+}
+
+impl HttpProber {
+    pub fn new(base: &str, key: &str) -> Self {
+        Self {
+            base: base.trim_end_matches('/').to_string(),
+            key: key.to_string(),
+            timeout: Duration::from_secs(30),
+        }
+    }
+}
+
+impl Prober for HttpProber {
+    fn probe(&self, model: &str) -> Probed {
+        let client = match reqwest::blocking::Client::builder()
+            .timeout(self.timeout)
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => return Probed::Unknown(e.to_string()),
+        };
+        let body = json!({"model": model, "stream": false, "max_tokens": 1,
+                          "messages": [{"role": "user", "content": "OK"}]});
+        let sent = client
+            .post(format!("{}/chat/completions", self.base))
+            .bearer_auth(&self.key)
+            .json(&body)
+            .send();
+        let resp = match sent {
+            Ok(r) => r,
+            // reqwest's error names the URL, never the headers.
+            Err(e) => return Probed::Unknown(e.to_string()),
+        };
+        let status = resp.status().as_u16();
+        if (200..300).contains(&status) {
+            return Probed::Routes;
+        }
+        let text = resp.text().unwrap_or_default();
+        match refusal(status, &text) {
+            Some(reasons) => Probed::Refused(reasons),
+            None => Probed::Unknown(format!("HTTP {status}")),
+        }
+    }
+}
+
 /// Days since 1970-01-01 of a `YYYY-MM-DD` date.
 fn days_from_civil(date: &str) -> Option<i64> {
     let parts: Vec<i64> = date
@@ -210,6 +309,23 @@ pub fn list(lister: &dyn Lister, ladder: &[String], previous: &[bool], now: Mill
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn a_prober_never_prints_its_key_and_reads_only_a_named_refusal() {
+        let p = HttpProber::new("http://x/", "sk-secret-value");
+        let s = format!("{p:?}");
+        assert!(
+            !s.contains("sk-secret-value") && s.contains("has_key: true"),
+            "{s}"
+        );
+        let body = r#"{"error":{"metadata":{"ineligibility_reasons":[{"reason":"b"},{"reason":"a"},{"reason":"a"}]}}}"#;
+        assert_eq!(refusal(404, body), Some(vec!["a".into(), "b".into()]));
+        assert_eq!(refusal(429, body), None);
+        assert_eq!(
+            refusal(404, r#"{"error":{"message":"no such model"}}"#),
+            None
+        );
+    }
 
     struct Fixed {
         listing: Result<Value, String>,

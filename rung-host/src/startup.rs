@@ -38,7 +38,7 @@ use crate::desk::{DecisionDesk, DeskMode, SpendCap};
 use crate::engine::TurnEngine;
 use crate::governor::Quota;
 use crate::inbox::{DirSource, Role, Source};
-use crate::ladder::{HttpLister, Lister, OPENROUTER_FREE_LADDER};
+use crate::ladder::{HttpLister, HttpProber, Lister, OPENROUTER_FREE_LADDER, Prober};
 use crate::memory::MemoryHost;
 use crate::notify::Notifier;
 use crate::presence::{Host, HostBuilder, Limits, Recovered as Woken};
@@ -149,6 +149,11 @@ struct FileConfig {
     /// for the real engine).
     #[serde(default)]
     listing: Option<bool>,
+    /// With each listing (and so at start), one keyed request per standing
+    /// free rung asks whether the router routes it for this account
+    /// (default on with the listing, for the real engine).
+    #[serde(default)]
+    probe: Option<bool>,
     #[serde(default)]
     quota: Option<QuotaFile>,
     #[serde(default)]
@@ -202,6 +207,7 @@ pub struct Plan {
     clock: Arc<dyn Clock>,
     engine: Arc<dyn TurnEngine>,
     lister: Option<Arc<dyn Lister>>,
+    prober: Option<Arc<dyn Prober>>,
     listing: Option<Value>,
     memory: bool,
     limits: Limits,
@@ -322,6 +328,7 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
         .iter()
         .map(|p| (p.id.clone(), p.title.clone(), p.why.clone()))
         .collect();
+    let mut prober: Option<Arc<dyn Prober>> = None;
     let (engine, lister): (Arc<dyn TurnEngine>, Option<Arc<dyn Lister>>) =
         match f.engine.kind.as_str() {
             "agent" => {
@@ -348,10 +355,11 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
                 }
                 let engine = AgentEngine::new(ac, clock.clone())
                     .map_err(|e| refuse(format!("engine: {e}")))?;
-                let lister = f
-                    .listing
-                    .unwrap_or(true)
-                    .then(|| Arc::new(HttpLister::new(&base)) as Arc<dyn Lister>);
+                let listing = f.listing.unwrap_or(true);
+                let lister = listing.then(|| Arc::new(HttpLister::new(&base)) as Arc<dyn Lister>);
+                if listing && f.probe.unwrap_or(true) {
+                    prober = Some(Arc::new(HttpProber::new(&base, &key)));
+                }
                 (Arc::new(engine), lister)
             }
             "mock" => {
@@ -418,6 +426,7 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
         clock: clock.clone(),
         engine,
         lister,
+        prober,
         listing: None,
         memory: f.memory.unwrap_or(true),
         limits: Limits {
@@ -528,6 +537,7 @@ ladder!(Startup {
         };
         b.notifier = Notifier::from_env();
         b.lister = plan.lister;
+        b.prober = plan.prober;
         b.initial_listing = plan.listing;
         b.limits = plan.limits;
         if plan.memory {
