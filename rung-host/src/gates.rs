@@ -1994,6 +1994,453 @@ pub fn g_o(
     g
 }
 
+// ─── G-p ACP outward ─────────────────────────────────────────────────────────
+
+/// G-p: the owner's stop ends the process within this, ms.
+pub const G_P_STOP_MS: u64 = 5_000;
+
+/// What an ACP test client saw and measured.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct AcpRun {
+    /// Every JSON-RPC message, in order: (sent by the client, message).
+    pub wire: Vec<(bool, Value)>,
+    /// `_rung/stimulus` acks: (item id, its `stimulus.accepted` line was on
+    /// disk when the ack arrived).
+    pub durable_acks: Vec<(String, bool)>,
+    /// After the owner's `_rung/stop`: the exit code and ms until exit.
+    pub exit: Option<(i32, u64)>,
+}
+
+fn text_of_chunk(m: &Value) -> Option<(String, String)> {
+    if m["method"] != "session/update" {
+        return None;
+    }
+    let p = &m["params"];
+    let u = &p["update"];
+    if u["sessionUpdate"] != "agent_message_chunk" {
+        return None;
+    }
+    Some((
+        p["sessionId"].as_str()?.to_string(),
+        u["content"]["text"].as_str()?.to_string(),
+    ))
+}
+
+/// G-p: ACP outward. One agent; each `session/new` is a channel to it.
+///
+/// - every prompt gets exactly one response; an observer's prompt is
+///   refused;
+/// - an answered prompt's response names the item and the turn that
+///   disposed it, as the record does; its streamed text ends with what the
+///   agent sent that channel in that turn (or the turn's final text when it
+///   sent nothing and its channel is the highest-role channel with a prompt
+///   admitted in that turn; any other channel gets neither the final text
+///   nor tool calls); its `admitted_with` names no other channel's items;
+/// - a cancelled prompt is answered `cancelled` and its item was withdrawn
+///   (or was already in a turn); at least one cancel is exercised;
+/// - an agent-initiated message reaches the opted-in client as
+///   `_rung/outbox`, matching an `outbox.queued` line of a turn with no open
+///   prompt from that channel;
+/// - `_rung/stimulus` is durable before its ack;
+/// - a peer's `_rung/stop`, `_rung/calendar` and `_rung/release` are
+///   refused; the owner's calendar entry is added and fires;
+/// - `_rung/status` reports the now set; `session/list` lists every channel
+///   and `session/load` reopens one;
+/// - the owner's `_rung/stop` halts the host, open prompts are answered,
+///   and the process exits 0 within [`G_P_STOP_MS`];
+/// - the mock engine only; $0.
+pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
+    let mut g = GateResult::new("G-p");
+    // Requests by id, and their responses.
+    let mut requests: BTreeMap<String, Value> = BTreeMap::new();
+    let mut sent_index: BTreeMap<String, usize> = BTreeMap::new();
+    let mut responses: BTreeMap<String, Vec<(usize, Value)>> = BTreeMap::new();
+    for (i, (out, m)) in run.wire.iter().enumerate() {
+        let id = match &m["id"] {
+            Value::Null => continue,
+            v => v.to_string(),
+        };
+        if *out && m.get("method").is_some() {
+            sent_index.insert(id.clone(), i);
+            requests.insert(id, m.clone());
+        } else if !*out && (m.get("result").is_some() || m.get("error").is_some()) {
+            responses.entry(id).or_default().push((i, m.clone()));
+        }
+    }
+    // Sessions: id → (role, channel).
+    let mut sessions: BTreeMap<String, String> = BTreeMap::new();
+    for (id, req) in &requests {
+        if req["method"] == "session/new"
+            && let Some((_, r)) = responses.get(id).and_then(|v| v.first())
+            && let Some(sid) = r["result"]["sessionId"].as_str()
+        {
+            let role = req["params"]["_meta"]["rung"]["role"]
+                .as_str()
+                .unwrap_or("owner")
+                .to_string();
+            sessions.insert(sid.to_string(), role);
+        }
+    }
+    let role_of = |req: &Value| -> String {
+        req["params"]["sessionId"]
+            .as_str()
+            .and_then(|s| sessions.get(s))
+            .cloned()
+            .unwrap_or_default()
+    };
+    // Record facts.
+    let mut disposed: BTreeMap<String, (String, u64)> = BTreeMap::new();
+    let mut admitted_turn: BTreeMap<String, u64> = BTreeMap::new();
+    let mut sends: BTreeMap<(u64, String), Vec<String>> = BTreeMap::new();
+    let mut finals: BTreeMap<u64, String> = BTreeMap::new();
+    let mut tools: BTreeMap<u64, usize> = BTreeMap::new();
+    let mut item_channel: BTreeMap<String, String> = BTreeMap::new();
+    let mut item_role: BTreeMap<String, String> = BTreeMap::new();
+    for l in lines {
+        match l.kind.as_str() {
+            "stimulus.accepted" => {
+                let it = l.get("item");
+                if let (Some(id), Some(ch)) = (it["id"].as_str(), it["channel"].as_str()) {
+                    item_channel.insert(id.to_string(), ch.to_string());
+                    item_role.insert(
+                        id.to_string(),
+                        it["role"].as_str().unwrap_or("").to_lowercase(),
+                    );
+                }
+            }
+            "stimulus.disposed" => {
+                disposed.insert(
+                    l.str("id").to_string(),
+                    (l.str("disposition").to_string(), l.u64("turn")),
+                );
+            }
+            "stimulus.admitted" => {
+                for id in crate::inbox::ids(l.get("ids"))
+                    .into_iter()
+                    .chain(crate::inbox::ids(l.get("digests")))
+                {
+                    admitted_turn.insert(id, l.u64("turn"));
+                }
+            }
+            "outbox.queued" => sends
+                .entry((l.u64("turn"), l.str("channel").to_string()))
+                .or_default()
+                .push(l.str("text").to_string()),
+            "turn.ended" => {
+                finals.insert(l.u64("turn"), l.str("final_text").to_string());
+            }
+            "tool.call" => *tools.entry(l.u64("turn")).or_default() += 1,
+            _ => {}
+        }
+    }
+    let rank = |r: &str| match r {
+        "owner" => 3,
+        "peer" => 2,
+        "observer" => 1,
+        _ => 0,
+    };
+    let mut owning: BTreeMap<u64, (i32, String)> = BTreeMap::new();
+    for (item, turn) in &admitted_turn {
+        let Some(ch) = item_channel.get(item) else {
+            continue;
+        };
+        let r = rank(item_role.get(item).map_or("", String::as_str));
+        if r == 0 {
+            continue;
+        }
+        let e = owning.entry(*turn).or_insert((r, ch.clone()));
+        if r > e.0 {
+            *e = (r, ch.clone());
+        }
+    }
+    let (mut prompts, mut not_one, mut refused_ok, mut observer_prompts) = (0, 0, 0, 0);
+    let (mut answered, mut answer_bad, mut tools_bad, mut foreign) = (0, 0, 0, 0);
+    let (mut cancelled, mut cancel_bad) = (0, 0);
+    let mut answered_channels: BTreeSet<(u64, String)> = BTreeSet::new();
+    for (id, req) in &requests {
+        if req["method"] != "session/prompt" {
+            continue;
+        }
+        prompts += 1;
+        let got = responses.get(id).cloned().unwrap_or_default();
+        if got.len() != 1 {
+            not_one += 1;
+            continue;
+        }
+        let (at, resp) = &got[0];
+        let role = role_of(req);
+        if role == "observer" {
+            observer_prompts += 1;
+            if resp.get("error").is_some() {
+                refused_ok += 1;
+            }
+            continue;
+        }
+        let sid = req["params"]["sessionId"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        let sent_at = sent_index.get(id).copied().unwrap_or(0);
+        let meta = &resp["result"]["_meta"]["rung"];
+        let item = meta["item"].as_str().unwrap_or("").to_string();
+        match resp["result"]["stopReason"].as_str() {
+            Some("end_turn") => {
+                answered += 1;
+                let turn = meta["turn"].as_u64().unwrap_or(0);
+                let rec = disposed.get(&item);
+                let rec_ok =
+                    rec.is_some_and(|(d, t)| *t == turn && (d == "answered" || d == "digested"));
+                let channel = item_channel.get(&item).cloned().unwrap_or_default();
+                let chunks: Vec<String> = run.wire[sent_at..*at]
+                    .iter()
+                    .filter(|(out, _)| !*out)
+                    .filter_map(|(_, m)| text_of_chunk(m))
+                    .filter(|(s, _)| *s == sid)
+                    .map(|(_, t)| t)
+                    .collect();
+                let owns = owning.get(&turn).is_some_and(|(_, c)| *c == channel);
+                let want: Vec<String> = match sends.get(&(turn, channel.clone())) {
+                    Some(v) if !v.is_empty() => v.clone(),
+                    _ if owns => finals
+                        .get(&turn)
+                        .filter(|t| !t.is_empty())
+                        .map(|t| vec![t.clone()])
+                        .unwrap_or_default(),
+                    _ => Vec::new(),
+                };
+                let tail_ok =
+                    chunks.len() >= want.len() && chunks[chunks.len() - want.len()..] == want[..];
+                if !rec_ok || !tail_ok || (owns && want.is_empty()) {
+                    answer_bad += 1;
+                }
+                let sent_here: BTreeSet<&String> = sends
+                    .iter()
+                    .filter(|((_, c), _)| *c == channel)
+                    .flat_map(|(_, v)| v)
+                    .collect();
+                if !owns && chunks.iter().any(|t| !sent_here.contains(t)) {
+                    foreign += 1;
+                }
+                let mine: BTreeSet<&String> = item_channel
+                    .iter()
+                    .filter(|(_, c)| **c == channel)
+                    .map(|(i, _)| i)
+                    .collect();
+                if meta["admitted_with"].as_array().is_some_and(|a| {
+                    a.iter()
+                        .any(|x| x.as_str().is_none_or(|x| !mine.contains(&x.to_string())))
+                }) {
+                    foreign += 1;
+                }
+                answered_channels.insert((turn, channel));
+                let calls = run.wire[sent_at..*at]
+                    .iter()
+                    .filter(|(out, m)| {
+                        !*out
+                            && m["method"] == "session/update"
+                            && m["params"]["sessionId"] == sid.as_str()
+                            && m["params"]["update"]["sessionUpdate"] == "tool_call"
+                    })
+                    .count();
+                let want_calls = if owns {
+                    tools.get(&turn).copied().unwrap_or(0)
+                } else {
+                    0
+                };
+                if calls < want_calls || (!owns && calls > 0) {
+                    tools_bad += 1;
+                }
+            }
+            Some("cancelled") => {
+                cancelled += 1;
+                let ok = match disposed.get(&item) {
+                    Some((d, _)) if d == "withdrawn" => true,
+                    // Already in a turn when it was cancelled, or open at
+                    // the halt.
+                    _ => {
+                        admitted_turn.contains_key(&item) || meta["halted"].as_bool() == Some(true)
+                    }
+                };
+                if !ok {
+                    cancel_bad += 1;
+                }
+            }
+            _ => answer_bad += 1,
+        }
+    }
+    let cancels_sent = run
+        .wire
+        .iter()
+        .filter(|(out, m)| *out && m["method"] == "session/cancel")
+        .count();
+    // Outbox notifications.
+    let (mut outbox, mut outbox_bad) = (0, 0);
+    for (out, m) in &run.wire {
+        if *out || m["method"] != "_rung/outbox" {
+            continue;
+        }
+        outbox += 1;
+        let p = &m["params"];
+        let (turn, ch, text) = (
+            p["turn"].as_u64().unwrap_or(0),
+            p["channel"].as_str().unwrap_or("").to_string(),
+            p["text"].as_str().unwrap_or("").to_string(),
+        );
+        let queued = sends
+            .get(&(turn, ch.clone()))
+            .is_some_and(|v| v.contains(&text));
+        if !queued || answered_channels.contains(&(turn, ch)) {
+            outbox_bad += 1;
+        }
+    }
+    // Refusals by role.
+    let mut forbidden_ok = 0;
+    let mut forbidden = 0;
+    for (id, req) in &requests {
+        let m = req["method"].as_str().unwrap_or("");
+        if matches!(m, "_rung/stop" | "_rung/calendar" | "_rung/release") && role_of(req) == "peer"
+        {
+            forbidden += 1;
+            if responses
+                .get(id)
+                .and_then(|v| v.first())
+                .is_some_and(|(_, r)| r.get("error").is_some())
+            {
+                forbidden_ok += 1;
+            }
+        }
+    }
+    // The owner's calendar entry.
+    let cal_ids: Vec<String> = requests
+        .iter()
+        .filter(|(_, r)| r["method"] == "_rung/calendar" && role_of(r) == "owner")
+        .filter_map(|(_, r)| r["params"]["id"].as_str().map(str::to_string))
+        .collect();
+    let cal_ok = !cal_ids.is_empty()
+        && cal_ids.iter().all(|id| {
+            of(lines, "calendar.added").any(|l| l.get("entry")["id"] == id.as_str())
+                && of(lines, "calendar.fired").any(|l| l.str("id") == id)
+        });
+    // Status, list, load.
+    let mut status_ok = false;
+    let mut list_ok = false;
+    let mut load_ok = false;
+    for (id, req) in &requests {
+        let r = responses
+            .get(id)
+            .and_then(|v| v.first())
+            .map(|x| x.1.clone());
+        let Some(r) = r else { continue };
+        match req["method"].as_str() {
+            Some("_rung/status") => {
+                let s = &r["result"];
+                status_ok |= [
+                    "turn", "mode", "model", "ladder", "desk", "epoch", "quota", "degraded",
+                ]
+                .iter()
+                .all(|k| s.get(*k).is_some())
+                    && s["turn"].as_u64().unwrap_or(0) >= 1;
+            }
+            Some("session/list") => {
+                let listed: BTreeSet<String> = r["result"]["sessions"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|x| x["sessionId"].as_str().map(str::to_string))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                list_ok |= !sessions.is_empty() && sessions.keys().all(|s| listed.contains(s));
+            }
+            Some("session/load") => load_ok |= r.get("result").is_some(),
+            _ => {}
+        }
+    }
+    let durable = run.durable_acks.iter().filter(|(_, d)| *d).count();
+    let halted_by_owner =
+        of(lines, "halted").any(|l| l.get("why").to_string().contains("\"owner\""));
+    let exit_ok = run
+        .exit
+        .is_some_and(|(code, ms)| code == 0 && ms <= G_P_STOP_MS);
+    let engines: BTreeSet<String> = of(lines, "host.start")
+        .map(|l| l.get("config")["engine"].as_str().unwrap_or("").to_string())
+        .collect();
+    let cost: f64 = of(lines, "llm.call").map(|l| l.f64("cost_usd")).sum();
+    g.put("sessions", sessions.len());
+    g.put("prompts", prompts);
+    g.put("not_one_response", not_one);
+    g.put("observer_prompts", observer_prompts);
+    g.put("observer_refused", refused_ok);
+    g.put("answered", answered);
+    g.put("answer_mismatch", answer_bad);
+    g.put("tool_updates_missing", tools_bad);
+    g.put("foreign_output", foreign);
+    g.put("cancels_sent", cancels_sent);
+    g.put("cancelled", cancelled);
+    g.put("cancel_mismatch", cancel_bad);
+    g.put("outbox", outbox);
+    g.put("outbox_mismatch", outbox_bad);
+    g.put("forbidden", forbidden);
+    g.put("forbidden_refused", forbidden_ok);
+    g.put("calendar_added_and_fired", cal_ok);
+    g.put("status_ok", status_ok);
+    g.put("list_ok", list_ok);
+    g.put("load_ok", load_ok);
+    g.put("durable_acks", durable);
+    g.put("acks", run.durable_acks.len());
+    g.put("halted_by_owner", halted_by_owner);
+    g.put("exit", json!(run.exit));
+    g.put("cost_usd", cost);
+    g.check(
+        prompts > 0 && not_one == 0,
+        "a prompt did not get exactly one response",
+    );
+    g.check(
+        observer_prompts > 0 && refused_ok == observer_prompts,
+        "an observer's prompt was not refused",
+    );
+    g.check(
+        answered >= 2 && answer_bad == 0,
+        "an answered prompt does not match the record",
+    );
+    g.check(
+        tools_bad == 0,
+        "an owning channel missed its turn's tool calls, or another channel got them",
+    );
+    g.check(
+        foreign == 0,
+        "a channel received output of work it does not own, or another channel's item id",
+    );
+    g.check(
+        cancels_sent > 0 && cancelled > 0 && cancel_bad == 0,
+        "a cancel was not exercised, or a cancelled prompt does not match the record",
+    );
+    g.check(
+        outbox > 0 && outbox_bad == 0,
+        "no agent-initiated message reached the client as _rung/outbox, or one does not match",
+    );
+    g.check(
+        forbidden >= 3 && forbidden_ok == forbidden,
+        "a peer's owner-only request was not refused",
+    );
+    g.check(cal_ok, "the owner's calendar entry was not added and fired");
+    g.check(status_ok, "_rung/status did not report the now set");
+    g.check(list_ok && load_ok, "session/list or session/load failed");
+    g.check(
+        !run.durable_acks.is_empty() && durable == run.durable_acks.len(),
+        "a _rung/stimulus was acknowledged before it was on disk",
+    );
+    g.check(
+        halted_by_owner && exit_ok,
+        "the owner's stop did not halt the host and exit 0 in time",
+    );
+    g.check(
+        engines.iter().all(|e| e == "mock") && cost == 0.0,
+        "not the mock engine, or money was spent",
+    );
+    g
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

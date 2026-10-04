@@ -33,6 +33,8 @@ pub struct MockConfig {
     pub seed: u64,
     /// Each model call takes this many ms, uniformly.
     pub call_ms: (Millis, Millis),
+    /// Responding turns send only to the owner channel.
+    pub send_owner_only: bool,
     /// Free turns: chance of each behaviour.
     pub p_trace: f64,
     pub p_commit: f64,
@@ -63,6 +65,7 @@ impl Default for MockConfig {
         Self {
             seed: 1,
             call_ms: (200, 800),
+            send_owner_only: false,
             p_trace: 0.3,
             p_commit: 0.08,
             p_expect: 0.12,
@@ -244,7 +247,11 @@ impl MockEngine {
             "responding" => {
                 let mut calls = Vec::new();
                 for ch in &r.channels {
-                    if ch == "calendar" || ch == "expectations" || ch == "world" {
+                    if ch == "calendar"
+                        || ch == "expectations"
+                        || ch == "world"
+                        || (self.cfg.send_owner_only && ch != "owner")
+                    {
                         continue;
                     }
                     calls.push(("send".into(), json!({"channel": ch, "text": format!("re turn {turn}: {}", self.words(5))})));

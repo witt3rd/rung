@@ -1566,6 +1566,7 @@ dependencies = [
 name = "rung-host"
 version = "0.2.0"
 dependencies = [
+ "agent-client-protocol",
  "libc",
  "reqwest",
  "rung",
@@ -1575,6 +1576,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tokio",
  "trybuild",
 ]
 
