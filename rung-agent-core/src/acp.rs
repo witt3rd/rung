@@ -43,7 +43,7 @@ use agent_client_protocol::{
 use crate::args::{Args, IsolationMode};
 use crate::catalog::Kind;
 use crate::mcp::McpSpec;
-use crate::run::{JobError, JobEx, Outcome, Status, run_job_ex};
+use crate::run::{JobError, JobEx, MULTIMODAL_PROMPT, Outcome, PromptText, Status, run_job_ex};
 use crate::session::{Session, SessionStore};
 use crate::stream::{NotifyingToolset, ToolNotify};
 use rung_std::agent::FailureKind;
@@ -353,17 +353,48 @@ fn is_context(b: &ContentBlock) -> bool {
         .is_some_and(|aud| !aud.is_empty() && aud.iter().all(|r| matches!(r, Role::Assistant)))
 }
 
-/// The model text, its blocks, and the ask: the text of the blocks not marked
-/// as context (all text when every block is marked or none is).
-fn prompt_parts(blocks: &[ContentBlock]) -> (String, Vec<MessageContentBlock>, String) {
+/// One ACP prompt, split for the turn.
+struct Prompt {
+    /// Every block's text, joined: the job text.
+    text: String,
+    /// Every block, as the model sees it.
+    blocks: Vec<MessageContentBlock>,
+    /// The text of the blocks not marked as context (all text when every
+    /// block is marked or none is).
+    ask: String,
+    /// Each text block and its mark, only when some but not every block is
+    /// marked.
+    texts: Option<Vec<PromptText>>,
+}
+
+fn prompt_parts(blocks: &[ContentBlock]) -> Prompt {
     let (text, out) = prompt_parts_all(blocks);
     let unmarked: Vec<ContentBlock> = blocks.iter().filter(|b| !is_context(b)).cloned().collect();
-    let ask = if unmarked.is_empty() || unmarked.len() == blocks.len() {
-        text.clone()
-    } else {
-        prompt_parts_all(&unmarked).0
-    };
-    (text, out, ask)
+    if unmarked.is_empty() || unmarked.len() == blocks.len() {
+        return Prompt {
+            ask: text.clone(),
+            text,
+            blocks: out,
+            texts: None,
+        };
+    }
+    let ask = prompt_parts_all(&unmarked).0;
+    let texts = blocks
+        .iter()
+        .filter_map(|b| {
+            let (text, out) = prompt_parts_all(std::slice::from_ref(b));
+            matches!(out.first(), Some(MessageContentBlock::Text { .. })).then(|| PromptText {
+                text,
+                context: is_context(b),
+            })
+        })
+        .collect();
+    Prompt {
+        text,
+        blocks: out,
+        ask,
+        texts: Some(texts),
+    }
 }
 
 fn prompt_parts_all(blocks: &[ContentBlock]) -> (String, Vec<MessageContentBlock>) {
@@ -1053,12 +1084,17 @@ pub(crate) async fn connect_agent(
                     let id = sid_str(&request.session_id);
                     let kind = live.kind(&id);
                     let flag = live.cancel_flag(&id);
-                    let (mut text, blocks, ask) = prompt_parts(&request.prompt);
+                    let Prompt {
+                        mut text,
+                        blocks,
+                        ask,
+                        texts,
+                    } = prompt_parts(&request.prompt);
                     if blocks.is_empty() {
                         return responder.respond(PromptResponse::new(StopReason::EndTurn));
                     }
                     if text.is_empty() {
-                        text = "(multimodal prompt)".into();
+                        text = MULTIMODAL_PROMPT.into();
                     }
                     let session_id = request.session_id.clone();
                     let store = live.store(&id);
@@ -1088,6 +1124,7 @@ pub(crate) async fn connect_agent(
                         })),
                         prompt_blocks: Some(blocks),
                         ask_text: Some(ask),
+                        prompt_text: texts,
                         system_append: live.system(&id),
                     };
                     let turn_conn = connection.clone();
@@ -1187,9 +1224,10 @@ mod tests {
             ContentBlock::Text(TextContent::new("hello")),
             ContentBlock::Text(TextContent::new("world")),
         ];
-        let (text, parts, _) = prompt_parts(&blocks);
-        assert_eq!(text, "hello\nworld");
-        assert_eq!(parts.len(), 2);
+        let p = prompt_parts(&blocks);
+        assert_eq!(p.text, "hello\nworld");
+        assert_eq!(p.blocks.len(), 2);
+        assert_eq!(p.texts, None, "nothing marked");
     }
 
     #[test]
@@ -1197,9 +1235,54 @@ mod tests {
         let blocks = vec![ContentBlock::Image(
             agent_client_protocol::schema::v1::ImageContent::new("QQ==", "image/png"),
         )];
-        let (text, parts, _) = prompt_parts(&blocks);
-        assert!(text.is_empty());
-        assert!(matches!(parts[0], MessageContentBlock::Image { .. }));
+        let p = prompt_parts(&blocks);
+        assert!(p.text.is_empty());
+        assert!(matches!(p.blocks[0], MessageContentBlock::Image { .. }));
+    }
+
+    fn marked(text: &str) -> ContentBlock {
+        ContentBlock::Text(TextContent::new(text).annotations(
+            agent_client_protocol::schema::v1::Annotations::new().audience(vec![Role::Assistant]),
+        ))
+    }
+
+    /// The text blocks rejoin to the job text byte for byte, empty blocks and
+    /// resources included, so a line that leaves nothing out is the job text.
+    #[test]
+    fn the_text_blocks_rejoin_to_the_job_text() {
+        let blocks = vec![
+            ContentBlock::Text(TextContent::new("")),
+            marked("orientation\nline two"),
+            ContentBlock::Image(agent_client_protocol::schema::v1::ImageContent::new(
+                "QQ==",
+                "image/png",
+            )),
+            ContentBlock::Text(TextContent::new("")),
+            ContentBlock::ResourceLink(agent_client_protocol::schema::v1::ResourceLink::new(
+                "spec",
+                "file:///spec.md",
+            )),
+            ContentBlock::Text(TextContent::new("the ask")),
+        ];
+        let p = prompt_parts(&blocks);
+        let texts = p.texts.expect("some blocks marked");
+        assert_eq!(texts.len(), 5, "the image has no text");
+        assert_eq!(
+            texts.iter().map(|t| t.context).collect::<Vec<_>>(),
+            [false, true, false, false, false]
+        );
+        assert_eq!(
+            crate::run::join_text(texts.iter().map(|t| t.text.as_str())),
+            p.text
+        );
+        assert_eq!(p.ask, "[resource spec](file:///spec.md)\nthe ask");
+    }
+
+    #[test]
+    fn every_block_marked_carries_no_texts() {
+        let p = prompt_parts(&[marked("a"), marked("b")]);
+        assert_eq!(p.ask, "a\nb");
+        assert_eq!(p.texts, None);
     }
 
     #[test]

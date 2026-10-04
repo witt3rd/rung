@@ -124,11 +124,74 @@ pub struct JobEx {
     /// memory recall and is the retained turn's user side; the model still
     /// sees every block. `None`: the whole prompt.
     pub ask_text: Option<String>,
+    /// The prompt's text blocks, in order, when some but not every block is
+    /// marked as context. The session's user line then leaves out a marked
+    /// block that an earlier user line already holds whole, so the context
+    /// is stored on the first turn it appears; the model still sees every
+    /// block. `None`: the user line is the whole prompt.
+    pub prompt_text: Option<Vec<PromptText>>,
     /// Forward model stream events (thinking deltas) to the ACP client.
     pub stream_listener: Option<Arc<dyn rung_std::llm::StreamListener>>,
     /// Per-session system text (ACP `session/new` `_meta.systemPrompt`),
     /// appended after the process system prompt.
     pub system_append: Option<String>,
+}
+
+/// One text block of a prompt, as the job text renders it, and whether the
+/// caller marked it as context.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PromptText {
+    pub text: String,
+    pub context: bool,
+}
+
+/// The job text of a prompt with no text in it.
+pub(crate) const MULTIMODAL_PROMPT: &str = "(multimodal prompt)";
+
+/// Join block texts as the job text does: a `\n` before each block once
+/// some text is in.
+pub(crate) fn join_text<'a>(parts: impl IntoIterator<Item = &'a str>) -> String {
+    let mut text = String::new();
+    for p in parts {
+        if !text.is_empty() {
+            text.push('\n');
+        }
+        text.push_str(p);
+    }
+    text
+}
+
+/// The session's user line for a prompt that marks some blocks as context:
+/// every block, less each marked one an earlier user line already holds.
+fn user_line(lines: &[Line], parts: &[PromptText]) -> String {
+    let text = join_text(
+        parts
+            .iter()
+            .filter(|p| !(p.context && held(lines, &p.text)))
+            .map(|p| p.text.as_str()),
+    );
+    if text.is_empty() {
+        MULTIMODAL_PROMPT.into()
+    } else {
+        text
+    }
+}
+
+/// An earlier user line holds `block` whole: as the line, or as a run of
+/// its `\n`-separated lines. A replay of that line already shows it.
+fn held(lines: &[Line], block: &str) -> bool {
+    if block.is_empty() {
+        return false;
+    }
+    let (head, tail, mid) = (
+        format!("{block}\n"),
+        format!("\n{block}"),
+        format!("\n{block}\n"),
+    );
+    lines.iter().filter(|l| l.role == "user").any(|l| {
+        let t = &l.text;
+        t == block || t.starts_with(&head) || t.ends_with(&tail) || t.contains(&mid)
+    })
 }
 
 /// Nested `task` Spawn: pick a catalog kind, persist a child session, run a
@@ -551,14 +614,18 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     }
 
     let prompt = args.prompt.clone().unwrap();
+    let line = match &extra.prompt_text {
+        Some(parts) => user_line(&sess.lines, parts),
+        None => prompt.clone(),
+    };
     // New session or resume: don't duplicate the last identical user line
-    // (background parent already wrote it).
+    // (background parent already wrote it, or a turn that never ended did).
     let already = sess
         .lines
         .last()
-        .is_some_and(|l| l.role == "user" && l.text == prompt);
+        .is_some_and(|l| l.role == "user" && (l.text == prompt || l.text == line));
     if !already {
-        sess.lines.push(Line::user(prompt));
+        sess.lines.push(Line::user(line));
     }
     sess.kind = args.kind.as_str().into();
     sess.pid = Some(std::process::id());
@@ -818,6 +885,62 @@ fn tool_wraps(emitter: Option<&Arc<crate::stream::Emitter>>, extra: &JobEx) -> V
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn texts(parts: &[(&str, bool)]) -> Vec<PromptText> {
+        parts
+            .iter()
+            .map(|(t, c)| PromptText {
+                text: (*t).into(),
+                context: *c,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_marked_block_is_stored_on_the_first_turn_it_appears() {
+        let first = texts(&[("orientation\nline two", true), ("ask one", false)]);
+        assert_eq!(user_line(&[], &first), "orientation\nline two\nask one");
+        let lines = vec![Line::user(user_line(&[], &first)), Line::assistant("done")];
+        let again = texts(&[
+            ("orientation\nline two", true),
+            ("new context", true),
+            ("ask two", false),
+        ]);
+        assert_eq!(user_line(&lines, &again), "new context\nask two");
+    }
+
+    #[test]
+    fn an_unmarked_block_is_stored_every_turn() {
+        let lines = vec![Line::user("same\nask"), Line::assistant("done")];
+        let parts = texts(&[("same", false), ("ask", false)]);
+        assert_eq!(user_line(&lines, &parts), "same\nask");
+    }
+
+    #[test]
+    fn held_means_whole_lines_of_an_earlier_user_line() {
+        let lines = vec![
+            Line::user("head\nmid one\nmid two\ntail"),
+            Line::assistant("only"),
+        ];
+        for whole in [
+            "head",
+            "mid one\nmid two",
+            "tail",
+            "head\nmid one\nmid two\ntail",
+        ] {
+            assert!(held(&lines, whole), "{whole}");
+        }
+        for part in ["hea", "id one", "tai", "only", ""] {
+            assert!(!held(&lines, part), "{part}");
+        }
+    }
+
+    #[test]
+    fn a_line_with_no_text_left_is_the_multimodal_placeholder() {
+        let lines = vec![Line::user("ctx\nask")];
+        let parts = texts(&[("ctx", true)]);
+        assert_eq!(user_line(&lines, &parts), MULTIMODAL_PROMPT);
+    }
 
     #[test]
     fn thread_skips_non_chat_roles() {

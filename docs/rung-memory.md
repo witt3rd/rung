@@ -105,8 +105,21 @@ the provider reported, failed calls included. `latency_ms` is rung's measure.
   (only the assistant, non-empty). The prompt sent to recall and the `user` side
   of a retained turn are then built from the unmarked blocks only. If every
   block is marked, all text is used; with no marking nothing changes. Marked
-  blocks still reach the model verbatim, and the session, the turn check and
-  the title still see the whole prompt.
+  blocks still reach the model verbatim on the turn that sends them. Where
+  each other use of the prompt's text stands:
+
+  | use | text | why |
+  |---|---|---|
+  | the model, this turn | every block | context is what the model is given to work with |
+  | recall cue, retained `user` side | the ask | memory is keyed and kept by what was asked |
+  | session `user` line (replayed on later turns) | every block, less a marked block an earlier `user` line already holds whole | the replay then shows that context once, not once per turn |
+  | turn check `request` | every block | it judges the turn the model ran, which saw every block |
+  | job text (`Args.prompt`) | every block | it is the turn check's input and what a resent prompt is matched against |
+
+  So a marked block is stored on the first turn it appears. With no marking,
+  or every block marked, the session line is the whole prompt, as before. A
+  session has no title made from its prompt: `session/list` titles it by its
+  kind.
 - **Content in.** At most 5 records and 4000 chars, the history cap on one
   tool result. The provider may declare tighter limits. A record is kept
   whole or left out, never cut.
