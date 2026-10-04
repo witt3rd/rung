@@ -1,0 +1,16 @@
+error[E0624]: associated function `new` is private
+ --> tests/ui/unavailable_verdict_is_sealed.rs:8:18
+  |
+8 |       Unavailable::new(u)
+  |                    ^^^ private associated function
+  |
+ ::: src/lib.rs
+  |
+  | / ladder!(Recall {
+  | |     carry {
+  | |         provider: Arc<dyn MemoryProvider>,
+  | |         scope: Scope,
+... |
+  | |     },
+  | | });
+  | |__- private associated function defined here

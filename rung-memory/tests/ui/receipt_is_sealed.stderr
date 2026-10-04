@@ -1,0 +1,7 @@
+error[E0451]: fields `id` and `trace` of struct `Receipt` are private
+ --> tests/ui/receipt_is_sealed.rs:7:15
+  |
+7 |     Receipt { id, trace }
+  |               ^^  ^^^^^ private field
+  |               |
+  |               private field
