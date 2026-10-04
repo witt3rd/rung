@@ -114,6 +114,24 @@ impl StopAuthority {
 mod tests {
     use super::*;
 
+    /// A panic while the reason is locked must not leave the host unable
+    /// to stop.
+    #[test]
+    fn a_poisoned_reason_still_stops() {
+        let s = StopAuthority::default();
+        std::thread::scope(|t| {
+            let _ = t
+                .spawn(|| {
+                    let _g = s.why.lock();
+                    panic!("a panic while the reason is locked");
+                })
+                .join();
+        });
+        assert!(s.why.is_poisoned());
+        s.request(Why::Stopped { by: "test".into() });
+        assert_eq!(s.check(), Some(Why::Stopped { by: "test".into() }));
+    }
+
     #[test]
     fn the_first_reason_wins() {
         let s = StopAuthority::default();

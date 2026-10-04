@@ -1551,6 +1551,50 @@ mod tests {
         (h, guard)
     }
 
+    /// Poison `m`: a thread panics while it holds the lock.
+    fn poison<T: Send>(m: &Mutex<T>) {
+        std::thread::scope(|s| {
+            let _ = s
+                .spawn(|| {
+                    let _g = m.lock();
+                    panic!("a panic while the lock is held");
+                })
+                .join();
+        });
+        assert!(m.is_poisoned());
+    }
+
+    /// One panicked thread does not cascade: with every host lock poisoned,
+    /// the outward calls and later boundaries run, as they do when the
+    /// state lock (`Core::state`) is poisoned.
+    #[test]
+    fn a_poisoned_host_lock_does_not_cascade() {
+        let guard = crate::sim::temp_dir_guard("poison");
+        let mut sc = crate::sim::Scenario::new(guard.path(), 1);
+        sc.max_turns = Some(3);
+        let (h, rec, _) = crate::sim::build(sc);
+        poison(&h.pack);
+        poison(&h.sources);
+        poison(&h.down_since);
+        poison(&h.reset);
+        poison(&h.switch_pending);
+        poison(&h.last_call);
+        poison(&h.desk_deadline);
+        poison(&h.deferred_retain);
+        poison(&h.turn_cancel);
+        let _ = h.request_bytes();
+        assert!(!h.cut_turn());
+        let why = h.run(rec);
+        assert!(matches!(why, Why::Stopped { .. }), "{why:?}");
+        let turns = h
+            .record_lines()
+            .unwrap()
+            .iter()
+            .filter(|l| l.kind == "turn.ended")
+            .count();
+        assert_eq!(turns, 3);
+    }
+
     #[test]
     fn a_duplicate_id_is_accepted_once() {
         let (h, _g) = host("dup-accept", None);
