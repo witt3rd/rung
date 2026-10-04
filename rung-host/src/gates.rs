@@ -2051,6 +2051,7 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
     let mut g = GateResult::new("G-p");
     // Requests by id, and their responses.
     let mut requests: BTreeMap<String, Value> = BTreeMap::new();
+    let mut sent_index: BTreeMap<String, usize> = BTreeMap::new();
     let mut responses: BTreeMap<String, Vec<(usize, Value)>> = BTreeMap::new();
     for (i, (out, m)) in run.wire.iter().enumerate() {
         let id = match &m["id"] {
@@ -2058,6 +2059,7 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
             v => v.to_string(),
         };
         if *out && m.get("method").is_some() {
+            sent_index.insert(id.clone(), i);
             requests.insert(id, m.clone());
         } else if !*out && (m.get("result").is_some() || m.get("error").is_some()) {
             responses.entry(id).or_default().push((i, m.clone()));
@@ -2147,12 +2149,11 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
             }
             continue;
         }
-        let sid = req["params"]["sessionId"].as_str().unwrap_or("").to_string();
-        let sent_at = run
-            .wire
-            .iter()
-            .position(|(out, m)| *out && m["id"].to_string() == *id)
-            .unwrap_or(0);
+        let sid = req["params"]["sessionId"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        let sent_at = sent_index.get(id).copied().unwrap_or(0);
         let meta = &resp["result"]["_meta"]["rung"];
         let item = meta["item"].as_str().unwrap_or("").to_string();
         match resp["result"]["stopReason"].as_str() {
@@ -2160,9 +2161,8 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
                 answered += 1;
                 let turn = meta["turn"].as_u64().unwrap_or(0);
                 let rec = disposed.get(&item);
-                let rec_ok = rec.is_some_and(|(d, t)| {
-                    *t == turn && (d == "answered" || d == "digested")
-                });
+                let rec_ok =
+                    rec.is_some_and(|(d, t)| *t == turn && (d == "answered" || d == "digested"));
                 let channel = item_channel.get(&item).cloned().unwrap_or_default();
                 let chunks: Vec<String> = run.wire[sent_at..*at]
                     .iter()
@@ -2179,7 +2179,8 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
                         .map(|t| vec![t.clone()])
                         .unwrap_or_default(),
                 };
-                let tail_ok = chunks.len() >= want.len() && chunks[chunks.len() - want.len()..] == want[..];
+                let tail_ok =
+                    chunks.len() >= want.len() && chunks[chunks.len() - want.len()..] == want[..];
                 if !rec_ok || !tail_ok || want.is_empty() {
                     answer_bad += 1;
                 }
@@ -2203,7 +2204,9 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
                     Some((d, _)) if d == "withdrawn" => true,
                     // Already in a turn when it was cancelled, or open at
                     // the halt.
-                    _ => admitted_turn.contains_key(&item) || meta["halted"].as_bool() == Some(true),
+                    _ => {
+                        admitted_turn.contains_key(&item) || meta["halted"].as_bool() == Some(true)
+                    }
                 };
                 if !ok {
                     cancel_bad += 1;
@@ -2242,7 +2245,8 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
     let mut forbidden = 0;
     for (id, req) in &requests {
         let m = req["method"].as_str().unwrap_or("");
-        if matches!(m, "_rung/stop" | "_rung/calendar" | "_rung/release") && role_of(req) == "peer" {
+        if matches!(m, "_rung/stop" | "_rung/calendar" | "_rung/release") && role_of(req) == "peer"
+        {
             forbidden += 1;
             if responses
                 .get(id)
@@ -2269,14 +2273,19 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
     let mut list_ok = false;
     let mut load_ok = false;
     for (id, req) in &requests {
-        let r = responses.get(id).and_then(|v| v.first()).map(|x| x.1.clone());
+        let r = responses
+            .get(id)
+            .and_then(|v| v.first())
+            .map(|x| x.1.clone());
         let Some(r) = r else { continue };
         match req["method"].as_str() {
             Some("_rung/status") => {
                 let s = &r["result"];
-                status_ok |= ["turn", "mode", "model", "ladder", "desk", "epoch", "quota", "degraded"]
-                    .iter()
-                    .all(|k| s.get(*k).is_some())
+                status_ok |= [
+                    "turn", "mode", "model", "ladder", "desk", "epoch", "quota", "degraded",
+                ]
+                .iter()
+                .all(|k| s.get(*k).is_some())
                     && s["turn"].as_u64().unwrap_or(0) >= 1;
             }
             Some("session/list") => {
@@ -2328,18 +2337,30 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
     g.put("halted_by_owner", halted_by_owner);
     g.put("exit", json!(run.exit));
     g.put("cost_usd", cost);
-    g.check(prompts > 0 && not_one == 0, "a prompt did not get exactly one response");
+    g.check(
+        prompts > 0 && not_one == 0,
+        "a prompt did not get exactly one response",
+    );
     g.check(
         observer_prompts > 0 && refused_ok == observer_prompts,
         "an observer's prompt was not refused",
     );
-    g.check(answered >= 2 && answer_bad == 0, "an answered prompt does not match the record");
-    g.check(tools_bad == 0, "an answered prompt missed its turn's tool calls");
+    g.check(
+        answered >= 2 && answer_bad == 0,
+        "an answered prompt does not match the record",
+    );
+    g.check(
+        tools_bad == 0,
+        "an answered prompt missed its turn's tool calls",
+    );
     g.check(
         cancels_sent > 0 && cancelled > 0 && cancel_bad == 0,
         "a cancel was not exercised, or a cancelled prompt does not match the record",
     );
-    g.check(outbox > 0 && outbox_bad == 0, "no agent-initiated message reached the client as _rung/outbox, or one does not match");
+    g.check(
+        outbox > 0 && outbox_bad == 0,
+        "no agent-initiated message reached the client as _rung/outbox, or one does not match",
+    );
     g.check(
         forbidden >= 3 && forbidden_ok == forbidden,
         "a peer's owner-only request was not refused",
@@ -2351,8 +2372,14 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
         !run.durable_acks.is_empty() && durable == run.durable_acks.len(),
         "a _rung/stimulus was acknowledged before it was on disk",
     );
-    g.check(halted_by_owner && exit_ok, "the owner's stop did not halt the host and exit 0 in time");
-    g.check(engines.iter().all(|e| e == "mock") && cost == 0.0, "not the mock engine, or money was spent");
+    g.check(
+        halted_by_owner && exit_ok,
+        "the owner's stop did not halt the host and exit 0 in time",
+    );
+    g.check(
+        engines.iter().all(|e| e == "mock") && cost == 0.0,
+        "not the mock engine, or money was spent",
+    );
     g
 }
 
