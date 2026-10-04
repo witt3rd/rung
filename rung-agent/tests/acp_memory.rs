@@ -487,3 +487,93 @@ fn an_unknown_setting_is_an_error_not_a_fallback() {
     drop(acp);
     let _ = std::fs::remove_dir_all(&cwd);
 }
+
+// ─── context blocks ──────────────────────────────────────────────────────────
+
+fn ctx_block(text: &str) -> Value {
+    json!({"type": "text", "text": text, "annotations": {"audience": ["assistant"]}})
+}
+
+fn ask_block(text: &str) -> Value {
+    json!({"type": "text", "text": text})
+}
+
+fn prompt_blocks(acp: &mut Acp, sid: &str, blocks: Vec<Value>) -> Value {
+    acp.call(
+        "session/prompt",
+        json!({"sessionId": sid, "prompt": blocks}),
+    )
+}
+
+/// Session A retains a fact; session B sends big context blocks around a short
+/// ask. The ask would fall in the elided middle of the joined text.
+fn context_run(marked: bool, ask_marked: bool) -> (Value, Value, String, String, String) {
+    let cwd = tempdir("context");
+    let file = cwd.join("provider.jsonl");
+    let setting = format!("mcp:{BIN} --memory-fixture --file {}", file.display());
+    let (url, bodies) = mock_llm(vec!["Noted.", "release/x"]);
+    let mut acp = Acp::start(
+        &cwd,
+        &url,
+        &["--tools", "none"],
+        &[("RUNG_MEMORY", &setting)],
+    );
+    let a = acp.new_session(&cwd, json!([]));
+    acp.prompt(&a, "Remember this: the deploy branch is release/x");
+    let _ = bodies.recv().unwrap();
+    let b = acp.new_session(&cwd, json!([]));
+    let before = format!("orientation {}", "alpha ".repeat(300));
+    let after = format!("appendix {}", "omega ".repeat(300));
+    let mk = |t: &str| if marked { ctx_block(t) } else { ask_block(t) };
+    let ask_text = "Which deploy branch do we use?";
+    let ask = if ask_marked {
+        ctx_block(ask_text)
+    } else {
+        ask_block(ask_text)
+    };
+    let second = prompt_blocks(&mut acp, &b, vec![mk(&before), ask, mk(&after)]);
+    let body = bodies.recv().unwrap();
+    let kept = std::fs::read_to_string(&file).unwrap();
+    drop(acp);
+    let _ = std::fs::remove_dir_all(&cwd);
+    (second, body, kept, before, after)
+}
+
+#[test]
+fn context_blocks_do_not_cue_recall_and_still_reach_the_model() {
+    let (second, body, kept, before, after) = context_run(true, false);
+    let m = &second["result"]["_meta"]["rung"]["memory"];
+    assert_eq!(m["recall"]["status"], "found", "{second}");
+    let ask = last_user(&body);
+    assert!(
+        ask.contains("> User: Remember this: the deploy branch"),
+        "{ask}"
+    );
+    assert!(ask.contains(&before) && ask.contains(&after), "verbatim");
+    assert!(ask.contains("Which deploy branch do we use?"));
+    // The retained turn's user side is the ask alone.
+    let turn = kept.lines().last().unwrap();
+    assert!(
+        turn.contains("Which deploy branch do we use?") && !turn.contains("alpha"),
+        "{turn}"
+    );
+    assert!(!turn.contains("omega"), "{turn}");
+}
+
+#[test]
+fn without_marking_the_context_elides_the_ask_as_before() {
+    let (second, _body, kept, _, _) = context_run(false, false);
+    let m = &second["result"]["_meta"]["rung"]["memory"];
+    assert_eq!(m["recall"]["status"], "empty", "{second}");
+    assert!(kept.lines().last().unwrap().contains("alpha"));
+}
+
+#[test]
+fn when_every_block_is_marked_the_whole_text_is_the_ask() {
+    let (second, body, kept, before, after) = context_run(true, true);
+    let m = &second["result"]["_meta"]["rung"]["memory"];
+    assert_eq!(m["recall"]["status"], "empty", "{second}");
+    let sent = last_user(&body);
+    assert!(sent.contains(&before) && sent.contains(&after));
+    assert!(kept.lines().last().unwrap().contains("alpha"));
+}

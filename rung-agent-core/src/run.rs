@@ -120,6 +120,10 @@ pub struct JobEx {
     pub wrap_tools: Option<WrapTools>,
     /// Replace the last user message with these blocks (ACP image/audio).
     pub prompt_blocks: Option<Vec<MessageContentBlock>>,
+    /// The ask alone, without blocks the caller marked as context. Cues
+    /// memory recall and is the retained turn's user side; the model still
+    /// sees every block. `None`: the whole prompt.
+    pub ask_text: Option<String>,
     /// Forward model stream events (thinking deltas) to the ACP client.
     pub stream_listener: Option<Arc<dyn rung_std::llm::StreamListener>>,
     /// Per-session system text (ACP `session/new` `_meta.systemPrompt`),
@@ -695,7 +699,12 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         .filter(|l| l.role == "assistant" && l.failure.is_none() && !l.text.is_empty())
         .map(|l| l.text.clone())
         .collect();
-    if let Some((recalled, block)) = memory.recall(args.prompt.as_deref().unwrap_or(""), &recent) {
+    let cue_text = extra
+        .ask_text
+        .as_deref()
+        .or(args.prompt.as_deref())
+        .unwrap_or("");
+    if let Some((recalled, block)) = memory.recall(cue_text, &recent) {
         if let Some(block) = block {
             crate::memory::inject(&mut thread, &block);
         }
@@ -727,7 +736,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             if let Status::Completed(done) = &status {
                 let turn = crate::memory::Turnover::of(
                     done,
-                    &request_text,
+                    extra.ask_text.as_deref().unwrap_or(&request_text),
                     &r.final_response,
                     &id,
                     sess.lines.len() - 1,

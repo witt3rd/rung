@@ -27,7 +27,7 @@ use agent_client_protocol::schema::v1::{
     ForkSessionResponse, Implementation, InitializeRequest, InitializeResponse,
     ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
     McpCapabilities, McpServer, NewSessionRequest, NewSessionResponse, PromptCapabilities,
-    PromptRequest, PromptResponse, ResumeSessionRequest, ResumeSessionResponse,
+    PromptRequest, PromptResponse, ResumeSessionRequest, ResumeSessionResponse, Role,
     SessionCapabilities, SessionCloseCapabilities, SessionDeleteCapabilities,
     SessionForkCapabilities, SessionId, SessionInfo, SessionInfoUpdate, SessionListCapabilities,
     SessionMode, SessionModeId, SessionModeState, SessionNotification, SessionResumeCapabilities,
@@ -338,7 +338,35 @@ fn sid_str(id: &SessionId) -> String {
     id.to_string()
 }
 
-fn prompt_parts(blocks: &[ContentBlock]) -> (String, Vec<MessageContentBlock>) {
+/// A block is context, not the ask, when its ACP `annotations.audience` is
+/// non-empty and names only the assistant.
+fn is_context(b: &ContentBlock) -> bool {
+    let ann = match b {
+        ContentBlock::Text(t) => t.annotations.as_ref(),
+        ContentBlock::Image(i) => i.annotations.as_ref(),
+        ContentBlock::Audio(a) => a.annotations.as_ref(),
+        ContentBlock::ResourceLink(r) => r.annotations.as_ref(),
+        ContentBlock::Resource(e) => e.annotations.as_ref(),
+        _ => None,
+    };
+    ann.and_then(|a| a.audience.as_ref())
+        .is_some_and(|aud| !aud.is_empty() && aud.iter().all(|r| matches!(r, Role::Assistant)))
+}
+
+/// The model text, its blocks, and the ask: the text of the blocks not marked
+/// as context (all text when every block is marked or none is).
+fn prompt_parts(blocks: &[ContentBlock]) -> (String, Vec<MessageContentBlock>, String) {
+    let (text, out) = prompt_parts_all(blocks);
+    let unmarked: Vec<ContentBlock> = blocks.iter().filter(|b| !is_context(b)).cloned().collect();
+    let ask = if unmarked.is_empty() || unmarked.len() == blocks.len() {
+        text.clone()
+    } else {
+        prompt_parts_all(&unmarked).0
+    };
+    (text, out, ask)
+}
+
+fn prompt_parts_all(blocks: &[ContentBlock]) -> (String, Vec<MessageContentBlock>) {
     let mut text = String::new();
     let mut out = Vec::new();
     for b in blocks {
@@ -1025,7 +1053,7 @@ pub(crate) async fn connect_agent(
                     let id = sid_str(&request.session_id);
                     let kind = live.kind(&id);
                     let flag = live.cancel_flag(&id);
-                    let (mut text, blocks) = prompt_parts(&request.prompt);
+                    let (mut text, blocks, ask) = prompt_parts(&request.prompt);
                     if blocks.is_empty() {
                         return responder.respond(PromptResponse::new(StopReason::EndTurn));
                     }
@@ -1059,6 +1087,7 @@ pub(crate) async fn connect_agent(
                             last_used: last_used.clone(),
                         })),
                         prompt_blocks: Some(blocks),
+                        ask_text: Some(ask),
                         system_append: live.system(&id),
                     };
                     let turn_conn = connection.clone();
@@ -1158,7 +1187,7 @@ mod tests {
             ContentBlock::Text(TextContent::new("hello")),
             ContentBlock::Text(TextContent::new("world")),
         ];
-        let (text, parts) = prompt_parts(&blocks);
+        let (text, parts, _) = prompt_parts(&blocks);
         assert_eq!(text, "hello\nworld");
         assert_eq!(parts.len(), 2);
     }
@@ -1168,7 +1197,7 @@ mod tests {
         let blocks = vec![ContentBlock::Image(
             agent_client_protocol::schema::v1::ImageContent::new("QQ==", "image/png"),
         )];
-        let (text, parts) = prompt_parts(&blocks);
+        let (text, parts, _) = prompt_parts(&blocks);
         assert!(text.is_empty());
         assert!(matches!(parts[0], MessageContentBlock::Image { .. }));
     }
