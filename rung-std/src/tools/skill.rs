@@ -107,14 +107,7 @@ mod tests {
 
     #[test]
     fn lists_and_loads() {
-        let root = std::env::temp_dir().join(format!(
-            "rung-skill-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = rung_testkit::TempDir::new("skill");
         fs::create_dir_all(root.join("demo")).unwrap();
         fs::write(
             root.join("demo").join("SKILL.md"),
@@ -122,7 +115,7 @@ mod tests {
         )
         .unwrap();
         let s = Skill {
-            roots: vec![root.clone()],
+            roots: vec![root.to_path_buf()],
         };
         let list = s.execute(&serde_json::json!({})).unwrap();
         assert!(list.contains("demo"), "{list}");
@@ -131,6 +124,5 @@ mod tests {
         assert!(loaded.contains("Base directory"), "{loaded}");
         let miss = s.execute(&serde_json::json!({"name": "nope"})).unwrap_err();
         assert!(miss.contains("unknown skill"), "{miss}");
-        let _ = fs::remove_dir_all(&root);
     }
 }

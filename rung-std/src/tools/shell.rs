@@ -159,7 +159,8 @@ mod tests {
 
     #[test]
     fn a_command_past_the_limit_is_killed_with_what_it_started_and_says_so() {
-        let pidfile = std::env::temp_dir().join(format!("rung-shell-test-{}", std::process::id()));
+        let scratch = rung_testkit::TempDir::new("shell");
+        let pidfile = scratch.join("pid");
         let command = format!(
             "sleep 60 & echo $! > {}; echo before; sleep 60; echo never",
             pidfile.display()
@@ -175,7 +176,6 @@ mod tests {
             .trim()
             .parse()
             .unwrap();
-        let _ = std::fs::remove_file(&pidfile);
         std::thread::sleep(Duration::from_millis(200));
         // Reaped or gone: signal 0 fails once the process no longer exists.
         let alive = unsafe { libc::kill(pid, 0) } == 0

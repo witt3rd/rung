@@ -764,9 +764,8 @@ mod tests {
 
     #[test]
     fn the_kill_file_keeps_the_decider_unasked() {
-        let dir = std::env::temp_dir().join(format!("rung-desk-kill-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let kill = dir.join("OFF");
+        let dir = crate::sim::temp_dir_guard("desk-kill");
+        let kill = dir.path().join("OFF");
         let scripted = Arc::new(Scripted::always(Step::Seeded(1)));
         let decider: Arc<dyn Decider> = scripted.clone();
         let mut desk = DecisionDesk::new(Some(decider), "scripted", DeskMode::Shadow);
@@ -786,6 +785,5 @@ mod tests {
         );
         assert!(desk.ask(json!({}), qs, 0.0).result.is_ok());
         assert_eq!(scripted.asks(), 1);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

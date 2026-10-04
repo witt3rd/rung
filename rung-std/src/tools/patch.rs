@@ -251,15 +251,7 @@ mod tests {
 
     #[test]
     fn execute_add_and_update() {
-        let dir = std::env::temp_dir().join(format!(
-            "rung-patch-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = rung_testkit::TempDir::new("patch");
         let prev = std::env::current_dir().unwrap();
         std::env::set_current_dir(&dir).unwrap();
         std::fs::write("b.txt", "old\n").unwrap();
@@ -270,6 +262,5 @@ mod tests {
         assert_eq!(std::fs::read_to_string("a.txt").unwrap(), "hello\n");
         assert_eq!(std::fs::read_to_string("b.txt").unwrap(), "new\n");
         std::env::set_current_dir(prev).unwrap();
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -251,19 +251,8 @@ pub fn kernel_tools() -> ToolCollection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-
-    fn tmp(tag: &str) -> PathBuf {
-        let p = std::env::temp_dir().join(format!(
-            "rung-{tag}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&p).unwrap();
-        p
+    fn tmp(tag: &str) -> rung_testkit::TempDir {
+        rung_testkit::TempDir::new(tag)
     }
 
     #[test]
@@ -290,7 +279,6 @@ mod tests {
             }))
             .unwrap();
         assert_eq!(out, "2→beta\n3→gamma\n… 1 more lines");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -302,7 +290,6 @@ mod tests {
             .execute(&serde_json::json!({"path": p.to_str().unwrap()}))
             .unwrap_err();
         assert!(err.contains("binary"), "{err}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
@@ -321,7 +308,6 @@ mod tests {
             format!("image {} (image/png, {} bytes)", p.display(), PNG.len())
         );
         assert_eq!(out.images, vec![ImageSource::from_bytes(PNG).unwrap()]);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -334,7 +320,6 @@ mod tests {
         let out =
             Toolset::execute_output(&r, "read_file", &serde_json::json!({"path": p})).unwrap();
         assert_eq!(out.images.len(), 1);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -352,7 +337,6 @@ mod tests {
             )),
             "{text}"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -367,7 +351,6 @@ mod tests {
             .execute_output(&serde_json::json!({"path": p.to_str().unwrap()}))
             .unwrap_err();
         assert!(err.contains("over the 3750000-byte limit"), "{err}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -380,19 +363,17 @@ mod tests {
             .unwrap();
         assert!(out.contains("a.txt"), "{out}");
         assert!(out.contains("sub/"), "{out}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn write_creates_parents() {
-        let dir = std::env::temp_dir().join(format!("rung-tools-{}", std::process::id()));
+        let dir = tmp("tools");
         let tmp = dir.join("nested").join("w.txt");
         let result = WriteFile
             .execute(&serde_json::json!({"path": tmp.to_str().unwrap(), "content": "hello tools"}))
             .unwrap();
         assert!(result.contains("wrote"));
         assert_eq!(std::fs::read_to_string(&tmp).unwrap(), "hello tools");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -437,7 +418,6 @@ mod tests {
             .unwrap();
         let body = std::fs::read_to_string(&p).unwrap();
         assert_eq!(body, "fn a() {}\nfn b() { 1 }\n");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -463,7 +443,6 @@ mod tests {
             }))
             .unwrap();
         assert_eq!(std::fs::read_to_string(&p).unwrap(), "x = 2\nx = 2\n");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -481,7 +460,6 @@ mod tests {
             .unwrap_err();
         assert!(err.contains("more than once"), "{err}");
         assert_eq!(std::fs::read_to_string(&p).unwrap(), original);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -499,7 +477,6 @@ mod tests {
         let body = std::fs::read_to_string(&p).unwrap();
         assert!(body.contains("y"), "{body}");
         assert!(!body.contains("        x\n"), "{body}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -520,7 +497,6 @@ mod tests {
             std::fs::read_to_string(&p).unwrap(),
             "alpha\nbeta line\ngamma\n"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -541,7 +517,6 @@ mod tests {
         assert!(out.contains("keep.rs"), "{out}");
         assert!(!out.contains("hidden.rs"), "{out}");
         assert!(!out.contains("out.rs"), "{out}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
