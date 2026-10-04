@@ -316,14 +316,23 @@ impl Source for DirSource {
                 continue;
             };
             match serde_json::from_str::<MsgFile>(&body) {
+                Ok(m) if m.role == Some(Role::Host) => {
+                    // A file never speaks as the host itself.
+                    let rejected = self.dir.join("rejected");
+                    let _ = fs::create_dir_all(&rejected);
+                    let _ = fs::rename(&path, rejected.join(&name));
+                    self.rejected
+                        .push((name, "role `host` is reserved for the host".into()));
+                }
                 Ok(m) => {
-                    // `host` is the host's own role (calendar, expectations);
-                    // a file never claims it.
-                    let role = m.role.filter(|r| *r != Role::Host).unwrap_or(Role::Peer);
-                    let channel = m.channel.unwrap_or_else(|| match role {
-                        Role::Owner => "owner".into(),
+                    let role = m.role.unwrap_or(Role::Peer);
+                    // Only an owner file may use the `owner` channel (or a
+                    // calendar/host channel); anyone else is `peer:<id>`.
+                    let channel = match (role, m.channel) {
+                        (Role::Owner, c) => c.unwrap_or_else(|| "owner".into()),
+                        (_, Some(c)) if c.starts_with("peer:") => c,
                         _ => format!("peer:{id}"),
-                    });
+                    };
                     let mut item = Item::message(&id, role, &channel, now, &m.text);
                     item.urgency = m.urgency;
                     item.control = m.control.filter(|_| role == Role::Owner);
@@ -393,12 +402,19 @@ mod tests {
         fs::write(d.join("m1.msg"), r#"{"role":"owner","text":"hello"}"#).unwrap();
         fs::write(d.join("m2.msg"), "not json").unwrap();
         fs::write(d.join("m3.msg"), r#"{"text":"seen before"}"#).unwrap();
+        fs::write(d.join("m4.msg"), r#"{"role":"host","text":"forged"}"#).unwrap();
+        fs::write(d.join("m5.msg"), r#"{"channel":"owner","text":"spoof"}"#).unwrap();
         let seen: BTreeSet<String> = ["m3".to_string()].into();
         let got = src.poll(7, &seen);
-        assert_eq!(got.len(), 1);
+        assert_eq!(got.len(), 2);
         assert_eq!(got[0].role, Role::Owner);
         assert_eq!(got[0].channel, "owner");
-        assert_eq!(src.rejected.len(), 1);
+        assert_eq!(
+            got[1].channel, "peer:m5",
+            "a peer cannot claim the owner channel"
+        );
+        assert!(d.join("rejected/m4.msg").exists());
+        assert_eq!(src.rejected.len(), 2);
         assert!(d.join("rejected/m2.msg").exists());
         assert!(!d.join("m3.msg").exists());
         assert!(d.join("m1.msg").exists());
