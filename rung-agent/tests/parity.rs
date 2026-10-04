@@ -386,17 +386,8 @@ fn mock_mcp(error: String, log: Log) -> String {
 
 // ─── Running a fixture ───────────────────────────────────────────────────────
 
-fn tempdir(name: &str) -> PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-parity-{name}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempdir(name: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("parity-{name}"))
 }
 
 fn read_line(r: &mut impl BufRead) -> Option<String> {
@@ -490,7 +481,6 @@ fn replay(f: &Fixture) -> Fixture {
     out.llm_requests = drain(&llm_log, &mut norm);
     out.jev_requests = drain(&jev_log, &mut norm);
     out.mcp_requests = drain(&mcp_log, &mut norm);
-    let _ = std::fs::remove_dir_all(&tmp);
     out
 }
 

@@ -10,7 +10,7 @@
 //! - a slow provider times out and the turn still ends.
 
 use std::io::{BufRead, BufReader, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::mpsc::Receiver;
 
@@ -18,17 +18,8 @@ use serde_json::{Value, json};
 
 const BIN: &str = env!("CARGO_BIN_EXE_rung-agent");
 
-fn tempdir(tag: &str) -> PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-acp-memory-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempdir(tag: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("acp-memory-{tag}"))
 }
 
 /// OpenAI-compatible mock: answers each request with the next text reply
@@ -255,7 +246,6 @@ fn external_turn(how: &str) {
         "{how}: rung called none of the caller's tools"
     );
     drop(acp);
-    let _ = std::fs::remove_dir_all(&cwd);
 }
 
 #[test]
@@ -284,7 +274,6 @@ fn external_adds_no_tool_to_the_default_toolset() {
         acp.prompt(&sid, "hello");
         let n = tool_names(&bodies.recv().unwrap());
         drop(acp);
-        let _ = std::fs::remove_dir_all(&cwd);
         n
     };
     let off = names("off");
@@ -305,7 +294,6 @@ fn off_is_byte_for_byte_the_response_before_memory() {
     assert_eq!(r["result"], json!({"stopReason": "end_turn"}));
     assert!(!cwd.join(".rung/memory").exists());
     drop(acp);
-    let _ = std::fs::remove_dir_all(&cwd);
 }
 
 // ─── a provider across sessions ──────────────────────────────────────────────
@@ -375,7 +363,6 @@ fn baseline_retains_in_one_session_and_recalls_in_the_next() {
     );
     assert!(cwd.join(".rung/memory").is_dir());
     sessions_hold_no_recall(&cwd);
-    let _ = std::fs::remove_dir_all(&cwd);
 }
 
 #[test]
@@ -409,7 +396,6 @@ fn an_mcp_provider_retains_and_recalls_through_its_hook_tools() {
         "{kept}"
     );
     sessions_hold_no_recall(&cwd);
-    let _ = std::fs::remove_dir_all(&cwd);
 }
 
 #[test]
@@ -442,7 +428,6 @@ fn a_slow_provider_times_out_and_the_turn_still_ends() {
     );
     assert_eq!(m["retain"]["status"], "unretained", "{r}");
     drop(acp);
-    let _ = std::fs::remove_dir_all(&cwd);
 }
 
 #[test]
@@ -466,7 +451,6 @@ fn a_provider_without_the_marker_is_unavailable_and_the_turn_still_ends() {
         "no tools from a non-provider"
     );
     drop(acp);
-    let _ = std::fs::remove_dir_all(&cwd);
 }
 
 #[test]
@@ -487,7 +471,6 @@ fn an_unknown_setting_is_an_error_not_a_fallback() {
         "{r}"
     );
     drop(acp);
-    let _ = std::fs::remove_dir_all(&cwd);
 }
 
 // ─── context blocks ──────────────────────────────────────────────────────────
@@ -537,7 +520,6 @@ fn context_run(marked: bool, ask_marked: bool) -> (Value, Value, String, String,
     let body = bodies.recv().unwrap();
     let kept = std::fs::read_to_string(&file).unwrap();
     drop(acp);
-    let _ = std::fs::remove_dir_all(&cwd);
     (second, body, kept, before, after)
 }
 

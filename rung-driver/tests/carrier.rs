@@ -19,11 +19,8 @@ fn ws_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn tmp(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("rung-carrier-{}-{}", std::process::id(), name));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).expect("temp dir");
-    d
+fn tmp(name: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("carrier-{name}"))
 }
 
 // ═════════════════════════════════════════════════════════════════════════

@@ -6,7 +6,6 @@
 use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -21,17 +20,8 @@ use rung_std::agent::{FailureKind, Thread};
 use rung_std::llm::{ChatMessage, LlmConfig, Protocol, StreamEvent, StreamListener};
 use serde_json::{Value, json};
 
-fn tempdir(tag: &str) -> PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-engine-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempdir(tag: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("engine-{tag}"))
 }
 
 fn read_body(sock: &mut TcpStream) -> Option<String> {
@@ -234,7 +224,6 @@ fn a_turn_runs_on_the_callers_thread_and_touches_no_session_store() {
     );
     assert!(sink.0.lock().unwrap().iter().all(|e| e.0 == "rung-std"));
     assert!(!tmp.join(".rung").join("sessions").exists());
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -260,7 +249,6 @@ fn an_engine_keeps_across_turns_and_the_caller_owns_the_thread() {
         .map(|m| m["role"].as_str().unwrap())
         .collect();
     assert_eq!(roles, ["system", "user", "assistant", "user"]);
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -298,7 +286,6 @@ fn a_disabled_tool_stays_declared_is_refused_and_never_runs() {
     let second = bodies.recv().unwrap().to_string();
     assert!(second.contains("refused"), "{second}");
     assert!(second.contains("disabled for this turn"), "{second}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 struct Quiet;
@@ -328,7 +315,6 @@ fn a_streaming_turn_records_each_call_as_served() {
     assert_eq!(report.calls.len(), 2, "{:?}", report.calls);
     assert!(report.calls.iter().all(|c| c.model == "served-model"));
     assert_eq!(done(report).result.final_response, "beta");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -349,7 +335,6 @@ fn an_auth_failure_is_typed_on_the_report() {
     );
     let f = report.outcome.unwrap_err();
     assert_eq!(f.kind, FailureKind::Auth);
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -369,7 +354,6 @@ fn a_rate_limit_is_typed_with_the_wait_the_provider_asked_for() {
         })
     );
     assert!(sink.kinds().contains(&"llm.retry".to_string()));
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -379,7 +363,6 @@ fn a_turn_with_no_sink_set_reports_to_standard_error() {
     let engine = Engine::new(spec(&url, "none", &tmp)).unwrap();
     let report = engine.turn(ask("hi"), TurnCtl::default());
     assert_eq!(done(report).result.final_response, "ok");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 /// A stdio MCP server with one tool, `ping`, that exits after its first
@@ -438,5 +421,4 @@ fn the_mcp_roster_lives_across_turns_and_reconnects_when_a_server_is_gone() {
     let results: Vec<String> = (0..4).map(|_| bodies.recv().unwrap().to_string()).collect();
     assert!(results[1].contains("pong"), "{}", results[1]);
     assert!(results[3].contains("pong"), "{}", results[3]);
-    let _ = std::fs::remove_dir_all(&tmp);
 }

@@ -447,11 +447,21 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "sealed entry")]
     fn the_generic_append_refuses_sealed_kinds() {
         let (_guard, d) = dir("sealed");
         let o = Record::open(&d).unwrap();
-        o.record.append(1, "kernel.commit", json!({}));
+        // Caught here, not `should_panic`: the guard keeps its directory when
+        // the thread unwinds, which would leave this expected panic's files behind.
+        let err = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            o.record.append(1, "kernel.commit", json!({}));
+        }))
+        .expect_err("a sealed kind must be refused");
+        let msg = err
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| err.downcast_ref::<&str>().map(|s| s.to_string()))
+            .unwrap_or_default();
+        assert!(msg.contains("sealed entry"), "{msg}");
     }
 
     #[test]

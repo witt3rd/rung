@@ -203,17 +203,8 @@ pub fn new_id() -> String {
 mod tests {
     use super::*;
 
-    fn tmp() -> PathBuf {
-        let p = std::env::temp_dir().join(format!(
-            "rung-sess-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&p).unwrap();
-        p
+    fn tmp() -> rung_testkit::TempDir {
+        rung_testkit::TempDir::new("sess")
     }
 
     #[test]

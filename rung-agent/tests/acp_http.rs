@@ -17,14 +17,13 @@ struct Server {
     child: Child,
     host: String,
     port: u16,
-    tmp: std::path::PathBuf,
+    tmp: rung_testkit::TempDir,
 }
 
 impl Drop for Server {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
-        let _ = std::fs::remove_dir_all(&self.tmp);
     }
 }
 
@@ -205,17 +204,8 @@ fn post_json(server: &Server, extra: &[(&str, &str)], body: &Value) -> Http {
     request(server, "POST", &hdrs, Some(&bytes))
 }
 
-fn tempfile() -> std::path::PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-agent-acp-http-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempfile() -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new("agent-acp-http")
 }
 
 #[test]

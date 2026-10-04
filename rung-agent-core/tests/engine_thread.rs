@@ -10,7 +10,6 @@
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -24,17 +23,8 @@ use rung_std::llm::{
 };
 use serde_json::{Value, json};
 
-fn tempdir(tag: &str) -> PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-engine-thread-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempdir(tag: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("engine-thread-{tag}"))
 }
 
 fn read_body(sock: &mut TcpStream) -> Option<String> {
@@ -231,7 +221,6 @@ fn the_caller_owns_the_thread_and_a_long_tool_result_comes_back_verbatim() {
     let b = second_turn["messages"].as_array().unwrap();
     assert!(b.len() > a.len());
     assert_eq!(&b[..a.len()], &a[..], "a byte-for-byte prefix extension");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[derive(Default)]
@@ -271,7 +260,6 @@ fn a_turns_listener_sees_each_refused_attempt() {
         f[0].headers
             .contains(&("x-ratelimit-reset".into(), "1790990000000".into()))
     );
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -298,5 +286,4 @@ fn a_turn_may_name_its_model_and_session_over_the_specs() {
     let second = bodies.recv().unwrap();
     assert_eq!(second["model"], "ladder/rung-1");
     assert_eq!(second["session_id"], "epoch-3");
-    let _ = std::fs::remove_dir_all(&tmp);
 }

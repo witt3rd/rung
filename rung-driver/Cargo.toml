@@ -15,4 +15,5 @@ csv = "1"
 serde_yaml = "0.9"
 
 [dev-dependencies]
+rung-testkit = { path = "../rung-testkit" }
 serde_yaml = "0.9"

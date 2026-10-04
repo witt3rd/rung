@@ -243,13 +243,8 @@ mod tests {
         }
     }
 
-    fn fixture_file(request: &Value) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "rung-recorded-{}-{:?}",
-            std::process::id(),
-            std::thread::current().id()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
+    fn fixture_file(request: &Value) -> (rung_testkit::TempDir, PathBuf) {
+        let dir = rung_testkit::TempDir::new("recorded");
         let path = dir.join("f.json");
         let fixture = json!({
             "request": request,
@@ -260,12 +255,12 @@ mod tests {
             "recorded_at": "2026-09-30T00:00:00Z",
         });
         std::fs::write(&path, fixture.to_string()).unwrap();
-        path
+        (dir, path)
     }
 
     #[test]
     fn replay_returns_the_recorded_answers() {
-        let path = fixture_file(&ask().body(DEFAULT_MODEL));
+        let (_dir, path) = fixture_file(&ask().body(DEFAULT_MODEL));
         let d = Recorded::replay(&path).decide(&ask()).unwrap();
         assert_eq!(d.noul("q"), Some(0.9));
         assert_eq!(d.model, "typesafe/jev-1.13-20260917");
@@ -274,7 +269,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "records a different request")]
     fn a_changed_request_fails_loudly() {
-        let path = fixture_file(&ask().body(DEFAULT_MODEL));
+        let (_dir, path) = fixture_file(&ask().body(DEFAULT_MODEL));
         let mut changed = ask();
         changed.state = json!({"x": 2});
         let _ = Recorded::replay(&path).decide(&changed);

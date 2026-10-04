@@ -15,17 +15,8 @@ use serde_json::{Value, json};
 /// What an elided tool result says in place of its content.
 const ELIDED: &str = "[tool result elided";
 
-fn tempdir() -> std::path::PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-agent-overflow-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempdir() -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new("agent-overflow")
 }
 
 /// OpenAI-compatible mock: answers each request with the next reply (SSE
@@ -127,7 +118,7 @@ struct Acp {
     child: Child,
     stdin: Option<ChildStdin>,
     stdout: BufReader<ChildStdout>,
-    dir: std::path::PathBuf,
+    dir: rung_testkit::TempDir,
     sid: String,
     next_id: u32,
     bodies: Receiver<Value>,
@@ -140,7 +131,7 @@ struct Answer {
 }
 
 impl Acp {
-    fn start(dir: std::path::PathBuf, replies: Vec<Value>) -> Acp {
+    fn start(dir: rung_testkit::TempDir, replies: Vec<Value>) -> Acp {
         let (url, bodies) = mock_llm(replies);
         let mut child = Command::new(env!("CARGO_BIN_EXE_rung-agent"))
             .args(["--acp", "--tools", "read"])
@@ -232,7 +223,6 @@ impl Drop for Acp {
     fn drop(&mut self) {
         drop(self.stdin.take());
         let _ = self.child.wait();
-        let _ = std::fs::remove_dir_all(&self.dir);
     }
 }
 

@@ -127,15 +127,11 @@ mod tests {
     use super::*;
     use std::process::Command;
 
-    fn git_repo() -> PathBuf {
-        let p = std::env::temp_dir().join(format!(
-            "rung-iso-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+    /// The repo lives inside a scratch parent so the sibling `.wt/` that
+    /// `ensure` creates is cleaned up with it.
+    fn git_repo() -> (rung_testkit::TempDir, PathBuf) {
+        let root = rung_testkit::TempDir::new("iso");
+        let p = root.join("repo");
         std::fs::create_dir_all(&p).unwrap();
         assert!(
             Command::new("git")
@@ -180,12 +176,12 @@ mod tests {
                 .status
                 .success()
         );
-        p
+        (root, p)
     }
 
     #[test]
     fn worktree_sits_in_sibling_wt() {
-        let repo = git_repo();
+        let (_root, repo) = git_repo();
         let wt = ensure("abc1", &repo).unwrap();
         let name = repo.file_name().unwrap();
         let expected = repo
@@ -210,10 +206,5 @@ mod tests {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status();
-        let _ = std::fs::remove_dir_all(&repo);
-        let _ = std::fs::remove_dir_all(repo.parent().unwrap().join(format!(
-            "{}.wt",
-            repo.file_name().unwrap().to_string_lossy()
-        )));
     }
 }
