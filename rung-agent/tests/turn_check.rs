@@ -98,38 +98,9 @@ fn respond(sock: &mut std::net::TcpStream, code: u16, ctype: &str, payload: &str
     let _ = sock.write_all(resp.as_bytes());
 }
 
-/// OpenAI-compatible mock: each request gets the next reply (SSE when asked).
+/// The scripted mock; the turn check does not read the requests.
 fn mock_llm(replies: Vec<Value>) -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    std::thread::spawn(move || {
-        for reply in replies {
-            let (mut sock, _) = listener.accept().unwrap();
-            let Some(body) = read_body(&mut sock) else {
-                continue;
-            };
-            let body: Value = serde_json::from_str(&body).unwrap();
-            if body["stream"] == true {
-                let mut delta = reply["choices"][0]["message"].clone();
-                if let Some(calls) = delta.get_mut("tool_calls").and_then(|c| c.as_array_mut()) {
-                    for (i, c) in calls.iter_mut().enumerate() {
-                        c["index"] = json!(i);
-                    }
-                }
-                let chunk = json!({"id": "c", "model": "m",
-                    "choices": [{"delta": delta, "finish_reason": reply["choices"][0]["finish_reason"]}]});
-                respond(
-                    &mut sock,
-                    200,
-                    "text/event-stream",
-                    &format!("data: {chunk}\n\ndata: [DONE]\n\n"),
-                );
-            } else {
-                respond(&mut sock, 200, "application/json", &reply.to_string());
-            }
-        }
-    });
-    format!("http://127.0.0.1:{port}/v1")
+    format!("{}/v1", rung_testkit::llm::serve_llm(replies, |_| {}))
 }
 
 /// What the mock judge does with one request.

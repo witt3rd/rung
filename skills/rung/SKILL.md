@@ -92,7 +92,7 @@ elides again. Still over: typed `overflow` on ACP, a
 Never retry overflow around `agent::run`: `Filtered` has no live thread and
 the turn's tool calls would run twice.
 
-ACP end-to-end with a model: `rung-agent/tests/acp.rs` `mock_llm` is a
+ACP end-to-end with a model: `rung-testkit` `mock_llm` (`src/llm.rs`) is a
 std-only OpenAI-compatible server. It serves SSE when the body has
 `"stream": true`, which the ACP path always sets, and it records request
 bodies. Point `RUNG_BASE_URL` at it and isolate `HOME`, `RUNG_CONFIG` and

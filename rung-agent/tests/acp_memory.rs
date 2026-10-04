@@ -10,7 +10,7 @@
 //! - a slow provider times out and the turn still ends.
 //! - marked context cues nothing, and the session stores it once.
 
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::mpsc::Receiver;
@@ -23,51 +23,14 @@ fn tempdir(tag: &str) -> rung_testkit::TempDir {
     rung_testkit::TempDir::new(&format!("acp-memory-{tag}"))
 }
 
-/// OpenAI-compatible mock: answers each request with the next text reply
-/// (SSE, as the ACP path streams) and records the request bodies.
+/// The scripted mock answering each request with the next text.
 fn mock_llm(replies: Vec<&'static str>) -> (String, Receiver<Value>) {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        for reply in replies {
-            let Ok((mut sock, _)) = listener.accept() else {
-                return;
-            };
-            let mut buf = Vec::new();
-            let mut chunk = [0u8; 8192];
-            let body = loop {
-                let n = sock.read(&mut chunk).unwrap();
-                buf.extend_from_slice(&chunk[..n]);
-                let text = String::from_utf8_lossy(&buf).to_string();
-                if let Some(at) = text.find("\r\n\r\n") {
-                    let len = text[..at]
-                        .lines()
-                        .find_map(|l| {
-                            l.to_ascii_lowercase()
-                                .strip_prefix("content-length:")
-                                .map(|v| v.trim().parse::<usize>().unwrap())
-                        })
-                        .unwrap_or(0);
-                    if buf.len() >= at + 4 + len {
-                        break String::from_utf8_lossy(&buf[at + 4..at + 4 + len]).to_string();
-                    }
-                }
-                assert!(n != 0, "short request");
-            };
-            tx.send(serde_json::from_str::<Value>(&body).unwrap())
-                .unwrap();
-            let chunk = json!({"id": "c", "model": "m",
-                "choices": [{"delta": {"content": reply}, "finish_reason": "stop"}]});
-            let payload = format!("data: {chunk}\n\ndata: [DONE]\n\n");
-            let resp = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
-                payload.len()
-            );
-            let _ = sock.write_all(resp.as_bytes());
-        }
-    });
-    (format!("http://127.0.0.1:{port}"), rx)
+    rung_testkit::llm::mock_llm(
+        replies
+            .into_iter()
+            .map(|t| json!({"id": "c", "model": "m", "choices": [{"message": {"content": t}, "finish_reason": "stop"}]}))
+            .collect(),
+    )
 }
 
 /// `rung-agent --acp` in `cwd`, env isolated, memory env cleared unless set.

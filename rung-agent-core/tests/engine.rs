@@ -4,9 +4,7 @@
 //! per-call record and typed provider failures.
 
 use std::collections::BTreeSet;
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
-use std::sync::mpsc::{Receiver, channel};
+use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 
 use rung_agent_core::catalog::{Kind, Scope};
@@ -24,85 +22,10 @@ fn tempdir(tag: &str) -> rung_testkit::TempDir {
     rung_testkit::TempDir::new(&format!("engine-{tag}"))
 }
 
-fn read_body(sock: &mut TcpStream) -> Option<String> {
-    let mut buf = Vec::new();
-    let mut chunk = [0u8; 8192];
-    loop {
-        let n = sock.read(&mut chunk).ok()?;
-        if n == 0 {
-            return None;
-        }
-        buf.extend_from_slice(&chunk[..n]);
-        let text = String::from_utf8_lossy(&buf).to_string();
-        if let Some(at) = text.find("\r\n\r\n") {
-            let len = text[..at]
-                .lines()
-                .find_map(|l| {
-                    l.to_ascii_lowercase()
-                        .strip_prefix("content-length:")
-                        .map(|v| v.trim().parse::<usize>().unwrap())
-                })
-                .unwrap_or(0);
-            if buf.len() >= at + 4 + len {
-                return Some(String::from_utf8_lossy(&buf[at + 4..at + 4 + len]).to_string());
-            }
-        }
-    }
-}
-
-/// OpenAI-compatible mock: each request gets the next reply (SSE when the
-/// request streams). `__status`, `__headers` and `__body` answer with that
-/// HTTP status instead of a completion. Every request body is sent on `rx`.
+/// The scripted mock, served under `/v1`.
 fn mock_llm(replies: Vec<Value>) -> (String, Receiver<Value>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let (tx, rx) = channel();
-    std::thread::spawn(move || {
-        for reply in replies {
-            let Ok((mut sock, _)) = listener.accept() else {
-                return;
-            };
-            let Some(body) = read_body(&mut sock) else {
-                continue;
-            };
-            let body: Value = serde_json::from_str(&body).unwrap();
-            let stream = body["stream"] == true;
-            let _ = tx.send(body);
-            let (status, ctype, payload) = if let Some(code) = reply["__status"].as_u64() {
-                (code, "application/json", reply["__body"].to_string())
-            } else if stream {
-                let mut delta = reply["choices"][0]["message"].clone();
-                if let Some(calls) = delta.get_mut("tool_calls").and_then(|c| c.as_array_mut()) {
-                    for (i, c) in calls.iter_mut().enumerate() {
-                        c["index"] = json!(i);
-                    }
-                }
-                let chunk = json!({"id": "c", "model": "served-model",
-                    "choices": [{"delta": delta, "finish_reason": reply["choices"][0]["finish_reason"]}]});
-                (
-                    200,
-                    "text/event-stream",
-                    format!("data: {chunk}\n\ndata: [DONE]\n\n"),
-                )
-            } else {
-                (200, "application/json", reply.to_string())
-            };
-            let headers: String = reply["__headers"]
-                .as_object()
-                .map(|h| {
-                    h.iter()
-                        .map(|(k, v)| format!("{k}: {}\r\n", v.as_str().unwrap()))
-                        .collect()
-                })
-                .unwrap_or_default();
-            let resp = format!(
-                "HTTP/1.1 {status} X\r\nContent-Type: {ctype}\r\n{headers}Content-Length: {}\r\nConnection: close\r\n\r\n{payload}",
-                payload.len()
-            );
-            let _ = sock.write_all(resp.as_bytes());
-        }
-    });
-    (format!("http://127.0.0.1:{port}/v1"), rx)
+    let (url, rx) = rung_testkit::llm::mock_llm(replies);
+    (format!("{url}/v1"), rx)
 }
 
 fn text_reply(text: &str) -> Value {

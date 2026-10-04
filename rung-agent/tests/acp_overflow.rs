@@ -6,7 +6,7 @@
 //! `overflow` state with the provider's own token figures on a
 //! `usage_update`, and the session takes the next prompt.
 
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::mpsc::Receiver;
 
@@ -19,72 +19,7 @@ fn tempdir() -> rung_testkit::TempDir {
     rung_testkit::TempDir::new("agent-overflow")
 }
 
-/// OpenAI-compatible mock: answers each request with the next reply (SSE
-/// when the body streams; `__status` + `__body` for an HTTP error) and
-/// records every request body.
-fn mock_llm(replies: Vec<Value>) -> (String, Receiver<Value>) {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        for reply in replies {
-            let (mut sock, _) = listener.accept().unwrap();
-            let mut buf = Vec::new();
-            let mut chunk = [0u8; 8192];
-            let body = loop {
-                let n = sock.read(&mut chunk).unwrap();
-                buf.extend_from_slice(&chunk[..n]);
-                let text = String::from_utf8_lossy(&buf).to_string();
-                if let Some(at) = text.find("\r\n\r\n") {
-                    let len = text[..at]
-                        .lines()
-                        .find_map(|l| {
-                            let l = l.to_ascii_lowercase();
-                            l.strip_prefix("content-length:")
-                                .map(|v| v.trim().parse::<usize>().unwrap())
-                        })
-                        .unwrap_or(0);
-                    if buf.len() >= at + 4 + len {
-                        break String::from_utf8_lossy(&buf[at + 4..at + 4 + len]).to_string();
-                    }
-                }
-                if n == 0 {
-                    panic!("short request");
-                }
-            };
-            let body: Value = serde_json::from_str(&body).unwrap();
-            let stream = body["stream"] == true;
-            tx.send(body).unwrap();
-            let status = reply["__status"].as_u64().unwrap_or(200);
-            let (ctype, payload) = if status != 200 {
-                ("application/json", reply["__body"].to_string())
-            } else if stream {
-                let mut delta = reply["choices"][0]["message"].clone();
-                if let Some(calls) = delta.get_mut("tool_calls").and_then(|c| c.as_array_mut()) {
-                    for (i, c) in calls.iter_mut().enumerate() {
-                        c["index"] = json!(i);
-                    }
-                }
-                let chunk = json!({
-                    "id": "c", "model": "m",
-                    "choices": [{"delta": delta, "finish_reason": reply["choices"][0]["finish_reason"]}]
-                });
-                (
-                    "text/event-stream",
-                    format!("data: {chunk}\n\ndata: [DONE]\n\n"),
-                )
-            } else {
-                ("application/json", reply.to_string())
-            };
-            let resp = format!(
-                "HTTP/1.1 {status} X\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
-                payload.len()
-            );
-            let _ = sock.write_all(resp.as_bytes());
-        }
-    });
-    (format!("http://127.0.0.1:{port}"), rx)
-}
+use rung_testkit::llm::mock_llm;
 
 fn text_reply(text: &str) -> Value {
     json!({"id": "c", "model": "m", "choices": [{"message": {"content": text}, "finish_reason": "stop"}]})

@@ -4,5 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Test-only helpers shared by the product crates (scratch directories that clean up after themselves)"
+description = "Test-only helpers shared by the product crates (scratch directories that clean up after themselves, a scripted mock LLM server)"
 publish = false
+
+[dependencies]
+serde_json = "1"
