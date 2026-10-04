@@ -264,7 +264,10 @@ fn acp_outward_serves_channels_to_one_agent() {
         if let Some(status) = c.child.try_wait().unwrap() {
             break status.code().unwrap_or(-1);
         }
-        assert!(t.elapsed() < limit, "the host did not exit after the owner's stop");
+        assert!(
+            t.elapsed() < limit,
+            "the host did not exit after the owner's stop"
+        );
         c.drain(Duration::from_millis(10));
     };
     c.run.exit = Some((code, t.elapsed().as_millis() as u64));

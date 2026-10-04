@@ -1,14 +1,15 @@
 //! `rung-host`: run the continuous host.
 //!
-//! In this slice the only engine is the scripted mock, so the binary runs
-//! the host against the fake world — the harness the process-level gates
-//! (stop, watchdog, `kill -9` restarts) drive. It makes no network call.
+//! `sim` runs the host on the scripted mock against the fake world — the
+//! harness the process-level gates (stop, watchdog, `kill -9` restarts,
+//! ACP outward on stdio with `--acp`) drive. It makes no network call.
 //!
 //! ```text
 //! rung-host sim --state DIR [--seed N] [--turns N] [--clock real|sim]
 //!               [--call-ms A,B] [--wedge-at TURN] [--inbox DIR] [--stop-file PATH]
 //!               [--fault outage|none] [--backoff-ms MS] [--quota RPD,RPM]
-//!               [--owner-per-hour X] [--no-memory]
+//!               [--owner-per-hour X] [--no-memory] [--no-commit]
+//!               [--acp [--acp-role owner|peer|observer]]
 //! rung-host canon --state DIR [--seed N]   # print the hash of a seeded run's request bytes
 //! ```
 
@@ -37,6 +38,9 @@ struct Opts {
     quota: Option<(u64, u64)>,
     owner_per_hour: f64,
     memory: bool,
+    no_commit: bool,
+    acp: bool,
+    acp_role: rung_host::inbox::Role,
 }
 
 fn parse() -> Result<Opts, String> {
@@ -59,6 +63,9 @@ fn parse() -> Result<Opts, String> {
         quota: None,
         owner_per_hour: 0.0,
         memory: true,
+        no_commit: false,
+        acp: false,
+        acp_role: rung_host::inbox::Role::Owner,
     };
     while let Some(f) = a.next() {
         let mut v = || a.next().ok_or(format!("{f} needs a value"));
@@ -95,6 +102,16 @@ fn parse() -> Result<Opts, String> {
                 o.owner_per_hour = v()?.parse().map_err(|e| format!("{f}: {e}"))?
             }
             "--no-memory" => o.memory = false,
+            "--no-commit" => o.no_commit = true,
+            "--acp" => o.acp = true,
+            "--acp-role" => {
+                o.acp_role = match v()?.as_str() {
+                    "owner" => rung_host::inbox::Role::Owner,
+                    "peer" => rung_host::inbox::Role::Peer,
+                    "observer" => rung_host::inbox::Role::Observer,
+                    other => return Err(format!("--acp-role: unknown role {other}")),
+                }
+            }
             other => return Err(format!("unknown flag {other}")),
         }
     }
@@ -109,6 +126,9 @@ fn scenario(o: &Opts, state: &std::path::Path) -> Result<Scenario, String> {
         sc.mock.call_ms = ms;
     }
     sc.mock.wedge_at_turn = o.wedge_at;
+    if o.no_commit {
+        sc.mock.p_commit = 0.0;
+    }
     sc.mock.call_log = Some(state.join("mock-calls.log"));
     let clock: Arc<dyn Clock> = if o.real {
         Arc::new(RealClock)
@@ -173,6 +193,9 @@ fn main() -> ExitCode {
     match o.cmd.as_str() {
         "sim" => {
             let (host, rec, _mock) = sim::build(sc);
+            if o.acp {
+                return serve_acp(host, rec, o.acp_role);
+            }
             match host.run(rec) {
                 Why::Stopped { .. } => ExitCode::SUCCESS,
                 Why::Revoked { .. } | Why::SpendCap { .. } => ExitCode::from(3),
@@ -187,5 +210,28 @@ fn main() -> ExitCode {
             eprintln!("rung-host: unknown command {other}");
             ExitCode::from(2)
         }
+    }
+}
+
+/// Run the host with ACP outward on stdio: the loop on its own thread, one
+/// local client on stdin/stdout. The process ends when the host halts.
+fn serve_acp(
+    host: Arc<rung_host::presence::Host>,
+    rec: rung_host::presence::Recovered,
+    role: rung_host::inbox::Role,
+) -> ExitCode {
+    let acp = rung_host::acp::Acp::attach(host.clone());
+    let looped = std::thread::spawn(move || host.run(rec));
+    std::thread::spawn(move || {
+        if let Err(e) = rung_host::acp::serve_stdio(acp, rung_host::acp::Principal { role }) {
+            eprintln!("rung-host: acp: {e}");
+        }
+    });
+    let why = looped.join();
+    // Let the bridge answer what the halt left open.
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    match why {
+        Ok(Why::Stopped { .. }) => ExitCode::SUCCESS,
+        _ => ExitCode::from(3),
     }
 }

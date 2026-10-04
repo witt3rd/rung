@@ -7,8 +7,8 @@ changed for it.
 
 This document is informative. It describes slice 1 — the host against a
 scripted mock engine, a fake world and a fault injector, at $0 — and what
-slice 2 adds: the real engine adapter and the model ladder's listing
-filter (below). ACP outward, the startup ladder and live runs are later. Delegation to workers is a final
+slice 2 adds: the real engine adapter, the model ladder's listing filter
+and ACP outward (below). The startup ladder and live runs are later. Delegation to workers is a final
 extension; only its extension point exists (the `crew` group name and the
 `crew.*` record kinds are reserved, and the inbox admits external
 completion items).
@@ -104,6 +104,41 @@ LOG      turn k header · the turn's messages, verbatim · turn k+1 header · �
   slow layer from the record; nothing in the stable layer changes. The
   record is fsynced before anything is evicted.
 - A model switch on the ladder also starts a new epoch.
+
+## ACP outward
+
+There is one agent; `session/new` opens a **channel** to it — owner, peer
+or observer (`_meta.rung.role`; a peer or observer names itself with
+`_meta.rung.channel`, becoming `peer:<name>`). The transport's principal
+caps the role (`rung-host sim --acp [--acp-role …]` serves one local
+client on stdio as the operator's configured role, owner by default). Each
+channel is a `channel.opened` record line, so `session/list` and
+`session/load` survive a restart.
+
+- `session/prompt` is a stimulus from that channel, recorded and fsynced
+  before anything else. It is answered when the turn that disposes it
+  ends: the agent's `send`s to that channel in that turn stream as
+  `agent_message_chunk`s (the turn's final text when it sent none), the
+  turn's tool calls as `tool_call`s, and `_meta.rung` names `{item, turn,
+  disposition, status, admitted_with}`. An observer cannot prompt.
+- An agent-initiated message (a send with no open prompt from that channel
+  in its turn) is an `_rung/outbox` notification `{sessionId, channel,
+  text, turn, source}` to clients that opted in at `initialize`
+  (`_meta.rung.outbox: true`), otherwise the head of the channel's next
+  response.
+- `session/cancel` withdraws a pending stimulus (`stimulus.disposed`
+  `withdrawn`); one already in the running turn is answered `cancelled`,
+  and an owner's cancel also cuts that turn. A halt answers every open
+  prompt `cancelled` with `_meta.rung.halted`.
+- Extensions: `_rung/status` (the now set: turn, mode, project, epoch,
+  rung, model, ladder availability, quota, degraded, desk; any role);
+  `_rung/stimulus` (a stimulus that asks no reply; owner or peer; on disk
+  before its ack); owner only: `_rung/stop`, `_rung/release`,
+  `_rung/calendar` (`{id, at | in_s, text, firm}`).
+
+The bridge reads the record through an observer hook and decides nothing
+the loop decides. Streamable HTTP with per-role bearer tokens is the next
+step; this part serves stdio.
 
 ## The engine adapter
 
@@ -203,7 +238,8 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `stimulus.accepted` | `item {id, kind, role, channel, at, due?, urgency?, firm, text, fact?}` |
 | `stimulus.admitted` | `turn`, `boundary`, `ids` (shown now), `digests` (one header line each) |
 | `stimulus.requeued` | `ids`, `why` |
-| `stimulus.disposed` | `id`, `disposition` (`answered`, `digested`), `turn` |
+| `stimulus.disposed` | `id`, `disposition` (`answered`, `digested`, `withdrawn`, `control`), `turn` |
+| `channel.opened` | `session`, `role`, `channel` (an ACP channel) |
 | `stimulus.rejected` | `file`, `why` |
 | `calendar.added` / `.fired` / `.skipped` / `.removed` | an entry; a fire has `id`, `due`, `late_by_ms`, `missed`, `firm`, `item_id` |
 | `decision.<family>` | `boundary`, `turn`, `input_hash`, `questions_hash`, `answers`, `choice`, `by` (`{"jev": {backend, model, cost_usd}}` or `{"rule": why}`), `rule_choice` and `agree` in shadow mode, `wall_us` |

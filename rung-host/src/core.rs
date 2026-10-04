@@ -104,7 +104,14 @@ pub struct Core {
     pub stop: Arc<StopAuthority>,
     pub notifier: Notifier,
     pub config: HostConfig,
+    /// Called with every line, in seq order, while the line is applied (an
+    /// outward channel's view of the record). An observer must not block
+    /// or emit.
+    observers: Mutex<Vec<Observer>>,
 }
+
+/// A record observer ([`Core::observe`]).
+pub type Observer = Box<dyn Fn(&Line) + Send + Sync>;
 
 impl std::fmt::Debug for Core {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -130,6 +137,23 @@ impl Core {
             stop,
             notifier,
             config,
+            observers: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// See every line from now on, in seq order.
+    pub fn observe(&self, f: Observer) {
+        let _st = self.state();
+        self.observers
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .push(f);
+    }
+
+    fn notify(&self, line: &Line) {
+        let obs = self.observers.lock().unwrap_or_else(|p| p.into_inner());
+        for f in obs.iter() {
+            f(line);
         }
     }
 
@@ -143,7 +167,26 @@ impl Core {
         let mut st = self.state();
         let line = self.record.append(self.clock.now(), kind, body);
         st.apply(&line);
+        self.notify(&line);
         line
+    }
+
+    /// Append a line and apply it, under one lock, only when `when` holds
+    /// of the state just before it.
+    pub(crate) fn emit_if(
+        &self,
+        kind: &str,
+        body: Value,
+        when: impl FnOnce(&State) -> bool,
+    ) -> Option<Line> {
+        let mut st = self.state();
+        if !when(&st) {
+            return None;
+        }
+        let line = self.record.append(self.clock.now(), kind, body);
+        st.apply(&line);
+        self.notify(&line);
+        Some(line)
     }
 
     /// Append several lines in one write and apply them, under one lock.
@@ -152,6 +195,7 @@ impl Core {
         let out = self.record.append_many(self.clock.now(), lines);
         for l in &out {
             st.apply(l);
+            self.notify(l);
         }
         out
     }
@@ -164,6 +208,7 @@ impl Core {
             .record
             .append_sealed(self.clock.now(), kind, s.into_body());
         st.apply(&line);
+        self.notify(&line);
         line
     }
 
@@ -173,6 +218,7 @@ impl Core {
         body["projection"] = st.hash().into();
         let line = self.record.append(self.clock.now(), kind, body);
         st.apply(&line);
+        self.notify(&line);
         line
     }
 

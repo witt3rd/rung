@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 366 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 367 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -972,6 +972,10 @@ look shorter than it is.
 - `p0_holds_here_too_without_the_library_knowing_the_domain`
 - `the_pass_is_indifferent_to_which_vocabulary_it_carries`
 - `wont_fix_closes_an_issue_that_remains_non_conforming`
+
+**`rung-host/tests/gate_acp.rs`** — 1 unclaimed
+
+- `acp_outward_serves_channels_to_one_agent`
 
 **`rung-host/tests/gate_cache_context.rs`** — 2 unclaimed
 

@@ -9,6 +9,7 @@
 //! See `docs/rung-host.md` for the design and the record vocabulary, and
 //! [`gates`] for the frozen acceptance gates.
 
+pub mod acp;
 pub mod adapter;
 pub mod calendar;
 pub mod canon;

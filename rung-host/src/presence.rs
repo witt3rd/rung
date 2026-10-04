@@ -153,6 +153,8 @@ pub struct Host {
     desk_deadline: Mutex<Instant>,
     /// Retains decided at the boundary, done after the turn.
     deferred_retain: Mutex<Vec<crate::desk::Candidate>>,
+    /// The running turn's cancel flag (an owner may cut a shared turn).
+    turn_cancel: Mutex<Option<Arc<AtomicBool>>>,
 }
 
 /// What survives a host-made change, for the next call's expectation.
@@ -263,6 +265,7 @@ impl Host {
             switch_pending: Mutex::new(None),
             last_call: Mutex::new(None),
             deferred_retain: Mutex::new(Vec::new()),
+            turn_cancel: Mutex::new(None),
             desk_deadline: Mutex::new(Instant::now()),
         });
         Ok((host, recovered))
@@ -308,6 +311,93 @@ impl Host {
             .get(rung)
             .cloned()
             .unwrap_or_else(|| "none".into())
+    }
+
+    // ─── Outward channels ────────────────────────────────────────────────
+    //
+    // What an outward surface (ACP) may do to the host. Each change is a
+    // record line, durable before it returns.
+
+    /// Accept a stimulus from outside: recorded and fsynced before this
+    /// returns. An owner control (`stop`, `release`) acts at once.
+    pub fn accept_external(&self, item: &Item) {
+        self.accept(item);
+    }
+
+    /// Withdraw a stimulus that no boundary has admitted yet: its one
+    /// disposition is `withdrawn`. False when it was admitted (or unknown).
+    pub fn withdraw(&self, id: &str) -> bool {
+        let turn = self.core.state().turn;
+        let done = self.core.emit_if(
+            "stimulus.disposed",
+            json!({"id": id, "disposition": "withdrawn", "turn": turn}),
+            |st| st.inbox.pending.contains_key(id),
+        );
+        if done.is_some() {
+            self.core.sync();
+        }
+        done.is_some()
+    }
+
+    /// Raise the running turn's cancel flag (the owner cuts a shared turn).
+    /// False when no turn is running.
+    pub fn cut_turn(&self) -> bool {
+        match &*self.turn_cancel.lock().expect("turn cancel") {
+            Some(c) => {
+                c.store(true, Ordering::SeqCst);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Add a standing calendar entry (the owner's origin).
+    pub fn add_calendar(&self, entry: &Entry) {
+        self.core
+            .emit("calendar.added", crate::calendar::added_body(entry));
+        self.core.sync();
+    }
+
+    /// Record a channel opened by an outward client.
+    pub fn open_channel(&self, session: &str, role: Role, channel: &str) {
+        self.core.emit(
+            "channel.opened",
+            json!({"session": session, "role": role, "channel": channel}),
+        );
+        self.core.sync();
+    }
+
+    /// The now set: what `_rung/status` reports.
+    pub fn status(&self) -> Value {
+        let st = self.core.state();
+        let cfg = self.cfg();
+        let rung = st.governor.rung;
+        let quota = cfg.governor.quota.as_ref().map(|q| {
+            json!({"rpd": q.rpd, "rpm": q.rpm, "left_today": q.rpd.saturating_sub(st.governor.requests_today)})
+        });
+        let ladder: Vec<Value> = cfg
+            .ladder
+            .iter()
+            .enumerate()
+            .map(|(i, m)| json!({"rung": i, "model": m, "available": !st.governor.unavailable.contains(&i)}))
+            .collect();
+        json!({
+            "now": self.core.now(),
+            "turn": st.turn,
+            "boundary": st.boundary,
+            "mode": st.kernel.mode_label(),
+            "project": st.kernel.commitment().map(|c| c.project.clone()),
+            "epoch": st.pack.epoch,
+            "rung": rung,
+            "model": self.rung_model(rung),
+            "ladder": ladder,
+            "quota": quota,
+            "degraded": st.governor.degraded,
+            "desk": {"backend": self.desk.backend(), "mode": self.desk.mode, "spent_today_usd": st.desk.spent_today},
+            "pending": st.inbox.pending.len(),
+            "in_flight": st.inbox.in_flight.len(),
+            "stopping": self.core.stop.raised(),
+        })
     }
 
     // ─── Waking ──────────────────────────────────────────────────────────
@@ -1093,6 +1183,7 @@ impl Host {
                    "wall_boundary_us": started.elapsed().as_micros() as u64}),
         );
         let cancel = Arc::new(AtomicBool::new(false));
+        *self.turn_cancel.lock().expect("turn cancel") = Some(cancel.clone());
         let watcher =
             (!core.clock.is_sim()).then(|| spawn_watcher(core.clone(), cancel.clone(), deadline));
         let session = format!("epoch-{epoch}");
@@ -1109,6 +1200,7 @@ impl Host {
             deadline,
             step_cap: cfg.governor.step_cap,
         });
+        *self.turn_cancel.lock().expect("turn cancel") = None;
         if let Some((done, h)) = watcher {
             done.store(true, Ordering::SeqCst);
             let _ = h.join();
