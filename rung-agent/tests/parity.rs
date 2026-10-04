@@ -117,6 +117,10 @@ impl Norm {
         for (url, name) in urls {
             fixed.push((url.to_string(), format!("<{name}>")));
         }
+        fixed.push((
+            format!("\"version\":\"{}\"", env!("CARGO_PKG_VERSION")),
+            "\"version\":\"<version>\"".to_string(),
+        ));
         fixed.sort_by_key(|(real, _)| std::cmp::Reverse(real.len()));
         fixed.dedup();
         Norm {

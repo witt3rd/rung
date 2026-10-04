@@ -88,7 +88,7 @@
   ],
   "jev_requests": [],
   "mcp_requests": [
-    "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",\"capabilities\":{},\"clientInfo\":{\"name\":\"rung-agent\",\"version\":\"0.1.13\"}},\"id\":1}",
+    "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",\"capabilities\":{},\"clientInfo\":{\"name\":\"rung-agent\",\"version\":\"<version>\"}},\"id\":1}",
     "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\",\"params\":{}}",
     "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"params\":{},\"id\":2}",
     "POST /mcp HTTP/1.1\n{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"lookup\",\"arguments\":{\"key\":\"k1\"}}}"
