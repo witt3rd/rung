@@ -15,8 +15,8 @@ use std::sync::{Arc, Mutex};
 use common::*;
 use rung_host::gates::{self, Served, StartupRun};
 use rung_host::record::{Line, Record};
-use rung_host::sim::http::{LoopbackProvider, Reply, Request};
 use rung_host::sim;
+use rung_host::sim::http::{LoopbackProvider, Reply, Request};
 use serde_json::{Value, json};
 
 const BIN: &str = env!("CARGO_BIN_EXE_rung-host");
@@ -115,8 +115,11 @@ fn startup_lists_recovers_and_hands_off_or_refuses() {
     let refuse = |name: &str, body: String, key: Option<&str>, needle: &str| {
         let st = root.join(format!("refused-{name}"));
         let file = root.join(format!("{name}.yaml"));
-        std::fs::write(&file, body.replace(&state.display().to_string(), &st.display().to_string()))
-            .unwrap();
+        std::fs::write(
+            &file,
+            body.replace(&state.display().to_string(), &st.display().to_string()),
+        )
+        .unwrap();
         let o = run(&file, 1, key);
         let err = String::from_utf8_lossy(&o.stderr).to_string();
         (
@@ -136,7 +139,12 @@ fn startup_lists_recovers_and_hands_off_or_refuses() {
     );
     out.refused.insert(
         "unset_key".into(),
-        refuse("unset_key", config(&state, &provider.url, ""), None, KEY_ENV),
+        refuse(
+            "unset_key",
+            config(&state, &provider.url, ""),
+            None,
+            KEY_ENV,
+        ),
     );
 
     // An unreachable router: the start goes on, the failure is recorded.

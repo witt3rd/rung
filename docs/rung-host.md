@@ -7,8 +7,8 @@ changed for it.
 
 This document is informative. It describes slice 1 — the host against a
 scripted mock engine, a fake world and a fault injector, at $0 — and what
-slice 2 adds: the real engine adapter, the model ladder's listing filter
-and ACP outward (below). The startup ladder and live runs are later. Delegation to workers is a final
+slice 2 adds: the real engine adapter, the model ladder's listing filter,
+ACP outward and the startup-handoff ladder (below). Live runs are later. Delegation to workers is a final
 extension; only its extension point exists (the `crew` group name and the
 `crew.*` record kinds are reserved, and the inbox admits external
 completion items).
@@ -161,6 +161,47 @@ it initialized with, and a later request on it with another token is
 refused (403). Without at least one token the HTTP surface does not
 start.
 
+## The startup-handoff ladder
+
+`rung-host run --config rung-host.yaml` starts a host through a ladder:
+
+```text
+Configured(Plan) => Listed(Plan) => Recovered(Opening) => { Handed(Handoff) | Refused(Refusal) }
+```
+
+- **Configured**: the file is read (unknown fields refused), checked, the
+  keys read from the env vars it names, the engine built. A refusal
+  (exit 2) names the problem and touches no state.
+- **Listed**: the router's models are listed at start, before the record
+  is opened. The host records that listing (`ladder.listed` with
+  `at_start: true`) at its first boundary, before its first turn; a failed
+  listing does not stop the start.
+- **Recovered**: the record is opened and replayed; a restart recovers
+  here.
+- **Handed** to the Presence loop, with ACP outward when configured; or
+  **Refused** when the record cannot be opened.
+
+Each stage is a rung: mid-ladder tokens have no public constructor, and a
+`Plan` is built only by configuring, so no stage can be skipped or forged.
+
+```yaml
+state: /var/lib/rung-host            # required; workspace defaults to <state>/workspace
+engine:
+  kind: agent                        # or mock
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY    # the env var's name, never the key
+  reasoning: medium                  # pinned for the agent's life
+ladder: [ ... ]                      # default: the ruled free ladder
+listing: true                        # list at start and every 6 h (default for agent)
+quota: { rpd: 1000, rpm: 20 }        # optional
+memory: true                         # baseline memory under the state dir
+acp: { http: "127.0.0.1:7878", tokens: { owner: RUNG_HOST_OWNER_TOKEN } }   # or { stdio: owner }
+```
+
+Other optional keys: `workspace`, `identity`, `owner_channel`,
+`epoch_budget_tokens`, `turn_bound_s`, `backoff_base_ms`, `seed_projects`
+(`[{id, title, why}]`), and under `engine`: `step_cap`, `timeout_s`.
+
 ## The engine adapter
 
 `rung_host::adapter::AgentEngine` runs each turn on `rung-agent-core`'s
@@ -278,7 +319,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `memory.recall` / `memory.retain` | the provider's report |
 | `degraded` / `degraded.ended` | `class` (`paced`, `quota`, `backoff`, `blocked`), `until`, `why`; `waited_ms` |
 | `model.switch` | `from`, `to`, `direction` (`down`, `up`), `why` (`provider …`, `probe: …`, `listing: …`) |
-| `ladder.listed` | `ok`, `error` (when not), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`; `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
+| `ladder.listed` | `ok`, `error` (when not), `at_start` (the startup ladder's listing), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`; `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
 | `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms` |
 | `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |
 | `halted` | `why` |

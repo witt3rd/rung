@@ -12,6 +12,7 @@
 //!               [--acp [--acp-role owner|peer|observer]] [--send-owner-only]
 //!               [--acp-http ADDR --acp-token-env ROLE=ENV_VAR ...]
 //! rung-host canon --state DIR [--seed N]   # print the hash of a seeded run's request bytes
+//! rung-host run --config rung-host.yaml [--turns N]   # the startup-handoff ladder, then the host
 //! ```
 
 use std::path::PathBuf;
@@ -46,6 +47,7 @@ struct Opts {
     acp_http: Option<String>,
     /// (role, the env var holding its token).
     acp_tokens: Vec<(rung_host::inbox::Role, String)>,
+    config: Option<PathBuf>,
 }
 
 fn role(s: &str) -> Result<rung_host::inbox::Role, String> {
@@ -90,7 +92,7 @@ fn parse() -> Result<Opts, String> {
     let mut a = std::env::args().skip(1);
     let cmd = a
         .next()
-        .ok_or("usage: rung-host sim|canon --state DIR ...")?;
+        .ok_or("usage: rung-host sim|canon --state DIR ... | run --config FILE")?;
     let mut o = Opts {
         cmd,
         state: None,
@@ -112,6 +114,7 @@ fn parse() -> Result<Opts, String> {
         acp_role: rung_host::inbox::Role::Owner,
         acp_http: None,
         acp_tokens: Vec::new(),
+        config: None,
     };
     while let Some(f) = a.next() {
         let mut v = || a.next().ok_or(format!("{f} needs a value"));
@@ -153,6 +156,7 @@ fn parse() -> Result<Opts, String> {
             "--send-owner-only" => o.send_owner_only = true,
             "--acp-role" => o.acp_role = role(&v()?)?,
             "--acp-http" => o.acp_http = Some(v()?),
+            "--config" => o.config = Some(PathBuf::from(v()?)),
             "--acp-token-env" => {
                 let spec = v()?;
                 let (r, env) = spec
@@ -228,6 +232,9 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    if o.cmd == "run" {
+        return run(&o);
+    }
     let Some(state) = o.state.clone() else {
         eprintln!("rung-host: --state DIR is required");
         return ExitCode::from(2);
@@ -306,6 +313,31 @@ fn serve_acp(
     match why {
         Ok(Why::Stopped { .. }) => ExitCode::SUCCESS,
         _ => ExitCode::from(3),
+    }
+}
+
+/// `run`: the startup-handoff ladder (configure, list, recover, hand off),
+/// then the host until the stop authority halts it.
+fn run(o: &Opts) -> ExitCode {
+    let Some(path) = &o.config else {
+        eprintln!("rung-host: run needs --config FILE");
+        return ExitCode::from(2);
+    };
+    let started = rung_host::startup::configure(path, o.turns).and_then(rung_host::startup::start);
+    let handoff = match started {
+        Ok(h) => h,
+        Err(r) => {
+            eprintln!("rung-host: refused at {r}");
+            return ExitCode::from(2);
+        }
+    };
+    match handoff.run() {
+        rung_host::startup::Ended::Halted(Why::Stopped { .. }) => ExitCode::SUCCESS,
+        rung_host::startup::Ended::Halted(_) => ExitCode::from(3),
+        rung_host::startup::Ended::AcpFailed(e) => {
+            eprintln!("rung-host: acp: {e}");
+            ExitCode::from(2)
+        }
     }
 }
 

@@ -2619,9 +2619,11 @@ pub fn g_r(lines: &[Line], run: &StartupRun) -> GateResult {
             .is_some_and(|(code, named, untouched)| *code == 2 && *named && *untouched)
     });
     let u = &run.unreachable_lines;
-    let u_listed_failed = u
-        .iter()
-        .any(|l| l.kind == "ladder.listed" && l.get("at_start") == &Value::Bool(true) && l.get("ok") == &Value::Bool(false));
+    let u_listed_failed = u.iter().any(|l| {
+        l.kind == "ladder.listed"
+            && l.get("at_start") == &Value::Bool(true)
+            && l.get("ok") == &Value::Bool(false)
+    });
     let u_failed_turns = u
         .iter()
         .filter(|l| l.kind == "turn.ended" && !l.get("failure").is_null())
@@ -2649,12 +2651,18 @@ pub fn g_r(lines: &[Line], run: &StartupRun) -> GateResult {
         "a process did not list the models at start, before its record and its first turn",
     );
     g.check(recovered, "the restart did not recover the record");
-    g.check(calls_each == 2 && agent, "a process did not run turns on the real adapter");
+    g.check(
+        calls_each == 2 && agent,
+        "a process did not run turns on the real adapter",
+    );
     g.check(
         run.first_exit == Some(0) && run.restart_exit == Some(0),
         "a bounded run did not exit 0",
     );
-    g.check(refused_ok, "a bad configuration was not refused before touching the state");
+    g.check(
+        refused_ok,
+        "a bad configuration was not refused before touching the state",
+    );
     g.check(
         unreachable_ok,
         "an unreachable router stopped the start, or its failure was not recorded",

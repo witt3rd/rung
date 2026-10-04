@@ -98,6 +98,9 @@ pub struct HostBuilder {
     /// Lists the router's models for the ladder's filter; `None`: the
     /// configured ladder is walked as it is.
     pub lister: Option<Arc<dyn crate::ladder::Lister>>,
+    /// A listing made at start, before the record was opened (the startup
+    /// ladder's): recorded at the first boundary, before the first turn.
+    pub initial_listing: Option<Value>,
 }
 
 impl HostBuilder {
@@ -123,6 +126,7 @@ impl HostBuilder {
             segment_bytes: crate::record::SEGMENT_BYTES,
             seed_calendar: Vec::new(),
             lister: None,
+            initial_listing: None,
         }
     }
 }
@@ -140,6 +144,7 @@ pub struct Host {
     limits: Limits,
     seed_calendar: Vec<Entry>,
     lister: Option<Arc<dyn crate::ladder::Lister>>,
+    initial_listing: Mutex<Option<Value>>,
     /// Set on waking after a gap: when the host stopped running.
     down_since: Mutex<Option<Millis>>,
     /// The next model call follows a host-made change: (cause, what stayed valid).
@@ -254,6 +259,7 @@ impl Host {
             limits: b.limits,
             seed_calendar: b.seed_calendar,
             lister: b.lister,
+            initial_listing: Mutex::new(b.initial_listing),
             down_since: Mutex::new(None),
             reset: Mutex::new(None),
             switch_pending: Mutex::new(None),
@@ -639,18 +645,34 @@ impl Host {
         }
     }
 
-    /// List the router's models when due (at the first boundary, then
-    /// every six hours; 15 minutes after a failure) and switch off a rung
-    /// the listing took away.
+    /// Record the startup listing at the first boundary; after it, list the
+    /// router's models when due (every six hours; 15 minutes after a
+    /// failure). Switch off a rung a listing took away.
     fn list_ladder(&self) {
-        let Some(lister) = &self.lister else { return };
+        let core = &*self.core;
+        let rungs = self.cfg().ladder.len();
+        let initial = self.initial_listing.lock().expect("listing").take();
+        let line = if let Some(mut body) = initial {
+            body["at_start"] = true.into();
+            core.emit("ladder.listed", body)
+        } else {
+            let Some(lister) = &self.lister else { return };
+            match self.list_now(lister.as_ref(), rungs) {
+                Some(l) => l,
+                None => return,
+            }
+        };
+        self.after_listing(&line, rungs);
+    }
+
+    /// List now, when due.
+    fn list_now(&self, lister: &dyn crate::ladder::Lister, rungs: usize) -> Option<Line> {
         let core = &*self.core;
         let now = core.now();
-        let rungs = self.cfg().ladder.len();
         let previous: Vec<bool> = {
             let st = core.state();
             if st.governor.next_listing_at.is_some_and(|t| now < t) {
-                return;
+                return None;
             }
             if st.governor.next_listing_at.is_none() {
                 Vec::new()
@@ -660,8 +682,13 @@ impl Host {
                     .collect()
             }
         };
-        let body = crate::ladder::list(lister.as_ref(), &self.cfg().ladder, &previous, now);
-        let line = core.emit("ladder.listed", body);
+        let body = crate::ladder::list(lister, &self.cfg().ladder, &previous, now);
+        Some(core.emit("ladder.listed", body))
+    }
+
+    /// Switch off a rung the listing took away.
+    fn after_listing(&self, line: &Line, rungs: usize) {
+        let core = &*self.core;
         let to = {
             let st = core.state();
             governor::after_listing(&st.governor, rungs, core.now())
