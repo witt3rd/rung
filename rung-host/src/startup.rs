@@ -464,7 +464,7 @@ impl Handoff {
             // A listener that cannot serve stops the host.
             AcpPlan::Http { addr, tokens } => {
                 if let Err(e) = crate::acp::serve_http(bridge, &addr, tokens) {
-                    *e2.lock().expect("acp error") = e;
+                    *crate::core::lock(&e2) = e;
                     f2.store(true, Ordering::SeqCst);
                     h2.core.stop.request(Why::Stopped { by: "acp".into() });
                 }
@@ -481,7 +481,7 @@ impl Handoff {
         // Let the bridge answer what the halt left open.
         std::thread::sleep(std::time::Duration::from_millis(300));
         if failed.load(Ordering::SeqCst) {
-            return Ended::AcpFailed(err.lock().expect("acp error").clone());
+            return Ended::AcpFailed(crate::core::lock(&err).clone());
         }
         match why {
             Ok(w) => Ended::Halted(w),

@@ -651,7 +651,7 @@ impl Host {
     fn list_ladder(&self) {
         let core = &*self.core;
         let rungs = self.cfg().ladder.len();
-        let initial = self.initial_listing.lock().expect("listing").take();
+        let initial = crate::core::lock(&self.initial_listing).take();
         let line = if let Some(mut body) = initial {
             body["at_start"] = true.into();
             core.emit("ladder.listed", body)
