@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 350 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 353 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -678,18 +678,21 @@ look shorter than it is.
 - `initialize_session_new_prompt_delete`
 - `token_rejects_without_bearer`
 
-**`rung-agent/tests/acp_memory.rs`** — 10 unclaimed
+**`rung-agent/tests/acp_memory.rs`** — 13 unclaimed
 
 - `a_provider_without_the_marker_is_unavailable_and_the_turn_still_ends`
 - `a_slow_provider_times_out_and_the_turn_still_ends`
 - `an_mcp_provider_retains_and_recalls_through_its_hook_tools`
 - `an_unknown_setting_is_an_error_not_a_fallback`
 - `baseline_retains_in_one_session_and_recalls_in_the_next`
+- `context_blocks_do_not_cue_recall_and_still_reach_the_model`
 - `external_adds_no_tool_to_the_default_toolset`
 - `external_from_config_yaml_is_the_same`
 - `external_from_env_opens_no_store_runs_no_hooks_and_adds_no_tools`
 - `external_from_the_flag_is_the_same`
 - `off_is_byte_for_byte_the_response_before_memory`
+- `when_every_block_is_marked_the_whole_text_is_the_ask`
+- `without_marking_the_context_elides_the_ask_as_before`
 
 **`rung-agent/tests/acp_overflow.rs`** — 3 unclaimed
 

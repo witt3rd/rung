@@ -86,6 +86,13 @@ the provider reported, failed calls included. `latency_ms` is rung's measure.
   redacted content. The prompt is at most 2000 chars, the context is at most
   3 answers of 500 chars, and each side of a turn is at most 2000 chars. The
   provider owns who may see what: tenancy, visibility, revocation.
+- **The ask, not the context.** An ACP caller may mark a prompt content block
+  as context by setting its standard `annotations.audience` to `["assistant"]`
+  (only the assistant, non-empty). The prompt sent to recall and the `user` side
+  of a retained turn are then built from the unmarked blocks only. If every
+  block is marked, all text is used; with no marking nothing changes. Marked
+  blocks still reach the model verbatim, and the session, the turn check and
+  the title still see the whole prompt.
 - **Content in.** At most 5 records and 4000 chars, the history cap on one
   tool result. The provider may declare tighter limits. A record is kept
   whole or left out, never cut.
