@@ -1044,6 +1044,10 @@ look shorter than it is.
 - `owner_stimuli_under_load_are_admitted_at_the_next_boundary`
 - `thirty_quiet_minutes_have_no_rest`
 
+**`rung-host/tests/measure_admission.rs`** — 1 unclaimed
+
+- `admission_latency_by_long_work_share`
+
 **`rung-memory/tests/memory.rs`** — 18 unclaimed
 
 - `a_failed_step_is_a_miss_carrying_the_calls_and_cost_so_far`
