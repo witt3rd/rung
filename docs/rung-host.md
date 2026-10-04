@@ -121,9 +121,10 @@ channel is a `channel.opened` record line, so `session/list` and
   `agent_message_chunk`s (the turn's final text when it sent none), the
   turn's tool calls as `tool_call`s, and `_meta.rung` names `{item, turn,
   disposition, status, admitted_with}`. An observer cannot prompt.
-- A channel sees only output of work it owns. When a turn admitted prompts
-  from several channels, the final text and tool calls stream only to the
-  highest-role channel among them (owner > peer > observer; a tie goes to
+- A channel sees only output of work it owns. When a turn admitted items
+  (prompts or stimuli) from several channels, the final text and tool calls stream only to the
+  highest-role channel among them (a host item owns no turn); if that
+  channel's item is a no-reply stimulus, no prompt gets them (owner > peer > observer; a tie goes to
   every session of that one channel); any other channel gets only what the
   agent explicitly `send`s to it, and `admitted_with` lists only item ids of
   the answered channel. This is the safe default; loosening it is a
