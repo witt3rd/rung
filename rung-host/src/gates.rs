@@ -207,6 +207,20 @@ pub fn g_a(lines: &[Line]) -> GateResult {
         }
     }
     let p99 = quantile(&lat, 0.99);
+    // The host's own wall work per boundary, apart from the virtual gap:
+    // the only part of G-a a loaded machine can inflate, so a failure says
+    // which part moved (evidence only; the thresholds are the ones above).
+    let wall_boundary: Vec<(f64, u64)> = of(lines, "turn.started")
+        .map(|l| (l.f64("wall_boundary_us") / 1000.0, l.seq))
+        .collect();
+    let wall_only: Vec<f64> = wall_boundary.iter().map(|(ms, _)| *ms).collect();
+    let worst = wall_boundary
+        .iter()
+        .copied()
+        .fold(None, |m: Option<(f64, u64)>, x| match m {
+            Some(m) if m.0 >= x.0 => Some(m),
+            _ => Some(x),
+        });
     // Every boundary carries its decisions.
     let decided: BTreeSet<u64> = lines
         .iter()
@@ -222,6 +236,12 @@ pub fn g_a(lines: &[Line]) -> GateResult {
     g.put("turns", ts.len());
     g.put("idle_fraction", idle);
     g.put("boundary_to_turn_p99_ms", p99);
+    g.put("virtual_gap_ms", crate::canon::fixed(virtual_gap));
+    g.put("host_wall_ms", crate::canon::fixed(wall_ms));
+    g.put("host_wall_boundary_p99_ms", quantile(&wall_only, 0.99));
+    if let Some((ms, seq)) = worst {
+        g.put("host_wall_boundary_max", json!({"ms": ms, "seq": seq}));
+    }
     g.put("boundaries", boundaries.len());
     g.put("boundaries_without_decisions", bare.len());
     g.check(span >= G_A_RUN_MS as f64, "run shorter than 30 minutes");

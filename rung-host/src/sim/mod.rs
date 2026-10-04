@@ -112,6 +112,9 @@ pub struct Scenario {
     pub engine: Option<Arc<dyn crate::engine::TurnEngine>>,
     /// Lists the router's models for the ladder's filter.
     pub lister: Option<Arc<dyn crate::ladder::Lister>>,
+    /// The desk's ask timeout, instead of [`crate::desk::ASK_TIMEOUT`]
+    /// (the one wall-clock input a simulated run has).
+    pub desk_timeout: Option<std::time::Duration>,
 }
 
 impl Scenario {
@@ -149,6 +152,7 @@ impl Scenario {
             cleanup: None,
             engine: None,
             lister: None,
+            desk_timeout: None,
             dir,
         }
     }
@@ -209,6 +213,9 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
             mode,
         } => DecisionDesk::new(Some(decider), &backend, mode),
     };
+    if let Some(t) = sc.desk_timeout {
+        b.desk.timeout = t;
+    }
     if sc.memory {
         b.memory = Some(Arc::new(MemoryHost::baseline(
             &sc.dir.join("memory"),
