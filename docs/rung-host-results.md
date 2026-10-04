@@ -18,7 +18,7 @@ cargo test -p rung-host --locked -- --nocapture 2>&1 | grep '^GATE'
 | gate | test | measured | result |
 |---|---|---|---|
 | G-a no rest | `gate_time::thirty_quiet_minutes_have_no_rest` | 31 simulated minutes, 1,356 boundaries; idle 0.47%; boundary → turn p99 21.8 ms; every boundary has decisions | PASS |
-| G-b responsiveness | `gate_time::owner_stimuli_under_load_are_admitted_at_the_next_boundary` | 75 owner stimuli over 3 h at 30/h plus 40 peer/h and bursts; admission p95 1,343 ms vs turn p95 1,712 ms; no turn past 120 s; 5 long-work calls refused with the commit-or-steps message | PASS |
+| G-b responsiveness | `gate_time::owner_stimuli_under_load_are_admitted_at_the_next_boundary` | 75 owner stimuli over 3 h at 30/h plus 40 peer/h and bursts, with 1% long work; admission p95 1,504 ms vs turn p95 1,731 ms; every owner stimulus admitted at the first boundary after it arrived; no turn past 120 s; 17 long-work calls refused with the commit-or-steps message, 3 of them cut short because the owner was waiting | PASS |
 | G-c free-time kernel | `gate_kernel::two_thousand_turns_follow_the_kernel`, `material_is_unranked_on_a_rich_register`, `no_path_outside_the_kernel_writes_its_lines` | 2,000 turns: 1,233 free, 752 committed, 15 responding, 0 in the wrong mode; 92 commits, 91 releases, all from the agent's tools; material identical under 100/100 random scores; trybuild refuses forging `KernelEntry`, calling its constructors, or `Core::emit` from outside | PASS |
 | G-d schedule | `gate_time::due_items_fire_at_the_first_boundary_and_missed_ones_once`, `g_d_holds_when_every_ask_times_out` | 31 fires, none early, none duplicated, all at the first boundary after due, lateness = at − due; firm items admitted at that boundary although the decider deferred everything; across a 2 h downtime: 2 missed items fired once, late, and 1 `skip` item skipped; the same when every desk ask misses a 1 ms deadline (the simulated run's one wall-clock input), so the verdict does not depend on machine load | PASS |
 | G-e expectations | `gate_time::only_the_host_settles_expectations_and_calibration_recomputes` | 949 settled (met and missed), none by the agent (trybuild refuses building a `Settlement` outside the registers); surprise and calibration recomputed from the record match the host's exactly at every settlement; every decidable verdict matches its predicate | PASS |
@@ -36,12 +36,24 @@ cargo test -p rung-host --locked -- --nocapture 2>&1 | grep '^GATE'
   runs turn memory off: the `baseline` provider re-reads its whole store on
   every recall and retain, so a run of thousands of retains is quadratic.
   Memory is exercised in the G-a, G-b, G-c, G-d, G-m and process runs.
-- **G-b depends on how often long work happens.** A refused long call still
-  spends the tool deadline (30 s): the host cannot know a call is long until
-  it is. The frozen scenario now uses 0.1% long work. At 0.2% the gate failed
-  at that commit with admission p95 4,354 ms against a turn p95 of 1,698 ms,
-  and at 1% the admission p95 was 8.4 s. Admission latency is length-biased
-  by long turns.
+- **G-b and long work (#159).** A long call used to spend the whole 30 s
+  tool deadline before it was refused, and the host cannot know a call is
+  long until it is. An owner stimulus arriving during such a call waited for
+  the call to end, because admission happens only at a boundary. The frozen
+  scenario was cut to 0.1% long work. The measurement
+  (`measure_admission::admission_latency_by_long_work_share`, ignored; G-b's
+  scenario at five long-work shares and five seeds each) found that every
+  owner stimulus in all 25 runs was admitted at the first boundary after it
+  arrived. The wait was the length of the cycle it landed in, not host
+  lateness. G-b passed 4 of 5 seeds at 0.1%, 3 of 5 at 0.2%, 4 of 5 at 0.5%
+  and 0 of 5 at 1% (admission p95 7.1 to 19.7 s). Now a call that has run
+  past 1 s is cut as soon as an owner stimulus waits. Mid-call, the host
+  takes in what its sources hold and refuses the call with the
+  commit-or-steps message, saying the owner is waiting. With that, G-b
+  passes all 20 runs with long work (at 1%, admission p95 1.25 to 1.59 s
+  against a turn p95 of 1.73 to 1.76 s), and the scenario is back at 1%.
+  What remains: a cut call's work is abandoned, as an overrun's is, and a
+  source that cannot be polled mid-turn cannot cut a call.
 - **CI tier for the slow gates (#173).** Evaluated, not split now;
   deferred. Measured on CI (master push run 37199500246, before this
   change): the `check` job took 8.5 min, its test step 7.6 min; the
@@ -78,7 +90,7 @@ cargo test -p rung-host --locked -- --nocapture 2>&1 | grep '^GATE'
 
 ## Changes to the gate evaluators after they were frozen
 
-No threshold changed. Five evaluator changes, each named in the commit that made it:
+No threshold changed. Six evaluator changes, each named in the commit that made it:
 
 1. G-c read the turn kind from a field named `kind`, which the record
    reserves; the turn lines name it `turn_kind`.
@@ -91,3 +103,6 @@ No threshold changed. Five evaluator changes, each named in the commit that made
    boundary, which is what "per boundary" means (stricter).
 5. G-i skips a restart whose run holds only a `host.start` (it died
    while waking and wrote nothing else); the restart after it is checked.
+6. G-b counts a long call cut short for a waiting owner (`why:
+   owner_waiting`, with its own commit-or-steps message) as long work, as
+   it counts one refused at the deadline (#159).

@@ -306,7 +306,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `calendar.added` / `.fired` / `.skipped` / `.removed` | an entry; a fire has `id`, `due`, `late_by_ms`, `missed`, `firm`, `item_id` |
 | `decision.<family>` | `boundary`, `turn`, `input_hash`, `questions_hash`, `answers`, `choice`, `by` (`{"jev": {backend, model, cost_usd}}` or `{"rule": why}`), `rule_choice` and `agree` in shadow mode, `wall_us` |
 | `turn.started` | `turn`, `turn_kind`, `mode`, `project`, `model`, `rung`, `epoch`, `pack_tokens`, `header_tokens`, `enabled`, `wall_boundary_us` |
-| `tool.call` / `tool.refused` | `turn`, `name`, `group`, `ok`; a refusal has `why` (`disabled`, `overran`) and `message` |
+| `tool.call` / `tool.refused` | `turn`, `name`, `group`, `ok`; a refusal has `why` (`disabled`, `overran`, `owner_waiting`) and `message` |
 | `llm.call` | `turn`, `call`, `epoch`, `rung`, `model_requested`, `model_served`, `provider`, `prompt_tokens`, `cached_tokens`, `cache_write_tokens`, `completion_tokens`, `reasoning_tokens`, `cost_usd`, `latency_ms`, `prefix {s_hash, l_hash, log_len_bytes, expected_cached_tokens}` |
 | `cache.break` / `cache.cold` | `turn`, `call`, `cause` |
 | `turn.log` | `turn`, `header` (recall stripped), `messages` (verbatim, as sent) |

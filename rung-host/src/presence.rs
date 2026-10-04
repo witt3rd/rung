@@ -484,7 +484,7 @@ impl Host {
         *lock(&self.desk_deadline)
     }
 
-    fn step(&self, edge: Edge) -> Next {
+    fn step(self: &Arc<Self>, edge: Edge) -> Next {
         let started = Instant::now();
         // Every ask at this boundary shares one budget.
         *lock(&self.desk_deadline) = started + self.desk.timeout;
@@ -1046,7 +1046,7 @@ impl Host {
 
     #[allow(clippy::too_many_arguments)]
     fn turn(
-        &self,
+        self: &Arc<Self>,
         n: u64,
         turn: u64,
         kind: TurnKind,
@@ -1179,15 +1179,18 @@ impl Host {
         };
         let deadline = now + cfg.turn_bound_ms;
         let enabled_set: BTreeSet<String> = enabled.iter().cloned().collect();
-        let tools = Arc::new(HostTools::new(
-            core.clone(),
-            turn,
-            enabled_set,
-            deadline,
-            self.memory.clone(),
-            self.web.clone(),
-            cfg.workspace.clone(),
-        ));
+        let tools = Arc::new(
+            HostTools::new(
+                core.clone(),
+                turn,
+                enabled_set,
+                deadline,
+                self.memory.clone(),
+                self.web.clone(),
+                cfg.workspace.clone(),
+            )
+            .with_interrupt(Arc::new(OwnerWatch(Arc::downgrade(self)))),
+        );
         let (mode, project) = {
             let st = core.state();
             (
@@ -1515,6 +1518,32 @@ impl Host {
             }
         }
         core.sync();
+    }
+}
+
+/// Cuts a long tool call when an owner stimulus waits (#159): mid-call it
+/// takes in what the sources hold, as a boundary would (an outward channel's
+/// stimuli are accepted as they come), and looks for a pending owner item.
+struct OwnerWatch(std::sync::Weak<Host>);
+
+impl toolbox::Interrupt for OwnerWatch {
+    fn owner_waiting(&self) -> bool {
+        let Some(h) = self.0.upgrade() else {
+            return false;
+        };
+        h.poll_sources();
+        h.core
+            .state()
+            .inbox
+            .pending
+            .values()
+            .any(|p| p.item.role == Role::Owner)
+    }
+
+    fn next_arrival(&self) -> Option<Millis> {
+        let h = self.0.upgrade()?;
+        let src = lock(&h.sources);
+        src.iter().filter_map(|s| s.next_at()).min()
     }
 }
 
