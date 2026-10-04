@@ -197,3 +197,14 @@ free.
 | G-l cache discipline | 10,000 turns | within an epoch each request is a byte-prefix of the next; `s_hash` changes only at a swap, `l_hash` only at a rollover; canonical bytes stable across 2 processes; mock cache efficiency ≥ 0.98 outside recorded breaks |
 | G-m decisions | scripted answers, every `Undecided`, 3 s delays, cap exhaustion | every family returns a choice on every path with the right `by`; guards hold under adversarial answers; a 3 s delay costs ≤ 2 s per boundary; `Recorded` replay panics on a reworded question |
 | G-k cost | the whole slice | $0: loopback only, no live model, no live Jev |
+
+## Gates (slice 2)
+
+Frozen in the same file, below slice 1's, before the first run of what each
+gates. Every slice-2 run is loopback-only: a scripted provider on 127.0.0.1
+(`rung-host/src/sim/http.rs`) answers in the OpenAI-compatible wire shape a
+router documents. No live model, no live Jev, no key.
+
+| id | measure | pass when |
+|---|---|---|
+| G-n engine adapter | the host on `rung-agent-core`'s engine through the adapter, 24 turns against the loopback provider | every request loopback and every `llm.call` served by it; each request asks for its turn's model with its epoch as `session_id`; exactly two cache breakpoints, at the stable and slow layers' ends; inside a session each request extends the previous (same tools, previous messages a prefix; a last step without its closing instruction); a long tool result seen again unchanged; every `llm.call` carries the served usage, cache and cost; the model's tool calls ran through the host (a note written, a disabled tool refused); a provider 429 recorded as the provider's and stepping down, later probing up; a platform 429 recorded as the platform's, waiting for its reset, no step down; $0 |
