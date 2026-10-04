@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Headless composition of rung-std blocks: catalog, sessions, isolation, a task CLI"
+publish = false
 
 [dependencies]
 rung-agent-core = { path = "../rung-agent-core" }

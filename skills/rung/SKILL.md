@@ -34,6 +34,11 @@ A release is its own commit: bump `[workspace.package] version` in
 tag. The version must match the tag. Downstream consumers pin tags.
 Each release adds its `CHANGELOG.md` entry in the release commit.
 Wait for CI on the release commit before you report the release.
+The CI `release-check` job (PRs and `v*` tag pushes) verifies, and never
+publishes: tag equals workspace version (tag pushes only), `Cargo.lock` is
+current (`--locked`), crates depending on a `publish = false` crate are also
+`publish = false` (`docs/_release_check.py`), and `cargo build -p rung-agent
+--release --locked` succeeds. Rung is unpublished; nothing goes to crates.io.
 
 ## CI
 

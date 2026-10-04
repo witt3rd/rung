@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [master]
+    tags: ['v*']
   pull_request:
 
 env:
@@ -49,3 +50,24 @@ jobs:
         run: docs/_props.py cited
       - name: no consumer-specific names (one-way rule)
         run: docs/_consumer_guard.py
+
+  # Verification only: this job never publishes (no cargo publish, no token).
+  release-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Cargo.lock is current
+        run: cargo metadata --locked --format-version 1 >/dev/null
+      - name: tag matches workspace version; publish=false crates are marked
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            docs/_release_check.py "${GITHUB_REF_NAME}"
+          else
+            docs/_release_check.py
+          fi
+      - name: release build of rung-agent
+        run: cargo build -p rung-agent --release --locked
