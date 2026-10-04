@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 372 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 378 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1044,6 +1044,15 @@ look shorter than it is.
 - `the_registry_builds_baseline_and_refuses_reserved_names`
 - `walk_searches_follows_edges_and_fetches_and_sums_the_cost`
 - `walk_with_no_hits_fetches_nothing`
+
+**`rung-memory/tests/properties.rs`** — 6 unclaimed
+
+- `a_budget_cut_keeps_whole_records_in_order_within_both_limits`
+- `equal_relevance_goes_to_the_newer_record`
+- `recency_never_outweighs_relevance`
+- `the_tie_break_is_per_scope_position_not_global`
+- `walk_never_returns_a_record_of_another_scope`
+- `walk_over_an_all_in_scope_store_is_never_refused_and_has_no_duplicates`
 
 **`rung-memory/tests/ui.rs`** — 1 unclaimed
 

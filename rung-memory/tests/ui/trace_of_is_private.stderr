@@ -1,0 +1,10 @@
+error[E0624]: associated function `of` is private
+ --> tests/ui/trace_of_is_private.rs:7:27
+  |
+7 |     let t: Trace = Trace::of(1, 0.0, std::time::Instant::now());
+  |                           ^^ private associated function
+  |
+ ::: src/lib.rs
+  |
+  |     fn of(calls: u32, cost_usd: f64, started: Instant) -> Self {
+  |     ---------------------------------------------------------- private associated function defined here
