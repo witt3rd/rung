@@ -283,49 +283,12 @@ fn respond(sock: &mut TcpStream, code: u16, ctype: &str, payload: &str) {
 
 type Log = Arc<Mutex<Vec<String>>>;
 
-/// OpenAI-compatible model: each request gets the next reply, as SSE when
-/// the request streams.
+/// The scripted mock, logging each request as `<request line>\n<body>`.
 fn mock_llm(replies: Vec<Value>, log: Log) -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    std::thread::spawn(move || {
-        for reply in replies {
-            let Ok((mut sock, _)) = listener.accept() else {
-                return;
-            };
-            let Some((line, body)) = read_request(&mut sock) else {
-                continue;
-            };
-            log.lock().unwrap().push(format!("{line}\n{body}"));
-            let parsed: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
-            if let Some(status) = reply["__status"].as_u64() {
-                respond(
-                    &mut sock,
-                    status as u16,
-                    "application/json",
-                    &reply["__body"].to_string(),
-                );
-            } else if parsed["stream"] == true {
-                let mut delta = reply["choices"][0]["message"].clone();
-                if let Some(calls) = delta.get_mut("tool_calls").and_then(|c| c.as_array_mut()) {
-                    for (i, c) in calls.iter_mut().enumerate() {
-                        c["index"] = json!(i);
-                    }
-                }
-                let chunk = json!({"id": reply["id"], "model": reply["model"],
-                    "choices": [{"delta": delta, "finish_reason": reply["choices"][0]["finish_reason"]}]});
-                respond(
-                    &mut sock,
-                    200,
-                    "text/event-stream",
-                    &format!("data: {chunk}\n\ndata: [DONE]\n\n"),
-                );
-            } else {
-                respond(&mut sock, 200, "application/json", &reply.to_string());
-            }
-        }
+    let origin = rung_testkit::llm::serve_llm(replies, move |r| {
+        log.lock().unwrap().push(format!("{}\n{}", r.line, r.raw));
     });
-    format!("http://127.0.0.1:{port}/v1")
+    format!("{origin}/v1")
 }
 
 /// The judge (`POST {base}/systemone`): each request gets the next response.

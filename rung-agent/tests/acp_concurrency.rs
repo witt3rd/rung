@@ -7,10 +7,10 @@
 //! LLM call, before the tool), so the mock sees exactly one request.
 
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
@@ -27,75 +27,21 @@ fn tempdir() -> rung_testkit::TempDir {
     rung_testkit::TempDir::new("agent-acp-conc")
 }
 
-/// OpenAI-compatible mock: answers the `n`th request to connect with
-/// `replies[n]` after its delay (SSE when the body asks to stream), each on
-/// its own thread so overlapping requests would overlap here too. Records
-/// each request body and when it arrived.
+/// The scripted mock with a hold per reply; records each request body and
+/// when it arrived.
 fn mock_llm(replies: Vec<(Duration, Value)>) -> (String, Receiver<(Value, Instant)>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
     let (tx, rx) = channel();
-    std::thread::spawn(move || {
-        for (delay, reply) in replies {
-            let Ok((sock, _)) = listener.accept() else {
-                return;
-            };
-            let tx = tx.clone();
-            std::thread::spawn(move || answer(sock, delay, reply, tx));
-        }
+    let replies = replies
+        .into_iter()
+        .map(|(delay, mut reply)| {
+            reply["__delay_ms"] = json!(delay.as_millis() as u64);
+            reply
+        })
+        .collect();
+    let url = rung_testkit::llm::serve_llm(replies, move |r| {
+        let _ = tx.send((r.json(), r.at));
     });
-    (format!("http://127.0.0.1:{port}"), rx)
-}
-
-fn answer(mut sock: TcpStream, delay: Duration, reply: Value, tx: Sender<(Value, Instant)>) {
-    let mut buf = Vec::new();
-    let mut chunk = [0u8; 8192];
-    let body = loop {
-        let n = sock.read(&mut chunk).unwrap();
-        buf.extend_from_slice(&chunk[..n]);
-        let text = String::from_utf8_lossy(&buf).to_string();
-        if let Some(at) = text.find("\r\n\r\n") {
-            let len = text[..at]
-                .lines()
-                .find_map(|l| {
-                    l.to_ascii_lowercase()
-                        .strip_prefix("content-length:")
-                        .map(|v| v.trim().parse::<usize>().unwrap())
-                })
-                .unwrap_or(0);
-            if buf.len() >= at + 4 + len {
-                break String::from_utf8_lossy(&buf[at + 4..at + 4 + len]).to_string();
-            }
-        }
-        assert!(n != 0, "short request");
-    };
-    let body: Value = serde_json::from_str(&body).unwrap();
-    let stream = body["stream"] == true;
-    let _ = tx.send((body, Instant::now()));
-    std::thread::sleep(delay);
-    let (ctype, payload) = if stream {
-        let mut delta = reply["choices"][0]["message"].clone();
-        if let Some(calls) = delta.get_mut("tool_calls").and_then(|c| c.as_array_mut()) {
-            for (i, c) in calls.iter_mut().enumerate() {
-                c["index"] = json!(i);
-            }
-        }
-        let chunk = json!({
-            "id": reply["id"], "model": reply["model"],
-            "choices": [{"delta": delta, "finish_reason": reply["choices"][0]["finish_reason"]}]
-        });
-        (
-            "text/event-stream",
-            format!("data: {chunk}\n\ndata: [DONE]\n\n"),
-        )
-    } else {
-        ("application/json", reply.to_string())
-    };
-    let resp = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
-        payload.len()
-    );
-    let _ = sock.write_all(resp.as_bytes());
+    (url, rx)
 }
 
 fn text_reply(text: &str) -> Value {

@@ -4,6 +4,10 @@
 //! under the system temp root and removed on drop (including on panic), so a
 //! test run leaves nothing behind. CI runs `scripts/test_tmp_clean.sh`, which runs
 //! the tests with a private temp root and fails if any entry survives in it.
+//!
+//! [`llm::mock_llm`] is the one scripted OpenAI-compatible server for tests.
+
+pub mod llm;
 
 use std::ops::Deref;
 use std::path::{Path, PathBuf};

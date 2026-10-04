@@ -1624,6 +1624,9 @@ dependencies = [
 [[package]]
 name = "rung-testkit"
 version = "0.2.1"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "rustc-hash"
