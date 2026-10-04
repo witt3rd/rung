@@ -120,6 +120,8 @@ pub fn resolve(
         protocol: provider.protocol.unwrap_or_default(),
         cache: rung_std::llm::CachePolicy::None,
         stream_listener: None,
+        session_id: None,
+        cache_breakpoints: Vec::new(),
     })
 }
 

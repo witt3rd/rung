@@ -594,6 +594,7 @@ impl TurnEngine for MockEngine {
             calls,
             failure,
             ended,
+            rewritten: false,
         }
     }
 }

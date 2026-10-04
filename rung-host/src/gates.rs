@@ -1,4 +1,6 @@
-//! The slice-1 acceptance gates, frozen before the first run of the host.
+//! The host's acceptance gates: slice 1's, frozen before the first run of
+//! the host, and slice 2's (below the slice-1 gates), frozen before the
+//! first run of what they gate.
 //!
 //! Each gate is a pure function over what a run leaves behind: the record
 //! (its [`Line`]s) and, where the record cannot hold the evidence, what the
@@ -1352,6 +1354,357 @@ pub fn g_k(lines: &[Line]) -> GateResult {
         engines.iter().all(|e| e == "mock"),
         "an engine other than the mock ran",
     );
+    g
+}
+
+// ═══ Slice 2 ═════════════════════════════════════════════════════════════════
+//
+// Frozen before the real engine adapter, the ladder's listing filter, ACP
+// outward and the startup ladder were first run. Every slice-2 run is
+// loopback-only: a scripted provider on 127.0.0.1 answers in the
+// OpenAI-compatible wire shape a router documents. No live model, no live
+// Jev, no key.
+
+/// G-n: a host tool result at least this long (the CLI history's shortening
+/// threshold) must reach a later request of its epoch unchanged.
+pub const G_N_LONG_RESULT_CHARS: usize = 4_000;
+
+/// What the scripted loopback provider served for one completion.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Served {
+    pub model: String,
+    pub prompt: u64,
+    pub cached: u64,
+    pub cache_write: u64,
+    pub completion: u64,
+    pub cost_usd: f64,
+}
+
+/// One HTTP request as the scripted loopback provider received it.
+#[derive(Debug, Clone, Serialize)]
+pub struct HttpSeen {
+    pub method: String,
+    pub path: String,
+    /// The connection came from a loopback address.
+    pub loopback: bool,
+    /// The request body as JSON (`Null` when it had none).
+    pub body: Value,
+    pub status: u16,
+    /// A completion it served.
+    pub served: Option<Served>,
+    /// A 429 it sent: `provider` (an upstream's, with the router's provider
+    /// metadata) or `platform` (the router's own, with `X-RateLimit-*`).
+    pub refusal: Option<String>,
+    /// The `X-RateLimit-Reset` it sent, ms since the Unix epoch.
+    pub reset_at: Option<i64>,
+}
+
+/// The turn a request belongs to: the newest turn header in its messages.
+pub fn request_turn(body: &Value) -> Option<u64> {
+    let msgs = body["messages"].as_array()?;
+    msgs.iter().rev().find_map(|m| {
+        if m["role"] != "user" {
+            return None;
+        }
+        let text = match &m["content"] {
+            Value::String(t) => t.clone(),
+            Value::Array(parts) => parts
+                .first()
+                .and_then(|p| p["text"].as_str())
+                .unwrap_or("")
+                .to_string(),
+            _ => return None,
+        };
+        let rest = text.strip_prefix("[turn ")?;
+        rest.split(' ').next()?.parse().ok()
+    })
+}
+
+fn markers(v: &Value) -> usize {
+    match v {
+        Value::Object(m) => {
+            usize::from(m.contains_key("cache_control")) + m.values().map(markers).sum::<usize>()
+        }
+        Value::Array(a) => a.iter().map(markers).sum(),
+        _ => 0,
+    }
+}
+
+fn last_part_marked(m: &Value) -> bool {
+    m["content"]
+        .as_array()
+        .and_then(|a| a.last())
+        .is_some_and(|p| p.get("cache_control").is_some())
+}
+
+// ─── G-n the real engine adapter ─────────────────────────────────────────────
+
+/// G-n: the host runs `rung-agent-core`'s engine through the adapter
+/// against a loopback provider. The record and the wire agree, and the
+/// cache discipline holds on the real request bodies:
+///
+/// - every request is loopback, and every `llm.call` was served by it;
+/// - each request asks for the model of the turn that sent it, with the
+///   turn's epoch as `session_id` (L14);
+/// - the stable and slow layers' ends carry the only two cache breakpoints
+///   (L14, lowered on the OpenAI-compatible wire);
+/// - inside a session each request extends the previous one: the same
+///   tools, the previous messages as a prefix — nothing is rewritten
+///   mid-epoch (L12). A turn's last step (tools withdrawn, one closing
+///   instruction appended) extends it too, without its last message;
+/// - a long host tool result reaches a later request unchanged;
+/// - every `llm.call` carries the usage, cache and cost the provider served
+///   (L11, as the adapter reads it);
+/// - the model's tool calls ran through the host's tools (a note was
+///   written; a disabled tool was refused);
+/// - a provider 429 is recorded as the provider's and steps the ladder down,
+///   later probing up; a platform 429 is recorded as the platform's, waits
+///   for its `X-RateLimit-Reset` and does not step down;
+/// - no money moved.
+pub fn g_n(lines: &[Line], seen: &[HttpSeen]) -> GateResult {
+    let mut g = GateResult::new("G-n");
+    let chats: Vec<&HttpSeen> = seen
+        .iter()
+        .filter(|h| h.method == "POST" && h.path.ends_with("/chat/completions"))
+        .collect();
+    let not_loopback = seen.iter().filter(|h| !h.loopback).count();
+    // turn → (epoch, model)
+    let mut turns: BTreeMap<u64, (u64, String)> = BTreeMap::new();
+    for l in of(lines, "turn.started") {
+        turns.insert(l.u64("turn"), (l.u64("epoch"), l.str("model").to_string()));
+    }
+    let (mut unplaced, mut wrong_model, mut wrong_session) = (0, 0, 0);
+    let (mut bad_markers, mut with_tools) = (0, 0);
+    let (mut extends, mut broken, mut last_steps, mut last_broken) = (0, 0, 0, 0);
+    let mut prev: BTreeMap<String, (Value, Vec<Value>)> = BTreeMap::new();
+    let mut long_sent: Vec<(String, String)> = Vec::new();
+    let mut long_verbatim = 0;
+    for h in &chats {
+        let b = &h.body;
+        let Some(turn) = request_turn(b) else {
+            unplaced += 1;
+            continue;
+        };
+        let Some((epoch, model)) = turns.get(&turn) else {
+            unplaced += 1;
+            continue;
+        };
+        if b["model"].as_str() != Some(model.as_str()) {
+            wrong_model += 1;
+        }
+        let session = b["session_id"].as_str().unwrap_or("").to_string();
+        if session != format!("epoch-{epoch}") {
+            wrong_session += 1;
+        }
+        let msgs: Vec<Value> = b["messages"].as_array().cloned().unwrap_or_default();
+        let has_tools = b.get("tools").is_some();
+        if has_tools {
+            with_tools += 1;
+            let ok = msgs.len() >= 2
+                && msgs[0]["role"] == "system"
+                && last_part_marked(&msgs[0])
+                && last_part_marked(&msgs[1])
+                && markers(b) == 2;
+            if !ok {
+                bad_markers += 1;
+            }
+        }
+        // Long tool results: sent once, then seen again unchanged.
+        for m in &msgs {
+            if m["role"] == "tool"
+                && let Some(c) = m["content"].as_str()
+                && c.chars().count() >= G_N_LONG_RESULT_CHARS
+            {
+                let key = (session.clone(), c.to_string());
+                if long_sent.contains(&key) {
+                    long_verbatim += 1;
+                } else {
+                    long_sent.push(key);
+                }
+            }
+        }
+        if let Some((ptools, pmsgs)) = prev.get(&session) {
+            if has_tools {
+                if *ptools == b["tools"]
+                    && msgs.len() >= pmsgs.len()
+                    && msgs[..pmsgs.len()] == pmsgs[..]
+                {
+                    extends += 1;
+                } else {
+                    broken += 1;
+                }
+            } else {
+                last_steps += 1;
+                let body = &msgs[..msgs.len().saturating_sub(1)];
+                if !(body.len() >= pmsgs.len() && body[..pmsgs.len()] == pmsgs[..]) {
+                    last_broken += 1;
+                }
+            }
+        }
+        if has_tools {
+            prev.insert(session, (b["tools"].clone(), msgs));
+        }
+    }
+    // The record's calls against what was served, in order.
+    let served: Vec<&Served> = chats.iter().filter_map(|h| h.served.as_ref()).collect();
+    let calls: Vec<&Line> = of(lines, "llm.call").collect();
+    let mut usage_bad = 0;
+    for (l, s) in calls.iter().zip(served.iter()) {
+        let same = l.str("model_served") == s.model
+            && l.u64("prompt_tokens") == s.prompt
+            && l.u64("cached_tokens") == s.cached
+            && l.u64("cache_write_tokens") == s.cache_write
+            && l.u64("completion_tokens") == s.completion
+            && (l.f64("cost_usd") - s.cost_usd).abs() < 1e-12;
+        if !same {
+            usage_bad += 1;
+        }
+    }
+    // Tools ran through the host.
+    let notes = of(lines, "note.written").count();
+    let tool_ok = of(lines, "tool.call")
+        .filter(|l| l.get("ok") == &Value::Bool(true))
+        .count();
+    let refused_disabled = of(lines, "tool.refused")
+        .filter(|l| l.str("why") == "disabled")
+        .count();
+    // Failures: who refused, what followed.
+    let refusals_of = |turn: u64| -> BTreeSet<String> {
+        chats
+            .iter()
+            .filter(|h| request_turn(&h.body) == Some(turn))
+            .filter_map(|h| h.refusal.clone())
+            .collect()
+    };
+    let (mut provider_429, mut platform_429) = (0, 0);
+    let (mut origin_bad, mut follow_bad) = (0, 0);
+    let mut first_down: Option<u64> = None;
+    for (i, l) in lines.iter().enumerate() {
+        if l.kind != "turn.ended" || l.get("failure")["class"] != "rate_limit" {
+            continue;
+        }
+        let f = l.get("failure");
+        let origin = f["origin"].as_str().unwrap_or("");
+        let sent = refusals_of(l.u64("turn"));
+        if sent.len() != 1 || !sent.contains(origin) {
+            origin_bad += 1;
+        }
+        let after: Vec<&Line> = lines[i + 1..]
+            .iter()
+            .take_while(|x| x.kind != "turn.started")
+            .collect();
+        let down = after
+            .iter()
+            .any(|x| x.kind == "model.switch" && x.str("direction") == "down");
+        match origin {
+            "provider" => {
+                provider_429 += 1;
+                if !down {
+                    follow_bad += 1;
+                }
+                first_down.get_or_insert(l.seq);
+            }
+            "platform" => {
+                platform_429 += 1;
+                let reset = f["reset_at"].as_i64();
+                // The reset of the last refused attempt: the one that
+                // stopped the turn.
+                let sent_reset = chats
+                    .iter()
+                    .filter(|h| request_turn(&h.body) == Some(l.u64("turn")))
+                    .filter_map(|h| h.reset_at)
+                    .next_back();
+                let waited = after.iter().any(|x| {
+                    x.kind == "degraded"
+                        && x.str("class") == "quota"
+                        && Some(x.i64("until")) == reset
+                });
+                if down || reset.is_none() || reset != sent_reset || !waited {
+                    follow_bad += 1;
+                }
+            }
+            _ => origin_bad += 1,
+        }
+    }
+    let probed_up = first_down.is_some_and(|seq| {
+        of(lines, "model.switch").any(|x| x.seq > seq && x.str("direction") == "up")
+    });
+    let cost: f64 = calls.iter().map(|l| l.f64("cost_usd")).sum();
+    g.put("requests", seen.len());
+    g.put("chat_requests", chats.len());
+    g.put("not_loopback", not_loopback);
+    g.put("llm_calls", calls.len());
+    g.put("served", served.len());
+    g.put("unplaced", unplaced);
+    g.put("wrong_model", wrong_model);
+    g.put("wrong_session", wrong_session);
+    g.put("with_tools", with_tools);
+    g.put("bad_breakpoints", bad_markers);
+    g.put("extends", extends);
+    g.put("prefix_breaks", broken);
+    g.put("last_steps", last_steps);
+    g.put("last_step_breaks", last_broken);
+    g.put("long_results_verbatim", long_verbatim);
+    g.put("usage_mismatch", usage_bad);
+    g.put("tool_calls_ok", tool_ok);
+    g.put("notes_written", notes);
+    g.put("refused_disabled", refused_disabled);
+    g.put("provider_429_turns", provider_429);
+    g.put("platform_429_turns", platform_429);
+    g.put("origin_mismatch", origin_bad);
+    g.put("follow_mismatch", follow_bad);
+    g.put("probed_up", probed_up);
+    g.put("cost_usd", cost);
+    g.check(not_loopback == 0, "a request left loopback");
+    g.check(!calls.is_empty(), "no model call ran");
+    g.check(
+        calls.len() == served.len(),
+        "the record's calls and the served completions differ in number",
+    );
+    g.check(unplaced == 0, "a request belongs to no recorded turn");
+    g.check(
+        wrong_model == 0,
+        "a request asked for another model than its turn's",
+    );
+    g.check(
+        wrong_session == 0,
+        "a request's session_id is not its turn's epoch",
+    );
+    g.check(
+        with_tools > 0 && bad_markers == 0,
+        "the cache breakpoints are not exactly the stable and slow layers' ends",
+    );
+    g.check(
+        extends > 0 && broken == 0,
+        "a request in a session does not extend the previous",
+    );
+    g.check(
+        last_steps > 0 && last_broken == 0,
+        "no turn reached its last step, or one does not extend the previous request",
+    );
+    g.check(
+        long_verbatim > 0,
+        "no long tool result was seen again unchanged",
+    );
+    g.check(usage_bad == 0, "an llm.call does not carry what was served");
+    g.check(
+        notes > 0 && tool_ok > 0 && refused_disabled > 0,
+        "the model's tool calls did not run through the host's tools",
+    );
+    g.check(
+        provider_429 > 0 && platform_429 > 0,
+        "the run did not meet both a provider and a platform 429",
+    );
+    g.check(origin_bad == 0, "a 429 was recorded with the wrong origin");
+    g.check(
+        follow_bad == 0,
+        "a 429 was not followed by its plan (provider: step down; platform: wait for the reset, no step down)",
+    );
+    g.check(
+        probed_up,
+        "the ladder never probed back up after stepping down",
+    );
+    g.check(cost == 0.0, "money was spent");
     g
 }
 

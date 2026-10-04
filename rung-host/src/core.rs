@@ -38,7 +38,7 @@ impl Sealed for crate::registers::Settlement {
 /// The operator's configuration of one host.
 #[derive(Debug, Clone, Serialize)]
 pub struct HostConfig {
-    /// `mock` in this slice.
+    /// `mock` (the scripted engine) or `agent` (the real adapter).
     pub engine: String,
     /// The identity seed (the operator's text; rung ships none).
     pub identity: String,

@@ -1309,6 +1309,9 @@ impl Host {
         if let Some(f) = &failure {
             body["failure"] = f.to_value();
         }
+        if out.rewritten {
+            body["rewritten"] = true.into();
+        }
         if let Some(cap) = cfg.governor.spend_cap_usd_day {
             let spent = core.state().governor.paid_spent_today;
             if spent >= cap {

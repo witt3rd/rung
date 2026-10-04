@@ -258,6 +258,12 @@ impl Engine {
 
         let calls = Arc::new(Mutex::new(Vec::new()));
         let mut config = self.llm.clone();
+        if let Some(m) = &ctl.model {
+            config.model = m.clone();
+        }
+        if let Some(id) = &ctl.session_id {
+            config.session_id = Some(id.clone());
+        }
         config.stream_listener = ctl.stream_listener.clone().map(|inner| {
             Arc::new(CallRecorder {
                 inner,
@@ -404,6 +410,12 @@ pub struct TurnCtl {
     pub request: String,
     /// Earlier turns' assistant messages, for the turn check's prior actions.
     pub earlier: Vec<ChatMessage>,
+    /// This turn's model, over the spec's (a host walking a model ladder).
+    /// `None`: the spec's.
+    pub model: Option<String>,
+    /// This turn's request-level session id ([`LlmConfig::session_id`]),
+    /// over the spec's. `None`: the spec's.
+    pub session_id: Option<String>,
 }
 
 impl Default for TurnCtl {
@@ -416,6 +428,8 @@ impl Default for TurnCtl {
             gate: ToolGate::AllowAll,
             request: String::new(),
             earlier: Vec::new(),
+            model: None,
+            session_id: None,
         }
     }
 }
@@ -481,6 +495,10 @@ impl StreamListener for CallRecorder {
             _ => {}
         }
         self.inner.on_event(event);
+    }
+
+    fn on_http_failure(&self, failure: &rung_std::llm::HttpFailure) {
+        self.inner.on_http_failure(failure);
     }
 }
 

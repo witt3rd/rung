@@ -3,6 +3,7 @@
 //! live model; it is the harness the gates run on, not a product path.
 
 pub mod faults;
+pub mod http;
 pub mod mock;
 pub mod world;
 
@@ -106,6 +107,9 @@ pub struct Scenario {
     pub notifier: Option<crate::notify::Notifier>,
     /// Removes the directory when the test passes (see [`temp_dir_guard`]).
     pub cleanup: Option<TempDir>,
+    /// Run this engine instead of the scripted mock (the real adapter
+    /// against a loopback provider). The mock is still built, unused.
+    pub engine: Option<Arc<dyn crate::engine::TurnEngine>>,
 }
 
 impl Scenario {
@@ -141,6 +145,7 @@ impl Scenario {
             stop: None,
             notifier: None,
             cleanup: None,
+            engine: None,
             dir,
         }
     }
@@ -182,7 +187,11 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
     }
     let mut sources: Vec<Box<dyn Source>> = vec![Box::new(FakeWorld::new(&world))];
     sources.extend(sc.sources);
-    let mut b = HostBuilder::new(sc.config, &sc.dir, clock, mock.clone());
+    let engine: Arc<dyn crate::engine::TurnEngine> = match sc.engine {
+        Some(e) => e,
+        None => mock.clone(),
+    };
+    let mut b = HostBuilder::new(sc.config, &sc.dir, clock, engine);
     if let Some(s) = sc.stop {
         b.stop = s;
     }
