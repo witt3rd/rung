@@ -62,10 +62,11 @@ fn owner_stimuli_under_load_are_admitted_at_the_next_boundary() {
         peer_per_hour: 40.0,
         ..busy_world(5, 3 * HOUR)
     };
-    // Long work is rare (a few events per run): a refused call still spends the tool deadline,
-    // and an owner item that lands in such a turn waits it out.
-    sc.mock.p_long_work = 0.001;
-    sc.mock.p_long_work_responding = 0.001;
+    // 1% long work (about 25 long calls a run). A long call that runs past the cut-off is cut
+    // as soon as an owner waits (#159); before that the owner waited out the 30 s tool
+    // deadline and this scenario failed (admission p95 15.9 s against a turn p95 of 1.7 s).
+    sc.mock.p_long_work = 0.01;
+    sc.mock.p_long_work_responding = 0.01;
     sc.desk = scripted(Step::Seeded(5));
     let dir = sc.dir.clone();
     let out = sim::run(sc);

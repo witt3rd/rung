@@ -8,8 +8,9 @@
 //! Each run is G-b's scenario with only the long-work share changed. It prints, per share,
 //! the measured admission p95, the turn p95 G-b compares it with, and the p95 wait an arrival
 //! uniform in time has for the next boundary given the run's cycle lengths
-//! ([`gates::admission_bias`]). It asserts the host-side property under every share: each
-//! owner stimulus is admitted at the first boundary after it arrived.
+//! ([`gates::admission_bias`]). It asserts the host-side property under every share (each
+//! owner stimulus is admitted at the first boundary after it arrived) and that G-b holds at
+//! every share with long work, now that a long call is cut when an owner waits.
 
 mod common;
 
@@ -57,21 +58,31 @@ fn admission_latency_by_long_work_share() {
         hs.into_iter().map(|h| h.join().unwrap()).collect()
     });
     eprintln!(
-        "MEASURE share | seed | owner | admission_p95_ms | turn_p95_ms | residual_p95_ms | long_time_share | long_refused | owner_in_long_cycles | after_next_boundary | G-b"
+        "MEASURE share | seed | owner | admission_p95_ms | turn_p95_ms | residual_p95_ms | long_time_share | long_refused | cut_for_owner | owner_in_long_cycles | after_next_boundary | G-b"
     );
     for (share, seed, g, b) in &rows {
         let m = &g.measured;
         eprintln!(
-            "MEASURE {share} | {seed} | {} | {} | {} | {} | {:.4} | {} | {} | {} | {}",
+            "MEASURE {share} | {seed} | {} | {} | {} | {} | {:.4} | {} | {} | {} | {} | {}",
             m["owner_stimuli"],
             m["admission_p95_ms"],
             m["turn_p95_ms"],
             b.residual_p95_ms,
             b.long_time_share,
             m["long_work_refused"],
+            m["long_work_cut_for_owner"],
             b.owner_in_long_cycles,
             b.after_next_boundary,
             if g.pass { "PASS" } else { "FAIL" },
+        );
+    }
+    for (share, seed, g, _) in &rows {
+        // With long work cut for a waiting owner, G-b holds at every share (it fails at 0
+        // only for want of long work to check).
+        assert!(
+            *share == 0.0 || g.pass,
+            "share {share} seed {seed}: {:?}",
+            g.failures
         );
     }
     for (share, seed, _, b) in &rows {
