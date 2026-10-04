@@ -7,6 +7,10 @@ git tags only.
 
 ## [Unreleased]
 
+### Added
+- `rung-host`: ACP outward gate adapter and startup handoff (#178); the model
+  ladder is filtered by the router listing (#177).
+
 ## [0.2.0] - 2026-10-04
 
 ### Added
