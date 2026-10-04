@@ -31,6 +31,34 @@ use crate::clock::Millis;
 /// Kinds only a sealed entry may write.
 pub const SEALED_KINDS: &[&str] = &["kernel.commit", "kernel.release", "expectation.settled"];
 
+/// One line of a batch ([`Record::append_batch`]): a plain kind, or a
+/// sealed kind its own entry built.
+#[derive(Debug)]
+pub(crate) struct BatchLine {
+    kind: &'static str,
+    body: Value,
+    sealed: bool,
+}
+
+impl BatchLine {
+    pub(crate) fn plain(kind: &'static str, body: Value) -> Self {
+        Self {
+            kind,
+            body,
+            sealed: false,
+        }
+    }
+
+    /// Only a sealed entry (built in its own module) makes a sealed line.
+    pub(crate) fn sealed(s: impl crate::core::Sealed) -> Self {
+        Self {
+            kind: s.kind(),
+            body: s.into_body(),
+            sealed: true,
+        }
+    }
+}
+
 /// Default segment size before rotation.
 pub const SEGMENT_BYTES: u64 = 64 * 1024 * 1024;
 
@@ -295,6 +323,23 @@ impl Record {
             );
         }
         self.write_many(at, items)
+    }
+
+    /// Append a batch of plain and sealed lines with one write syscall
+    /// (consecutive seqs). A plain line of a sealed kind is refused.
+    pub(crate) fn append_batch(&self, at: Millis, batch: Vec<BatchLine>) -> Vec<Line> {
+        for b in &batch {
+            if b.sealed {
+                debug_assert!(SEALED_KINDS.contains(&b.kind));
+            } else {
+                assert!(
+                    !SEALED_KINDS.contains(&b.kind),
+                    "`{}` is written only through its sealed entry",
+                    b.kind
+                );
+            }
+        }
+        self.write_many(at, batch.into_iter().map(|b| (b.kind, b.body)).collect())
     }
 
     /// Append a sealed kind. Only the sealed entry types call this.
