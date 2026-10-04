@@ -2545,6 +2545,124 @@ pub fn g_q(lines: &[Line], run: &HttpAcpRun) -> GateResult {
     g
 }
 
+// ─── G-r the startup-handoff ladder ──────────────────────────────────────────
+
+/// What the startup test measured around `rung-host run --config`.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct StartupRun {
+    /// Exit codes of the first run and of the restart on the same state.
+    pub first_exit: Option<i32>,
+    pub restart_exit: Option<i32>,
+    /// The first run's startup listing GET came before its record existed.
+    pub listed_before_record: bool,
+    /// Refused starts by case (`bad_field`, `unset_key`): (exit code, its
+    /// stderr names the problem, the state directory was left untouched).
+    pub refused: BTreeMap<String, (i32, bool, bool)>,
+    /// A run whose router is unreachable: its exit code, and its record.
+    pub unreachable_exit: Option<i32>,
+    #[serde(skip)]
+    pub unreachable_lines: Vec<Line>,
+}
+
+/// G-r: the startup-handoff ladder. `rung-host run --config FILE` goes
+/// Configured → Listed → Recovered → Handed (or Refused), each stage a rung
+/// (skipping one does not compile: the trybuild half of this gate):
+///
+/// - each process lists the router's models at start, before it opens the
+///   record (the first run's listing GET precedes the record's creation),
+///   and its first turn comes after that listing's `ladder.listed`
+///   (`at_start`), which the Presence loop records at its first boundary;
+/// - a restart recovers the record (`recovered`) and lists again at start;
+/// - turns run on the real adapter against the router (`llm.call`s), $0;
+/// - a configuration with an unknown field, or an engine key env var that is
+///   not set, is refused (exit 2) naming the problem, and the state
+///   directory is not touched;
+/// - an unreachable router does not stop the start: the listing is recorded
+///   failed, turns fail and back off, and the run ends only by its limit.
+pub fn g_r(lines: &[Line], run: &StartupRun) -> GateResult {
+    let mut g = GateResult::new("G-r");
+    // Split by process.
+    let mut procs: Vec<Vec<&Line>> = Vec::new();
+    for l in lines {
+        if l.kind == "host.start" {
+            procs.push(Vec::new());
+        }
+        if let Some(p) = procs.last_mut() {
+            p.push(l);
+        }
+    }
+    let mut listed_first = 0;
+    let mut calls_each = 0;
+    for p in &procs {
+        let first_turn = p.iter().position(|l| l.kind == "turn.started");
+        let listed = p
+            .iter()
+            .position(|l| l.kind == "ladder.listed" && l.get("at_start") == &Value::Bool(true));
+        if let (Some(t), Some(ls)) = (first_turn, listed)
+            && ls < t
+            && p[ls].get("ok") == &Value::Bool(true)
+        {
+            listed_first += 1;
+        }
+        if p.iter().any(|l| l.kind == "llm.call") {
+            calls_each += 1;
+        }
+    }
+    let recovered = procs
+        .get(1)
+        .is_some_and(|p| p.iter().any(|l| l.kind == "recovered"));
+    let agent = of(lines, "host.start").all(|l| l.get("config")["engine"] == "agent");
+    let cost: f64 = of(lines, "llm.call").map(|l| l.f64("cost_usd")).sum();
+    let refused_ok = ["bad_field", "unset_key"].iter().all(|k| {
+        run.refused
+            .get(*k)
+            .is_some_and(|(code, named, untouched)| *code == 2 && *named && *untouched)
+    });
+    let u = &run.unreachable_lines;
+    let u_listed_failed = u
+        .iter()
+        .any(|l| l.kind == "ladder.listed" && l.get("at_start") == &Value::Bool(true) && l.get("ok") == &Value::Bool(false));
+    let u_failed_turns = u
+        .iter()
+        .filter(|l| l.kind == "turn.ended" && !l.get("failure").is_null())
+        .count();
+    let u_limit = u
+        .iter()
+        .any(|l| l.kind == "halted" && l.get("why").to_string().contains("\"limit\""));
+    let unreachable_ok =
+        run.unreachable_exit == Some(0) && u_listed_failed && u_failed_turns > 0 && u_limit;
+    g.put("processes", procs.len());
+    g.put("listed_before_first_turn", listed_first);
+    g.put("listed_before_record", run.listed_before_record);
+    g.put("recovered_on_restart", recovered);
+    g.put("processes_with_calls", calls_each);
+    g.put("engine_agent", agent);
+    g.put("exits", json!([run.first_exit, run.restart_exit]));
+    g.put("refused", json!(run.refused));
+    g.put("unreachable_exit", json!(run.unreachable_exit));
+    g.put("unreachable_listing_failed", u_listed_failed);
+    g.put("unreachable_failed_turns", u_failed_turns);
+    g.put("cost_usd", cost);
+    g.check(procs.len() == 2, "not two processes on the state");
+    g.check(
+        listed_first == 2 && run.listed_before_record,
+        "a process did not list the models at start, before its record and its first turn",
+    );
+    g.check(recovered, "the restart did not recover the record");
+    g.check(calls_each == 2 && agent, "a process did not run turns on the real adapter");
+    g.check(
+        run.first_exit == Some(0) && run.restart_exit == Some(0),
+        "a bounded run did not exit 0",
+    );
+    g.check(refused_ok, "a bad configuration was not refused before touching the state");
+    g.check(
+        unreachable_ok,
+        "an unreachable router stopped the start, or its failure was not recorded",
+    );
+    g.check(cost == 0.0, "money was spent");
+    g
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
