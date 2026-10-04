@@ -1849,8 +1849,8 @@ pub fn g_o(
                     verdict_bad += 1;
                 }
                 if want.1 == "expired" {
-                    expired_seen = expired_seen
-                        || prev.is_some_and(|p| flags(p).get(r) == Some(&true));
+                    expired_seen =
+                        expired_seen || prev.is_some_and(|p| flags(p).get(r) == Some(&true));
                 }
             }
         } else {
@@ -1954,18 +1954,36 @@ pub fn g_o(
         ok_n >= 2 && failed_n >= 1,
         "the run did not see both successful and failed listings",
     );
-    g.check(verdict_bad == 0, "a listing's verdict differs from the oracle's");
+    g.check(
+        verdict_bad == 0,
+        "a listing's verdict differs from the oracle's",
+    );
     g.check(kept_bad == 0, "a failed listing changed the verdicts");
     g.check(expired_seen, "no rung was seen to expire");
-    g.check(late_refresh == 0, "a listing was refreshed later than 6 hours");
-    g.check(late_retry == 0, "a failed listing was retried later than 15 minutes");
-    g.check(off_rung == 0, "a turn ran on a rung the listing called unavailable");
-    g.check(stranded == 0, "a listing took the current rung away and no switch followed");
+    g.check(
+        late_refresh == 0,
+        "a listing was refreshed later than 6 hours",
+    );
+    g.check(
+        late_retry == 0,
+        "a failed listing was retried later than 15 minutes",
+    );
+    g.check(
+        off_rung == 0,
+        "a turn ran on a rung the listing called unavailable",
+    );
+    g.check(
+        stranded == 0,
+        "a listing took the current rung away and no switch followed",
+    );
     g.check(
         down_bad == 0 && skipped > 0,
         "a provider step-down did not land on the next available rung, or none skipped one",
     );
-    g.check(up_bad == 0, "a probe did not go to the nearest available rung above");
+    g.check(
+        up_bad == 0,
+        "a probe did not go to the nearest available rung above",
+    );
     g.check(
         model_gets == listed.len(),
         "the listing GETs and the ladder.listed lines differ in number",
@@ -1994,7 +2012,10 @@ mod tests {
     fn days_of_matches_the_calendar() {
         assert_eq!(days_of("1970-01-01"), Some(0));
         // 2026-10-03T00:00Z, where simulated runs start.
-        assert_eq!(days_of("2026-10-03").map(|d| d * 86_400_000), Some(1_790_985_600_000));
+        assert_eq!(
+            days_of("2026-10-03").map(|d| d * 86_400_000),
+            Some(1_790_985_600_000)
+        );
         assert_eq!(days_of("2000-03-01"), Some(11_017));
         assert_eq!(days_of("nope"), None);
     }

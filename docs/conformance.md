@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 365 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 366 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -998,6 +998,10 @@ look shorter than it is.
 - `material_is_unranked_on_a_rich_register`
 - `no_path_outside_the_kernel_writes_its_lines`
 - `two_thousand_turns_follow_the_kernel`
+
+**`rung-host/tests/gate_ladder.rs`** — 1 unclaimed
+
+- `the_ladder_lists_filters_and_walks_only_available_free_rungs`
 
 **`rung-host/tests/gate_process.rs`** — 2 unclaimed
 

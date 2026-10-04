@@ -1567,6 +1567,7 @@ name = "rung-host"
 version = "0.2.0"
 dependencies = [
  "libc",
+ "reqwest",
  "rung",
  "rung-agent-core",
  "rung-memory",

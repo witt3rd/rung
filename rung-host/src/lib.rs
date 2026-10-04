@@ -20,6 +20,7 @@ pub mod gates;
 pub mod governor;
 pub mod inbox;
 pub mod kernel;
+pub mod ladder;
 pub mod memory;
 pub mod notify;
 pub mod pack;

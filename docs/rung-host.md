@@ -7,9 +7,8 @@ changed for it.
 
 This document is informative. It describes slice 1 — the host against a
 scripted mock engine, a fake world and a fault injector, at $0 — and what
-slice 2 adds: the real engine adapter (below). ACP outward, the model
-ladder's startup listing filter, the startup ladder and live runs are
-later. Delegation to workers is a final
+slice 2 adds: the real engine adapter and the model ladder's listing
+filter (below). ACP outward, the startup ladder and live runs are later. Delegation to workers is a final
 extension; only its extension point exists (the `crew` group name and the
 `crew.*` record kinds are reserved, and the inbox admits external
 completion items).
@@ -136,6 +135,23 @@ server):
 The key is read by the caller from the environment variable its
 configuration names; it never reaches the record.
 
+## The model ladder
+
+The ladder is configuration: model ids, best first
+(`rung_host::ladder::OPENROUTER_FREE_LADDER` is the free ladder the
+operator ruled for a first live substrate). At the first boundary and
+every six hours the host lists the router's models — keyless GETs of
+`{base}/models` and `{base}/models/{id}/endpoints` — and keeps a rung only
+when it is listed, its `expiration_date` has not begun (that date is the
+first day it is gone), its prompt and completion prices are zero, it takes
+`tools`, and one of its endpoints has a status of at least 0. The verdicts
+are one `ladder.listed` line. The walk skips the rest; a listing that takes
+the current rung away switches to the best standing rung at once (a
+`model.switch` whose `why` starts `listing:`), which starts a new epoch. A
+listing that fails keeps the previous verdicts and is tried again in 15
+minutes; it never stops the host. If no rung stands, the host keeps its
+current one.
+
 ## The governor
 
 - **Pacer**: a daily request quota (`rpd`), a per-minute limit (`rpm`), a
@@ -144,8 +160,9 @@ configuration names; it never reaches the record.
   owner item the reserve can serve.
 - **Backoff**: a provider 429, 5xx, transport failure or timeout waits
   max(`Retry-After`, jittered exponential), capped at 15 min, and steps
-  down the model ladder (cooldown 2 min doubling to 30 min); the next
-  boundary after the cooldown probes back up. A platform 429
+  down the model ladder to the next rung the listing left standing
+  (cooldown 2 min doubling to 30 min); the next boundary after the cooldown
+  probes back up to the nearest standing rung. A platform 429
   (`X-RateLimit-Reset`) waits for its reset and does not step down. An auth
   failure is `degraded: blocked`: probe every 15 min, one owner message per
   incident, never exit.
@@ -203,7 +220,8 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `tools.wanted` | `group`, `why` |
 | `memory.recall` / `memory.retain` | the provider's report |
 | `degraded` / `degraded.ended` | `class` (`paced`, `quota`, `backoff`, `blocked`), `until`, `why`; `waited_ms` |
-| `model.switch` | `from`, `to`, `direction` (`down`, `up`), `why` |
+| `model.switch` | `from`, `to`, `direction` (`down`, `up`), `why` (`provider …`, `probe: …`, `listing: …`) |
+| `ladder.listed` | `ok`, `error` (when not), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`; `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
 | `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms` |
 | `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |
 | `halted` | `why` |
