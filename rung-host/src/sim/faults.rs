@@ -65,6 +65,7 @@ impl FaultInjector {
                 },
                 origin,
                 reset_at,
+                unroutable: None,
             };
             let hf = match &f.kind {
                 FaultKind::CacheEvict => {

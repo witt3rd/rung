@@ -37,6 +37,10 @@ pub struct HostFailure {
     pub origin: Origin,
     /// `X-RateLimit-Reset`, when the platform sent it.
     pub reset_at: Option<Millis>,
+    /// The router has no endpoint for this model that the account's data
+    /// policy or guardrails allow (its reasons, as it named them). Another
+    /// rung may route: the ladder steps down.
+    pub unroutable: Option<Vec<String>>,
 }
 
 impl HostFailure {
@@ -62,6 +66,7 @@ impl HostFailure {
             "origin": self.origin,
             "retry_after_ms": self.failure.retry_after_ms,
             "reset_at": self.reset_at,
+            "unroutable": self.unroutable,
         })
     }
 }

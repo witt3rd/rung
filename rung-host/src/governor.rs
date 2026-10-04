@@ -318,6 +318,21 @@ pub fn on_failure(
             .find(|r| !st.unavailable.contains(r))
             .map(|to| (st.rung, to))
     };
+    if f.unroutable.is_some() {
+        // No endpoint of this model is open to the account: waiting will
+        // not fix it, another rung may. Step down; the rung cools down and
+        // is probed again like any provider failure.
+        return Plan {
+            wait: Some(Wait {
+                class: "backoff".into(),
+                until: now + backoff(),
+                why: "unroutable: no endpoint open to this account".into(),
+                owner_wakes: false,
+            }),
+            step_down: down(),
+            incident_start: false,
+        };
+    }
     match (f.origin, class) {
         (Origin::Platform, _) | (_, ProviderClass::Quota) => {
             // A reset already past (the platform still refuses) backs off
@@ -457,6 +472,7 @@ mod tests {
             },
             origin,
             reset_at: Some(5_000_000),
+            unroutable: None,
         };
         let p = on_failure(&st, &cfg, &f(Origin::Provider, Some(30_000)), 3, 1_000, 0.0);
         assert_eq!(p.step_down, Some((0, 1)));
@@ -480,6 +496,30 @@ mod tests {
     }
 
     #[test]
+    fn an_unroutable_rung_steps_down() {
+        let cfg = GovConfig::default();
+        let st = GovState::default();
+        let f = HostFailure {
+            failure: ProviderFailure {
+                class: ProviderClass::Invalid,
+                retry_after_ms: None,
+            },
+            origin: Origin::Provider,
+            reset_at: None,
+            unroutable: Some(vec!["zdr-violation-by-guardrail".into()]),
+        };
+        let p = on_failure(&st, &cfg, &f, 3, 1_000, 0.0);
+        assert_eq!(p.step_down, Some((0, 1)));
+        assert_eq!(p.wait.unwrap().class, "backoff");
+        // The same failure without the router's reasons stays on its rung.
+        let plain = HostFailure {
+            unroutable: None,
+            ..f
+        };
+        assert_eq!(on_failure(&st, &cfg, &plain, 3, 1_000, 0.0).step_down, None);
+    }
+
+    #[test]
     fn backoff_is_capped() {
         let cfg = GovConfig::default();
         let st = GovState {
@@ -493,6 +533,7 @@ mod tests {
             },
             origin: Origin::Provider,
             reset_at: None,
+            unroutable: None,
         };
         let p = on_failure(&st, &cfg, &f, 1, 0, 0.9);
         assert_eq!(p.wait.unwrap().until, cfg.backoff_cap_ms);
@@ -513,6 +554,7 @@ mod tests {
             },
             origin: Origin::Provider,
             reset_at: None,
+            unroutable: None,
         };
         assert_eq!(on_failure(&st, &cfg, &f, 5, 0, 0.0).step_down, Some((0, 2)));
         st.rung = 2;

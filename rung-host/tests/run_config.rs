@@ -256,3 +256,61 @@ fn a_bad_desk_or_an_unset_desk_key_is_refused() {
         assert!(!root.join("state").exists(), "{name} touched the state");
     }
 }
+
+#[test]
+fn a_rung_the_router_will_not_route_for_this_account_is_stepped_past() {
+    sim::test_timeout(300);
+    let guard = sim::temp_dir_guard("run-config-unroutable");
+    let root = guard.path().to_path_buf();
+    let provider = LoopbackProvider::start(move |r: &Request<'_>| {
+        let model = r.body["model"].as_str().unwrap_or("").to_string();
+        if model == "a/closed:free" {
+            return Reply::json(
+                404,
+                &json!({"error": {"code": 404,
+                    "message": "0 endpoints out of 1 requested are available matching your guardrail restrictions and data policy.",
+                    "metadata": {"ineligibility_reasons": [{"reason": "zdr-violation-by-guardrail", "endpoint_count": 1}]}}}),
+            );
+        }
+        let served = Served {
+            model,
+            prompt: 10,
+            cached: 0,
+            cache_write: 0,
+            completion: 5,
+            cost_usd: 0.0,
+        };
+        Reply::completion("Upstream", Some("noted"), &[], served)
+    });
+    let d = root.display();
+    let cfg = root.join("rung-host.yaml");
+    std::fs::write(
+        &cfg,
+        format!(
+            "state: {d}/state\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
+             ladder:\n  - a/closed:free\n  - b/open:free\nlisting: false\nmemory: false\nbackoff_base_ms: 20\n",
+            provider.url
+        ),
+    )
+    .unwrap();
+    let o = run(&cfg, Some(3), Some("k"));
+    assert_eq!(o.status.code(), Some(0));
+    let ls = lines(&root.join("state"));
+    let failed = ls
+        .iter()
+        .find(|l| l.kind == "turn.ended" && l.str("status") == "failed")
+        .expect("the closed rung's turn failed");
+    assert_eq!(
+        failed.get("failure")["unroutable"],
+        json!(["zdr-violation-by-guardrail"])
+    );
+    let down = ls
+        .iter()
+        .find(|l| l.kind == "model.switch")
+        .expect("a step down");
+    assert_eq!(down.str("direction"), "down");
+    assert_eq!(down.str("to"), "b/open:free");
+    assert!(ls.iter().any(|l| l.kind == "turn.ended"
+        && l.str("status") == "completed"
+        && l.str("model") == "b/open:free"));
+}

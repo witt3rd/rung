@@ -281,7 +281,11 @@ current one.
   down the model ladder to the next rung the listing left standing
   (cooldown 2 min doubling to 30 min); the next boundary after the cooldown
   probes back up to the nearest standing rung. A platform 429
-  (`X-RateLimit-Reset`) waits for its reset and does not step down. An auth
+  (`X-RateLimit-Reset`) waits for its reset and does not step down. A
+  router 404 that names why the model's endpoints were excluded for this
+  account (data policy, guardrails: `ineligibility_reasons`) is
+  `unroutable`: it steps down like a provider failure, since another rung
+  may route; the rung cools down and is probed again. An auth
   failure is `degraded: blocked`: probe every 15 min, one owner message per
   incident, never exit.
 - **Spend cap**: for paid providers only; reaching it halts
@@ -331,7 +335,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `llm.call` | `turn`, `call`, `epoch`, `rung`, `model_requested`, `model_served`, `provider`, `prompt_tokens`, `cached_tokens`, `cache_write_tokens`, `completion_tokens`, `reasoning_tokens`, `cost_usd`, `latency_ms`, `prefix {s_hash, l_hash, log_len_bytes, expected_cached_tokens}` |
 | `cache.break` / `cache.cold` | `turn`, `call`, `cause` |
 | `turn.log` | `turn`, `header` (recall stripped), `messages` (verbatim, as sent) |
-| `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at}`, `rewritten` (only when true), `cost`, `projection`, `wall_post_us` |
+| `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at, unroutable}`, `rewritten` (only when true), `cost`, `projection`, `wall_post_us` |
 | `kernel.commit` / `.progress` / `.release` / `.trace` | the agent's own tool calls (`via`, `released_by`, `similarity`) |
 | `note.written`, `todo.*`, `project.added`, `question.*` | the agent's registers |
 | `expectation.made` / `.revised` / `.settled` | the expectation register; a settlement has `state`, `p`, `surprise`, `settled_by`, `calibration` |
