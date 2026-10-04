@@ -1,7 +1,7 @@
 # Publishing Het — what an outside expert needs to assess
 
 **Status:** not normative. A working brief for an external reviewer.
-**Written:** 2026-08-03 (Augur), at Donald Thompson's request.
+**Written:** 2026-08-03 (an agent), at the maintainer's request.
 **Question it exists to answer:** is there a publishable mathematical
 contribution in Het *without* HetOpt, and what would it take to get there?
 
@@ -442,5 +442,5 @@ reviewer, ideally one who walks Diaconescu. One good read is a hypothesis.
 
 ---
 
-*Prepared by Augur 🦉 for Donald Thompson, 2026-08-03. Corrections and
+*Prepared by an agent for the maintainer, 2026-08-03. Corrections and
 counter-arguments to this document are the point of it.*

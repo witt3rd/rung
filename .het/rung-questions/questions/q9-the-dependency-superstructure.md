@@ -16,7 +16,7 @@ affects:
 
 ## The question
 
-When Q7 resolved, it did **not** change one thing. It changed a *reachable set* along **typed** edges — RUNG-CT §6 (premise: wrong until folded), the blocking-client decision (justification: held despite the premise moving), and it spawned Q8. The propagation *rule depended on the edge type*. We built the operative stopgap (typed frontmatter + `_reach.py`) the same session, but the stopgap computes boolean reachability — and Donald's read was that this is *bigger than "the action is in the arrows,"* a whole layer of the solution space we might be missing. The sharp question, tee'd for external review:
+When Q7 resolved, it did **not** change one thing. It changed a *reachable set* along **typed** edges — RUNG-CT §6 (premise: wrong until folded), the blocking-client decision (justification: held despite the premise moving), and it spawned Q8. The propagation *rule depended on the edge type*. We built the operative stopgap (typed frontmatter + `_reach.py`) the same session, but the stopgap computes boolean reachability — and the maintainer's read was that this is *bigger than "the action is in the arrows,"* a whole layer of the solution space we might be missing. The sharp question, tee'd for external review:
 
 > Given items with states and *typed* directed edges (`premise / justification / spawn / gate / …`), each type carrying a distinct propagation semantics: is this (a) transitive closure of a typed relation, (b) a presheaf, (c) a fibration whose cartesian lifts are the typed propagations, or (d) something else? Does the obligatory-vs-advisory distinction force structure richer than a graph — and does advisory propagation break functoriality? Is a dependency edge itself a (dependent) **optic**, mirroring the Q7 result one level up?
 
@@ -54,6 +54,6 @@ The growth tower predicted a Level-1 structure; Q9 names it precisely. Level 0 t
 - **The Kleisli tie is now bidirectional.** Q7 said error and effects are orthogonal gadgets *within* a transition; Q9 shows the same coproduct is what keeps the *dependency* level functorial. The self-similarity is not analogy — it is the same categorical machinery loading two levels of the tower.
 
 ## State
-- 2026-07-18 (Q7 cascade) — Donald surfaces the phenomenon: *"a dozen things needed to update to ripple the consequences… a super-structure that overlays the current ladder level, worth deeply understanding."* Registry stopgap (`_reach.py`) built same session; Q9 tee'd for review.
+- 2026-07-18 (Q7 cascade) — The maintainer surfaces the phenomenon: *"a dozen things needed to update to ripple the consequences… a super-structure that overlays the current ladder level, worth deeply understanding."* Registry stopgap (`_reach.py`) built same session; Q9 tee'd for review.
 - 2026-07-18 — two independent CT reviews commissioned and returned.
 - 2026-07-18 — both converge: **opfibration + dependent optics.** Divergence (fibration vs opfibration; hedged vs committed optic) resolves toward the sharper review. Folded into RUNG-CT §10, EDGES.md (retired 2026-08-04; see the note above), `_map.md`; this file moved to `resolved/` because the fold is real and complete — no owed change left as a note inside a resolved file (law #3).

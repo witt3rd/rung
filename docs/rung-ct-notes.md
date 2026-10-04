@@ -468,4 +468,4 @@ Recorded so it is not mistaken for completeness.
 
 *"The category theory is the compiler's internal representation. The ladder
 syntax is the surface. The programmer thinks in rungs; the compiler thinks in
-indexed monads. That's the gap."* — Forge ⚒️, 2026-07-16
+indexed monads. That's the gap."* — an agent, 2026-07-16

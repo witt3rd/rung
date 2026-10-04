@@ -66,4 +66,4 @@ This is v0. It documents the capture habit and names the two doors; it does not 
 
 ---
 
-*Drafted by Forge ⚒️, 2026-07-19, at Donald's direction — completing the pair with Augur's `genesis/meta/questions/INTAKE.md` (drafted the same morning). The two registries cross-reference: augur points here for the edge vocabulary; rung has the `_map.md` generator augur named as its own missing piece. Festina lente.*
+*Drafted by an agent, 2026-07-19, at the maintainer's direction — completing the pair with a sibling registry's intake (drafted the same morning). The two registries cross-reference: the sibling registry points here for the edge vocabulary; rung has the `_map.md` generator the sibling registry named as its own missing piece. Festina lente.*

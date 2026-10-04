@@ -1,6 +1,6 @@
 # path-prefix  # reason (exempt from docs/_consumer_guard.py)
-docs/.archive/  # archived history docs
-.archive/  # archived history
+docs/.archive/  # archived handoff letters; names are authorship record of dated history (decided per file: kept, not scrubbed — rewriting would falsify the record)
+.archive/  # archived repo-root history (.gl schema/meta); only matches are English words (forget/forged), no consumer named
 docs/_consumer_guard.py  # the guard's own pattern list
 docs/_consumer_guard.allow  # the guard's own allow-list
 Cargo.lock  # generated

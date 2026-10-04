@@ -117,7 +117,7 @@ impl Steward for Person {
 /// The curator: authors questions, stewards the folders — and is refused as a
 /// judge of everything it files, which is the point.
 const CURATOR: Person = Person {
-    id: "forge",
+    id: "bob",
     prov: &["rung-questions"],
     roles: &["curator"],
     stewards: &["open", "blocked", "parked", "questions"],
@@ -127,7 +127,7 @@ const CURATOR: Person = Person {
 fn pool() -> Pool<Person> {
     Pool::new(vec![
         Person {
-            id: "forge",
+            id: "bob",
             prov: CURATOR.prov,
             roles: CURATOR.roles,
             stewards: CURATOR.stewards,
@@ -446,7 +446,7 @@ fn p0_refuses_the_curator_as_a_judge_of_this_repositorys_own_questions() {
     let q7 = r.by_id("q7").expect("q7 is on disk");
 
     let only_curator = Pool::new(vec![Person {
-        id: "forge",
+        id: "bob",
         prov: CURATOR.prov,
         roles: &["curator", "interrogator", "adjudicator"],
         stewards: CURATOR.stewards,
@@ -457,7 +457,7 @@ fn p0_refuses_the_curator_as_a_judge_of_this_repositorys_own_questions() {
     // `rung-questions` with everything it filed.
     match only_curator.qualify::<Interrogator>(q7).unwrap_err() {
         QualifyError::NonIdentityViolated { principal, shared } => {
-            assert_eq!(principal, "forge");
+            assert_eq!(principal, "bob");
             assert_eq!(shared, vec!["rung-questions".to_string()]);
         }
         other => panic!("the curator must not judge what it filed; got {other:?}"),
@@ -498,7 +498,7 @@ fn standing_over_a_folder_can_be_refused_with_nowhere_to_appeal() {
     // The curator stewards open/, blocked/, parked/ — not resolved/.
     match p.authorize::<Curator, _>(&CURATOR, "resolved") {
         Err(AuthorizeError::StandingIsJudgmental { principal, over }) => {
-            assert_eq!(principal, "forge");
+            assert_eq!(principal, "bob");
             assert_eq!(over, "resolved");
         }
         other => panic!("expected the judgmental branch; got {:?}", other.is_ok()),

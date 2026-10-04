@@ -1,6 +1,6 @@
 # rung — notes
 
-**2026-07-16 · Donald Thompson & Forge ⚒️**
+**2026-07-16 · The maintainer & an agent**
 
 > **Informative. Not normative.** This began as the design document for the
 > `ladder!` macro (when it was not yet built) and grew into the running record of

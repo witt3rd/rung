@@ -50,5 +50,5 @@ The cheapest falsifier: `Failed<A>` returns the *input* token, which is **not** 
 
 ## State
 - 2026-07-18 (handoff) — conjecture filed with the precise verification question and a "verify before building" gate.
-- 2026-07-18 ~11:4x — Donald commissioned two outside expert reviews (`resolved/_evidence/kleisli-review-1-dagger.md`, `-2-prism.md`).
+- 2026-07-18 ~11:4x — The maintainer commissioned two outside expert reviews (`resolved/_evidence/kleisli-review-1-dagger.md`, `-2-prism.md`).
 - 2026-07-18 — both reviews converge: **Prism, not Kleisli.** Falsifier triggered, gate resolved negative-for-unification, dagger vindicated. This file moved to `resolved/` because the fold is real: the framing is settled, the client decision is unblocked, and the residual (async driver) is tracked as its own open question — not left as an owed note inside a resolved file (law #3).

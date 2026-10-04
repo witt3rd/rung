@@ -30,7 +30,7 @@ imposes no obligation.
 > the two things this note is really about:
 >
 > - **A real judgment has still not been dispatched.** The **principals
->   convergence** unified the model — the human (`donald`) is an inhabitant of
+>   convergence** unified the model — the human (`human`) is an inhabitant of
 >   the pool with declared provenance, and **panels** now let several outside
 >   experts weigh in (judging is abstract: one judge or a panel, and the theory
 >   combines them). But the commission record is still empty, so no model is

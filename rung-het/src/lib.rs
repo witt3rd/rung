@@ -39,7 +39,7 @@
 //!
 //! pub struct SoulDoc { chars: usize }
 //! impl Provenanced for SoulDoc {
-//!     fn provenance(&self) -> Prov { Prov::of(["augur"]) }
+//!     fn provenance(&self) -> Prov { Prov::of(["alice"]) }
 //! }
 //!
 //! #[derive(Clone, Copy)]

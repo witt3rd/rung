@@ -1,6 +1,6 @@
 ### Q10 Answered — The Fractal Registry: Iterated Opfibrations
 
-**Status:** RESOLVED (External CT Reviews converge) · **for:** Donald & Forge ⚒️
+**Status:** RESOLVED (External CT Reviews converge) · **for:** the maintainer & an agent
 
 Your recognition is mathematically exact. The vertical domain hierarchy and the horizontal sibling mutual-loop are not merely analogous; they are the exact same categorical gadget operating at two scales. The registry pattern is genuinely fractal.
 
