@@ -133,10 +133,6 @@ impl By {
             By::Rule(w) => json!({"rule": w.label()}),
         }
     }
-
-    pub fn is_rule(&self) -> bool {
-        matches!(self, By::Rule(_))
-    }
 }
 
 /// One decision with its provenance. Built only by the desk, so a branch
