@@ -202,8 +202,8 @@ pub enum Next {
     Halt(Why),
 }
 
-/// Add a calendar entry (agent origin dates, seeds).
-pub(crate) fn add_calendar(core: &Core, id: &str, at: Millis, origin: Origin, text: &str) {
+/// The `calendar.added` body of a one-shot entry (agent origin dates).
+pub(crate) fn calendar_body(id: &str, at: Millis, origin: Origin, text: &str) -> Value {
     let e = Entry {
         id: id.into(),
         when: When::At(at),
@@ -212,13 +212,7 @@ pub(crate) fn add_calendar(core: &Core, id: &str, at: Millis, origin: Origin, te
         firm: false,
         missed: Missed::OnceLate,
     };
-    core.emit("calendar.added", crate::calendar::added_body(&e));
-}
-
-pub(crate) fn remove_calendar(core: &Core, id: &str) {
-    if core.state().calendar.entries.contains_key(id) {
-        core.emit("calendar.removed", json!({"id": id}));
-    }
+    crate::calendar::added_body(&e)
 }
 
 fn mode_value(st: &State) -> Value {

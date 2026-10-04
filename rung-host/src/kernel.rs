@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 
 use crate::clock::{Millis, SECOND};
 use crate::core::{Core, Sealed};
-use crate::record::Line;
+use crate::record::{BatchLine, Line};
 
 /// The host's mode.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -302,126 +302,160 @@ fn text<'a>(input: &'a Value, key: &str) -> Result<&'a str, String> {
         .ok_or_else(|| format!("`{key}` is required"))
 }
 
+/// The calendar entry a commitment with an `until` keeps.
+fn until_entry(project: &str, title: &str, at: Millis) -> BatchLine {
+    BatchLine::plain(
+        "calendar.added",
+        crate::presence::calendar_body(
+            &format!("commit:{project}"),
+            at,
+            crate::calendar::Origin::Agent,
+            &format!("commitment `{title}`: until passed"),
+        ),
+    )
+}
+
+/// The release of the current commitment, with the removal of its `until`
+/// entry: decided and written under one lock ([`Core::transact`]), so two
+/// releases racing (the agent's and the owner's) release once.
+fn release(
+    core: &Core,
+    turn: Option<u64>,
+    body: impl FnOnce(&str, u64) -> Value,
+) -> Result<String, String> {
+    core.transact(|st| {
+        let Some(c) = st.kernel.commitment() else {
+            return Err("not committed to anything".to_string());
+        };
+        let project = c.project.clone();
+        let mut lines = vec![BatchLine::sealed(KernelEntry::release(body(
+            &project,
+            turn.unwrap_or(st.turn),
+        )))];
+        let entry = format!("commit:{project}");
+        if st.calendar.entries.contains_key(&entry) {
+            lines.push(BatchLine::plain("calendar.removed", json!({"id": entry})));
+        }
+        Ok((lines, project))
+    })
+    .map(|(_, project)| project)
+}
+
 /// `commit{project | new{title, why}, done_when, until_s?, checkpoint_every?}`.
+///
+/// The check (no commitment, the project open or the new id free) and the
+/// lines it licenses (`project.added`, `kernel.commit`, the `until` entry)
+/// are one [`Core::transact`]: one lock, one write.
 pub(crate) fn tool_commit(core: &Core, turn: u64, input: &Value) -> Result<String, String> {
-    let st = core.state();
-    if let Some(c) = st.kernel.commitment() {
-        return Err(format!(
-            "already committed to `{}`; release it first (one commitment at a time)",
-            c.project
-        ));
-    }
-    let done_when = text(input, "done_when")?.to_string();
-    let (project, title, why, is_new) =
-        if let Some(id) = input.get("project").and_then(Value::as_str) {
+    let (_, (project, title)) = core.transact(|st| {
+        if let Some(c) = st.kernel.commitment() {
+            return Err(format!(
+                "already committed to `{}`; release it first (one commitment at a time)",
+                c.project
+            ));
+        }
+        let done_when = text(input, "done_when")?;
+        let mut lines = Vec::new();
+        let (project, title, why) = if let Some(id) = input.get("project").and_then(Value::as_str) {
             let Some(p) = st.registers.projects.get(id) else {
                 return Err(format!("no project `{id}`"));
             };
             if p.status == "done" || p.status == "abandoned" {
                 return Err(format!("project `{id}` is {}", p.status));
             }
-            (id.to_string(), p.title.clone(), p.why.clone(), false)
+            (id.to_string(), p.title.clone(), p.why.clone())
         } else if let Some(n) = input.get("new") {
             let title = text(n, "title")?.to_string();
             let why = text(n, "why")?.to_string();
-            (st.registers.next_id("p"), title, why, true)
+            let id = st.registers.next_id("p");
+            lines.push(BatchLine::plain(
+                "project.added",
+                json!({"id": id, "title": title, "why": why, "status": "active", "turn": turn}),
+            ));
+            (id, title, why)
         } else {
             return Err("name a `project` or describe a `new` one".into());
         };
-    let until = input
-        .get("until_s")
-        .and_then(Value::as_i64)
-        .filter(|s| *s > 0)
-        .map(|s| core.clock.now().saturating_add(s.saturating_mul(SECOND)));
-    let checkpoint_every = input.get("checkpoint_every").and_then(Value::as_u64);
-    drop(st);
-    if is_new {
-        core.emit(
-            "project.added",
-            json!({"id": project, "title": title, "why": why, "status": "active", "turn": turn}),
-        );
-    }
-    core.emit_sealed(KernelEntry::commit(json!({
-        "turn": turn,
-        "project": project,
-        "title": title,
-        "why": why,
-        "done_when": done_when,
-        "until": until,
-        "checkpoint_every": checkpoint_every,
-        "via": "tool:commit",
-        "by": "agent",
-    })));
-    if let Some(t) = until {
-        crate::presence::add_calendar(
-            core,
-            &format!("commit:{project}"),
-            t,
-            crate::calendar::Origin::Agent,
-            &format!("commitment `{title}`: until passed"),
-        );
-    }
+        let until = input
+            .get("until_s")
+            .and_then(Value::as_i64)
+            .filter(|s| *s > 0)
+            .map(|s| core.clock.now().saturating_add(s.saturating_mul(SECOND)));
+        let checkpoint_every = input.get("checkpoint_every").and_then(Value::as_u64);
+        lines.push(BatchLine::sealed(KernelEntry::commit(json!({
+            "turn": turn,
+            "project": project,
+            "title": title,
+            "why": why,
+            "done_when": done_when,
+            "until": until,
+            "checkpoint_every": checkpoint_every,
+            "via": "tool:commit",
+            "by": "agent",
+        }))));
+        if let Some(t) = until {
+            lines.push(until_entry(&project, &title, t));
+        }
+        Ok((lines, (project, title)))
+    })?;
     Ok(format!(
         "committed to `{project}` ({title}); release it when done"
     ))
 }
 
-/// `progress{next_step, note?}`.
+/// `progress{next_step, note?}`: written only while the commitment it
+/// names still stands (checked under the same lock).
 pub(crate) fn tool_progress(core: &Core, turn: u64, input: &Value) -> Result<String, String> {
-    let project = match core.state().kernel.commitment() {
-        Some(c) => c.project.clone(),
-        None => return Err("not committed to anything".into()),
-    };
-    let next_step = text(input, "next_step")?;
-    core.emit(
-        "kernel.progress",
-        json!({"turn": turn, "project": project, "next_step": next_step,
-               "note": input.get("note").and_then(Value::as_str)}),
-    );
+    core.transact(|st| {
+        let Some(c) = st.kernel.commitment() else {
+            return Err("not committed to anything".to_string());
+        };
+        let next_step = text(input, "next_step")?;
+        let note = input.get("note").and_then(Value::as_str);
+        let line = BatchLine::plain(
+            "kernel.progress",
+            json!({"turn": turn, "project": c.project, "next_step": next_step, "note": note}),
+        );
+        Ok((vec![line], ()))
+    })?;
     Ok("progress recorded".into())
 }
 
 /// `release{outcome: done|paused|abandoned, reason}`.
 pub(crate) fn tool_release(core: &Core, turn: u64, input: &Value) -> Result<String, String> {
-    let project = match core.state().kernel.commitment() {
-        Some(c) => c.project.clone(),
-        None => return Err("not committed to anything".into()),
-    };
+    if core.state().kernel.commitment().is_none() {
+        return Err("not committed to anything".into());
+    }
     let outcome = text(input, "outcome")?;
     if !matches!(outcome, "done" | "paused" | "abandoned") {
         return Err("`outcome` is done, paused or abandoned".into());
     }
     let reason = text(input, "reason")?;
-    core.emit_sealed(KernelEntry::release(json!({
-        "turn": turn,
-        "project": project,
-        "outcome": outcome,
-        "reason": reason,
-        "via": "tool:release",
-        "released_by": "agent",
-    })));
-    crate::presence::remove_calendar(core, &format!("commit:{project}"));
+    let project = release(core, Some(turn), |project, turn| {
+        json!({
+            "turn": turn,
+            "project": project,
+            "outcome": outcome,
+            "reason": reason,
+            "via": "tool:release",
+            "released_by": "agent",
+        })
+    })?;
     Ok(format!("released `{project}` ({outcome}); free time again"))
 }
 
 /// The owner's one override: release the current commitment.
 pub fn owner_release(core: &Core, reason: &str) -> Result<String, String> {
-    let (project, turn) = {
-        let st = core.state();
-        match st.kernel.commitment() {
-            Some(c) => (c.project.clone(), st.turn),
-            None => return Err("not committed to anything".into()),
-        }
-    };
-    core.emit_sealed(KernelEntry::release(json!({
-        "turn": turn,
-        "project": project,
-        "outcome": "paused",
-        "reason": reason,
-        "via": "owner:_rung/release",
-        "released_by": "owner",
-    })));
-    crate::presence::remove_calendar(core, &format!("commit:{project}"));
+    let project = release(core, None, |project, turn| {
+        json!({
+            "turn": turn,
+            "project": project,
+            "outcome": "paused",
+            "reason": reason,
+            "via": "owner:_rung/release",
+            "released_by": "owner",
+        })
+    })?;
     Ok(format!("released `{project}` by the owner"))
 }
 

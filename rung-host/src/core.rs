@@ -15,7 +15,7 @@ use serde_json::Value;
 use crate::clock::{Clock, MINUTE, Millis, SECOND};
 use crate::governor::GovConfig;
 use crate::notify::Notifier;
-use crate::record::{Line, Record};
+use crate::record::{BatchLine, Line, Record};
 use crate::state::State;
 use crate::stop::StopAuthority;
 
@@ -198,6 +198,29 @@ impl Core {
             self.notify(l);
         }
         out
+    }
+
+    /// Decide on the state and write the decision, under one lock: `f`
+    /// sees the state, and the lines it returns go out in one write and
+    /// are applied in order before any other emit can run. So a check and
+    /// the lines it licenses cannot be split by another writer or by a
+    /// crash. `f` must not lock the state (it already holds it).
+    pub(crate) fn transact<T, E>(
+        &self,
+        f: impl FnOnce(&State) -> Result<(Vec<BatchLine>, T), E>,
+    ) -> Result<(Vec<Line>, T), E> {
+        let mut st = self.state();
+        let (batch, out) = f(&st)?;
+        let lines = if batch.is_empty() {
+            Vec::new()
+        } else {
+            self.record.append_batch(self.clock.now(), batch)
+        };
+        for l in &lines {
+            st.apply(l);
+            self.notify(l);
+        }
+        Ok((lines, out))
     }
 
     /// Append a sealed line and apply it.
