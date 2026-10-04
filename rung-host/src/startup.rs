@@ -451,21 +451,22 @@ impl Handoff {
         let err = Arc::new(std::sync::Mutex::new(String::new()));
         let (f2, e2, h2) = (failed.clone(), err.clone(), host.clone());
         let looped = std::thread::spawn(move || host.run(recovered));
-        std::thread::spawn(move || {
-            let served = match acp {
-                AcpPlan::Http { addr, tokens } => crate::acp::serve_http(bridge, &addr, tokens),
-                AcpPlan::Stdio(role) => {
-                    crate::acp::serve_stdio(bridge, crate::acp::Principal { role })
+        std::thread::spawn(move || match acp {
+            // A listener that cannot serve stops the host.
+            AcpPlan::Http { addr, tokens } => {
+                if let Err(e) = crate::acp::serve_http(bridge, &addr, tokens) {
+                    *e2.lock().expect("acp error") = e;
+                    f2.store(true, Ordering::SeqCst);
+                    h2.core.stop.request(Why::Stopped { by: "acp".into() });
                 }
-                AcpPlan::None => Ok(()),
-            };
-            // A listener that cannot serve stops the host; a stdio client
-            // that went away does not.
-            if let Err(e) = served {
-                *e2.lock().expect("acp error") = e;
-                f2.store(true, Ordering::SeqCst);
-                h2.core.stop.request(Why::Stopped { by: "acp".into() });
             }
+            // A stdio client that went away does not: the host runs on.
+            AcpPlan::Stdio(role) => {
+                if let Err(e) = crate::acp::serve_stdio(bridge, crate::acp::Principal { role }) {
+                    eprintln!("rung-host: acp: {e}");
+                }
+            }
+            AcpPlan::None => {}
         });
         let why = looped.join();
         // Let the bridge answer what the halt left open.
