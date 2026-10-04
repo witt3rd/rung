@@ -20,7 +20,7 @@
 //! The governor's state is a projection of the record; its decisions are
 //! pure functions of that state and the time.
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use rung_agent_core::engine::ProviderClass;
 use serde::Serialize;
@@ -115,6 +115,10 @@ pub struct GovState {
     /// A blocked incident is open (cleared by the next good turn).
     pub blocked: bool,
     pub paid_spent_today: f64,
+    /// Rungs the latest listing called unavailable (the walk skips them).
+    pub unavailable: BTreeSet<usize>,
+    /// When the ladder is listed next; `None` before the first listing.
+    pub next_listing_at: Option<Millis>,
 }
 
 impl GovState {
@@ -172,6 +176,19 @@ impl GovState {
                 }
             }
             "degraded.ended" => self.degraded = None,
+            "ladder.listed" => {
+                self.unavailable = l
+                    .get("rungs")
+                    .as_array()
+                    .map(|rs| {
+                        rs.iter()
+                            .filter(|r| r["available"] == false)
+                            .filter_map(|r| r["rung"].as_u64().map(|x| x as usize))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                self.next_listing_at = l.get("next_at").as_i64();
+            }
             "model.switch" => {
                 let from = l.u64("rung_from") as usize;
                 let to = l.u64("rung_to") as usize;
@@ -295,7 +312,12 @@ pub fn on_failure(
         let jittered = (exp * (0.5 + 0.5 * jitter)) as Millis;
         retry.max(jittered).min(cfg.backoff_cap_ms)
     };
-    let down = || (st.rung + 1 < rungs).then_some((st.rung, st.rung + 1));
+    // The next rung down the listing left standing.
+    let down = || {
+        (st.rung + 1..rungs)
+            .find(|r| !st.unavailable.contains(r))
+            .map(|to| (st.rung, to))
+    };
     match (f.origin, class) {
         (Origin::Platform, _) | (_, ProviderClass::Quota) => {
             // A reset already past (the platform still refuses) backs off
@@ -358,13 +380,26 @@ pub fn on_failure(
     }
 }
 
-/// The rung to probe back up to, when the one above has cooled down.
+/// The rung to probe back up to: the nearest one above that the listing
+/// left standing, once it has cooled down.
 pub fn probe_up(st: &GovState, now: Millis) -> Option<usize> {
-    let up = st.rung.checked_sub(1)?;
+    let up = (0..st.rung).rev().find(|r| !st.unavailable.contains(r))?;
     match st.cooldown.get(&up) {
         Some((until, _)) if *until > now => None,
         _ => Some(up),
     }
+}
+
+/// Where to go when the listing takes the current rung away: the best
+/// standing rung that has cooled down, else the best standing one. `None`
+/// when the current rung stands, or none does.
+pub fn after_listing(st: &GovState, rungs: usize, now: Millis) -> Option<usize> {
+    if !st.unavailable.contains(&st.rung) {
+        return None;
+    }
+    let standing = || (0..rungs).filter(|r| !st.unavailable.contains(r));
+    let cooled = standing().find(|r| st.cooldown.get(r).is_none_or(|(until, _)| *until <= now));
+    cooled.or_else(|| standing().next())
 }
 
 /// The cooldown a rung gets when the ladder steps down from it.
@@ -449,6 +484,44 @@ mod tests {
         let p = on_failure(&st, &cfg, &f, 1, 0, 0.9);
         assert_eq!(p.wait.unwrap().until, cfg.backoff_cap_ms);
         assert_eq!(p.step_down, None, "no rung below the last");
+    }
+
+    #[test]
+    fn the_walk_skips_rungs_the_listing_took_away() {
+        let cfg = GovConfig::default();
+        let mut st = GovState {
+            unavailable: BTreeSet::from([1, 3]),
+            ..GovState::default()
+        };
+        let f = HostFailure {
+            failure: ProviderFailure {
+                class: ProviderClass::RateLimit,
+                retry_after_ms: None,
+            },
+            origin: Origin::Provider,
+            reset_at: None,
+        };
+        assert_eq!(on_failure(&st, &cfg, &f, 5, 0, 0.0).step_down, Some((0, 2)));
+        st.rung = 2;
+        assert_eq!(on_failure(&st, &cfg, &f, 5, 0, 0.0).step_down, Some((2, 4)));
+        st.rung = 4;
+        assert_eq!(on_failure(&st, &cfg, &f, 5, 0, 0.0).step_down, None);
+        assert_eq!(probe_up(&st, 0), Some(2));
+        st.rung = 2;
+        assert_eq!(probe_up(&st, 0), Some(0));
+        st.unavailable.insert(0);
+        assert_eq!(probe_up(&st, 0), None);
+        // The current rung is taken away: the best standing, cooled first.
+        assert_eq!(after_listing(&st, 5, 0), None);
+        st.unavailable.insert(2);
+        st.cooldown.insert(4, (10, 10));
+        assert_eq!(
+            after_listing(&st, 5, 0),
+            Some(4),
+            "none cooled: the best standing"
+        );
+        st.unavailable = BTreeSet::from([0, 1, 2, 3, 4]);
+        assert_eq!(after_listing(&st, 5, 0), None, "none stands");
     }
 
     #[test]

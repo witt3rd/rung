@@ -95,6 +95,9 @@ pub struct HostBuilder {
     pub segment_bytes: u64,
     /// Calendar entries the operator seeds (added once).
     pub seed_calendar: Vec<Entry>,
+    /// Lists the router's models for the ladder's filter; `None`: the
+    /// configured ladder is walked as it is.
+    pub lister: Option<Arc<dyn crate::ladder::Lister>>,
 }
 
 impl HostBuilder {
@@ -119,6 +122,7 @@ impl HostBuilder {
             limits: Limits::default(),
             segment_bytes: crate::record::SEGMENT_BYTES,
             seed_calendar: Vec::new(),
+            lister: None,
         }
     }
 }
@@ -135,6 +139,7 @@ pub struct Host {
     web: Arc<dyn WebReader>,
     limits: Limits,
     seed_calendar: Vec<Entry>,
+    lister: Option<Arc<dyn crate::ladder::Lister>>,
     /// Set on waking after a gap: when the host stopped running.
     down_since: Mutex<Option<Millis>>,
     /// The next model call follows a host-made change: (cause, what stayed valid).
@@ -252,6 +257,7 @@ impl Host {
             web: b.web,
             limits: b.limits,
             seed_calendar: b.seed_calendar,
+            lister: b.lister,
             down_since: Mutex::new(None),
             reset: Mutex::new(None),
             switch_pending: Mutex::new(None),
@@ -421,6 +427,7 @@ impl Host {
         }
         self.fire_calendar();
         self.settle();
+        self.list_ladder();
         self.probe_up();
         let (admit, inject, tools, kind) = self.decide(n, turn_next);
         // The governor: a world-imposed wait, never rest.
@@ -545,6 +552,44 @@ impl Host {
                 };
                 self.accept(&item);
             }
+        }
+    }
+
+    /// List the router's models when due (at the first boundary, then
+    /// every six hours; 15 minutes after a failure) and switch off a rung
+    /// the listing took away.
+    fn list_ladder(&self) {
+        let Some(lister) = &self.lister else { return };
+        let core = &*self.core;
+        let now = core.now();
+        let rungs = self.cfg().ladder.len();
+        let previous: Vec<bool> = {
+            let st = core.state();
+            if st.governor.next_listing_at.is_some_and(|t| now < t) {
+                return;
+            }
+            if st.governor.next_listing_at.is_none() {
+                Vec::new()
+            } else {
+                (0..rungs)
+                    .map(|r| !st.governor.unavailable.contains(&r))
+                    .collect()
+            }
+        };
+        let body = crate::ladder::list(lister.as_ref(), &self.cfg().ladder, &previous, now);
+        let line = core.emit("ladder.listed", body);
+        let to = {
+            let st = core.state();
+            governor::after_listing(&st.governor, rungs, core.now())
+                .map(|to| (st.governor.rung, to))
+        };
+        if let Some((from, to)) = to {
+            let gone = line.get("rungs")[from]["why"]
+                .as_str()
+                .unwrap_or("unavailable")
+                .to_string();
+            let direction = if to > from { "down" } else { "up" };
+            self.switch(from, to, direction, &format!("listing: {gone}"), 0);
         }
     }
 

@@ -110,6 +110,8 @@ pub struct Scenario {
     /// Run this engine instead of the scripted mock (the real adapter
     /// against a loopback provider). The mock is still built, unused.
     pub engine: Option<Arc<dyn crate::engine::TurnEngine>>,
+    /// Lists the router's models for the ladder's filter.
+    pub lister: Option<Arc<dyn crate::ladder::Lister>>,
 }
 
 impl Scenario {
@@ -146,6 +148,7 @@ impl Scenario {
             notifier: None,
             cleanup: None,
             engine: None,
+            lister: None,
             dir,
         }
     }
@@ -222,6 +225,7 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
         until: sc.until,
     };
     b.seed_calendar = sc.seed_calendar;
+    b.lister = sc.lister;
     let (host, rec) = Host::open(b).expect("open host");
     (host, rec, mock)
 }

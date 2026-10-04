@@ -1,0 +1,321 @@
+//! The model ladder's listing filter.
+//!
+//! The ladder is configuration: model ids, best first. At start and every
+//! six hours the host lists the router's models (a keyless GET of
+//! `{base}/models`, and `{base}/models/{id}/endpoints` for each configured
+//! rung still standing) and keeps only the rungs that are available and
+//! free. A rung is available when it is listed, its `expiration_date` has
+//! not begun (an expiry date is the first day it is gone), its prompt and
+//! completion prices are zero, it takes `tools`, and one of its endpoints
+//! has a status of at least 0. The verdicts are one `ladder.listed` record
+//! line; the governor walks only available rungs (step-down skips the
+//! others, a probe goes to the nearest available one above), and a listing
+//! that takes the current rung away switches to the best available one at
+//! once. A listing that fails (the router unreachable, a non-2xx answer)
+//! keeps the previous verdicts and is tried again in 15 minutes; it never
+//! stops the host.
+//!
+//! [`OPENROUTER_FREE_LADDER`] is the free ladder the operator ruled for a
+//! first live substrate. It is a default for configuration, not a
+//! hard-coded walk: the filter decides what of it is usable.
+
+use std::time::Duration;
+
+use serde_json::{Value, json};
+
+use crate::clock::{HOUR, MINUTE, Millis};
+
+/// The free ladder, best first. `stealth/space-bunny-alpha` is listed with
+/// an expiration date; the filter drops it from that day on.
+pub const OPENROUTER_FREE_LADDER: [&str; 5] = [
+    "stealth/space-bunny-alpha",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "qwen/qwen3.8-27b:free",
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+];
+
+/// How often a successful listing is refreshed.
+pub const REFRESH_MS: Millis = 6 * HOUR;
+/// How soon a failed listing is tried again.
+pub const RETRY_MS: Millis = 15 * MINUTE;
+
+/// Where the listing comes from.
+pub trait Lister: Send + Sync {
+    /// The `/models` answer.
+    fn models(&self) -> Result<Value, String>;
+    /// The `/models/{id}/endpoints` answer; `Ok(None)` when the router
+    /// does not know the model (404).
+    fn endpoints(&self, id: &str) -> Result<Option<Value>, String>;
+}
+
+/// Lists over HTTP, with no key: the listing is public.
+#[derive(Debug, Clone)]
+pub struct HttpLister {
+    base: String,
+    timeout: Duration,
+}
+
+impl HttpLister {
+    /// `base` is the route's API base, e.g. `https://openrouter.ai/api/v1`.
+    pub fn new(base: &str) -> Self {
+        Self {
+            base: base.trim_end_matches('/').to_string(),
+            timeout: Duration::from_secs(30),
+        }
+    }
+
+    fn get(&self, path: &str) -> Result<Option<Value>, String> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(self.timeout)
+            .build()
+            .map_err(|e| e.to_string())?;
+        let url = format!("{}{path}", self.base);
+        let resp = client.get(&url).send().map_err(|e| e.to_string())?;
+        let status = resp.status().as_u16();
+        if status == 404 {
+            return Ok(None);
+        }
+        if !(200..300).contains(&status) {
+            return Err(format!("GET {path}: HTTP {status}"));
+        }
+        let text = resp.text().map_err(|e| e.to_string())?;
+        serde_json::from_str(&text)
+            .map(Some)
+            .map_err(|e| format!("GET {path}: {e}"))
+    }
+}
+
+impl Lister for HttpLister {
+    fn models(&self) -> Result<Value, String> {
+        self.get("/models")?
+            .ok_or_else(|| "GET /models: HTTP 404".to_string())
+    }
+
+    fn endpoints(&self, id: &str) -> Result<Option<Value>, String> {
+        self.get(&format!("/models/{id}/endpoints"))
+    }
+}
+
+/// Days since 1970-01-01 of a `YYYY-MM-DD` date.
+fn days_from_civil(date: &str) -> Option<i64> {
+    let parts: Vec<i64> = date
+        .get(..10)?
+        .split('-')
+        .map(|p| p.parse().ok())
+        .collect::<Option<_>>()?;
+    let [y, m, d] = parts[..] else { return None };
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+        return None;
+    }
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = (m + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some(era * 146_097 + doe - 719_468)
+}
+
+fn is_zero(v: &Value) -> bool {
+    v.as_str()
+        .and_then(|s| s.trim().parse::<f64>().ok())
+        .or_else(|| v.as_f64())
+        == Some(0.0)
+}
+
+/// The verdict on one listed model before its endpoints are asked:
+/// `Err(why)` when it is out.
+fn listed_verdict(listing: &Value, model: &str, now: Millis) -> Result<(), &'static str> {
+    let m = listing["data"]
+        .as_array()
+        .and_then(|d| d.iter().find(|m| m["id"] == model))
+        .ok_or("not_listed")?;
+    if let Some(day) = m["expiration_date"].as_str().and_then(days_from_civil)
+        && now >= day * 24 * HOUR
+    {
+        return Err("expired");
+    }
+    if !(is_zero(&m["pricing"]["prompt"]) && is_zero(&m["pricing"]["completion"])) {
+        return Err("not_free");
+    }
+    let tools = m["supported_parameters"]
+        .as_array()
+        .is_some_and(|p| p.iter().any(|x| x == "tools"));
+    if !tools {
+        return Err("no_tools");
+    }
+    Ok(())
+}
+
+fn endpoint_up(e: &Value) -> bool {
+    e["data"]["endpoints"].as_array().is_some_and(|eps| {
+        eps.iter()
+            .any(|x| x["status"].as_i64().is_some_and(|s| s >= 0))
+    })
+}
+
+/// List and judge `ladder` at `now`: the body of a `ladder.listed` line.
+/// `previous` is the last verdicts (per rung, available or not), kept when
+/// the listing fails.
+pub fn list(lister: &dyn Lister, ladder: &[String], previous: &[bool], now: Millis) -> Value {
+    let judged: Result<Vec<(bool, &'static str)>, String> = (|| {
+        let listing = lister.models()?;
+        if listing["data"].as_array().is_none() {
+            return Err("GET /models: no data array".to_string());
+        }
+        let mut out = Vec::with_capacity(ladder.len());
+        for model in ladder {
+            match listed_verdict(&listing, model, now) {
+                Err(why) => out.push((false, why)),
+                Ok(()) => match lister.endpoints(model)? {
+                    Some(e) if endpoint_up(&e) => out.push((true, "ok")),
+                    _ => out.push((false, "endpoint_down")),
+                },
+            }
+        }
+        Ok(out)
+    })();
+    let rungs = |v: &[(bool, String)]| -> Vec<Value> {
+        ladder
+            .iter()
+            .zip(v)
+            .enumerate()
+            .map(|(i, (m, (a, w)))| json!({"rung": i, "model": m, "available": a, "why": w}))
+            .collect()
+    };
+    match judged {
+        Ok(v) => {
+            let v: Vec<(bool, String)> = v.into_iter().map(|(a, w)| (a, w.to_string())).collect();
+            let available = v.iter().filter(|x| x.0).count();
+            json!({"ok": true, "rungs": rungs(&v), "available": available,
+                   "next_at": now + REFRESH_MS})
+        }
+        Err(e) => {
+            // Keep what was known; before any listing, every rung stands.
+            let v: Vec<(bool, String)> = (0..ladder.len())
+                .map(|i| {
+                    let a = previous.get(i).copied().unwrap_or(true);
+                    (a, if a { "kept" } else { "kept_unavailable" }.to_string())
+                })
+                .collect();
+            let available = v.iter().filter(|x| x.0).count();
+            json!({"ok": false, "error": e, "rungs": rungs(&v), "available": available,
+                   "next_at": now + RETRY_MS})
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    struct Fixed {
+        listing: Result<Value, String>,
+        endpoints: BTreeMap<String, Value>,
+    }
+
+    impl Lister for Fixed {
+        fn models(&self) -> Result<Value, String> {
+            self.listing.clone()
+        }
+        fn endpoints(&self, id: &str) -> Result<Option<Value>, String> {
+            Ok(self.endpoints.get(id).cloned())
+        }
+    }
+
+    fn model(id: &str, prompt: &str, params: &[&str], exp: Option<&str>) -> Value {
+        json!({"id": id, "pricing": {"prompt": prompt, "completion": "0"},
+               "supported_parameters": params, "expiration_date": exp})
+    }
+
+    fn up(status: i64) -> Value {
+        json!({"data": {"endpoints": [{"status": status}]}})
+    }
+
+    fn lister() -> Fixed {
+        Fixed {
+            listing: Ok(json!({"data": [
+                model("a", "0", &["tools"], Some("2026-10-05")),
+                model("b", "0", &["tools"], None),
+                model("c", "0", &["max_tokens"], None),
+                model("d", "0.000001", &["tools"], None),
+                model("e", "0", &["tools"], None),
+            ]})),
+            endpoints: BTreeMap::from([
+                ("a".to_string(), up(0)),
+                ("b".to_string(), up(0)),
+                ("e".to_string(), up(-2)),
+            ]),
+        }
+    }
+
+    fn ladder() -> Vec<String> {
+        ["a", "b", "c", "d", "e", "f"].map(String::from).to_vec()
+    }
+
+    fn whys(v: &Value) -> Vec<(bool, String)> {
+        v["rungs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| {
+                (
+                    r["available"].as_bool().unwrap(),
+                    r["why"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect()
+    }
+
+    /// 2026-10-04T23:59:59.999Z and 2026-10-05T00:00Z.
+    const BEFORE: Millis = 1_791_158_399_999;
+    const ON: Millis = 1_791_158_400_000;
+
+    #[test]
+    fn each_rung_gets_its_verdict() {
+        let v = list(&lister(), &ladder(), &[], BEFORE);
+        assert_eq!(v["ok"], true);
+        assert_eq!(
+            whys(&v),
+            [
+                (true, "ok"),
+                (true, "ok"),
+                (false, "no_tools"),
+                (false, "not_free"),
+                (false, "endpoint_down"),
+                (false, "not_listed"),
+            ]
+            .map(|(a, w)| (a, w.to_string()))
+        );
+        assert_eq!(v["available"], 2);
+        assert_eq!(v["next_at"], BEFORE + REFRESH_MS);
+    }
+
+    #[test]
+    fn an_expiry_date_is_the_first_day_gone() {
+        let v = list(&lister(), &ladder(), &[], ON);
+        assert_eq!(whys(&v)[0], (false, "expired".to_string()));
+        assert_eq!(days_from_civil("2026-10-05"), Some(ON / (24 * HOUR)));
+    }
+
+    #[test]
+    fn a_failed_listing_keeps_the_previous_verdicts() {
+        let mut l = lister();
+        l.listing = Err("GET /models: HTTP 502".into());
+        let v = list(
+            &l,
+            &ladder(),
+            &[false, true, false, false, false, false],
+            ON,
+        );
+        assert_eq!(v["ok"], false);
+        assert_eq!(v["next_at"], ON + RETRY_MS);
+        let a: Vec<bool> = whys(&v).into_iter().map(|x| x.0).collect();
+        assert_eq!(a, [false, true, false, false, false, false]);
+        // Before any listing, every rung stands.
+        let v = list(&l, &ladder(), &[], ON);
+        assert_eq!(v["available"], 6);
+    }
+}

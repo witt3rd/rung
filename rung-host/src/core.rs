@@ -46,7 +46,8 @@ pub struct HostConfig {
     pub pinned: Vec<String>,
     /// The operator ceiling: tool groups the agent may ever have.
     pub ceiling: BTreeSet<String>,
-    /// The model ladder, best first.
+    /// The model ladder, best first. With a lister set, the listing filter
+    /// decides which rungs stand ([`crate::ladder`]).
     pub ladder: Vec<String>,
     pub epoch_budget_tokens: usize,
     /// A turn's wall-clock bound.

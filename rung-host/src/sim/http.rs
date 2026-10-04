@@ -189,7 +189,7 @@ impl LoopbackProvider {
                     .peer_addr()
                     .map(|a| a.ip().is_loopback())
                     .unwrap_or(false);
-                let Some((method, path, body)) = read_request(&mut sock) else {
+                let Some((method, path, body, auth)) = read_request(&mut sock) else {
                     continue;
                 };
                 let n = s2.lock().expect("seen").len();
@@ -203,6 +203,7 @@ impl LoopbackProvider {
                     method: method.clone(),
                     path: path.clone(),
                     loopback,
+                    auth,
                     body: body.clone(),
                     status: reply.status,
                     served: reply.served.clone(),
@@ -246,8 +247,9 @@ impl Drop for LoopbackProvider {
     }
 }
 
-/// Read one request: (method, path, JSON body or `Null`).
-fn read_request(sock: &mut TcpStream) -> Option<(String, String, Value)> {
+/// Read one request: (method, path, JSON body or `Null`, whether it sent
+/// an `Authorization` header).
+fn read_request(sock: &mut TcpStream) -> Option<(String, String, Value, bool)> {
     let mut buf = Vec::new();
     let mut chunk = [0u8; 65536];
     loop {
@@ -280,7 +282,10 @@ fn read_request(sock: &mut TcpStream) -> Option<(String, String, Value)> {
         } else {
             serde_json::from_slice(raw).unwrap_or(Value::Null)
         };
-        return Some((method, path, body));
+        let auth = head
+            .lines()
+            .any(|l| l.to_ascii_lowercase().starts_with("authorization:"));
+        return Some((method, path, body, auth));
     }
 }
 
