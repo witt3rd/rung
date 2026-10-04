@@ -386,8 +386,10 @@ fn mock_mcp(error: String, log: Log) -> String {
 
 // ─── Running a fixture ───────────────────────────────────────────────────────
 
-fn tempdir(name: &str) -> rung_testkit::TempDir {
-    rung_testkit::TempDir::new(&format!("parity-{name}"))
+/// The tag is short on purpose: the agent clips tool-result log lines at 120
+/// chars, so a long temp path would clip differently from the golden transcript.
+fn tempdir(_name: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new("p")
 }
 
 fn read_line(r: &mut impl BufRead) -> Option<String> {
