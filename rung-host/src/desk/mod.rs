@@ -491,19 +491,42 @@ pub fn choice<'a>(d: &'a Decided, id: &str) -> Option<&'a str> {
     d.choice(id).map(|(c, _, _)| c)
 }
 
-/// Make a question id safe: letters, digits, `_` and `-`.
+/// Make a question id safe: letters, digits and `-` pass through; every other
+/// byte (including `_`) becomes `_` plus two lowercase hex digits. The map is
+/// injective, so distinct source ids never share a question id (`a.b` and
+/// `a_b` used to both become `a_b`, and the second question overwrote or
+/// shadowed the first).
 pub fn qid(prefix: &str, id: &str) -> String {
-    let safe: String = id
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
+    let mut safe = String::with_capacity(id.len());
+    for b in id.bytes() {
+        if b.is_ascii_alphanumeric() || b == b'-' {
+            safe.push(b as char);
+        } else {
+            safe.push_str(&format!("_{b:02x}"));
+        }
+    }
     format!("{prefix}_{safe}")
+}
+
+#[cfg(test)]
+mod qid_tests {
+    use super::qid;
+
+    #[test]
+    fn distinct_ids_never_collide() {
+        let ids = [
+            "a.b", "a_b", "a b", "a/b", "a_2eb", "é", "_", "", "a-b", "ab",
+        ];
+        let mut seen = std::collections::HashSet::new();
+        for id in ids {
+            let q = qid("keep", id);
+            assert!(
+                q.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            );
+            assert!(seen.insert(q.clone()), "collision on {id:?} -> {q}");
+        }
+    }
 }
 
 // ─── The desk's projection ───────────────────────────────────────────────────
