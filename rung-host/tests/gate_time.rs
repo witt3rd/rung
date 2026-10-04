@@ -209,8 +209,10 @@ fn g_d_holds_when_every_ask_times_out() {
         .collect();
     assert!(!asks.is_empty(), "no desk asks");
     assert!(
+        // Unreported timeouts count their estimate, so the daily cap may close the desk
+        // part-way: "capped" is still an ask that never beat the deadline.
         asks.iter()
-            .all(|o| *o == "timeout" || *o == "nothing_to_ask"),
+            .all(|o| matches!(*o, "timeout" | "nothing_to_ask" | "capped")),
         "an ask beat a 1 ms deadline: {:?}",
         asks.iter().filter(|o| **o != "timeout").collect::<Vec<_>>()
     );

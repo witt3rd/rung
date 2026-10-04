@@ -27,6 +27,7 @@ pub use scripted::{Scripted, Step};
 
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt::Debug;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -89,6 +90,8 @@ pub enum Why {
     Shadow,
     /// This family had no question to ask.
     NothingToAsk,
+    /// The operator's kill switch is on: the decider is not asked.
+    Killed,
 }
 
 impl Why {
@@ -102,6 +105,7 @@ impl Why {
             Why::Incomplete => "incomplete".into(),
             Why::Shadow => "shadow".into(),
             Why::NothingToAsk => "nothing_to_ask".into(),
+            Why::Killed => "killed".into(),
         }
     }
 }
@@ -274,6 +278,9 @@ pub struct DecisionDesk {
     pub timeout: Duration,
     pub cap: SpendCap,
     pub knobs: Knobs,
+    /// The operator's kill switch: while this file exists the decider is
+    /// not asked and every family decides by its rule (`by: rule(killed)`).
+    pub kill_file: Option<PathBuf>,
 }
 
 impl std::fmt::Debug for DecisionDesk {
@@ -297,6 +304,7 @@ impl DecisionDesk {
             timeout: ASK_TIMEOUT,
             cap: SpendCap::default(),
             knobs: Knobs::default(),
+            kill_file: None,
         }
     }
 
@@ -347,6 +355,9 @@ impl DecisionDesk {
         };
         if self.mode == DeskMode::RuleOnly {
             return fail(Why::RuleOnly, false);
+        }
+        if self.kill_file.as_ref().is_some_and(|f| f.exists()) {
+            return fail(Why::Killed, false);
         }
         if est > self.cap.per_ask || spent_today + est > self.cap.per_day {
             return fail(Why::Capped, false);
@@ -572,7 +583,18 @@ impl DeskState {
             }
         };
         match l.kind.as_str() {
-            "desk.ask" => self.spent_today += l.f64("cost_usd"),
+            // An ask that timed out or came back undecided may still have
+            // been billed without reporting it: count its (high) estimate,
+            // so the cap errs on the safe side.
+            "desk.ask" => {
+                let outcome = l.str("outcome");
+                let unreported = outcome == "timeout" || outcome.starts_with("undecided");
+                self.spent_today += if unreported {
+                    l.f64("cost_usd").max(l.f64("est_usd"))
+                } else {
+                    l.f64("cost_usd")
+                };
+            }
             "llm.call" => {
                 self.cache_recent
                     .push_back((l.u64("cached_tokens"), l.u64("prompt_tokens")));
@@ -693,5 +715,58 @@ impl DeskState {
 
     pub fn enabled(&self, group: &str) -> bool {
         self.groups.get(group).is_some_and(|g| g.enabled)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ask_line(seq: u64, outcome: &str, est: f64, cost: f64) -> Line {
+        let body = json!({"outcome": outcome, "est_usd": est, "cost_usd": cost});
+        Line {
+            seq,
+            at: 1,
+            kind: "desk.ask".into(),
+            body: body.as_object().unwrap().clone(),
+        }
+    }
+
+    #[test]
+    fn an_ask_that_may_be_billed_unreported_counts_its_estimate() {
+        let mut st = DeskState::default();
+        st.apply(&ask_line(1, "answered", 0.5, 0.1));
+        st.apply(&ask_line(2, "timeout", 0.2, 0.0));
+        st.apply(&ask_line(3, "undecided:malformed response: x", 0.3, 0.0));
+        st.apply(&ask_line(4, "capped", 0.4, 0.0));
+        st.apply(&ask_line(5, "killed", 0.4, 0.0));
+        assert!((st.spent_today - 0.6).abs() < 1e-12, "{}", st.spent_today);
+    }
+
+    #[test]
+    fn the_kill_file_keeps_the_decider_unasked() {
+        let dir = std::env::temp_dir().join(format!("rung-desk-kill-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let kill = dir.join("OFF");
+        let scripted = Arc::new(Scripted::always(Step::Seeded(1)));
+        let decider: Arc<dyn Decider> = scripted.clone();
+        let mut desk = DecisionDesk::new(Some(decider), "scripted", DeskMode::Shadow);
+        desk.kill_file = Some(kill.clone());
+        let mut qs = BTreeMap::new();
+        qs.insert("q".to_string(), Question::noul("Is it?", "yes", "no"));
+        std::fs::write(&kill, "").unwrap();
+        assert_eq!(
+            desk.ask(json!({}), qs.clone(), 0.0).result.unwrap_err(),
+            Why::Killed
+        );
+        std::fs::remove_file(&kill).unwrap();
+        assert_eq!(
+            scripted.asks(),
+            0,
+            "the decider was asked with the kill file present"
+        );
+        assert!(desk.ask(json!({}), qs, 0.0).result.is_ok());
+        assert_eq!(scripted.asks(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

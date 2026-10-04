@@ -1,0 +1,9 @@
+L1 PASS {"windows": [{"window": 1, "exit": 0, "panic": false}], "starts": 1, "halts": 1, "halt_why": [{"by": "stop-file:/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live2/STOP", "why": "stopped"}], "record_span_s": 131.0}
+L2 FAIL {"listed_before_first_turn": true, "first_turn_model": "stealth/space-bunny-alpha", "best_standing": "stealth/space-bunny-alpha", "completed_by_model": {}, "turns_by_status": {"failed": 6}}
+L3 PASS {"provider_failures": 6, "unroutable": 5, "stepped_down": 4, "at_bottom": 1, "not_stepped": 0, "platform_429": 0, "platform_stepped": 0, "probes_up": 0, "exercised": true}
+L4 PASS {"calls": 0, "epochs": 0, "unstable_epochs": [], "cache_breaks": {}, "cache_cold": {}, "prompt_tokens": 0, "cached_tokens": 0, "cache_efficiency": null, "cache_write_tokens": 0}
+L5 FAIL {"owner_items": 1, "deferred_past_first_boundary": 0, "admission_ms_p50": 56584, "admission_ms_p95": 56584, "admission_ms_max": 56584, "turn_ms_p50": 112, "turn_ms_p95": 2259, "disposed_ms_p50": null, "disposed_ms_max": null}
+L6 PASS {"accepted": 1, "disposed": 0, "disposed_twice": [], "open_at_stop": ["o01-hello"], "dispositions": {}}
+L7 PASS {"asks": 12, "outcomes": {"answered": 12}, "decisions": 36, "decisions_by": {"{\"rule\": \"nothing_to_ask\"}": 12, "{\"rule\": \"shadow\"}": 24}, "by_jev": 0, "per_family": {"inject": {"agree": 10, "disagree": 2}, "tools": {"disagree": 7, "agree": 5}}, "jev_ms_p50": 197.377, "jev_ms_p95": 724.417, "jev_ms_max": 724.417, "jev_cost_usd": 0.000541, "jev_charged_usd": 0.000541}
+L8 PASS {"write_syscalls": {"mkdir": 3, "openat": 1, "unlink": 1}, "outside": {}, "agent_write_calls": 0, "agent_tool_refusals": {}, "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live2/state/workspace", "traces": 1}
+L9 PASS {"agent_usd": 0, "jev_usd": 0.000541, "jev_charged_usd": 0.000541, "total_usd": 0.000541}

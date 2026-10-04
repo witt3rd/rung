@@ -283,6 +283,25 @@ pub fn origin_of(f: Option<&HttpFailure>, now: Millis) -> (Origin, Option<Millis
     (Origin::Provider, None)
 }
 
+/// A router's "no endpoint for you" refusal: a 404 whose error names why
+/// the model's endpoints were excluded for this account (data policy,
+/// guardrails). Its reason codes, or `None` for any other failure.
+pub fn unroutable(f: Option<&HttpFailure>) -> Option<Vec<String>> {
+    let f = f.filter(|f| f.status == 404)?;
+    let body: Value = serde_json::from_str(&f.body).ok()?;
+    let reasons = body["error"]["metadata"]["ineligibility_reasons"].as_array()?;
+    let mut out: Vec<String> = reasons
+        .iter()
+        .filter_map(|r| r["reason"].as_str().map(String::from))
+        .collect();
+    out.sort();
+    out.dedup();
+    if out.is_empty() {
+        out.push("unspecified".into());
+    }
+    Some(out)
+}
+
 /// `X-RateLimit-Reset`: ms since the epoch, seconds since the epoch, or
 /// seconds from now.
 fn reset_at(v: &str, now: Millis) -> Option<Millis> {
@@ -391,10 +410,12 @@ fn map_report(
                 }
                 _ => (Origin::Provider, None),
             };
+            let unroutable = unroutable(seen.refused.as_ref());
             Some(HostFailure {
                 failure: f,
                 origin,
                 reset_at,
+                unroutable,
             })
         }
         _ => None,
@@ -447,6 +468,30 @@ mod tests {
                 .collect(),
             body: body.into(),
         }
+    }
+
+    #[test]
+    fn a_router_404_naming_excluded_endpoints_is_unroutable() {
+        let body = r#"{"error":{"code":404,"message":"0 endpoints out of 1 requested are available matching your guardrail restrictions and data policy.","metadata":{"ineligibility_reasons":[{"reason":"zdr-violation-by-guardrail","endpoint_count":1},{"reason":"free-model-training-violation-by-account","endpoint_count":1}]}}}"#;
+        let x = HttpFailure {
+            status: 404,
+            ..f(&[], body)
+        };
+        assert_eq!(
+            unroutable(Some(&x)),
+            Some(vec![
+                "free-model-training-violation-by-account".to_string(),
+                "zdr-violation-by-guardrail".to_string()
+            ])
+        );
+        // Any other 404, or the same body on another status, is not.
+        let plain = HttpFailure {
+            status: 404,
+            ..f(&[], r#"{"error":{"message":"no such model"}}"#)
+        };
+        assert_eq!(unroutable(Some(&plain)), None);
+        assert_eq!(unroutable(Some(&f(&[], body))), None);
+        assert_eq!(unroutable(None), None);
     }
 
     #[test]

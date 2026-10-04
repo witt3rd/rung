@@ -8,7 +8,8 @@ changed for it.
 This document is informative. It describes slice 1 — the host against a
 scripted mock engine, a fake world and a fault injector, at $0 — and what
 slice 2 adds: the real engine adapter, the model ladder's listing filter,
-ACP outward and the startup-handoff ladder (below). Live runs are later. Delegation to workers is a final
+ACP outward and the startup-handoff ladder (below). The first live run (slice 3) is in
+[`rung-host-live-v1-prereg.md`](rung-host-live-v1-prereg.md) and `rung-host/live/`. Delegation to workers is a final
 extension; only its extension point exists (the `crew` group name and the
 `crew.*` record kinds are reserved, and the inbox admits external
 completion items).
@@ -202,6 +203,27 @@ Other optional keys: `workspace`, `identity`, `owner_channel`,
 `epoch_budget_tokens`, `turn_bound_s`, `backoff_base_ms`, `seed_projects`
 (`[{id, title, why}]`), and under `engine`: `step_cap`, `timeout_s`.
 
+For a bounded run with real stimuli:
+
+```yaml
+inbox: /run/rung-host/inbox          # a *.msg directory source
+stop_file: /run/rung-host/STOP       # the stop authority also halts on this file
+run_for_s: 1800                      # stop at 30 min (a wait ends there too)
+calendar:                            # owner entries, seeded on the first start only
+  - { id: standup, in_s: 600, text: "Stand-up: say what you are on", firm: true }
+desk:                                # rule-only when absent
+  mode: shadow                       # decide | shadow | rule_only
+  decider: jev                       # System One at base_url (default OpenRouter)
+  api_key_env: OPENROUTER_API_KEY    # the env var's name, never the key
+  cap_usd_day: 0.25                  # default 0.25; per ask 0.001 (cap_usd_ask)
+  kill_file: /run/rung-host/DESK_OFF # while it exists the decider is not asked
+```
+
+With the kill file present every ask is `desk.ask{outcome: killed}` and
+every family decides by its rule (`by: {"rule": "killed"}`). An ask that
+timed out or came back undecided counts its estimate against the cap, as
+it may have been billed without saying so.
+
 ## The engine adapter
 
 `rung_host::adapter::AgentEngine` runs each turn on `rung-agent-core`'s
@@ -259,8 +281,14 @@ current one.
   max(`Retry-After`, jittered exponential), capped at 15 min, and steps
   down the model ladder to the next rung the listing left standing
   (cooldown 2 min doubling to 30 min); the next boundary after the cooldown
-  probes back up to the nearest standing rung. A platform 429
-  (`X-RateLimit-Reset`) waits for its reset and does not step down. An auth
+  probes back up to the nearest standing rung above that has cooled down
+  (a rung still cooling does not hide a cooled one above it). A platform 429
+  (`X-RateLimit-Reset`) waits for its reset and does not step down. A
+  router 404 that names why the model's endpoints were excluded for this
+  account (data policy, guardrails: `ineligibility_reasons`) is
+  `unroutable`: it steps down like a provider failure, since another rung
+  may route; the rung cools down for the longest time (30 min) at once,
+  since an account policy does not change in minutes, and is probed again. An auth
   failure is `degraded: blocked`: probe every 15 min, one owner message per
   incident, never exit.
 - **Spend cap**: for paid providers only; reaching it halts
@@ -310,7 +338,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `llm.call` | `turn`, `call`, `epoch`, `rung`, `model_requested`, `model_served`, `provider`, `prompt_tokens`, `cached_tokens`, `cache_write_tokens`, `completion_tokens`, `reasoning_tokens`, `cost_usd`, `latency_ms`, `prefix {s_hash, l_hash, log_len_bytes, expected_cached_tokens}` |
 | `cache.break` / `cache.cold` | `turn`, `call`, `cause` |
 | `turn.log` | `turn`, `header` (recall stripped), `messages` (verbatim, as sent) |
-| `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at}`, `rewritten` (only when true), `cost`, `projection`, `wall_post_us` |
+| `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at, unroutable}`, `rewritten` (only when true), `cost`, `projection`, `wall_post_us` |
 | `kernel.commit` / `.progress` / `.release` / `.trace` | the agent's own tool calls (`via`, `released_by`, `similarity`) |
 | `note.written`, `todo.*`, `project.added`, `question.*` | the agent's registers |
 | `expectation.made` / `.revised` / `.settled` | the expectation register; a settlement has `state`, `p`, `surprise`, `settled_by`, `calibration` |

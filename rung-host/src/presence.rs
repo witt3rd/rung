@@ -827,7 +827,12 @@ impl Host {
                     .values()
                     .any(|p| p.item.role == Role::Owner)
         };
-        let _ = core.clock.wait(w.until, &next, &mut wake);
+        // A run limit ends the wait too: the next boundary halts on it.
+        let until = match self.limits.until {
+            Some(u) => w.until.min(u.max(start)),
+            None => w.until,
+        };
+        let _ = core.clock.wait(until, &next, &mut wake);
         core.emit(
             "degraded.ended",
             json!({"class": w.class, "waited_ms": core.now() - start}),
@@ -1487,9 +1492,9 @@ impl Host {
                     core.now(),
                     jitter,
                 );
-                let cd = plan
-                    .step_down
-                    .map(|(from, _)| governor::cooldown_for(&st.governor, &cfg.governor, from));
+                let cd = plan.step_down.map(|(from, _)| {
+                    governor::cooldown_after(&st.governor, &cfg.governor, from, f)
+                });
                 (plan, cd)
             };
             if let Some(w) = &plan.wait {
@@ -1508,13 +1513,11 @@ impl Host {
                 );
             }
             if let Some((from, to)) = plan.step_down {
-                self.switch(
-                    from,
-                    to,
-                    "down",
-                    &format!("provider {}", f.class_name()),
-                    cooldown.unwrap_or(0),
-                );
+                let why = match &f.unroutable {
+                    Some(reasons) => format!("unroutable: {}", reasons.join(", ")),
+                    None => format!("provider {}", f.class_name()),
+                };
+                self.switch(from, to, "down", &why, cooldown.unwrap_or(0));
             }
         }
         core.sync();

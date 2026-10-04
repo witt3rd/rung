@@ -1,0 +1,179 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "stop-file:/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live1/STOP",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 55.9,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "stealth/space-bunny-alpha",
+  "completed_by_model": {},
+  "first_turn_model": "stealth/space-bunny-alpha",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": true,
+    "model": "stealth/space-bunny-alpha",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "google/gemma-4-31b-it:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": false,
+  "turns_by_status": {
+   "failed": 23
+  }
+ },
+ "L3": {
+  "at_bottom": 0,
+  "exercised": false,
+  "not_stepped": 0,
+  "pass": null,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 0,
+  "provider_failures": 0,
+  "stepped_down": 0,
+  "switches": [],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {},
+  "cache_cold": {},
+  "cache_efficiency": null,
+  "cache_write_tokens": 0,
+  "cached_tokens": 0,
+  "calls": 0,
+  "epochs": 0,
+  "pass": true,
+  "prompt_tokens": 0,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": null,
+  "admission_ms_p50": null,
+  "admission_ms_p95": null,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": null,
+  "disposed_ms_p50": null,
+  "owner_items": 0,
+  "pass": null,
+  "rows": [],
+  "turn_ms_p50": 143,
+  "turn_ms_p95": 206
+ },
+ "L6": {
+  "accepted": 0,
+  "disposed": 0,
+  "disposed_twice": [],
+  "dispositions": {},
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 47,
+  "by_jev": 0,
+  "decisions": 139,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 46,
+   "{\"rule\": \"shadow\"}": 93
+  },
+  "jev_charged_usd": 0.002084,
+  "jev_cost_usd": 0.002084,
+  "jev_ms_max": 1247.792,
+  "jev_ms_p50": 194.263,
+  "jev_ms_p95": 763.022,
+  "outcomes": {
+   "answered": 47
+  },
+  "pass": true,
+  "per_family": {
+   "consolidate": {
+    "disagree": 1
+   },
+   "inject": {
+    "agree": 42,
+    "disagree": 4
+   },
+   "tools": {
+    "agree": 11,
+    "disagree": 35
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {},
+  "agent_write_calls": 0,
+  "outside": {},
+  "pass": true,
+  "traces": 1,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/live1/state/workspace",
+  "write_syscalls": {
+   "mkdir": 3,
+   "openat": 1
+  }
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.002084,
+  "jev_usd": 0.002084,
+  "pass": true,
+  "total_usd": 0.002084
+ },
+ "extra": {
+  "calendar_fired": 0,
+  "completion_tokens": 0,
+  "degraded": {
+   "backoff": 23
+  },
+  "degraded_waited_s": {
+   "backoff": 41
+  },
+  "kernel": {},
+  "llm_calls": 0,
+  "llm_latency_ms_p50": null,
+  "llm_latency_ms_p95": null,
+  "outbox": 0,
+  "reasoning_tokens": 0,
+  "rollovers": 1,
+  "served": {},
+  "tool_calls": {},
+  "turn_kinds": {
+   "free": 23
+  },
+  "turns": 23
+ },
+ "lines": 356,
+ "run": "attempt-1"
+}

@@ -318,6 +318,21 @@ pub fn on_failure(
             .find(|r| !st.unavailable.contains(r))
             .map(|to| (st.rung, to))
     };
+    if f.unroutable.is_some() {
+        // No endpoint of this model is open to the account: waiting will
+        // not fix it, another rung may. Step down; the rung cools down and
+        // is probed again like any provider failure.
+        return Plan {
+            wait: Some(Wait {
+                class: "backoff".into(),
+                until: now + backoff(),
+                why: "unroutable: no endpoint open to this account".into(),
+                owner_wakes: false,
+            }),
+            step_down: down(),
+            incident_start: false,
+        };
+    }
     match (f.origin, class) {
         (Origin::Platform, _) | (_, ProviderClass::Quota) => {
             // A reset already past (the platform still refuses) backs off
@@ -383,11 +398,13 @@ pub fn on_failure(
 /// The rung to probe back up to: the nearest one above that the listing
 /// left standing, once it has cooled down.
 pub fn probe_up(st: &GovState, now: Millis) -> Option<usize> {
-    let up = (0..st.rung).rev().find(|r| !st.unavailable.contains(r))?;
-    match st.cooldown.get(&up) {
-        Some((until, _)) if *until > now => None,
-        _ => Some(up),
-    }
+    // The nearest standing rung above that has cooled down: a rung still
+    // cooling (say one the router will not route for this account) does
+    // not hide a cooled one above it.
+    (0..st.rung)
+        .rev()
+        .filter(|r| !st.unavailable.contains(r))
+        .find(|r| st.cooldown.get(r).is_none_or(|(until, _)| *until <= now))
 }
 
 /// Where to go when the listing takes the current rung away: the best
@@ -400,6 +417,16 @@ pub fn after_listing(st: &GovState, rungs: usize, now: Millis) -> Option<usize> 
     let standing = || (0..rungs).filter(|r| !st.unavailable.contains(r));
     let cooled = standing().find(|r| st.cooldown.get(r).is_none_or(|(until, _)| *until <= now));
     cooled.or_else(|| standing().next())
+}
+
+/// The cooldown a rung gets when the ladder steps down from it after `f`.
+/// A rung the router will not route for this account cools down for the
+/// longest time at once: an account policy does not change in minutes.
+pub fn cooldown_after(st: &GovState, cfg: &GovConfig, rung: usize, f: &HostFailure) -> Millis {
+    if f.unroutable.is_some() {
+        return cfg.cooldown_cap_ms;
+    }
+    cooldown_for(st, cfg, rung)
 }
 
 /// The cooldown a rung gets when the ladder steps down from it.
@@ -457,6 +484,7 @@ mod tests {
             },
             origin,
             reset_at: Some(5_000_000),
+            unroutable: None,
         };
         let p = on_failure(&st, &cfg, &f(Origin::Provider, Some(30_000)), 3, 1_000, 0.0);
         assert_eq!(p.step_down, Some((0, 1)));
@@ -480,6 +508,64 @@ mod tests {
     }
 
     #[test]
+    fn an_unroutable_rung_steps_down() {
+        let cfg = GovConfig::default();
+        let st = GovState::default();
+        let f = HostFailure {
+            failure: ProviderFailure {
+                class: ProviderClass::Invalid,
+                retry_after_ms: None,
+            },
+            origin: Origin::Provider,
+            reset_at: None,
+            unroutable: Some(vec!["zdr-violation-by-guardrail".into()]),
+        };
+        let p = on_failure(&st, &cfg, &f, 3, 1_000, 0.0);
+        assert_eq!(p.step_down, Some((0, 1)));
+        assert_eq!(p.wait.unwrap().class, "backoff");
+        // The same failure without the router's reasons stays on its rung.
+        let plain = HostFailure {
+            unroutable: None,
+            ..f
+        };
+        assert_eq!(on_failure(&st, &cfg, &plain, 3, 1_000, 0.0).step_down, None);
+    }
+
+    #[test]
+    fn a_probe_passes_a_rung_still_cooling_for_a_cooled_one_above() {
+        let cfg = GovConfig::default();
+        let mut st = GovState {
+            rung: 4,
+            ..GovState::default()
+        };
+        // Rung 3 the router will not route: cooling for the longest time.
+        st.cooldown
+            .insert(3, (1_000 + cfg.cooldown_cap_ms, cfg.cooldown_cap_ms));
+        // Rung 2 was rate-limited and has cooled down by now.
+        st.cooldown.insert(2, (500, cfg.cooldown_base_ms));
+        assert_eq!(probe_up(&st, 1_000), Some(2));
+        st.unavailable.insert(2);
+        assert_eq!(
+            probe_up(&st, 1_000),
+            Some(1),
+            "past what the listing took away"
+        );
+        st.cooldown.insert(1, (5_000, 1));
+        st.cooldown.insert(0, (5_000, 1));
+        assert_eq!(probe_up(&st, 1_000), None, "nothing above has cooled");
+        let f = HostFailure {
+            failure: ProviderFailure {
+                class: ProviderClass::Invalid,
+                retry_after_ms: None,
+            },
+            origin: Origin::Provider,
+            reset_at: None,
+            unroutable: Some(vec!["x".into()]),
+        };
+        assert_eq!(cooldown_after(&st, &cfg, 4, &f), cfg.cooldown_cap_ms);
+    }
+
+    #[test]
     fn backoff_is_capped() {
         let cfg = GovConfig::default();
         let st = GovState {
@@ -493,6 +579,7 @@ mod tests {
             },
             origin: Origin::Provider,
             reset_at: None,
+            unroutable: None,
         };
         let p = on_failure(&st, &cfg, &f, 1, 0, 0.9);
         assert_eq!(p.wait.unwrap().until, cfg.backoff_cap_ms);
@@ -513,6 +600,7 @@ mod tests {
             },
             origin: Origin::Provider,
             reset_at: None,
+            unroutable: None,
         };
         assert_eq!(on_failure(&st, &cfg, &f, 5, 0, 0.0).step_down, Some((0, 2)));
         st.rung = 2;
