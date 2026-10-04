@@ -1,5 +1,5 @@
 //! The real engine: [`TurnEngine`] over `rung-agent-core`'s
-//! [`Engine`](rung_agent_core::engine::Engine), against an OpenAI-compatible
+//! [`Engine`], against an OpenAI-compatible
 //! route (a router such as OpenRouter, or a local server).
 //!
 //! - **The host's tools are the turn's whole toolset.** The engine is built

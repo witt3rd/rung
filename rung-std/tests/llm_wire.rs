@@ -269,7 +269,7 @@ fn refused(protocol: Protocol) -> (Arc<Seen>, llm::RawCallError) {
             ("X-RateLimit-Remaining", "0"),
             ("X-RateLimit-Reset", "1790990000000"),
             ("Retry-After", "7"),
-            ("Set-Cookie", "session=abc"),
+            ("X-Request-Id", "req-abc"),
         ],
         r#"{"error":{"message":"Rate limit exceeded for key sk-test-secret-key"}}"#,
     );
