@@ -63,8 +63,9 @@ pub const G_L_EFFICIENCY_MIN: f64 = 0.98;
 /// stalls for [`G_M_DELAY_MS`].
 pub const G_M_BOUNDARY_COST_MS: f64 = 2_000.0;
 pub const G_M_DELAY_MS: u64 = 3_000;
-/// G-m: rollover soft floor, as a fraction of the epoch budget.
-pub const G_M_SOFT_FLOOR: f64 = 0.40;
+/// G-m: lowest pack fraction a pack rollover may start from — the break
+/// floor (`Knobs::pack_break_floor`); the general floor applies off a break.
+pub const G_M_SOFT_FLOOR: f64 = 0.25;
 /// The decision families.
 pub const FAMILIES: [&str; 5] = ["admit", "inject", "tools", "pack", "consolidate"];
 
@@ -1422,7 +1423,7 @@ pub fn g_m(lines: &[Line], ceiling: &[&str]) -> GateResult {
     g.check(unlabelled == 0, "a decision line without provenance");
     g.check(outside == 0, "a tool group enabled outside the ceiling");
     g.check(owner_deferred == 0, "an owner item was deferred");
-    g.check(below_floor == 0, "a pack rollover below the soft floor");
+    g.check(below_floor == 0, "a pack rollover below the break floor");
     g.check(
         worst_delayed <= G_M_BOUNDARY_COST_MS,
         "a delayed decider cost a boundary more than 2 s",

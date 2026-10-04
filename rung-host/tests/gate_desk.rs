@@ -380,7 +380,7 @@ fn adversarial_answers_stay_inside_the_guards() {
     let (c, by, _, _) = run::<Tools>(&desk(Step::Answers(answers), DeskMode::Decide), &ti, &tc);
     assert!(matches!(by, By::Jev { .. }));
     assert!(!c.enabled.contains(&"web_read".to_string()));
-    let low = pack_case(0.3, false);
+    let low = pack_case(0.2, false);
     let (c, _, _, _) = run::<Pack>(
         &desk(
             Step::Uniform {
@@ -538,4 +538,30 @@ fn a_host_on_an_adversarial_decider_keeps_its_guards() {
     let ceiling = ["core", "memory", "read", "workspace_write"];
     assert_gate(&gates::g_m(&out.lines, &ceiling));
     assert_gate(&gates::g_k(&out.lines));
+}
+
+/// The break floor is reachable: at a break, a pack between the break floor
+/// and the general floor keeps a Rollover the decider chose; off a break the
+/// same pack is forced to Append.
+#[test]
+fn pack_guard_honours_break_floor() {
+    let k = rung_host::desk::Knobs::default();
+    let mid = (k.pack_break_floor + k.pack_floor) / 2.0;
+    let roll = |input: &PackInput| {
+        let c = rung_host::desk::pack::PackChoice {
+            action: Action::Rollover,
+            keep: vec![],
+            cause: "pack".into(),
+        };
+        Pack::guard(input, c, &k, &()).action
+    };
+    let mut at_break = pack_case(mid, false);
+    at_break.at_break = true;
+    assert_eq!(roll(&at_break), Action::Rollover);
+    let mut off_break = pack_case(mid, false);
+    off_break.at_break = false;
+    assert_eq!(roll(&off_break), Action::Append);
+    let mut below = pack_case(k.pack_break_floor / 2.0, false);
+    below.at_break = true;
+    assert_eq!(roll(&below), Action::Append);
 }

@@ -189,14 +189,14 @@ impl HostQuestion for Pack {
     }
 
     fn guard(input: &PackInput, mut c: PackChoice, k: &Knobs, _ctx: &()) -> PackChoice {
-        let f = input.fraction();
         if input.copy_flag {
             c.action = Action::Rollover;
             c.cause = "copy_loop".into();
         } else if input.next_fraction() >= k.pack_ceiling {
             c.action = Action::Rollover;
             c.cause = "ceiling".into();
-        } else if f < k.pack_floor {
+        } else if !input.gate_open(k) {
+            // Below every floor that applies (break floor only at a break).
             c.action = Action::Append;
             c.cause = "pack".into();
         } else {
