@@ -11,6 +11,7 @@ rung-agent-core = { path = "../rung-agent-core" }
 serde_json = "1"
 
 [dev-dependencies]
+rung-testkit = { path = "../rung-testkit" }
 rung-std = { path = "../rung-std" }
 rung-memory = { path = "../rung-memory" }
 serde = { version = "1", features = ["derive"] }

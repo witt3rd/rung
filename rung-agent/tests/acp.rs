@@ -106,7 +106,6 @@ fn initialize_new_list_set_mode_close() {
     drop(stdin);
     let status = child.wait().unwrap();
     assert!(status.success(), "{status:?}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -205,7 +204,6 @@ fn fork_resume_does_not_replay_load_does() {
     drop(stdin);
     let status = child.wait().unwrap();
     assert!(status.success(), "{status:?}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 /// One-shot OpenAI-compatible server: answers each request with the next
@@ -374,7 +372,6 @@ fn one_turn(
     let response = wait(3, &mut said);
     drop(stdin);
     let _ = child.wait();
-    let _ = std::fs::remove_dir_all(&tmp);
     Turn {
         response,
         said,
@@ -621,7 +618,6 @@ fn second_turn_replays_first_turn_tool_calls() {
 
     drop(stdin);
     let _ = child.wait();
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 /// Two ACP prompts on one session under `--tools none` where turn 1 ends in
@@ -682,7 +678,6 @@ fn failed_then_asked_again(
     let _ = child.wait();
     let file = tmp.join(".rung/sessions").join(format!("{sid}.json"));
     let session = serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
-    let _ = std::fs::remove_dir_all(&tmp);
     (r1, turn2, session)
 }
 
@@ -828,7 +823,6 @@ fn read_frame_turns(images: Option<&str>) -> (serde_json::Value, serde_json::Val
     let turn2 = bodies.recv().unwrap();
     drop(stdin);
     let _ = child.wait();
-    let _ = std::fs::remove_dir_all(&tmp);
     (tool_round, turn2)
 }
 
@@ -898,17 +892,8 @@ fn tool_result_image_is_a_note_for_a_text_only_model() {
     assert!(!tool_round.to_string().contains(&data), "{tool_round}");
 }
 
-fn tempfile() -> std::path::PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-agent-acp-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempfile() -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new("agent-acp")
 }
 
 /// The session's cwd, not the launch cwd, owns its store: prompt, set_mode,
@@ -1023,5 +1008,4 @@ fn session_ops_follow_session_cwd_not_process_cwd() {
     assert!(!sess_file(&sid).exists(), "delete missed the session cwd");
     drop(stdin);
     let _ = child.wait();
-    let _ = std::fs::remove_dir_all(&tmp);
 }

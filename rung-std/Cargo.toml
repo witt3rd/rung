@@ -16,3 +16,6 @@ serde_yaml = "0.9"
 regex = "1"
 libc = "0.2"
 base64 = "0.22"
+
+[dev-dependencies]
+rung-testkit = { path = "../rung-testkit" }

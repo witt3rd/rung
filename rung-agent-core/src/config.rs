@@ -550,15 +550,7 @@ llm:
 
     #[test]
     fn disk_yaml_round_trip() {
-        let dir = std::env::temp_dir().join(format!(
-            "rung-cfg-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = rung_testkit::TempDir::new("cfg");
         let path = dir.join("config.yaml");
         std::fs::write(
             &path,
@@ -570,7 +562,6 @@ llm:
         let c = resolve(file.llm.as_ref(), getenv(&env)).unwrap();
         assert_eq!(c.model, "file-model");
         assert_eq!(c.api_key, "from-file-env");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

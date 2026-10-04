@@ -23,8 +23,8 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: rustdoc
         run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
-      - name: test
-        run: cargo test --workspace --locked
+      - name: test (and leave nothing in the temp root)
+        run: scripts/test_tmp_clean.sh
       - name: doctests (explicit; library doctests incl. README)
         run: cargo test --workspace --doc --locked
       - name: examples build

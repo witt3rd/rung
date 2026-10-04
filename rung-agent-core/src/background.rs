@@ -155,11 +155,10 @@ mod tests {
             env: vec![],
         });
         assert!(child_args(&a, "t").is_err());
-        let dir = std::env::temp_dir().join(format!("rung-bg-refuse-{}", std::process::id()));
+        let dir = rung_testkit::TempDir::new("bg-refuse");
         let store = SessionStore::in_cwd(&dir);
         let r = spawn_child(Path::new("/nonexistent"), &a, &dir, "t", &store);
         assert!(r.is_err());
         assert!(!store.dir.join("t.log").exists());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

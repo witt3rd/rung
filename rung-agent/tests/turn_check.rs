@@ -197,17 +197,8 @@ fn mock_jev(replies: Vec<Jev>, tmp: &Path) -> String {
     format!("http://127.0.0.1:{port}/api/v1")
 }
 
-fn tempdir() -> PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-turncheck-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempdir() -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new("turncheck")
 }
 
 fn agent(tmp: &Path, llm: &str, jev: Option<&str>) -> Command {
@@ -292,7 +283,6 @@ fn a_narrated_turn_is_nudged_and_completes_when_it_acts() {
     );
     let id = r.out["task_id"].as_str().unwrap();
     assert_eq!(session_status(&tmp, id), "completed");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 /// The same turn, but the model narrates again after its nudge: unverified,
@@ -314,7 +304,6 @@ fn a_turn_still_narrating_after_its_nudge_is_unverified() {
     assert!(!tmp.join("notes.txt").exists());
     let id = r.out["task_id"].as_str().unwrap();
     assert_eq!(session_status(&tmp, id), "unverified");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 /// The nudge re-run writes the note, then its next call is refused. The
@@ -364,7 +353,6 @@ fn a_failed_rerun_keeps_the_steps_it_ran() {
         "the re-run's result is gone from the record: {s}"
     );
     assert!(!s.to_string().contains("refused"), "{s}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 // ─── 6 · Mutation sibling of 1 ───────────────────────────────────────────────
@@ -389,7 +377,6 @@ fn flipping_the_narration_reading_brings_the_bug_back() {
         !tmp.join("notes.txt").exists(),
         "completed with no file: #128"
     );
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 fn flip_to_done(r: &mut Value) {
@@ -426,7 +413,6 @@ fn the_proven_path_completes_with_outcome_done() {
     assert_eq!(r.out["turn_check"]["nudged"], false);
     assert_eq!(r.out["turn_check"]["model"], "typesafe/jev-1.13-20260917");
     assert!(tmp.join("notes.txt").exists());
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 // ─── 3 · An information-only answer ──────────────────────────────────────────
@@ -442,7 +428,6 @@ fn an_information_only_answer_completes_unflagged() {
     assert_eq!(r.out["turn_check"]["nudged"], false);
     assert!(r.out["turn_check"]["claims_unperformed"].as_f64().unwrap() <= 0.3);
     assert_eq!(r.out["api_calls"], 1);
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 // ─── 4 · No judge reachable ──────────────────────────────────────────────────
@@ -468,7 +453,6 @@ fn an_unreachable_judge_leaves_the_turn_unchecked() {
     let url = format!("http://127.0.0.1:{port}/api/v1");
     let r = run(agent(&tmp, &llm, Some(&url)), "none", INFO_REQUEST);
     assert_unchecked(&r, "unreachable");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -479,7 +463,6 @@ fn a_401_or_402_leaves_the_turn_unchecked() {
         let jev = mock_jev(vec![Jev::Status(code)], &tmp);
         let r = run(agent(&tmp, &llm, Some(&jev)), "none", INFO_REQUEST);
         assert_unchecked(&r, why);
-        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
 
@@ -492,7 +475,6 @@ fn no_key_leaves_the_turn_unchecked() {
     c.env("OPENROUTER_API_KEY", "");
     let r = run(c, "none", INFO_REQUEST);
     assert_unchecked(&r, "no key");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 // ─── 5 · A malformed answer ──────────────────────────────────────────────────
@@ -522,7 +504,6 @@ fn a_malformed_answer_is_unchecked_never_completed() {
         let jev = mock_jev(vec![Jev::Mutated("info_answer", edit)], &tmp);
         let r = run(agent(&tmp, &llm, Some(&jev)), "none", INFO_REQUEST);
         assert_unchecked(&r, why);
-        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
 
@@ -612,7 +593,6 @@ fn off_output_is_byte_identical_to_before() {
             "{\"task_id\":\"t-off\",\"text\":\"pong\",\"status\":\"completed\",\"api_calls\":1,\"isolation_path\":null}\n"
         );
         assert_eq!(session_status(&tmp, "t-off"), "completed");
-        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
 
@@ -633,7 +613,6 @@ fn the_stream_result_line_carries_the_reading() {
     assert_eq!(last["response"]["status"], "completed");
     assert_eq!(last["response"]["api_calls"], 1);
     assert_eq!(last["response"]["turn_check"]["outcome"], "answered");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 // ─── 10 · A nested `task` child is checked like a top-level turn ────────────
@@ -688,7 +667,6 @@ fn a_narrating_task_child_is_checked_and_not_completed() {
     assert!(!text.contains(r#"state=\"completed\""#), "{text}");
     assert_eq!(r.out["api_calls"], 2, "the parent's own calls");
     assert_eq!(r.out["turn_check"]["outcome"], "answered", "{}", r.stdout);
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 /// With the check off the child completes as it did before, unjudged.
@@ -707,7 +685,6 @@ fn with_the_check_off_a_task_child_completes_as_before() {
     let (text, child) = parent_and_child(&tmp, parent);
     assert_eq!(child, "completed");
     assert!(text.contains(r#"state=\"completed\""#), "{text}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 // ─── ACP: the reading rides `_meta.rung.turn_check` ─────────────────────────
@@ -760,7 +737,6 @@ fn acp_carries_the_reading_in_meta_and_ends_the_turn() {
     let meta = &r["result"]["_meta"]["rung"];
     assert_eq!(meta["status"], "completed", "{r}");
     assert_eq!(meta["turn_check"]["outcome"], "answered", "{r}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -770,7 +746,6 @@ fn acp_with_the_check_off_has_no_meta() {
     let r = acp_prompt(None, &tmp, &llm);
     assert_eq!(r["result"]["stopReason"], "end_turn", "{r}");
     assert!(r["result"].get("_meta").is_none(), "{r}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 // ─── Real transcripts, in process ────────────────────────────────────────────

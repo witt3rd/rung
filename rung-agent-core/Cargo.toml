@@ -24,3 +24,6 @@ bytes = "1"
 futures = "0.3"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+rung-testkit = { path = "../rung-testkit" }

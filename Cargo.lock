@@ -1497,6 +1497,7 @@ dependencies = [
  "rung-agent-core",
  "rung-memory",
  "rung-std",
+ "rung-testkit",
  "serde",
  "serde_json",
  "trybuild",
@@ -1516,6 +1517,7 @@ dependencies = [
  "rung",
  "rung-memory",
  "rung-std",
+ "rung-testkit",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -1541,6 +1543,7 @@ dependencies = [
  "rung",
  "rung-het",
  "rung-std",
+ "rung-testkit",
  "serde",
  "serde_yaml",
 ]
@@ -1595,6 +1598,7 @@ version = "0.2.0"
 dependencies = [
  "rung",
  "rung-std",
+ "rung-testkit",
  "serde",
  "serde_json",
  "trybuild",
@@ -1610,10 +1614,15 @@ dependencies = [
  "reqwest",
  "rung",
  "rung-het",
+ "rung-testkit",
  "serde",
  "serde_json",
  "serde_yaml",
 ]
+
+[[package]]
+name = "rung-testkit"
+version = "0.2.0"
 
 [[package]]
 name = "rustc-hash"

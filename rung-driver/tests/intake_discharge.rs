@@ -114,9 +114,6 @@ fn discharge_removes_a_subject_from_the_carrier() {
     assert!(reloaded.by_id("rung-3").is_none());
 }
 
-fn tempdir(tag: &str) -> std::path::PathBuf {
-    let p = std::env::temp_dir().join(format!("rung-intake-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&p);
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempdir(tag: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("intake-{tag}"))
 }

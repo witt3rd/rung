@@ -35,7 +35,6 @@ fn poll_missing_session() {
     assert_eq!(out.status.code(), Some(1), "{:?}", out);
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("no session"), "{err}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -66,7 +65,6 @@ fn poll_completed_session() {
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(text.contains("status=completed"), "{text}");
     assert!(text.contains("found it"), "{text}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -99,7 +97,6 @@ fn poll_completed_session_json() {
     assert_eq!(parsed["task_id"], "abc-1");
     assert_eq!(parsed["status"], "completed");
     assert_eq!(parsed["text"], "found it");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]
@@ -138,20 +135,10 @@ fn background_unreachable_endpoint_records_error() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
     assert!(body.contains("error"), "session never failed: {body}");
-    let _ = std::fs::remove_dir_all(&tmp);
 }
 
-fn tempfile() -> std::path::PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-agent-cli-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempfile() -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new("agent-cli")
 }
 
 /// OpenAI-compatible mock for a long job: `calls` tool calls, each with new
@@ -262,6 +249,5 @@ fn the_host_sets_the_per_prompt_call_cap() {
                 "cap {cap:?}: {stderr}"
             );
         }
-        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

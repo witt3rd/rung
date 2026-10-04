@@ -394,17 +394,8 @@ fn retain_without_the_capability_never_calls_the_provider() {
 
 // ─── Baseline ────────────────────────────────────────────────────────────────
 
-fn tmp(name: &str) -> std::path::PathBuf {
-    let d = std::env::temp_dir().join(format!(
-        "rung-memory-{name}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    let _ = std::fs::remove_dir_all(&d);
-    d
+fn tmp(name: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("memory-{name}"))
 }
 
 fn turn(user: &str, assistant: &str, session: &str) -> Observation {
@@ -422,7 +413,8 @@ fn turn(user: &str, assistant: &str, session: &str) -> Observation {
 
 #[test]
 fn baseline_recalls_what_it_retained_and_nothing_from_another_scope() {
-    let dir = tmp("baseline");
+    let root = tmp("baseline");
+    let dir = root.join("store");
     let b = Arc::new(Baseline::new(&dir));
     let scope = Scope::new("/repo");
     assert_eq!(
@@ -494,7 +486,8 @@ fn baseline_is_a_graph_store_whose_neighbours_are_adjacent_records() {
 
 #[test]
 fn baseline_declines_what_it_could_never_show_whole() {
-    let dir = tmp("large");
+    let root = tmp("large");
+    let dir = root.join("store");
     let b = Arc::new(Baseline::new(&dir).with_budget(Budget {
         max_records: 5,
         max_chars: 10,
@@ -559,9 +552,9 @@ fn the_registry_builds_baseline_and_refuses_reserved_names() {
     let r = Registry::builtin();
     assert_eq!(r.names(), ["baseline"]);
     let dir = tmp("registry");
-    let p = r.build("baseline", &settings(dir.clone())).unwrap();
+    let p = r.build("baseline", &settings(dir.to_path_buf())).unwrap();
     assert_eq!(p.name(), "baseline");
-    let e = r.build("nope", &settings(dir)).unwrap_err();
+    let e = r.build("nope", &settings(dir.to_path_buf())).unwrap_err();
     assert!(e.contains("off | external | baseline"), "{e}");
     let mut r = Registry::empty();
     assert!(

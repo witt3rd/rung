@@ -8,7 +8,7 @@
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
@@ -23,17 +23,8 @@ fn bin() -> Command {
     Command::new(env!("CARGO_BIN_EXE_rung-agent"))
 }
 
-fn tempdir() -> PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "rung-agent-acp-conc-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&p).unwrap();
-    p
+fn tempdir() -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new("agent-acp-conc")
 }
 
 /// OpenAI-compatible mock: answers the `n`th request to connect with
@@ -157,7 +148,7 @@ struct Stdio1 {
     child: Child,
     stdin: Option<ChildStdin>,
     stdout: BufReader<ChildStdout>,
-    tmp: PathBuf,
+    tmp: rung_testkit::TempDir,
 }
 
 impl Drop for Stdio1 {
@@ -165,7 +156,6 @@ impl Drop for Stdio1 {
         drop(self.stdin.take());
         let _ = self.child.kill();
         let _ = self.child.wait();
-        let _ = std::fs::remove_dir_all(&self.tmp);
     }
 }
 
@@ -355,14 +345,13 @@ fn stdio_cancel_reaches_a_queued_turn() {
 struct Http1 {
     child: Child,
     addr: String,
-    tmp: PathBuf,
+    tmp: rung_testkit::TempDir,
 }
 
 impl Drop for Http1 {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
-        let _ = std::fs::remove_dir_all(&self.tmp);
     }
 }
 

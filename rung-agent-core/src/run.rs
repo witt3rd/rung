@@ -960,7 +960,7 @@ mod tests {
 
     #[test]
     fn system_prompt_env_channel_and_precedence() {
-        let dir = std::env::temp_dir().join(format!("rung-sys-{}", std::process::id()));
+        let dir = rung_testkit::TempDir::new("sys");
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("prefill.md");
         std::fs::write(&f, "# packed profile").unwrap();
@@ -979,7 +979,6 @@ mod tests {
         unsafe { std::env::remove_var("RUNG_SYSTEM_PROMPT_FILE") };
         let got = resolve_system_prompt(Path::new("/tmp"), None).unwrap();
         assert!(got.is_none());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

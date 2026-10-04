@@ -844,13 +844,12 @@ mod tests {
 
     #[test]
     fn repo_root_is_the_nearest_git_directory() {
-        let base = std::env::temp_dir().join(format!("rung-root-{}", std::process::id()));
+        let base = rung_testkit::TempDir::new("root");
         let deep = base.join("a").join("b");
         std::fs::create_dir_all(&deep).unwrap();
         assert_eq!(repo_root(&deep), deep, "no .git: the dir itself");
         std::fs::create_dir_all(base.join(".git")).unwrap();
-        assert_eq!(repo_root(&deep), base);
-        let _ = std::fs::remove_dir_all(&base);
+        assert_eq!(repo_root(&deep), base.path());
     }
 
     fn git(dir: &Path, args: &[&str]) {
@@ -866,7 +865,7 @@ mod tests {
 
     #[test]
     fn default_scope_is_opaque_and_shared_by_origin() {
-        let base = std::env::temp_dir().join(format!("rung-scope-{}", std::process::id()));
+        let base = rung_testkit::TempDir::new("scope");
         let (a, b, c) = (base.join("main"), base.join("wt"), base.join("solo"));
         for d in [&a, &b, &c] {
             std::fs::create_dir_all(d).unwrap();
@@ -885,7 +884,6 @@ mod tests {
                 "{k}"
             );
         }
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -896,7 +894,7 @@ mod tests {
                 arg: None,
             },
             scope: Some("my key".into()),
-            dir: Some(std::env::temp_dir().join(format!("rung-verb-{}", std::process::id()))),
+            dir: Some(rung_testkit::TempDir::new("verb").to_path_buf()),
             timeout_secs: 1,
             token: None,
         };
