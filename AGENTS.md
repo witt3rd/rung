@@ -65,6 +65,7 @@ rung-memory   memory contract and stores (publish = false)
 rung-agent-core  turn engine library imported by rung-agent and rung-host
 rung-host     single-agent continuous host (docs/rung-host.md)
 rung-fixture  cross-crate consumption tests
+rung-testkit  test-only helpers: TempDir (publish = false)
 ```
 
 Product CLI `rung-agent` (catalog, sessions, isolation, background, XDG
