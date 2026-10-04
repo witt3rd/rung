@@ -488,7 +488,7 @@ fn an_owner_waiting_through_a_provider_backoff_hears_from_the_host_at_once() {
 }
 
 #[test]
-fn a_wait_the_owner_can_cut_sends_no_acknowledgement() {
+fn a_pacing_wait_sends_no_acknowledgement() {
     sim::test_timeout(300);
     let guard = sim::temp_dir_guard("run-config-no-ack");
     let root = guard.path().to_path_buf();
@@ -515,7 +515,7 @@ fn a_wait_the_owner_can_cut_sends_no_acknowledgement() {
         &cfg,
         format!(
             "state: {d}/state\ninbox: {d}/inbox\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
-             ladder:\n  - a/one:free\nlisting: false\nmemory: false\n",
+             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nquota:\n  rpd: 1000\n  rpm: 1\n",
             provider.url
         ),
     )
@@ -524,8 +524,13 @@ fn a_wait_the_owner_can_cut_sends_no_acknowledgement() {
     assert_eq!(o.status.code(), Some(0));
     let ls = lines(&root.join("state"));
     assert!(
+        ls.iter()
+            .any(|l| l.kind == "degraded" && l.str("class") == "paced"),
+        "the run never waited on pacing"
+    );
+    assert!(
         !ls.iter()
             .any(|l| l.kind == "outbox.queued" && l.str("source") == "host:ack"),
-        "an acknowledgement went out with the model available"
+        "an acknowledgement went out during a pacing wait"
     );
 }
