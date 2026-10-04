@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 use crate::calendar::{Entry, Missed, Origin, When};
 use crate::canon;
 use crate::clock::{Clock, Millis};
-use crate::core::{Core, HostConfig};
+use crate::core::{Core, HostConfig, lock};
 use crate::desk::admit::{Admit, AdmitChoice};
 use crate::desk::consolidate::Consolidate;
 use crate::desk::inject::{Cue, Inject, InjectChoice, InjectCtx};
@@ -287,7 +287,7 @@ impl Host {
 
     /// The canonical bytes of the request the pack would send now.
     pub fn request_bytes(&self) -> Vec<u8> {
-        let p = self.pack.lock().expect("pack");
+        let p = lock(&self.pack);
         crate::pack::request_bytes(p.tools(), p.system(), &p.thread().messages)
     }
 
@@ -336,7 +336,7 @@ impl Host {
     /// Raise the running turn's cancel flag (the owner cuts a shared turn).
     /// False when no turn is running.
     pub fn cut_turn(&self) -> bool {
-        match &*self.turn_cancel.lock().expect("turn cancel") {
+        match &*lock(&self.turn_cancel) {
             Some(c) => {
                 c.store(true, Ordering::SeqCst);
                 true
@@ -446,7 +446,7 @@ impl Host {
                     json!({"class": "interrupted", "waited_ms": 0}),
                 ));
             }
-            *self.down_since.lock().expect("down") = Some(last);
+            *lock(&self.down_since) = Some(last);
             l1.push('\n');
             l1.push_str(&render::recovered_line(last, now, last_turn, requeue.len()));
             gap = Some(now - last);
@@ -475,13 +475,13 @@ impl Host {
     // ─── One boundary ────────────────────────────────────────────────────
 
     fn desk_deadline(&self) -> Instant {
-        *self.desk_deadline.lock().expect("deadline")
+        *lock(&self.desk_deadline)
     }
 
     fn step(&self, edge: Edge) -> Next {
         let started = Instant::now();
         // Every ask at this boundary shares one budget.
-        *self.desk_deadline.lock().expect("deadline") = started + self.desk.timeout;
+        *lock(&self.desk_deadline) = started + self.desk.timeout;
         let core = self.core.clone();
         let now = core.now();
         let turn_next = core.state().turn + 1;
@@ -534,7 +534,7 @@ impl Host {
     fn poll_sources(&self) {
         let core = &*self.core;
         let now = core.now();
-        let mut sources = self.sources.lock().expect("sources");
+        let mut sources = lock(&self.sources);
         for src in sources.iter_mut() {
             let seen = core.state().inbox.seen.clone();
             for item in src.poll(now, &seen) {
@@ -574,7 +574,7 @@ impl Host {
     fn fire_calendar(&self) {
         let core = &*self.core;
         let now = core.now();
-        let down = self.down_since.lock().expect("down").take();
+        let down = lock(&self.down_since).take();
         let due = core.state().calendar.due(now, down);
         for f in due {
             if !f.fire {
@@ -686,7 +686,7 @@ impl Host {
         if let Some((from, to)) = up {
             self.switch(from, to, "up", "probe: the rung above has cooled down", 0);
         }
-        let pending = self.switch_pending.lock().expect("switch").take();
+        let pending = lock(&self.switch_pending).take();
         if pending.is_some() {
             self.rollover(
                 "model_switch",
@@ -705,7 +705,7 @@ impl Host {
             json!({"from": self.rung_model(from), "to": self.rung_model(to), "rung_from": from,
                    "rung_to": to, "direction": direction, "why": why, "cooldown_ms": cooldown_ms}),
         );
-        *self.switch_pending.lock().expect("switch") = Some(direction.into());
+        *lock(&self.switch_pending) = Some(direction.into());
     }
 
     /// The boundary ask: Admit, Inject and Tools in one.
@@ -775,7 +775,7 @@ impl Host {
         }
         let start = core.now();
         let next = || {
-            let src = self.sources.lock().expect("sources");
+            let src = lock(&self.sources);
             let a = src.iter().filter_map(|s| s.next_at()).min();
             let b = core.state().calendar.next_due();
             match (a, b) {
@@ -823,7 +823,7 @@ impl Host {
         let core = &*self.core;
         let k = &self.desk.knobs;
         let st = core.state();
-        let pack = self.pack.lock().expect("pack");
+        let pack = lock(&self.pack);
         let commit_turns = st
             .kernel
             .commitment()
@@ -914,7 +914,7 @@ impl Host {
         } else {
             // Nothing is evicted: retain after the turn, off the boundary's
             // path (the candidates are already in the record).
-            *self.deferred_retain.lock().expect("retain") = chosen;
+            *lock(&self.deferred_retain) = chosen;
         }
         if let Some(p) = p
             && p.choice().action == Action::Rollover
@@ -975,7 +975,7 @@ impl Host {
             core.sync();
         }
         let k = &self.desk.knobs;
-        let mut pack = self.pack.lock().expect("pack");
+        let mut pack = lock(&self.pack);
         let kept = pack.segment_text(k.max_segments, keep);
         let tokens_before = pack.tokens();
         let st = core.state();
@@ -1007,7 +1007,7 @@ impl Host {
         } else {
             Validity::Stable
         };
-        *self.reset.lock().expect("reset") = Some((
+        *lock(&self.reset) = Some((
             if cause == "model_switch" {
                 "model_switch".into()
             } else {
@@ -1137,7 +1137,7 @@ impl Host {
         let (header_logged, header_full) = header;
         let (rung, model, epoch, pack_tokens_before, thread, header_tokens) = {
             let st = core.state();
-            let mut pack = self.pack.lock().expect("pack");
+            let mut pack = lock(&self.pack);
             let before = pack.tokens();
             pack.begin_turn(turn, kind.as_str(), header_full.clone());
             let ht = pack.tokens() - before;
@@ -1177,7 +1177,7 @@ impl Host {
                    "wall_boundary_us": started.elapsed().as_micros() as u64}),
         );
         let cancel = Arc::new(AtomicBool::new(false));
-        *self.turn_cancel.lock().expect("turn cancel") = Some(cancel.clone());
+        *lock(&self.turn_cancel) = Some(cancel.clone());
         let watcher =
             (!core.clock.is_sim()).then(|| spawn_watcher(core.clone(), cancel.clone(), deadline));
         let session = format!("epoch-{epoch}");
@@ -1194,7 +1194,7 @@ impl Host {
             deadline,
             step_cap: cfg.governor.step_cap,
         });
-        *self.turn_cancel.lock().expect("turn cancel") = None;
+        *lock(&self.turn_cancel) = None;
         if let Some((done, h)) = watcher {
             done.store(true, Ordering::SeqCst);
             let _ = h.join();
@@ -1278,7 +1278,7 @@ impl Host {
         let core = self.core.clone();
         let cfg = self.cfg();
         let (s_hash, l_hash, stable_tokens) = {
-            let p = self.pack.lock().expect("pack");
+            let p = lock(&self.pack);
             (
                 p.s_hash().to_string(),
                 p.l_hash().to_string(),
@@ -1286,20 +1286,15 @@ impl Host {
             )
         };
         // Every model call, with the cache expectation.
-        let mut reset = self.reset.lock().expect("reset").take();
+        let mut reset = lock(&self.reset).take();
         // The provider caches the previous request of this epoch and model.
         let mut prev_prompt: Option<u64> = {
-            let lc = self.last_call.lock().expect("last call");
+            let lc = lock(&self.last_call);
             lc.as_ref()
                 .filter(|(e, m, _, _)| *e == epoch && m == model)
                 .map(|x| x.2)
         };
-        let mut last_at = self
-            .last_call
-            .lock()
-            .expect("last call")
-            .as_ref()
-            .map(|x| x.3);
+        let mut last_at = lock(&self.last_call).as_ref().map(|x| x.3);
         let mut cost = 0.0;
         let (mut prompt_sum, mut cached_sum) = (0u64, 0u64);
         for (i, c) in out.calls.iter().enumerate() {
@@ -1349,10 +1344,9 @@ impl Host {
             last_at = Some(at);
         }
         if let Some(p) = prev_prompt.filter(|_| !out.calls.is_empty()) {
-            *self.last_call.lock().expect("last call") =
-                Some((epoch, model.to_string(), p, core.now()));
+            *lock(&self.last_call) = Some((epoch, model.to_string(), p, core.now()));
         }
-        let deferred = std::mem::take(&mut *self.deferred_retain.lock().expect("retain"));
+        let deferred = std::mem::take(&mut *lock(&self.deferred_retain));
         self.retain(turn, deferred);
         // The turn's messages, verbatim, before the pack moves on.
         core.emit(
@@ -1360,10 +1354,7 @@ impl Host {
             json!({"turn": turn, "header": header, "recall": recall_on,
                    "messages": serde_json::to_value(&out.messages).unwrap_or(Value::Null)}),
         );
-        self.pack
-            .lock()
-            .expect("pack")
-            .end_turn(out.messages.clone());
+        lock(&self.pack).end_turn(out.messages.clone());
         // The batch.
         let ids: Vec<String> = admitted
             .iter()
@@ -1549,6 +1540,50 @@ mod tests {
         sc.config.outbox_dir = outbox;
         let (h, _, _) = crate::sim::build(sc);
         (h, guard)
+    }
+
+    /// Poison `m`: a thread panics while it holds the lock.
+    fn poison<T: Send>(m: &Mutex<T>) {
+        std::thread::scope(|s| {
+            let _ = s
+                .spawn(|| {
+                    let _g = m.lock();
+                    panic!("a panic while the lock is held");
+                })
+                .join();
+        });
+        assert!(m.is_poisoned());
+    }
+
+    /// One panicked thread does not cascade: with every host lock poisoned,
+    /// the outward calls and later boundaries run, as they do when the
+    /// state lock (`Core::state`) is poisoned.
+    #[test]
+    fn a_poisoned_host_lock_does_not_cascade() {
+        let guard = crate::sim::temp_dir_guard("poison");
+        let mut sc = crate::sim::Scenario::new(guard.path(), 1);
+        sc.max_turns = Some(3);
+        let (h, rec, _) = crate::sim::build(sc);
+        poison(&h.pack);
+        poison(&h.sources);
+        poison(&h.down_since);
+        poison(&h.reset);
+        poison(&h.switch_pending);
+        poison(&h.last_call);
+        poison(&h.desk_deadline);
+        poison(&h.deferred_retain);
+        poison(&h.turn_cancel);
+        let _ = h.request_bytes();
+        assert!(!h.cut_turn());
+        let why = h.run(rec);
+        assert!(matches!(why, Why::Stopped { .. }), "{why:?}");
+        let turns = h
+            .record_lines()
+            .unwrap()
+            .iter()
+            .filter(|l| l.kind == "turn.ended")
+            .count();
+        assert_eq!(turns, 3);
     }
 
     #[test]

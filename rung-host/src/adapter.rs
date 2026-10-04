@@ -43,6 +43,7 @@ use rung_std::tools::Toolset;
 use serde_json::Value;
 
 use crate::clock::{Clock, Millis};
+use crate::core::lock;
 use crate::engine::{CallRecord, Ended, EngineTurn, HostFailure, Origin, TurnEngine, TurnRequest};
 
 /// How to reach the route and how to call it.
@@ -187,10 +188,10 @@ struct Listener {
 impl StreamListener for Listener {
     fn on_event(&self, event: StreamEvent) {
         let now = self.clock.now();
-        let mut s = self.seen.lock().expect("seen");
+        let mut s = lock(&self.seen);
         match event {
             StreamEvent::MessageStart { .. } => {
-                let from = *self.mark.lock().expect("mark");
+                let from = *lock(&self.mark);
                 s.calls.push((from, now));
                 s.refused = None;
             }
@@ -204,7 +205,7 @@ impl StreamListener for Listener {
     }
 
     fn on_http_failure(&self, failure: &HttpFailure) {
-        self.seen.lock().expect("seen").refused = Some(failure.clone());
+        lock(&self.seen).refused = Some(failure.clone());
     }
 }
 
@@ -228,7 +229,7 @@ impl Toolset for Marked {
 
     fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
         let out = self.inner.execute(name, input);
-        *self.mark.lock().expect("mark") = self.clock.now();
+        *lock(&self.mark) = self.clock.now();
         out
     }
 
@@ -238,7 +239,7 @@ impl Toolset for Marked {
         input: &Value,
     ) -> Result<rung_std::tools::ToolOutput, String> {
         let out = self.inner.execute_output(name, input);
-        *self.mark.lock().expect("mark") = self.clock.now();
+        *lock(&self.mark) = self.clock.now();
         out
     }
 }
@@ -327,7 +328,7 @@ impl TurnEngine for AgentEngine {
         let given = req.thread.messages.clone();
         let sent = given.len();
         let report = self.engine.turn(req.thread, ctl);
-        let seen = std::mem::take(&mut *seen.lock().expect("seen"));
+        let seen = std::mem::take(&mut *lock(&seen));
         map_report(
             report,
             &given,

@@ -11,6 +11,8 @@ use std::os::unix::net::UnixDatagram;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use crate::core::lock;
+
 #[derive(Debug)]
 pub struct Notifier {
     socket: Option<(UnixDatagram, String)>,
@@ -79,7 +81,7 @@ impl Notifier {
             .watchdog
             .map(|w| (w / 2).min(PING_FLOOR))
             .unwrap_or(PING_FLOOR);
-        let mut last = self.last_ping.lock().expect("notify");
+        let mut last = lock(&self.last_ping);
         if last.is_none_or(|t| t.elapsed() >= every) {
             *last = Some(Instant::now());
             self.send("WATCHDOG=1");

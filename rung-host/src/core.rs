@@ -19,6 +19,21 @@ use crate::record::{BatchLine, Line, Record};
 use crate::state::State;
 use crate::stop::StopAuthority;
 
+/// Lock a host mutex. The host's one poison policy: **recover**. A panic
+/// while a lock is held is a bug that surfaces once, where it happened; it
+/// must not cascade into every later boundary or outward call. Recovering
+/// is sound because what a host lock guards is either the projection of
+/// the record (rebuilt from it on every start) or boundary scratch (the
+/// pack, the next call's cache expectation, a cancel flag) that the next
+/// rollover or turn overwrites.
+///
+/// The record's writer lock is the one exception and keeps `expect`: a
+/// panic mid-write can leave a torn line, and appending after it would
+/// bury the tear mid-file, which no open can cut.
+pub(crate) fn lock<T: ?Sized>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|p| p.into_inner())
+}
+
 /// A record line only its own module may build (`kernel.commit`,
 /// `kernel.release`, `expectation.settled`).
 pub(crate) trait Sealed {
@@ -144,14 +159,11 @@ impl Core {
     /// See every line from now on, in seq order.
     pub fn observe(&self, f: Observer) {
         let _st = self.state();
-        self.observers
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .push(f);
+        lock(&self.observers).push(f);
     }
 
     fn notify(&self, line: &Line) {
-        let obs = self.observers.lock().unwrap_or_else(|p| p.into_inner());
+        let obs = lock(&self.observers);
         for f in obs.iter() {
             f(line);
         }
@@ -159,7 +171,7 @@ impl Core {
 
     /// The state, locked. Hold it briefly: every emit waits for it.
     pub fn state(&self) -> MutexGuard<'_, State> {
-        self.state.lock().unwrap_or_else(|p| p.into_inner())
+        lock(&self.state)
     }
 
     /// Append a line and apply it.
