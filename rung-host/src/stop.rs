@@ -125,12 +125,11 @@ mod tests {
 
     #[test]
     fn a_stop_file_stops() {
-        let f = std::env::temp_dir().join(format!("rung-host-stop-{}", std::process::id()));
-        let _ = std::fs::remove_file(&f);
+        let guard = crate::sim::temp_dir_guard("stop-file");
+        let f = guard.path().join("stop");
         let s = StopAuthority::new(Some(f.clone()), false);
         assert!(!s.raised());
         std::fs::write(&f, "").unwrap();
         assert!(matches!(s.check(), Some(Why::Stopped { .. })));
-        let _ = std::fs::remove_file(&f);
     }
 }

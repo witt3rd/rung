@@ -385,8 +385,8 @@ mod tests {
 
     #[test]
     fn a_directory_source_reads_dedups_and_rejects() {
-        let d = std::env::temp_dir().join(format!("rung-host-dir-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&d);
+        let guard = crate::sim::temp_dir_guard("dir-source");
+        let d = guard.path().join("inbox");
         let mut src = DirSource::new(&d).unwrap();
         fs::write(d.join("m1.msg"), r#"{"role":"owner","text":"hello"}"#).unwrap();
         fs::write(d.join("m2.msg"), "not json").unwrap();
