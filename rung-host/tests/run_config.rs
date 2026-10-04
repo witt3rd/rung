@@ -349,3 +349,74 @@ fn a_run_limit_ends_a_long_backoff() {
         json!("limit")
     );
 }
+
+#[test]
+fn a_rung_refused_for_the_account_is_not_stepped_onto_again() {
+    sim::test_timeout(300);
+    let guard = sim::temp_dir_guard("run-config-refused-once");
+    let root = guard.path().to_path_buf();
+    let provider = LoopbackProvider::start(move |r: &Request<'_>| {
+        let model = r.body["model"].as_str().unwrap_or("").to_string();
+        let turn = rung_host::gates::request_turn(r.body).unwrap_or(0);
+        if model == "c/closed:free" {
+            return Reply::json(
+                404,
+                &json!({"error": {"code": 404,
+                    "message": "0 endpoints out of 1 requested are available matching your guardrail restrictions and data policy.",
+                    "metadata": {"ineligibility_reasons": [{"reason": "zdr-violation-by-guardrail", "endpoint_count": 1}]}}}),
+            );
+        }
+        // The one rung that routes is rate-limited upstream on two turns.
+        if turn == 2 || turn == 4 {
+            return Reply::provider_429("Upstream", 1);
+        }
+        let served = Served {
+            model,
+            prompt: 10,
+            cached: 0,
+            cache_write: 0,
+            completion: 5,
+            cost_usd: 0.0,
+        };
+        Reply::completion("Upstream", Some("noted"), &[], served)
+    });
+    let d = root.display();
+    let cfg = root.join("rung-host.yaml");
+    std::fs::write(
+        &cfg,
+        format!(
+            "state: {d}/state\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
+             ladder:\n  - b/open:free\n  - c/closed:free\nlisting: false\nmemory: false\nbackoff_base_ms: 20\n",
+            provider.url
+        ),
+    )
+    .unwrap();
+    let o = run(&cfg, Some(7), Some("k"));
+    assert_eq!(o.status.code(), Some(0));
+    let ls = lines(&root.join("state"));
+    let on_closed = ls
+        .iter()
+        .filter(|l| l.kind == "turn.started" && l.str("model") == "c/closed:free")
+        .count();
+    assert_eq!(on_closed, 1, "the refused rung was tried again");
+    let refused = ls
+        .iter()
+        .find(|l| l.kind == "ladder.refused")
+        .expect("the refusal is on record");
+    assert_eq!(
+        refused.get("reasons"),
+        &json!(["zdr-violation-by-guardrail"])
+    );
+    let back = ls
+        .iter()
+        .find(|l| l.kind == "model.switch" && l.str("why").starts_with("refused"))
+        .expect("a switch off the refused rung");
+    assert_eq!(back.str("to"), "b/open:free");
+    // The second rate limit finds nothing standing below: it stays put.
+    assert!(
+        !ls.iter()
+            .filter(|l| l.seq > refused.seq)
+            .any(|l| l.kind == "model.switch" && l.str("to") == "c/closed:free"),
+        "a step-down landed on the refused rung"
+    );
+}

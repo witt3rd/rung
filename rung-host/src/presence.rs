@@ -1481,6 +1481,15 @@ impl Host {
         core.emit_hashed("turn.ended", body);
         // A failure: the governor's plan, once the turn is on record.
         if let Some(f) = &failure {
+            // A rung the router will not route for this account is
+            // unavailable until the next listing, like one the listing took
+            // away: no step or probe lands on it.
+            if let Some(reasons) = &f.unroutable {
+                core.emit(
+                    "ladder.refused",
+                    json!({"rung": rung, "model": model, "reasons": reasons}),
+                );
+            }
             let (plan, cooldown) = {
                 let st = core.state();
                 let jitter = jitter(cfg.seed, turn);
@@ -1518,6 +1527,20 @@ impl Host {
                     None => format!("provider {}", f.class_name()),
                 };
                 self.switch(from, to, "down", &why, cooldown.unwrap_or(0));
+            } else if let Some(reasons) = &f.unroutable {
+                // Nothing below stands: go to the best rung that does.
+                let to = {
+                    let st = core.state();
+                    governor::after_listing(&st.governor, cfg.ladder.len(), core.now())
+                        .map(|to| (st.governor.rung, to))
+                };
+                if let Some((from, to)) = to {
+                    let direction = if to > from { "down" } else { "up" };
+                    let why = format!("refused: {}", reasons.join(", "));
+                    let cd =
+                        governor::cooldown_after(&core.state().governor, &cfg.governor, from, f);
+                    self.switch(from, to, direction, &why, cd);
+                }
             }
         }
         core.sync();
