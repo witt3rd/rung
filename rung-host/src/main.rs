@@ -272,16 +272,21 @@ fn serve_acp(
     let (f2, h2) = (failed.clone(), host.clone());
     let looped = std::thread::spawn(move || host.run(rec));
     std::thread::spawn(move || {
-        let served = match http {
-            Some(addr) => rung_host::acp::serve_http(acp, &addr, tokens),
-            None => rung_host::acp::serve_stdio(acp, rung_host::acp::Principal { role }),
-        };
-        // A listener that cannot serve stops the host; a stdio client that
-        // went away does not.
-        if let Err(e) = served {
-            eprintln!("rung-host: acp: {e}");
-            f2.store(true, std::sync::atomic::Ordering::SeqCst);
-            h2.core.stop.request(Why::Stopped { by: "acp".into() });
+        match http {
+            Some(addr) => {
+                if let Err(e) = rung_host::acp::serve_http(acp, &addr, tokens) {
+                    eprintln!("rung-host: acp: {e}");
+                    f2.store(true, std::sync::atomic::Ordering::SeqCst);
+                    h2.core.stop.request(Why::Stopped { by: "acp".into() });
+                }
+            }
+            None => {
+                if let Err(e) =
+                    rung_host::acp::serve_stdio(acp, rung_host::acp::Principal { role })
+                {
+                    eprintln!("rung-host: acp: {e}");
+                }
+            }
         }
     });
     let why = looped.join();
