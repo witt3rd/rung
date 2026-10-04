@@ -141,6 +141,17 @@ def l4(lines):
             "cache_write_tokens": sum(c.get("cache_write_tokens", 0) for c in calls)}
 
 
+def waits_between(lines, a, b):
+    """The degraded waits that ended between two record positions, by class, ms."""
+    out, cls = Counter(), None
+    for d in lines:
+        if d["kind"] == "degraded":
+            cls = d["class"]
+        elif d["kind"] == "degraded.ended" and a < d["seq"] < b:
+            out[cls or "?"] += d.get("waited_ms", 0)
+    return dict(out)
+
+
 def l5(lines):
     accepted = {}
     for d in of(lines, "stimulus.accepted"):
@@ -157,21 +168,25 @@ def l5(lines):
     for i in owner:
         a = accepted[i]
         ad = admitted.get(i)
+        # An item accepted inside a boundary's poll may be admitted by that
+        # boundary; one accepted during a wait, by the next. Either way it is
+        # deferred only when a later boundary than the next one admits it.
         nxt = next((b for b in boundaries if b["seq"] > a["seq"]), None)
         first_boundary = nxt["n"] if nxt else None
-        if ad and first_boundary is not None and ad["boundary"] != first_boundary:
+        if ad and first_boundary is not None and ad["boundary"] > first_boundary:
             deferred += 1
         rows.append({"id": i, "kind": a["item"].get("kind"), "admitted": bool(ad),
                      "latency_ms": ad["at"] - a["at"] if ad else None,
                      "disposition": disposed.get(i, {}).get("disposition"),
                      "disposed_ms": disposed[i]["at"] - a["at"] if i in disposed else None,
-                     "boundary_gap": (ad["boundary"] - first_boundary) if ad and first_boundary is not None else None})
+                     "boundary_gap": (ad["boundary"] - first_boundary) if ad and first_boundary is not None else None,
+                     "waited_in": waits_between(lines, a["seq"], ad["seq"]) if ad else None})
     lat = [r["latency_ms"] for r in rows if r["latency_ms"] is not None]
     turn_ms = [d["elapsed_ms"] for d in of(lines, "turn.ended")]
     p95, tp95 = pct(lat, 95), pct(turn_ms, 95)
     done = [r["disposed_ms"] for r in rows if r["disposed_ms"] is not None]
     ok = deferred == 0 and all(r["admitted"] for r in rows) and (p95 is None or p95 <= (tp95 or 0) + 100)
-    return {"pass": bool(rows) and ok, "owner_items": len(rows), "deferred_past_first_boundary": deferred,
+    return {"pass": (bool(ok) if rows else None), "owner_items": len(rows), "deferred_past_first_boundary": deferred,
             "admission_ms_p50": pct(lat, 50), "admission_ms_p95": p95, "admission_ms_max": max(lat) if lat else None,
             "turn_ms_p50": pct(turn_ms, 50), "turn_ms_p95": tp95,
             "disposed_ms_p50": pct(done, 50), "disposed_ms_max": max(done) if done else None, "rows": rows}
@@ -215,7 +230,14 @@ STR_RE = re.compile(r'"([^"]*)"')
 
 
 def l8(run, lines):
+    # The state directory the host ran with (a collected copy keeps the
+    # original paths in its traces), from the rendered config.
     state = str((run / "state").resolve())
+    cfg = run / "rung-host.yaml"
+    if cfg.exists():
+        m = re.search(r"^state:\s*(\S+)", cfg.read_text(), re.M)
+        if m:
+            state = m.group(1)
     writes, outside = Counter(), Counter()
     for t in sorted(glob.glob(str(run / "trace" / "*.strace"))):
         for raw in open(t, errors="replace"):
@@ -243,7 +265,7 @@ def l8(run, lines):
                 if not p.startswith(state + "/") and p != state and p != "/dev/null":
                     outside[f"{call} {p}"] += 1
     agent_writes, agent_outside = 0, []
-    ws = str((run / "state" / "workspace").resolve())
+    ws = state + "/workspace"
     for d in of(lines, "turn.log"):
         for msg in d.get("messages", []):
             for c in msg.get("content", []) if isinstance(msg.get("content"), list) else []:
