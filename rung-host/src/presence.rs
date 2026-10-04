@@ -810,6 +810,13 @@ impl Host {
                 (x, y) => x.or(y),
             }
         };
+        // A wait the owner cannot cut (the provider backs off, a quota, a
+        // blocked credential): tell each waiting owner item at once, with
+        // no model call, that the answer waits for the provider.
+        let ack = !w.owner_wakes && matches!(w.class.as_str(), "backoff" | "quota" | "blocked");
+        if ack {
+            self.ack_owners(&w);
+        }
         let mut wake = |_now: Millis| {
             core.notifier.alive();
             if core.stop.raised() {
@@ -818,6 +825,9 @@ impl Host {
             self.poll_sources();
             if core.stop.raised() {
                 return true;
+            }
+            if ack {
+                self.ack_owners(&w);
             }
             w.owner_wakes
                 && core
@@ -837,6 +847,37 @@ impl Host {
             "degraded.ended",
             json!({"class": w.class, "waited_ms": core.now() - start}),
         );
+    }
+
+    /// One line to each owner item waiting through `w` that has not had one:
+    /// the host's own words, no model call (`outbox.queued`, source
+    /// `host:ack`). The real answer follows when a turn can run.
+    fn ack_owners(&self, w: &Wait) {
+        let core = &*self.core;
+        let (todo, turn) = {
+            let st = core.state();
+            let todo: Vec<(String, String)> = st
+                .inbox
+                .waiting()
+                .into_iter()
+                .filter(|p| p.item.role == Role::Owner && !st.inbox.acked.contains(&p.item.id))
+                .map(|p| (p.item.id.clone(), p.item.channel.clone()))
+                .collect();
+            (todo, st.turn)
+        };
+        for (id, channel) in todo {
+            let text = format!(
+                "Received. The model provider is unavailable ({}); I will answer when it clears, about {}. (The host's own note: no model was asked.)",
+                w.why,
+                crate::clock::iso(w.until)
+            );
+            let line = core.emit(
+                "outbox.queued",
+                json!({"turn": turn, "channel": channel, "text": text,
+                       "source": crate::inbox::ACK_SOURCE, "item": id}),
+            );
+            write_outbox(core, &line);
+        }
     }
 
     /// Admit the batch: consumes the boundary's edge.
