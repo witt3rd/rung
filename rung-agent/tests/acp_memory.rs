@@ -8,6 +8,7 @@
 //! - `baseline` and `mcp:`: a turn retained in one session is recalled in the
 //!   next, as quoted data in front of the ask, never stored in the session.
 //! - a slow provider times out and the turn still ends.
+//! - marked context cues nothing, and the session stores it once.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -578,4 +579,123 @@ fn when_every_block_is_marked_the_whole_text_is_the_ask() {
     let sent = last_user(&body);
     assert!(sent.contains(&before) && sent.contains(&after));
     assert!(kept.lines().last().unwrap().contains("alpha"));
+}
+
+// ─── context in the session ─────────────────────────────────────────────────
+
+fn user_lines(cwd: &Path, sid: &str) -> Vec<String> {
+    let path = cwd.join(".rung/sessions").join(format!("{sid}.json"));
+    let sess: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    sess["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|l| l["role"] == "user")
+        .map(|l| l["text"].as_str().unwrap().to_string())
+        .collect()
+}
+
+/// Every user message of a request, in order, as text.
+fn user_texts(body: &Value) -> Vec<String> {
+    body["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["role"] == "user")
+        .map(|m| match &m["content"] {
+            Value::String(s) => s.clone(),
+            Value::Array(parts) => parts
+                .iter()
+                .filter_map(|p| p["text"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            other => other.to_string(),
+        })
+        .collect()
+}
+
+/// Three turns in one session, each sending the same orientation block in
+/// front of a new ask. Returns the session's user lines and the requests.
+fn repeated_context(marked: bool) -> (Vec<String>, Vec<Value>) {
+    let cwd = tempdir("repeat");
+    let (url, bodies) = mock_llm(vec!["one", "two", "three"]);
+    let mut acp = Acp::start(&cwd, &url, &["--tools", "none"], &[]);
+    let sid = acp.new_session(&cwd, json!([]));
+    let ctx = |t: &str| if marked { ctx_block(t) } else { ask_block(t) };
+    let mut sent = Vec::new();
+    for ask in ["ask one", "ask two", "ask three"] {
+        let extra = format!("about {ask}");
+        let blocks = if ask == "ask three" {
+            vec![ctx("orientation"), ctx(&extra), ask_block(ask)]
+        } else {
+            vec![ctx("orientation"), ask_block(ask)]
+        };
+        let r = prompt_blocks(&mut acp, &sid, blocks);
+        assert_eq!(r["result"]["stopReason"], "end_turn", "{r}");
+        sent.push(bodies.recv().unwrap());
+    }
+    let lines = user_lines(&cwd, &sid);
+    drop(acp);
+    let _ = std::fs::remove_dir_all(&cwd);
+    (lines, sent)
+}
+
+#[test]
+fn a_marked_block_is_stored_on_the_first_turn_it_appears() {
+    let (lines, sent) = repeated_context(true);
+    assert_eq!(
+        lines,
+        [
+            "orientation\nask one",
+            "ask two",
+            "about ask three\nask three"
+        ]
+    );
+    // Each turn the model still sees every block of its own prompt.
+    assert_eq!(user_texts(&sent[1]).last().unwrap(), "orientation\nask two");
+    assert_eq!(
+        user_texts(&sent[2]),
+        [
+            "orientation\nask one",
+            "ask two",
+            "orientation\nabout ask three\nask three"
+        ]
+    );
+}
+
+#[test]
+fn an_unmarked_block_is_stored_every_turn_as_before() {
+    let (lines, sent) = repeated_context(false);
+    assert_eq!(
+        lines,
+        [
+            "orientation\nask one",
+            "orientation\nask two",
+            "orientation\nabout ask three\nask three"
+        ]
+    );
+    assert_eq!(user_texts(&sent[2]).len(), 3);
+    assert_eq!(user_texts(&sent[2])[1], "orientation\nask two");
+}
+
+#[test]
+fn when_every_block_is_marked_the_whole_prompt_is_stored_every_turn() {
+    let cwd = tempdir("all-marked");
+    let (url, bodies) = mock_llm(vec!["one", "two"]);
+    let mut acp = Acp::start(&cwd, &url, &["--tools", "none"], &[]);
+    let sid = acp.new_session(&cwd, json!([]));
+    for _ in 0..2 {
+        prompt_blocks(
+            &mut acp,
+            &sid,
+            vec![ctx_block("orientation"), ctx_block("the ask")],
+        );
+        let _ = bodies.recv().unwrap();
+    }
+    assert_eq!(
+        user_lines(&cwd, &sid),
+        ["orientation\nthe ask", "orientation\nthe ask"]
+    );
+    drop(acp);
+    let _ = std::fs::remove_dir_all(&cwd);
 }
