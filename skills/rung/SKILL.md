@@ -100,9 +100,9 @@ against `Live::launch`, not the process cwd. Mid-turn tests:
 `rung-agent/tests/acp_concurrency.rs` (its mock answers each request on its
 own thread, with a delay).
 
-## Turn check (rung-agent)
+## Turn check (rung-agent-core)
 
-`turn_check.rs` is a ladder after the agent loop: a judge (Jev, via
+`rung-agent-core/src/turn_check.rs` is a ladder after the agent loop: a judge (Jev, via
 `rung_std::decide`) reads the turn's final message against its actions.
 Arms: completed / nudge once / unverified / unchecked. Off by default; the
 switch is `turn_check.backend` or `RUNG_TURN_CHECK=off|jev`. Off must stay
@@ -125,7 +125,7 @@ fixtures from real transcripts (`tests/fixtures/transcripts/`), not
 author-written easy ones: the one real done turn reads as unsure, and the
 gate escalates it to `unverified`.
 
-## Memory (rung-memory + rung-agent)
+## Memory (rung-memory + rung-agent-core)
 
 Contract and wire: `docs/rung-memory.md`. One setting, `--memory` >
 `RUNG_MEMORY` > `memory.provider` > `off`: `off`, `external` (caller owns
@@ -157,7 +157,8 @@ runs the contract against any provider. Product crate, not kernel:
 - `docs/_props.py cited` kebab-tokens in comments are citations.
 - Overflow is `FailureKind::Overflow`, not a content filter. The loop
   elides and retries it once (`elide`) before it gets that far.
-- `rung-fixture` trybuild `a_match_missing_a_step_outcome_summand_is_e0004`
+- `rung` trybuild `a_match_missing_a_step_outcome_summand_is_e0004`
+  (`rung/tests/spec_refusals.rs`)
   can fail locally on roger (rustc diagnostic drift) while CI passes. Check it
   on a stash before blaming your change; CI is the gate.
 
