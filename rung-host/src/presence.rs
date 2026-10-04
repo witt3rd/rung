@@ -1542,7 +1542,7 @@ impl toolbox::Interrupt for OwnerWatch {
 
     fn next_arrival(&self) -> Option<Millis> {
         let h = self.0.upgrade()?;
-        let src = h.sources.lock().expect("sources");
+        let src = lock(&h.sources);
         src.iter().filter_map(|s| s.next_at()).min()
     }
 }
