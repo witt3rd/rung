@@ -31,11 +31,13 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::adapter::{AdapterConfig, AgentEngine};
+use crate::calendar::{Entry, Missed, Origin, When};
 use crate::clock::{Clock, RealClock, SECOND};
 use crate::core::HostConfig;
+use crate::desk::{DecisionDesk, DeskMode, SpendCap};
 use crate::engine::TurnEngine;
 use crate::governor::Quota;
-use crate::inbox::Role;
+use crate::inbox::{DirSource, Role, Source};
 use crate::ladder::{HttpLister, Lister, OPENROUTER_FREE_LADDER};
 use crate::memory::MemoryHost;
 use crate::notify::Notifier;
@@ -93,6 +95,41 @@ struct SeedProject {
     why: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CalendarFile {
+    id: String,
+    /// Seconds after the first start.
+    in_s: i64,
+    text: String,
+    #[serde(default)]
+    firm: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeskFile {
+    /// `decide`, `shadow` or `rule_only`.
+    mode: String,
+    /// `jev` (System One through `base_url`); absent with `rule_only`.
+    #[serde(default)]
+    decider: Option<String>,
+    #[serde(default)]
+    base_url: Option<String>,
+    /// The env var holding the decider's key; never the key.
+    #[serde(default)]
+    api_key_env: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default)]
+    cap_usd_day: Option<f64>,
+    #[serde(default)]
+    cap_usd_ask: Option<f64>,
+    /// While this file exists the decider is not asked.
+    #[serde(default)]
+    kill_file: Option<PathBuf>,
+}
+
 /// `rung-host.yaml`. Keys are named by env var, never written here.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -127,6 +164,21 @@ struct FileConfig {
     seed_projects: Vec<SeedProject>,
     #[serde(default)]
     acp: Option<AcpFile>,
+    /// A `*.msg` directory stimulus source.
+    #[serde(default)]
+    inbox: Option<PathBuf>,
+    /// The stop authority also halts when this file appears.
+    #[serde(default)]
+    stop_file: Option<PathBuf>,
+    /// Stop at the first boundary this many seconds after start.
+    #[serde(default)]
+    run_for_s: Option<i64>,
+    /// Owner calendar entries, seeded on the first start only.
+    #[serde(default)]
+    calendar: Vec<CalendarFile>,
+    /// The decision desk (rule-only when absent).
+    #[serde(default)]
+    desk: Option<DeskFile>,
 }
 
 // ─── The stages' payloads ────────────────────────────────────────────────────
@@ -154,6 +206,10 @@ pub struct Plan {
     memory: bool,
     limits: Limits,
     acp: AcpPlan,
+    desk: DecisionDesk,
+    inbox: Option<PathBuf>,
+    stop_file: Option<PathBuf>,
+    calendar: Vec<Entry>,
 }
 
 impl std::fmt::Debug for Plan {
@@ -339,6 +395,23 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
             (None, None) => AcpPlan::None,
         },
     };
+    let desk = match &f.desk {
+        None => DecisionDesk::rule_only(),
+        Some(d) => desk_of(d)?,
+    };
+    let now = clock.now();
+    let calendar = f
+        .calendar
+        .iter()
+        .map(|c| Entry {
+            id: c.id.clone(),
+            when: When::At(now.saturating_add(c.in_s.saturating_mul(SECOND))),
+            origin: Origin::Owner,
+            text: c.text.clone(),
+            firm: c.firm,
+            missed: Missed::OnceLate,
+        })
+        .collect();
     let plan = Plan {
         state: f.state.clone(),
         config,
@@ -349,9 +422,15 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
         memory: f.memory.unwrap_or(true),
         limits: Limits {
             max_turns,
-            until: None,
+            until: f
+                .run_for_s
+                .map(|s| now.saturating_add(s.saturating_mul(SECOND))),
         },
         acp,
+        desk,
+        inbox: f.inbox.clone(),
+        stop_file: f.stop_file.clone(),
+        calendar,
     };
     Ok(Configured::new(
         plan,
@@ -359,6 +438,59 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
             started: clock.now(),
         },
     ))
+}
+
+/// The desk the file asks for. A decider's key is read from the env var
+/// it names; `rule_only` needs no decider.
+fn desk_of(d: &DeskFile) -> Result<DecisionDesk, Refusal> {
+    let mode = match d.mode.as_str() {
+        "decide" => DeskMode::Decide,
+        "shadow" => DeskMode::Shadow,
+        "rule_only" => DeskMode::RuleOnly,
+        other => return Err(refuse(format!("desk.mode: unknown mode `{other}`"))),
+    };
+    let mut desk = match d.decider.as_deref() {
+        None if mode == DeskMode::RuleOnly => DecisionDesk::rule_only(),
+        None => {
+            return Err(refuse(
+                "desk.decider: required unless desk.mode is rule_only",
+            ));
+        }
+        Some("jev") => {
+            let key_env = d
+                .api_key_env
+                .clone()
+                .ok_or_else(|| refuse("desk.api_key_env: required for the jev decider"))?;
+            let key = env("desk.api_key_env", &key_env)?;
+            let base = d
+                .base_url
+                .clone()
+                .unwrap_or_else(|| rung_std::decide::DEFAULT_BASE_URL.into());
+            let model = d
+                .model
+                .clone()
+                .unwrap_or_else(|| rung_std::decide::DEFAULT_MODEL.into());
+            let jev =
+                rung_std::decide::JevDecider::new(&base, &key, &model, crate::desk::ASK_TIMEOUT);
+            DecisionDesk::new(Some(Arc::new(jev)), "jev", mode)
+        }
+        Some(other) => return Err(refuse(format!("desk.decider: unknown decider `{other}`"))),
+    };
+    let mut cap = SpendCap::default();
+    for (field, v, slot) in [
+        ("desk.cap_usd_day", d.cap_usd_day, &mut cap.per_day),
+        ("desk.cap_usd_ask", d.cap_usd_ask, &mut cap.per_ask),
+    ] {
+        if let Some(v) = v {
+            if !(v.is_finite() && v >= 0.0) {
+                return Err(refuse(format!("{field}: not a non-negative amount")));
+            }
+            *slot = v;
+        }
+    }
+    desk.cap = cap;
+    desk.kill_file = d.kill_file.clone();
+    Ok(desk)
 }
 
 ladder!(Startup {
@@ -385,7 +517,15 @@ ladder!(Startup {
         let plan = listed.payload;
         let mut b = HostBuilder::new(plan.config, &plan.state, plan.clock, plan.engine);
         stop_install();
-        b.stop = Arc::new(StopAuthority::new(None, true));
+        b.stop = Arc::new(StopAuthority::new(plan.stop_file, true));
+        b.desk = plan.desk;
+        b.seed_calendar = plan.calendar;
+        let inbox = match &plan.inbox {
+            Some(dir) => DirSource::new(dir)
+                .map(|src| vec![Box::new(src) as Box<dyn Source>])
+                .map_err(|e| format!("inbox {}: {e}", dir.display())),
+            None => Ok(Vec::new()),
+        };
         b.notifier = Notifier::from_env();
         b.lister = plan.lister;
         b.initial_listing = plan.listing;
@@ -393,7 +533,10 @@ ladder!(Startup {
         if plan.memory {
             b.memory = Some(Arc::new(MemoryHost::baseline(&plan.state.join("memory"), "host")));
         }
-        let opened = Host::open(b).map_err(|e| format!("{}: {e}", plan.state.display()));
+        let opened = inbox.and_then(|sources| {
+            b.sources = sources;
+            Host::open(b).map_err(|e| format!("{}: {e}", plan.state.display()))
+        });
         Recovered::new(Opening { opened, acp: plan.acp }, carry)
     },
     step = |recovered| {

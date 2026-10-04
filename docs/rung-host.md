@@ -202,6 +202,27 @@ Other optional keys: `workspace`, `identity`, `owner_channel`,
 `epoch_budget_tokens`, `turn_bound_s`, `backoff_base_ms`, `seed_projects`
 (`[{id, title, why}]`), and under `engine`: `step_cap`, `timeout_s`.
 
+For a bounded run with real stimuli:
+
+```yaml
+inbox: /run/rung-host/inbox          # a *.msg directory source
+stop_file: /run/rung-host/STOP       # the stop authority also halts on this file
+run_for_s: 1800                      # stop at the first boundary after 30 min
+calendar:                            # owner entries, seeded on the first start only
+  - { id: standup, in_s: 600, text: "Stand-up: say what you are on", firm: true }
+desk:                                # rule-only when absent
+  mode: shadow                       # decide | shadow | rule_only
+  decider: jev                       # System One at base_url (default OpenRouter)
+  api_key_env: OPENROUTER_API_KEY    # the env var's name, never the key
+  cap_usd_day: 0.25                  # default 0.25; per ask 0.001 (cap_usd_ask)
+  kill_file: /run/rung-host/DESK_OFF # while it exists the decider is not asked
+```
+
+With the kill file present every ask is `desk.ask{outcome: killed}` and
+every family decides by its rule (`by: {"rule": "killed"}`). An ask that
+timed out or came back undecided counts its estimate against the cap, as
+it may have been billed without saying so.
+
 ## The engine adapter
 
 `rung_host::adapter::AgentEngine` runs each turn on `rung-agent-core`'s
