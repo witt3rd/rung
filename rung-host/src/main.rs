@@ -271,21 +271,17 @@ fn serve_acp(
     let failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let (f2, h2) = (failed.clone(), host.clone());
     let looped = std::thread::spawn(move || host.run(rec));
-    std::thread::spawn(move || {
-        match http {
-            Some(addr) => {
-                if let Err(e) = rung_host::acp::serve_http(acp, &addr, tokens) {
-                    eprintln!("rung-host: acp: {e}");
-                    f2.store(true, std::sync::atomic::Ordering::SeqCst);
-                    h2.core.stop.request(Why::Stopped { by: "acp".into() });
-                }
+    std::thread::spawn(move || match http {
+        Some(addr) => {
+            if let Err(e) = rung_host::acp::serve_http(acp, &addr, tokens) {
+                eprintln!("rung-host: acp: {e}");
+                f2.store(true, std::sync::atomic::Ordering::SeqCst);
+                h2.core.stop.request(Why::Stopped { by: "acp".into() });
             }
-            None => {
-                if let Err(e) =
-                    rung_host::acp::serve_stdio(acp, rung_host::acp::Principal { role })
-                {
-                    eprintln!("rung-host: acp: {e}");
-                }
+        }
+        None => {
+            if let Err(e) = rung_host::acp::serve_stdio(acp, rung_host::acp::Principal { role }) {
+                eprintln!("rung-host: acp: {e}");
             }
         }
     });
