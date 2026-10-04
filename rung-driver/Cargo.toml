@@ -2,6 +2,7 @@
 name = "rung-driver"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Configure a pool of principals and run a ladder over a subject"

@@ -2,6 +2,7 @@
 name = "rung-doctrine"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "rung's normative doctrine, encoded — the source the prose is rendered from"

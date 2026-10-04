@@ -2,6 +2,7 @@
 name = "rung-het"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Het's gate-marked satisfaction, enforced by the type system"

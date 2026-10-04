@@ -2,6 +2,7 @@
 name = "rung-memory"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Memory groundwork for rung's product side: who owns memory, a graph-level store trait, and a typed recall outcome"
