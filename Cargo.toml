@@ -3,8 +3,8 @@
 # export *only* macros, never the runtime types the generated code needs. So
 # `rung-macro` holds the `ladder!` macro and `rung` holds the runtime types +
 # re-exports the macro. Consumers depend on `rung` alone. (Same split as
-# serde/serde_derive, tokio/tokio-macros.) The example lives in `rung/examples/`
-# (Cargo-native: `cargo run -p rung --example metric_opt`).
+# serde/serde_derive, tokio/tokio-macros.) The examples live in `rung/examples/`
+# (Cargo-native: `cargo run -p rung --example 01_enforced_graph`).
 # `rung-agent-core` is the product as a library: the agent itself (catalog,
 # sessions, the turn engine, MCP, memory hooks, the turn check, ACP), so a
 # host can import it. `rung-agent` is the thin shell over it: the headless
