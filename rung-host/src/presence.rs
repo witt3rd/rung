@@ -827,7 +827,12 @@ impl Host {
                     .values()
                     .any(|p| p.item.role == Role::Owner)
         };
-        let _ = core.clock.wait(w.until, &next, &mut wake);
+        // A run limit ends the wait too: the next boundary halts on it.
+        let until = match self.limits.until {
+            Some(u) => w.until.min(u.max(start)),
+            None => w.until,
+        };
+        let _ = core.clock.wait(until, &next, &mut wake);
         core.emit(
             "degraded.ended",
             json!({"class": w.class, "waited_ms": core.now() - start}),

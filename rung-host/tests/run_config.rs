@@ -314,3 +314,38 @@ fn a_rung_the_router_will_not_route_for_this_account_is_stepped_past() {
         && l.str("status") == "completed"
         && l.str("model") == "b/open:free"));
 }
+
+#[test]
+fn a_run_limit_ends_a_long_backoff() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("run-config-limit");
+    let root = guard.path().to_path_buf();
+    // Every call is refused; the host's backoff starts at ten minutes.
+    let provider =
+        LoopbackProvider::start(move |_r: &Request<'_>| Reply::provider_429("Upstream", 10));
+    let d = root.display();
+    let cfg = root.join("rung-host.yaml");
+    std::fs::write(
+        &cfg,
+        format!(
+            "state: {d}/state\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
+             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nrun_for_s: 3\nbackoff_base_ms: 600000\n",
+            provider.url
+        ),
+    )
+    .unwrap();
+    let t = std::time::Instant::now();
+    let o = run(&cfg, None, Some("k"));
+    assert_eq!(o.status.code(), Some(0));
+    assert!(
+        t.elapsed() < std::time::Duration::from_secs(30),
+        "the backoff outlived the run limit: {:?}",
+        t.elapsed()
+    );
+    let ls = lines(&root.join("state"));
+    assert!(ls.iter().any(|l| l.kind == "degraded"));
+    assert_eq!(
+        ls.iter().find(|l| l.kind == "halted").unwrap().get("why")["by"],
+        json!("limit")
+    );
+}

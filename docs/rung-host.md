@@ -207,7 +207,7 @@ For a bounded run with real stimuli:
 ```yaml
 inbox: /run/rung-host/inbox          # a *.msg directory source
 stop_file: /run/rung-host/STOP       # the stop authority also halts on this file
-run_for_s: 1800                      # stop at the first boundary after 30 min
+run_for_s: 1800                      # stop at 30 min (a wait ends there too)
 calendar:                            # owner entries, seeded on the first start only
   - { id: standup, in_s: 600, text: "Stand-up: say what you are on", firm: true }
 desk:                                # rule-only when absent
