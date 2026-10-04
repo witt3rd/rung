@@ -1471,10 +1471,7 @@ pub fn g_n(lines: &[Line], seen: &[HttpSeen]) -> GateResult {
     // turn → (epoch, model)
     let mut turns: BTreeMap<u64, (u64, String)> = BTreeMap::new();
     for l in of(lines, "turn.started") {
-        turns.insert(
-            l.u64("turn"),
-            (l.u64("epoch"), l.str("model").to_string()),
-        );
+        turns.insert(l.u64("turn"), (l.u64("epoch"), l.str("model").to_string()));
     }
     let (mut unplaced, mut wrong_model, mut wrong_session) = (0, 0, 0);
     let (mut bad_markers, mut with_tools) = (0, 0);
@@ -1528,7 +1525,10 @@ pub fn g_n(lines: &[Line], seen: &[HttpSeen]) -> GateResult {
         }
         if let Some((ptools, pmsgs)) = prev.get(&session) {
             if has_tools {
-                if *ptools == b["tools"] && msgs.len() >= pmsgs.len() && msgs[..pmsgs.len()] == pmsgs[..] {
+                if *ptools == b["tools"]
+                    && msgs.len() >= pmsgs.len()
+                    && msgs[..pmsgs.len()] == pmsgs[..]
+                {
                     extends += 1;
                 } else {
                     broken += 1;
@@ -1607,10 +1607,13 @@ pub fn g_n(lines: &[Line], seen: &[HttpSeen]) -> GateResult {
             "platform" => {
                 platform_429 += 1;
                 let reset = f["reset_at"].as_i64();
+                // The reset of the last refused attempt: the one that
+                // stopped the turn.
                 let sent_reset = chats
                     .iter()
                     .filter(|h| request_turn(&h.body) == Some(l.u64("turn")))
-                    .find_map(|h| h.reset_at);
+                    .filter_map(|h| h.reset_at)
+                    .next_back();
                 let waited = after.iter().any(|x| {
                     x.kind == "degraded"
                         && x.str("class") == "quota"
@@ -1659,15 +1662,30 @@ pub fn g_n(lines: &[Line], seen: &[HttpSeen]) -> GateResult {
         "the record's calls and the served completions differ in number",
     );
     g.check(unplaced == 0, "a request belongs to no recorded turn");
-    g.check(wrong_model == 0, "a request asked for another model than its turn's");
-    g.check(wrong_session == 0, "a request's session_id is not its turn's epoch");
+    g.check(
+        wrong_model == 0,
+        "a request asked for another model than its turn's",
+    );
+    g.check(
+        wrong_session == 0,
+        "a request's session_id is not its turn's epoch",
+    );
     g.check(
         with_tools > 0 && bad_markers == 0,
         "the cache breakpoints are not exactly the stable and slow layers' ends",
     );
-    g.check(extends > 0 && broken == 0, "a request in a session does not extend the previous");
-    g.check(last_broken == 0, "a turn's last step does not extend the previous request");
-    g.check(long_verbatim > 0, "no long tool result was seen again unchanged");
+    g.check(
+        extends > 0 && broken == 0,
+        "a request in a session does not extend the previous",
+    );
+    g.check(
+        last_steps > 0 && last_broken == 0,
+        "no turn reached its last step, or one does not extend the previous request",
+    );
+    g.check(
+        long_verbatim > 0,
+        "no long tool result was seen again unchanged",
+    );
     g.check(usage_bad == 0, "an llm.call does not carry what was served");
     g.check(
         notes > 0 && tool_ok > 0 && refused_disabled > 0,
@@ -1682,7 +1700,10 @@ pub fn g_n(lines: &[Line], seen: &[HttpSeen]) -> GateResult {
         follow_bad == 0,
         "a 429 was not followed by its plan (provider: step down; platform: wait for the reset, no step down)",
     );
-    g.check(probed_up, "the ladder never probed back up after stepping down");
+    g.check(
+        probed_up,
+        "the ladder never probed back up after stepping down",
+    );
     g.check(cost == 0.0, "money was spent");
     g
 }

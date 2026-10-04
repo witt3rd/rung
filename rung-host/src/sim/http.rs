@@ -185,7 +185,10 @@ impl LoopbackProvider {
                     return;
                 }
                 let Ok(mut sock) = conn else { continue };
-                let loopback = sock.peer_addr().map(|a| a.ip().is_loopback()).unwrap_or(false);
+                let loopback = sock
+                    .peer_addr()
+                    .map(|a| a.ip().is_loopback())
+                    .unwrap_or(false);
                 let Some((method, path, body)) = read_request(&mut sock) else {
                     continue;
                 };

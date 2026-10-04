@@ -26,15 +26,23 @@ fn script(turn: u64, step: usize) -> (Option<String>, Vec<(&'static str, Value)>
     let done = |t: &str| (Some(t.to_string()), Vec::new());
     match (turn, step) {
         // A disabled tool (free time has no workspace_write).
-        (1, 0) => (None, vec![("ws_write", json!({"path": "x.txt", "text": "x"}))]),
+        (1, 0) => (
+            None,
+            vec![("ws_write", json!({"path": "x.txt", "text": "x"}))],
+        ),
         // A long result: the file holds more than the host returns.
         (2, 0) => (None, vec![("ws_read", json!({"path": "long.txt"}))]),
         (3, 0) => (
             None,
-            vec![("note", json!({"text": "carried: the long file is in the workspace"}))],
+            vec![(
+                "note",
+                json!({"text": "carried: the long file is in the workspace"}),
+            )],
         ),
-        // Every step a tool call, until the loop withdraws the tools.
-        (5, s) if s < 5 => (None, vec![("ws_list", json!({"path": ""}))]),
+        // Every step a tool call, until the loop withdraws the tools; no
+        // two alike in a row (that is a doom loop, stopped early).
+        (5, s) if s < 5 && s % 2 == 0 => (None, vec![("ws_list", json!({"path": ""}))]),
+        (5, s) if s < 5 => (None, vec![("ws_read", json!({"path": "long.txt"}))]),
         (5, _) => done("five listings; nothing new"),
         (t, 0) if t % 4 == 0 => (
             None,
@@ -118,7 +126,9 @@ fn the_engine_adapter_runs_the_host_against_a_loopback_provider() {
     let mut sc = scenario("gate-n", 31);
     let workspace = sc.dir.join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
-    let long: String = (0..400).map(|i| format!("line {i:04} of a long file\n")).collect();
+    let long: String = (0..400)
+        .map(|i| format!("line {i:04} of a long file\n"))
+        .collect();
     std::fs::write(workspace.join("long.txt"), &long).unwrap();
     sc.config.engine = "agent".into();
     sc.config.ladder = LADDER.iter().map(|s| s.to_string()).collect();
@@ -134,6 +144,30 @@ fn the_engine_adapter_runs_the_host_against_a_loopback_provider() {
     sc.engine = Some(Arc::new(engine));
     let out = sim::run(sc);
     let seen = provider.seen();
+    if std::env::var("GATE_DEBUG").is_ok() {
+        for l in &out.lines {
+            if matches!(
+                l.kind.as_str(),
+                "turn.ended"
+                    | "model.switch"
+                    | "degraded"
+                    | "degraded.ended"
+                    | "turn.started"
+                    | "epoch.rollover"
+            ) {
+                eprintln!(
+                    "{} {} {}",
+                    l.seq,
+                    l.kind,
+                    serde_json::to_string(&l.to_value())
+                        .unwrap()
+                        .chars()
+                        .take(400)
+                        .collect::<String>()
+                );
+            }
+        }
+    }
     let g = gates::g_n(&out.lines, &seen);
     assert_gate(&g);
 }
