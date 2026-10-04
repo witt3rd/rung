@@ -761,6 +761,42 @@ pub fn serve_stdio(acp: Arc<Acp>, principal: Principal) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Serve ACP over Streamable HTTP on `addr` (loopback by default): each
+/// bearer token is the operator's, named per role in `tokens`
+/// (token → role). A connection's principal is the role of the token it
+/// initialized with; every later request on it must carry the same token.
+/// A request with no known token is refused (401). At least one token is
+/// required: an unauthenticated HTTP surface is not served.
+pub fn serve_http(acp: Arc<Acp>, addr: &str, tokens: Vec<(String, Role)>) -> Result<(), String> {
+    if tokens.is_empty() {
+        return Err("ACP over HTTP needs at least one role token".into());
+    }
+    let tokens: Arc<HashMap<String, Role>> = Arc::new(tokens.into_iter().collect());
+    let t2 = tokens.clone();
+    let serve = rung_agent_core::acp_http::Serve {
+        name: "rung-host".into(),
+        authorize: Arc::new(move |bearer| bearer.is_some_and(|b| t2.contains_key(b))),
+        connect: Arc::new(move |bearer, lines| {
+            let acp = acp.clone();
+            let role = bearer.and_then(|b| tokens.get(&b).copied());
+            Box::pin(async move {
+                if let Some(role) = role {
+                    let _ = acp.serve(Principal { role }, lines).await;
+                }
+            })
+        }),
+        bind_bearer: true,
+    };
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| e.to_string())?;
+    rt.block_on(rung_agent_core::acp_http::listen_with(
+        addr.to_string(),
+        serve,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

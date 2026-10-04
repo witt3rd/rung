@@ -1,3 +1,12 @@
+//! ACP over Streamable HTTP: `POST`/`GET`/`DELETE /acp`, `Acp-Connection-Id`
+//! and `Acp-Session-Id`, SSE outbound streams (the experimental RFD that
+//! `@agentclientprotocol/sdk` speaks).
+//!
+//! [`listen_with`] serves any agent: a [`Serve`] says which bearer tokens
+//! may reach it and runs one agent connection per `initialize`. The
+//! `rung-agent --acp-http` server is one [`Serve`]; a host embedding the
+//! crate is another.
+
 use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
 use std::net::SocketAddr;
@@ -52,7 +61,66 @@ const SESSION_SCOPED: &[&str] = &[
     "document/didFocus",
 ];
 
+/// One Streamable HTTP connection's transport to its agent: JSON-RPC lines
+/// in and out.
+pub type HttpLines = agent_client_protocol::Lines<
+    futures::sink::SinkMapErr<
+        futures::channel::mpsc::UnboundedSender<String>,
+        fn(futures::channel::mpsc::SendError) -> std::io::Error,
+    >,
+    futures::stream::Map<
+        futures::channel::mpsc::UnboundedReceiver<String>,
+        fn(String) -> std::io::Result<String>,
+    >,
+>;
+
+/// Serve one connection: given the bearer token it initialized with (if
+/// any) and its transport, run the agent until the transport closes.
+pub type Connect = Arc<
+    dyn Fn(Option<String>, HttpLines) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// Whether a request's bearer token (if any) may reach the agent.
+pub type Authorize = Arc<dyn Fn(Option<&str>) -> bool + Send + Sync>;
+
+/// What a Streamable HTTP listener serves.
+#[derive(Clone)]
+pub struct Serve {
+    /// Names the server in its listen line (`<name>: ACP HTTP at …/acp`).
+    pub name: String,
+    pub authorize: Authorize,
+    pub connect: Connect,
+    /// Every later request of a connection must carry the bearer token it
+    /// initialized with (a connection's principal is fixed at initialize).
+    pub bind_bearer: bool,
+}
+
 pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
+    let token = process.acp_token.clone();
+    let process = Arc::new(process);
+    let live = Live::new();
+    let serve = Serve {
+        name: "rung-agent".into(),
+        authorize: Arc::new(move |bearer| match token.as_deref() {
+            None => true,
+            Some(t) => bearer == Some(t),
+        }),
+        connect: Arc::new(move |_bearer, lines| {
+            let process = process.clone();
+            let live = live.clone();
+            Box::pin(async move {
+                let _ = connect_agent(process, live, lines).await;
+            })
+        }),
+        bind_bearer: false,
+    };
+    listen_with(addr, serve).await
+}
+
+/// Listen on `addr` and serve each connection with `serve`.
+pub async fn listen_with(addr: String, serve: Serve) -> Result<(), String> {
     let bind = resolve_addr(&addr)?;
     let listener = TcpListener::bind(bind)
         .await
@@ -61,12 +129,10 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
     rung_std::events::emit(
         "rung-agent",
         "acp.listen",
-        &format!("rung-agent: ACP HTTP at http://{local}/acp"),
+        &format!("{}: ACP HTTP at http://{local}/acp", serve.name),
     );
     let state = Arc::new(HttpState {
-        process: Arc::new(process.clone()),
-        live: Live::new(),
-        token: process.acp_token.clone(),
+        serve,
         connections: Mutex::new(HashMap::new()),
     });
     loop {
@@ -86,13 +152,13 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
 }
 
 struct HttpState {
-    process: Arc<Args>,
-    live: Live,
-    token: Option<String>,
+    serve: Serve,
     connections: Mutex<HashMap<String, Arc<Conn>>>,
 }
 
 struct Conn {
+    /// The bearer token the connection initialized with.
+    bearer: Option<String>,
     to_agent: futures::channel::mpsc::UnboundedSender<String>,
     connection_stream: Mailbox,
     sessions: Mutex<HashMap<String, Mailbox>>,
@@ -221,11 +287,17 @@ fn is_json_content_type(req: &Request<Incoming>) -> bool {
         .unwrap_or(false)
 }
 
+fn bearer(req: &Request<Incoming>) -> Option<&str> {
+    header(req, "authorization").and_then(|v| v.strip_prefix("Bearer "))
+}
+
 fn authorized(state: &HttpState, req: &Request<Incoming>) -> bool {
-    let Some(token) = state.token.as_deref() else {
-        return true;
-    };
-    header(req, "authorization") == Some(&format!("Bearer {token}"))
+    (state.serve.authorize)(bearer(req))
+}
+
+/// A request on an existing connection carries the connection's principal.
+fn same_principal(state: &HttpState, conn: &Conn, req: &Request<Incoming>) -> bool {
+    !state.serve.bind_bearer || conn.bearer.as_deref() == bearer(req)
 }
 
 async fn handle(
@@ -262,6 +334,8 @@ async fn post(
     }
     let conn_hdr = header(&req, HEADER_CONNECTION_ID).map(str::to_string);
     let sess_hdr = header(&req, HEADER_SESSION_ID).map(str::to_string);
+    let bearer_hdr = bearer(&req).map(str::to_string);
+    let bound = |conn: &Conn| !state.serve.bind_bearer || conn.bearer == bearer_hdr;
     let collected = match req.collect().await {
         Ok(c) => c.to_bytes(),
         Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid JSON"),
@@ -289,7 +363,7 @@ async fn post(
                 "Initialize not allowed on existing connection",
             );
         }
-        return initialize(state, value).await;
+        return initialize(state.clone(), value, bearer_hdr.clone()).await;
     }
     let Some(conn_id) = conn_hdr else {
         return text(StatusCode::BAD_REQUEST, "Missing Acp-Connection-Id");
@@ -301,6 +375,9 @@ async fn post(
     let Some(conn) = conn else {
         return text(StatusCode::NOT_FOUND, "Unknown Acp-Connection-Id");
     };
+    if !bound(&conn) {
+        return text(StatusCode::FORBIDDEN, "Forbidden");
+    }
     match forward(&conn, value, sess_hdr.as_deref()) {
         Ok(()) => empty(StatusCode::ACCEPTED),
         Err((code, msg)) => text(code, msg),
@@ -331,6 +408,9 @@ fn get(state: Arc<HttpState>, req: Request<Incoming>) -> Response<BoxBody<Bytes,
     let Some(conn) = conn else {
         return text(StatusCode::NOT_FOUND, "Unknown Acp-Connection-Id");
     };
+    if !same_principal(&state, &conn, &req) {
+        return text(StatusCode::FORBIDDEN, "Forbidden");
+    }
     let mailbox = match header(&req, HEADER_SESSION_ID) {
         Some(sid) => conn.ensure_session(sid),
         None => conn.connection_stream.clone(),
@@ -350,7 +430,12 @@ fn delete(state: Arc<HttpState>, req: Request<Incoming>) -> Response<BoxBody<Byt
     };
     let conn = {
         let mut g = state.connections.lock().expect("conns");
-        g.remove(conn_id)
+        match g.get(conn_id) {
+            Some(c) if !same_principal(&state, c, &req) => {
+                return text(StatusCode::FORBIDDEN, "Forbidden");
+            }
+            _ => g.remove(conn_id),
+        }
     };
     let Some(conn) = conn else {
         return text(StatusCode::NOT_FOUND, "Unknown Acp-Connection-Id");
@@ -359,7 +444,11 @@ fn delete(state: Arc<HttpState>, req: Request<Incoming>) -> Response<BoxBody<Byt
     empty(StatusCode::ACCEPTED)
 }
 
-async fn initialize(state: Arc<HttpState>, message: Value) -> Response<BoxBody<Bytes, Infallible>> {
+async fn initialize(
+    state: Arc<HttpState>,
+    message: Value,
+    bearer: Option<String>,
+) -> Response<BoxBody<Bytes, Infallible>> {
     let id = message.get("id").cloned();
     if id.as_ref().is_none_or(|v| v.is_null()) {
         return text(
@@ -369,11 +458,12 @@ async fn initialize(state: Arc<HttpState>, message: Value) -> Response<BoxBody<B
     }
     let (to_agent_tx, to_agent_rx) = futures::channel::mpsc::unbounded::<String>();
     let (from_agent_tx, mut from_agent_rx) = futures::channel::mpsc::unbounded::<String>();
-    let incoming = to_agent_rx.map(Ok::<_, std::io::Error>);
-    let outgoing =
-        from_agent_tx.sink_map_err(|e| std::io::Error::new(std::io::ErrorKind::BrokenPipe, e));
+    let incoming =
+        to_agent_rx.map(Ok::<_, std::io::Error> as fn(String) -> std::io::Result<String>);
+    let outgoing = from_agent_tx.sink_map_err(broken_pipe as fn(_) -> std::io::Error);
     let conn_id = uuid::Uuid::new_v4().to_string();
     let conn = Arc::new(Conn {
+        bearer: bearer.clone(),
         to_agent: to_agent_tx,
         connection_stream: Mailbox::new(),
         sessions: Mutex::new(HashMap::new()),
@@ -384,16 +474,13 @@ async fn initialize(state: Arc<HttpState>, message: Value) -> Response<BoxBody<B
         let mut g = state.connections.lock().expect("conns");
         g.insert(conn_id.clone(), conn.clone());
     }
-    let process = state.process.clone();
-    let live = state.live.clone();
+    let serving = (state.serve.connect)(
+        bearer,
+        agent_client_protocol::Lines::new(outgoing, incoming),
+    );
     let agent_conn = conn.clone();
     tokio::spawn(async move {
-        let _ = connect_agent(
-            process,
-            live,
-            agent_client_protocol::Lines::new(outgoing, incoming),
-        )
-        .await;
+        serving.await;
         conn_finish(&agent_conn);
     });
     if conn.to_agent.unbounded_send(message.to_string()).is_err() {
@@ -426,6 +513,10 @@ async fn initialize(state: Arc<HttpState>, message: Value) -> Response<BoxBody<B
         tokio::spawn(route_outbound(c, from_agent_rx));
     }
     json_with_conn(StatusCode::OK, response, &conn_id)
+}
+
+fn broken_pipe(e: futures::channel::mpsc::SendError) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::BrokenPipe, e)
 }
 
 fn conn_finish(conn: &Conn) {

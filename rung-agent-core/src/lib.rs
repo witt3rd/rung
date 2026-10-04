@@ -37,7 +37,7 @@
 //! `docs/rung-memory.md`).
 
 pub mod acp;
-pub(crate) mod acp_http;
+pub mod acp_http;
 pub mod args;
 pub mod background;
 pub mod catalog;
