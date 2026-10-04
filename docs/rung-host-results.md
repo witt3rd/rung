@@ -42,6 +42,21 @@ cargo test -p rung-host --locked -- --nocapture 2>&1 | grep '^GATE'
   at that commit with admission p95 4,354 ms against a turn p95 of 1,698 ms,
   and at 1% the admission p95 was 8.4 s. Admission latency is length-biased
   by long turns.
+- **CI tier for the slow gates (#173).** Evaluated, not split now;
+  deferred. Measured on CI (master push run 37199500246, before this
+  change): the `check` job took 8.5 min, its test step 7.6 min; the
+  rung-host gate binaries took about 322 s of that, gate_time alone 213 s
+  (its four tests ran serially under one lock). Locally (roger, loaded)
+  gate_time took 267 s serially; now only G-a runs alone and the
+  simulated-clock gates G-b, G-d and G-e share the machine, so it takes
+  about 179 s including the new `g_d_holds_when_every_ask_times_out` test.
+  In parallel the tests take G-b 131 s, G-d 72 s, G-e 29 s, G-a 6 s, so G-b
+  is the critical path. Reason: the required check is the single `check`
+  job, and a split needs an aggregating `check` job that `needs` the gate
+  job with `if: always()` and checks each result (GitHub counts a skipped
+  required job as passing), while ci.yml was being changed by in-flight
+  PRs; the in-binary parallelism takes most of the saving without touching
+  the required check.
 - **Build profile.** Dev and test builds compile rung-host, rung-memory,
   serde_json and sha2 at opt-level 2, so the wall-clock gates measure the
   host rather than unoptimised code; behaviour is unchanged.
