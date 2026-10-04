@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 401 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 403 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1049,18 +1049,20 @@ look shorter than it is.
 
 - `admission_latency_by_long_work_share`
 
-**`rung-host/tests/run_config.rs`** — 10 unclaimed
+**`rung-host/tests/run_config.rs`** — 12 unclaimed
 
 - `a_bad_desk_or_an_unset_desk_key_is_refused`
 - `a_bounded_live_shaped_run_shadows_the_desk_and_honours_its_switches`
 - `a_keyed_probe_at_start_finds_a_refused_rung_before_any_turn`
 - `a_pacing_wait_sends_no_acknowledgement`
+- `a_probe_that_refuses_the_current_rung_names_itself_in_the_switch`
 - `a_run_limit_ends_a_long_backoff`
 - `a_rung_refused_for_the_account_is_not_stepped_onto_again`
 - `a_rung_the_router_will_not_route_for_this_account_is_stepped_past`
 - `a_zero_cap_keeps_every_ask_home`
 - `an_owner_waiting_through_a_provider_backoff_hears_from_the_host_at_once`
 - `probes_can_be_turned_off_and_ride_only_with_the_listing`
+- `probes_pass_the_governor_and_a_held_probe_is_on_record`
 
 **`rung-memory/tests/memory.rs`** — 18 unclaimed
 

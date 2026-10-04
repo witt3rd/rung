@@ -701,15 +701,32 @@ impl Host {
         // The governor gates each probe like any request: the state as it
         // will stand once the probes already sent are recorded.
         let mut gov = core.state().governor.clone();
+        let mut held: Option<String> = None;
         for (rung, model) in standing {
             let now = core.now();
-            if governor::must_wait(&gov, &self.cfg().governor, TurnKind::Responding, now).is_some()
+            if held.is_none()
+                && let Some(w) =
+                    governor::must_wait(&gov, &self.cfg().governor, TurnKind::Responding, now)
             {
-                break;
+                held = Some(format!("{}: {}", w.class, w.why));
             }
-            gov.requests_today += 1;
-            gov.unreserved_today += 1;
-            gov.recent.push_back(now);
+            if let Some(why) = &held {
+                // Not sent: the quota or the pacer holds it (tried again
+                // with the next listing).
+                verdicts
+                    .push(json!({"rung": rung, "model": model, "verdict": "skipped", "why": why}));
+                continue;
+            }
+            // Count it the one way the record will: one probed request.
+            gov.apply(&Line {
+                seq: 0,
+                at: now,
+                kind: "ladder.probed".into(),
+                body: json!({"probes": 1})
+                    .as_object()
+                    .cloned()
+                    .unwrap_or_default(),
+            });
             core.notifier.alive();
             let v = match prober.probe(&model) {
                 crate::ladder::Probed::Routes => {
@@ -730,13 +747,44 @@ impl Host {
         if verdicts.is_empty() {
             return;
         }
-        let probes = verdicts.len();
+        let probes = verdicts
+            .iter()
+            .filter(|v| v["verdict"] != "skipped")
+            .count();
+        let current = core.state().governor.rung;
+        let current_refused = refused
+            .iter()
+            .find(|r| r["rung"].as_u64() == Some(current as u64))
+            .map(|r| crate::inbox::ids(&r["reasons"]));
         let mut lines: Vec<(&'static str, Value)> = vec![(
             "ladder.probed",
             json!({"rungs": verdicts, "probes": probes}),
         )];
         lines.extend(refused.into_iter().map(|r| ("ladder.refused", r)));
         core.emit_many(lines);
+        // The probe, not the listing, took the current rung away: the
+        // switch names it.
+        if let Some(reasons) = current_refused {
+            self.switch_off_refused(&reasons, "probe");
+        }
+    }
+
+    /// Switch off the current rung the router refused for this account, to
+    /// the best rung that stands; `found_by` is `turn` or `probe`.
+    fn switch_off_refused(&self, reasons: &[String], found_by: &str) {
+        let core = &*self.core;
+        let cfg = self.cfg();
+        let to = {
+            let st = core.state();
+            governor::after_listing(&st.governor, cfg.ladder.len(), core.now())
+                .map(|to| (st.governor.rung, to))
+        };
+        if let Some((from, to)) = to {
+            let direction = if to > from { "down" } else { "up" };
+            let why = format!("refused ({found_by}): {}", reasons.join(", "));
+            // A refusal for the account cools for the longest time at once.
+            self.switch(from, to, direction, &why, cfg.governor.cooldown_cap_ms);
+        }
     }
 
     /// List now, when due.
@@ -1646,18 +1694,7 @@ impl Host {
                 self.switch(from, to, "down", &why, cooldown.unwrap_or(0));
             } else if let Some(reasons) = &f.unroutable {
                 // Nothing below stands: go to the best rung that does.
-                let to = {
-                    let st = core.state();
-                    governor::after_listing(&st.governor, cfg.ladder.len(), core.now())
-                        .map(|to| (st.governor.rung, to))
-                };
-                if let Some((from, to)) = to {
-                    let direction = if to > from { "down" } else { "up" };
-                    let why = format!("refused: {}", reasons.join(", "));
-                    let cd =
-                        governor::cooldown_after(&core.state().governor, &cfg.governor, from, f);
-                    self.switch(from, to, direction, &why, cd);
-                }
+                self.switch_off_refused(reasons, "turn");
             }
         }
         core.sync();
