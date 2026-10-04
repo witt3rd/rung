@@ -1,0 +1,15 @@
+error[E0624]: associated function `new` is private
+ --> tests/ui_startup/forge_a_listing.rs:4:41
+  |
+4 |       let _ = rung_host::startup::Listed::new(configured.payload, carry);
+  |                                           ^^^ private associated function
+  |
+ ::: src/startup.rs
+  |
+  | / ladder!(Startup {
+  | |     carry {
+  | |         started: crate::clock::Millis,
+... |
+  | |     },
+  | | });
+  | |__- private associated function defined here

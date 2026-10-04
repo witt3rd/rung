@@ -1,0 +1,9 @@
+error: cannot construct `rung_host::startup::Plan` with struct literal syntax due to private fields
+ --> tests/ui_startup/plan_without_configuring.rs:4:13
+  |
+4 |     let _ = rung_host::startup::Plan {
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^
+5 |         state: std::path::PathBuf::from("/tmp/x"),
+  |         ----------------------------------------- private field
+  |
+  = note: ...and other private fields that were not provided

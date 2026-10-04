@@ -1,0 +1,19 @@
+error[E0308]: mismatched types
+ --> tests/ui_startup/skip_the_listing.rs:4:43
+  |
+4 |     let _ = rung_host::startup::recovered(configured);
+  |             ----------------------------- ^^^^^^^^^^ expected `Listed`, found `Configured`
+  |             |
+  |             arguments to this function are incorrect
+  |
+note: function defined here
+ --> src/startup.rs
+  |
+  | / ladder!(Startup {
+  | |     carry {
+  | |         started: crate::clock::Millis,
+... |
+  | |     },
+  | | });
+  | |__^
+  = note: this error originates in the macro `ladder` (in Nightly builds, run with -Z macro-backtrace for more info)
