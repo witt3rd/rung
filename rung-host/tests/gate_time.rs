@@ -55,8 +55,9 @@ fn owner_stimuli_under_load_are_admitted_at_the_next_boundary() {
     sc.mock.p_long_work = 0.001;
     sc.mock.p_long_work_responding = 0.001;
     sc.desk = scripted(Step::Seeded(5));
+    let dir = sc.dir.clone();
     let out = sim::run(sc);
-    assert_gate(&gates::g_b(&out.lines));
+    assert_gate_in(&dir, &out.lines, &gates::g_b(&out.lines));
     assert_gate(&gates::g_k(&out.lines));
 }
 

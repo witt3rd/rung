@@ -32,8 +32,14 @@ fn spawn(state: &Path, extra: &[&str], env: &[(&str, String)]) -> Child {
     for (k, v) in env {
         c.env(k, v);
     }
+    // Keep the host's stderr beside its record: a failure leaves it in the kept state dir.
+    let log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(state.join("host.stderr"))
+        .ok();
     c.stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(log.map_or_else(Stdio::null, Stdio::from))
         .spawn()
         .expect("spawn rung-host")
 }
@@ -45,13 +51,20 @@ fn lines(state: &Path) -> Vec<Line> {
 /// Poll until `f` holds over the record, or panic after `secs`.
 fn wait_for(state: &Path, secs: u64, what: &str, f: impl Fn(&[Line]) -> bool) {
     let t = Instant::now();
-    while t.elapsed() < Duration::from_secs(secs) {
+    // Waits stretch with machine load; gate thresholds do not.
+    let limit = Duration::from_secs_f64(secs as f64 * load_factor());
+    while t.elapsed() < limit {
         if f(&lines(state)) {
             return;
         }
         std::thread::sleep(Duration::from_millis(5));
     }
-    panic!("timed out waiting for {what}");
+    panic!(
+        "timed out waiting for {what}; state dir kept at {}; load factor {:.2}; record tail:\n{}",
+        state.display(),
+        load_factor(),
+        record_tail(&lines(state), 40)
+    );
 }
 
 fn sigterm(c: &Child) {
@@ -284,6 +297,6 @@ fn fifty_kills_lose_nothing_and_restore_everything() {
     if !gi.pass {
         eprintln!("G-i failed; RNG seed 50; kills (index, sleep ms): {kill_log:?}");
     }
-    assert_gate(&gi);
-    assert_gate(&gates::g_k(&ls));
+    assert_gate_in(&dir, &ls, &gi);
+    assert_gate_in(&dir, &ls, &gates::g_k(&ls));
 }
