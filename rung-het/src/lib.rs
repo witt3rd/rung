@@ -908,35 +908,6 @@ impl std::fmt::Display for EnactError {
 
 impl std::error::Error for EnactError {}
 
-/// A container governed by its own law, with a boundary that can refuse.
-///
-/// **Not part of Het's contract with `enact`** — a convenience for domains
-/// whose edits move objects between governed containers. `admits` is the
-/// target's `⊨` run at the boundary: the write-guard (target-runs-its-own-models), which is the pass
-/// composed with itself (gate-law), not new machinery.
-///
-/// A domain whose edits do not move anything (issue triage closing a ticket)
-/// needs none of this.
-pub trait Container {
-    /// The object type this container holds.
-    type Item;
-
-    /// The container's name, as used by [`Steward::has_standing`].
-    fn name(&self) -> &'static str;
-
-    /// Remove an object by id, if present.
-    fn take(&mut self, id: &str) -> Option<Self::Item>;
-
-    /// **The write-guard.** Would this container's own law admit the object?
-    ///
-    /// Returns the reason for refusal, or `None` to admit. This is the target's
-    /// `⊨` run before the write lands — `pass ∘ pass`, not new machinery.
-    fn admits(&self, item: &Self::Item) -> Option<String>;
-
-    /// Accept an object. Called only after `admits` returned `None`.
-    fn put(&mut self, item: Self::Item);
-}
-
 /// How a domain's edit is applied — **supplied by the theory, not by Het**.
 ///
 /// enact-generic-over-edit. Het requires that `enact` apply an edit (enact-makes-an-endofunctor) and does not enumerate
