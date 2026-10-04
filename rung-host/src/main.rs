@@ -68,10 +68,22 @@ fn tokens(o: &Opts) -> Result<Vec<(String, rung_host::inbox::Role)>, String> {
             .ok_or(format!("--acp-token-env: {env} is not set"))?;
         out.push((t.trim().to_string(), *r));
     }
+    distinct(&out)?;
     if o.acp_http.is_some() && out.is_empty() {
         return Err("--acp-http needs at least one --acp-token-env ROLE=ENV_VAR".into());
     }
     Ok(out)
+}
+
+fn distinct(tokens: &[(String, rung_host::inbox::Role)]) -> Result<(), String> {
+    for (i, (t, r)) in tokens.iter().enumerate() {
+        if let Some((_, other)) = tokens[..i].iter().find(|(u, _)| u == t) {
+            return Err(format!(
+                "--acp-token-env: the {other:?} and {r:?} entries share one token"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn parse() -> Result<Opts, String> {
@@ -294,5 +306,27 @@ fn serve_acp(
     match why {
         Ok(Why::Stopped { .. }) => ExitCode::SUCCESS,
         _ => ExitCode::from(3),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rung_host::inbox::Role;
+
+    #[test]
+    fn duplicate_token_values_are_refused_without_echoing_them() {
+        let dup = vec![
+            ("secret".to_string(), Role::Owner),
+            ("secret".to_string(), Role::Observer),
+        ];
+        let e = distinct(&dup).unwrap_err();
+        assert!(e.contains("Owner") && e.contains("Observer"));
+        assert!(!e.contains("secret"));
+        let ok = vec![
+            ("a".to_string(), Role::Owner),
+            ("b".to_string(), Role::Observer),
+        ];
+        assert!(distinct(&ok).is_ok());
     }
 }
