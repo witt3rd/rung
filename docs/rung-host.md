@@ -81,7 +81,7 @@ bounds, a rule fallback and a logged provenance:
 | Admit | interrupt now, wait for a break, or show as a digest line | owner items are `now` without asking; firm due calendar items are `now`; every kind has a maximum deferral; at most 6 interruptions of a commitment per hour |
 | Inject | recall block and cue; expectation and calendar digests | one recall block per turn; everything goes in the newest header |
 | Tools | which groups are callable | `core` is always on; never outside the operator ceiling; hysteresis |
-| Pack | append, roll over now, or at the next break; which segments stay verbatim | roll over at 85% of the epoch budget; never below 40% except on a copy loop; kept text ≤ 15% of the budget |
+| Pack | append, roll over now, or at the next break; which segments stay verbatim | roll over at 85% of the epoch budget; never below 40% (25% at a natural break) except on a copy loop; kept text ≤ 15% of the budget |
 | Consolidate | whether to offer the agent a note line; what to retain | only the agent's own text and host observations are retained |
 
 The backend is any `Decider`: Jev, `Recorded` replay, or the `Scripted`
