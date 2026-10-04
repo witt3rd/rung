@@ -277,17 +277,8 @@ fn a_budget_cut_keeps_whole_records_in_order_within_both_limits() {
 
 // ─── The baseline's recency tie-break ────────────────────────────────────────
 
-fn tmp(name: &str) -> std::path::PathBuf {
-    let d = std::env::temp_dir().join(format!(
-        "rung-memory-prop-{name}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    let _ = std::fs::remove_dir_all(&d);
-    d
+fn tmp(name: &str) -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new(&format!("memory-prop-{name}"))
 }
 
 fn note(text: &str) -> Observation {
@@ -336,7 +327,6 @@ fn equal_relevance_goes_to_the_newer_record() {
         }
         let want: Vec<String> = texts.iter().rev().map(|t| id_of(&b, &scope, t)).collect();
         assert_eq!(hit_order(&b, &scope, "deploy", n), want, "n={n}");
-        let _ = std::fs::remove_dir_all(dir);
     }
 }
 
@@ -352,7 +342,6 @@ fn recency_never_outweighs_relevance() {
     }
     let order = hit_order(&b, &scope, "deploy release", 30);
     assert_eq!(order[0], id_of(&b, &scope, "deploy release"));
-    let _ = std::fs::remove_dir_all(dir);
 }
 
 #[test]
@@ -368,5 +357,4 @@ fn the_tie_break_is_per_scope_position_not_global() {
     }
     let want = vec![id_of(&b, &s, "deploy mark2"), id_of(&b, &s, "deploy mark1")];
     assert_eq!(hit_order(&b, &s, "deploy", 5), want);
-    let _ = std::fs::remove_dir_all(dir);
 }
