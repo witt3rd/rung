@@ -280,12 +280,14 @@ current one.
   max(`Retry-After`, jittered exponential), capped at 15 min, and steps
   down the model ladder to the next rung the listing left standing
   (cooldown 2 min doubling to 30 min); the next boundary after the cooldown
-  probes back up to the nearest standing rung. A platform 429
+  probes back up to the nearest standing rung above that has cooled down
+  (a rung still cooling does not hide a cooled one above it). A platform 429
   (`X-RateLimit-Reset`) waits for its reset and does not step down. A
   router 404 that names why the model's endpoints were excluded for this
   account (data policy, guardrails: `ineligibility_reasons`) is
   `unroutable`: it steps down like a provider failure, since another rung
-  may route; the rung cools down and is probed again. An auth
+  may route; the rung cools down for the longest time (30 min) at once,
+  since an account policy does not change in minutes, and is probed again. An auth
   failure is `degraded: blocked`: probe every 15 min, one owner message per
   incident, never exit.
 - **Spend cap**: for paid providers only; reaching it halts

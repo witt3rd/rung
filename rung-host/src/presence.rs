@@ -1487,9 +1487,9 @@ impl Host {
                     core.now(),
                     jitter,
                 );
-                let cd = plan
-                    .step_down
-                    .map(|(from, _)| governor::cooldown_for(&st.governor, &cfg.governor, from));
+                let cd = plan.step_down.map(|(from, _)| {
+                    governor::cooldown_after(&st.governor, &cfg.governor, from, f)
+                });
                 (plan, cd)
             };
             if let Some(w) = &plan.wait {
@@ -1508,13 +1508,11 @@ impl Host {
                 );
             }
             if let Some((from, to)) = plan.step_down {
-                self.switch(
-                    from,
-                    to,
-                    "down",
-                    &format!("provider {}", f.class_name()),
-                    cooldown.unwrap_or(0),
-                );
+                let why = match &f.unroutable {
+                    Some(reasons) => format!("unroutable: {}", reasons.join(", ")),
+                    None => format!("provider {}", f.class_name()),
+                };
+                self.switch(from, to, "down", &why, cooldown.unwrap_or(0));
             }
         }
         core.sync();
