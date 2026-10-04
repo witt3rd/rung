@@ -77,7 +77,7 @@
       "stdin": null,
       "acp": false,
       "exchange": [
-        "< {\"task_id\":\"t-mem-b\",\"text\":\"You told me 4417.\",\"status\":\"completed\",\"api_calls\":1,\"isolation_path\":null,\"memory\":{\"provider\":\"baseline\",\"recall\":{\"status\":\"found\",\"records\":1,\"calls\":2,\"cost_usd\":0.0,\"latency_ms\":<t>},\"retain\":{\"status\":\"stored\",\"id\":\"d888fcbfee87e453\",\"calls\":1,\"cost_usd\":0.0,\"latency_ms\":<t>}}}"
+        "< {\"task_id\":\"t-mem-b\",\"text\":\"You told me 4417.\",\"status\":\"completed\",\"api_calls\":1,\"isolation_path\":null,\"memory\":{\"provider\":\"baseline\",\"recall\":{\"status\":\"found\",\"records\":1,\"injected\":[\"3a7e48a47871b16f\"],\"calls\":2,\"cost_usd\":0.0,\"latency_ms\":<t>},\"retain\":{\"status\":\"stored\",\"id\":\"d888fcbfee87e453\",\"calls\":1,\"cost_usd\":0.0,\"latency_ms\":<t>}}}"
       ],
       "stderr": [
         "[rung-std] call-0000: starting LLM call (attempt 1/32)",

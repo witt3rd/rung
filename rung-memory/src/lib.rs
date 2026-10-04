@@ -42,7 +42,7 @@ pub mod tools;
 pub use authority::MemoryAuthority;
 pub use provider::{
     Body, Budget, Capability, Cue, Factory, Kept, MemoryProvider, Observation, ProviderSettings,
-    Registry, ToolContext,
+    Registry, Token, ToolContext,
 };
 pub use store::{
     Charged, Edge, Hit, Miss, Probe, Reach, Recalled, Record, RecordId, Scope, Store, Why, walk,
@@ -187,6 +187,10 @@ pub struct RecallReport {
     pub records: usize,
     #[serde(skip_serializing_if = "is_zero")]
     pub left_out: usize,
+    /// The ids of the records injected after the budget cut, in order.
+    /// Absent when nothing was injected.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub injected: Vec<String>,
     #[serde(flatten)]
     pub trace: Trace,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -206,6 +210,12 @@ impl recall::StepOutcome {
                 status: "found",
                 records: f.payload().items.len(),
                 left_out: f.payload().left_out,
+                injected: f
+                    .payload()
+                    .items
+                    .iter()
+                    .map(|r| r.record.id.as_str().to_string())
+                    .collect(),
                 trace: f.payload().trace.clone(),
                 reason: None,
             },
@@ -213,6 +223,7 @@ impl recall::StepOutcome {
                 status: "empty",
                 records: 0,
                 left_out: e.payload().left_out,
+                injected: Vec::new(),
                 trace: e.payload().trace.clone(),
                 reason: None,
             },
@@ -220,6 +231,7 @@ impl recall::StepOutcome {
                 status: "unavailable",
                 records: 0,
                 left_out: 0,
+                injected: Vec::new(),
                 trace: u.payload().trace.clone(),
                 reason: Some(u.payload().why.to_string()),
             },
@@ -494,6 +506,7 @@ fn failed_report(error: &str) -> RecallReport {
         status: "unavailable",
         records: 0,
         left_out: 0,
+        injected: Vec::new(),
         trace: Trace {
             calls: 0,
             cost_usd: 0.0,

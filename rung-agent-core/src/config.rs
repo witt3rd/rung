@@ -54,6 +54,9 @@ struct MemoryFile {
     /// Longest one provider call may take.
     #[serde(default)]
     timeout_secs: Option<u64>,
+    /// Bearer for an MCP HTTP provider. Never logged or reported.
+    #[serde(default)]
+    token: Option<String>,
 }
 
 /// Resolved memory settings. `scope` and `dir` are `None` when left to
@@ -64,6 +67,7 @@ pub struct MemorySettings {
     pub scope: Option<String>,
     pub dir: Option<PathBuf>,
     pub timeout_secs: u64,
+    pub token: Option<rung_memory::Token>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -248,6 +252,17 @@ fn resolve_memory(
         timeout_secs: match env("RUNG_MEMORY_TIMEOUT_SECS") {
             Some(s) => parse_num("RUNG_MEMORY_TIMEOUT_SECS", &s)?,
             None => file.and_then(|f| f.timeout_secs).unwrap_or(10),
+        },
+        token: match env("RUNG_MEMORY_TOKEN") {
+            Some(t) => {
+                Some(rung_memory::Token::new(&t).map_err(|e| format!("RUNG_MEMORY_TOKEN: {e}"))?)
+            }
+            None => match file.and_then(|f| f.token.as_deref()) {
+                Some(t) => {
+                    Some(rung_memory::Token::new(t).map_err(|e| format!("memory.token: {e}"))?)
+                }
+                None => None,
+            },
         },
     })
 }
@@ -634,6 +649,39 @@ llm:
         assert_eq!(m.authority, MemoryAuthority::Off);
         let bad = HashMap::from([("RUNG_MEMORY", "x y")]);
         assert!(resolve_memory(None, mf, getenv(&bad)).is_err());
+    }
+
+    #[test]
+    fn memory_token_env_wins_and_malformed_names_its_surface() {
+        let file: FileConfig = serde_yaml::from_str("memory:\n  token: file-token\n").unwrap();
+        let mf = file.memory.as_ref();
+        let none: HashMap<&str, &str> = HashMap::new();
+        let m = resolve_memory(None, mf, getenv(&none)).unwrap();
+        assert_eq!(m.token.unwrap().expose(), "file-token");
+        let env = HashMap::from([("RUNG_MEMORY_TOKEN", " env-token ")]);
+        let m = resolve_memory(None, mf, getenv(&env)).unwrap();
+        assert_eq!(m.token.unwrap().expose(), "env-token");
+        assert!(
+            resolve_memory(None, None, getenv(&none))
+                .unwrap()
+                .token
+                .is_none()
+        );
+        // A bad env value is an error, not a fall back to the file.
+        let bad = HashMap::from([("RUNG_MEMORY_TOKEN", "a b-secret")]);
+        let e = resolve_memory(None, mf, getenv(&bad)).unwrap_err();
+        assert!(
+            e.starts_with("RUNG_MEMORY_TOKEN:") && !e.contains("secret"),
+            "{e}"
+        );
+        let file: FileConfig = serde_yaml::from_str("memory:\n  token: \"bad token\"\n").unwrap();
+        let e = resolve_memory(None, file.memory.as_ref(), getenv(&none)).unwrap_err();
+        assert!(
+            e.starts_with("memory.token:") && !e.contains("bad token"),
+            "{e}"
+        );
+        let file: FileConfig = serde_yaml::from_str("memory:\n  token: \"\"\n").unwrap();
+        assert!(resolve_memory(None, file.memory.as_ref(), getenv(&none)).is_err());
     }
 
     #[test]

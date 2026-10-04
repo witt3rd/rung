@@ -35,6 +35,17 @@ Other keys, each with an env override that wins over the file:
 | `scope` | `RUNG_MEMORY_SCOPE` | `rung-scope:<hex>`, a SHA-256 prefix of the git `origin` URL (else the canonical repository root path); never the raw path. A configured value is passed verbatim |
 | `dir` | `RUNG_MEMORY_DIR` | `<repository root>/.rung/memory`, or `$RUNG_HOME/memory` when `scope` is set |
 | `timeout_secs` | `RUNG_MEMORY_TIMEOUT_SECS` | `10` |
+| `token` | `RUNG_MEMORY_TOKEN` | none |
+
+`token` is an optional bearer for an `mcp:<url>` provider. When set, rung sends
+`Authorization: Bearer <token>` on every outbound HTTP call to the provider
+(initialize, listing, hooks and agent tools), so a provider can tell rung's
+calls from other local callers. It must be non-empty visible ASCII with no
+whitespace; anything else is an error naming `memory.token` or
+`RUNG_MEMORY_TOKEN`, never a fallback to the other surface. The env value
+wins over the file. A provider over stdio, or `baseline`, ignores it.
+`--memory-check` uses it too. The token never appears in logs, reports,
+`_meta`, session files, `--json` output or error text.
 
 ## A turn with a provider
 
@@ -68,7 +79,7 @@ reported in `_meta.rung.memory` on the ACP prompt response, in
 
 ```json
 {"provider": "baseline",
- "recall": {"status": "found", "records": 1, "calls": 2, "cost_usd": 0.0, "latency_ms": 3},
+ "recall": {"status": "found", "records": 1, "injected": ["…"], "calls": 2, "cost_usd": 0.0, "latency_ms": 3},
  "retain": {"status": "stored", "id": "…", "calls": 1, "cost_usd": 0.0, "latency_ms": 1}}
 ```
 
@@ -77,7 +88,10 @@ reported in `_meta.rung.memory` on the ACP prompt response, in
 | recall | `found` (at least one whole record), `empty` (the provider answered and holds nothing that fits), `unavailable` (with `reason`) |
 | retain | `stored` (with `id`), `declined` (with `reason`), `unretained` (with `reason`) |
 
-`left_out` counts records the budget dropped. `calls` and `cost_usd` are what
+`left_out` counts records the budget dropped. `injected` lists, in order, the
+ids of the records rung actually put in the turn's context after the budget
+cut, so a host can audit what entered it; it is absent unless `status` is
+`found`. `calls` and `cost_usd` are what
 the provider reported, failed calls included. `latency_ms` is rung's measure.
 
 ## Limits rung enforces
