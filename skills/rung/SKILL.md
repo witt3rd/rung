@@ -36,8 +36,10 @@ Wait for CI on the release commit before you report the release.
 
 ## CI
 
-Required check is `check` (fmt, clippy `-D warnings`, tests `--locked`).
-Propositions job: `render --check`, `docs/_props.py check`, `cited`.
+Required check is `check` (fmt, clippy `-D warnings`, rustdoc `-D warnings`, tests `--locked`).
+Propositions job: `render --check`, `docs/_props.py check`, `cited`,
+`docs/_consumer_guard.py` (no consumer-specific names; exemptions in
+`docs/_consumer_guard.allow`).
 `cited` scans `rung`, `rung-het`, `rung-std` comments for kebab slugs.
 Wire identifiers that look like slugs: add to `NOT_A_CITATION` in
 `docs/_props.py` (`x-api-key`, `x-should-retry`).
