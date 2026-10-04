@@ -420,3 +420,149 @@ fn a_rung_refused_for_the_account_is_not_stepped_onto_again() {
         "a step-down landed on the refused rung"
     );
 }
+
+#[test]
+fn an_owner_waiting_through_a_provider_backoff_hears_from_the_host_at_once() {
+    sim::test_timeout(300);
+    let guard = sim::temp_dir_guard("run-config-owner-ack");
+    let root = guard.path().to_path_buf();
+    let provider = LoopbackProvider::start(move |r: &Request<'_>| {
+        let turn = rung_host::gates::request_turn(r.body).unwrap_or(0);
+        // The provider is rate-limited for the first two turns.
+        if turn <= 2 {
+            return Reply::provider_429("Upstream", 1);
+        }
+        let served = Served {
+            model: r.body["model"].as_str().unwrap_or("").to_string(),
+            prompt: 10,
+            cached: 0,
+            cache_write: 0,
+            completion: 5,
+            cost_usd: 0.0,
+        };
+        Reply::completion("Upstream", Some("Here is my answer."), &[], served)
+    });
+    let d = root.display();
+    std::fs::create_dir_all(root.join("inbox")).unwrap();
+    std::fs::write(
+        root.join("inbox/m1.msg"),
+        r#"{"role":"owner","text":"Are you there?"}"#,
+    )
+    .unwrap();
+    let cfg = root.join("rung-host.yaml");
+    std::fs::write(
+        &cfg,
+        format!(
+            "state: {d}/state\ninbox: {d}/inbox\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
+             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nbackoff_base_ms: 600\n",
+            provider.url
+        ),
+    )
+    .unwrap();
+    let o = run(&cfg, Some(4), Some("k"));
+    assert_eq!(o.status.code(), Some(0));
+    let ls = lines(&root.join("state"));
+    let acks: Vec<&Line> = ls
+        .iter()
+        .filter(|l| l.kind == "outbox.queued" && l.str("source") == "host:ack")
+        .collect();
+    assert_eq!(
+        acks.len(),
+        1,
+        "one acknowledgement per owner item, across every wait"
+    );
+    let ack = acks[0];
+    assert_eq!(ack.str("item"), "m1");
+    assert_eq!(ack.str("channel"), "owner");
+    assert!(ack.str("text").contains("no model was asked"));
+    // It came during the first backoff, before any turn could answer.
+    let first_wait = ls.iter().find(|l| l.kind == "degraded").unwrap();
+    let wait_end = ls.iter().find(|l| l.kind == "degraded.ended").unwrap();
+    assert!(first_wait.seq < ack.seq && ack.seq < wait_end.seq);
+    let answered = ls
+        .iter()
+        .find(|l| l.kind == "stimulus.disposed" && l.str("id") == "m1")
+        .expect("the owner item was disposed");
+    assert_eq!(answered.str("disposition"), "answered");
+    assert!(ack.seq < answered.seq);
+}
+
+#[test]
+fn a_pacing_wait_sends_no_acknowledgement() {
+    sim::test_timeout(300);
+    let guard = sim::temp_dir_guard("run-config-no-ack");
+    let root = guard.path().to_path_buf();
+    let provider = LoopbackProvider::start(move |r: &Request<'_>| {
+        let served = Served {
+            model: r.body["model"].as_str().unwrap_or("").to_string(),
+            prompt: 10,
+            cached: 0,
+            cache_write: 0,
+            completion: 5,
+            cost_usd: 0.0,
+        };
+        Reply::completion("Upstream", Some("Here is my answer."), &[], served)
+    });
+    let d = root.display();
+    std::fs::create_dir_all(root.join("inbox")).unwrap();
+    let cfg = root.join("rung-host.yaml");
+    // One request a minute: after the first free turn the host waits on
+    // pacing, a wait an owner item may cut.
+    std::fs::write(
+        &cfg,
+        format!(
+            "state: {d}/state\ninbox: {d}/inbox\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
+             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nquota:\n  rpd: 1000\n  rpm: 1\n",
+            provider.url
+        ),
+    )
+    .unwrap();
+    let mut child = Command::new(BIN)
+        .args(["run", "--config", cfg.to_str().unwrap(), "--turns", "2"])
+        .env(KEY_ENV, "k")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("run rung-host");
+    // The owner writes while the host is in its pacing wait.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while !lines(&root.join("state"))
+        .iter()
+        .any(|l| l.kind == "degraded" && l.str("class") == "paced")
+    {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the run never waited on pacing"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    std::fs::write(
+        root.join("inbox/m1.msg"),
+        r#"{"role":"owner","text":"Are you there?"}"#,
+    )
+    .unwrap();
+    assert!(child.wait().unwrap().success());
+    let ls = lines(&root.join("state"));
+    let wait = ls
+        .iter()
+        .find(|l| l.kind == "degraded" && l.str("class") == "paced")
+        .unwrap();
+    let ended = ls
+        .iter()
+        .find(|l| l.kind == "degraded.ended" && l.seq > wait.seq)
+        .unwrap();
+    let accepted = ls
+        .iter()
+        .find(|l| l.kind == "stimulus.accepted" && l.get("item")["id"] == "m1")
+        .expect("the owner item was accepted");
+    assert!(
+        wait.seq < accepted.seq && accepted.seq < ended.seq,
+        "the owner item did not arrive during the pacing wait"
+    );
+    assert!(
+        !ls.iter()
+            .any(|l| l.kind == "outbox.queued" && l.str("source") == "host:ack"),
+        "an acknowledgement went out during a pacing wait"
+    );
+}

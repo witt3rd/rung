@@ -136,6 +136,10 @@ pub struct InboxState {
     pub seen: BTreeSet<String>,
     /// The last external (non-host) arrival.
     pub last_external_at: Option<Millis>,
+    /// Owner items told at once that the model is unavailable (a
+    /// `host:ack`), until they are disposed.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub acked: BTreeSet<String>,
 }
 
 impl InboxState {
@@ -178,6 +182,10 @@ impl InboxState {
                 let id = l.str("id");
                 self.in_flight.remove(id);
                 self.pending.remove(id);
+                self.acked.remove(id);
+            }
+            "outbox.queued" if l.str("source") == ACK_SOURCE => {
+                self.acked.insert(l.str("item").to_string());
             }
             _ => {}
         }
@@ -195,6 +203,10 @@ impl InboxState {
         self.in_flight.keys().cloned().collect()
     }
 }
+
+/// The source of the host's own acknowledgement to an owner while the model
+/// cannot be called.
+pub const ACK_SOURCE: &str = "host:ack";
 
 pub(crate) fn ids(v: &Value) -> Vec<String> {
     v.as_array()

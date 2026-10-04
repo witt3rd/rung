@@ -299,6 +299,12 @@ whose `why` starts `refused:`).
   grow the backoff, since it says nothing about a provider's load. An auth
   failure is `degraded: blocked`: probe every 15 min, one owner message per
   incident, never exit.
+- **Owner acknowledgement**: during a wait the owner cannot cut (a
+  provider backoff, a quota, a blocked credential), each waiting owner item
+  gets one line from the host at once, with no model call: it was received,
+  the provider is unavailable (why), and when the host expects to answer
+  (`outbox.queued`, `source: host:ack`, `item`). The agent's real answer
+  follows when a turn can run.
 - **Spend cap**: for paid providers only; reaching it halts
   (`Halted(SpendCap)`).
 
@@ -350,7 +356,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `kernel.commit` / `.progress` / `.release` / `.trace` | the agent's own tool calls (`via`, `released_by`, `similarity`) |
 | `note.written`, `todo.*`, `project.added`, `question.*` | the agent's registers |
 | `expectation.made` / `.revised` / `.settled` | the expectation register; a settlement has `state`, `p`, `surprise`, `settled_by`, `calibration` |
-| `outbox.queued` | `channel`, `text`, `source` |
+| `outbox.queued` | `channel`, `text`, `source` (`agent`, or the host's: `host:blocked`, `host:ack` with the owner `item` it acknowledges) |
 | `tools.wanted` | `group`, `why` |
 | `memory.recall` / `memory.retain` | the provider's report |
 | `degraded` / `degraded.ended` | `class` (`paced`, `quota`, `backoff`, `blocked`), `until`, `why`; `waited_ms` |
