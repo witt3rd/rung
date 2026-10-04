@@ -764,8 +764,8 @@ mod tests {
 
     #[test]
     fn the_kill_file_keeps_the_decider_unasked() {
-        let dir = rung_testkit::TempDir::new("desk-kill");
-        let kill = dir.join("OFF");
+        let dir = crate::sim::temp_dir_guard("desk-kill");
+        let kill = dir.path().join("OFF");
         let scripted = Arc::new(Scripted::always(Step::Seeded(1)));
         let decider: Arc<dyn Decider> = scripted.clone();
         let mut desk = DecisionDesk::new(Some(decider), "scripted", DeskMode::Shadow);
