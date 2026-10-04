@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 334 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 350 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -963,6 +963,40 @@ look shorter than it is.
 - `p0_holds_here_too_without_the_library_knowing_the_domain`
 - `the_pass_is_indifferent_to_which_vocabulary_it_carries`
 - `wont_fix_closes_an_issue_that_remains_non_conforming`
+
+**`rung-host/tests/gate_cache_context.rs`** — 2 unclaimed
+
+- `canonical_bytes_are_stable_across_two_processes`
+- `ten_thousand_turns_stay_bounded_and_cache_clean`
+
+**`rung-host/tests/gate_desk.rs`** — 4 unclaimed
+
+- `a_host_on_an_adversarial_decider_keeps_its_guards`
+- `adversarial_answers_stay_inside_the_guards`
+- `every_family_decides_on_every_path_and_its_guards_hold`
+- `recorded_fixtures_replay_and_a_reworded_question_panics`
+
+**`rung-host/tests/gate_faults.rs`** — 1 unclaimed
+
+- `injected_faults_degrade_and_recover_but_never_kill`
+
+**`rung-host/tests/gate_kernel.rs`** — 3 unclaimed
+
+- `material_is_unranked_on_a_rich_register`
+- `no_path_outside_the_kernel_writes_its_lines`
+- `two_thousand_turns_follow_the_kernel`
+
+**`rung-host/tests/gate_process.rs`** — 2 unclaimed
+
+- `a_stop_is_prompt_from_a_turn_and_from_any_wait_and_the_watchdog_fires`
+- `fifty_kills_lose_nothing_and_restore_everything`
+
+**`rung-host/tests/gate_time.rs`** — 4 unclaimed
+
+- `due_items_fire_at_the_first_boundary_and_missed_ones_once`
+- `only_the_host_settles_expectations_and_calibration_recomputes`
+- `owner_stimuli_under_load_are_admitted_at_the_next_boundary`
+- `thirty_quiet_minutes_have_no_rest`
 
 **`rung-memory/tests/memory.rs`** — 18 unclaimed
 
