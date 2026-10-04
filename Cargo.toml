@@ -20,3 +20,13 @@ version = "0.1.13"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/witt3rd/rung"
+# Keeps the gate runs fast and their wall-clock measurements meaningful,
+# without changing behaviour.
+[profile.dev.package.rung-host]
+opt-level = 2
+[profile.dev.package.rung-memory]
+opt-level = 2
+[profile.dev.package.serde_json]
+opt-level = 2
+[profile.dev.package.sha2]
+opt-level = 2

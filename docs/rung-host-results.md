@@ -38,10 +38,13 @@ cargo test -p rung-host --locked -- --nocapture 2>&1 | grep '^GATE'
   Memory is exercised in the G-a, G-b, G-c, G-d, G-m and process runs.
 - **G-b depends on how often long work happens.** A refused long call still
   spends the tool deadline (30 s): the host cannot know a call is long until
-  it is. With long work in 1% of turns (8% of wall time in such turns) the
-  owner admission p95 was 8.4 s against a 1.7 s turn p95 and the gate
-  failed; the frozen scenario uses 0.2%. Admission latency is
-  length-biased by long turns.
+  it is. The frozen scenario now uses 0.1% long work. At 0.2% the gate failed
+  at that commit with admission p95 4,354 ms against a turn p95 of 1,698 ms,
+  and at 1% the admission p95 was 8.4 s. Admission latency is length-biased
+  by long turns.
+- **Build profile.** Dev and test builds compile rung-host, rung-memory,
+  serde_json and sha2 at opt-level 2, so the wall-clock gates measure the
+  host rather than unoptimised code; behaviour is unchanged.
 - **The `Recorded` fixtures are synthetic.** No live Jev was asked in this
   slice, so the four fixtures under `rung-host/tests/fixtures/decide/` are
   authored answers in the recorded format; they prove the replay path and

@@ -104,6 +104,8 @@ pub struct Scenario {
     pub clock: Option<Arc<dyn Clock>>,
     pub stop: Option<Arc<StopAuthority>>,
     pub notifier: Option<crate::notify::Notifier>,
+    /// Removes the directory when the test passes (see [`temp_dir_guard`]).
+    pub cleanup: Option<TempDir>,
 }
 
 impl Scenario {
@@ -138,6 +140,7 @@ impl Scenario {
             clock: None,
             stop: None,
             notifier: None,
+            cleanup: None,
             dir,
         }
     }
@@ -159,6 +162,8 @@ pub struct RunOutput {
     pub why: Why,
     pub host: Arc<Host>,
     pub mock: Arc<MockEngine>,
+    /// Keeps the scenario directory until the output is dropped.
+    pub cleanup: Option<TempDir>,
 }
 
 /// Build the host a scenario describes (without running it).
@@ -213,7 +218,8 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
 }
 
 /// Run a scenario to its limit.
-pub fn run(sc: Scenario) -> RunOutput {
+pub fn run(mut sc: Scenario) -> RunOutput {
+    let cleanup = sc.cleanup.take();
     let (host, rec, mock) = build(sc);
     let why = host.run(rec);
     let lines = host.record_lines().expect("read record");
@@ -224,6 +230,7 @@ pub fn run(sc: Scenario) -> RunOutput {
         why,
         host,
         mock,
+        cleanup,
     }
 }
 
@@ -233,6 +240,30 @@ pub fn temp_dir(name: &str) -> PathBuf {
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).expect("temp dir");
     d
+}
+
+/// A test directory removed on drop unless the test is panicking, so a
+/// failed run keeps its evidence.
+#[derive(Debug)]
+pub struct TempDir(PathBuf);
+
+impl TempDir {
+    pub fn path(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+}
+
+/// Like [`temp_dir`], removed when the guard drops on a passing test.
+pub fn temp_dir_guard(name: &str) -> TempDir {
+    TempDir(temp_dir(name))
 }
 
 /// Fail the whole test process if it is still running after `secs`: a

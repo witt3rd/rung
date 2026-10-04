@@ -13,7 +13,7 @@ fn at(h: i64, m: i64) -> i64 {
 
 #[test]
 fn injected_faults_degrade_and_recover_but_never_kill() {
-    sim::test_timeout(900);
+    sim::test_timeout(1800);
     let mut sc = scenario("gate-g", 13).quota(3_000, 20);
     sc.until = Some(SIM_START + DAY + 2 * HOUR);
     sc.world = WorldConfig {

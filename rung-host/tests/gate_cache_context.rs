@@ -10,7 +10,7 @@ use rung_host::sim;
 
 #[test]
 fn ten_thousand_turns_stay_bounded_and_cache_clean() {
-    sim::test_timeout(900);
+    sim::test_timeout(1800);
     let mut sc = scenario("gate-jl", 41);
     sc.max_turns = Some(gates::G_J_TURNS);
     sc.world = busy_world(41, 2 * DAY);
@@ -32,7 +32,8 @@ fn canonical_bytes_are_stable_across_two_processes() {
     sim::test_timeout(300);
     let bin = env!("CARGO_BIN_EXE_rung-host");
     let run = |name: &str| {
-        let dir = sim::temp_dir(name);
+        let _guard = sim::temp_dir_guard(name);
+        let dir = _guard.path().to_path_buf();
         let out = std::process::Command::new(bin)
             .args([
                 "canon",

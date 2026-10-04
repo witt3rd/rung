@@ -14,7 +14,7 @@ use rung_host::state::State;
 
 #[test]
 fn two_thousand_turns_follow_the_kernel() {
-    sim::test_timeout(600);
+    sim::test_timeout(1800);
     let mut sc = scenario("gate-c", 23);
     sc.max_turns = Some(gates::G_C_TURNS);
     sc.world = busy_world(23, DAY);

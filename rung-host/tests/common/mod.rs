@@ -50,5 +50,8 @@ pub fn cache_and_ladder_faults() -> Vec<Fault> {
 }
 
 pub fn scenario(name: &str, seed: u64) -> Scenario {
-    Scenario::new(rung_host::sim::temp_dir(name), seed)
+    let guard = rung_host::sim::temp_dir_guard(name);
+    let mut sc = Scenario::new(guard.path(), seed);
+    sc.cleanup = Some(guard);
+    sc
 }

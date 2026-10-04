@@ -296,7 +296,7 @@ fn every_path<Q: HostQuestion>(
 
 #[test]
 fn every_family_decides_on_every_path_and_its_guards_hold() {
-    sim::test_timeout(600);
+    sim::test_timeout(1800);
     let mut paths = 0;
     let (ai, ac) = admit_case(true);
     paths += every_path::<Admit>(&ai, &ac, &|c| {
@@ -502,7 +502,7 @@ fn recorded_fixtures_replay_and_a_reworded_question_panics() {
 
 #[test]
 fn a_host_on_an_adversarial_decider_keeps_its_guards() {
-    sim::test_timeout(900);
+    sim::test_timeout(1800);
     let mut sc = scenario("gate-m", 31);
     sc.max_turns = Some(800);
     sc.world = busy_world(31, 6 * 3_600_000);

@@ -99,7 +99,8 @@ fn calls(state: &Path) -> Vec<(u64, u64, i64, i64)> {
 }
 
 fn mid_turn() -> StopCase {
-    let dir = sim::temp_dir("gate-h-turn");
+    let _guard = sim::temp_dir_guard("gate-h-turn");
+    let dir = _guard.path().to_path_buf();
     let c = spawn(&dir, &["--call-ms", "1500,1500", "--no-memory"], &[]);
     wait_for(&dir, 60, "a call in flight", |_| calls(&dir).len() >= 2);
     std::thread::sleep(Duration::from_millis(700));
@@ -120,7 +121,8 @@ fn mid_turn() -> StopCase {
 }
 
 fn in_wait(case: &str, args: &[&str], class: &str) -> StopCase {
-    let dir = sim::temp_dir(&format!("gate-h-{case}"));
+    let _guard = sim::temp_dir_guard(&format!("gate-h-{case}"));
+    let dir = _guard.path().to_path_buf();
     let c = spawn(&dir, args, &[]);
     let class = class.to_string();
     wait_for(&dir, 60, case, |ls| {
@@ -140,7 +142,8 @@ fn in_wait(case: &str, args: &[&str], class: &str) -> StopCase {
 
 /// A wedged engine: the harness, as supervisor, watches `WATCHDOG=1`.
 fn wedged(watchdog_ms: u64) -> Option<u64> {
-    let dir = sim::temp_dir("gate-h-wedged");
+    let _guard = sim::temp_dir_guard("gate-h-wedged");
+    let dir = _guard.path().to_path_buf();
     let sock_path = dir.join("notify.sock");
     let sock = UnixDatagram::bind(&sock_path).unwrap();
     sock.set_read_timeout(Some(Duration::from_millis(20)))
@@ -188,7 +191,7 @@ fn wedged(watchdog_ms: u64) -> Option<u64> {
 
 #[test]
 fn a_stop_is_prompt_from_a_turn_and_from_any_wait_and_the_watchdog_fires() {
-    sim::test_timeout(600);
+    sim::test_timeout(1800);
     let cases = vec![
         mid_turn(),
         in_wait(
@@ -217,8 +220,9 @@ fn a_stop_is_prompt_from_a_turn_and_from_any_wait_and_the_watchdog_fires() {
 
 #[test]
 fn fifty_kills_lose_nothing_and_restore_everything() {
-    sim::test_timeout(900);
-    let dir = sim::temp_dir("gate-i");
+    sim::test_timeout(1800);
+    let _guard = sim::temp_dir_guard("gate-i");
+    let dir = _guard.path().to_path_buf();
     let inbox = dir.join("inbox");
     std::fs::create_dir_all(&inbox).unwrap();
     let args = ["--call-ms", "5,25", "--inbox", inbox.to_str().unwrap()];

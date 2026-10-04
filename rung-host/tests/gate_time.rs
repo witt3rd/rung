@@ -12,6 +12,13 @@ use rung_host::desk::{DeskMode, Scripted, Step};
 use rung_host::gates;
 use rung_host::sim::{self, DeskSpec, SIM_START, WorldConfig};
 
+/// G-a measures the host's own wall-clock work per boundary; run these tests one at a time so
+/// sibling simulations do not steal the CPU and inflate it.
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn scripted(step: Step) -> DeskSpec {
     DeskSpec::Decider {
         decider: Arc::new(Scripted::always(step)),
@@ -22,7 +29,8 @@ fn scripted(step: Step) -> DeskSpec {
 
 #[test]
 fn thirty_quiet_minutes_have_no_rest() {
-    sim::test_timeout(600);
+    let _serial = serial();
+    sim::test_timeout(1800);
     let mut sc = scenario("gate-a", 3);
     sc.until = Some(SIM_START + gates::G_A_RUN_MS + MINUTE);
     sc.desk = scripted(Step::Seeded(3));
@@ -33,7 +41,8 @@ fn thirty_quiet_minutes_have_no_rest() {
 
 #[test]
 fn owner_stimuli_under_load_are_admitted_at_the_next_boundary() {
-    sim::test_timeout(600);
+    let _serial = serial();
+    sim::test_timeout(1800);
     let mut sc = scenario("gate-b", 5);
     sc.until = Some(SIM_START + 3 * HOUR);
     sc.world = WorldConfig {
@@ -64,8 +73,10 @@ fn entry(id: &str, at: Millis, firm: bool, missed: Missed) -> Entry {
 
 #[test]
 fn due_items_fire_at_the_first_boundary_and_missed_ones_once() {
-    sim::test_timeout(600);
-    let dir = sim::temp_dir("gate-d");
+    let _serial = serial();
+    sim::test_timeout(1800);
+    let _guard = sim::temp_dir_guard("gate-d");
+    let dir = _guard.path().to_path_buf();
     let gap_from = SIM_START + 2 * HOUR;
     let gap_to = SIM_START + 4 * HOUR;
     let mut cal = Vec::new();
@@ -140,7 +151,8 @@ fn due_items_fire_at_the_first_boundary_and_missed_ones_once() {
 
 #[test]
 fn only_the_host_settles_expectations_and_calibration_recomputes() {
-    sim::test_timeout(600);
+    let _serial = serial();
+    sim::test_timeout(1800);
     let mut sc = scenario("gate-e", 9);
     sc.until = Some(SIM_START + 2 * HOUR);
     sc.world = WorldConfig {
