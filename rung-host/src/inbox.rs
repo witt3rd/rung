@@ -316,16 +316,8 @@ impl Source for DirSource {
                 continue;
             };
             match serde_json::from_str::<MsgFile>(&body) {
-                Ok(m) if m.role == Some(Role::Host) => {
-                    // A file never speaks as the host itself.
-                    let rejected = self.dir.join("rejected");
-                    let _ = fs::create_dir_all(&rejected);
-                    let _ = fs::rename(&path, rejected.join(&name));
-                    self.rejected
-                        .push((name, "role `host` is reserved for the host".into()));
-                }
                 Ok(m) => {
-                    let role = m.role.unwrap_or(Role::Peer);
+                    let role = m.role.filter(|r| *r != Role::Host).unwrap_or(Role::Peer);
                     // Only an owner file may use the `owner` channel (or a
                     // calendar/host channel); anyone else is `peer:<id>`.
                     let channel = match (role, m.channel) {
