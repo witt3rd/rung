@@ -45,12 +45,12 @@ fn transcript(name: &str) -> Value {
     serde_json::from_str(&std::fs::read_to_string(p).unwrap()).unwrap()
 }
 
-const NARRATE_REQUEST: &str = "Keep Mohak's test (whether we can think together without every idea turning into a task) as a note in notes.txt.";
-/// The #128 narration, as a downstream host saw it: the reply claims the note.
-const NARRATION: &str = "I kept Mohak's test as a note in notes.txt.";
-/// A real answer from a rung-agent session (animus, 2026-08).
-const INFO_REQUEST: &str = "In one sentence: who built Animus?";
-const INFO_ANSWER: &str = "Donald built Animus — the wizard who built the substrate before I existed and has been tending it ever since. 🧙\u{200d}♂️";
+const NARRATE_REQUEST: &str = "Keep Ada's test (whether we can think together without every idea turning into a task) as a note in notes.txt.";
+/// The #128 narration, as an embedding host saw it: the reply claims the note.
+const NARRATION: &str = "I kept Ada's test as a note in notes.txt.";
+/// A real answer from a rung-agent session (2026-08).
+const INFO_REQUEST: &str = "In one sentence: who built the Atlas project?";
+const INFO_ANSWER: &str = "Ada built the Atlas project — the engineer who laid its foundations before I existed and has been tending it ever since.";
 
 fn text_reply(text: &str) -> Value {
     json!({"id": "c", "model": "m", "choices": [{"message": {"content": text}, "finish_reason": "stop"}]})
@@ -59,7 +59,7 @@ fn text_reply(text: &str) -> Value {
 fn write_note_reply() -> Value {
     json!({"id": "c", "model": "m", "choices": [{"message": {"content": null, "tool_calls": [
         {"id": "c1", "type": "function", "function": {"name": "write_file",
-         "arguments": "{\"path\": \"notes.txt\", \"content\": \"Mohak's test\\n\"}"}}
+         "arguments": "{\"path\": \"notes.txt\", \"content\": \"Ada's test\\n\"}"}}
     ]}, "finish_reason": "tool_calls"}]})
 }
 

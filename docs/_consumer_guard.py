@@ -16,6 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PATTERNS = [
     re.compile(r"spire|host-gw|janus|HOST_TOKEN|HOST_VENUE_KEY|agent-binding", re.I),
+    # named consumer systems, and real people's names in test text/fixtures
+    re.compile(r"animus|mohak|donald@|thompson <|downstream host", re.I),
     re.compile(r"[a-z0-9]_venue|venue_[a-z0-9]", re.I),
     re.compile(r"[a-z]Venue|venue[A-Z]"),  # camelCase identifiers, case-sensitive
 ]
