@@ -317,13 +317,13 @@ impl Source for DirSource {
             };
             match serde_json::from_str::<MsgFile>(&body) {
                 Ok(m) => {
-                    // `host` is the host's own role (calendar, expectations);
-                    // a file never claims it.
                     let role = m.role.filter(|r| *r != Role::Host).unwrap_or(Role::Peer);
-                    let channel = m.channel.unwrap_or_else(|| match role {
-                        Role::Owner => "owner".into(),
+                    // Only an owner file may name its channel; anyone else
+                    // is pinned to `peer:<id>`.
+                    let channel = match (role, m.channel) {
+                        (Role::Owner, c) => c.unwrap_or_else(|| "owner".into()),
                         _ => format!("peer:{id}"),
-                    });
+                    };
                     let mut item = Item::message(&id, role, &channel, now, &m.text);
                     item.urgency = m.urgency;
                     item.control = m.control.filter(|_| role == Role::Owner);
@@ -393,11 +393,16 @@ mod tests {
         fs::write(d.join("m1.msg"), r#"{"role":"owner","text":"hello"}"#).unwrap();
         fs::write(d.join("m2.msg"), "not json").unwrap();
         fs::write(d.join("m3.msg"), r#"{"text":"seen before"}"#).unwrap();
+        fs::write(d.join("m5.msg"), r#"{"channel":"owner","text":"spoof"}"#).unwrap();
         let seen: BTreeSet<String> = ["m3".to_string()].into();
         let got = src.poll(7, &seen);
-        assert_eq!(got.len(), 1);
+        assert_eq!(got.len(), 2);
         assert_eq!(got[0].role, Role::Owner);
         assert_eq!(got[0].channel, "owner");
+        assert_eq!(
+            got[1].channel, "peer:m5",
+            "a peer cannot claim the owner channel"
+        );
         assert_eq!(src.rejected.len(), 1);
         assert!(d.join("rejected/m2.msg").exists());
         assert!(!d.join("m3.msg").exists());
@@ -428,5 +433,19 @@ mod tests {
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].role, Role::Peer);
         assert_eq!(got[0].channel, "peer:h");
+    }
+
+    #[test]
+    fn a_non_owner_file_cannot_claim_another_peer_channel() {
+        let guard = crate::sim::temp_dir_guard("dir-peer-channel");
+        let d = guard.path().join("inbox");
+        let mut src = DirSource::new(&d).unwrap();
+        fs::write(
+            d.join("m.msg"),
+            r#"{"role":"peer","channel":"peer:other-id","text":"x"}"#,
+        )
+        .unwrap();
+        let got = src.poll(1, &BTreeSet::new());
+        assert_eq!(got[0].channel, "peer:m");
     }
 }
