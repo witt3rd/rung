@@ -25,6 +25,15 @@ jobs:
         run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
       - name: test
         run: cargo test --workspace --locked
+      - name: doctests (explicit; library doctests incl. README)
+        run: cargo test --workspace --doc --locked
+      - name: examples build
+        run: cargo build --workspace --examples --locked
+      - name: examples run (no config, no network)
+        run: |
+          for e in 01_enforced_graph 02_terminating_loops 03_failure_edges 04_nondeterminism; do
+            cargo run -q -p rung --example "$e" --locked >/dev/null
+          done
 
   propositions:
     runs-on: ubuntu-latest
