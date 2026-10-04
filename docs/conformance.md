@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 378 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 385 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -838,6 +838,16 @@ look shorter than it is.
 - `github_carrier_refuses_no_repos_but_takes_no_secret`
 - `github_live_issues_walk`
 - `instance_config_drives_a_carrier_audit`
+
+**`rung-driver/tests/carrier_edges.rs`** — 7 unclaimed
+
+- `a_csv_file_is_row_wise_with_header_excluded`
+- `carrier_config_builds_every_colocated_kind_and_refuses_pathless`
+- `carrier_error_names_its_object`
+- `csv_file_missing_yields_a_fault_not_an_empty_sweep`
+- `csv_file_refuses_foreign_and_out_of_range_ids`
+- `csv_folder_edges`
+- `object_id_is_a_transparent_string`
 
 **`rung-driver/tests/catalog.rs`** — 2 unclaimed
 
