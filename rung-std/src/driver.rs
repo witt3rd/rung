@@ -40,7 +40,7 @@
 //! **It does not resume.** Resumption writes a rung, which `G2` seals inside
 //! the ladder's module, so the resume edge is emitted there and takes an
 //! [`Authorized`](rung::Authorized) pen (`resumption-is-authorial`).
-//! [`claim`](Park::claim) hands back the [`Suspended`] and the caller invokes
+//! [`claim`](Park::claim) hands back the `Suspended` and the caller invokes
 //! the ladder's own resume edge with a pen. A park that could resume would be a
 //! door in the seal.
 //!

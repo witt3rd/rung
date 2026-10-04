@@ -46,7 +46,7 @@ pub trait Pass<E>: Audit + Verify<E> {
     /// The author's **post-judgment** remedy: propose (or re-propose) with the
     /// just-rendered judgment in hand. `after` is the disposition — its reason
     /// and the standard it was rendered against. The mirror of
-    /// [`judgment-presupposes-the-standard`]: there the standard reaches the
+    /// `judgment-presupposes-the-standard`: there the standard reaches the
     /// judge; here the judgment reaches the author, who draws the next proposal
     /// from the set that judgment licenses (`remedy-presupposes-the-judgment`,
     /// `reproposal-carries-the-chain`). Without `after`, a re-proposal would be

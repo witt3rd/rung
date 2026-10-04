@@ -445,7 +445,7 @@ pub struct PrincipalDecl {
     #[serde(default)]
     pub epsilon: Option<Epsilon>,
     /// The family this principal belongs to — the `f` under which a
-    /// [`CommissionLog`](crate::commission) attributes its work (Q14/Q16/Q17,
+    /// `CommissionLog` attributes its work (Q14/Q16/Q17,
     /// in `rung-driver`). For a discontinuous kind (a model, an agent) this is
     /// the family identifier: when present, `authored(p)` is **derived** from
     /// the commission record by looking this family up — never a second,

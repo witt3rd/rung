@@ -1,6 +1,6 @@
 //! `audit_carrier` — audit a carrier through the generic driver, from config.
 //!
-//! The driver reads an instance `config.yaml` (Q18), builds the [`Carrier`]
+//! The driver reads an instance `config.yaml` (Q18), builds the `Carrier`
 //! it declares, enumerates its subjects extensionally, and audits them with the
 //! governing theory. This is the shape that replaces hand-rolled fragments: the
 //! *walking* is the generic carrier, the *audit* is the theory's sentences, and

@@ -3,7 +3,7 @@
 //! The driver stays domain-blind by reading a [`CarrierConfig`] that names the
 //! *strategy* and its location — colocated (a folder, a file, a jsonl/csv
 //! stream) or external (GitHub issues via `gh`). [`CarrierConfig::build`]
-//! converts one into a concrete [`Carrier`].
+//! converts one into a concrete [`Carrier`](crate::carrier::Carrier).
 //!
 //! ```yaml
 //! carrier:
@@ -48,7 +48,7 @@ pub struct CarrierConfig {
 }
 
 impl CarrierConfig {
-    /// Turn this declaration into a concrete [`Carrier`].
+    /// Turn this declaration into a concrete [`Carrier`](crate::carrier::Carrier).
     pub fn build(&self) -> Result<CarrierRef, String> {
         let path = |kind: &str| -> Result<&str, String> {
             self.path

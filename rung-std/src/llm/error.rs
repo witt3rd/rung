@@ -641,7 +641,7 @@ pub fn is_context_overflow(message: &str) -> bool {
 /// Jittered exponential backoff.
 ///
 /// 429: honor the full `Retry-After` (already parse-capped at 120s).
-/// 5xx / edge: clamp to [`MAX_DELAY_MS`] and jitter — Cloudflare sends the
+/// 5xx / edge: clamp to `MAX_DELAY_MS` and jitter — Cloudflare sends the
 /// same 60–120s `Retry-After` to every client at once.
 pub fn retry_delay_ms(attempt_index: u32, retry_after_ms: Option<u64>, rate_limited: bool) -> u64 {
     if rate_limited {

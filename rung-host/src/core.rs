@@ -1,7 +1,7 @@
 //! The host's core: the record, the state it projects, the clock, the stop
 //! authority and the configuration, shared by the loop and the tools.
 //!
-//! Every change is [`Core::emit`]: append one record line, then apply it to
+//! Every change is `Core::emit`: append one record line, then apply it to
 //! the state, under one lock, so the state is always exactly the record's
 //! projection.
 

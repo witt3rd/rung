@@ -8,8 +8,8 @@
 //!
 //! The mode is host state, projected from the record (`kernel.*` lines), so
 //! it survives a restart. Only two paths write `kernel.commit` and
-//! `kernel.release`: the agent's own tools ([`tool_commit`],
-//! [`tool_release`]) and the owner's release ([`owner_release`]). Both go
+//! `kernel.release`: the agent's own tools (`tool_commit`,
+//! `tool_release`) and the owner's release ([`owner_release`]). Both go
 //! through [`KernelEntry`], whose constructors are private to this module,
 //! and the record's sealed path (gate G-c pins the refusal from outside).
 
