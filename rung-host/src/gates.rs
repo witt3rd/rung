@@ -2261,7 +2261,7 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
         .collect();
     let cal_ok = !cal_ids.is_empty()
         && cal_ids.iter().all(|id| {
-            of(lines, "calendar.added").any(|l| l.str("id") == id)
+            of(lines, "calendar.added").any(|l| l.get("entry")["id"] == id.as_str())
                 && of(lines, "calendar.fired").any(|l| l.str("id") == id)
         });
     // Status, list, load.
