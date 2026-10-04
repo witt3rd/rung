@@ -3,7 +3,8 @@
 //! router on loopback serving recorded-shape fixtures), keeps only the
 //! configured rungs that are available and free, and walks only those —
 //! through a rung's expiry, a failed listing, provider 429s that must skip
-//! an unavailable rung, and a platform 429. No live model, no key.
+//! an unavailable rung, a platform 429, and a rung the router refuses for
+//! the account (unavailable until the next listing). No live model, no key.
 
 mod common;
 
@@ -91,6 +92,21 @@ fn the_ladder_lists_filters_and_walks_only_available_free_rungs() {
         }
         if turn == 40 {
             return Reply::platform_429(20, c2.now() + 3 * MINUTE, 1);
+        }
+        // A turn on the second standing rung is refused on every attempt:
+        // the step-down lands on the rung the router refuses below.
+        if model == LADDER[2] && turn == 250 {
+            return Reply::provider_429("Alibaba", 1);
+        }
+        // The router will not route this rung for the account (its data
+        // policy): unavailable until the next listing.
+        if model == LADDER[4] {
+            return Reply::json(
+                404,
+                &json!({"error": {"code": 404,
+                    "message": "0 endpoints out of 1 requested are available matching your guardrail restrictions and data policy.",
+                    "metadata": {"ineligibility_reasons": [{"reason": "zdr-violation-by-guardrail", "endpoint_count": 1}]}}}),
+            );
         }
         let served = Served {
             model: model.clone(),

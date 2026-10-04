@@ -1916,6 +1916,14 @@ pub fn listing_oracle(
 /// - a provider's 429 steps down to the next *available* rung (skipping at
 ///   least once), a probe goes up to the nearest available one;
 /// - every listing GET is keyless and each one is on record; loopback, $0.
+///
+/// **Amended 2026-10-04 (owner's ruling, after the first live run).** A rung
+/// the router refuses for this account (`ladder.refused`) is unavailable
+/// until the next successful listing, exactly like a rung the listing
+/// dropped: no turn runs on it, no step-down or probe lands on it, a failed
+/// listing keeps it unavailable, and a refusal of the current rung is
+/// followed by a switch to a standing rung before the next turn. The run
+/// must see at least one refusal. No threshold changed.
 pub fn g_o(
     lines: &[Line],
     seen: &[HttpSeen],
@@ -1970,11 +1978,6 @@ pub fn g_o(
             }
         } else {
             failed_n += 1;
-            if let Some(p) = prev
-                && flags(p) != flags(l)
-            {
-                kept_bad += 1;
-            }
         }
         if let Some(next) = listed.get(i + 1) {
             let limit = if ok { G_O_REFRESH_MS } else { G_O_RETRY_MS };
@@ -1994,9 +1997,16 @@ pub fn g_o(
     let (mut off_rung, mut stranded) = (0, 0);
     let (mut down_bad, mut up_bad, mut skipped) = (0, 0, 0);
     let mut owe_switch = false;
+    let mut refused = 0;
     for l in lines {
         match l.kind.as_str() {
             "ladder.listed" => {
+                // A failed listing keeps the verdicts the host held,
+                // refusals included.
+                if !l.get("ok").as_bool().unwrap_or(false) && !avail.is_empty() && flags(l) != avail
+                {
+                    kept_bad += 1;
+                }
                 avail = flags(l);
                 if let Some(c) = current
                     && avail.get(c) == Some(&false)
@@ -2005,10 +2015,29 @@ pub fn g_o(
                     owe_switch = true;
                 }
             }
+            // Amended (2026-10-04, owner's ruling): a rung the router
+            // refused for this account is unavailable until the next
+            // listing, exactly like one the listing dropped.
+            "ladder.refused" => {
+                let r = l.u64("rung") as usize;
+                if avail.len() <= r {
+                    avail.resize(r + 1, true);
+                }
+                avail[r] = false;
+                refused += 1;
+                if current == Some(r) && avail.iter().any(|a| *a) {
+                    owe_switch = true;
+                }
+            }
             "model.switch" => {
                 let (from, to) = (l.u64("rung_from") as usize, l.u64("rung_to") as usize);
                 let why = l.str("why");
-                if why.starts_with("provider") {
+                if why.starts_with("refused") {
+                    // Nothing below stood: the switch lands on a standing rung.
+                    if avail.get(to) != Some(&true) {
+                        down_bad += 1;
+                    }
+                } else if why.starts_with("provider") || why.starts_with("unroutable") {
                     let want = (from + 1..ladder.len()).find(|r| avail.get(*r) != Some(&false));
                     if want != Some(to) {
                         down_bad += 1;
@@ -2055,6 +2084,7 @@ pub fn g_o(
     g.put("expired_seen", expired_seen);
     g.put("late_refresh", late_refresh);
     g.put("late_retry", late_retry);
+    g.put("refused", refused);
     g.put("turns_on_unavailable", off_rung);
     g.put("stranded_after_listing", stranded);
     g.put("down_mismatch", down_bad);
@@ -2085,15 +2115,16 @@ pub fn g_o(
     );
     g.check(
         off_rung == 0,
-        "a turn ran on a rung the listing called unavailable",
+        "a turn ran on a rung the listing or the router called unavailable",
     );
+    g.check(refused > 0, "no rung was refused for the account");
     g.check(
         stranded == 0,
-        "a listing took the current rung away and no switch followed",
+        "a listing or a refusal took the current rung away and no switch followed",
     );
     g.check(
         down_bad == 0 && skipped > 0,
-        "a provider step-down did not land on the next available rung, or none skipped one",
+        "a step-down did not land on the next available rung, or none skipped one",
     );
     g.check(
         up_bad == 0,

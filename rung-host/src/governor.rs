@@ -160,7 +160,9 @@ impl GovState {
                     if l.str("status") == "completed" {
                         self.blocked = false;
                     }
-                } else {
+                } else if l.get("failure")["unroutable"].is_null() {
+                    // A refusal for this account says nothing about a
+                    // provider's load: it does not grow the backoff.
                     self.failures += 1;
                 }
             }
@@ -188,6 +190,11 @@ impl GovState {
                     })
                     .unwrap_or_default();
                 self.next_listing_at = l.get("next_at").as_i64();
+            }
+            // The router refused this rung for the account: unavailable
+            // until the next listing.
+            "ladder.refused" => {
+                self.unavailable.insert(l.u64("rung") as usize);
             }
             "model.switch" => {
                 let from = l.u64("rung_from") as usize;
@@ -320,12 +327,13 @@ pub fn on_failure(
     };
     if f.unroutable.is_some() {
         // No endpoint of this model is open to the account: waiting will
-        // not fix it, another rung may. Step down; the rung cools down and
-        // is probed again like any provider failure.
+        // not fix it, another rung may. The rung is unavailable until the
+        // next listing (`ladder.refused`); step down past it after the base
+        // backoff, which a refusal does not grow.
         return Plan {
             wait: Some(Wait {
                 class: "backoff".into(),
-                until: now + backoff(),
+                until: now + cfg.backoff_base_ms,
                 why: "unroutable: no endpoint open to this account".into(),
                 owner_wakes: false,
             }),
@@ -563,6 +571,44 @@ mod tests {
             unroutable: Some(vec!["x".into()]),
         };
         assert_eq!(cooldown_after(&st, &cfg, 4, &f), cfg.cooldown_cap_ms);
+    }
+
+    #[test]
+    fn a_refusal_holds_a_rung_until_the_next_listing_and_does_not_grow_the_backoff() {
+        let line = |seq: u64, kind: &str, body: serde_json::Value| Line {
+            seq,
+            at: 1_000,
+            kind: kind.into(),
+            body: body.as_object().unwrap().clone(),
+        };
+        let mut st = GovState::default();
+        st.apply(&line(
+            1,
+            "turn.ended",
+            serde_json::json!({"calls": 0,
+            "failure": {"class": "invalid", "origin": "provider", "unroutable": ["zdr"]}}),
+        ));
+        assert_eq!(st.failures, 0, "a refusal grew the backoff");
+        st.apply(&line(
+            2,
+            "ladder.refused",
+            serde_json::json!({"rung": 3, "model": "m", "reasons": ["zdr"]}),
+        ));
+        assert!(st.unavailable.contains(&3));
+        st.apply(&line(
+            3,
+            "turn.ended",
+            serde_json::json!({"calls": 0,
+            "failure": {"class": "rate_limit", "origin": "provider", "unroutable": null}}),
+        ));
+        assert_eq!(st.failures, 1);
+        st.apply(&line(
+            4,
+            "ladder.listed",
+            serde_json::json!({"ok": true, "next_at": 9,
+            "rungs": [{"rung": 3, "available": true}]}),
+        ));
+        assert!(!st.unavailable.contains(&3), "the next listing frees it");
     }
 
     #[test]

@@ -103,6 +103,16 @@ No threshold changed. Six evaluator changes, each named in the commit that made 
    boundary, which is what "per boundary" means (stricter).
 5. G-i skips a restart whose run holds only a `host.start` (it died
    while waking and wrote nothing else); the restart after it is checked.
+6. G-o (slice 2) is amended by the owner's ruling after the first live run
+   (2026-10-04): a rung the router refuses for the account
+   (`ladder.refused`) is unavailable until the next successful listing,
+   exactly like a rung the listing dropped. The evaluator applies refusals
+   to its availability walk, checks a failed listing's verdicts against
+   that walk (refusals included) instead of against the previous listing,
+   checks `unroutable` step-downs like provider ones and `refused:`
+   switches land on a standing rung, and requires the run to see a
+   refusal. The scenario gains one refused rung and one turn refused on
+   every attempt. This is a stricter gate, not a looser one.
 6. G-b counts a long call cut short for a waiting owner (`why:
    owner_waiting`, with its own commit-or-steps message) as long work, as
    it counts one refused at the deadline (#159).
