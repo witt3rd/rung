@@ -2441,6 +2441,97 @@ pub fn g_p(lines: &[Line], run: &AcpRun) -> GateResult {
     g
 }
 
+// ─── G-q ACP over Streamable HTTP ────────────────────────────────────────────
+
+/// What a Streamable HTTP ACP test client measured.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct HttpAcpRun {
+    /// HTTP status by probe name: `no_bearer`, `bad_bearer`, `owner_init`,
+    /// `peer_init`, `switched_post`, `switched_get`, `switched_delete`.
+    pub status: BTreeMap<String, u16>,
+    /// JSON-RPC responses by probe name: `peer_opens_owner`,
+    /// `peer_opens_peer`, `owner_opens_owner`, `peer_prompt`, `peer_stop`,
+    /// `owner_stop`.
+    pub replies: BTreeMap<String, Value>,
+    /// After the owner's stop: the exit code and ms until exit.
+    pub exit: Option<(i32, u64)>,
+    /// Exit codes of the refused starts: `no_tokens`, `unset_token_env`.
+    pub refused_starts: BTreeMap<String, i32>,
+    /// The token values the run used (they must not reach the record).
+    pub tokens: Vec<String>,
+    /// The address it bound.
+    pub bound: String,
+}
+
+/// G-q: ACP over Streamable HTTP with per-role bearer tokens.
+///
+/// - a request with no token, or an unknown one, is refused (401);
+/// - a token's role caps its connection: the peer token cannot open an
+///   owner channel, but can open a peer one; the owner token can open an
+///   owner channel;
+/// - a connection's principal is fixed at initialize: a request on it with
+///   another valid token is refused (403) for POST, GET and DELETE;
+/// - a peer prompt over HTTP is answered `end_turn`, naming an item the
+///   record disposed in the named turn;
+/// - the peer's `_rung/stop` is refused; the owner's halts the host and the
+///   process exits 0 within [`G_P_STOP_MS`];
+/// - no tokens, or a token env var that is not set, refuse to start (exit
+///   2); token values never reach the record; the listener bound loopback.
+pub fn g_q(lines: &[Line], run: &HttpAcpRun) -> GateResult {
+    let mut g = GateResult::new("G-q");
+    let st = |k: &str| run.status.get(k).copied().unwrap_or(0);
+    let rp = |k: &str| run.replies.get(k).cloned().unwrap_or(Value::Null);
+    let is_err = |v: &Value| v.get("error").is_some();
+    let is_ok = |v: &Value| v.get("result").is_some();
+    let auth_ok = st("no_bearer") == 401 && st("bad_bearer") == 401;
+    let init_ok = st("owner_init") == 200 && st("peer_init") == 200;
+    let cap_ok = is_err(&rp("peer_opens_owner"))
+        && is_ok(&rp("peer_opens_peer"))
+        && is_ok(&rp("owner_opens_owner"));
+    let bound_ok = st("switched_post") == 403
+        && st("switched_get") == 403
+        && st("switched_delete") == 403;
+    let prompt = rp("peer_prompt");
+    let meta = &prompt["result"]["_meta"]["rung"];
+    let item = meta["item"].as_str().unwrap_or("");
+    let turn = meta["turn"].as_u64();
+    let prompt_ok = prompt["result"]["stopReason"] == "end_turn"
+        && of(lines, "stimulus.disposed")
+            .any(|l| l.str("id") == item && Some(l.u64("turn")) == turn);
+    let stop_ok = is_err(&rp("peer_stop"))
+        && is_ok(&rp("owner_stop"))
+        && run.exit.is_some_and(|(c, ms)| c == 0 && ms <= G_P_STOP_MS)
+        && of(lines, "halted").any(|l| l.get("why").to_string().contains("\"owner\""));
+    let starts_ok = run.refused_starts.get("no_tokens") == Some(&2)
+        && run.refused_starts.get("unset_token_env") == Some(&2);
+    let leaked = lines.iter().any(|l| {
+        let t = l.text();
+        run.tokens.iter().any(|tok| !tok.is_empty() && t.contains(tok.as_str()))
+    });
+    let loopback = run.bound.starts_with("127.0.0.1:") || run.bound.starts_with("[::1]:");
+    g.put("status", json!(run.status));
+    g.put("auth_refused", auth_ok);
+    g.put("initialized", init_ok);
+    g.put("role_capped", cap_ok);
+    g.put("principal_bound", bound_ok);
+    g.put("prompt_answered", prompt_ok);
+    g.put("stop", stop_ok);
+    g.put("exit", json!(run.exit));
+    g.put("refused_starts", json!(run.refused_starts));
+    g.put("token_in_record", leaked);
+    g.put("bound", run.bound.clone());
+    g.check(auth_ok, "a request with no or an unknown token was not refused 401");
+    g.check(init_ok, "a known token could not initialize");
+    g.check(cap_ok, "a token's role did not cap its channels");
+    g.check(bound_ok, "a connection accepted another token after initialize");
+    g.check(prompt_ok, "a prompt over HTTP was not answered as the record says");
+    g.check(stop_ok, "the peer's stop was not refused, or the owner's did not halt and exit 0 in time");
+    g.check(starts_ok, "a start without usable tokens was not refused");
+    g.check(!leaked, "a token reached the record");
+    g.check(loopback, "the listener did not bind loopback");
+    g
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
