@@ -68,7 +68,7 @@ fn main() -> ExitCode {
                 // goes on stdout.
             } else if args.json {
                 // Single-shot JSON contract: one Outcome object on stdout,
-                // used by headless callers.
+                // used by non-interactive callers.
                 match serde_json::to_string(&out) {
                     Ok(j) => println!("{j}"),
                     Err(e) => {
