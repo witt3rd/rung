@@ -32,6 +32,7 @@ A release is its own commit: bump `[workspace.package] version` in
 `Cargo.toml`, build so `Cargo.lock` follows, commit `release: X.Y.Z
 (workspace version matches tag)`, push master, then tag `vX.Y.Z` and push the
 tag. The version must match the tag. Downstream consumers pin tags.
+Each release adds its `CHANGELOG.md` entry in the release commit.
 Wait for CI on the release commit before you report the release.
 
 ## CI
