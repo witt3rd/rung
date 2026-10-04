@@ -455,6 +455,144 @@ pub(crate) fn tool_trace(core: &Core, turn: u64, input: &Value) -> Result<String
 mod tests {
     use super::*;
 
+    use std::sync::{Arc, Barrier};
+
+    fn host(name: &str) -> (Arc<crate::presence::Host>, crate::sim::TempDir) {
+        let guard = crate::sim::temp_dir_guard(name);
+        let sc = crate::sim::Scenario::new(guard.path(), 1);
+        let (h, _, _) = crate::sim::build(sc);
+        (h, guard)
+    }
+
+    fn count(h: &crate::presence::Host, kind: &str) -> usize {
+        h.record_lines()
+            .unwrap()
+            .iter()
+            .filter(|l| l.kind == kind)
+            .count()
+    }
+
+    fn new_project(until_s: Option<i64>) -> Value {
+        json!({"new": {"title": "t", "why": "w"}, "done_when": "d", "until_s": until_s})
+    }
+
+    /// A commit to a new project is one write: a crash once the first of
+    /// its lines is on disk (an observer that panics stands in for the
+    /// kill) leaves the project, the commitment and its calendar entry
+    /// together, never a new project nobody committed to.
+    #[test]
+    fn a_crash_cannot_split_a_commit_from_its_new_project() {
+        let (h, _g) = host("commit-atomic");
+        h.core.observe(Box::new(|l: &Line| {
+            if l.kind == "project.added" {
+                panic!("killed after project.added");
+            }
+        }));
+        let core = h.core.clone();
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            tool_commit(&core, 1, &new_project(Some(60)))
+        }));
+        assert!(r.is_err(), "the observer stands in for a kill");
+        let lines = crate::record::Record::read_dir(h.core.record_dir()).unwrap();
+        let has = |k: &str| lines.iter().any(|l| l.kind == k);
+        assert!(has("project.added"));
+        assert!(
+            has("kernel.commit") && has("calendar.added"),
+            "a new project on disk without its commitment"
+        );
+    }
+
+    /// Run `f(i)` on `n` threads released together.
+    fn race(n: usize, f: impl Fn(usize) + Sync) {
+        let b = Barrier::new(n);
+        std::thread::scope(|s| {
+            for i in 0..n {
+                let (b, f) = (&b, &f);
+                s.spawn(move || {
+                    b.wait();
+                    f(i);
+                });
+            }
+        });
+    }
+
+    /// Two commits at once (the toolset is `Sync`; nothing serialises its
+    /// calls): exactly one wins, and no project id is minted twice.
+    #[test]
+    fn concurrent_commits_commit_once() {
+        let (h, _g) = host("commit-race");
+        let core = &h.core;
+        let rounds = 200;
+        for round in 0..rounds {
+            race(4, |i| {
+                let _ = tool_commit(core, (round * 10 + i) as u64, &new_project(None));
+            });
+            owner_release(core, "next round").unwrap();
+        }
+        assert_eq!(count(&h, "kernel.commit"), rounds);
+        assert_eq!(count(&h, "project.added"), rounds);
+        assert_eq!(h.core.state().registers.projects.len(), rounds);
+    }
+
+    /// The agent's release and the owner's release at once: one release.
+    #[test]
+    fn concurrent_releases_release_once() {
+        let (h, _g) = host("release-race");
+        let core = &h.core;
+        let rounds = 300;
+        for round in 0..rounds {
+            tool_commit(core, round as u64, &new_project(Some(60))).unwrap();
+            race(2, |i| {
+                if i == 0 {
+                    let _ = tool_release(
+                        core,
+                        round as u64,
+                        &json!({"outcome": "done", "reason": "r"}),
+                    );
+                } else {
+                    let _ = owner_release(core, "owner");
+                }
+            });
+        }
+        assert_eq!(count(&h, "kernel.release"), rounds);
+        assert_eq!(count(&h, "calendar.removed"), rounds);
+        assert_eq!(h.core.state().kernel.releases, rounds as u64);
+    }
+
+    /// A progress line racing a release never lands after the release (it
+    /// would mark the released project active again).
+    #[test]
+    fn progress_never_follows_its_release() {
+        let (h, _g) = host("progress-race");
+        let core = &h.core;
+        let rounds = 300;
+        for round in 0..rounds {
+            tool_commit(core, round as u64, &new_project(None)).unwrap();
+            race(2, |i| {
+                if i == 0 {
+                    let _ = tool_progress(core, round as u64, &json!({"next_step": "s"}));
+                } else {
+                    let _ = owner_release(core, "owner");
+                }
+            });
+        }
+        let lines = h.record_lines().unwrap();
+        let mut committed = false;
+        for l in &lines {
+            match l.kind.as_str() {
+                "kernel.commit" => committed = true,
+                "kernel.release" => committed = false,
+                "kernel.progress" => assert!(committed, "progress after release: seq {}", l.seq),
+                _ => {}
+            }
+        }
+        let st = h.core.state();
+        assert!(
+            st.registers.projects.values().all(|p| p.status == "paused"),
+            "a released project is active again"
+        );
+    }
+
     #[test]
     fn similarity_is_trigram_jaccard() {
         assert_eq!(similarity("the same words", "The  same words"), 1.0);
