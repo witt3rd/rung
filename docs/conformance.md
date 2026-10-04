@@ -1053,10 +1053,10 @@ look shorter than it is.
 
 - `a_bad_desk_or_an_unset_desk_key_is_refused`
 - `a_bounded_live_shaped_run_shadows_the_desk_and_honours_its_switches`
+- `a_pacing_wait_sends_no_acknowledgement`
 - `a_run_limit_ends_a_long_backoff`
 - `a_rung_refused_for_the_account_is_not_stepped_onto_again`
 - `a_rung_the_router_will_not_route_for_this_account_is_stepped_past`
-- `a_wait_the_owner_can_cut_sends_no_acknowledgement`
 - `a_zero_cap_keeps_every_ask_home`
 - `an_owner_waiting_through_a_provider_backoff_hears_from_the_host_at_once`
 
