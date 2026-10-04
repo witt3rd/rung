@@ -128,7 +128,9 @@ server):
   the host clock. `provider` is the route's host: a stream does not name
   the provider behind a router;
 - a 429 is the platform's when it carries `X-RateLimit-*` and no upstream
-  provider metadata (its `X-RateLimit-Reset` becomes `reset_at`); otherwise
+  provider metadata (its `X-RateLimit-Reset` becomes `reset_at`; a body too
+  truncated to parse still counts as carrying it if it names
+  `provider_name`/`provider_code`); otherwise
   it is the provider's. Only a provider's steps the ladder down.
 
 The key is read by the caller from the environment variable its
