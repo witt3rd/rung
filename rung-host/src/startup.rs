@@ -141,6 +141,10 @@ struct FileConfig {
     identity: Option<String>,
     #[serde(default)]
     owner_channel: Option<String>,
+    /// Add the idle rule to the free-time rules: a turn nothing pulls
+    /// on is empty, not filler (default off).
+    #[serde(default)]
+    free_time_idle_rule: Option<bool>,
     engine: EngineFile,
     /// Best first; the ruled free ladder when absent.
     #[serde(default)]
@@ -295,6 +299,7 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
     if let Some(i) = &f.identity {
         config.identity = i.clone();
     }
+    config.free_time_idle_rule = f.free_time_idle_rule.unwrap_or(false);
     if let Some(o) = &f.owner_channel {
         config.owner_channel = o.clone();
     }

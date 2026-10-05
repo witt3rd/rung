@@ -22,6 +22,12 @@ Free time. When nothing is asked of you and you have no commitment, the turn is 
 You may also commit to a project with `commit`; it then continues until you `release` it.
 Places to look, as examples only: something you remembered, something you read, the world outside, something to make, a memory search.";
 
+/// An optional sixth free-time rule (`free_time_idle_rule`): idle is fine,
+/// filler is not. Measured need: one live hour spent ~80 of 119 turns
+/// writing "quiet tick" or "…" (docs/rung-host-free-time.md).
+pub const FREE_TIME_IDLE_RULE: &str = "\
+6. If nothing pulls you, say nothing: end the turn with no text. Never report that nothing happened. Before you let a turn pass empty, look once in your workspace or memory for something unfinished or something to make.";
+
 /// The host contract, in the stable layer.
 pub const HOST_CONTRACT: &str = "\
 How this host works.
@@ -41,6 +47,10 @@ pub fn system(cfg: &HostConfig) -> String {
         "{}\n\n{HOST_CONTRACT}\n\n{FREE_TIME_RULES}",
         cfg.identity.trim()
     );
+    if cfg.free_time_idle_rule {
+        s.push('\n');
+        s.push_str(FREE_TIME_IDLE_RULE);
+    }
     if !cfg.pinned.is_empty() {
         s.push_str("\n\nPinned:\n");
         for p in &cfg.pinned {
@@ -378,6 +388,14 @@ mod tests {
             kind: kind.into(),
             body,
         }
+    }
+
+    #[test]
+    fn the_idle_rule_is_opt_in() {
+        let mut cfg = HostConfig::new(std::path::PathBuf::from("ws"));
+        assert!(!system(&cfg).contains(FREE_TIME_IDLE_RULE));
+        cfg.free_time_idle_rule = true;
+        assert!(system(&cfg).ends_with(FREE_TIME_IDLE_RULE));
     }
 
     #[test]
