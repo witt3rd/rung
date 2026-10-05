@@ -26,9 +26,10 @@
 //!
 //! The recalled block is put after the current user message as quoted
 //! data. It is never system text. The session line keeps it beside the
-//! user's text (`Line::recalled`), so a later turn replays it. Retain takes a [`Turnover`], and a `Turnover` is built only
-//! from a [`Completion`]: a turn that was unverified, unchecked, truncated,
-//! cancelled or failed is never retained.
+//! user's text (`Line::recalled`), so a later turn replays it. Retain takes
+//! a [`Turnover`], and a `Turnover` is built only from a [`Completion`]: a
+//! turn that was unverified, unchecked, truncated, cancelled or failed is
+//! never retained.
 //!
 //! The MCP provider contract (`rung-memory/1`) is in `docs/rung-memory.md`.
 
