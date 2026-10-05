@@ -126,6 +126,19 @@ impl Drop for Acp {
     }
 }
 
+/// The provider file once `lines` records are in it: retain runs after the
+/// reply, so a read right after the reply may come first.
+fn kept_after_retain(file: &std::path::Path, lines: usize) -> String {
+    for _ in 0..200 {
+        let t = std::fs::read_to_string(file).unwrap_or_default();
+        if t.lines().count() >= lines {
+            return t;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    panic!("retain never reached {}", file.display());
+}
+
 fn tool_names(body: &Value) -> Vec<String> {
     body["tools"]
         .as_array()
@@ -325,7 +338,7 @@ fn baseline_retains_in_one_session_and_recalls_in_the_next() {
     let m1 = &first["result"]["_meta"]["rung"]["memory"];
     assert_eq!(m1["provider"], "baseline");
     assert_eq!(m1["recall"]["status"], "empty", "{first}");
-    assert_eq!(m1["retain"]["status"], "stored", "{first}");
+    assert_eq!(m1["retain"]["status"], "deferred", "{first}");
     let m2 = &second["result"]["_meta"]["rung"]["memory"];
     assert_eq!(m2["recall"]["status"], "found", "{second}");
     assert_eq!(m2["recall"]["records"], 1);
@@ -353,8 +366,7 @@ fn an_mcp_provider_retains_and_recalls_through_its_hook_tools() {
     let (body, first, second, a) = across_sessions(&cwd, &setting);
     let m1 = &first["result"]["_meta"]["rung"]["memory"];
     assert_eq!(m1["provider"], "mcp");
-    assert_eq!(m1["retain"]["status"], "stored", "{first}");
-    assert_eq!(m1["retain"]["cost_usd"], 0.0001);
+    assert_eq!(m1["retain"]["status"], "deferred", "{first}");
     let m2 = &second["result"]["_meta"]["rung"]["memory"];
     assert_eq!(m2["recall"]["status"], "found", "{second}");
     assert_eq!(m2["recall"]["calls"], 1);
@@ -381,7 +393,7 @@ fn an_mcp_provider_retains_and_recalls_through_its_hook_tools() {
 #[test]
 fn a_slow_provider_times_out_and_the_turn_still_ends() {
     let cwd = tempdir("slow");
-    let setting = format!("mcp:{BIN} --memory-fixture --sleep-ms 5000");
+    let setting = format!("mcp:{BIN} --memory-fixture --sleep-ms 20000");
     let (url, _bodies) = mock_llm(vec!["fine"]);
     let mut acp = Acp::start(
         &cwd,
@@ -389,13 +401,16 @@ fn a_slow_provider_times_out_and_the_turn_still_ends() {
         &["--tools", "none"],
         &[
             ("RUNG_MEMORY", setting.as_str()),
-            ("RUNG_MEMORY_TIMEOUT_SECS", "1"),
+            ("RUNG_MEMORY_TIMEOUT_SECS", "3"),
         ],
     );
     let sid = acp.new_session(&cwd, json!([]));
     let started = std::time::Instant::now();
     let r = acp.prompt(&sid, "what is the deploy branch?");
-    assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "retain (3s more) ran before the reply"
+    );
     assert_eq!(r["result"]["stopReason"], "end_turn", "{r}");
     let m = &r["result"]["_meta"]["rung"]["memory"];
     assert_eq!(m["recall"]["status"], "unavailable", "{r}");
@@ -403,10 +418,10 @@ fn a_slow_provider_times_out_and_the_turn_still_ends() {
         m["recall"]["reason"]
             .as_str()
             .unwrap()
-            .contains("no answer within 1s"),
+            .contains("no answer within 3s"),
         "{r}"
     );
-    assert_eq!(m["retain"]["status"], "unretained", "{r}");
+    assert_eq!(m["retain"]["status"], "deferred", "{r}");
     drop(acp);
 }
 
@@ -543,7 +558,7 @@ fn context_run(marked: bool, ask_marked: bool) -> (Value, Value, String, String,
     };
     let second = prompt_blocks(&mut acp, &b, vec![mk(&before), ask, mk(&after)]);
     let body = bodies.recv().unwrap();
-    let kept = std::fs::read_to_string(&file).unwrap();
+    let kept = kept_after_retain(&file, 2);
     drop(acp);
     (second, body, kept, before, after)
 }
@@ -729,7 +744,7 @@ fn memory_loop_smoke_retain_recall_cue_and_meta() {
     let first = acp.prompt(&a, "Remember this: the deploy branch is release/x");
     let _ = bodies.recv().unwrap();
     let m1 = &first["result"]["_meta"]["rung"]["memory"];
-    assert_eq!(m1["retain"]["status"], "stored", "{first}");
+    assert_eq!(m1["retain"]["status"], "deferred", "{first}");
 
     let b = acp.new_session(&cwd, json!([]));
     let noise = format!("orientation {}", "zebra ".repeat(200));
@@ -753,7 +768,7 @@ fn memory_loop_smoke_retain_recall_cue_and_meta() {
 
     // The context never entered the cue: the retained record of turn two is
     // the ask alone.
-    let kept = std::fs::read_to_string(&file).unwrap();
+    let kept = kept_after_retain(&file, 2);
     let turn = kept.lines().last().unwrap();
     assert!(turn.contains("Which deploy branch do we use?"), "{turn}");
     assert!(!turn.contains("zebra"), "{turn}");
@@ -767,7 +782,7 @@ fn memory_loop_smoke_retain_recall_cue_and_meta() {
     assert_eq!(ids.len(), 1);
     assert!(ids[0].as_str().is_some_and(|s| !s.is_empty()), "{ids:?}");
     assert_eq!(m2["recall"]["calls"], 1);
-    assert_eq!(m2["retain"]["status"], "stored");
+    assert_eq!(m2["retain"]["status"], "deferred");
     sessions_keep_recall_beside_the_ask(&cwd);
     drop(acp);
 }

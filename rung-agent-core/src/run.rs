@@ -788,6 +788,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         .as_deref()
         .or(args.prompt.as_deref())
         .unwrap_or("");
+    crate::memory::settle();
     if let Some((recalled, block)) = memory.recall(cue_text, &recent) {
         if let Some(block) = block {
             crate::memory::inject(&mut thread, &block);

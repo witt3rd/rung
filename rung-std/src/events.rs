@@ -59,6 +59,12 @@ impl Drop for SinkGuard {
     }
 }
 
+/// The sink installed on this thread, if any: for work handed to another
+/// thread that should report to the same place.
+pub fn current() -> Option<Arc<dyn EventSink>> {
+    SINK.with(|s| s.borrow().clone())
+}
+
 /// Send this thread's diagnostics to `sink` until the guard drops.
 pub fn install(sink: Arc<dyn EventSink>) -> SinkGuard {
     let prev = SINK.with(|s| s.borrow_mut().replace(sink));
