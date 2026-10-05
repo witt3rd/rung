@@ -25,14 +25,18 @@ use serde_json::{Value, json};
 
 use crate::clock::{HOUR, MINUTE, Millis};
 
-/// The free ladder, best first. `stealth/space-bunny-alpha` is listed with
-/// an expiration date; the filter drops it from that day on.
-pub const OPENROUTER_FREE_LADDER: [&str; 5] = [
+/// The free ladder, best first. `stealth/space-bunny-alpha` may be listed
+/// with an expiration date; the filter drops it from that day on. The
+/// bottom rung is the router's free pool (`openrouter/free`, a random free
+/// model per request): the last resort when every named rung is rate
+/// limited, at the cost of the prompt cache (2026-10-05 live arms).
+pub const OPENROUTER_FREE_LADDER: [&str; 6] = [
     "stealth/space-bunny-alpha",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
     "qwen/qwen3.8-27b:free",
     "google/gemma-4-31b-it:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
+    "openrouter/free",
 ];
 
 /// How often a successful listing is refreshed.
