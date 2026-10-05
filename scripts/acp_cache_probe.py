@@ -141,6 +141,9 @@ def main():
     ap.add_argument("--key-env", default="OPENROUTER_API_KEY")
     ap.add_argument("--bin", default="target/debug/rung-agent")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--memory", default=None, help="memory setting, e.g. mcp:http://127.0.0.1:9000/mcp")
+    ap.add_argument("--scope", default=None, help="memory scope (RUNG_MEMORY_SCOPE)")
+    ap.add_argument("--asks", nargs=2, default=None, help="override the two turn texts")
     a = ap.parse_args()
     if not os.environ.get(a.key_env):
         raise SystemExit(f"{a.key_env} is not set")
@@ -162,6 +165,10 @@ def main():
         "RUNG_MODEL": a.model, "RUNG_KEY_FILE": a.key_env, "RUNG_PROTOCOL": "openai",
         "RUNG_MAX_TOKENS": "300",
     })
+    if a.memory:
+        env["RUNG_MEMORY"] = a.memory
+    if a.scope:
+        env["RUNG_MEMORY_SCOPE"] = a.scope
     system = "You are a terse assistant. Answer in one short sentence.\n" + "".join(
         f"Rule {i}: keep answers short, plain and factual; never pad.\n" for i in range(120)
     )
@@ -170,8 +177,8 @@ def main():
     sid = acp.call("session/new", {
         "cwd": str(work), "mcpServers": [], "_meta": {"systemPrompt": system},
     })["result"]["sessionId"]
-    for ask in ("Read notes.txt with read_file and tell me how many lines it has.",
-                "Thanks. What is the last note's number?"):
+    for ask in a.asks or ("Read notes.txt with read_file and tell me how many lines it has.",
+                          "Thanks. What is the last note's number?"):
         r = acp.call("session/prompt", {"sessionId": sid, "prompt": [{"type": "text", "text": ask}]})
         print("turn:", r.get("result", {}).get("stopReason") or r.get("error"))
     acp.p.kill()
