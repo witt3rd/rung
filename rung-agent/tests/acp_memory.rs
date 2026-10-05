@@ -644,3 +644,67 @@ fn when_every_block_is_marked_the_whole_prompt_is_stored_every_turn() {
     drop(acp);
     let _ = std::fs::remove_dir_all(&cwd);
 }
+
+// ─── the whole loop ──────────────────────────────────────────────────────────
+
+/// Smoke: retain in one turn, recall in the next with audience-marked context
+/// around the ask, and the reply's `_meta` reports ids and counts. Offline:
+/// mock model plus the fixture provider.
+#[test]
+fn memory_loop_smoke_retain_recall_cue_and_meta() {
+    let cwd = tempdir("loop-smoke");
+    let file = cwd.join("provider.jsonl");
+    let setting = format!("mcp:{BIN} --memory-fixture --file {}", file.display());
+    let (url, bodies) = mock_llm(vec!["Noted.", "release/x"]);
+    let mut acp = Acp::start(
+        &cwd,
+        &url,
+        &["--tools", "none"],
+        &[("RUNG_MEMORY", &setting)],
+    );
+
+    let a = acp.new_session(&cwd, json!([]));
+    let first = acp.prompt(&a, "Remember this: the deploy branch is release/x");
+    let _ = bodies.recv().unwrap();
+    let m1 = &first["result"]["_meta"]["rung"]["memory"];
+    assert_eq!(m1["retain"]["status"], "stored", "{first}");
+
+    let b = acp.new_session(&cwd, json!([]));
+    let noise = format!("orientation {}", "zebra ".repeat(200));
+    let second = prompt_blocks(
+        &mut acp,
+        &b,
+        vec![
+            ctx_block(&noise),
+            ask_block("Which deploy branch do we use?"),
+        ],
+    );
+    let body = bodies.recv().unwrap();
+
+    // Recall block carries the retained turn as quoted data, before the ask.
+    let sent = last_user(&body);
+    assert!(sent.starts_with("## Recalled memory"), "{sent}");
+    assert!(sent.contains("> User: Remember this: the deploy branch is release/x"));
+    assert!(sent.contains(&noise), "context still reaches the model");
+    assert!(sent.contains("Which deploy branch do we use?"));
+
+    // The context never entered the cue: the retained record of turn two is
+    // the ask alone.
+    let kept = std::fs::read_to_string(&file).unwrap();
+    let turn = kept.lines().last().unwrap();
+    assert!(turn.contains("Which deploy branch do we use?"), "{turn}");
+    assert!(!turn.contains("zebra"), "{turn}");
+
+    // _meta: ids and counts.
+    let m2 = &second["result"]["_meta"]["rung"]["memory"];
+    assert_eq!(m2["provider"], "mcp");
+    assert_eq!(m2["recall"]["status"], "found", "{second}");
+    assert_eq!(m2["recall"]["records"], 1);
+    let ids = m2["recall"]["injected"].as_array().unwrap();
+    assert_eq!(ids.len(), 1);
+    assert!(ids[0].as_str().is_some_and(|s| !s.is_empty()), "{ids:?}");
+    assert_eq!(m2["recall"]["calls"], 1);
+    assert_eq!(m2["retain"]["status"], "stored");
+    sessions_hold_no_recall(&cwd);
+    drop(acp);
+}
