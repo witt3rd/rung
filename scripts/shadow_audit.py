@@ -3,7 +3,8 @@
 
 usage: shadow_audit.py RECORD.ndjson [-n 50] [--seed S] [-o audit.md]
 
-Reads `decision.<family>` lines that carry `agree` (shadow mode), prints the
+Reads `decision.<family>` lines that carry `agree` and a non-null
+`jev_choice` (shadow mode), prints the
 tally table, and writes N random disagreements to a markdown sheet.
 """
 import argparse
