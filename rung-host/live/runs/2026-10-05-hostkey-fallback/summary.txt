@@ -1,0 +1,2 @@
+single: 29/40 served; statuses {200: 29, 429: 11}; served {'qwen/qwen3.8-27b:free': 29}; cached/prompt 78848/82968 = 0.950; finish {'tool_calls': 28, 'length': 1}; tool calls parsed 28/28; latency p50 1205 ms p95 47209 ms
+fallback: 40/40 served; statuses {200: 40}; served {'qwen/qwen3.8-27b:free': 29, 'nvidia/nemotron-3-super-120b-a12b:free': 11}; cached/prompt 78848/114000 = 0.692; finish {'tool_calls': 34, 'length': 5, 'stop': 1}; tool calls parsed 34/34; latency p50 1144 ms p95 6062 ms

@@ -1,0 +1,20 @@
+stealth/space-bunny-alpha 200 OK served stealth/space-bunny-alpha Stealth OK
+nvidia/nemotron-3-ultra-550b-a55b:free 200 OK served nvidia/nemotron-3-ultra-550b-a55b:free Nvidia OK.
+qwen/qwen3.8-27b:free 429 ERR Provider returned error ""
+google/gemma-4-31b-it:free 429 ERR Provider returned error ""
+nvidia/nemotron-3-super-120b-a12b:free 200 OK served nvidia/nemotron-3-super-120b-a12b:free Nvidia OK
+openrouter/free 200 OK served dots-studio/dots-3-note-preview:free AtlasCloud 
+inclusionai/ling-3.1-flash 200 OK served inclusionai/ling-3.1-flash Novita 
+apodex/apodex-1.1-mini:free 200 OK served apodex/apodex-1.1-mini:free Novita 
+inclusionai/ling-3.0-flash-sante:free 200 OK served inclusionai/ling-3.0-flash-sante:free Novita 
+dots-studio/dots-3-note-preview:free 200 OK served dots-studio/dots-3-note-preview:free AtlasCloud 
+liquid/lfm-2.5-2.6b:free 200 OK served liquid/lfm-2.5-2.6b:free Liquid 
+nvidia/nemotron-3.5-lightning:free 200 OK served nvidia/nemotron-3.5-lightning:free Nvidia Here's a thinking process:  1.  **Analyz
+thinkingmachines/inkling-small:free 403 ERR thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter ""
+poolside/laguna-s-2.1:free 429 ERR Provider returned error ""
+thinkingmachines/inkling:free 403 ERR thinkingmachines/inkling:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/ap ""
+poolside/laguna-xs-2.1:free 429 ERR Provider returned error ""
+cohere/north-mini-code:free 200 OK served cohere/north-mini-code:free Cohere OK.
+nvidia/nemotron-3.5-content-safety:free 200 OK served nvidia/nemotron-3.5-content-safety:free Nvidia 
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free 200 ERR Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16) ""
+google/gemma-4-26b-a4b-it:free 429 ERR Provider returned error ""

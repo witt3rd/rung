@@ -13,7 +13,7 @@ identity: >-
 engine:
   kind: agent
   base_url: https://openrouter.ai/api/v1
-  api_key_env: OPENROUTER_API_KEY
+  api_key_env: RUNG_HOST_OPENROUTER_API_KEY   # the host's own router key
   reasoning: medium
   timeout_s: 120
 ladder:                              # the operator's free ladder, best first; the listing filters it
@@ -22,6 +22,7 @@ ladder:                              # the operator's free ladder, best first; t
   - qwen/qwen3.8-27b:free
   - google/gemma-4-31b-it:free
   - nvidia/nemotron-3-super-120b-a12b:free
+  - openrouter/free                  # opt-in last resort: a random free model per request
 listing: true
 quota: { rpd: 400, rpm: 20 }         # this run's share of the account's 1,000 free requests a day
 turn_bound_s: 240
@@ -37,7 +38,7 @@ desk:
   mode: shadow
   decider: jev
   base_url: https://openrouter.ai/api/v1
-  api_key_env: OPENROUTER_API_KEY
+  api_key_env: OPENROUTER_API_KEY   # Jev's accounted key, apart from the host's
   model: typesafe/jev-1.13
   cap_usd_day: 0.25
   cap_usd_ask: 0.001

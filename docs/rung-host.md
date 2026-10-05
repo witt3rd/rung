@@ -195,7 +195,7 @@ state: /var/lib/rung-host            # required; workspace defaults to <state>/w
 engine:
   kind: agent                        # or mock
   base_url: https://openrouter.ai/api/v1
-  api_key_env: OPENROUTER_API_KEY    # the env var's name, never the key
+  api_key_env: RUNG_HOST_OPENROUTER_API_KEY   # the env var's name, never the key; a key for the host alone
   reasoning: medium                  # pinned for the agent's life
 ladder: [ ... ]                      # default: the ruled free ladder
 listing: true                        # list at start and every 6 h (default for agent)
@@ -381,7 +381,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `model.switch` | `from`, `to`, `direction` (`down`, `up`), `why` (`provider …`, `probe: …`, `listing: …`) |
 | `ladder.refused` | `rung`, `model`, `reasons` (the router's `ineligibility_reasons`), `by` (`probe` when a keyed probe found it): unavailable until the next listing |
 | `ladder.probed` | `probes`, `rungs [{rung, model, verdict, reasons?, error?, why?}]` (`verdict`: `routes`, `refused`, `unknown`, `skipped`) |
-| `ladder.listed` | `ok`, `error` (when not), `at_start` (the startup ladder's listing), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`; `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
+| `ladder.listed` | `ok`, `error` (when not), `at_start` (the startup ladder's listing), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`, `router` (a free router such as `openrouter/free`: no endpoints of its own, the keyed probe tests it); `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
 | `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms` |
 | `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |
 | `halted` | `why` |

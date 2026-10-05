@@ -1,0 +1,33 @@
+{
+ "turns": {
+  "completed": 175
+ },
+ "turns_total": 175,
+ "failure_rate": 0.0,
+ "failure_classes": {},
+ "calls": 212,
+ "served": {
+  "stealth/space-bunny-alpha": 212
+ },
+ "requested": {
+  "stealth/space-bunny-alpha": 212
+ },
+ "served_ne_requested": 0,
+ "served_switches": 0,
+ "completed_by_turn_model": {
+  "stealth/space-bunny-alpha": 175
+ },
+ "cache_efficiency": 0.9709,
+ "cache_by_served": {
+  "stealth/space-bunny-alpha": {
+   "calls": 212,
+   "efficiency": 0.9709
+  }
+ },
+ "cache_same_model_as_prev_call": 0.9711,
+ "cache_after_served_switch": null,
+ "tool_uses": 46,
+ "tool_malformed": 0,
+ "tool_unknown": 0,
+ "tool_arg_errors": 2
+}

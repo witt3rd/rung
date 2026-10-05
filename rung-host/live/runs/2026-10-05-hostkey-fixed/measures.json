@@ -1,0 +1,302 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 2999.2,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "stealth/space-bunny-alpha",
+  "completed_by_model": {
+   "stealth/space-bunny-alpha": 159
+  },
+  "first_turn_model": "stealth/space-bunny-alpha",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": true,
+    "model": "stealth/space-bunny-alpha",
+    "why": "ok"
+   },
+   {
+    "available": false,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "endpoint_down"
+   },
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "google/gemma-4-31b-it:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": true,
+  "turns_by_status": {
+   "completed": 159
+  }
+ },
+ "L3": {
+  "at_bottom": 0,
+  "exercised": false,
+  "not_stepped": 0,
+  "pass": null,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 0,
+  "provider_failures": 0,
+  "stepped_down": 0,
+  "switches": [],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {
+   "rollover": 5
+  },
+  "cache_cold": {
+   "provider": 6,
+   "ttl": 1
+  },
+  "cache_efficiency": 0.95,
+  "cache_write_tokens": 0,
+  "cached_tokens": 4821218,
+  "calls": 233,
+  "epochs": 5,
+  "pass": true,
+  "prompt_tokens": 5074841,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 336,
+  "admission_ms_p50": 233,
+  "admission_ms_p95": 336,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": 97703,
+  "disposed_ms_p50": 61880,
+  "owner_items": 7,
+  "pass": true,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 43462,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 254,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 59126,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 203,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 61880,
+    "disposition": "answered",
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 182,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 53650,
+    "disposition": "answered",
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 336,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 94084,
+    "disposition": "answered",
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 203,
+    "waited_in": {
+     "paced": 2110
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 97703,
+    "disposition": "answered",
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 295,
+    "waited_in": {
+     "paced": 145756
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 63269,
+    "disposition": "answered",
+    "id": "o07-reflect",
+    "kind": "peer",
+    "latency_ms": 233,
+    "waited_in": {
+     "paced": 576076
+    }
+   }
+  ],
+  "turn_ms_p50": 2575,
+  "turn_ms_p95": 53314
+ },
+ "L6": {
+  "accepted": 14,
+  "disposed": 14,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 10,
+   "digested": 4
+  },
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 197,
+  "by_jev": 0,
+  "decisions": 569,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 176,
+   "{\"rule\": \"shadow\"}": 393
+  },
+  "jev_charged_usd": 0.010962,
+  "jev_cost_usd": 0.010962,
+  "jev_ms_max": 1442.345,
+  "jev_ms_p50": 197.322,
+  "jev_ms_p95": 345.272,
+  "outcomes": {
+   "answered": 197
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 5,
+    "disagree": 1
+   },
+   "consolidate": {
+    "disagree": 15
+   },
+   "inject": {
+    "agree": 49,
+    "disagree": 133
+   },
+   "pack": {
+    "agree": 4,
+    "disagree": 4
+   },
+   "tools": {
+    "agree": 20,
+    "disagree": 162
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {
+   "ws_write": 1
+  },
+  "agent_write_calls": 24,
+  "outside": {},
+  "pass": true,
+  "traces": 1,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/hostkey-Afix/state/workspace",
+  "write_syscalls": {
+   "mkdir": 151,
+   "openat": 121,
+   "unlink": 7
+  }
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.010962,
+  "jev_usd": 0.010962,
+  "pass": true,
+  "total_usd": 0.010962
+ },
+ "extra": {
+  "calendar_fired": 3,
+  "completion_tokens": 51256,
+  "degraded": {
+   "paced": 23
+  },
+  "degraded_waited_s": {
+   "paced": 1479
+  },
+  "kernel": {
+   "kernel.commit": 1,
+   "kernel.progress": 6,
+   "kernel.release": 1,
+   "kernel.trace": 2
+  },
+  "llm_calls": 233,
+  "llm_latency_ms_p50": 3679,
+  "llm_latency_ms_p95": 18088,
+  "outbox": 13,
+  "reasoning_tokens": 0,
+  "rollovers": 5,
+  "served": {
+   "stealth/space-bunny-alpha": 233
+  },
+  "tool_calls": {
+   "commit": 1,
+   "expect": 6,
+   "memory_keep": 9,
+   "memory_search": 2,
+   "note": 11,
+   "progress": 6,
+   "question_add": 3,
+   "question_close": 2,
+   "release": 1,
+   "send": 9,
+   "trace": 2,
+   "want_tools": 1,
+   "ws_list": 2,
+   "ws_read": 5,
+   "ws_write": 23
+  },
+  "turn_kinds": {
+   "committed": 146,
+   "free": 3,
+   "responding": 10
+  },
+  "turns": 159
+ },
+ "lines": 2117,
+ "run": "2026-10-05-hostkey-fixed"
+}

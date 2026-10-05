@@ -25,8 +25,8 @@ use serde_json::{Value, json};
 
 use crate::clock::{HOUR, MINUTE, Millis};
 
-/// The free ladder, best first. `stealth/space-bunny-alpha` is listed with
-/// an expiration date; the filter drops it from that day on.
+/// The free ladder, best first. `stealth/space-bunny-alpha` may be listed
+/// with an expiration date; the filter drops it from that day on.
 pub const OPENROUTER_FREE_LADDER: [&str; 5] = [
     "stealth/space-bunny-alpha",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -247,6 +247,16 @@ fn listed_verdict(listing: &Value, model: &str, now: Millis) -> Result<(), &'sta
     Ok(())
 }
 
+/// A router in the listing (OpenRouter's `openrouter/free`: tokenizer
+/// `Router`) picks a model per request and lists no endpoints of its own;
+/// it stands on the listing's other checks and the keyed probe tests it.
+fn is_router(listing: &Value, model: &str) -> bool {
+    listing["data"].as_array().is_some_and(|d| {
+        d.iter()
+            .any(|m| m["id"] == model && m["architecture"]["tokenizer"] == "Router")
+    })
+}
+
 fn endpoint_up(e: &Value) -> bool {
     e["data"]["endpoints"].as_array().is_some_and(|eps| {
         eps.iter()
@@ -267,6 +277,7 @@ pub fn list(lister: &dyn Lister, ladder: &[String], previous: &[bool], now: Mill
         for model in ladder {
             match listed_verdict(&listing, model, now) {
                 Err(why) => out.push((false, why)),
+                Ok(()) if is_router(&listing, model) => out.push((true, "router")),
                 Ok(()) => match lister.endpoints(model)? {
                     Some(e) if endpoint_up(&e) => out.push((true, "ok")),
                     _ => out.push((false, "endpoint_down")),
@@ -520,6 +531,22 @@ mod tests {
         assert_eq!(whys(&v)[0], (false, "endpoint_down".to_string()));
         assert_eq!(v["available"], 0);
         assert_eq!(v["ok"], true);
+    }
+
+    #[test]
+    fn a_free_router_with_no_endpoints_of_its_own_stands() {
+        let mut router = model("r", "0", &["tools"], None);
+        router["architecture"] = json!({"tokenizer": "Router"});
+        let l = Fixed {
+            listing: Ok(json!({"data": [router, model("m", "0", &["tools"], None)]})),
+            endpoints: BTreeMap::from([("r".to_string(), json!({"data": {"endpoints": []}}))]),
+        };
+        let ladder = ["m", "r"].map(String::from).to_vec();
+        let v = list(&l, &ladder, &[], BEFORE);
+        assert_eq!(
+            whys(&v),
+            [(false, "endpoint_down"), (true, "router")].map(|(a, w)| (a, w.to_string()))
+        );
     }
 
     #[test]

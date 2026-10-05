@@ -583,6 +583,17 @@ pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
         reasoning_tokens: Option<u32>,
     }
 
+    // An error object in place of choices (a router's upstream failure
+    // inside a 2xx) is classified as the error it names.
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(text)
+        && v.get("error").is_some()
+        && v.get("choices")
+            .is_none_or(|c| c.as_array().is_some_and(|a| a.is_empty()))
+        && let Some(err) = parse_sse_error(text)
+    {
+        return Err(err);
+    }
+
     let parsed: OpenAiResponse =
         serde_json::from_str(text).map_err(|e| RawCallError::InvalidProviderOutput {
             message: format!("JSON parse error: {e}"),
@@ -1148,6 +1159,23 @@ mod tests {
         cfg.max_tokens = 64;
         let body = request_body(&cfg, &[ChatMessage::user("hi")], &[]);
         assert_eq!(body["max_tokens"], 64);
+    }
+
+    #[test]
+    fn an_error_body_in_a_2xx_is_the_error_it_names() {
+        let body = r#"{"id":"gen-1","error":{"message":"Upstream error from Nvidia: Service temporarily overloaded","code":503,"metadata":{"error_type":"provider_overloaded"}}}"#;
+        let empty = body.replacen(r#""id":"gen-1","#, r#""id":"gen-1","choices":[],"#, 1);
+        for body in [body, empty.as_str()] {
+            assert!(matches!(
+                parse_json(body),
+                Err(RawCallError::ProviderInternal { status: 503, .. })
+            ));
+            let frame = vec![format!("data: {body}")];
+            assert!(matches!(
+                parse_sse(&frame, None),
+                Err(RawCallError::ProviderInternal { status: 503, .. })
+            ));
+        }
     }
 
     #[test]

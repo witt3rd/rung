@@ -1,0 +1,9 @@
+L1 PASS {"windows": [{"window": 1, "exit": 0, "panic": false}], "starts": 1, "halts": 1, "halt_why": [{"by": "limit", "why": "stopped"}], "record_span_s": 2999.2}
+L2 PASS {"listed_before_first_turn": true, "first_turn_model": "stealth/space-bunny-alpha", "best_standing": "stealth/space-bunny-alpha", "completed_by_model": {"stealth/space-bunny-alpha": 159}, "turns_by_status": {"completed": 159}}
+L3 NOT EXERCISED {"provider_failures": 0, "unroutable": 0, "stepped_down": 0, "at_bottom": 0, "not_stepped": 0, "platform_429": 0, "platform_stepped": 0, "probes_up": 0, "exercised": false}
+L4 PASS {"calls": 233, "epochs": 5, "unstable_epochs": [], "cache_breaks": {"rollover": 5}, "cache_cold": {"provider": 6, "ttl": 1}, "prompt_tokens": 5074841, "cached_tokens": 4821218, "cache_efficiency": 0.95, "cache_write_tokens": 0}
+L5 PASS {"owner_items": 7, "deferred_past_first_boundary": 0, "admission_ms_p50": 233, "admission_ms_p95": 336, "admission_ms_max": 336, "turn_ms_p50": 2575, "turn_ms_p95": 53314, "disposed_ms_p50": 61880, "disposed_ms_max": 97703}
+L6 PASS {"accepted": 14, "disposed": 14, "disposed_twice": [], "open_at_stop": [], "dispositions": {"answered": 10, "digested": 4}}
+L7 PASS {"asks": 197, "outcomes": {"answered": 197}, "decisions": 569, "decisions_by": {"{\"rule\": \"nothing_to_ask\"}": 176, "{\"rule\": \"shadow\"}": 393}, "by_jev": 0, "per_family": {"admit": {"agree": 5, "disagree": 1}, "consolidate": {"disagree": 15}, "inject": {"agree": 49, "disagree": 133}, "pack": {"disagree": 4, "agree": 4}, "tools": {"disagree": 162, "agree": 20}}, "jev_ms_p50": 197.322, "jev_m
+L8 PASS {"write_syscalls": {"mkdir": 151, "openat": 121, "unlink": 7}, "outside": {}, "agent_write_calls": 24, "agent_tool_refusals": {"ws_write": 1}, "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/hostkey-Afix/state/workspace", "traces": 1}
+L9 PASS {"agent_usd": 0, "jev_usd": 0.010962, "jev_charged_usd": 0.010962, "total_usd": 0.010962}
