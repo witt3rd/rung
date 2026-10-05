@@ -80,6 +80,11 @@ pub struct Session {
     pub isolation_path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pid: Option<u32>,
+    /// The session's own system text (ACP `session/new`
+    /// `_meta.systemPrompt`). Kept here so a load, resume or fork in a new
+    /// process sends the same system text, and the cached prefix holds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system: Option<String>,
     #[serde(default)]
     pub lines: Vec<Line>,
 }
@@ -93,6 +98,7 @@ impl Session {
             cwd: cwd.to_string_lossy().into_owned(),
             isolation_path: None,
             pid: Some(std::process::id()),
+            system: None,
             lines: Vec::new(),
         }
     }
