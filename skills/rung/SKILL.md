@@ -209,8 +209,12 @@ bug.
 ## rung-host live runs
 
 `rung-host/live/` runs one bounded live window from the repo
-(`live.sh RUN_DIR SECONDS`, key from Doppler into the process env only,
-host file writes traced with strace). Pre-register the measures in a
+(`live.sh RUN_DIR SECONDS`, keys from Doppler into the process env only,
+host file writes traced with strace). Two keys: the host engine's
+`RUNG_HOST_OPENROUTER_API_KEY` (fleet `dev_donald` only; its own router
+workspace, free endpoints allowed) and Jev's accounted `OPENROUTER_API_KEY`
+(`dev_work`). `arms.py` adds served models, malformed tool calls and a
+coherence sample; `fallback-probe.py` tests the router's `models` array. Pre-register the measures in a
 committed doc first; `analyze.py` computes them, `collect.py` copies the
 evidence into `rung-host/live/runs/<date>/`, `scan.py` proves no key
 landed, `diagram.py` draws the report figure. Reports build with the
