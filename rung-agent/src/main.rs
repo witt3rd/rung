@@ -2,7 +2,7 @@
 
 use rung_agent::args::{self, Args};
 use rung_agent::run::run_job;
-use std::io::{self, IsTerminal, Read};
+use std::io::{self, IsTerminal, Read, Write};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -63,8 +63,7 @@ fn main() -> ExitCode {
         }
     };
     let result = run_job(&args, &origin);
-    rung_agent::memory::settle();
-    match result {
+    let code = match result {
         Ok(out) => {
             if args.stream {
                 // NDJSON stream mode: the final result line was already
@@ -100,7 +99,10 @@ fn main() -> ExitCode {
             eprintln!("rung-agent: {e}");
             ExitCode::from(1)
         }
-    }
+    };
+    let _ = io::stdout().flush();
+    rung_agent::memory::settle();
+    code
 }
 
 /// `--memory-check SETTING`: run the provider contract and print each clause.
