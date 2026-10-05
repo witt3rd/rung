@@ -195,7 +195,7 @@ state: /var/lib/rung-host            # required; workspace defaults to <state>/w
 engine:
   kind: agent                        # or mock
   base_url: https://openrouter.ai/api/v1
-  api_key_env: OPENROUTER_API_KEY    # the env var's name, never the key
+  api_key_env: RUNG_HOST_OPENROUTER_API_KEY   # the env var's name, never the key; a key for the host alone
   reasoning: medium                  # pinned for the agent's life
 ladder: [ ... ]                      # default: the ruled free ladder
 listing: true                        # list at start and every 6 h (default for agent)

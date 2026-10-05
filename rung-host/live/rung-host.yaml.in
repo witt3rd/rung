@@ -13,7 +13,7 @@ identity: >-
 engine:
   kind: agent
   base_url: https://openrouter.ai/api/v1
-  api_key_env: OPENROUTER_API_KEY
+  api_key_env: RUNG_HOST_OPENROUTER_API_KEY   # the host's own router key
   reasoning: medium
   timeout_s: 120
 ladder:                              # the operator's free ladder, best first; the listing filters it
@@ -37,7 +37,7 @@ desk:
   mode: shadow
   decider: jev
   base_url: https://openrouter.ai/api/v1
-  api_key_env: OPENROUTER_API_KEY
+  api_key_env: OPENROUTER_API_KEY   # Jev's accounted key, apart from the host's
   model: typesafe/jev-1.13
   cap_usd_day: 0.25
   cap_usd_ask: 0.001
