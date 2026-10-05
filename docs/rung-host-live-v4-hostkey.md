@@ -128,11 +128,15 @@ not see a step.
 
 ## Recommendation
 
-1. Keep the named ladder best-first with `openrouter/free` as the **bottom**
-   rung, never the top. This change is made: it is now the default free
-   ladder and the live template.
+1. The named ladder is the recommended default and stays the shipped
+   default. `openrouter/free` is a documented **opt-in** last resort: bottom
+   rung only, never the top and never alone (it is in the live template, not
+   in the default ladder). It carries the B-qwen caveats: cache efficiency
+   0.319, turn p50 about 25 s, and invented tool names and one echoed header
+   from router-picked models. It is not in the default ladder until a run
+   reaches the bottom rung on the real named ladder.
 2. Keep both fixes. Without fix 1 a router overload pins the host on a dead
-   rung. Without fix 2 the bottom rung cannot exist.
+   rung. Without fix 2 the opt-in bottom rung cannot exist.
 3. Do not adopt the `models` array for now. It works, but it hides the switch
    from the ladder and pays the same cold cache. The ladder already absorbs
    429s with a recorded switch. Revisit it if the 429s inside a turn come to
