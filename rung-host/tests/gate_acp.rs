@@ -213,6 +213,8 @@ fn acp_outward_serves_channels_to_one_agent() {
     // Owner-only extensions, from a peer: refused.
     for (m, p) in [
         ("_rung/stop", json!({"sessionId": peer})),
+        ("_rung/report", json!({"sessionId": peer})),
+        ("_rung/report", json!({"sessionId": observer})),
         (
             "_rung/calendar",
             json!({"sessionId": peer, "id": "peer-item", "in_s": 1, "text": "x"}),
@@ -222,7 +224,7 @@ fn acp_outward_serves_channels_to_one_agent() {
         let id = c.request(m, p);
         c.response(id, 20);
     }
-    // The owner's calendar entry; the observer's status.
+    // The owner's calendar entry; the owner's report.
     let cal = c.request(
         "_rung/calendar",
         json!({"sessionId": owner, "id": "oven", "in_s": 1, "text": "check the oven", "firm": true}),
@@ -230,7 +232,7 @@ fn acp_outward_serves_channels_to_one_agent() {
     c.response(cal, 20);
     let st = c.request("_rung/status", json!({"sessionId": observer}));
     c.response(st, 20);
-    let rp = c.request("_rung/report", json!({"sessionId": observer}));
+    let rp = c.request("_rung/report", json!({"sessionId": owner}));
     let rp = c.response(rp, 20);
     let text = rp["result"]["text"].as_str().unwrap_or_default();
     assert!(

@@ -267,7 +267,7 @@ pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> Str
                 clip(&c.title, 80),
                 clip(&c.done_when, 80)
             ));
-            let ago = st.turn.saturating_sub(c.last_progress_turn);
+            let ago = st.kernel.turns_since_progress;
             s.push_str(&format!(
                 "Last progress: turn {} ({ago} turns ago); next step: {}.\n",
                 c.last_progress_turn,
@@ -385,7 +385,10 @@ mod tests {
         let mut st = crate::state::State::default();
         let r = status_report(&st, 0);
         assert!(r.contains("Free time: no commitment."));
-        assert!(r.contains("nothing on the calendar"));
+        assert!(
+            r.lines().any(|l| l == "Next due: nothing on the calendar."),
+            "{r}"
+        );
 
         st.apply(&ln(
             1,
@@ -404,6 +407,12 @@ mod tests {
             0,
             "kernel.progress",
             serde_json::json!({"turn": 4, "next_step": "water seedlings"}),
+        ));
+        st.apply(&ln(
+            4,
+            0,
+            "turn.started",
+            serde_json::json!({"turn": 5, "turn_kind": "responding"}),
         ));
         st.apply(&ln(
             4,
@@ -432,11 +441,22 @@ mod tests {
             "{r}"
         );
         assert!(
-            r.contains("Last progress: turn 4 (2 turns ago); next step: water seedlings."),
+            r.contains("Last progress: turn 4 (1 turns ago); next step: water seedlings."),
             "{r}"
         );
-        assert!(r.contains("Next due: check the oven"), "{r}");
+        assert!(
+            r.lines()
+                .any(|l| l == "Next due: check the oven (1970-01-01T01:00:00Z, in 1h00m)."),
+            "{r}"
+        );
         assert!(!r.contains("plumber"), "{r}");
+        let r = status_report(&st, 3_600_000 + 120_000);
+        assert!(
+            r.lines()
+                .any(|l| l.starts_with("Next due: check the oven (")
+                    && l.ends_with(", 2m00s overdue).")),
+            "{r}"
+        );
     }
 
     #[test]
