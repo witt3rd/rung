@@ -55,6 +55,8 @@ const CHATTER: &[&str] = &[
     "tool:",
     "output:",
     "exit code",
+    "you're welcome",
+    "anything else",
 ];
 
 /// `Some(observation)` trimmed, or `None` when the turn has no durable
@@ -65,9 +67,7 @@ pub fn distill(o: &Observation) -> Option<Observation> {
     };
     let user = strip_code(user);
     let user = user.trim();
-    if is_ack(user) {
-        return None;
-    }
+    let user = if is_ack(user) { "" } else { user };
     let assistant = conclusion(assistant);
     if assistant.is_empty() && user.split_whitespace().count() < 4 {
         return None;
@@ -127,7 +127,7 @@ fn conclusion(text: &str) -> String {
     let mut n = 0;
     for p in paras.iter().rev() {
         let len = p.chars().count();
-        if n + len > CONCLUSION_CHARS {
+        if n + len + out.len() > CONCLUSION_CHARS {
             if out.is_empty() {
                 let cut: String = p.chars().take(CONCLUSION_CHARS).collect();
                 return cut;
@@ -142,4 +142,29 @@ fn conclusion(text: &str) -> String {
         .map(|s| s.as_str())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn turn(user: &str, assistant: &str) -> Observation {
+        Observation {
+            body: Body::Turn {
+                user: user.into(),
+                assistant: assistant.into(),
+            },
+            attrs: Default::default(),
+        }
+    }
+
+    #[test]
+    fn a_bare_ack_keeps_the_assistants_durable_conclusion() {
+        let kept = distill(&turn("thanks", "The release freeze now starts Thursday.")).unwrap();
+        let Body::Turn { user, assistant } = kept.body else {
+            panic!()
+        };
+        assert!(user.is_empty() && assistant.contains("freeze"));
+        assert!(distill(&turn("thanks", "Okay, noted.")).is_none());
+    }
 }
