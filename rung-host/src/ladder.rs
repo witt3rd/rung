@@ -35,6 +35,19 @@ pub const OPENROUTER_FREE_LADDER: [&str; 5] = [
     "nvidia/nemotron-3-super-120b-a12b:free",
 ];
 
+/// The free router: one request is served by a random free model, so it
+/// is never part of the default. An operator opts in by naming it, last.
+pub const FREE_ROUTER: &str = "openrouter/free";
+
+/// The ladder a host runs when its configuration names none: the named
+/// ladder, best first, and never [`FREE_ROUTER`].
+pub fn default_ladder() -> Vec<String> {
+    OPENROUTER_FREE_LADDER
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
 /// How often a successful listing is refreshed.
 pub const REFRESH_MS: Millis = 6 * HOUR;
 /// How soon a failed listing is tried again.
@@ -320,6 +333,32 @@ pub fn list(lister: &dyn Lister, ladder: &[String], previous: &[bool], now: Mill
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn the_default_ladder_is_the_named_ladder_and_never_the_free_router() {
+        let d = default_ladder();
+        assert_eq!(d.len(), OPENROUTER_FREE_LADDER.len());
+        assert!(d.iter().all(|m| m != FREE_ROUTER), "{d:?}");
+        assert!(d.iter().all(|m| !m.starts_with("openrouter/")), "{d:?}");
+    }
+
+    #[test]
+    fn the_arms_example_keeps_the_free_router_last_and_opt_in() {
+        let text = include_str!("../examples/ladder-arms.yaml");
+        let v: serde_yaml::Value = serde_yaml::from_str(text).unwrap();
+        let arms = |k: &str| -> Vec<String> {
+            v[k].as_sequence()
+                .unwrap()
+                .iter()
+                .map(|m| m.as_str().unwrap().to_string())
+                .collect()
+        };
+        let named = arms("named");
+        assert_eq!(named, default_ladder());
+        let last_resort = arms("with_last_resort");
+        assert_eq!(last_resort.last().map(String::as_str), Some(FREE_ROUTER));
+        assert_eq!(last_resort[..last_resort.len() - 1], named[..]);
+    }
 
     #[test]
     fn a_prober_never_prints_its_key_and_reads_only_a_named_refusal() {

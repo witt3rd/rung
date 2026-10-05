@@ -38,7 +38,7 @@ use crate::desk::{DecisionDesk, DeskMode, SpendCap};
 use crate::engine::TurnEngine;
 use crate::governor::Quota;
 use crate::inbox::{DirSource, Role, Source};
-use crate::ladder::{HttpLister, HttpProber, Lister, OPENROUTER_FREE_LADDER, Prober};
+use crate::ladder::{HttpLister, HttpProber, Lister, Prober, default_ladder};
 use crate::memory::MemoryHost;
 use crate::notify::Notifier;
 use crate::presence::{Host, HostBuilder, Limits, Recovered as Woken};
@@ -303,12 +303,7 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
     if let Some(o) = &f.owner_channel {
         config.owner_channel = o.clone();
     }
-    config.ladder = f.ladder.clone().unwrap_or_else(|| {
-        OPENROUTER_FREE_LADDER
-            .iter()
-            .map(|s| s.to_string())
-            .collect()
-    });
+    config.ladder = f.ladder.clone().unwrap_or_else(default_ladder);
     if config.ladder.is_empty() {
         return Err(refuse("ladder: no rungs"));
     }
