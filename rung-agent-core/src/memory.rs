@@ -290,6 +290,7 @@ impl Hooks {
             return None;
         }
         let (provider, scope) = (provider.clone(), scope.clone());
+        let scope_key = scope.as_str().to_string();
         let sink = rung_std::events::current();
         let handle = std::thread::spawn(move || {
             let _g = sink.map(rung_std::events::install);
@@ -311,19 +312,40 @@ impl Hooks {
                 );
             }
         });
-        PENDING.lock().unwrap().push(handle);
+        PENDING.lock().unwrap().push((scope_key, handle));
         Some(RetainReport::deferred())
     }
 }
 
-static PENDING: std::sync::Mutex<Vec<std::thread::JoinHandle<()>>> =
-    std::sync::Mutex::new(Vec::new());
+type Pending = Vec<(String, std::thread::JoinHandle<()>)>;
+static PENDING: std::sync::Mutex<Pending> = std::sync::Mutex::new(Vec::new());
 
-/// Wait for every retain handed off by [`Hooks::retain`]. Called before a
-/// recall (so a turn sees the one before it) and before the process exits.
+impl Hooks {
+    /// Wait for the retains handed off in this scope, so a recall sees the
+    /// turns before it; retains of other scopes are not waited on.
+    pub fn settle(&self) {
+        let Hooks::On { scope, .. } = self else {
+            return;
+        };
+        let mine = {
+            let mut all = PENDING.lock().unwrap();
+            let (mine, rest) = std::mem::take(&mut *all)
+                .into_iter()
+                .partition(|(k, _)| k == scope.as_str());
+            *all = rest;
+            mine
+        };
+        for (_, h) in mine {
+            let _ = h.join();
+        }
+    }
+}
+
+/// Wait for every retain handed off by [`Hooks::retain`], whatever its
+/// scope. Called before the process exits.
 pub fn settle() {
     let pending = std::mem::take(&mut *PENDING.lock().unwrap());
-    for h in pending {
+    for (_, h) in pending {
         let _ = h.join();
     }
 }
