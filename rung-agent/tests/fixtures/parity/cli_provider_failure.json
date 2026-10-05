@@ -72,8 +72,8 @@
     }
   ],
   "llm_requests": [
-    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
-    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}"
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"session_id\":\"t-fail\"}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"session_id\":\"t-fail2\",\"stream\":true}"
   ],
   "jev_requests": [],
   "mcp_requests": []
