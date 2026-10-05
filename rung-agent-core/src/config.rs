@@ -251,7 +251,7 @@ fn resolve_memory(
             .map(PathBuf::from),
         timeout_secs: match env("RUNG_MEMORY_TIMEOUT_SECS") {
             Some(s) => parse_num("RUNG_MEMORY_TIMEOUT_SECS", &s)?,
-            None => file.and_then(|f| f.timeout_secs).unwrap_or(10),
+            None => file.and_then(|f| f.timeout_secs).unwrap_or(3),
         },
         token: match env("RUNG_MEMORY_TOKEN") {
             Some(t) => {
@@ -611,7 +611,7 @@ llm:
         let none: HashMap<&str, &str> = HashMap::new();
         let m = resolve_memory(None, None, getenv(&none)).unwrap();
         assert_eq!(m.authority, MemoryAuthority::Off);
-        assert_eq!((m.scope, m.dir, m.timeout_secs), (None, None, 10));
+        assert_eq!((m.scope, m.dir, m.timeout_secs), (None, None, 3));
     }
 
     #[test]
