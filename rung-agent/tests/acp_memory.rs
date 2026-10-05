@@ -474,14 +474,8 @@ fn a_provider_returning_junk_is_unavailable_with_a_reason_and_the_turn_ends() {
         reason.contains("not a result object") && reason.contains("502 bad gateway"),
         "{reason}"
     );
-    assert_eq!(m["retain"]["status"], "unretained", "{r}");
-    assert!(
-        m["retain"]["reason"]
-            .as_str()
-            .unwrap()
-            .contains("not a result object"),
-        "{r}"
-    );
+    // Retain runs after the reply; its failure is an event, not the report.
+    assert_eq!(m["retain"]["status"], "deferred", "{r}");
 }
 
 #[test]
