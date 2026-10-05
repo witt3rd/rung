@@ -1099,6 +1099,10 @@ look shorter than it is.
 - `walk_never_returns_a_record_of_another_scope`
 - `walk_over_an_all_in_scope_store_is_never_refused_and_has_no_duplicates`
 
+**`rung-memory/tests/recall_quality.rs`** — 1 unclaimed
+
+- `baseline_recall_quality`
+
 **`rung-memory/tests/ui.rs`** — 1 unclaimed
 
 - `memory_outcomes_cannot_be_fabricated`
