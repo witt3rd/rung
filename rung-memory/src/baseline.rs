@@ -35,6 +35,9 @@ const B: f64 = 0.75;
 /// Added per position in the file, scaled to (0, RECENCY]: a tie-break only.
 const RECENCY: f64 = 0.01;
 
+/// Added per adjacent query-term pair found in a record, when `phrase` is on.
+const PHRASE: f64 = 1.0;
+
 const STOPWORDS: &[&str] = &[
     "a", "an", "and", "are", "as", "at", "be", "but", "by", "can", "do", "does", "for", "from",
     "has", "have", "how", "i", "if", "in", "is", "it", "its", "me", "my", "no", "not", "of", "ok",
@@ -44,8 +47,67 @@ const STOPWORDS: &[&str] = &[
 ];
 
 /// The `baseline` factory for [`crate::Registry`].
+///
+/// The optional `arg` (`baseline:stem,phrase`) turns on ranking options; see
+/// [`Options`]. With no `arg` the ranking is unchanged.
 pub fn factory(s: &ProviderSettings) -> Result<Arc<dyn MemoryProvider>, String> {
-    Ok(Arc::new(Baseline::new(&s.dir)))
+    let options = match &s.arg {
+        Some(a) => Options::parse(a)?,
+        None => Options::default(),
+    };
+    Ok(Arc::new(Baseline::new(&s.dir).with_options(options)))
+}
+
+/// Opt-in ranking changes. Default: all off (plain BM25 plus recency).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Options {
+    /// Fold plural and verb endings (`meetings`/`meeting`, `moved`/`move`)
+    /// on both sides of the match.
+    pub stem: bool,
+    /// Boost a record in which two query terms appear next to each other in
+    /// the query's order.
+    pub phrase: bool,
+}
+
+impl Options {
+    /// `stem`, `phrase`, comma separated; anything else is an error.
+    pub fn parse(arg: &str) -> Result<Self, String> {
+        let mut o = Self::default();
+        for w in arg.split(',').map(str::trim).filter(|w| !w.is_empty()) {
+            match w {
+                "stem" => o.stem = true,
+                "phrase" => o.phrase = true,
+                other => {
+                    return Err(format!(
+                        "baseline: unknown option '{other}' (stem | phrase)"
+                    ));
+                }
+            }
+        }
+        Ok(o)
+    }
+}
+
+/// A crude English suffix fold: enough to join inflections, no dictionary.
+fn stem(w: &str) -> String {
+    let n = w.chars().count();
+    let cut = |k: usize| w.chars().take(n - k).collect::<String>();
+    if n > 4 && w.ends_with("ies") {
+        return cut(3) + "y";
+    }
+    if n > 5 && w.ends_with("ing") {
+        return cut(3);
+    }
+    if n > 4 && w.ends_with("ed") {
+        return cut(2);
+    }
+    if n > 3 && w.ends_with("es") && !w.ends_with("ses") {
+        return cut(2);
+    }
+    if n > 3 && w.ends_with('s') && !w.ends_with("ss") {
+        return cut(1);
+    }
+    w.to_string()
 }
 
 /// See the module docs.
@@ -53,6 +115,7 @@ pub fn factory(s: &ProviderSettings) -> Result<Arc<dyn MemoryProvider>, String> 
 pub struct Baseline {
     dir: PathBuf,
     budget: Budget,
+    options: Options,
 }
 
 impl Baseline {
@@ -60,7 +123,13 @@ impl Baseline {
         Self {
             dir: dir.as_ref().to_path_buf(),
             budget: Budget::default(),
+            options: Options::default(),
         }
+    }
+
+    pub fn with_options(mut self, options: Options) -> Self {
+        self.options = options;
+        self
     }
 
     pub fn with_budget(mut self, budget: Budget) -> Self {
@@ -104,6 +173,15 @@ fn terms(text: &str) -> Vec<String> {
         .collect()
 }
 
+fn terms_with(text: &str, o: Options) -> Vec<String> {
+    let t = terms(text);
+    if o.stem {
+        t.iter().map(|w| stem(w)).collect()
+    } else {
+        t
+    }
+}
+
 fn fnv1a(bytes: &[u8]) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for b in bytes {
@@ -121,11 +199,15 @@ fn normal(text: &str) -> String {
 impl Store for Baseline {
     fn search(&self, scope: &Scope, query: &str, limit: usize) -> Result<Charged<Vec<Hit>>, Miss> {
         let records = self.load(scope)?;
-        let q: HashSet<String> = terms(query).into_iter().collect();
+        let qlist = terms_with(query, self.options);
+        let q: HashSet<String> = qlist.iter().cloned().collect();
         if q.is_empty() || records.is_empty() {
             return Ok(Charged::new(Vec::new()));
         }
-        let docs: Vec<Vec<String>> = records.iter().map(|r| terms(&r.text)).collect();
+        let docs: Vec<Vec<String>> = records
+            .iter()
+            .map(|r| terms_with(&r.text, self.options))
+            .collect();
         let n = docs.len() as f64;
         let avg = docs.iter().map(Vec::len).sum::<usize>() as f64 / n;
         let mut df: HashMap<&str, usize> = HashMap::new();
@@ -146,6 +228,13 @@ impl Store for Baseline {
                 let df = *df.get(t.as_str()).unwrap_or(&0) as f64;
                 let idf = ((n - df + 0.5) / (df + 0.5) + 1.0).ln();
                 score += idf * tf * (K1 + 1.0) / (tf + K1 * (1.0 - B + B * len / avg.max(1.0)));
+            }
+            if score > 0.0 && self.options.phrase {
+                let pairs = qlist
+                    .windows(2)
+                    .filter(|p| d.windows(2).any(|w| w == *p))
+                    .count();
+                score += PHRASE * pairs as f64;
             }
             if score > 0.0 {
                 hits.push((score + RECENCY * (i + 1) as f64 / n, i));
@@ -287,6 +376,20 @@ mod tests {
             ["branch", "deploy"]
         );
         assert!(terms("ok, thanks!").is_empty());
+    }
+
+    #[test]
+    fn options_parse_and_stem() {
+        assert_eq!(Options::parse("").unwrap(), Options::default());
+        let o = Options::parse("stem, phrase").unwrap();
+        assert!(o.stem && o.phrase);
+        assert!(Options::parse("fuzzy").is_err());
+        assert_eq!(stem("meetings"), "meeting");
+        assert_eq!(stem("moved"), "mov");
+        assert_eq!(stem("move"), "move");
+        assert_eq!(stem("policies"), "policy");
+        assert_eq!(stem("pass"), "pass");
+        assert_eq!(terms_with("Moved meetings", o), ["mov", "meeting"]);
     }
 
     #[test]

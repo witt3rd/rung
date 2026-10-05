@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use rung_memory::baseline::Baseline;
+use rung_memory::baseline::{Baseline, Options};
 use rung_memory::{Record, Scope, Store};
 use rung_testkit::TempDir;
 
@@ -39,9 +39,14 @@ fn baseline_recall_quality() {
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/recall"));
     let notes: Vec<Note> = lines(dir.join("notes.jsonl"));
     let questions: Vec<Question> = lines(dir.join("questions.jsonl"));
+    // Optional second set: inflected / reworded questions (same notes).
+    let inflected: Vec<Question> = if dir.join("questions_inflected.jsonl").exists() {
+        lines(dir.join("questions_inflected.jsonl"))
+    } else {
+        Vec::new()
+    };
 
     let tmp = TempDir::new("recall-quality");
-    let b = Baseline::new(tmp.path());
     let scope = Scope::new("fixture");
     let body: String = notes
         .iter()
@@ -56,11 +61,57 @@ fn baseline_recall_quality() {
             serde_json::to_string(&r).unwrap() + "\n"
         })
         .collect();
-    fs::write(b.file(&scope), body).unwrap();
+    fs::write(Baseline::new(tmp.path()).file(&scope), body).unwrap();
 
+    println!("| provider | notes | questions | hit@1 | hit@5 | MRR |");
+    println!("|---|---|---|---|---|---|");
+    let mut default_row = (0.0, 0.0, 0.0);
+    let mut inflected_default = (0.0, 0.0, 0.0);
+    for (set, qs) in [("direct", &questions), ("inflected", &inflected)] {
+        if qs.is_empty() {
+            continue;
+        }
+        for arg in ["", "stem", "phrase", "stem,phrase"] {
+            let b = Baseline::new(tmp.path()).with_options(Options::parse(arg).unwrap());
+            let row = score(&b, &scope, qs, arg.is_empty());
+            println!(
+                "| baseline{} ({set}) | {} | {} | {:.3} | {:.3} | {:.3} |",
+                if arg.is_empty() {
+                    String::new()
+                } else {
+                    format!(":{arg}")
+                },
+                notes.len(),
+                qs.len(),
+                row.0,
+                row.1,
+                row.2
+            );
+            if arg.is_empty() && set == "direct" {
+                default_row = row;
+            }
+            if custom.is_none() && set == "inflected" {
+                match arg {
+                    "" => inflected_default = row,
+                    "stem" => assert!(
+                        row.2 > inflected_default.2 && row.1 >= inflected_default.1,
+                        "stem should beat the default on inflected questions"
+                    ),
+                    _ => {}
+                }
+            }
+        }
+    }
+    let (h1, h5, mrr) = default_row;
+    if custom.is_none() {
+        assert!(h1 >= 0.8 && h5 >= 0.95 && mrr >= 0.88, "recall regressed");
+    }
+}
+
+fn score(b: &Baseline, scope: &Scope, questions: &[Question], verbose: bool) -> (f64, f64, f64) {
     let (mut h1, mut h5, mut mrr) = (0.0, 0.0, 0.0);
-    for q in &questions {
-        let hits = b.search(&scope, &q.q, 5).unwrap().value;
+    for q in questions {
+        let hits = b.search(scope, &q.q, 5).unwrap().value;
         let rank = hits
             .iter()
             .position(|h| q.expect.iter().any(|e| e == h.id.as_str()));
@@ -71,19 +122,11 @@ fn baseline_recall_quality() {
             h5 += 1.0;
             mrr += 1.0 / (r as f64 + 1.0);
         } else {
-            println!("miss: {}", q.q);
+            if verbose {
+                println!("miss: {}", q.q);
+            }
         }
     }
     let n = questions.len() as f64;
-    let (h1, h5, mrr) = (h1 / n, h5 / n, mrr / n);
-    println!("| provider | notes | questions | hit@1 | hit@5 | MRR |");
-    println!("|---|---|---|---|---|---|");
-    println!(
-        "| baseline | {} | {} | {h1:.3} | {h5:.3} | {mrr:.3} |",
-        notes.len(),
-        questions.len()
-    );
-    if custom.is_none() {
-        assert!(h1 >= 0.8 && h5 >= 0.95 && mrr >= 0.88, "recall regressed");
-    }
+    (h1 / n, h5 / n, mrr / n)
 }
