@@ -128,7 +128,7 @@ impl Turnover {
 }
 
 /// Redact, then keep the head and tail of a text over `max` chars.
-fn bound(text: &str, max: usize) -> String {
+pub fn bound(text: &str, max: usize) -> String {
     let text = redact(text.trim());
     let n = text.chars().count();
     if n <= max {
