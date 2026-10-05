@@ -408,7 +408,11 @@ fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<
     }
     for l in lines {
         match (l.role.as_str(), &l.messages) {
-            ("user", _) => messages.push(ChatMessage::user(l.text.clone())),
+            // The recall the turn showed after the ask, in the same bytes.
+            ("user", _) => messages.push(ChatMessage::user(match &l.recalled {
+                Some(block) => crate::memory::shown(&l.text, block),
+                None => l.text.clone(),
+            })),
             // A turn that stopped replays the steps that ran, never its failure.
             ("assistant", turn) if l.failure.is_some() => {
                 messages.extend(turn.iter().flatten().cloned())
@@ -458,6 +462,7 @@ fn turn_line(r: &agent::AgentResult, sent: usize) -> Line {
         text: r.final_response.clone(),
         messages: Some(turn_history(&r.transcript, sent)),
         failure: None,
+        recalled: None,
     }
 }
 
@@ -618,7 +623,11 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         .last()
         .is_some_and(|l| l.role == "user" && (l.text == prompt || l.text == line));
     if !already {
-        sess.lines.push(Line::user(line));
+        sess.lines.push(Line::user(line.clone()));
+    }
+    // This turn's recall, if any, replaces one a turn that never ended kept.
+    if let Some(l) = sess.lines.last_mut() {
+        l.recalled = None;
     }
     sess.kind = args.kind.as_str().into();
     sess.pid = Some(std::process::id());
@@ -752,19 +761,22 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         && let Some(last) = thread.messages.last_mut()
         && last.role == "user"
     {
-        // An all-text prompt goes as its job text, the form a later turn
-        // replays it in, so this ask's bytes are the same then as now.
+        // An all-text prompt goes as its session line, the form a later turn
+        // replays it in, so this ask's bytes are the same then as now. A
+        // marked block an earlier line already holds is in the history, so
+        // it is not sent twice.
         let text_only = blocks
             .iter()
             .all(|b| matches!(b, MessageContentBlock::Text { .. }));
         last.content = if text_only {
-            MessageContent::Text(prompt.clone())
+            MessageContent::Text(sess.lines.last().map_or(line, |l| l.text.clone()))
         } else {
             MessageContent::Blocks(blocks)
         };
     }
-    // Recall: shown to this call only, after the ask. The session keeps the
-    // ask as the user wrote it, so a recall is never replayed.
+    // Recall: shown after the ask. The session line keeps the ask as the
+    // user wrote it and the block beside it (`recalled`), so a later turn
+    // replays this message byte for byte.
     let recent: Vec<String> = sess
         .lines
         .iter()
@@ -779,6 +791,9 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     if let Some((recalled, block)) = memory.recall(cue_text, &recent) {
         if let Some(block) = block {
             crate::memory::inject(&mut thread, &block);
+            if let Some(l) = sess.lines.last_mut().filter(|l| l.role == "user") {
+                l.recalled = Some(block);
+            }
         }
         if let Some(m) = memory_report.as_mut() {
             m.recall = Some(recalled);
@@ -962,6 +977,17 @@ mod tests {
     }
 
     #[test]
+    fn a_user_line_replays_with_its_recall_after_the_text() {
+        let mut ask = Line::user("ask");
+        ask.recalled = Some("## Recalled memory\n> x".into());
+        let t = thread_from(&[ask], None, None);
+        assert_eq!(
+            t.messages[0].content.as_text(),
+            Some("ask\n\n---\n## Recalled memory\n> x")
+        );
+    }
+
+    #[test]
     fn thread_skips_non_chat_roles() {
         let lines = vec![
             Line {
@@ -969,6 +995,7 @@ mod tests {
                 text: "nope".into(),
                 messages: None,
                 failure: None,
+                recalled: None,
             },
             Line::user("hi"),
         ];

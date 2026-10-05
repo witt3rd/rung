@@ -26,6 +26,13 @@ pub struct Line {
     /// sessions.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<String>,
+    /// The recalled-memory block shown after this user line's text on the
+    /// turn that asked it (`memory::shown`), kept so every later turn
+    /// replays that message byte for byte. It is quoted data, never the
+    /// user's words: `text` stays what the user wrote. Absent on other lines,
+    /// on turns that recalled nothing, and on older sessions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recalled: Option<String>,
 }
 
 impl Line {
@@ -35,6 +42,7 @@ impl Line {
             text: text.into(),
             messages: None,
             failure: None,
+            recalled: None,
         }
     }
 
@@ -44,6 +52,7 @@ impl Line {
             text: text.into(),
             messages: None,
             failure: None,
+            recalled: None,
         }
     }
 
@@ -54,6 +63,7 @@ impl Line {
             text: String::new(),
             messages: Some(messages),
             failure: Some(why.into()),
+            recalled: None,
         }
     }
 }
@@ -63,6 +73,7 @@ impl PartialEq for Line {
         self.role == other.role
             && self.text == other.text
             && self.failure == other.failure
+            && self.recalled == other.recalled
             && serde_json::to_value(&self.messages).ok()
                 == serde_json::to_value(&other.messages).ok()
     }

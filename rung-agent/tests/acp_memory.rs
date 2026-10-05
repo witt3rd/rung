@@ -6,7 +6,8 @@
 //!   even when those tools carry the hook names.
 //! - `off`: the response is what it was before memory.
 //! - `baseline` and `mcp:`: a turn retained in one session is recalled in the
-//!   next, as quoted data after the ask, never stored in the session.
+//!   next, as quoted data after the ask, kept beside the ask (never as the
+//!   user's words) so a later turn replays it.
 //! - a slow provider times out and the turn still ends.
 //! - marked context cues nothing, and the session stores it once.
 
@@ -295,14 +296,26 @@ fn assert_recalled(body: &Value, session_a: &str) {
     assert_eq!(body["messages"][0]["role"], "user", "never system text");
 }
 
-fn sessions_hold_no_recall(cwd: &Path) {
+/// A recall is kept only as a user line's `recalled`, never in any line's
+/// `text`: the user's words stay the user's.
+fn sessions_keep_recall_beside_the_ask(cwd: &Path) {
+    let mut kept = 0;
     for e in std::fs::read_dir(cwd.join(".rung/sessions")).unwrap() {
         let text = std::fs::read_to_string(e.unwrap().path()).unwrap();
-        assert!(
-            !text.contains("Recalled memory"),
-            "a recall was stored: {text}"
-        );
+        let sess: Value = serde_json::from_str(&text).unwrap();
+        for l in sess["lines"].as_array().unwrap() {
+            assert!(
+                !l["text"].as_str().unwrap().contains("Recalled memory"),
+                "a recall stored as text: {l}"
+            );
+            if let Some(r) = l["recalled"].as_str() {
+                assert_eq!(l["role"], "user", "{l}");
+                assert!(r.starts_with("## Recalled memory"), "{r}");
+                kept += 1;
+            }
+        }
     }
+    assert_eq!(kept, 1, "the one recall, beside its ask");
 }
 
 #[test]
@@ -329,7 +342,7 @@ fn baseline_retains_in_one_session_and_recalls_in_the_next() {
         "the provider's tools"
     );
     assert!(cwd.join(".rung/memory").is_dir());
-    sessions_hold_no_recall(&cwd);
+    sessions_keep_recall_beside_the_ask(&cwd);
 }
 
 #[test]
@@ -362,7 +375,7 @@ fn an_mcp_provider_retains_and_recalls_through_its_hook_tools() {
         kept.contains("\"scope\":\"rung-scope:") && !kept.contains(&cwd.display().to_string()),
         "{kept}"
     );
-    sessions_hold_no_recall(&cwd);
+    sessions_keep_recall_beside_the_ask(&cwd);
 }
 
 #[test]
@@ -599,14 +612,15 @@ fn a_marked_block_is_stored_on_the_first_turn_it_appears() {
             "about ask three\nask three"
         ]
     );
-    // Each turn the model still sees every block of its own prompt.
-    assert_eq!(user_texts(&sent[1]).last().unwrap(), "orientation\nask two");
+    // Each turn sends its ask as the line a later turn replays: the block
+    // an earlier line holds is already in the history, once.
+    assert_eq!(user_texts(&sent[1]), ["orientation\nask one", "ask two"]);
     assert_eq!(
         user_texts(&sent[2]),
         [
             "orientation\nask one",
             "ask two",
-            "orientation\nabout ask three\nask three"
+            "about ask three\nask three"
         ]
     );
 }
@@ -709,6 +723,6 @@ fn memory_loop_smoke_retain_recall_cue_and_meta() {
     assert!(ids[0].as_str().is_some_and(|s| !s.is_empty()), "{ids:?}");
     assert_eq!(m2["recall"]["calls"], 1);
     assert_eq!(m2["retain"]["status"], "stored");
-    sessions_hold_no_recall(&cwd);
+    sessions_keep_recall_beside_the_ask(&cwd);
     drop(acp);
 }

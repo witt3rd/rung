@@ -64,10 +64,13 @@ wins over the file. A provider over stdio, or `baseline`, ignores it.
    > <record text>
    ```
 
-   The block is never system text and is never written to the session file,
-   so it is not replayed in a later turn. It goes after the message, not in
-   front of it, so the message's bytes are the ones a later turn replays and
-   a provider's cached prefix runs through it.
+   The block is never system text and is never the user's words. The
+   session file keeps it beside the user line it followed, as that line's
+   `recalled` field; the line's `text` stays what the user wrote. A later turn
+   replays the message as it was sent, the user's text, then the block, so a
+   provider's cached prefix runs through the block and the steps after it.
+   Retain, the recall cue and `session/load` history read the user's text
+   only.
 2. **Tools.** The provider's agent tools join the run's tools. A provider
    tool never shadows one of rung's.
 3. **Retain**, after the loop, only for a turn reported `completed`: the
@@ -106,19 +109,20 @@ the provider reported, failed calls included. `latency_ms` is rung's measure.
   as context by setting its standard `annotations.audience` to `["assistant"]`
   (only the assistant, non-empty). The prompt sent to recall and the `user` side
   of a retained turn are then built from the unmarked blocks only. If every
-  block is marked, all text is used; with no marking nothing changes. Marked
-  blocks still reach the model verbatim on the turn that sends them. Where
+  block is marked, all text is used; with no marking nothing changes. A marked
+  block reaches the model verbatim, in the ask that first sends it and in the
+  history replayed after. Where
   each other use of the prompt's text stands:
 
   | use | text | why |
   |---|---|---|
-  | the model, this turn | every block | context is what the model is given to work with |
+  | the model, this turn | the session `user` line below (a prompt with a non-text block: every block) | it is the form a later turn replays, so the cached prefix holds; a block it leaves out is already in the history |
   | recall cue, retained `user` side | the ask | memory is keyed and kept by what was asked |
   | session `user` line (replayed on later turns) | every block, less a marked block an earlier `user` line already holds whole | the replay then shows that context once, not once per turn |
   | turn check `request` | every block | it judges the turn the model ran, which saw every block |
   | job text (`Args.prompt`) | every block | it is the turn check's input and what a resent prompt is matched against |
 
-  So a marked block is stored on the first turn it appears. With no marking,
+  So a marked block is stored, and sent, on the first turn it appears. With no marking,
   or every block marked, the session line is the whole prompt, as before. A
   session has no title made from its prompt: `session/list` titles it by its
   kind.

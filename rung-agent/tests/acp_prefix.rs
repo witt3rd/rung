@@ -5,7 +5,9 @@
 //!
 //! - an all-text ask is sent in the form a later turn replays it in;
 //! - a long tool result is replayed verbatim, not shortened;
-//! - a recall block follows the ask, so the prefix runs through the ask.
+//! - a recall block follows the ask and is replayed with it, so the prefix
+//!   runs through the block and the steps after it;
+//! - a marked context band sent every turn is in the history once.
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -226,7 +228,7 @@ fn a_long_tool_result_is_replayed_verbatim() {
 }
 
 #[test]
-fn a_recall_block_follows_the_ask_and_the_prefix_runs_through_it() {
+fn a_recall_block_follows_the_ask_and_is_replayed_with_it() {
     let dir = rung_testkit::TempDir::new("acp-prefix-recall");
     let (url, rx) = rung_testkit::llm::mock_llm(vec![
         text_reply("Noted."),
@@ -246,15 +248,51 @@ fn a_recall_block_follows_the_ask_and_the_prefix_runs_through_it() {
     let (ask, block) = sent.split_once("\n\n---\n").expect("a recall block");
     assert_eq!(ask, "Which deploy branch?");
     assert!(block.starts_with("## Recalled memory"), "{block}");
-    // The next turn replays the ask without the block: every byte up to the
-    // block is the same.
-    let replayed = &messages(&r3)[3];
-    assert_eq!(replayed, &json!({"role": "user", "content": ask}));
-    let (a, b) = (r2.to_string(), r3.to_string());
-    let common = a.bytes().zip(b.bytes()).take_while(|(x, y)| x == y).count();
-    assert_eq!(
-        &a[common..common + 9],
-        "\\n\\n---\\n",
-        "breaks at the block"
+    // The next turn replays the ask with its block, byte for byte.
+    assert_eq!(messages(&r3)[3], json!({"role": "user", "content": sent}));
+    assert_extends(&r2, &r3);
+}
+
+/// Memory on, a marked context band in front of every ask, and a tool step
+/// after the recall: every request extends the one before, so a turn reads
+/// only its own new messages uncached.
+#[test]
+fn with_memory_and_a_context_band_each_request_extends_the_last() {
+    let dir = rung_testkit::TempDir::new("acp-prefix-band");
+    std::fs::write(dir.join("notes.txt"), "a\nb\nc\n").unwrap();
+    let (url, rx) = rung_testkit::llm::mock_llm(vec![
+        text_reply("Noted."),
+        read_call("call_1", "notes.txt"),
+        text_reply("3 lines; release/x"),
+        text_reply("release/x"),
+    ]);
+    let args = ["--tools", "read"];
+    let mut acp = Acp::start(&dir, &url, &args, &[("RUNG_MEMORY", "baseline")]);
+    let sid = acp.new_session(&dir, json!([]), "Be brief.");
+    let band = json!({"type": "text", "text": "orientation: repo rung",
+                      "annotations": {"audience": ["assistant"]}});
+    let ask = |t: &str| json!([band, {"type": "text", "text": t}]);
+    acp.prompt(&sid, ask("Remember: the deploy branch is release/x"));
+    let r1 = recv(&rx);
+    acp.prompt(
+        &sid,
+        ask("Count the lines of notes.txt; which deploy branch?"),
     );
+    let (r2, r2b) = (recv(&rx), recv(&rx));
+    acp.prompt(&sid, ask("Which deploy branch, again?"));
+    let r3 = recv(&rx);
+    let recalled = messages(&r2)[3]["content"].as_str().unwrap();
+    assert!(
+        recalled.contains("\n\n---\n## Recalled memory"),
+        "{recalled}"
+    );
+    assert_extends(&r1, &r2);
+    assert_extends(&r2, &r2b);
+    assert_extends(&r2b, &r3);
+    // The band is in the history once, in the first ask that sent it.
+    let banded = messages(&r3)
+        .iter()
+        .filter(|m| m.to_string().contains("orientation: repo rung"))
+        .count();
+    assert_eq!(banded, 1, "{r3}");
 }
