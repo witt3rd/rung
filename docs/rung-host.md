@@ -371,7 +371,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `expectation.made` / `.revised` / `.settled` | the expectation register; a settlement has `state`, `p`, `surprise`, `settled_by`, `calibration` |
 | `outbox.queued` | `channel`, `text`, `source` (`agent`, or the host's: `host:blocked`, `host:ack` with the owner `item` it acknowledges) |
 | `tools.wanted` | `group`, `why` |
-| `memory.recall` / `memory.retain` | the provider's report; `memory.recall` also has `cached` (answered from the last identical recall within 60 s, none retained since; context is the newest 5 entries, each clipped to 500 chars) |
+| `memory.recall` / `memory.retain` | the provider's report; `memory.recall` also has `cached` (answered from the last identical recall within 60 s, none retained since; context is the newest 3 entries, each bounded to about 500 chars) |
 | `degraded` / `degraded.ended` | `class` (`paced`, `quota`, `backoff`, `blocked`), `until`, `why`; `waited_ms` |
 | `model.switch` | `from`, `to`, `direction` (`down`, `up`), `why` (`provider …`, `probe: …`, `listing: …`) |
 | `ladder.refused` | `rung`, `model`, `reasons` (the router's `ineligibility_reasons`), `by` (`probe` when a keyed probe found it): unavailable until the next listing |

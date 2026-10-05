@@ -10,16 +10,13 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use rung_agent_core::memory::{CONTEXT_CHARS, CONTEXT_ITEMS, PROMPT_CHARS, bound};
 use rung_memory::{
     Body, Cue, MemoryProvider, Observation, RecallReport, RetainReport, Scope, baseline::Baseline,
 };
 
 /// How long an identical recall is answered from the last one.
 const RECALL_TTL: Duration = Duration::from_secs(60);
-/// Per-entry clip of the recent-context cue, in chars.
-const CONTEXT_CLIP: usize = 500;
-/// Most recent-context entries a cue carries.
-const CONTEXT_MAX: usize = 5;
 
 type Last = (Cue, Instant, RecallReport, Option<String>);
 
@@ -65,16 +62,18 @@ impl MemoryHost {
         prompt: &str,
         context: Vec<String>,
     ) -> (RecallReport, Option<String>, bool) {
-        let skip = context.len().saturating_sub(CONTEXT_MAX);
+        let skip = context.len().saturating_sub(CONTEXT_ITEMS);
         let cue = Cue {
-            prompt: prompt.chars().take(2_000).collect(),
-            context: context
-                .into_iter()
-                .skip(skip)
-                .map(|c| c.chars().take(CONTEXT_CLIP).collect())
+            prompt: bound(prompt, PROMPT_CHARS),
+            context: context[skip..]
+                .iter()
+                .map(|c| bound(c, CONTEXT_CHARS))
                 .collect(),
         };
-        if let Some((c, at, r, b)) = &*self.last.lock().unwrap()
+        // Held across the provider call so a concurrent `retain` cannot
+        // be followed by a stale write of this recall.
+        let mut last = self.last.lock().unwrap();
+        if let Some((c, at, r, b)) = &*last
             && *c == cue
             && at.elapsed() < RECALL_TTL
         {
@@ -85,7 +84,7 @@ impl MemoryHost {
         let block = evidence.map(|e| e.render());
         // A failed recall is not worth repeating from memory.
         if report.status != "unavailable" {
-            *self.last.lock().unwrap() = Some((cue, Instant::now(), report.clone(), block.clone()));
+            *last = Some((cue, Instant::now(), report.clone(), block.clone()));
         }
         (report, block, false)
     }
@@ -183,11 +182,11 @@ mod tests {
             .collect();
         m.recall("q", ctx);
         let cue = p.cues.lock().unwrap()[0].clone();
-        assert_eq!(cue.context.len(), CONTEXT_MAX);
+        assert_eq!(cue.context.len(), CONTEXT_ITEMS);
         assert!(
             cue.context
                 .iter()
-                .all(|c| c.chars().count() <= CONTEXT_CLIP)
+                .all(|c| c.chars().count() < CONTEXT_CHARS + 40)
         );
         // The newest entries survive.
         assert!(cue.context.last().unwrap().starts_with('8'));
