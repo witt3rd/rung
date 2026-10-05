@@ -148,7 +148,7 @@ failures are outcomes, never a failed turn.
 Tests: `rung-agent/tests/acp_memory.rs` drives ACP with a mock model and
 the reference provider `rung-agent --memory-fixture` (stdio, `--file` to
 persist across the per-prompt respawn). `rung-agent --memory-check SETTING`
-runs the contract against any provider. Product crate, not kernel:
+runs the contract against any provider; `--memory-score` scores recall on your own notes (`docs/rung-memory.md`). Product crate, not kernel:
 `rung-memory` is `publish = false`.
 
 ## Config
