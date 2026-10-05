@@ -587,7 +587,8 @@ pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
     // inside a 2xx) is classified as the error it names.
     if let Ok(v) = serde_json::from_str::<serde_json::Value>(text)
         && v.get("error").is_some()
-        && v.get("choices").is_none()
+        && v.get("choices")
+            .is_none_or(|c| c.as_array().is_some_and(|a| a.is_empty()))
         && let Some(err) = parse_sse_error(text)
     {
         return Err(err);
@@ -1163,15 +1164,18 @@ mod tests {
     #[test]
     fn an_error_body_in_a_2xx_is_the_error_it_names() {
         let body = r#"{"id":"gen-1","error":{"message":"Upstream error from Nvidia: Service temporarily overloaded","code":503,"metadata":{"error_type":"provider_overloaded"}}}"#;
-        assert!(matches!(
-            parse_json(body),
-            Err(RawCallError::ProviderInternal { status: 503, .. })
-        ));
-        let frame = vec![format!("data: {body}")];
-        assert!(matches!(
-            parse_sse(&frame, None),
-            Err(RawCallError::ProviderInternal { status: 503, .. })
-        ));
+        let empty = body.replacen(r#""id":"gen-1","#, r#""id":"gen-1","choices":[],"#, 1);
+        for body in [body, empty.as_str()] {
+            assert!(matches!(
+                parse_json(body),
+                Err(RawCallError::ProviderInternal { status: 503, .. })
+            ));
+            let frame = vec![format!("data: {body}")];
+            assert!(matches!(
+                parse_sse(&frame, None),
+                Err(RawCallError::ProviderInternal { status: 503, .. })
+            ));
+        }
     }
 
     #[test]
