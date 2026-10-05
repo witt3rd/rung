@@ -85,5 +85,8 @@ continues in a new epoch.
 - From another shell: `touch demo/STOP`. The host writes a `halted` line and
   exits 0. Remove the file before starting again.
 
+For memory (a provider container, `_meta.rung.memory`, `cached_tokens`) see
+[rung-memory-walkthrough.md](rung-memory-walkthrough.md).
+
 This example is run in CI (`rung-host/tests/quickstart.rs`), so it stays
 true.

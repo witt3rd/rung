@@ -191,6 +191,9 @@ def main():
                           "Thanks. What is the last note's number?"):
         r = acp.call("session/prompt", {"sessionId": sid, "prompt": [{"type": "text", "text": ask}]})
         print("turn:", r.get("result", {}).get("stopReason") or r.get("error"))
+        mem = ((r.get("result") or {}).get("_meta") or {}).get("rung", {}).get("memory")
+        if mem is not None:
+            print("memory:", json.dumps(mem, separators=(",", ":")))
     acp.p.kill()
 
     out = Path(a.out) if a.out else Path(tempfile.mkdtemp(prefix="cache-probe-"))
