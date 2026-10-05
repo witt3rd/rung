@@ -78,6 +78,12 @@ and one run cannot show it works. The next free-time run should set the key
 and compare: turns without a tool call, filler turns, retained candidates,
 and whether `ws_list`/`memory_search` replace "Quiet".
 
+**Known limit (checked with a mock engine, `gate_engine.rs`):** the host does
+not accept an empty model reply as a valid turn. The engine counts it as
+provider-output degradation (`degraded`, class `output`, backoff). Until that
+is changed in the host, rule 6 asks for something the host penalises, so keep
+the key off; it stays opt-in and the host was not widened here.
+
 What it does not fix: turns still start every few seconds with nothing
 admitted, so quota is spent either way. Pacing idle turns is a separate
 host change, not free-time material.

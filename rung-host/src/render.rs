@@ -19,7 +19,7 @@ Free time. When nothing is asked of you and you have no commitment, the turn is 
 3. Follow it across turns if it keeps going.
 4. Leave a trace with `trace`: what pulled you, where it went, what is unresolved. A scribble, not a report.
 5. Keep what you found: save real findings to memory.
-You may also commit to a project with `commit`; it then continues until you `release` it.
+{IDLE}You may also commit to a project with `commit`; it then continues until you `release` it.
 Places to look, as examples only: something you remembered, something you read, the world outside, something to make, a memory search.";
 
 /// An optional sixth free-time rule (`free_time_idle_rule`): idle is fine,
@@ -43,14 +43,12 @@ How this host works.
 
 /// The stable system text: identity, contract, rules, pinned memory.
 pub fn system(cfg: &HostConfig) -> String {
-    let mut s = format!(
-        "{}\n\n{HOST_CONTRACT}\n\n{FREE_TIME_RULES}",
-        cfg.identity.trim()
-    );
-    if cfg.free_time_idle_rule {
-        s.push('\n');
-        s.push_str(FREE_TIME_IDLE_RULE);
-    }
+    let rules = if cfg.free_time_idle_rule {
+        FREE_TIME_RULES.replace("{IDLE}", &format!("{FREE_TIME_IDLE_RULE}\n"))
+    } else {
+        FREE_TIME_RULES.replace("{IDLE}", "")
+    };
+    let mut s = format!("{}\n\n{HOST_CONTRACT}\n\n{rules}", cfg.identity.trim());
     if !cfg.pinned.is_empty() {
         s.push_str("\n\nPinned:\n");
         for p in &cfg.pinned {
@@ -395,7 +393,10 @@ mod tests {
         let mut cfg = HostConfig::new(std::path::PathBuf::from("ws"));
         assert!(!system(&cfg).contains(FREE_TIME_IDLE_RULE));
         cfg.free_time_idle_rule = true;
-        assert!(system(&cfg).ends_with(FREE_TIME_IDLE_RULE));
+        let sys = system(&cfg);
+        let i = sys.find(FREE_TIME_IDLE_RULE).unwrap();
+        assert!(sys[..i].ends_with("memory.\n"));
+        assert!(sys[i..].contains("You may also commit"));
     }
 
     #[test]

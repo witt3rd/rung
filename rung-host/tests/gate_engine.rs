@@ -169,3 +169,49 @@ fn the_engine_adapter_runs_the_host_against_a_loopback_provider() {
     let g = gates::g_n(&out.lines, &seen);
     assert_gate(&g);
 }
+
+#[test]
+fn an_empty_model_reply_is_provider_output_degradation() {
+    sim::test_timeout(600);
+    let clock = Arc::new(SimClock::new(SIM_START));
+    let c2 = clock.clone();
+    let provider = LoopbackProvider::start(move |r: &Request<'_>| {
+        c2.advance(20 * SECOND);
+        let model = r.body["model"].as_str().unwrap_or("").to_string();
+        let served = Served {
+            model: format!("{model}-served"),
+            prompt: 10,
+            cached: 0,
+            cache_write: 0,
+            completion: 0,
+            cost_usd: 0.0,
+        };
+        Reply::completion("Upstream", None, &[], served)
+    });
+    let mut sc = scenario("gate-n-empty", 37);
+    let workspace = sc.dir.join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    sc.config.engine = "agent".into();
+    sc.config.ladder = LADDER.iter().map(|s| s.to_string()).collect();
+    sc.config.free_time_idle_rule = true;
+    sc.memory = false;
+    sc.max_turns = Some(3);
+    sc.clock = Some(clock.clone());
+    let ac = AdapterConfig::new(&provider.url, "test-key-not-a-secret", &workspace);
+    sc.engine = Some(Arc::new(
+        AgentEngine::new(ac, clock.clone()).expect("engine"),
+    ));
+    let out = sim::run(sc);
+    let degraded: Vec<_> = out
+        .lines
+        .iter()
+        .filter(|l| l.kind == "degraded")
+        .map(|l| l.to_value())
+        .collect();
+    assert!(!degraded.is_empty(), "an empty reply is not a clean turn");
+    assert!(
+        degraded
+            .iter()
+            .all(|d| d["failure"]["class"] == "output" && d["failure"]["origin"] == "provider")
+    );
+}
