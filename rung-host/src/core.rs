@@ -72,6 +72,9 @@ pub struct HostConfig {
     pub governor: GovConfig,
     /// The owner's channel name.
     pub owner_channel: String,
+    /// Add [`crate::render::FREE_TIME_IDLE_RULE`] to the free-time rules
+    /// (off by default).
+    pub free_time_idle_rule: bool,
     /// Projects the operator seeds (id, title, why).
     pub seed_projects: Vec<(String, String, String)>,
     /// Write queued outbox messages here as `*.msg` files, if set.
@@ -103,6 +106,7 @@ impl HostConfig {
             tool_deadline_ms: 30 * SECOND,
             governor: GovConfig::default(),
             owner_channel: "owner".into(),
+            free_time_idle_rule: false,
             seed_projects: Vec::new(),
             outbox_dir: None,
             workspace,

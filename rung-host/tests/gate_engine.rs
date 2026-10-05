@@ -169,3 +169,41 @@ fn the_engine_adapter_runs_the_host_against_a_loopback_provider() {
     let g = gates::g_n(&out.lines, &seen);
     assert_gate(&g);
 }
+
+#[test]
+fn a_one_line_idle_reply_is_a_normal_turn() {
+    sim::test_timeout(600);
+    let clock = Arc::new(SimClock::new(SIM_START));
+    let c2 = clock.clone();
+    let provider = LoopbackProvider::start(move |r: &Request<'_>| {
+        c2.advance(20 * SECOND);
+        let model = r.body["model"].as_str().unwrap_or("").to_string();
+        let served = Served {
+            model: format!("{model}-served"),
+            prompt: 10,
+            cached: 0,
+            cache_write: 0,
+            completion: 0,
+            cost_usd: 0.0,
+        };
+        Reply::completion("Upstream", Some("Nothing to do."), &[], served)
+    });
+    let mut sc = scenario("gate-n-empty", 37);
+    let workspace = sc.dir.join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    sc.config.engine = "agent".into();
+    sc.config.ladder = LADDER.iter().map(|s| s.to_string()).collect();
+    sc.config.free_time_idle_rule = true;
+    sc.memory = false;
+    sc.max_turns = Some(3);
+    sc.clock = Some(clock.clone());
+    let ac = AdapterConfig::new(&provider.url, "test-key-not-a-secret", &workspace);
+    sc.engine = Some(Arc::new(
+        AgentEngine::new(ac, clock.clone()).expect("engine"),
+    ));
+    let out = sim::run(sc);
+    let ended = out.lines.iter().filter(|l| l.kind == "turn.ended").count();
+    assert_eq!(ended, 3);
+    assert!(!out.lines.iter().any(|l| l.kind == "degraded"));
+    assert_eq!(provider.seen().len(), 3, "one call per turn, no retry");
+}
