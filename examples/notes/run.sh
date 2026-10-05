@@ -19,6 +19,7 @@ second=$("$bin" --tools none "Which deploy branch do we use?")
 echo "$second"
 if [ -z "${LIVE:-}" ]; then
   # the second request carried the note from the first session
-  grep -q "deploy branch is release/x" port.requests && sed -n 2p port.requests | grep -q "Recalled memory"
+  grep -q "deploy branch is release/x" port.requests
+  sed -n 2p port.requests | grep -q "Recalled memory"
 fi
 echo "ok: notes"
