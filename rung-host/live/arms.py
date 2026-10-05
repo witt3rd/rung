@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Per-arm measures beside analyze.py: which models served (the response's
-model field), failure rate and classes, malformed tool calls, cache hit per
-served model and across served-model changes, and a sample of turns for a
-coherence reading.
+"""Per-arm measures beside analyze.py, which owns the loader and the shared
+measures (served models, cache efficiency): this adds failure rate and
+classes, malformed tool calls, cache hit per served model and across
+served-model changes, and a sample of turns for a coherence reading.
 
 usage: arms.py RUN_DIR [--json OUT.json] [--sample OUT.md] [-n N] [--seed S]
 
@@ -15,21 +15,14 @@ import argparse
 import json
 import random
 import re
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from analyze import extra, l4, load, of  # noqa: E402  one loader, one definition of each measure
+
 ARG_ERR = re.compile(r"missing field|invalid type|unknown field|invalid value|expected .* at line", re.I)
-
-
-def load(run):
-    out = []
-    for f in sorted((run / "state" / "record").glob("*")):
-        for raw in open(f):
-            raw = raw.strip()
-            if raw:
-                out.append(json.loads(raw))
-    out.sort(key=lambda d: d["seq"])
-    return out
 
 
 def ratio(a, b):
@@ -39,8 +32,8 @@ def ratio(a, b):
 def measure(lines):
     turns = Counter()
     classes = Counter()
-    calls = [d for d in lines if d["kind"] == "llm.call"]
-    served = Counter(d.get("model_served") or "?" for d in calls)
+    calls = of(lines, "llm.call")
+    served = Counter(extra(lines)["served"])
     requested = Counter(d.get("model_requested") or "?" for d in calls)
     mismatch = sum(1 for d in calls if d.get("model_served") != d.get("model_requested"))
     per = defaultdict(lambda: [0, 0, 0])  # prompt, cached, calls
@@ -97,8 +90,6 @@ def measure(lines):
                     text = b.get("text", "")
                     malformed += text.count("could not be executed because its arguments were malformed")
     total = sum(turns.values())
-    prompt = sum(d.get("prompt_tokens", 0) for d in calls)
-    cached = sum(d.get("cached_tokens", 0) for d in calls)
     return {
         "turns": dict(turns),
         "turns_total": total,
@@ -110,7 +101,7 @@ def measure(lines):
         "served_ne_requested": mismatch,
         "served_switches": switches,
         "completed_by_turn_model": dict(completed_by),
-        "cache_efficiency": ratio(cached, prompt),
+        "cache_efficiency": l4(lines)["cache_efficiency"],
         "cache_by_served": {m: {"calls": v[2], "efficiency": ratio(v[1], v[0])} for m, v in per.items()},
         "cache_same_model_as_prev_call": ratio(same[1], same[0]),
         "cache_after_served_switch": ratio(switched[1], switched[0]),
