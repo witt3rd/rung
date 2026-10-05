@@ -788,7 +788,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         wrap_tools: tool_wraps(emitter.as_ref(), &extra),
         request: request_text.clone(),
         earlier,
-        session_id: Some(id.clone()),
+        session_id: turn_session_id(engine.llm(), &id),
         ..TurnCtl::default()
     };
     match engine.turn(thread, ctl).outcome {
@@ -883,9 +883,22 @@ fn tool_wraps(emitter: Option<&Arc<crate::stream::Emitter>>, extra: &JobEx) -> V
     wraps
 }
 
+fn turn_session_id(llm: &LlmConfig, id: &str) -> Option<String> {
+    llm.is_openrouter().then(|| id.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_an_openrouter_route_gets_the_session_id() {
+        let mut c = crate::config::dummy();
+        c.base_url = "http://127.0.0.1:1/v1".into();
+        assert_eq!(turn_session_id(&c, "s1"), None);
+        c.base_url = "https://openrouter.ai/api/v1".into();
+        assert_eq!(turn_session_id(&c, "s1"), Some("s1".into()));
+    }
 
     fn texts(parts: &[(&str, bool)]) -> Vec<PromptText> {
         parts

@@ -48,7 +48,7 @@
     }
   ],
   "llm_requests": [
-    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"the prompt\"}],\"session_id\":\"<id1>\"}"
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"the prompt\"}]}"
   ],
   "jev_requests": [],
   "mcp_requests": []
