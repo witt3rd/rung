@@ -1,9 +1,9 @@
 # Quickstart: rung-agent with memory
 
-Informative. The contract is [rung-memory.md](rung-memory.md). Every command
-below was run as written (rung-agent built from this tree, a local
-OpenAI-compatible endpoint named in `config.yaml`, the Jev-Mem provider image
-in its offline `--jev fake` mode).
+Informative. The contract is [rung-memory.md](rung-memory.md). The baseline
+and `--memory-fixture` commands below were run as written against rung-agent
+built from this tree. The turn examples need an OpenAI-compatible endpoint
+named in `config.yaml`. No live provider was measured; see section 5.
 
 Memory is off by default. One setting turns it on; the first surface set wins:
 `--memory X`, then `RUNG_MEMORY=X`, then `memory: { provider: X }` in
@@ -24,30 +24,22 @@ The second turn is shown the first (see section 3). Or set it once:
 export RUNG_MEMORY=baseline
 ```
 
-## 2. An MCP provider (Jev-Mem container)
+## 2. An MCP provider
 
-Clone [`witt3rd/rung-memory-jevmem`](https://github.com/witt3rd/rung-memory-jevmem),
-build the image once (`docker/run.sh build`, about 2 minutes), then one command:
-
-```bash
-docker/run.sh serve --jev fake      # offline, zero spend
-# live Jev through OpenRouter, capped by the provider's spend ledger:
-doppler run -p fleet -c dev_work -- docker/run.sh serve --jev live
-```
-
-It listens on `127.0.0.1:9000` (`/mcp`, health at `/healthz`) and keeps its
-store in `./data` (or `$JEVMEM_HOST_DATA`). Check it, then point rung at it:
+Any provider that speaks the contract works: `mcp:URL` for HTTP, or
+`mcp:COMMAND` to start one on stdio. rung ships a reference provider,
+`--memory-fixture`. Check it, then use it:
 
 ```bash
-curl -s 127.0.0.1:9000/healthz
-# {"ok":true,"marker":"rung-memory/1","backend":"fake"}
-rung-agent --memory-check mcp:http://127.0.0.1:9000/mcp     # 7 lines, all "pass"
-rung-agent --memory mcp:http://127.0.0.1:9000/mcp --json --tools none "My deploy day is Thursday. Reply ok."
+rung-agent --memory-check "mcp:rung-agent --memory-fixture --file /tmp/mem.jsonl"
+# 7 lines, all "pass"
+rung-agent --memory "mcp:rung-agent --memory-fixture --file /tmp/mem.jsonl" --json --tools none "My deploy day is Thursday. Reply ok."
 ```
 
-Or in `config.yaml`: `memory: { provider: "mcp:http://127.0.0.1:9000/mcp" }`.
-Prefer HTTP to stdio: a stdio provider is started once per prompt and reloads
-its model each time.
+Or in `config.yaml`: `memory: { provider: "mcp:rung-agent --memory-fixture --file /tmp/mem.jsonl" }`.
+A stdio provider is started once per prompt, so `--file` is what lets records
+outlive it. For a long-running provider prefer HTTP:
+`--memory mcp:http://HOST:PORT/mcp`.
 
 ## 3. See what was recalled
 
@@ -79,22 +71,21 @@ one.
   (`$RUNG_HOME/memory/` when a scope is set; `RUNG_MEMORY_DIR` overrides).
   Inspect: `cat .rung/memory/*.jsonl` (each line has `id`, `scope`, `text`,
   `observed_at`). Reset: delete the file.
-- **Jev-Mem**: stores live under `<data>/scopes/<salted-hash>/`, so a
-  directory cannot be mapped back to a scope name. Inspect from the agent with
-  its `memory_search` and `memory_stats` tools. Reset one scope by switching
-  to a new `RUNG_MEMORY_SCOPE`; reset everything by stopping the container and
-  removing the data directory (`rm -rf ./data`).
+- **fixture** (`--file PATH`): one JSON record per line. Inspect: `cat PATH`.
+  Reset: delete the file.
+- **other providers**: use the provider's own tools and documentation. Reset
+  one scope by switching to a new `RUNG_MEMORY_SCOPE`.
 
 ## 5. Cost and latency
 
-Measured here on the offline provider and local endpoint; the live figures are
-the provider repository's (its README and W4 report), not re-measured here.
+Every hook reports `calls`, `cost_usd` and `latency_ms` in the `memory` object
+(section 3), so measure your own provider there.
 
 | setting | per-turn memory cost | memory latency |
 |---|---|---|
 | `baseline` | `$0` | under 1 ms (`latency_ms: 0`) |
-| `mcp:` Jev-Mem, `--jev fake` | about `$0.00003` (simulated) | 12 to 15 ms per hook |
-| `mcp:` Jev-Mem, `--jev live` | Jev asks, about `$0.00005` each, capped by `--cap-usd` (default `0.05`) | Jev about 0.2 s an ask; W4 unloaded recall p95 2.83 s against rung's 10 s hook timeout |
+| `--memory-fixture` | `$0.0001` per hook call | local process, no model |
+| other `mcp:` provider | what it declares as `max_cost_usd` at most | what it takes, up to `timeout_secs` |
 
 A recall costing more than the provider's declared `max_cost_usd` is
 `unavailable`, not evidence. A hook over `timeout_secs` (default 10) is
