@@ -1050,6 +1050,10 @@ look shorter than it is.
 
 - `admission_latency_by_long_work_share`
 
+**`rung-host/tests/quickstart.rs`** — 1 unclaimed
+
+- `the_quickstart_example_runs`
+
 **`rung-host/tests/run_config.rs`** — 12 unclaimed
 
 - `a_bad_desk_or_an_unset_desk_key_is_refused`
