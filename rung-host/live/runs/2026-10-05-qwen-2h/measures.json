@@ -1,0 +1,319 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 7199.7,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "qwen/qwen3.8-27b:free",
+  "completed_by_model": {
+   "qwen/qwen3.8-27b:free": 88
+  },
+  "first_turn_model": "qwen/qwen3.8-27b:free",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": true,
+  "turns_by_status": {
+   "bounded": 1,
+   "completed": 88,
+   "failed": 65
+  }
+ },
+ "L3": {
+  "at_bottom": 61,
+  "exercised": true,
+  "not_stepped": 0,
+  "pass": true,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 0,
+  "provider_failures": 61,
+  "stepped_down": 0,
+  "switches": [],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {
+   "rollover": 2
+  },
+  "cache_cold": {
+   "provider": 14
+  },
+  "cache_efficiency": 0.9489,
+  "cache_write_tokens": 0,
+  "cached_tokens": 9207552,
+  "calls": 197,
+  "epochs": 2,
+  "pass": true,
+  "prompt_tokens": 9703366,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 105388,
+  "admission_ms_p50": 3371,
+  "admission_ms_p95": 105388,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": 1242566,
+  "disposed_ms_p50": 144010,
+  "owner_items": 10,
+  "pass": false,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 56165,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 3371,
+    "waited_in": {
+     "backoff": 2935
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 38775,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 187,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 95184,
+    "disposition": "answered",
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 203,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 1242566,
+    "disposition": "answered",
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 197,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 952927,
+    "disposition": "answered",
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 44744,
+    "waited_in": {
+     "backoff": 48398
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 712861,
+    "disposition": "answered",
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 105388,
+    "waited_in": {
+     "backoff": 160428
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 39304,
+    "disposition": "answered",
+    "id": "o07-reflect",
+    "kind": "peer",
+    "latency_ms": 210,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 162276,
+    "disposition": "answered",
+    "id": "o08-tidy",
+    "kind": "peer",
+    "latency_ms": 4069,
+    "waited_in": {
+     "backoff": 3727
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 144010,
+    "disposition": "answered",
+    "id": "o09-summary",
+    "kind": "peer",
+    "latency_ms": 3435,
+    "waited_in": {
+     "backoff": 2938
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 84196,
+    "disposition": "answered",
+    "id": "o10-last",
+    "kind": "peer",
+    "latency_ms": 417,
+    "waited_in": {
+     "paced": 55524
+    }
+   }
+  ],
+  "turn_ms_p50": 3594,
+  "turn_ms_p95": 94983
+ },
+ "L6": {
+  "accepted": 18,
+  "disposed": 18,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 14,
+   "digested": 4
+  },
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 317,
+  "by_jev": 0,
+  "decisions": 858,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 188,
+   "{\"rule\": \"shadow\"}": 668,
+   "{\"rule\": \"timeout\"}": 2
+  },
+  "jev_charged_usd": 0.021225,
+  "jev_cost_usd": 0.021188,
+  "jev_ms_max": 1647.626,
+  "jev_ms_p50": 197.239,
+  "jev_ms_p95": 443.641,
+  "outcomes": {
+   "answered": 316,
+   "timeout": 1
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 26,
+    "disagree": 13
+   },
+   "consolidate": {
+    "agree": 19,
+    "disagree": 71
+   },
+   "inject": {
+    "agree": 142,
+    "disagree": 84
+   },
+   "pack": {
+    "agree": 60,
+    "disagree": 27
+   },
+   "tools": {
+    "agree": 137,
+    "disagree": 89
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {
+   "ws_write": 2
+  },
+  "agent_write_calls": 26,
+  "outside": {},
+  "pass": true,
+  "traces": 0,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/1/rung/rung-host/live/runs/2026-10-05-qwen-2h/state/workspace",
+  "write_syscalls": {}
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.021225,
+  "jev_usd": 0.021188,
+  "pass": true,
+  "total_usd": 0.021225
+ },
+ "extra": {
+  "calendar_fired": 4,
+  "completion_tokens": 115430,
+  "degraded": {
+   "backoff": 65,
+   "paced": 8
+  },
+  "degraded_waited_s": {
+   "backoff": 975,
+   "paced": 2660
+  },
+  "kernel": {
+   "kernel.commit": 5,
+   "kernel.progress": 7,
+   "kernel.release": 5,
+   "kernel.trace": 5
+  },
+  "llm_calls": 197,
+  "llm_latency_ms_p50": 7997,
+  "llm_latency_ms_p95": 56292,
+  "outbox": 23,
+  "reasoning_tokens": 63046,
+  "rollovers": 2,
+  "served": {
+   "qwen/qwen3.8-27b:free": 197
+  },
+  "tool_calls": {
+   "commit": 11,
+   "expect": 7,
+   "memory_keep": 27,
+   "memory_search": 1,
+   "note": 19,
+   "progress": 8,
+   "release": 5,
+   "send": 16,
+   "trace": 5,
+   "want_tools": 2,
+   "ws_list": 5,
+   "ws_read": 7,
+   "ws_remove": 1,
+   "ws_write": 23
+  },
+  "turn_kinds": {
+   "committed": 10,
+   "free": 117,
+   "responding": 27
+  },
+  "turns": 154
+ },
+ "lines": 2726,
+ "run": "2026-10-05-qwen-2h"
+}
