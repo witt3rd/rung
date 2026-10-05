@@ -7,6 +7,9 @@ git tags only.
 
 ## [Unreleased]
 
+### Added
+- Memory: opt-in retain distillation, `RUNG_MEMORY_RETAIN=distill` (#226).
+
 ## [0.2.2] - 2026-10-06
 
 Patch bump: backward compatible fixes and additions.
