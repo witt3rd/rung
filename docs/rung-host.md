@@ -358,7 +358,6 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `stimulus.requeued` | `ids`, `why` |
 | `stimulus.disposed` | `id`, `disposition` (`answered`, `digested`, `withdrawn`, `control`), `turn` |
 | `channel.opened` | `session`, `role`, `channel` (an ACP channel) |
-| `stimulus.rejected` | `file`, `why` |
 | `calendar.added` / `.fired` / `.skipped` / `.removed` | an entry; a fire has `id`, `due`, `late_by_ms`, `missed`, `firm`, `item_id` |
 | `decision.<family>` | `boundary`, `turn`, `input_hash`, `questions_hash`, `answers`, `choice`, `by` (`{"jev": {backend, model, cost_usd}}` or `{"rule": why}`), `rule_choice` and `agree` in shadow mode, `wall_us` |
 | `turn.started` | `turn`, `turn_kind`, `mode`, `project`, `model`, `rung`, `epoch`, `pack_tokens`, `header_tokens`, `enabled`, `wall_boundary_us` |
