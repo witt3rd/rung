@@ -316,7 +316,6 @@ fn distilling() -> bool {
     std::env::var("RUNG_MEMORY_RETAIN").is_ok_and(|v| v.trim() == "distill")
 }
 
-
 /// The separator between a user message and the recalled block after it.
 const BLOCK_SEP: &str = "\n\n---\n";
 
