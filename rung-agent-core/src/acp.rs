@@ -900,12 +900,15 @@ pub(crate) async fn connect_agent(
                     let cwd = live.abs(request.cwd);
                     let kind = process.kind;
                     let id = crate::session::new_id();
-                    let sess = Session::new(&id, kind, &cwd);
+                    let system =
+                        session_system(request.meta.as_ref()).filter(|t| !t.trim().is_empty());
+                    let mut sess = Session::new(&id, kind, &cwd);
+                    sess.system = system.clone();
                     store_at(&cwd).save(&sess).map_err(invalid)?;
                     live.set_cwd(&id, &cwd);
                     live.set_kind(&id, kind);
                     live.set_mcp(&id, mcp_from_acp(&request.mcp_servers));
-                    live.set_system(&id, session_system(request.meta.as_ref()));
+                    live.set_system(&id, system);
                     responder.respond(
                         NewSessionResponse::new(SessionId::new(id.clone())).modes(modes(kind)),
                     )
@@ -925,6 +928,7 @@ pub(crate) async fn connect_agent(
                     let kind = sess.kind().unwrap_or(Kind::Implement);
                     live.set_cwd(&id, &cwd);
                     live.set_kind(&id, kind);
+                    live.set_mcp(&id, mcp_from_acp(&request.mcp_servers));
                     if let Some(last) = sess.lines.iter().rev().find(|l| l.role == "assistant") {
                         send_text(&connection, request.session_id.clone(), last.text.clone())?;
                     }
@@ -1047,7 +1051,7 @@ pub(crate) async fn connect_agent(
                         store_at(&cwd).save(&child).map_err(invalid)?;
                         live.set_cwd(&id, &cwd);
                         live.set_kind(&id, kind);
-                        live.set_mcp(&id, live.mcp(&src));
+                        live.set_mcp(&id, mcp_from_acp(&request.mcp_servers));
                         Ok(ForkSessionResponse::new(SessionId::new(id)).modes(modes(kind)))
                     })
                 }
@@ -1066,6 +1070,7 @@ pub(crate) async fn connect_agent(
                     let kind = sess.kind().unwrap_or(Kind::Implement);
                     live.set_cwd(&id, &cwd);
                     live.set_kind(&id, kind);
+                    live.set_mcp(&id, mcp_from_acp(&request.mcp_servers));
                     responder.respond(ResumeSessionResponse::new().modes(modes(kind)))
                 }
             },

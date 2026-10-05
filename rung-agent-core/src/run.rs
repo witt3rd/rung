@@ -731,7 +731,10 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         .connect()?;
 
     let system_prompt = resolve_system_prompt(&origin, args.system_prompt.as_ref())?;
-    let system_prompt = match (system_prompt, extra.system_append.as_deref()) {
+    // The session's own text: the caller's for this turn, else the one the
+    // session file keeps (a load, resume or fork in a new process).
+    let session_system = extra.system_append.as_deref().or(sess.system.as_deref());
+    let system_prompt = match (system_prompt, session_system) {
         (base, None) => base,
         (None, Some(add)) => Some(add.to_string()),
         (Some(base), Some(add)) => Some(format!("{base}\n\n{add}")),
