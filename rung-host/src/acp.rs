@@ -27,7 +27,8 @@
 //!   and an owner's cancel also cuts that turn.
 //! - `session/list` lists the channels the record holds; `session/load`
 //!   reopens one.
-//! - Extensions: `_rung/status` (the now set; any role), `_rung/stimulus` (a
+//! - Extensions: `_rung/status` (the now set; any role), `_rung/report` (plain-text
+//!   what-are-you-doing report, no model call; any role), `_rung/stimulus` (a
 //!   stimulus that asks no reply; owner or peer; durable before its ack),
 //!   and owner only: `_rung/stop`, `_rung/release`, `_rung/calendar`.
 //!
@@ -696,6 +697,7 @@ impl Acp {
         };
         match method {
             "_rung/status" => Ok(self.host.status()),
+            "_rung/report" => Ok(json!({"text": self.host.report()})),
             "_rung/stimulus" => {
                 if role == Role::Observer {
                     return Err(refuse("an observer channel cannot send stimuli"));

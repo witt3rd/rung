@@ -230,6 +230,14 @@ fn acp_outward_serves_channels_to_one_agent() {
     c.response(cal, 20);
     let st = c.request("_rung/status", json!({"sessionId": observer}));
     c.response(st, 20);
+    let rp = c.request("_rung/report", json!({"sessionId": observer}));
+    let rp = c.response(rp, 20);
+    let text = rp["result"]["text"].as_str().unwrap_or_default();
+    assert!(
+        text.contains("Free time") || text.contains("Committed to"),
+        "{rp}"
+    );
+    assert!(text.contains("Next due:"), "{rp}");
 
     // A prompt cancelled at once.
     let p4 = c.request(

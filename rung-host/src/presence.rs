@@ -406,6 +406,11 @@ impl Host {
         })
     }
 
+    /// The plain-text "what are you doing" report; no model call.
+    pub fn report(&self) -> String {
+        crate::render::status_report(&self.core.state(), self.core.now())
+    }
+
     // ─── Waking ──────────────────────────────────────────────────────────
 
     fn wake(&self, r: &Recovered) {

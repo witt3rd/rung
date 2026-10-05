@@ -254,6 +254,49 @@ pub fn recovered_line(from: Millis, to: Millis, last_turn: u64, requeued: usize)
     )
 }
 
+/// The owner's "what are you doing" report, from state alone (no model
+/// call): the current commitment, its last progress, and the next calendar
+/// item due.
+pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> String {
+    let mut s = String::new();
+    match st.kernel.commitment() {
+        Some(c) => {
+            s.push_str(&format!(
+                "Committed to {}: {} (done when: {}).\n",
+                c.project,
+                clip(&c.title, 80),
+                clip(&c.done_when, 80)
+            ));
+            let ago = st.turn.saturating_sub(c.last_progress_turn);
+            s.push_str(&format!(
+                "Last progress: turn {} ({ago} turns ago); next step: {}.\n",
+                c.last_progress_turn,
+                c.next_step
+                    .as_deref()
+                    .map_or("not yet stated".into(), |n| clip(n, 80))
+            ));
+        }
+        None => s.push_str("Free time: no commitment.\n"),
+    }
+    match st.calendar.next_entry() {
+        Some((e, due)) => {
+            let d = due - now;
+            let when = if d >= 0 {
+                format!("in {}", crate::clock::span(d))
+            } else {
+                format!("{} overdue", crate::clock::span(-d))
+            };
+            s.push_str(&format!(
+                "Next due: {} ({}, {when}).\n",
+                clip(&e.text, 80),
+                crate::clock::iso(due)
+            ));
+        }
+        None => s.push_str("Next due: nothing on the calendar.\n"),
+    }
+    s
+}
+
 /// The slow layer of a new epoch.
 pub fn slow(
     l1: &str,
@@ -324,6 +367,77 @@ pub fn slow(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn ln(seq: u64, at: i64, kind: &str, body: serde_json::Value) -> crate::record::Line {
+        let serde_json::Value::Object(body) = body else {
+            panic!()
+        };
+        crate::record::Line {
+            seq,
+            at,
+            kind: kind.into(),
+            body,
+        }
+    }
+
+    #[test]
+    fn the_status_report_answers_from_state() {
+        let mut st = crate::state::State::default();
+        let r = status_report(&st, 0);
+        assert!(r.contains("Free time: no commitment."));
+        assert!(r.contains("nothing on the calendar"));
+
+        st.apply(&ln(
+            1,
+            0,
+            "turn.started",
+            serde_json::json!({"turn": 3, "turn_kind": "free"}),
+        ));
+        st.apply(&ln(
+            2,
+            0,
+            "kernel.commit",
+            serde_json::json!({"project": "garden", "title": "Plant beds", "done_when": "beds planted", "turn": 3}),
+        ));
+        st.apply(&ln(
+            3,
+            0,
+            "kernel.progress",
+            serde_json::json!({"turn": 4, "next_step": "water seedlings"}),
+        ));
+        st.apply(&ln(
+            4,
+            0,
+            "turn.started",
+            serde_json::json!({"turn": 6, "turn_kind": "committed"}),
+        ));
+        let later = crate::calendar::Entry {
+            id: "later".into(),
+            when: crate::calendar::When::At(7_200_000),
+            origin: crate::calendar::Origin::Owner,
+            text: "call the plumber".into(),
+            firm: false,
+            missed: crate::calendar::Missed::OnceLate,
+        };
+        let mut soon = later.clone();
+        soon.id = "soon".into();
+        soon.when = crate::calendar::When::At(3_600_000);
+        soon.text = "check the oven".into();
+        for e in [&later, &soon] {
+            st.apply(&ln(5, 0, "calendar.added", crate::calendar::added_body(e)));
+        }
+        let r = status_report(&st, 0);
+        assert!(
+            r.contains("Committed to garden: Plant beds (done when: beds planted)."),
+            "{r}"
+        );
+        assert!(
+            r.contains("Last progress: turn 4 (2 turns ago); next step: water seedlings."),
+            "{r}"
+        );
+        assert!(r.contains("Next due: check the oven"), "{r}");
+        assert!(!r.contains("plumber"), "{r}");
+    }
 
     #[test]
     fn a_header_states_the_facts() {
