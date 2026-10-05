@@ -641,8 +641,12 @@ impl McpProvider {
                 ))));
             }
         };
-        let structured = structured(&result)
-            .ok_or_else(|| Miss::new(Why::Malformed(format!("{tool}: no structuredContent"))))?;
+        let structured = structured(&result).ok_or_else(|| {
+            Miss::new(Why::Malformed(format!(
+                "{tool}: the answer was not a result object (got: {})",
+                glimpse(&result)
+            )))
+        })?;
         let calls = structured
             .get("calls")
             .and_then(Value::as_u64)
@@ -652,6 +656,22 @@ impl McpProvider {
             .and_then(Value::as_f64)
             .unwrap_or(0.0);
         Ok((structured, calls, cost))
+    }
+}
+
+/// The first few characters of what a provider sent, for an error message.
+fn glimpse(result: &Value) -> String {
+    let text = result
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|c| c.iter().find_map(|i| i.get("text").and_then(Value::as_str)))
+        .map_or_else(|| result.to_string(), str::to_string);
+    let one: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let cut: String = one.chars().take(60).collect();
+    if cut.len() < one.len() {
+        format!("{cut}…")
+    } else {
+        cut
     }
 }
 

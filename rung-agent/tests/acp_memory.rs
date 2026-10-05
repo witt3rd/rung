@@ -433,6 +433,51 @@ fn a_provider_without_the_marker_is_unavailable_and_the_turn_still_ends() {
     drop(acp);
 }
 
+fn failing_turn(tag: &str, setting: &str) -> Value {
+    let cwd = tempdir(tag);
+    let (url, _bodies) = mock_llm(vec!["fine"]);
+    let mut acp = Acp::start(
+        &cwd,
+        &url,
+        &["--tools", "none"],
+        &[("RUNG_MEMORY", setting), ("RUNG_MEMORY_TIMEOUT_SECS", "1")],
+    );
+    let sid = acp.new_session(&cwd, json!([]));
+    let r = acp.prompt(&sid, "what is the deploy branch?");
+    drop(acp);
+    r
+}
+
+#[test]
+fn a_provider_returning_junk_is_unavailable_with_a_reason_and_the_turn_ends() {
+    let r = failing_turn("junk", &format!("mcp:{BIN} --memory-fixture --junk"));
+    assert_eq!(r["result"]["stopReason"], "end_turn", "{r}");
+    let m = &r["result"]["_meta"]["rung"]["memory"];
+    assert_eq!(m["recall"]["status"], "unavailable", "{r}");
+    let reason = m["recall"]["reason"].as_str().unwrap();
+    assert!(
+        reason.contains("not a result object") && reason.contains("502 bad gateway"),
+        "{reason}"
+    );
+    assert_eq!(m["retain"]["status"], "unretained", "{r}");
+    assert!(
+        m["retain"]["reason"]
+            .as_str()
+            .unwrap()
+            .contains("not a result object"),
+        "{r}"
+    );
+}
+
+#[test]
+fn a_provider_that_is_down_says_so_and_the_turn_ends() {
+    let r = failing_turn("down", "mcp:/no/such/memory-provider");
+    assert_eq!(r["result"]["stopReason"], "end_turn", "{r}");
+    let m = &r["result"]["_meta"]["rung"]["memory"];
+    assert_eq!(m["recall"]["status"], "unavailable", "{r}");
+    assert!(!m["recall"]["reason"].as_str().unwrap().is_empty(), "{r}");
+}
+
 #[test]
 fn an_unknown_setting_is_an_error_not_a_fallback() {
     let cwd = tempdir("unknown");
