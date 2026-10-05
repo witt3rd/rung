@@ -7,6 +7,44 @@ git tags only.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-06
+
+Patch bump: backward compatible fixes and additions.
+
+### Fixed
+- Prompt cache: the recalled-memory block is persisted on the session line and
+  replayed byte-for-byte, so the cached prefix holds. Live turn-2 cached tokens
+  with memory on rose from 2432/4999 to 4864/5236 (#243).
+- `rung-agent-core`: replay the bytes a turn sent, and keep system text and
+  tools across session restart (#229, #230).
+- `rung-std`: send `session_id` and `cache_control` markers on the
+  OpenAI-compatible wire (#227).
+- `rung-host`: cut long tool calls when an owner stimulus is waiting (#198);
+  treat router-refused rungs as unavailable until the next listing (#200);
+  reachable 25% pack break floor (#202); acknowledge owner messages at once
+  while the provider backs off (#203); desk qid injective (#201).
+
+### Added
+- `rung-host`: model-free status report extension (#241); live run config,
+  Shadow-mode decision desk (#199); keyed probe of each free ladder model
+  (#214); cached identical memory recalls with bounded recall context (#232).
+- Runnable notes and reminders example agents (#237); cache-hit probe script
+  (#222); shadow-week audit script (#224).
+- `rung-memory`: recall-quality fixtures and BM25 baseline scorer (#220).
+
+### Changed
+- One civil-date formatter in `rung-std` (#212); unused `Container` trait and
+  `By::is_rule` deleted (#210, #211).
+
+### Documentation and CI
+- Host quickstart (#223), live cached-token proof (#236), prompt cache miss
+  guide and ACP cache probe (#231), host testing conventions (#218).
+- Testkit: shared scripted mock LLM server and `TempDir` scratch dirs (#213,
+  #215, #216); offline ACP memory loop smoke test (#221); 24-hour simulated
+  soak (#238); simulated-clock gate hardening (#195).
+- Review council caller and principles, pinned to v0.1.0 (#174, #219).
+- Release commit (this one).
+
 ## [0.2.1] - 2026-10-05
 
 Patch bump: additions are backward compatible and `rung-host` is
