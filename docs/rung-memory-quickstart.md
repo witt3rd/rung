@@ -1,9 +1,11 @@
 # Quickstart: rung-agent with memory
 
 Informative. The contract is [rung-memory.md](rung-memory.md). The baseline
-and `--memory-fixture` commands below were run as written against rung-agent
+commands and the `--memory-check` run below were executed against rung-agent
 built from this tree. The turn examples need an OpenAI-compatible endpoint
-named in `config.yaml`. No live provider was measured on this host; see section 5.
+named in `config.yaml`; full-turn commands were not re-run without a key. The
+Jev-Mem container output was observed by the author on a host with that image,
+not on the CI host. No live figures were measured here; see section 5.
 
 Memory is off by default. One setting turns it on; the first surface set wins:
 `--memory X`, then `RUNG_MEMORY=X`, then `memory: { provider: X }` in
