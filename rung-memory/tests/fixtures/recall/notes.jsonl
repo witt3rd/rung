@@ -1,0 +1,40 @@
+{"id": "n01", "text": "Decision: we will use PostgreSQL for the inventory service because the team already runs it in production."}
+{"id": "n02", "text": "Preference: I like meetings scheduled in the morning, ideally before 11am, and no meetings on Friday afternoon."}
+{"id": "n03", "text": "The quarterly budget review is on March 14 in the large conference room."}
+{"id": "n04", "text": "Wifi password for the office guest network is rotated monthly; ask the front desk for the current one."}
+{"id": "n05", "text": "Decision: the mobile app release moves to a two-week cadence starting in April."}
+{"id": "n06", "text": "Correction: the quarterly budget review moved from March 14 to March 21."}
+{"id": "n07", "text": "Preference: when writing documents use plain short sentences and avoid jargon."}
+{"id": "n08", "text": "The backup job for the shared drive runs nightly at 02:30 and keeps thirty days of snapshots."}
+{"id": "n09", "text": "Flight to the Denver conference departs Tuesday at 7:45am from terminal B, confirmation code is in the travel folder."}
+{"id": "n10", "text": "Decision: adopt semantic versioning for the public client library and tag every release."}
+{"id": "n11", "text": "Allergy note: I am allergic to shellfish, so remind me when picking restaurants for team dinners."}
+{"id": "n12", "text": "The standing desk was ordered on January 9 and should arrive within three weeks."}
+{"id": "n13", "text": "Preference: coffee with oat milk, no sugar, medium roast."}
+{"id": "n14", "text": "Decision: we drop support for Python 3.8 in the next major release because it is end of life."}
+{"id": "n15", "text": "Correction: the Denver flight now departs Tuesday at 9:10am, not 7:45am, from terminal C."}
+{"id": "n16", "text": "Recipe idea: roasted cauliflower with tahini, lemon, and toasted pine nuts for Sunday dinner."}
+{"id": "n17", "text": "The gym membership renews on the first of each month and costs forty five dollars."}
+{"id": "n18", "text": "Decision: logs are retained for ninety days and then deleted to control storage cost."}
+{"id": "n19", "text": "The dentist appointment is June 3 at 2pm for a routine cleaning."}
+{"id": "n20", "text": "Preference: keep the thermostat at 20 degrees in winter and 24 in summer."}
+{"id": "n21", "text": "Reading list: finish the book on distributed systems, then the one on negotiation."}
+{"id": "n22", "text": "Decision: pick the blue colour palette for the new dashboard after the usability test."}
+{"id": "n23", "text": "Correction: gym membership price rose to fifty two dollars starting this month."}
+{"id": "n24", "text": "Car maintenance: oil change due at 60000 kilometers, tires rotated at the same visit."}
+{"id": "n25", "text": "The team retrospective happens every second Thursday at 4pm in the small room."}
+{"id": "n26", "text": "Decision: use Rust for the new command line tool to ship a single static binary."}
+{"id": "n27", "text": "Chat: asked about a good hiking trail near the lake; suggested the ridge loop, about eight kilometers, best in early autumn."}
+{"id": "n28", "text": "Chat: compared two laptops; chose the lighter one with 32 gigabytes of memory for travel."}
+{"id": "n29", "text": "Passport expires in November next year, renew at least six months ahead of any international trip."}
+{"id": "n30", "text": "Preference: use dark mode in every editor and terminal."}
+{"id": "n31", "text": "Decision: the on-call rotation changes weekly on Monday morning, handover notes go in the team wiki."}
+{"id": "n32", "text": "Correction: the on-call rotation handover moved to Wednesday morning after the incident review."}
+{"id": "n33", "text": "The garden irrigation timer is set to water at 6am for fifteen minutes every other day."}
+{"id": "n34", "text": "Chat: explained the difference between a mutex and a semaphore; I prefer examples with a parking lot analogy."}
+{"id": "n35", "text": "Birthday gift idea for my sister: a pottery class voucher or a good field guide to birds."}
+{"id": "n36", "text": "Decision: invoices are paid on the last business day of the month, net thirty terms."}
+{"id": "n37", "text": "The apartment lease ends on August 31 and the landlord needs sixty days notice before moving out."}
+{"id": "n38", "text": "Chat: practiced Spanish verbs; weak spot is the subjunctive, schedule twenty minutes of review daily."}
+{"id": "n39", "text": "Correction: the apartment lease end date is extended to October 31 after the renewal."}
+{"id": "n40", "text": "Decision: weekly planning happens Sunday evening, using a simple three column task board."}

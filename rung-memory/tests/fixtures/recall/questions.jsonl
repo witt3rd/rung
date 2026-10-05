@@ -1,0 +1,30 @@
+{"q": "Where does the budget review meet and when?", "expect": ["n06"]}
+{"q": "Which database did we choose for inventory?", "expect": ["n01"]}
+{"q": "What time should I avoid scheduling meetings?", "expect": ["n02"]}
+{"q": "How often do we ship the mobile app?", "expect": ["n05"]}
+{"q": "When does my flight to the Denver conference leave?", "expect": ["n15"]}
+{"q": "What versioning scheme does the client library follow?", "expect": ["n10"]}
+{"q": "Which food am I allergic to?", "expect": ["n11"]}
+{"q": "How do I take my coffee?", "expect": ["n13"]}
+{"q": "Which Python version are we dropping?", "expect": ["n14"]}
+{"q": "What is the monthly gym membership cost?", "expect": ["n23"]}
+{"q": "How long do we keep logs?", "expect": ["n18"]}
+{"q": "When is the dentist appointment?", "expect": ["n19"]}
+{"q": "What temperature should the thermostat be in summer?", "expect": ["n20"]}
+{"q": "Which colour palette did the dashboard get?", "expect": ["n22"]}
+{"q": "When should the oil change happen?", "expect": ["n24"]}
+{"q": "When is the team retrospective?", "expect": ["n25"]}
+{"q": "Why did we pick Rust for the command line tool?", "expect": ["n26"]}
+{"q": "Which hiking trail near the lake did you suggest?", "expect": ["n27"]}
+{"q": "Which laptop did I choose for travel?", "expect": ["n28"]}
+{"q": "When does my passport expire?", "expect": ["n29"]}
+{"q": "Which editor theme do I prefer?", "expect": ["n30"]}
+{"q": "When does the on-call handover happen?", "expect": ["n32"]}
+{"q": "When does the garden irrigation run?", "expect": ["n33"]}
+{"q": "Which analogy do I like for mutex and semaphore?", "expect": ["n34"]}
+{"q": "What gift could I give my sister?", "expect": ["n35"]}
+{"q": "When do we pay invoices?", "expect": ["n36"]}
+{"q": "When does the apartment lease end?", "expect": ["n39"]}
+{"q": "What is my weak spot in Spanish practice?", "expect": ["n38"]}
+{"q": "What day do I do weekly planning?", "expect": ["n40"]}
+{"q": "When does the backup job run for the shared drive?", "expect": ["n08"]}
