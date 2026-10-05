@@ -12,7 +12,7 @@
 //! matches by shared words, charges $0.0001 per hook call, and offers one
 //! agent tool, `memory_lookup`. `--sleep-ms` delays every hook call;
 //! `--no-marker` leaves the marker out; `--junk` answers every hook
-//! call with text that is not a result. Both exist to test rung's side.
+//! call with text that is not a result. These exist to test rung's side.
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, Write};
