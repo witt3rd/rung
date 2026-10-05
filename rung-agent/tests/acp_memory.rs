@@ -131,7 +131,7 @@ impl Drop for Acp {
 fn kept_after_retain(file: &std::path::Path, lines: usize) -> String {
     for _ in 0..200 {
         let t = std::fs::read_to_string(file).unwrap_or_default();
-        if t.lines().count() >= lines {
+        if t.lines().count() >= lines && t.ends_with('\n') {
             return t;
         }
         std::thread::sleep(std::time::Duration::from_millis(25));
