@@ -74,7 +74,7 @@ A `Toolset` wrapper must forward `execute_output`, or it hands on text only.
 Session history: an assistant `Line` keeps the turn's full `messages`
 (tool-use, tool-result, final text) from `AgentResult.transcript`, and
 `thread_from` replays them verbatim (a shortened replay breaks the
-provider's cached prefix); only a tool result's images become a note (a
+provider's cached prefix, `docs/rung-agent-cache.md`); only a tool result's images become a note (a
 session file holds no image data). The calls are never dropped: text-only history teaches the model to narrate
 actions instead of taking them (#128). Old sessions without `messages` still
 replay as text. A turn that stops without an answer (error, refusal, doom,
