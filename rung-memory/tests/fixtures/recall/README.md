@@ -17,3 +17,8 @@ Score with the baseline (BM25) provider:
 2. Run `RUNG_RECALL_FIXTURES=/path/to/dir cargo test -p rung-memory --test recall_quality -- --nocapture`.
    The table prints hit@1, hit@5 and MRR. The regression floor is only
    asserted for the committed set; custom sets just print.
+
+`questions_inflected.jsonl` (optional) holds reworded/inflected questions over
+the same notes; the scorer prints it per ranking option (`baseline`,
+`baseline:stem`) and asserts that
+`stem` beats the default there.

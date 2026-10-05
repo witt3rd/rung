@@ -19,7 +19,7 @@ One setting, read from rung's own surfaces only. The first one set wins:
 |---|---|
 | `off` | Nothing. The output is what it was before memory existed. |
 | `external` | The caller owns memory. rung opens no store, recalls and retains nothing, and adds no memory tools. The agent reaches memory only through the MCP tools the caller supplies. `_meta.rung.memory` is `{"provider": "external"}`. |
-| `baseline` | In-process, offline, no model: BM25 with a recency tie-break over an append-only JSON-lines store, one file per scope. |
+| `baseline` | In-process, offline, no model: BM25 with a recency tie-break over an append-only JSON-lines store, one file per scope. Optional ranking settings via `baseline:stem` (fold plural/verb endings; lifts hit@5 0.94→1.0 and MRR 0.865→0.927 on the inflected fixture questions). Default is unchanged. |
 | `mcp:<url>` / `mcp:<command [args]>` | A provider process the host supplies, reached over streamable HTTP or stdio with rung's MCP client. The command is split on whitespace; no shell. |
 
 An unknown or malformed setting is an error that names its surface. It is

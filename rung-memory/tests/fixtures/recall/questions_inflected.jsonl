@@ -1,0 +1,16 @@
+{"q": "Which meetings did I want scheduled in mornings?", "expect": ["n02"]}
+{"q": "Who rotates the wifi passwords at the office?", "expect": ["n04"]}
+{"q": "What are the snapshots retention for the backups?", "expect": ["n08"]}
+{"q": "Which restaurants should I avoid because of allergies?", "expect": ["n11"]}
+{"q": "Which release tags follow semantic versioning?", "expect": ["n10"]}
+{"q": "Where were the logs deleted after retention?", "expect": ["n18"]}
+{"q": "Which kilometers between oil changes?", "expect": ["n24"]}
+{"q": "How is the renewal of my gym membership billed?", "expect": ["n17"]}
+{"q": "Which notes should go in the wiki at handovers?", "expect": ["n32"]}
+{"q": "Which verbs am I practicing in Spanish reviews?", "expect": ["n38"]}
+{"q": "Which birds guide might my sister like?", "expect": ["n35"]}
+{"q": "Which cadence for releasing mobile apps?", "expect": ["n05"]}
+{"q": "Which flight terminal changed for Denver?", "expect": ["n15"]}
+{"q": "Who needs sixty days notice for moving out?", "expect": ["n37"]}
+{"q": "Which trips need a renewed passport?", "expect": ["n29"]}
+{"q": "What dinners include roasted cauliflower?", "expect": ["n16"]}
