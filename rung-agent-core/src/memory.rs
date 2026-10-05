@@ -25,8 +25,8 @@
 //! outcome reported in `_meta.rung.memory` and `Outcome.memory`.
 //!
 //! The recalled block is put after the current user message as quoted
-//! data. It is never system text and never written to the session, so it is
-//! not replayed. Retain takes a [`Turnover`], and a `Turnover` is built only
+//! data. It is never system text. The session line keeps it beside the
+//! user's text (`Line::recalled`), so a later turn replays it. Retain takes a [`Turnover`], and a `Turnover` is built only
 //! from a [`Completion`]: a turn that was unverified, unchecked, truncated,
 //! cancelled or failed is never retained.
 //!
