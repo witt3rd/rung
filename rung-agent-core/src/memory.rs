@@ -1,4 +1,7 @@
 //! Memory for a turn: recall before the loop, tools during it, retain after.
+//! `RUNG_MEMORY_RETAIN=distill` (opt-in, default off) retains a trimmed turn:
+//! no code or tool chatter, the assistant's conclusion only, and nothing for
+//! a turn with no durable content (`rung_memory::distill`).
 //!
 //! Who owns memory is one setting ([`MemoryAuthority`]): `--memory`, else
 //! `RUNG_MEMORY`, else `memory.provider` in `config.yaml`, else `off`.
@@ -287,7 +290,13 @@ impl Hooks {
         if !provider.capability().retain {
             return None;
         }
-        let report = rung_memory::retain_now(provider.clone(), scope.clone(), turn.observation);
+        let mut observation = turn.observation;
+        if distilling() {
+            // Opt-in: drop code and chatter, keep the conclusion; a turn with
+            // no durable content is not retained at all (no provider call).
+            observation = rung_memory::distill::distill(&observation)?;
+        }
+        let report = rung_memory::retain_now(provider.clone(), scope.clone(), observation);
         if report.status == "unretained" {
             rung_std::events::emit(
                 "rung-agent",
@@ -301,6 +310,12 @@ impl Hooks {
         Some(report)
     }
 }
+
+/// `RUNG_MEMORY_RETAIN=distill` turns on retain distillation. Default off.
+fn distilling() -> bool {
+    std::env::var("RUNG_MEMORY_RETAIN").is_ok_and(|v| v.trim() == "distill")
+}
+
 
 /// The separator between a user message and the recalled block after it.
 const BLOCK_SEP: &str = "\n\n---\n";
