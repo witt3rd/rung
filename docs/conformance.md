@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 403 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 404 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -684,7 +684,7 @@ look shorter than it is.
 - `initialize_session_new_prompt_delete`
 - `token_rejects_without_bearer`
 
-**`rung-agent/tests/acp_memory.rs`** — 16 unclaimed
+**`rung-agent/tests/acp_memory.rs`** — 17 unclaimed
 
 - `a_marked_block_is_stored_on_the_first_turn_it_appears`
 - `a_provider_without_the_marker_is_unavailable_and_the_turn_still_ends`
@@ -698,6 +698,7 @@ look shorter than it is.
 - `external_from_config_yaml_is_the_same`
 - `external_from_env_opens_no_store_runs_no_hooks_and_adds_no_tools`
 - `external_from_the_flag_is_the_same`
+- `memory_loop_smoke_retain_recall_cue_and_meta`
 - `off_is_byte_for_byte_the_response_before_memory`
 - `when_every_block_is_marked_the_whole_prompt_is_stored_every_turn`
 - `when_every_block_is_marked_the_whole_text_is_the_ask`
