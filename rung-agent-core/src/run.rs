@@ -424,15 +424,13 @@ fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<
     }
 }
 
-/// History cap for a replayed tool result. The call itself is kept whole.
-const HISTORY_TOOL_RESULT_CHARS: usize = 4000;
-
 /// Why a tool's image is missing from a replayed turn.
 const HISTORY_IMAGE: &str = "not kept in session history; call the tool again to look";
 
-/// The messages the loop added after the `sent` messages it was given, with
-/// large tool results shortened and tool images left as a note (a session
-/// file holds no image data).
+/// The messages the loop added after the `sent` messages it was given,
+/// verbatim, so a later turn replays the bytes this one sent and the
+/// provider's cached prefix holds. Only a tool image becomes a note (a
+/// session file holds no image data).
 fn turn_history(transcript: &[ChatMessage], sent: usize) -> Vec<ChatMessage> {
     let mut turn: Vec<ChatMessage> = transcript.iter().skip(sent).cloned().collect();
     for m in &mut turn {
@@ -442,11 +440,6 @@ fn turn_history(transcript: &[ChatMessage], sent: usize) -> Vec<ChatMessage> {
                     content, images, ..
                 } = b
                 {
-                    if content.chars().count() > HISTORY_TOOL_RESULT_CHARS {
-                        let kept: String =
-                            content.chars().take(HISTORY_TOOL_RESULT_CHARS).collect();
-                        *content = format!("{kept}\n[… shortened in history]");
-                    }
                     for img in images.drain(..) {
                         content.push('\n');
                         content.push_str(&img.omitted_note(HISTORY_IMAGE));
@@ -756,10 +749,19 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         && let Some(last) = thread.messages.last_mut()
         && last.role == "user"
     {
-        last.content = MessageContent::Blocks(blocks);
+        // An all-text prompt goes as its job text, the form a later turn
+        // replays it in, so this ask's bytes are the same then as now.
+        let text_only = blocks
+            .iter()
+            .all(|b| matches!(b, MessageContentBlock::Text { .. }));
+        last.content = if text_only {
+            MessageContent::Text(prompt.clone())
+        } else {
+            MessageContent::Blocks(blocks)
+        };
     }
-    // Recall: shown to this call only, in front of the ask. The session
-    // keeps the ask as the user wrote it, so a recall is never replayed.
+    // Recall: shown to this call only, after the ask. The session keeps the
+    // ask as the user wrote it, so a recall is never replayed.
     let recent: Vec<String> = sess
         .lines
         .iter()

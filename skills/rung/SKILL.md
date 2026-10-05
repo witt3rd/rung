@@ -73,9 +73,9 @@ A `Toolset` wrapper must forward `execute_output`, or it hands on text only.
 
 Session history: an assistant `Line` keeps the turn's full `messages`
 (tool-use, tool-result, final text) from `AgentResult.transcript`, and
-`thread_from` replays them. Tool results over 4000 chars are shortened, and
-a tool result's images become a note (a session file holds no image data). The
-calls are never dropped: text-only history teaches the model to narrate
+`thread_from` replays them verbatim (a shortened replay breaks the
+provider's cached prefix); only a tool result's images become a note (a
+session file holds no image data). The calls are never dropped: text-only history teaches the model to narrate
 actions instead of taking them (#128). Old sessions without `messages` still
 replay as text. A turn that stops without an answer (error, refusal, doom,
 interrupt) stores `Line::failed`: the steps that ran, from
@@ -141,7 +141,7 @@ memory: no store, no hooks, no memory tools), `baseline` (BM25, local),
 `mcp:<url|command>` (`rung-memory/1` marker, hidden hook tools
 `rung_memory_recall` / `rung_memory_retain`). Off must stay byte-identical
 (`off_is_byte_for_byte_the_response_before_memory`). Retain takes a
-`Turnover`, built only from a `Completion`. A recall block goes in front of
+`Turnover`, built only from a `Completion`. A recall block goes after
 the ask for that call only and is never stored in the session. Provider
 failures are outcomes, never a failed turn.
 
