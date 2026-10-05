@@ -35,6 +35,7 @@
 
 pub mod authority;
 pub mod baseline;
+pub mod distill;
 pub mod provider;
 pub mod store;
 pub mod tools;

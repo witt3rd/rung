@@ -77,6 +77,10 @@ wins over the file. A provider over stdio, or `baseline`, ignores it.
    turn check passed it, or the check is off. An unverified, unchecked,
    truncated, cancelled or failed turn is never retained. The type
    `Turnover` can be built only from a `Completion`.
+   `RUNG_MEMORY_RETAIN=distill` (opt-in, default off) retains a trimmed turn:
+   code and tool chatter dropped, the assistant side cut to its conclusion
+   (600 chars), and no retain call for a turn with no durable content (the one
+   exception to the typed outcome below: `_meta.rung.memory.retain` is absent).
 
 A provider failure never fails a turn. Each hook ends in one typed outcome,
 reported in `_meta.rung.memory` on the ACP prompt response, in
