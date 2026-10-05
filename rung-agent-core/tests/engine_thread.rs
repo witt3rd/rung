@@ -1,9 +1,9 @@
 //! L12: in `Engine::turn` the caller owns the thread. The turn's transcript
 //! starts with exactly the messages it was given, and what the turn added
-//! comes back verbatim — a tool result longer than the CLI's history cap is
+//! comes back verbatim — a long tool result is
 //! not shortened — so a caller that appends it and sends it again extends
 //! the previous request byte for byte. Shortening is the caller's choice
-//! (the CLI's session history; a host's rollover), never the engine's.
+//! (a host's rollover), never the engine's.
 //!
 //! Also: a listener set on the turn sees a refused attempt through the
 //! per-call recorder.

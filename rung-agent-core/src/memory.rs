@@ -64,7 +64,7 @@ pub const RETAIN_TOOL: &str = "rung_memory_retain";
 
 /// rung's cap on recalled records, over any provider's declared budget.
 pub const MAX_RECORDS: usize = 5;
-/// rung's cap on recalled text, in chars: the history cap on one tool result.
+/// rung's cap on recalled text, in chars.
 pub const MAX_CHARS: usize = 4_000;
 /// The prompt as sent to a provider, in chars.
 pub const PROMPT_CHARS: usize = 2_000;
