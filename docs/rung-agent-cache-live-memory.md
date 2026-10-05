@@ -15,8 +15,9 @@ doppler run -p fleet -c dev_work -- python3 scripts/acp_cache_probe.py \
     --out /tmp/cache-probe
 ```
 
-`scripts/acp_cache_probe.py` gained `--memory`, `--scope`, `--asks` for this. Total spend under USD 0.05
-(all probes, including model trials; one trial per model below). Model choice: `openai/gpt-4o-mini` is
+`scripts/acp_cache_probe.py` gained `--memory`, `--scope`, `--asks` for this. Spend: USD 0.0071 for the three DeepSeek runs below (sum of `cost` in the committed usage files);
+the other trials (Haiku about 0.015, two Gemini runs about 0.004 each, one earlier DeepSeek run about 0.003) are
+author-observed from the probe output, not committed. All together under USD 0.05. Model choice: `openai/gpt-4o-mini` is
 refused by the workspace ZDR guardrail; `anthropic/claude-haiku-4.5` and `google/gemini-2.5-flash` ran but
 reported `cached_tokens: 0` on every call (two Gemini runs, one Haiku run); `deepseek/deepseek-chat-v3.1`
 reports cached tokens.
@@ -32,9 +33,9 @@ reports cached tokens.
 | memory **off** (control) | 2364 / 2176 | 4596 / 4 | 4621 / 4596 | extends |
 
 **cached_tokens > 0 on turn two with the memory block on: yes (2508 and 2512 of ~5050, about 50%).**
-It is not the full-prefix hit (4596 / 4621) that the memory-off control gets, so one prefix
-difference remains. (Raw usage: `docs/evidence/cache-live-memory/`; requests held back, they quote
-the notes.)
+It is not the full-prefix hit (4621 / 4596) that the memory-off control gets, so one prefix
+difference remains. (Raw usage: `docs/evidence/cache-live-memory/usage-*.jsonl`; message sizes quoted below:
+`sizes-on-1.json`; the requests themselves are held back, they quote the notes.)
 
 ## The remaining difference
 
@@ -44,7 +45,7 @@ Turn 1 sends the ask with the recall block appended inside the same user message
 "Recall: shown to this call only"; `memory::inject`). The requests agree through the system text
 and the first bytes of the ask, then diverge at the end of message 1. The prefix that is cached is
 the system text and the tools (~2.5k tokens); everything after the ask in turn 1's history
-(the assistant tool call and the 8.8 KB tool result, ~2.3k tokens) is billed uncached on turn 2.
+(the assistant tool call and the 8.8 KB tool result) is billed uncached on turn 2 (prompt minus cached, about 2.5k tokens).
 
 This is the cost `docs/rung-agent-cache.md` already records for B3 ("the previous turn's steps
 still follow the block, so they are read once uncached on the next turn"); the live numbers size it

@@ -1,0 +1,7 @@
+{
+ "run": "memory on, run 1",
+ "turn1_ask_message_bytes": 1175,
+ "turn2_replayed_ask_message_bytes": 95,
+ "turn2_tool_result_bytes": 8830,
+ "note": "json.dumps of the message object; tokens are not recorded per message"
+}
