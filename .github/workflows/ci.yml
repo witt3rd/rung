@@ -40,6 +40,11 @@ jobs:
           for e in 01_enforced_graph 02_terminating_loops 03_failure_edges 04_nondeterminism; do
             cargo run -q -p rung --example "$e" --locked >/dev/null
           done
+      - name: example agents (mock engine, no key)
+        run: |
+          cargo build -q -p rung-agent -p rung-host -p rung-testkit --locked
+          examples/notes/run.sh
+          examples/reminders/run.sh
 
   propositions:
     runs-on: ubuntu-latest
