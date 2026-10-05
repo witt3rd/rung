@@ -1,0 +1,9 @@
+# Minimal rung-host config: mock engine, no network, no keys.
+# Paths are relative to the directory you launch from.
+state: demo/state          # the record lives in demo/state/record
+workspace: demo/sandbox    # the agent's working directory
+inbox: demo/inbox          # drop *.msg files here
+stop_file: demo/STOP       # touch this file to stop
+engine:
+  kind: mock
+memory: false
