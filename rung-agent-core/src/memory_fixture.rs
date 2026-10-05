@@ -11,7 +11,8 @@
 //! outlive the process (rung starts a stdio provider once per prompt). It
 //! matches by shared words, charges $0.0001 per hook call, and offers one
 //! agent tool, `memory_lookup`. `--sleep-ms` delays every hook call;
-//! `--no-marker` leaves the marker out. Both exist to test rung's side.
+//! `--no-marker` leaves the marker out; `--junk` answers every hook
+//! call with text that is not a result. These exist to test rung's side.
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, Write};
@@ -31,6 +32,7 @@ struct Fixture {
     file: Option<PathBuf>,
     sleep: Duration,
     marker: bool,
+    junk: bool,
     records: Vec<Value>,
 }
 
@@ -52,6 +54,7 @@ pub fn serve(argv: &[String]) -> Result<(), String> {
                 f.sleep = Duration::from_millis(n);
             }
             "--no-marker" => f.marker = false,
+            "--junk" => f.junk = true,
             other => return Err(format!("memory fixture: unknown option {other}")),
         }
     }
@@ -141,6 +144,11 @@ impl Fixture {
                 .unwrap_or("")
                 .to_string()
         };
+        if self.junk && (name == RECALL_TOOL || name == RETAIN_TOOL) {
+            return Ok(
+                json!({"content": [{"type": "text", "text": "<html>502 bad gateway</html>"}]}),
+            );
+        }
         match name {
             RECALL_TOOL => {
                 std::thread::sleep(self.sleep);

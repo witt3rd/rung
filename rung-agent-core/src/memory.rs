@@ -655,8 +655,12 @@ impl McpProvider {
                 ))));
             }
         };
-        let structured = structured(&result)
-            .ok_or_else(|| Miss::new(Why::Malformed(format!("{tool}: no structuredContent"))))?;
+        let structured = structured(&result).ok_or_else(|| {
+            Miss::new(Why::Malformed(format!(
+                "{tool}: the answer was not a result object (got: {})",
+                scrub_token(&glimpse(&result), self.secret.as_deref())
+            )))
+        })?;
         let calls = structured
             .get("calls")
             .and_then(Value::as_u64)
@@ -667,6 +671,17 @@ impl McpProvider {
             .unwrap_or(0.0);
         Ok((structured, calls, cost))
     }
+}
+
+/// The first few characters of what a provider sent, for an error message.
+fn glimpse(result: &Value) -> String {
+    let text = result
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|c| c.iter().find_map(|i| i.get("text").and_then(Value::as_str)))
+        .map_or_else(|| result.to_string(), str::to_string);
+    let one: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    bound(&one, 60)
 }
 
 /// `structuredContent`, else the first text item parsed as a JSON object.

@@ -691,9 +691,11 @@ look shorter than it is.
 - `a_load_in_a_new_process_keeps_the_system_text_and_tools`
 - `a_resume_in_a_new_process_keeps_the_system_text_and_tools`
 
-**`rung-agent/tests/acp_memory.rs`** — 17 unclaimed
+**`rung-agent/tests/acp_memory.rs`** — 19 unclaimed
 
 - `a_marked_block_is_stored_on_the_first_turn_it_appears`
+- `a_provider_returning_junk_is_unavailable_with_a_reason_and_the_turn_ends`
+- `a_provider_that_is_down_says_so_and_the_turn_ends`
 - `a_provider_without_the_marker_is_unavailable_and_the_turn_still_ends`
 - `a_slow_provider_times_out_and_the_turn_still_ends`
 - `an_mcp_provider_retains_and_recalls_through_its_hook_tools`

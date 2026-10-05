@@ -213,7 +213,7 @@ stdio. rung's tests use it, and a host can compare its own provider against
 it. It keeps records in memory, or appends them to `--file` so they outlive
 the process; rung starts a stdio provider once per prompt. It matches by
 shared words, charges $0.0001 per hook call, and offers one agent tool,
-`memory_lookup`. `--sleep-ms N` and `--no-marker` exist to test rung's side.
+`memory_lookup`. `--sleep-ms N`, `--no-marker` and `--junk` (every hook answers with non-result text) exist to test rung's side.
 
 ## In Rust
 
