@@ -25,10 +25,11 @@
 //! outcome reported in `_meta.rung.memory` and `Outcome.memory`.
 //!
 //! The recalled block is put after the current user message as quoted
-//! data. It is never system text and never written to the session, so it is
-//! not replayed. Retain takes a [`Turnover`], and a `Turnover` is built only
-//! from a [`Completion`]: a turn that was unverified, unchecked, truncated,
-//! cancelled or failed is never retained.
+//! data. It is never system text. The session line keeps it beside the
+//! user's text (`Line::recalled`), so a later turn replays it. Retain takes
+//! a [`Turnover`], and a `Turnover` is built only from a [`Completion`]: a
+//! turn that was unverified, unchecked, truncated, cancelled or failed is
+//! never retained.
 //!
 //! The MCP provider contract (`rung-memory/1`) is in `docs/rung-memory.md`.
 
@@ -301,9 +302,20 @@ impl Hooks {
     }
 }
 
+/// The separator between a user message and the recalled block after it.
+const BLOCK_SEP: &str = "\n\n---\n";
+
+/// A user message's text with its recalled `block` shown after it: the
+/// bytes [`inject`] sends, and the bytes a later turn replays from the
+/// session line's `recalled`, so the cached prefix runs through both.
+pub fn shown(text: &str, block: &str) -> String {
+    format!("{text}{BLOCK_SEP}{block}")
+}
+
 /// Put `block` after the thread's last user message, as its own text. At
-/// the tail, the ask's bytes are those a later turn replays (without the
-/// block), so the provider's cached prefix runs through the ask.
+/// the tail, the ask's bytes come first; the session line keeps the block
+/// beside the ask (`Line::recalled`) and a later turn replays the two as
+/// [`shown`], so the provider's cached prefix runs through the block too.
 pub fn inject(thread: &mut Thread, block: &str) {
     let Some(last) = thread.messages.last_mut() else {
         return;
@@ -311,9 +323,9 @@ pub fn inject(thread: &mut Thread, block: &str) {
     if last.role != "user" {
         return;
     }
-    let tail = format!("\n\n---\n{block}");
+    let tail = format!("{BLOCK_SEP}{block}");
     last.content = match std::mem::replace(&mut last.content, MessageContent::Text(String::new())) {
-        MessageContent::Text(t) => MessageContent::Text(format!("{t}{tail}")),
+        MessageContent::Text(t) => MessageContent::Text(shown(&t, block)),
         MessageContent::Blocks(mut b) => {
             b.push(MessageContentBlock::Text {
                 text: tail,

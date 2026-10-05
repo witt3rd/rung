@@ -144,6 +144,9 @@ def main():
     ap.add_argument("--memory", default=None, help="memory setting, e.g. mcp:http://127.0.0.1:9000/mcp")
     ap.add_argument("--scope", default=None, help="memory scope (RUNG_MEMORY_SCOPE)")
     ap.add_argument("--asks", nargs=2, default=None, help="override the two turn texts")
+    ap.add_argument("--seed", default=None,
+                    help="a turn in its own session first, so the measured session recalls it "
+                         "(with --memory baseline); its calls are not reported")
     a = ap.parse_args()
     if not os.environ.get(a.key_env):
         raise SystemExit(f"{a.key_env} is not set")
@@ -174,6 +177,13 @@ def main():
     )
     acp = Acp([str(Path(a.bin).resolve()), "--acp", "--tools", "read"], env, work)
     acp.call("initialize", {"protocolVersion": 1})
+    if a.seed:
+        seed = acp.call("session/new", {"cwd": str(work), "mcpServers": []})["result"]["sessionId"]
+        r = acp.call("session/prompt", {"sessionId": seed, "prompt": [{"type": "text", "text": a.seed}]})
+        print("seed:", r.get("result", {}).get("stopReason") or r.get("error"))
+        with LOCK:
+            BODIES.clear()
+            USAGE.clear()
     sid = acp.call("session/new", {
         "cwd": str(work), "mcpServers": [], "_meta": {"systemPrompt": system},
     })["result"]["sessionId"]

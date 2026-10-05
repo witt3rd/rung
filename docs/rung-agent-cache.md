@@ -47,7 +47,8 @@ history had been shortened. The free route's cache is best-effort: in one
 | A2 | No `session_id`, so a router had no key to keep a session on one provider and its warm cache. | yes | no `session_id` in any request | On an OpenRouter route, rung-agent sends the ACP session id as `session_id`. Other routes get none: a plain server may refuse the field. One check (`rung_std::llm::is_openrouter_url`) decides this for rung-agent and for the rung-host adapter's default. |
 | B1 | An ACP all-text ask was sent as content parts and replayed as a string. | yes | live turn 2 diverged at message 1. The tokens were equal (4352 cached), but the bytes were not. | An all-text prompt is sent as its job text, the form in which it is replayed. |
 | B2 | Session history cut a tool result to 4000 chars. A later turn diverged at the cut, and every step of that turn after the cut lost the cache. | yes | live turn 2 diverged at the tool result | Results are kept verbatim. The loop's own 8192-byte cap (`DEFAULT_TOOL_OUTPUT_LIMIT`) already bounds each result, so history grows at most twice as fast as with the old cut. |
-| B3 | The recall block went in front of the ask for that call only. The next turn replayed the ask without the block, so it diverged before the ask. | yes | mock: divergence at the start of the previous ask | The block follows the ask. Every byte through the ask now matches. The previous turn's steps still follow the block, so they are read once uncached on the next turn. The block holds volatile text (`observed_at`), so it stays out of the session. |
+| B3 | The recall block went in front of the ask for that call only. The next turn replayed the ask without the block, so it diverged before the ask. Moving it after the ask still left the previous turn's steps uncached: live, about half of the turn-2 prompt (`rung-agent-cache-live-memory.md`). | yes | mock: divergence at the start of the previous ask, then at the end of it | The block follows the ask, and the session line keeps it beside the ask (`recalled`, never the user's `text`). A later turn replays the ask and its block byte for byte, so every request extends the one before. |
+| B4 | A marked context block an earlier line already held was sent with this turn's ask but stored without it, so the next turn diverged at that ask. | yes | mock: divergence at the previous ask | An all-text ask is sent as its session line: the held block is already in the history, once. |
 | C1 | A session's `_meta.systemPrompt` lived only in the process that served `session/new`. After a restart, `session/load` sent no system text, and the whole prefix was lost. | yes | mock: load diverged at message 0 | The session file keeps the session's system text. A fork copies it. |
 | C2 | `session/load`, `session/resume` and `session/fork` ignored their `mcpServers`, so the tool list changed after a restart. | yes | mock: tool list differed after a load | Load, resume and fork connect the MCP servers the request names. |
 
@@ -58,16 +59,13 @@ timestamps or ids in system or tool text (there are none), JSON key order
 round-trips), and `reasoning_effort` and `max_tokens` (read once per
 process).
 
-Tail-only by design: the last step's closing instruction, and a recall
-block. Each is sent with one call and is not stored, so it costs only the
-messages after it, once.
+Tail-only by design: the last step's closing instruction. It is sent with
+one call and is not stored, so it costs only the messages after it, once.
 
 Not rung's to fix:
 
 - A tool image becomes a note in history, because the session file holds no
   image data. Only with `llm.images: true`.
-- A context-marked block that an earlier turn already sent is stored once,
-  so the replay leaves it out (`docs/rung-memory.md`).
 - Providers do not cache short prompts. Claude needs at least 1024 to 4096
   tokens before a marker, depending on the model, and OpenAI-style automatic
   caching starts at 1024 tokens.
@@ -100,5 +98,6 @@ must:
 - **Keep the same model and settings.** Keep `RUNG_MODEL`, the reasoning
   level and `RUNG_MAX_TOKENS` fixed for the session. Each provider has its
   own cache, so a different model or route starts cold.
-- **Send unchanged context once.** If a context block is resent every turn,
-  send it unmarked, or the replay will not match.
+- **Mark context you resend.** A marked block an earlier ask already holds
+  is sent and stored once (`docs/rung-memory.md`). An unmarked one is sent
+  and stored every turn; either way the replay matches.
