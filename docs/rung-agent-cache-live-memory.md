@@ -53,7 +53,34 @@ here at about half of the turn-2 prompt, because the block sits inside the ask m
 step that follows is a large tool result. It scales with the size of the steps that follow the recall in that turn. A fix would put the block
 in a place the next turn can replay byte for byte (store it with the ask, or send it as a separate
 trailing message after the ask's tool-free turn), at the price of the block living in the session.
-Not built here.
+Not built here; built since, see below.
+
+## After the fix
+
+The session user line now keeps the block beside the ask (`recalled`, never the
+user's `text`), and a later turn replays the ask and its block byte for byte
+(`docs/rung-memory.md`, B3 in `docs/rung-agent-cache.md`). Measured 2026-10-05 on
+roger, same route and model, memory `baseline` seeded by a `--seed` turn in its own
+session (its calls are not reported), so turn 1 carries a recalled block:
+
+```bash
+doppler run -p fleet -c dev_work -- python3 scripts/acp_cache_probe.py \
+    --model deepseek/deepseek-chat-v3.1 --memory baseline \
+    --seed "Remember this: notes.txt is the payments service notes file, and the payments service deploys from the release/payments branch." \
+    --asks "Read notes.txt with read_file and tell me how many lines it has." \
+           "Thanks. Which branch does the payments service deploy from?"
+```
+
+| run | call 0 | call 1 | **turn 2** (call 2) | where call 2 stops extending call 1 |
+|---|---|---|---|---|
+| memory **on**, the fix | 2739 / 2176 | 4981 / 2688 | **5236 / 4864** | extends |
+| memory **on**, before (`e519a4f`) | 2709 / 4 | 4962 / 2705 | **4999 / 2432** | message 1 (the ask) |
+| memory **off** (control, no `--memory`) | 2355 / 2253 | 4608 / 2351 | **4633 / 4608** | extends |
+
+Turn 2 with memory on now caches 4864 of 5236 (93%), against 2432 of 4999 (49%)
+before; the uncached rest is turn 2's own ask and its recall block. Raw usage:
+`docs/evidence/cache-live-memory/usage-fix-*.jsonl`. Spend: USD 0.0098 for the
+calls reported (sum of `cost`), plus three short seed calls.
 
 ## Caveats
 
