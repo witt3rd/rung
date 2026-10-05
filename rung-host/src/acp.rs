@@ -29,7 +29,8 @@
 //!   reopens one.
 //! - Extensions: `_rung/status` (the now set; any role), `_rung/stimulus` (a
 //!   stimulus that asks no reply; owner or peer; durable before its ack),
-//!   and owner only: `_rung/stop`, `_rung/release`, `_rung/calendar`.
+//!   and owner only: `_rung/report` (plain-text what-are-you-doing report,
+//!   no model call), `_rung/stop`, `_rung/release`, `_rung/calendar`.
 //!
 //! The bridge reads the record through a [`crate::core::Core::observe`]
 //! hook; it never decides anything the loop decides.
@@ -696,6 +697,10 @@ impl Acp {
         };
         match method {
             "_rung/status" => Ok(self.host.status()),
+            "_rung/report" => {
+                owner_only("_rung/report")?;
+                Ok(json!({"text": self.host.report()}))
+            }
             "_rung/stimulus" => {
                 if role == Role::Observer {
                     return Err(refuse("an observer channel cannot send stimuli"));

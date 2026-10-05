@@ -145,7 +145,9 @@ channel is a `channel.opened` record line, so `session/list` and
 - Extensions: `_rung/status` (the now set: turn, mode, project, epoch,
   rung, model, ladder availability, quota, degraded, desk; any role);
   `_rung/stimulus` (a stimulus that asks no reply; owner or peer; on disk
-  before its ack); owner only: `_rung/stop`, `_rung/release`,
+  before its ack); owner only: `_rung/report` (`{text}`: current
+  commitment, last progress, next due calendar item, answered from state
+  with no model call), `_rung/stop`, `_rung/release`,
   `_rung/calendar` (`{id, at | in_s, text, firm}`).
 
 The bridge reads the record through an observer hook and decides nothing

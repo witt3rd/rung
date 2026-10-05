@@ -163,6 +163,14 @@ impl CalendarState {
         self.entries.values().filter_map(|s| s.next_due).min()
     }
 
+    /// The entry that is due next (earliest; ties by id).
+    pub fn next_entry(&self) -> Option<(&Entry, Millis)> {
+        self.entries
+            .values()
+            .filter_map(|s| s.next_due.map(|d| (&s.entry, d)))
+            .min_by(|a, b| (a.1, &a.0.id).cmp(&(b.1, &b.0.id)))
+    }
+
     /// Entries due within `ms` of `now`.
     pub fn within(&self, now: Millis, ms: Millis) -> usize {
         self.entries
