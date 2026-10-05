@@ -77,6 +77,11 @@ doppler run -p fleet -c dev_work -- python3 scripts/acp_cache_probe.py \
 | memory **on**, before (`e519a4f`) | 2709 / 4 | 4962 / 2705 | **4999 / 2432** | message 1 (the ask) |
 | memory **off** (control, no `--memory`) | 2355 / 2253 | 4608 / 2351 | **4633 / 4608** | extends |
 
+Call 2 is turn 2's first call. In the control run, with no recall to answer from,
+turn 2 took one more step: a `grep` call 3 (4957 / 2304). It extends call 2, but the
+route moved from DeepInfra to SiliconFlow and started cold. It is in
+`usage-fix-off.jsonl` and is not part of the turn-2 comparison.
+
 Turn 2 with memory on now caches 4864 of 5236 (93%), against 2432 of 4999 (49%)
 before; the uncached rest is turn 2's own ask and its recall block. Raw usage:
 `docs/evidence/cache-live-memory/usage-fix-*.jsonl`. Spend: USD 0.0098 for the
