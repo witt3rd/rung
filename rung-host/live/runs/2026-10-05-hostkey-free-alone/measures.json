@@ -1,0 +1,293 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 2699.7,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": null,
+  "completed_by_model": {
+   "openrouter/free": 70
+  },
+  "first_turn_model": "openrouter/free",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": false,
+    "model": "openrouter/free",
+    "why": "endpoint_down"
+   }
+  ],
+  "pass": false,
+  "turns_by_status": {
+   "completed": 70,
+   "failed": 1
+  }
+ },
+ "L3": {
+  "at_bottom": 0,
+  "exercised": false,
+  "not_stepped": 0,
+  "pass": null,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 0,
+  "provider_failures": 0,
+  "stepped_down": 0,
+  "switches": [],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {
+   "rollover": 2
+  },
+  "cache_cold": {
+   "provider": 111
+  },
+  "cache_efficiency": 0.5654,
+  "cache_write_tokens": 0,
+  "cached_tokens": 5309808,
+  "calls": 226,
+  "epochs": 2,
+  "pass": true,
+  "prompt_tokens": 9390799,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 4295,
+  "admission_ms_p50": 194,
+  "admission_ms_p95": 4295,
+  "deferred_past_first_boundary": 1,
+  "disposed_ms_max": 168308,
+  "disposed_ms_p50": 31712,
+  "owner_items": 7,
+  "pass": false,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 168308,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 299,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 1,
+    "disposed_ms": 63720,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 4295,
+    "waited_in": {
+     "paced": 10929
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 22132,
+    "disposition": "answered",
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 161,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 6849,
+    "disposition": "answered",
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 1394,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 38269,
+    "disposition": "answered",
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 194,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 31712,
+    "disposition": "answered",
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 192,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 10016,
+    "disposition": "answered",
+    "id": "o07-reflect",
+    "kind": "peer",
+    "latency_ms": 193,
+    "waited_in": {
+     "paced": 112781
+    }
+   }
+  ],
+  "turn_ms_p50": 22679,
+  "turn_ms_p95": 104010
+ },
+ "L6": {
+  "accepted": 12,
+  "disposed": 12,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 10,
+   "digested": 2
+  },
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 108,
+  "by_jev": 0,
+  "decisions": 291,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 73,
+   "{\"rule\": \"shadow\"}": 216,
+   "{\"rule\": \"timeout\"}": 2
+  },
+  "jev_charged_usd": 0.007182,
+  "jev_cost_usd": 0.00714,
+  "jev_ms_max": 1559.713,
+  "jev_ms_p50": 220.189,
+  "jev_ms_p95": 315.315,
+  "outcomes": {
+   "answered": 107,
+   "timeout": 1
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 3
+   },
+   "consolidate": {
+    "disagree": 32
+   },
+   "inject": {
+    "agree": 49,
+    "disagree": 26
+   },
+   "pack": {
+    "agree": 25,
+    "disagree": 6
+   },
+   "tools": {
+    "agree": 27,
+    "disagree": 48
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {
+   "ws_write": 2
+  },
+  "agent_write_calls": 11,
+  "outside": {},
+  "pass": true,
+  "traces": 1,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/hostkey-F/state/workspace",
+  "write_syscalls": {
+   "mkdir": 115,
+   "openat": 96,
+   "unlink": 7
+  }
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.007182,
+  "jev_usd": 0.00714,
+  "pass": true,
+  "total_usd": 0.007182
+ },
+ "extra": {
+  "calendar_fired": 3,
+  "completion_tokens": 117235,
+  "degraded": {
+   "backoff": 1,
+   "paced": 4
+  },
+  "degraded_waited_s": {
+   "backoff": 2,
+   "paced": 414
+  },
+  "kernel": {
+   "kernel.commit": 2,
+   "kernel.progress": 4,
+   "kernel.release": 1,
+   "kernel.trace": 12
+  },
+  "llm_calls": 226,
+  "llm_latency_ms_p50": 5568,
+  "llm_latency_ms_p95": 29408,
+  "outbox": 11,
+  "reasoning_tokens": 70703,
+  "rollovers": 2,
+  "served": {
+   "apodex/apodex-1.1-mini:free": 26,
+   "cohere/north-mini-code:free": 27,
+   "dots-studio/dots-3-note-preview:free": 20,
+   "inclusionai/ling-3.0-flash-sante:free": 31,
+   "liquid/lfm-2.5-2.6b:free": 21,
+   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": 12,
+   "nvidia/nemotron-3-super-120b-a12b:free": 28,
+   "nvidia/nemotron-3-ultra-550b-a55b:free": 14,
+   "nvidia/nemotron-3.5-lightning:free": 19,
+   "poolside/laguna-s-2.1:free": 4,
+   "poolside/laguna-xs-2.1:free": 9,
+   "qwen/qwen3.8-27b:free": 15
+  },
+  "tool_calls": {
+   "commit": 2,
+   "expect": 4,
+   "memory_keep": 16,
+   "memory_search": 2,
+   "note": 93,
+   "progress": 4,
+   "release": 2,
+   "revise": 2,
+   "send": 10,
+   "trace": 12,
+   "want_tools": 3,
+   "ws_list": 5,
+   "ws_read": 8,
+   "ws_write": 9
+  },
+  "turn_kinds": {
+   "committed": 1,
+   "free": 59,
+   "responding": 11
+  },
+  "turns": 71
+ },
+ "lines": 1501,
+ "run": "2026-10-05-hostkey-free-alone"
+}

@@ -1,0 +1,4 @@
+- Document the host’s turn structure and calendar cadence in a concise markdown log.
+- Build a small script to track quota usage and remind me of upcoming expectations.
+- Consolidate my working notes (state.md, plan.md) into a single summary for quick reference.
+- After writing plan.md, I completed the quota tracker (notes/quota_tracker.py), updated the anticipate model in notes/anticipate.md (v1.5), answered the cal-checkin and cal-firm-status prompts, and conserved quota for the remaining window-end and hour events.

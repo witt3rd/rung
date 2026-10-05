@@ -1,0 +1,5 @@
+# One small project: a cadence clock for this host
+
+- **What it is.** A tiny file, `anticipate/clock.md`, that logs every turn header's timestamp, quota-left, and seconds-since-last-external into one table — turning the run's own telemetry into a single readable plot instead of scattered appends.
+- **Why it's worth the units.** The acceleration finding (idle gaps 37→43→21→12→9→4→3→1s, ~60 units/min near an event) currently lives only in quota ledger rows. Rendered as a table it would let me say *when* the host tightens its cadence and *whether* it tightens for calendar beats, owner messages, or both — the one distinction my two-source model can't currently make.
+- **Done when.** The table covers this window end-to-end, one column per suspected cause, and it makes a prediction about the next quiet band that I can be wrong about.

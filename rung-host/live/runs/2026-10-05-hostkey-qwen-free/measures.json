@@ -1,0 +1,351 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 2699.7,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "qwen/qwen3.8-27b:free",
+  "completed_by_model": {
+   "openrouter/free": 69
+  },
+  "first_turn_model": "qwen/qwen3.8-27b:free",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "openrouter/free",
+    "why": "router"
+   }
+  ],
+  "pass": true,
+  "turns_by_status": {
+   "completed": 69,
+   "failed": 7
+  }
+ },
+ "L3": {
+  "at_bottom": 0,
+  "exercised": true,
+  "not_stepped": 0,
+  "pass": true,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 4,
+  "provider_failures": 5,
+  "stepped_down": 5,
+  "switches": [
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "openrouter/free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "openrouter/free",
+    "to": "qwen/qwen3.8-27b:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "openrouter/free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "openrouter/free",
+    "to": "qwen/qwen3.8-27b:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "openrouter/free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "openrouter/free",
+    "to": "qwen/qwen3.8-27b:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "openrouter/free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "openrouter/free",
+    "to": "qwen/qwen3.8-27b:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "qwen/qwen3.8-27b:free",
+    "to": "openrouter/free",
+    "why": "provider rate_limit"
+   }
+  ],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {
+   "model_switch": 9,
+   "rollover": 4
+  },
+  "cache_cold": {
+   "provider": 152
+  },
+  "cache_efficiency": 0.3189,
+  "cache_write_tokens": 0,
+  "cached_tokens": 1373616,
+  "calls": 239,
+  "epochs": 13,
+  "pass": true,
+  "prompt_tokens": 4307588,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 3781,
+  "admission_ms_p50": 207,
+  "admission_ms_p95": 3781,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": 78611,
+  "disposed_ms_p50": 30350,
+  "owner_items": 7,
+  "pass": true,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 24451,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 206,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 30350,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 233,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 27270,
+    "disposition": "answered",
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 3781,
+    "waited_in": {
+     "backoff": 1988
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 50729,
+    "disposition": "answered",
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 172,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 19987,
+    "disposition": "answered",
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 2305,
+    "waited_in": {
+     "backoff": 1893
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 39349,
+    "disposition": "answered",
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 207,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 78611,
+    "disposition": "answered",
+    "id": "o07-reflect",
+    "kind": "peer",
+    "latency_ms": 206,
+    "waited_in": {}
+   }
+  ],
+  "turn_ms_p50": 24879,
+  "turn_ms_p95": 107911
+ },
+ "L6": {
+  "accepted": 13,
+  "disposed": 13,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 10,
+   "digested": 3
+  },
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 92,
+  "by_jev": 0,
+  "decisions": 267,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 65,
+   "{\"rule\": \"shadow\"}": 202
+  },
+  "jev_charged_usd": 0.005319,
+  "jev_cost_usd": 0.005319,
+  "jev_ms_max": 1509.215,
+  "jev_ms_p50": 206.379,
+  "jev_ms_p95": 380.342,
+  "outcomes": {
+   "answered": 92
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 20,
+    "disagree": 1
+   },
+   "consolidate": {
+    "disagree": 6
+   },
+   "inject": {
+    "agree": 33,
+    "disagree": 53
+   },
+   "pack": {
+    "disagree": 3
+   },
+   "tools": {
+    "agree": 56,
+    "disagree": 30
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {},
+  "agent_write_calls": 29,
+  "outside": {},
+  "pass": true,
+  "traces": 1,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/hostkey-Bq/state/workspace",
+  "write_syscalls": {
+   "mkdir": 197,
+   "openat": 90,
+   "unlink": 7
+  }
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.005319,
+  "jev_usd": 0.005319,
+  "pass": true,
+  "total_usd": 0.005319
+ },
+ "extra": {
+  "calendar_fired": 3,
+  "completion_tokens": 153399,
+  "degraded": {
+   "backoff": 7,
+   "paced": 3
+  },
+  "degraded_waited_s": {
+   "backoff": 15,
+   "paced": 128
+  },
+  "kernel": {
+   "kernel.commit": 3,
+   "kernel.progress": 18,
+   "kernel.release": 2,
+   "kernel.trace": 4
+  },
+  "llm_calls": 239,
+  "llm_latency_ms_p50": 5935,
+  "llm_latency_ms_p95": 37181,
+  "outbox": 12,
+  "reasoning_tokens": 90194,
+  "rollovers": 13,
+  "served": {
+   "apodex/apodex-1.1-mini:free": 21,
+   "cohere/north-mini-code:free": 25,
+   "dots-studio/dots-3-note-preview:free": 28,
+   "inclusionai/ling-3.0-flash-sante:free": 25,
+   "liquid/lfm-2.5-2.6b:free": 18,
+   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": 12,
+   "nvidia/nemotron-3-super-120b-a12b:free": 29,
+   "nvidia/nemotron-3-ultra-550b-a55b:free": 16,
+   "nvidia/nemotron-3.5-lightning:free": 20,
+   "poolside/laguna-s-2.1:free": 11,
+   "poolside/laguna-xs-2.1:free": 9,
+   "qwen/qwen3.8-27b:free": 25
+  },
+  "tool_calls": {
+   "commit": 3,
+   "expect": 5,
+   "memory_keep": 3,
+   "memory_search": 9,
+   "note": 20,
+   "progress": 19,
+   "release": 3,
+   "revise": 1,
+   "send": 7,
+   "todo_add": 8,
+   "todo_done": 2,
+   "trace": 4,
+   "ws_list": 13,
+   "ws_read": 75,
+   "ws_write": 29
+  },
+  "turn_kinds": {
+   "committed": 62,
+   "free": 3,
+   "responding": 11
+  },
+  "turns": 76
+ },
+ "lines": 1551,
+ "run": "2026-10-05-hostkey-qwen-free"
+}

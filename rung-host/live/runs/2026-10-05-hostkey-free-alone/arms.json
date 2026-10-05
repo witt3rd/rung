@@ -1,0 +1,91 @@
+{
+ "turns": {
+  "completed": 70,
+  "failed": 1
+ },
+ "turns_total": 71,
+ "failure_rate": 0.0141,
+ "failure_classes": {
+  "provider/output": 1
+ },
+ "calls": 226,
+ "served": {
+  "inclusionai/ling-3.0-flash-sante:free": 31,
+  "nvidia/nemotron-3-super-120b-a12b:free": 28,
+  "cohere/north-mini-code:free": 27,
+  "apodex/apodex-1.1-mini:free": 26,
+  "liquid/lfm-2.5-2.6b:free": 21,
+  "dots-studio/dots-3-note-preview:free": 20,
+  "nvidia/nemotron-3.5-lightning:free": 19,
+  "qwen/qwen3.8-27b:free": 15,
+  "nvidia/nemotron-3-ultra-550b-a55b:free": 14,
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": 12,
+  "poolside/laguna-xs-2.1:free": 9,
+  "poolside/laguna-s-2.1:free": 4
+ },
+ "requested": {
+  "openrouter/free": 226
+ },
+ "served_ne_requested": 226,
+ "served_switches": 205,
+ "completed_by_turn_model": {
+  "openrouter/free": 70
+ },
+ "cache_efficiency": 0.5654,
+ "cache_by_served": {
+  "inclusionai/ling-3.0-flash-sante:free": {
+   "calls": 31,
+   "efficiency": 0.9356
+  },
+  "dots-studio/dots-3-note-preview:free": {
+   "calls": 20,
+   "efficiency": 0.15
+  },
+  "apodex/apodex-1.1-mini:free": {
+   "calls": 26,
+   "efficiency": 0.8474
+  },
+  "poolside/laguna-s-2.1:free": {
+   "calls": 4,
+   "efficiency": 0.3523
+  },
+  "nvidia/nemotron-3.5-lightning:free": {
+   "calls": 19,
+   "efficiency": 0.7886
+  },
+  "liquid/lfm-2.5-2.6b:free": {
+   "calls": 21,
+   "efficiency": 0.5667
+  },
+  "cohere/north-mini-code:free": {
+   "calls": 27,
+   "efficiency": 0.0
+  },
+  "nvidia/nemotron-3-ultra-550b-a55b:free": {
+   "calls": 14,
+   "efficiency": 0.1898
+  },
+  "poolside/laguna-xs-2.1:free": {
+   "calls": 9,
+   "efficiency": 0.0
+  },
+  "nvidia/nemotron-3-super-120b-a12b:free": {
+   "calls": 28,
+   "efficiency": 0.681
+  },
+  "qwen/qwen3.8-27b:free": {
+   "calls": 15,
+   "efficiency": 0.5807
+  },
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+   "calls": 12,
+   "efficiency": 0.4097
+  }
+ },
+ "cache_same_model_as_prev_call": 0.8491,
+ "cache_after_served_switch": 0.54,
+ "tool_uses": 176,
+ "tool_malformed": 0,
+ "tool_unknown": 2,
+ "tool_arg_errors": 2
+}

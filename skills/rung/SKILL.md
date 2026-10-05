@@ -227,6 +227,12 @@ account's data policy — on the work key four of five free rungs return a
 404 with `ineligibility_reasons` (now `unroutable`, stepped past);
 `qwen/qwen3.8-27b:free` serves but 429s upstream every few turns; Jev
 answers in ~0.2 s at ~$0.00005 an ask. Run `route-probe.sh` before a run.
+On the host key (2026-10-05): no guardrail refusals; the router sends an
+overloaded upstream as HTTP 200 carrying `error.code: 503` (now classified
+by code); `openrouter/free` is the ladder's bottom rung (a listed router
+stands with `why: router`); listings flap within hours (space-bunny's
+expiry vanished, nemotron-ultra went `endpoint_down`). Evidence:
+`docs/rung-host-live-v4-hostkey.md`.
 
 ## Next
 

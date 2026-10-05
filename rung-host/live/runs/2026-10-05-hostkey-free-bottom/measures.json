@@ -1,0 +1,300 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 2999.1,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "stealth/space-bunny-alpha",
+  "completed_by_model": {
+   "stealth/space-bunny-alpha": 175
+  },
+  "first_turn_model": "stealth/space-bunny-alpha",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": true,
+    "model": "stealth/space-bunny-alpha",
+    "why": "ok"
+   },
+   {
+    "available": false,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "endpoint_down"
+   },
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "google/gemma-4-31b-it:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "ok"
+   },
+   {
+    "available": false,
+    "model": "openrouter/free",
+    "why": "endpoint_down"
+   }
+  ],
+  "pass": true,
+  "turns_by_status": {
+   "completed": 175
+  }
+ },
+ "L3": {
+  "at_bottom": 0,
+  "exercised": false,
+  "not_stepped": 0,
+  "pass": null,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 0,
+  "provider_failures": 0,
+  "stepped_down": 0,
+  "switches": [],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {
+   "rollover": 1
+  },
+  "cache_cold": {
+   "provider": 5
+  },
+  "cache_efficiency": 0.9709,
+  "cache_write_tokens": 0,
+  "cached_tokens": 10502937,
+  "calls": 212,
+  "epochs": 1,
+  "pass": true,
+  "prompt_tokens": 10818117,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 918,
+  "admission_ms_p50": 211,
+  "admission_ms_p95": 918,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": 50298,
+  "disposed_ms_p50": 21765,
+  "owner_items": 7,
+  "pass": true,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 50298,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 918,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 21765,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 187,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 46159,
+    "disposition": "answered",
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 211,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 8763,
+    "disposition": "answered",
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 149,
+    "waited_in": {
+     "paced": 49387
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 34917,
+    "disposition": "answered",
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 197,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 9785,
+    "disposition": "answered",
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 299,
+    "waited_in": {
+     "paced": 169841
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 14626,
+    "disposition": "answered",
+    "id": "o07-reflect",
+    "kind": "peer",
+    "latency_ms": 236,
+    "waited_in": {
+     "paced": 576835
+    }
+   }
+  ],
+  "turn_ms_p50": 1659,
+  "turn_ms_p95": 23484
+ },
+ "L6": {
+  "accepted": 12,
+  "disposed": 12,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 10,
+   "digested": 2
+  },
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 289,
+  "by_jev": 0,
+  "decisions": 785,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 207,
+   "{\"rule\": \"shadow\"}": 576,
+   "{\"rule\": \"timeout\"}": 2
+  },
+  "jev_charged_usd": 0.018128,
+  "jev_cost_usd": 0.018092,
+  "jev_ms_max": 1385.856,
+  "jev_ms_p50": 194.231,
+  "jev_ms_p95": 290.177,
+  "outcomes": {
+   "answered": 288,
+   "timeout": 1
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 3,
+    "disagree": 2
+   },
+   "consolidate": {
+    "agree": 1,
+    "disagree": 76
+   },
+   "inject": {
+    "agree": 178,
+    "disagree": 33
+   },
+   "pack": {
+    "agree": 65,
+    "disagree": 7
+   },
+   "tools": {
+    "agree": 167,
+    "disagree": 44
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {
+   "ws_write": 1
+  },
+  "agent_write_calls": 7,
+  "outside": {},
+  "pass": true,
+  "traces": 1,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/hostkey-B/state/workspace",
+  "write_syscalls": {
+   "mkdir": 184,
+   "openat": 174,
+   "unlink": 7
+  }
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.018128,
+  "jev_usd": 0.018092,
+  "pass": true,
+  "total_usd": 0.018128
+ },
+ "extra": {
+  "calendar_fired": 3,
+  "completion_tokens": 25638,
+  "degraded": {
+   "paced": 37
+  },
+  "degraded_waited_s": {
+   "paced": 2073
+  },
+  "kernel": {
+   "kernel.trace": 1
+  },
+  "llm_calls": 212,
+  "llm_latency_ms_p50": 2080,
+  "llm_latency_ms_p95": 12208,
+  "outbox": 8,
+  "reasoning_tokens": 0,
+  "rollovers": 1,
+  "served": {
+   "stealth/space-bunny-alpha": 212
+  },
+  "tool_calls": {
+   "expect": 5,
+   "memory_keep": 4,
+   "memory_search": 1,
+   "note": 15,
+   "send": 8,
+   "trace": 1,
+   "want_tools": 1,
+   "ws_list": 1,
+   "ws_read": 3,
+   "ws_write": 6
+  },
+  "turn_kinds": {
+   "free": 165,
+   "responding": 10
+  },
+  "turns": 175
+ },
+ "lines": 2426,
+ "run": "2026-10-05-hostkey-free-bottom"
+}

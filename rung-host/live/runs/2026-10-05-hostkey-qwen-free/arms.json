@@ -1,0 +1,93 @@
+{
+ "turns": {
+  "failed": 7,
+  "completed": 69
+ },
+ "turns_total": 76,
+ "failure_rate": 0.0921,
+ "failure_classes": {
+  "provider/rate_limit": 5,
+  "provider/output": 2
+ },
+ "calls": 239,
+ "served": {
+  "nvidia/nemotron-3-super-120b-a12b:free": 29,
+  "dots-studio/dots-3-note-preview:free": 28,
+  "qwen/qwen3.8-27b:free": 25,
+  "inclusionai/ling-3.0-flash-sante:free": 25,
+  "cohere/north-mini-code:free": 25,
+  "apodex/apodex-1.1-mini:free": 21,
+  "nvidia/nemotron-3.5-lightning:free": 20,
+  "liquid/lfm-2.5-2.6b:free": 18,
+  "nvidia/nemotron-3-ultra-550b-a55b:free": 16,
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": 12,
+  "poolside/laguna-s-2.1:free": 11,
+  "poolside/laguna-xs-2.1:free": 9
+ },
+ "requested": {
+  "openrouter/free": 229,
+  "qwen/qwen3.8-27b:free": 10
+ },
+ "served_ne_requested": 229,
+ "served_switches": 210,
+ "completed_by_turn_model": {
+  "openrouter/free": 69
+ },
+ "cache_efficiency": 0.3189,
+ "cache_by_served": {
+  "qwen/qwen3.8-27b:free": {
+   "calls": 25,
+   "efficiency": 0.3715
+  },
+  "inclusionai/ling-3.0-flash-sante:free": {
+   "calls": 25,
+   "efficiency": 0.5531
+  },
+  "nvidia/nemotron-3-super-120b-a12b:free": {
+   "calls": 29,
+   "efficiency": 0.4236
+  },
+  "liquid/lfm-2.5-2.6b:free": {
+   "calls": 18,
+   "efficiency": 0.5214
+  },
+  "dots-studio/dots-3-note-preview:free": {
+   "calls": 28,
+   "efficiency": 0.1862
+  },
+  "cohere/north-mini-code:free": {
+   "calls": 25,
+   "efficiency": 0.0
+  },
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+   "calls": 12,
+   "efficiency": 0.2895
+  },
+  "apodex/apodex-1.1-mini:free": {
+   "calls": 21,
+   "efficiency": 0.5288
+  },
+  "nvidia/nemotron-3-ultra-550b-a55b:free": {
+   "calls": 16,
+   "efficiency": 0.0
+  },
+  "nvidia/nemotron-3.5-lightning:free": {
+   "calls": 20,
+   "efficiency": 0.4439
+  },
+  "poolside/laguna-s-2.1:free": {
+   "calls": 11,
+   "efficiency": 0.0111
+  },
+  "poolside/laguna-xs-2.1:free": {
+   "calls": 9,
+   "efficiency": 0.1673
+  }
+ },
+ "cache_same_model_as_prev_call": 0.449,
+ "cache_after_served_switch": 0.3057,
+ "tool_uses": 203,
+ "tool_malformed": 1,
+ "tool_unknown": 1,
+ "tool_arg_errors": 0
+}

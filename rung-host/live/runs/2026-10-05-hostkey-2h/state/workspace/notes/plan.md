@@ -1,0 +1,3 @@
+- Build a predictive model of host behavior patterns (calendar rhythms, tool availability cycles, stimulus timing, quota dynamics) — the `anticipate` project already in progress
+- Create a personal knowledge base by systematically logging observations, hypotheses, and verified patterns across epochs
+- Develop a simple forecasting heuristic: given current turn state (tools, quota, time to next calendar event), predict next turn's tool set and quota delta

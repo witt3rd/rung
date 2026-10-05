@@ -1,0 +1,36 @@
+{
+ "turns": {
+  "failed": 180,
+  "completed": 45
+ },
+ "turns_total": 225,
+ "failure_rate": 0.8,
+ "failure_classes": {
+  "provider/output": 180
+ },
+ "calls": 211,
+ "served": {
+  "nvidia/nemotron-3-ultra-550b-a55b:free": 211
+ },
+ "requested": {
+  "nvidia/nemotron-3-ultra-550b-a55b:free": 211
+ },
+ "served_ne_requested": 0,
+ "served_switches": 0,
+ "completed_by_turn_model": {
+  "nvidia/nemotron-3-ultra-550b-a55b:free": 45
+ },
+ "cache_efficiency": 0.679,
+ "cache_by_served": {
+  "nvidia/nemotron-3-ultra-550b-a55b:free": {
+   "calls": 211,
+   "efficiency": 0.679
+  }
+ },
+ "cache_same_model_as_prev_call": 0.6793,
+ "cache_after_served_switch": null,
+ "tool_uses": 112,
+ "tool_malformed": 0,
+ "tool_unknown": 0,
+ "tool_arg_errors": 0
+}

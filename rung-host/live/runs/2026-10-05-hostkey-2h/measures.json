@@ -1,0 +1,351 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 7256.2,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "completed_by_model": {
+   "nvidia/nemotron-3-ultra-550b-a55b:free": 45
+  },
+  "first_turn_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": false,
+    "model": "stealth/space-bunny-alpha",
+    "why": "expired"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "google/gemma-4-31b-it:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": true,
+  "turns_by_status": {
+   "completed": 45,
+   "failed": 180
+  }
+ },
+ "L3": {
+  "at_bottom": 0,
+  "exercised": false,
+  "not_stepped": 0,
+  "pass": null,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 0,
+  "provider_failures": 0,
+  "stepped_down": 0,
+  "switches": [
+   {
+    "direction": "down",
+    "from": "stealth/space-bunny-alpha",
+    "to": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "listing: expired"
+   }
+  ],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {
+   "model_switch": 1,
+   "rollover": 1
+  },
+  "cache_cold": {
+   "provider": 83
+  },
+  "cache_efficiency": 0.679,
+  "cache_write_tokens": 0,
+  "cached_tokens": 5317920,
+  "calls": 211,
+  "epochs": 4,
+  "pass": true,
+  "prompt_tokens": 7831475,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 2337,
+  "admission_ms_p50": 2185,
+  "admission_ms_p95": 2337,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": 1924551,
+  "disposed_ms_p50": 546290,
+  "owner_items": 10,
+  "pass": true,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 111041,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 2157,
+    "waited_in": {
+     "backoff": 1812
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 106557,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 173,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 1445941,
+    "disposition": "answered",
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 2185,
+    "waited_in": {
+     "backoff": 1781
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 1163643,
+    "disposition": "answered",
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 2175,
+    "waited_in": {
+     "backoff": 1824
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 863477,
+    "disposition": "answered",
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 2185,
+    "waited_in": {
+     "backoff": 1819
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 515006,
+    "disposition": "answered",
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 2337,
+    "waited_in": {
+     "backoff": 1720
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 79596,
+    "disposition": "answered",
+    "id": "o07-reflect",
+    "kind": "peer",
+    "latency_ms": 2186,
+    "waited_in": {
+     "backoff": 1771
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 546290,
+    "disposition": "answered",
+    "id": "o08-tidy",
+    "kind": "peer",
+    "latency_ms": 2151,
+    "waited_in": {
+     "backoff": 1671
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 1924551,
+    "disposition": "answered",
+    "id": "o09-summary",
+    "kind": "peer",
+    "latency_ms": 2170,
+    "waited_in": {
+     "backoff": 1785
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 186688,
+    "disposition": "answered",
+    "id": "o10-last",
+    "kind": "peer",
+    "latency_ms": 2185,
+    "waited_in": {
+     "backoff": 1812
+    }
+   }
+  ],
+  "turn_ms_p50": 3196,
+  "turn_ms_p95": 107620
+ },
+ "L6": {
+  "accepted": 14,
+  "disposed": 14,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 14
+  },
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 460,
+  "by_jev": 0,
+  "decisions": 1316,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 336,
+   "{\"rule\": \"shadow\"}": 978,
+   "{\"rule\": \"timeout\"}": 2
+  },
+  "jev_charged_usd": 0.026816,
+  "jev_cost_usd": 0.026772,
+  "jev_ms_max": 1656.272,
+  "jev_ms_p50": 203.592,
+  "jev_ms_p95": 407.849,
+  "outcomes": {
+   "answered": 459,
+   "timeout": 1
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 60,
+    "disagree": 9
+   },
+   "consolidate": {
+    "agree": 26,
+    "disagree": 29
+   },
+   "inject": {
+    "agree": 156,
+    "disagree": 248
+   },
+   "pack": {
+    "agree": 33,
+    "disagree": 13
+   },
+   "tools": {
+    "agree": 90,
+    "disagree": 314
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {
+   "ws_write": 3
+  },
+  "agent_write_calls": 22,
+  "outside": {},
+  "pass": true,
+  "traces": 1,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/2/rung/.tasktmp/hostkey-A/state/workspace",
+  "write_syscalls": {
+   "mkdir": 93,
+   "openat": 68,
+   "unlink": 10
+  }
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.026816,
+  "jev_usd": 0.026772,
+  "pass": true,
+  "total_usd": 0.026816
+ },
+ "extra": {
+  "calendar_fired": 4,
+  "completion_tokens": 65656,
+  "degraded": {
+   "backoff": 180
+  },
+  "degraded_waited_s": {
+   "backoff": 309
+  },
+  "kernel": {
+   "kernel.commit": 11,
+   "kernel.progress": 16,
+   "kernel.release": 11,
+   "kernel.trace": 1
+  },
+  "llm_calls": 211,
+  "llm_latency_ms_p50": 7358,
+  "llm_latency_ms_p95": 59593,
+  "outbox": 33,
+  "reasoning_tokens": 14324,
+  "rollovers": 5,
+  "served": {
+   "nvidia/nemotron-3-ultra-550b-a55b:free": 211
+  },
+  "tool_calls": {
+   "commit": 11,
+   "memory_keep": 2,
+   "memory_search": 1,
+   "note": 17,
+   "progress": 16,
+   "release": 11,
+   "send": 23,
+   "trace": 1,
+   "want_tools": 2,
+   "ws_list": 4,
+   "ws_read": 2,
+   "ws_write": 19
+  },
+  "turn_kinds": {
+   "committed": 34,
+   "free": 98,
+   "responding": 93
+  },
+  "turns": 225
+ },
+ "lines": 4126,
+ "run": "2026-10-05-hostkey-2h"
+}
