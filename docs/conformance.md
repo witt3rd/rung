@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 403 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 404 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1048,6 +1048,10 @@ look shorter than it is.
 **`rung-host/tests/measure_admission.rs`** — 1 unclaimed
 
 - `admission_latency_by_long_work_share`
+
+**`rung-host/tests/quickstart.rs`** — 1 unclaimed
+
+- `the_quickstart_example_runs`
 
 **`rung-host/tests/run_config.rs`** — 12 unclaimed
 
