@@ -388,6 +388,7 @@ mod tests {
     /// 2026-10-04T23:59:59.999Z and 2026-10-05T00:00Z.
     const BEFORE: Millis = 1_791_158_399_999;
     const ON: Millis = 1_791_158_400_000;
+    const DAY_MS: Millis = 24 * HOUR;
 
     #[test]
     fn each_rung_gets_its_verdict() {
@@ -433,5 +434,123 @@ mod tests {
         // Before any listing, every rung stands.
         let v = list(&l, &ladder(), &[], ON);
         assert_eq!(v["available"], 6);
+    }
+
+    #[test]
+    fn a_refusal_without_named_reasons_is_unspecified_and_malformed_bodies_are_not_refusals() {
+        let empty = r#"{"error":{"metadata":{"ineligibility_reasons":[]}}}"#;
+        assert_eq!(refusal(404, empty), Some(vec!["unspecified".into()]));
+        let unnamed = r#"{"error":{"metadata":{"ineligibility_reasons":[{"x":1}]}}}"#;
+        assert_eq!(refusal(404, unnamed), Some(vec!["unspecified".into()]));
+        assert_eq!(refusal(404, "not json"), None);
+        assert_eq!(refusal(404, r#"{"error":{"metadata":{}}}"#), None);
+        assert_eq!(refusal(500, empty), None);
+    }
+
+    #[test]
+    fn a_price_is_free_only_when_it_parses_to_zero() {
+        for free in [json!("0"), json!("0.0"), json!(" 0 "), json!(0), json!(0.0)] {
+            assert!(is_zero(&free), "{free}");
+        }
+        for paid in [
+            json!("0.000001"),
+            json!("-1"),
+            json!("free"),
+            json!(""),
+            json!(null),
+            json!(1),
+        ] {
+            assert!(!is_zero(&paid), "{paid}");
+        }
+        // A model with no pricing at all is not free.
+        let l = json!({"data": [{"id": "m", "supported_parameters": ["tools"]}]});
+        assert_eq!(listed_verdict(&l, "m", ON), Err("not_free"));
+        // A free prompt with a paid completion is not free either.
+        let l = json!({"data": [{"id": "m", "supported_parameters": ["tools"],
+            "pricing": {"prompt": "0", "completion": "0.5"}}]});
+        assert_eq!(listed_verdict(&l, "m", ON), Err("not_free"));
+    }
+
+    #[test]
+    fn expiry_dates_are_read_as_civil_days_and_unreadable_ones_never_expire() {
+        assert_eq!(days_from_civil("1970-01-01"), Some(0));
+        assert_eq!(days_from_civil("1970-01-02"), Some(1));
+        // A leap day exists in 2028 and the day after it is the next day.
+        let feb29 = days_from_civil("2028-02-29").unwrap();
+        assert_eq!(days_from_civil("2028-03-01"), Some(feb29 + 1));
+        // A timestamp's time of day is ignored: only the date counts.
+        assert_eq!(days_from_civil("2026-10-05T12:00:00Z"), Some(ON / DAY_MS));
+        for bad in [
+            "",
+            "2026-10",
+            "2026-13-01",
+            "2026-00-10",
+            "2026-10-32",
+            "abcd-ef-gh",
+        ] {
+            assert_eq!(days_from_civil(bad), None, "{bad}");
+        }
+        let mut l = lister();
+        l.listing = Ok(json!({"data": [model("a", "0", &["tools"], Some("soon"))]}));
+        l.endpoints = BTreeMap::from([("a".to_string(), up(0))]);
+        let v = list(&l, &["a".to_string()], &[], ON * 10);
+        assert_eq!(whys(&v), [(true, "ok".to_string())]);
+    }
+
+    #[test]
+    fn an_endpoint_is_up_at_status_zero_and_down_below_it() {
+        assert!(endpoint_up(&up(0)));
+        assert!(endpoint_up(&up(1)));
+        assert!(!endpoint_up(&up(-1)));
+        assert!(!endpoint_up(&json!({"data": {"endpoints": []}})));
+        assert!(!endpoint_up(&json!({"data": {}})));
+        assert!(!endpoint_up(
+            &json!({"data": {"endpoints": [{"status": "ok"}]}})
+        ));
+        // One live endpoint among dead ones is enough.
+        let mixed = json!({"data": {"endpoints": [{"status": -5}, {"status": 0}]}});
+        assert!(endpoint_up(&mixed));
+    }
+
+    #[test]
+    fn a_listed_rung_the_router_has_no_endpoints_for_is_down() {
+        let mut l = lister();
+        l.endpoints.clear();
+        let v = list(&l, &ladder(), &[], BEFORE);
+        assert_eq!(whys(&v)[0], (false, "endpoint_down".to_string()));
+        assert_eq!(v["available"], 0);
+        assert_eq!(v["ok"], true);
+    }
+
+    #[test]
+    fn a_listing_without_a_data_array_fails_and_keeps_the_previous_verdicts() {
+        let mut l = lister();
+        l.listing = Ok(json!({"error": "nope"}));
+        let v = list(&l, &ladder(), &[true, false], ON);
+        assert_eq!(v["ok"], false);
+        assert_eq!(v["error"], "GET /models: no data array");
+        assert_eq!(v["next_at"], ON + RETRY_MS);
+        let w = whys(&v);
+        assert_eq!(w[0], (true, "kept".to_string()));
+        assert_eq!(w[1], (false, "kept_unavailable".to_string()));
+        // Rungs beyond the previous verdicts stand.
+        assert_eq!(w[5], (true, "kept".to_string()));
+    }
+
+    #[test]
+    fn an_endpoint_lookup_that_fails_fails_the_whole_listing() {
+        struct Flaky;
+        impl Lister for Flaky {
+            fn models(&self) -> Result<Value, String> {
+                Ok(json!({"data": [model("a", "0", &["tools"], None)]}))
+            }
+            fn endpoints(&self, _: &str) -> Result<Option<Value>, String> {
+                Err("GET /models/a/endpoints: HTTP 503".into())
+            }
+        }
+        let v = list(&Flaky, &["a".to_string()], &[false], ON);
+        assert_eq!(v["ok"], false);
+        assert_eq!(v["error"], "GET /models/a/endpoints: HTTP 503");
+        assert_eq!(whys(&v), [(false, "kept_unavailable".to_string())]);
     }
 }
