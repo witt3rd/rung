@@ -208,6 +208,23 @@ declared budget; recall does not return the note in another scope. The check
 writes one probe note under a scope of its own,
 `rung-memory-check:<uuid>`.
 
+## Inspecting a scope
+
+For `baseline` (one JSON-lines file per scope, see above):
+
+```bash
+export RUNG_MEMORY_SCOPE=<scope> RUNG_MEMORY_DIR=<dir>
+rung-agent --memory-scope ls        # records, newest, bytes, then id/time/text
+rung-agent --memory-scope rm <id>   # delete one record
+rung-agent --memory-scope drop      # delete the whole scope
+```
+
+Without the command: `jq -s 'length, (map(.observed_at)|max)' "$(ls $RUNG_MEMORY_DIR/*.jsonl)"`
+counts and dates a file; `jq -c 'select(.id!="<id>")' f > f.new && mv f.new f`
+deletes a record. An MCP provider keeps its own store: use its own health or
+admin endpoint (for a Jev-Mem container, `curl $URL/health` for counts and its
+delete script for records); rung has no delete verb in `rung-memory/1`.
+
 `rung-agent --memory-fixture [--file PATH]` serves the reference provider on
 stdio. rung's tests use it, and a host can compare its own provider against
 it. It keeps records in memory, or appends them to `--file` so they outlive

@@ -251,3 +251,47 @@ fn the_host_sets_the_per_prompt_call_cap() {
         }
     }
 }
+
+#[test]
+fn memory_scope_ls_rm_drop() {
+    use rung_memory::{Record, RecordId, Scope};
+    let tmp = tempfile();
+    let scope = Scope::new("s1");
+    let store = rung_memory::baseline::Baseline::new(&*tmp);
+    let rec = |id: &str, at: &str| Record {
+        id: RecordId::new(id),
+        scope: scope.clone(),
+        text: format!("note {id}"),
+        observed_at: Some(at.into()),
+        attrs: Default::default(),
+    };
+    std::fs::create_dir_all(&*tmp).unwrap();
+    let lines: String = [
+        rec("a", "2026-01-01T00:00:00Z"),
+        rec("b", "2026-02-01T00:00:00Z"),
+    ]
+    .iter()
+    .map(|r| serde_json::to_string(r).unwrap() + "\n")
+    .collect();
+    std::fs::write(store.file(&scope), lines).unwrap();
+    let run = |args: &[&str]| {
+        bin()
+            .env("RUNG_MEMORY_SCOPE", "s1")
+            .env("RUNG_MEMORY_DIR", &*tmp)
+            .arg("--memory-scope")
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    let o = run(&["ls"]);
+    let t = String::from_utf8_lossy(&o.stdout);
+    assert!(
+        t.contains("records: 2") && t.contains("newest: 2026-02-01"),
+        "{t}"
+    );
+    assert!(run(&["rm", "a"]).status.success());
+    assert!(String::from_utf8_lossy(&run(&["ls"]).stdout).contains("records: 1"));
+    assert_eq!(run(&["rm", "zzz"]).status.code(), Some(1));
+    assert!(run(&["drop"]).status.success());
+    assert!(String::from_utf8_lossy(&run(&["ls"]).stdout).contains("records: 0"));
+}

@@ -17,6 +17,7 @@ fn main() -> ExitCode {
                 }
             };
         }
+        Some("--memory-scope") => return memory_scope(&argv[2..]),
         Some("--memory-check") => return memory_check(argv.get(2)),
         _ => {}
     }
@@ -133,5 +134,72 @@ fn memory_check(setting: Option<&String>) -> ExitCode {
             eprintln!("rung-agent: {e}");
             ExitCode::from(2)
         }
+    }
+}
+
+/// `--memory-scope ls|rm ID|drop`: inspect the baseline store for the scope in
+/// `RUNG_MEMORY_SCOPE` under `RUNG_MEMORY_DIR`. `ls` prints count, newest,
+/// bytes, then one line per record; `rm ID` deletes a record; `drop` the scope.
+fn memory_scope(rest: &[String]) -> ExitCode {
+    let env = |k: &str| std::env::var(k).ok().filter(|v| !v.trim().is_empty());
+    let (Some(scope), Some(dir)) = (env("RUNG_MEMORY_SCOPE"), env("RUNG_MEMORY_DIR")) else {
+        eprintln!("rung-agent: --memory-scope needs RUNG_MEMORY_SCOPE and RUNG_MEMORY_DIR");
+        return ExitCode::from(2);
+    };
+    let scope = rung_memory::Scope::new(scope);
+    let store = rung_memory::baseline::Baseline::new(dir);
+    let fail = |e: String| {
+        eprintln!("rung-agent: {e}");
+        ExitCode::from(1)
+    };
+    match rest.first().map(String::as_str) {
+        Some("ls") => match store.records(&scope) {
+            Ok(rs) => {
+                let bytes = std::fs::metadata(store.file(&scope)).map_or(0, |m| m.len());
+                let newest = rs.iter().filter_map(|r| r.observed_at.as_deref()).max();
+                println!(
+                    "records: {}\nnewest: {}\nbytes: {bytes}",
+                    rs.len(),
+                    newest.unwrap_or("-")
+                );
+                for r in &rs {
+                    let t: String = r.text.chars().take(60).collect();
+                    println!(
+                        "{}\t{}\t{}",
+                        r.id.as_str(),
+                        r.observed_at.as_deref().unwrap_or("-"),
+                        t.replace('\n', " ")
+                    );
+                }
+                ExitCode::SUCCESS
+            }
+            Err(m) => fail(m.why.to_string()),
+        },
+        Some("rm") => match rest.get(1) {
+            Some(id) => match store.delete_record(&scope, &rung_memory::RecordId::new(id)) {
+                Ok(true) => {
+                    println!("deleted {id}");
+                    ExitCode::SUCCESS
+                }
+                Ok(false) => fail(format!("no record {id}")),
+                Err(e) => fail(e),
+            },
+            None => fail("rm needs a record id".into()),
+        },
+        Some("drop") => match store.delete_scope(&scope) {
+            Ok(b) => {
+                println!(
+                    "{}",
+                    if b {
+                        "scope deleted"
+                    } else {
+                        "scope was empty"
+                    }
+                );
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(e),
+        },
+        _ => fail("usage: --memory-scope ls | rm ID | drop".into()),
     }
 }
