@@ -56,9 +56,9 @@ only seeded material. "The world outside, something to make" never came up.
 ## Cause
 
 The free-time rules give permission to do nothing ("Pick what genuinely
-draws you, or **nothing on the list**") and say nothing about what an empty
+draws you, or **nothing on the list**") and say nothing about what an idle
 turn looks like. A model that must produce a reply each turn fills it with a
-status line. Idling is permitted; the form of idling is not stated.
+status line. Idling is permitted; the form of idling is not bounded.
 
 ## The one change
 
@@ -66,23 +66,20 @@ Add one sixth rule to the free-time material, behind a config key
 (`free_time_idle_rule: true` in `rung-host.yaml`, default off, so no
 existing run changes):
 
-> 6. If nothing pulls you, say nothing: end the turn with no text. Never
-> report that nothing happened. Before you let a turn pass empty, look once
-> in your workspace or memory for something unfinished or something to make.
+> 6. If nothing pulls you, first look once in your workspace or memory for
+> something unfinished or something to make. If there is still nothing useful
+> to do, reply with ONE short line (e.g. "Nothing to do.") and no tool calls;
+> do not elaborate.
 
-It states the form of idle (empty), stops filler from reaching "recent
-traces" and memory, and points the empty turn at the workspace first.
-Implemented in `rung-host/src/render.rs` (`FREE_TIME_IDLE_RULE`), pinned by a
-unit test. **Not yet measured live**: this change was written after the hour,
-and one run cannot show it works. The next free-time run should set the key
-and compare: turns without a tool call, filler turns, retained candidates,
-and whether `ws_list`/`memory_search` replace "Quiet".
-
-**Known limit (checked with a mock engine, `gate_engine.rs`):** the host does
-not accept an empty model reply as a valid turn. The engine counts it as
-provider-output degradation (`degraded`, class `output`, backoff). Until that
-is changed in the host, rule 6 asks for something the host penalises, so keep
-the key off; it stays opt-in and the host was not widened here.
+It bounds the form of idle (one short line, which the host accepts as a normal
+turn; a mock-engine test in `gate_engine.rs` pins that), keeps filler from
+growing into "recent traces" and memory, and points the idle turn at the
+workspace first. Implemented in `rung-host/src/render.rs`
+(`FREE_TIME_IDLE_RULE`), placed directly after rule 5. **Not yet measured
+live**: this change was written after the hour, and one run cannot show it
+works. The next free-time run should set the key and compare: turns without a
+tool call, filler length, retained candidates, and whether
+`ws_list`/`memory_search` replace "Quiet".
 
 What it does not fix: turns still start every few seconds with nothing
 admitted, so quota is spent either way. Pacing idle turns is a separate

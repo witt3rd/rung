@@ -171,7 +171,7 @@ fn the_engine_adapter_runs_the_host_against_a_loopback_provider() {
 }
 
 #[test]
-fn an_empty_model_reply_is_provider_output_degradation() {
+fn a_one_line_idle_reply_is_a_normal_turn() {
     sim::test_timeout(600);
     let clock = Arc::new(SimClock::new(SIM_START));
     let c2 = clock.clone();
@@ -186,7 +186,7 @@ fn an_empty_model_reply_is_provider_output_degradation() {
             completion: 0,
             cost_usd: 0.0,
         };
-        Reply::completion("Upstream", None, &[], served)
+        Reply::completion("Upstream", Some("Nothing to do."), &[], served)
     });
     let mut sc = scenario("gate-n-empty", 37);
     let workspace = sc.dir.join("workspace");
@@ -202,16 +202,8 @@ fn an_empty_model_reply_is_provider_output_degradation() {
         AgentEngine::new(ac, clock.clone()).expect("engine"),
     ));
     let out = sim::run(sc);
-    let degraded: Vec<_> = out
-        .lines
-        .iter()
-        .filter(|l| l.kind == "degraded")
-        .map(|l| l.to_value())
-        .collect();
-    assert!(!degraded.is_empty(), "an empty reply is not a clean turn");
-    assert!(
-        degraded
-            .iter()
-            .all(|d| d["failure"]["class"] == "output" && d["failure"]["origin"] == "provider")
-    );
+    let ended = out.lines.iter().filter(|l| l.kind == "turn.ended").count();
+    assert_eq!(ended, 3);
+    assert!(!out.lines.iter().any(|l| l.kind == "degraded"));
+    assert_eq!(provider.seen().len(), 3, "one call per turn, no retry");
 }
