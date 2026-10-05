@@ -16,7 +16,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 repo="$(cd "$here/../.." && pwd)"
 run="$(mkdir -p "$1" && cd "$1" && pwd)"
 for_s="$2"
-bin="$repo/target/release/rung-host"
+bin="${RUNG_HOST_BIN:-$repo/target/release/rung-host}"   # RUNG_HOST_BIN: another build
 [ -x "$bin" ] || { echo "build first: cargo build --release -p rung-host" >&2; exit 2; }
 mkdir -p "$run/trace" "$run/state"
 [ -e "$run/started_at" ] || date +%s.%N > "$run/started_at"
