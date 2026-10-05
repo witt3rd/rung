@@ -35,9 +35,8 @@ Other keys, each with an env override that wins over the file:
 | `scope` | `RUNG_MEMORY_SCOPE` | `rung-scope:<hex>`, a SHA-256 prefix of the git `origin` URL (else the canonical repository root path); never the raw path. A configured value is passed verbatim |
 | `dir` | `RUNG_MEMORY_DIR` | `<repository root>/.rung/memory`, or `$RUNG_HOME/memory` when `scope` is set |
 | `timeout_secs` | `RUNG_MEMORY_TIMEOUT_SECS` | `30` |
+| `retain_timeout_secs` | `RUNG_MEMORY_RETAIN_TIMEOUT_SECS` | `60` |
 | `token` | `RUNG_MEMORY_TOKEN` | none |
-
-Until a separate retain timeout lands, the single shared `timeout_secs` (default 30 s) bounds both the recall and retain hooks; a 60 s retain default follows separately.
 
 `token` is an optional bearer for an `mcp:<url>` provider. When set, rung sends
 `Authorization: Bearer <token>` on every outbound HTTP call to the provider
@@ -97,7 +96,7 @@ reported in `_meta.rung.memory` on the ACP prompt response, in
 | hook | outcomes |
 |---|---|
 | recall | `found` (at least one whole record), `empty` (the provider answered and holds nothing that fits), `unavailable` (with `reason`) |
-| retain | `deferred` always: retain runs after the reply (bounded by the provider timeout) and its outcome (`stored`, `declined`, `unretained`) is a later `memory.retained` / `memory.retain_failed` event. The next recall and process exit wait for it. |
+| retain | `deferred` always: retain runs after the reply (bounded by `retain_timeout_secs`) and its outcome (`stored`, `declined`, `unretained`) is a later `memory.retained` / `memory.retain_failed` event. The next recall waits for it at most `min(retain_timeout_secs, timeout_secs)`, then goes ahead (the retain stays pending and reports later); process exit waits for it. |
 
 `left_out` counts records the budget dropped. `injected` lists, in order, the
 ids of the records rung actually put in the turn's context after the budget
@@ -137,7 +136,7 @@ the provider reported, failed calls included. `latency_ms` is rung's measure.
 - **Cost.** A recall whose reported cost exceeds the provider's declared
   `max_cost_usd` is `unavailable` (`memory budget spent`), not evidence. The
   default is `0`, so a provider that charges must declare its budget.
-- **Time.** Each hook call and each agent-facing memory tool call has `timeout_secs`. A hook that runs over makes
+- **Time.** Each recall hook call and each agent-facing memory tool call has `timeout_secs`; a retain call has `retain_timeout_secs` (retain runs after the reply, so it may wait longer). A hook that runs over makes
   the hook `unavailable` (a tool call returns an error), stops the provider process, and makes every later
   hook in the run unavailable at once.
 - **Scope.** A record from a scope other than the one asked is `unavailable`,

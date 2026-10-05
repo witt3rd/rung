@@ -146,6 +146,9 @@ pub struct ProviderSettings {
     /// The longest one provider call may take; the provider enforces it on
     /// its own transport.
     pub timeout: Duration,
+    /// The longest a retain call may take. Retain runs after the reply, so
+    /// it may wait longer than a recall, which blocks it.
+    pub retain_timeout: Duration,
     /// An optional bearer for a provider reached over HTTP. A provider on
     /// another transport ignores it.
     pub token: Option<Token>,
