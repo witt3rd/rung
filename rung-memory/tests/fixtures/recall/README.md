@@ -20,5 +20,5 @@ Score with the baseline (BM25) provider:
 
 `questions_inflected.jsonl` (optional) holds reworded/inflected questions over
 the same notes; the scorer prints it per ranking option (`baseline`,
-`baseline:stem`, `baseline:phrase`, `baseline:stem,phrase`) and asserts that
+`baseline:stem`) and asserts that
 `stem` beats the default there.

@@ -71,7 +71,7 @@ fn baseline_recall_quality() {
         if qs.is_empty() {
             continue;
         }
-        for arg in ["", "stem", "phrase", "stem,phrase"] {
+        for arg in ["", "stem"] {
             let b = Baseline::new(tmp.path()).with_options(Options::parse(arg).unwrap());
             let row = score(&b, &scope, qs, arg.is_empty());
             println!(

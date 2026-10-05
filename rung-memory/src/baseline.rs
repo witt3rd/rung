@@ -35,9 +35,6 @@ const B: f64 = 0.75;
 /// Added per position in the file, scaled to (0, RECENCY]: a tie-break only.
 const RECENCY: f64 = 0.01;
 
-/// Added per adjacent query-term pair found in a record, when `phrase` is on.
-const PHRASE: f64 = 1.0;
-
 const STOPWORDS: &[&str] = &[
     "a", "an", "and", "are", "as", "at", "be", "but", "by", "can", "do", "does", "for", "from",
     "has", "have", "how", "i", "if", "in", "is", "it", "its", "me", "my", "no", "not", "of", "ok",
@@ -48,7 +45,7 @@ const STOPWORDS: &[&str] = &[
 
 /// The `baseline` factory for [`crate::Registry`].
 ///
-/// The optional `arg` (`baseline:stem,phrase`) turns on ranking options; see
+/// The optional `arg` (`baseline:stem`) turns on ranking options; see
 /// [`Options`]. With no `arg` the ranking is unchanged.
 pub fn factory(s: &ProviderSettings) -> Result<Arc<dyn MemoryProvider>, String> {
     let options = match &s.arg {
@@ -61,26 +58,21 @@ pub fn factory(s: &ProviderSettings) -> Result<Arc<dyn MemoryProvider>, String> 
 /// Opt-in ranking changes. Default: all off (plain BM25 plus recency).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Options {
-    /// Fold plural and verb endings (`meetings`/`meeting`, `moved`/`move`)
-    /// on both sides of the match.
+    /// Fold plural and verb endings (`meetings`/`meeting`, `walked`/`walk`)
+    /// on both sides of the match. Silent-e verbs do not fold (`moved` is
+    /// `mov`, `move` stays `move`).
     pub stem: bool,
-    /// Boost a record in which two query terms appear next to each other in
-    /// the query's order.
-    pub phrase: bool,
 }
 
 impl Options {
-    /// `stem`, `phrase`, comma separated; anything else is an error.
+    /// `stem`; anything else is an error.
     pub fn parse(arg: &str) -> Result<Self, String> {
         let mut o = Self::default();
         for w in arg.split(',').map(str::trim).filter(|w| !w.is_empty()) {
             match w {
                 "stem" => o.stem = true,
-                "phrase" => o.phrase = true,
                 other => {
-                    return Err(format!(
-                        "baseline: unknown option '{other}' (stem | phrase)"
-                    ));
+                    return Err(format!("baseline: unknown option '{other}' (stem)"));
                 }
             }
         }
@@ -199,8 +191,7 @@ fn normal(text: &str) -> String {
 impl Store for Baseline {
     fn search(&self, scope: &Scope, query: &str, limit: usize) -> Result<Charged<Vec<Hit>>, Miss> {
         let records = self.load(scope)?;
-        let qlist = terms_with(query, self.options);
-        let q: HashSet<String> = qlist.iter().cloned().collect();
+        let q: HashSet<String> = terms_with(query, self.options).into_iter().collect();
         if q.is_empty() || records.is_empty() {
             return Ok(Charged::new(Vec::new()));
         }
@@ -228,13 +219,6 @@ impl Store for Baseline {
                 let df = *df.get(t.as_str()).unwrap_or(&0) as f64;
                 let idf = ((n - df + 0.5) / (df + 0.5) + 1.0).ln();
                 score += idf * tf * (K1 + 1.0) / (tf + K1 * (1.0 - B + B * len / avg.max(1.0)));
-            }
-            if score > 0.0 && self.options.phrase {
-                let pairs = qlist
-                    .windows(2)
-                    .filter(|p| d.windows(2).any(|w| w == *p))
-                    .count();
-                score += PHRASE * pairs as f64;
             }
             if score > 0.0 {
                 hits.push((score + RECENCY * (i + 1) as f64 / n, i));
@@ -381,8 +365,8 @@ mod tests {
     #[test]
     fn options_parse_and_stem() {
         assert_eq!(Options::parse("").unwrap(), Options::default());
-        let o = Options::parse("stem, phrase").unwrap();
-        assert!(o.stem && o.phrase);
+        let o = Options::parse("stem").unwrap();
+        assert!(o.stem);
         assert!(Options::parse("fuzzy").is_err());
         assert_eq!(stem("meetings"), "meeting");
         assert_eq!(stem("moved"), "mov");
