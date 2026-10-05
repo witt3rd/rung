@@ -93,7 +93,7 @@ one.
 - **baseline**: one file per scope, `<repo root>/.rung/memory/<id>.jsonl`
   (`$RUNG_HOME/memory/` when a scope is set; `RUNG_MEMORY_DIR` overrides).
   Inspect: `cat .rung/memory/*.jsonl` (each line has `id`, `scope`, `text`,
-  `observed_at`). Reset: delete the file.
+  `observed_at`, and for a turn record `attrs`). Reset: delete the file.
 - **fixture** (`--file PATH`): one JSON record per line. Inspect: `cat PATH`.
   Reset: delete the file.
 - **other providers**: use the provider's own tools and documentation. Reset
