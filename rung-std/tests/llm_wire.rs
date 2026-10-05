@@ -7,6 +7,9 @@
 //!   Anthropic;
 //! - explicit cache breakpoints are lowered per protocol, at the end of the
 //!   part they name, and nowhere else;
+//! - `CachePolicy::Auto` marks the system text and the latest user message
+//!   on a route that takes markers, and only when the caller placed none;
+//!   with markers set aside each request is a byte-prefix of the next;
 //! - a non-2xx answer is shown to the stream listener (status, rate-limit
 //!   headers only, the body with the key redacted), without counting as
 //!   observed output.
@@ -327,4 +330,110 @@ fn an_openai_refusal_is_shown_to_the_listener() {
 fn an_anthropic_refusal_is_shown_to_the_listener() {
     let (seen, err) = refused(Protocol::AnthropicMessages);
     check(&seen, &err);
+}
+
+// ─── Automatic markers on the OpenAI-compatible wire ─────────────────────────
+
+/// The body with every `cache_control` removed: a marker marks, it is not
+/// content, so it is not part of the prefix a provider caches.
+fn unmarked(v: &Value) -> Value {
+    match v {
+        Value::Object(m) => Value::Object(
+            m.iter()
+                .filter(|(k, _)| k.as_str() != "cache_control")
+                .map(|(k, x)| (k.clone(), unmarked(x)))
+                .collect(),
+        ),
+        Value::Array(a) => Value::Array(a.iter().map(unmarked).collect()),
+        other => other.clone(),
+    }
+}
+
+fn openrouter_auto() -> LlmConfig {
+    let mut c = cfg(Protocol::OpenAiChat);
+    c.base_url = "https://openrouter.ai/api/v1".into();
+    c.cache = CachePolicy::Auto;
+    c
+}
+
+#[test]
+fn auto_marks_the_system_text_and_the_latest_user_message_on_a_route_that_takes_them() {
+    let b = body(&openrouter_auto());
+    let m = &b["messages"];
+    let marked = |text: &str| json!([{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]);
+    assert_eq!(m[0]["content"], marked("stable"));
+    assert_eq!(m[1]["content"], json!([{"type": "text", "text": "slow"}]));
+    assert_eq!(m[2]["content"], marked("header"));
+    assert_eq!(markers(&b), 2, "{b}");
+    assert!(
+        b.get("session_id").is_none(),
+        "a session id is the caller's"
+    );
+
+    // A Claude model behind any OpenAI-compatible route is marked too.
+    let mut c = cfg(Protocol::OpenAiChat);
+    c.cache = CachePolicy::Auto;
+    c.model = "anthropic/claude-sonnet-4.5".into();
+    assert_eq!(markers(&body(&c)), 2);
+}
+
+#[test]
+fn auto_marks_nothing_on_a_plain_route_or_beside_the_callers_breakpoints() {
+    let mut c = cfg(Protocol::OpenAiChat);
+    c.cache = CachePolicy::Auto;
+    assert_eq!(body(&c), body(&cfg(Protocol::OpenAiChat)), "a plain route");
+
+    let mut c = openrouter_auto();
+    c.cache_breakpoints = vec![CacheBreakpoint::System, CacheBreakpoint::Message(0)];
+    let mut explicit = cfg(Protocol::OpenAiChat);
+    explicit.base_url = c.base_url.clone();
+    explicit.cache_breakpoints = c.cache_breakpoints.clone();
+    assert_eq!(body(&c), body(&explicit), "the caller's placement wins");
+
+    let mut c = openrouter_auto();
+    c.cache = CachePolicy::None;
+    assert_eq!(markers(&body(&c)), 0);
+}
+
+/// The marker moves on to each new latest user message; with markers set
+/// aside, the next turn's request extends this one's byte for byte.
+#[test]
+fn auto_marks_keep_each_request_a_byte_prefix_of_the_next() {
+    let c = openrouter_auto();
+    let turn1 = vec![
+        ChatMessage::system("stable"),
+        ChatMessage::user("first ask"),
+    ];
+    let mut turn2 = turn1.clone();
+    turn2.push(ChatMessage::assistant("first answer"));
+    turn2.push(ChatMessage::user("second ask"));
+    let a = llm::prepare(&c, &turn1, &tools()).unwrap().body;
+    let b = llm::prepare(&c, &turn2, &tools()).unwrap().body;
+    assert_eq!(markers(&a), 2);
+    assert_eq!(markers(&b), 2);
+    let (a, b) = (unmarked(&a), unmarked(&b));
+    assert_eq!(a["tools"], b["tools"]);
+    let (am, bm) = (
+        a["messages"].as_array().unwrap(),
+        b["messages"].as_array().unwrap(),
+    );
+    for (i, m) in am.iter().enumerate() {
+        assert_eq!(m.to_string(), bm[i].to_string(), "message {i}");
+    }
+}
+
+#[test]
+fn openrouter_is_recognised_by_its_host_only() {
+    let mut c = cfg(Protocol::OpenAiChat);
+    for (url, yes) in [
+        ("https://openrouter.ai/api/v1", true),
+        ("https://eu.openrouter.ai/api/v1", true),
+        ("https://OpenRouter.ai:443/api/v1", true),
+        ("http://127.0.0.1:9/v1", false),
+        ("https://openrouter.ai.example.com/v1", false),
+        ("https://example.com/openrouter.ai/v1", false),
+    ] {
+        c.base_url = url.into();
+        assert_eq!(c.is_openrouter(), yes, "{url}");
+    }
 }

@@ -277,8 +277,11 @@ impl Protocol {
 }
 
 /// Prompt-cache placement. `Auto` marks last tool, last system part, and the
-/// latest user message (Anthropic/Bedrock explicit cache). OpenAI/Gemini ignore
-/// the markers (implicit caching).
+/// latest user message (Anthropic/Bedrock explicit cache). On the
+/// OpenAI-compatible wire `Auto` marks the last system and latest user
+/// message only for a route that takes the marks
+/// ([`LlmConfig::takes_cache_marks`]) and only when the caller placed no
+/// explicit [`CacheBreakpoint`]; other routes cache implicitly.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CachePolicy {
@@ -413,6 +416,31 @@ impl LlmConfig {
 
     pub fn idle_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.idle_timeout_secs.unwrap_or(self.timeout_secs).max(1))
+    }
+
+    /// The route is OpenRouter (`openrouter.ai` or a subdomain). It takes
+    /// `session_id` and `cache_control`, and drops a marker a provider
+    /// behind it has no use for.
+    pub fn is_openrouter(&self) -> bool {
+        let rest = self
+            .base_url
+            .split_once("://")
+            .map_or(self.base_url.as_str(), |(_, r)| r);
+        let host = rest
+            .split(['/', ':', '?'])
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        host == "openrouter.ai" || host.ends_with(".openrouter.ai")
+    }
+
+    /// Explicit `cache_control` markers on the OpenAI-compatible wire reach
+    /// a provider that uses them: the route is OpenRouter, or the model is a
+    /// Claude model (it caches a prefix only at a marker). A plain
+    /// OpenAI-compatible server may refuse a field it does not know, so
+    /// other routes get none.
+    pub fn takes_cache_marks(&self) -> bool {
+        self.is_openrouter() || self.model.to_ascii_lowercase().contains("claude")
     }
 }
 
