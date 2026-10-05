@@ -553,10 +553,10 @@ impl HostTools {
                 let query = str_of("query")?;
                 let core2 = self.core.clone();
                 self.timed(name, group, move || {
-                    let (report, block) = m.recall(&query, Vec::new());
+                    let (report, block, cached) = m.recall(&query, Vec::new());
                     core2.emit(
                         "memory.recall",
-                        json!({"turn": turn, "cue": "tool", "report": report}),
+                        json!({"turn": turn, "cue": "tool", "report": report, "cached": cached}),
                     );
                     (Ok(block.unwrap_or_else(|| "nothing recalled".into())), 0)
                 })

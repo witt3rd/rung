@@ -1450,10 +1450,10 @@ impl Host {
         if prompt.trim().is_empty() {
             return None;
         }
-        let (report, block) = m.recall(&prompt, context);
+        let (report, block, cached) = m.recall(&prompt, context);
         core.emit(
             "memory.recall",
-            json!({"turn": turn, "cue": inject.cue, "report": report}),
+            json!({"turn": turn, "cue": inject.cue, "report": report, "cached": cached}),
         );
         block
     }
