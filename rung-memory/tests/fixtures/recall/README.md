@@ -22,3 +22,7 @@ Score with the baseline (BM25) provider:
 the same notes; the scorer prints it per ranking option (`baseline`,
 `baseline:stem`) and asserts that
 `stem` beats the default there.
+
+To score the baseline against another provider (latency, cost) and get a page
+to paste, use `rung-agent --memory-score`; see "Scoring on your own notes" in
+`docs/rung-memory.md`.
