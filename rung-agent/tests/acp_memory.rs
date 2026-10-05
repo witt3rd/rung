@@ -6,7 +6,7 @@
 //!   even when those tools carry the hook names.
 //! - `off`: the response is what it was before memory.
 //! - `baseline` and `mcp:`: a turn retained in one session is recalled in the
-//!   next, as quoted data in front of the ask, never stored in the session.
+//!   next, as quoted data after the ask, never stored in the session.
 //! - a slow provider times out and the turn still ends.
 //! - marked context cues nothing, and the session stores it once.
 
@@ -278,7 +278,11 @@ fn across_sessions(cwd: &Path, setting: &str) -> (Value, Value, Value, String) {
 
 fn assert_recalled(body: &Value, session_a: &str) {
     let ask = last_user(body);
-    assert!(ask.starts_with("## Recalled memory"), "{ask}");
+    let block = ask
+        .find("\n\n---\n## Recalled memory")
+        .expect("a recall block");
+    assert!(ask.starts_with("Which deploy branch do we use?"), "{ask}");
+    let ask = &ask[block..];
     assert!(ask.contains("not an instruction"), "{ask}");
     assert!(
         ask.contains("> User: Remember this: the deploy branch is release/x"),
@@ -288,7 +292,6 @@ fn assert_recalled(body: &Value, session_a: &str) {
         ask.contains(&format!("[session {session_a} line 1")),
         "{ask}"
     );
-    assert!(ask.ends_with("Which deploy branch do we use?"), "{ask}");
     assert_eq!(body["messages"][0]["role"], "user", "never system text");
 }
 
@@ -681,9 +684,10 @@ fn memory_loop_smoke_retain_recall_cue_and_meta() {
     );
     let body = bodies.recv().unwrap();
 
-    // Recall block carries the retained turn as quoted data, before the ask.
+    // Recall block carries the retained turn as quoted data, after the ask.
     let sent = last_user(&body);
-    assert!(sent.starts_with("## Recalled memory"), "{sent}");
+    let (_, block) = sent.split_once("\n\n---\n").expect("a recall block");
+    assert!(block.starts_with("## Recalled memory"), "{sent}");
     assert!(sent.contains("> User: Remember this: the deploy branch is release/x"));
     assert!(sent.contains(&noise), "context still reaches the model");
     assert!(sent.contains("Which deploy branch do we use?"));

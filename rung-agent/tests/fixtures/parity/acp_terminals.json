@@ -119,9 +119,9 @@
     }
   ],
   "llm_requests": [
-    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"do something bad\"}]},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}",
-    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"do something bad\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"try again\"}]},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}",
-    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"do something bad\"},{\"role\":\"user\",\"content\":\"try again\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"read d.txt\"}]},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}"
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"do something bad\"},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"do something bad\"},{\"role\":\"user\",\"content\":\"try again\"},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}",
+    "POST /v1/chat/completions HTTP/1.1\n{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"do something bad\"},{\"role\":\"user\",\"content\":\"try again\"},{\"role\":\"user\",\"content\":\"read d.txt\"},{\"role\":\"user\",\"content\":\"CRITICAL: this is the last step. Tools are disabled. Reply with text only: what was done, what remains, and what to do next. Do not call tools.\"}],\"stream\":true}"
   ],
   "jev_requests": [],
   "mcp_requests": []

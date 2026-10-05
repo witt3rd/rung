@@ -24,7 +24,7 @@
 //! calls. A provider that fails never fails a turn: each hook ends in a typed
 //! outcome reported in `_meta.rung.memory` and `Outcome.memory`.
 //!
-//! The recalled block is put in front of the current user message as quoted
+//! The recalled block is put after the current user message as quoted
 //! data. It is never system text and never written to the session, so it is
 //! not replayed. Retain takes a [`Turnover`], and a `Turnover` is built only
 //! from a [`Completion`]: a turn that was unverified, unchecked, truncated,
@@ -301,7 +301,9 @@ impl Hooks {
     }
 }
 
-/// Put `block` in front of the thread's last user message, as its own text.
+/// Put `block` after the thread's last user message, as its own text. At
+/// the tail, the ask's bytes are those a later turn replays (without the
+/// block), so the provider's cached prefix runs through the ask.
 pub fn inject(thread: &mut Thread, block: &str) {
     let Some(last) = thread.messages.last_mut() else {
         return;
@@ -309,17 +311,14 @@ pub fn inject(thread: &mut Thread, block: &str) {
     if last.role != "user" {
         return;
     }
-    let lead = format!("{block}\n---\n\n");
+    let tail = format!("\n\n---\n{block}");
     last.content = match std::mem::replace(&mut last.content, MessageContent::Text(String::new())) {
-        MessageContent::Text(t) => MessageContent::Text(format!("{lead}{t}")),
+        MessageContent::Text(t) => MessageContent::Text(format!("{t}{tail}")),
         MessageContent::Blocks(mut b) => {
-            b.insert(
-                0,
-                MessageContentBlock::Text {
-                    text: lead,
-                    cache: None,
-                },
-            );
+            b.push(MessageContentBlock::Text {
+                text: tail,
+                cache: None,
+            });
             MessageContent::Blocks(b)
         }
     };
@@ -948,7 +947,7 @@ mod tests {
     }
 
     #[test]
-    fn inject_leads_the_last_user_message() {
+    fn inject_follows_the_last_user_message() {
         let mut t = Thread {
             system_prompt: "sys".into(),
             messages: vec![ChatMessage::user("first"), ChatMessage::user("ask")],
@@ -958,7 +957,7 @@ mod tests {
         assert_eq!(t.messages[0].content.as_text(), Some("first"));
         assert_eq!(
             t.messages[1].content.as_text(),
-            Some("## block\n---\n\nask")
+            Some("ask\n\n---\n## block")
         );
     }
 
