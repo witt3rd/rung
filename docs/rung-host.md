@@ -51,7 +51,10 @@ explicit stop. A boundary:
 Free time is the default mode. A free-time turn shows the agent its own
 material — todo items, projects, open questions, open expectations,
 integrity facts, recent traces — in creation order, never ranked. The
-agent picks. Only the agent's tools change the mode:
+agent picks. The optional `free_time_idle_rule: true` config key (default
+off) adds a sixth rule bounding the idle reply; see
+[`rung-host-free-time.md`](rung-host-free-time.md). Only the agent's tools
+change the mode:
 
 | tool | effect |
 |---|---|
