@@ -136,11 +136,9 @@ fn the_engine_adapter_runs_the_host_against_a_loopback_provider() {
     sc.memory = false;
     sc.max_turns = Some(24);
     sc.clock = Some(clock.clone());
-    let engine = AgentEngine::new(
-        AdapterConfig::new(&provider.url, "test-key-not-a-secret", &workspace),
-        clock.clone(),
-    )
-    .expect("engine");
+    let mut ac = AdapterConfig::new(&provider.url, "test-key-not-a-secret", &workspace);
+    ac.session_ids = true;
+    let engine = AgentEngine::new(ac, clock.clone()).expect("engine");
     sc.engine = Some(Arc::new(engine));
     let out = sim::run(sc);
     let seen = provider.seen();

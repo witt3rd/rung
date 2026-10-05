@@ -128,11 +128,9 @@ fn the_ladder_lists_filters_and_walks_only_available_free_rungs() {
     sc.until = Some(START + 13 * HOUR);
     let workspace = sc.dir.join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
-    let engine = AgentEngine::new(
-        AdapterConfig::new(&provider.url, "test-key-not-a-secret", &workspace),
-        clock.clone(),
-    )
-    .expect("engine");
+    let mut ac = AdapterConfig::new(&provider.url, "test-key-not-a-secret", &workspace);
+    ac.session_ids = true;
+    let engine = AgentEngine::new(ac, clock.clone()).expect("engine");
     sc.engine = Some(Arc::new(engine));
     sc.lister = Some(Arc::new(HttpLister::new(&provider.url)));
     let out = sim::run(sc);

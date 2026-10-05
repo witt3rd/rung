@@ -75,7 +75,7 @@ pub struct AdapterConfig {
 }
 
 impl AdapterConfig {
-    /// The defaults for an OpenAI-compatible router: session ids and
+    /// The defaults for an OpenAI-compatible router: session ids (OpenRouter only) and
     /// breakpoints on, reasoning pinned at `medium`, six calls a turn.
     pub fn new(base_url: &str, api_key: &str, workspace: &Path) -> Self {
         Self {
@@ -86,7 +86,7 @@ impl AdapterConfig {
             max_tokens: 0,
             timeout_secs: 120,
             idle_timeout_secs: Some(60),
-            session_ids: true,
+            session_ids: rung_std::llm::is_openrouter_url(base_url),
             breakpoints: true,
             step_cap: 6,
             workspace: workspace.to_path_buf(),

@@ -409,6 +409,18 @@ impl std::fmt::Debug for LlmConfig {
     }
 }
 
+/// The URL names OpenRouter (`openrouter.ai` or a subdomain): the single
+/// definition of an OpenRouter route.
+pub fn is_openrouter_url(url: &str) -> bool {
+    let rest = url.split_once("://").map_or(url, |(_, r)| r);
+    let host = rest
+        .split(['/', ':', '?'])
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    host == "openrouter.ai" || host.ends_with(".openrouter.ai")
+}
+
 impl LlmConfig {
     pub fn resolved_protocol(&self) -> ResolvedProtocol {
         self.protocol.resolve(&self.base_url)
@@ -422,16 +434,7 @@ impl LlmConfig {
     /// `session_id` and `cache_control`, and drops a marker a provider
     /// behind it has no use for.
     pub fn is_openrouter(&self) -> bool {
-        let rest = self
-            .base_url
-            .split_once("://")
-            .map_or(self.base_url.as_str(), |(_, r)| r);
-        let host = rest
-            .split(['/', ':', '?'])
-            .next()
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        host == "openrouter.ai" || host.ends_with(".openrouter.ai")
+        is_openrouter_url(&self.base_url)
     }
 
     /// Explicit `cache_control` markers on the OpenAI-compatible wire reach

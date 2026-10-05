@@ -18,7 +18,7 @@ pub use types::{
     ContentBlockDelta, ContentBlockStart, DEFAULT_MAX_ATTEMPTS, HttpFailure, ImageSource,
     LlmConfig, LlmRequest, LlmResponse, MessageContent, MessageContentBlock, PreparedRequest,
     Protocol, ResolvedProtocol, StopReason, StreamEvent, StreamListener, ToolDefinition,
-    ToolDiagnostic, ToolErrorKind, Usage,
+    ToolDiagnostic, ToolErrorKind, Usage, is_openrouter_url,
 };
 
 use rung::ladder;
