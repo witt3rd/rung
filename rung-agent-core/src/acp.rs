@@ -1051,7 +1051,12 @@ pub(crate) async fn connect_agent(
                         store_at(&cwd).save(&child).map_err(invalid)?;
                         live.set_cwd(&id, &cwd);
                         live.set_kind(&id, kind);
-                        live.set_mcp(&id, live.mcp(&src));
+                        let mcp = if request.mcp_servers.is_empty() {
+                            live.mcp(&src)
+                        } else {
+                            mcp_from_acp(&request.mcp_servers)
+                        };
+                        live.set_mcp(&id, mcp);
                         Ok(ForkSessionResponse::new(SessionId::new(id)).modes(modes(kind)))
                     })
                 }

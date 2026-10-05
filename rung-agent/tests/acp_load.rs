@@ -168,3 +168,47 @@ fn a_load_in_a_new_process_keeps_the_system_text_and_tools() {
 fn a_resume_in_a_new_process_keeps_the_system_text_and_tools() {
     after_restart("session/resume");
 }
+
+#[test]
+fn a_fork_in_a_new_process_keeps_the_system_text_and_tools() {
+    let dir = rung_testkit::TempDir::new("acp-load-fork");
+    let notes = dir.join("notes.jsonl");
+    let mcp = json!([{
+        "name": "notes",
+        "command": BIN,
+        "args": ["--memory-fixture", "--file", notes.to_string_lossy()],
+        "env": []
+    }]);
+    let (url, rx) = rung_testkit::llm::mock_llm(vec![text_reply("one"), text_reply("two")]);
+    let recv = || rx.recv_timeout(Duration::from_secs(20)).expect("a request");
+
+    let mut acp = Acp::start(&dir, &url);
+    let r = acp.call(
+        "session/new",
+        json!({"cwd": dir.to_string_lossy(), "mcpServers": mcp, "_meta": {"systemPrompt": "Be brief."}}),
+    );
+    let sid = r["result"]["sessionId"].as_str().unwrap().to_string();
+    acp.ask(&sid, "first");
+    let r1 = recv();
+    drop(acp);
+
+    let mut acp = Acp::start(&dir, &url);
+    let r = acp.call(
+        "session/fork",
+        json!({"sessionId": sid, "cwd": dir.to_string_lossy(), "mcpServers": mcp}),
+    );
+    let child = r["result"]["sessionId"]
+        .as_str()
+        .expect("a forked id")
+        .to_string();
+    acp.ask(&child, "second");
+    let r2 = recv();
+
+    assert_eq!(r1["tools"], r2["tools"], "fork: the same tools");
+    assert!(tool_names(&r2).contains(&"rung_memory_recall".to_string()));
+    assert_eq!(
+        r1["messages"][0].to_string(),
+        r2["messages"][0].to_string(),
+        "fork: system bytes"
+    );
+}
