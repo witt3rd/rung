@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 406 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 410 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1123,13 +1123,17 @@ look shorter than it is.
 - `an_issue_parses_and_its_status_turns_under_the_ladder`
 - `the_decidable_issue_sentences_hold_and_well_scoped_is_judgmental`
 
-**`rung-std/tests/llm_wire.rs`** — 8 unclaimed
+**`rung-std/tests/llm_wire.rs`** — 12 unclaimed
 
 - `an_anthropic_refusal_is_shown_to_the_listener`
 - `an_openai_breakpoint_on_a_bare_tool_call_or_past_the_end_is_a_no_op`
 - `an_openai_refusal_is_shown_to_the_listener`
 - `anthropic_breakpoints_are_stamped_whatever_the_policy_and_keep_the_cap`
+- `auto_marks_keep_each_request_a_byte_prefix_of_the_next`
+- `auto_marks_nothing_on_a_plain_route_or_beside_the_callers_breakpoints`
+- `auto_marks_the_system_text_and_the_latest_user_message_on_a_route_that_takes_them`
 - `openai_breakpoints_mark_the_end_of_the_parts_they_name_and_nothing_else`
+- `openrouter_is_recognised_by_its_host_only`
 - `the_session_id_rides_the_openai_wire_and_is_a_no_op_on_anthropic`
 - `unset_the_anthropic_body_places_no_marker_under_policy_none`
 - `unset_the_openai_body_is_unchanged`

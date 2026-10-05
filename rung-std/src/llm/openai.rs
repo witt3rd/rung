@@ -2,8 +2,8 @@
 
 use super::error::{RawCallError, classify_http, header_pairs, http_failure, parse_sse_error};
 use super::types::{
-    CacheBreakpoint, ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart, ImageSource,
-    LlmConfig, LlmResponse, MessageContent, MessageContentBlock, ObservingListener,
+    CacheBreakpoint, CachePolicy, ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart,
+    ImageSource, LlmConfig, LlmResponse, MessageContent, MessageContentBlock, ObservingListener,
     PreparedRequest, ResolvedProtocol, StopReason, StreamEvent, StreamListener, ToolDefinition,
     ToolDiagnostic, ToolErrorKind, Usage, map_openai_finish_reason,
 };
@@ -112,6 +112,10 @@ fn request_body(
 /// message with no content (an assistant's bare tool calls) takes none.
 fn lowered_messages(config: &LlmConfig, messages: &[ChatMessage]) -> Vec<serde_json::Value> {
     let (mut out, ends) = openai_messages_ends(messages);
+    if auto_marks(config) {
+        mark_auto(&mut out);
+        return out;
+    }
     for bp in &config.cache_breakpoints {
         let ours = match bp {
             CacheBreakpoint::System => messages.iter().rposition(|m| m.role == "system"),
@@ -132,6 +136,34 @@ fn lowered_messages(config: &LlmConfig, messages: &[ChatMessage]) -> Vec<serde_j
         mark_cache(&mut out[wire]);
     }
     out
+}
+
+/// `CachePolicy::Auto` places markers here: the route takes them and the
+/// caller placed none of its own.
+fn auto_marks(config: &LlmConfig) -> bool {
+    config.cache == CachePolicy::Auto
+        && config.cache_breakpoints.is_empty()
+        && config.takes_cache_marks()
+}
+
+/// The automatic placement: a marker at the end of the system text and of
+/// the latest user message (the boundary a tool loop extends). Every system
+/// and user text goes as one text part, marked or not, so the bytes of an
+/// earlier message do not change when the marker moves on.
+fn mark_auto(out: &mut [serde_json::Value]) {
+    for m in out.iter_mut() {
+        if (m["role"] == "system" || m["role"] == "user")
+            && let Some(serde_json::Value::String(text)) = m.get_mut("content")
+        {
+            let text = std::mem::take(text);
+            m["content"] = serde_json::json!([{"type": "text", "text": text}]);
+        }
+    }
+    for role in ["system", "user"] {
+        if let Some(m) = out.iter_mut().rev().find(|m| m["role"] == role) {
+            mark_cache(m);
+        }
+    }
 }
 
 fn mark_cache(message: &mut serde_json::Value) {

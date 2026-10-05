@@ -238,7 +238,7 @@ server):
   rewritten. If the engine had to elide old tool results after a context
   overflow (its last resort), `turn.ended` says `rewritten: true`;
 - each call carries the turn's model (the ladder's rung), the epoch's
-  session id (`session_id`, a router's sticky-routing key) and two explicit
+  session id (`session_id`, a router's sticky-routing key; sent on an OpenRouter route) and two explicit
   cache breakpoints, at the end of the stable layer (the system text) and
   of the slow layer (the first message). The reasoning effort is pinned
   (`medium` by default) for the agent's life;
