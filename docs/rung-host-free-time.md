@@ -7,7 +7,7 @@ workspace sandbox only, key via `doppler run` (0 key bytes in any file).
 Record: 119 turns, 142 model calls, 6.59 M prompt tokens of which 6.15 M
 cached (93%), 94 k completion tokens, cost 0.00 USD, 37 `degraded` waits
 (32 provider `rate_limit`, 5 provider output), 0 crashes, exit by the run
-limit. The run directory is not committed.
+limit. Run record: `rung-host/live/runs/2026-10-05-free-time/`. Key scan: 0 occurrences.
 
 ## Verdict
 
