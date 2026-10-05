@@ -82,13 +82,13 @@ reported in `_meta.rung.memory` on the ACP prompt response, in
 ```json
 {"provider": "baseline",
  "recall": {"status": "found", "records": 1, "injected": ["…"], "calls": 2, "cost_usd": 0.0, "latency_ms": 3},
- "retain": {"status": "stored", "id": "…", "calls": 1, "cost_usd": 0.0, "latency_ms": 1}}
+ "retain": {"status": "deferred", "calls": 0, "cost_usd": 0.0, "latency_ms": 0}}
 ```
 
 | hook | outcomes |
 |---|---|
 | recall | `found` (at least one whole record), `empty` (the provider answered and holds nothing that fits), `unavailable` (with `reason`) |
-| retain | `stored` (with `id`), `declined` (with `reason`), `unretained` (with `reason`) |
+| retain | `deferred` always: retain runs after the reply (bounded by the provider timeout) and its outcome (`stored`, `declined`, `unretained`) is a later `memory.retained` / `memory.retain_failed` event. The next recall and process exit wait for it. |
 
 `left_out` counts records the budget dropped. `injected` lists, in order, the
 ids of the records rung actually put in the turn's context after the budget

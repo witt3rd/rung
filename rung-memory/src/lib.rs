@@ -373,6 +373,23 @@ pub struct RetainReport {
     pub reason: Option<String>,
 }
 
+impl RetainReport {
+    /// The retain was handed off to run after the reply; its outcome is a
+    /// later event, not part of this report.
+    pub fn deferred() -> Self {
+        RetainReport {
+            status: "deferred",
+            id: None,
+            trace: Trace {
+                calls: 0,
+                cost_usd: 0.0,
+                latency_ms: 0,
+            },
+            reason: None,
+        }
+    }
+}
+
 impl retain::StepOutcome {
     /// The report for this outcome; every arm matched.
     pub fn report(&self) -> RetainReport {

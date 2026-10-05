@@ -278,7 +278,10 @@ impl Hooks {
         Some((report, evidence.map(|e| e.render())))
     }
 
-    /// Offer a verified turn to retain.
+    /// Offer a verified turn to retain, after the reply: the retain runs on
+    /// its own thread (bounded by the provider's timeout) and its outcome is
+    /// a `memory.retained` / `memory.retain_failed` event. The report returned
+    /// is `deferred`. [`settle`] waits for pending retains.
     pub fn retain(&self, turn: Turnover) -> Option<RetainReport> {
         let Hooks::On { provider, scope } = self else {
             return None;
@@ -286,18 +289,42 @@ impl Hooks {
         if !provider.capability().retain {
             return None;
         }
-        let report = rung_memory::retain_now(provider.clone(), scope.clone(), turn.observation);
-        if report.status == "unretained" {
-            rung_std::events::emit(
-                "rung-agent",
-                "memory.retain_failed",
-                &format!(
-                    "[rung-agent] memory: retain failed ({})",
-                    report.reason.as_deref().unwrap_or("")
-                ),
-            );
-        }
-        Some(report)
+        let (provider, scope) = (provider.clone(), scope.clone());
+        let sink = rung_std::events::current();
+        let handle = std::thread::spawn(move || {
+            let _g = sink.map(rung_std::events::install);
+            let report = rung_memory::retain_now(provider, scope, turn.observation);
+            if report.status == "unretained" {
+                rung_std::events::emit(
+                    "rung-agent",
+                    "memory.retain_failed",
+                    &format!(
+                        "[rung-agent] memory: retain failed ({})",
+                        report.reason.as_deref().unwrap_or("")
+                    ),
+                );
+            } else {
+                rung_std::events::emit(
+                    "rung-agent",
+                    "memory.retained",
+                    &format!("[rung-agent] memory: retain {}", report.status),
+                );
+            }
+        });
+        PENDING.lock().unwrap().push(handle);
+        Some(RetainReport::deferred())
+    }
+}
+
+static PENDING: std::sync::Mutex<Vec<std::thread::JoinHandle<()>>> =
+    std::sync::Mutex::new(Vec::new());
+
+/// Wait for every retain handed off by [`Hooks::retain`]. Called before a
+/// recall (so a turn sees the one before it) and before the process exits.
+pub fn settle() {
+    let pending = std::mem::take(&mut *PENDING.lock().unwrap());
+    for h in pending {
+        let _ = h.join();
     }
 }
 

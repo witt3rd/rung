@@ -32,7 +32,9 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     if args.acp || args.acp_http.is_some() {
-        return match rung_agent::acp::run(args) {
+        let ran = rung_agent::acp::run(args);
+        rung_agent::memory::settle();
+        return match ran {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("rung-agent: {e}");
@@ -60,7 +62,9 @@ fn main() -> ExitCode {
             return ExitCode::from(1);
         }
     };
-    match run_job(&args, &origin) {
+    let result = run_job(&args, &origin);
+    rung_agent::memory::settle();
+    match result {
         Ok(out) => {
             if args.stream {
                 // NDJSON stream mode: the final result line was already
