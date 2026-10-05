@@ -55,11 +55,12 @@
       "stdin": null,
       "acp": false,
       "exchange": [
-        "< {\"task_id\":\"t-mem-a\",\"text\":\"The harbor code is 4417.\",\"status\":\"completed\",\"api_calls\":1,\"isolation_path\":null,\"memory\":{\"provider\":\"baseline\",\"recall\":{\"status\":\"empty\",\"records\":0,\"calls\":1,\"cost_usd\":0.0,\"latency_ms\":<t>},\"retain\":{\"status\":\"stored\",\"id\":\"3a7e48a47871b16f\",\"calls\":1,\"cost_usd\":0.0,\"latency_ms\":<t>}}}"
+        "< {\"task_id\":\"t-mem-a\",\"text\":\"The harbor code is 4417.\",\"status\":\"completed\",\"api_calls\":1,\"isolation_path\":null,\"memory\":{\"provider\":\"baseline\",\"recall\":{\"status\":\"empty\",\"records\":0,\"calls\":1,\"cost_usd\":0.0,\"latency_ms\":<t>},\"retain\":{\"status\":\"deferred\",\"calls\":0,\"cost_usd\":0.0,\"latency_ms\":<t>}}}"
       ],
       "stderr": [
         "[rung-std] call-0000: starting LLM call (attempt 1/32)",
-        "[rung-std] call-0000: end_turn — The harbor code is 4417."
+        "[rung-std] call-0000: end_turn — The harbor code is 4417.",
+        "[rung-agent] memory: retain stored"
       ],
       "exit": 0
     },
@@ -77,11 +78,12 @@
       "stdin": null,
       "acp": false,
       "exchange": [
-        "< {\"task_id\":\"t-mem-b\",\"text\":\"You told me 4417.\",\"status\":\"completed\",\"api_calls\":1,\"isolation_path\":null,\"memory\":{\"provider\":\"baseline\",\"recall\":{\"status\":\"found\",\"records\":1,\"injected\":[\"3a7e48a47871b16f\"],\"calls\":2,\"cost_usd\":0.0,\"latency_ms\":<t>},\"retain\":{\"status\":\"stored\",\"id\":\"d888fcbfee87e453\",\"calls\":1,\"cost_usd\":0.0,\"latency_ms\":<t>}}}"
+        "< {\"task_id\":\"t-mem-b\",\"text\":\"You told me 4417.\",\"status\":\"completed\",\"api_calls\":1,\"isolation_path\":null,\"memory\":{\"provider\":\"baseline\",\"recall\":{\"status\":\"found\",\"records\":1,\"injected\":[\"3a7e48a47871b16f\"],\"calls\":2,\"cost_usd\":0.0,\"latency_ms\":<t>},\"retain\":{\"status\":\"deferred\",\"calls\":0,\"cost_usd\":0.0,\"latency_ms\":<t>}}}"
       ],
       "stderr": [
         "[rung-std] call-0000: starting LLM call (attempt 1/32)",
-        "[rung-std] call-0000: end_turn — You told me 4417."
+        "[rung-std] call-0000: end_turn — You told me 4417.",
+        "[rung-agent] memory: retain stored"
       ],
       "exit": 0
     }
