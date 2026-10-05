@@ -1,0 +1,261 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 2399.7,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "qwen/qwen3.8-27b:free",
+  "completed_by_model": {
+   "qwen/qwen3.8-27b:free": 55
+  },
+  "first_turn_model": "qwen/qwen3.8-27b:free",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": true,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": true,
+  "turns_by_status": {
+   "completed": 55,
+   "failed": 16
+  }
+ },
+ "L3": {
+  "at_bottom": 16,
+  "exercised": true,
+  "not_stepped": 0,
+  "pass": true,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 0,
+  "provider_failures": 16,
+  "stepped_down": 0,
+  "switches": [],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {
+   "rollover": 1
+  },
+  "cache_cold": {
+   "provider": 3
+  },
+  "cache_efficiency": 0.9187,
+  "cache_write_tokens": 0,
+  "cached_tokens": 2614272,
+  "calls": 95,
+  "epochs": 1,
+  "pass": true,
+  "prompt_tokens": 2845647,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 5222,
+  "admission_ms_p50": 247,
+  "admission_ms_p95": 5222,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": 54339,
+  "disposed_ms_p50": 41123,
+  "owner_items": 6,
+  "pass": true,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 43841,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 223,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 54339,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 247,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 26609,
+    "disposition": "answered",
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 5222,
+    "waited_in": {
+     "backoff": 3460
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 41123,
+    "disposition": "answered",
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 295,
+    "waited_in": {
+     "paced": 179761
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 16357,
+    "disposition": "answered",
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 205,
+    "waited_in": {}
+   },
+   {
+    "admitted": true,
+    "boundary_gap": -1,
+    "disposed_ms": 5259,
+    "disposition": "answered",
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 175,
+    "waited_in": {}
+   }
+  ],
+  "turn_ms_p50": 5578,
+  "turn_ms_p95": 53785
+ },
+ "L6": {
+  "accepted": 12,
+  "disposed": 12,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 9,
+   "digested": 3
+  },
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 97,
+  "by_jev": 0,
+  "decisions": 283,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 77,
+   "{\"rule\": \"shadow\"}": 206
+  },
+  "jev_charged_usd": 0.005407,
+  "jev_cost_usd": 0.005407,
+  "jev_ms_max": 1581.349,
+  "jev_ms_p50": 214.352,
+  "jev_ms_p95": 1055.578,
+  "outcomes": {
+   "answered": 97
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 10,
+    "disagree": 5
+   },
+   "consolidate": {
+    "disagree": 5
+   },
+   "inject": {
+    "agree": 44,
+    "disagree": 48
+   },
+   "pack": {
+    "agree": 1,
+    "disagree": 1
+   },
+   "tools": {
+    "agree": 48,
+    "disagree": 44
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {},
+  "agent_write_calls": 19,
+  "outside": {},
+  "pass": true,
+  "traces": 0,
+  "workspace": "/home/dt/.treehouse/rung-ed5c2d/4/rung/.tasktmp/live4/state/workspace",
+  "write_syscalls": {}
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.005407,
+  "jev_usd": 0.005407,
+  "pass": true,
+  "total_usd": 0.005407
+ },
+ "extra": {
+  "calendar_fired": 3,
+  "completion_tokens": 57810,
+  "degraded": {
+   "backoff": 16,
+   "paced": 5
+  },
+  "degraded_waited_s": {
+   "backoff": 88,
+   "paced": 1275
+  },
+  "kernel": {
+   "kernel.commit": 2,
+   "kernel.progress": 9,
+   "kernel.release": 1
+  },
+  "llm_calls": 95,
+  "llm_latency_ms_p50": 5108,
+  "llm_latency_ms_p95": 35133,
+  "outbox": 12,
+  "reasoning_tokens": 32327,
+  "rollovers": 1,
+  "served": {
+   "qwen/qwen3.8-27b:free": 95
+  },
+  "tool_calls": {
+   "commit": 4,
+   "expect": 3,
+   "memory_keep": 1,
+   "memory_search": 1,
+   "note": 6,
+   "progress": 9,
+   "release": 1,
+   "send": 9,
+   "ws_list": 1,
+   "ws_read": 2,
+   "ws_write": 19
+  },
+  "turn_kinds": {
+   "committed": 56,
+   "free": 2,
+   "responding": 13
+  },
+  "turns": 71
+ },
+ "lines": 1041,
+ "run": "2026-10-05-qwen"
+}

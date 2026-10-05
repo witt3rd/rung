@@ -1,0 +1,14 @@
+ts_z	turn	kind	external	gap_s	quota_after
+2026-10-05T04:36:16Z	58	committed	-	1	327
+2026-10-05T04:39:31Z	59	responding	owner o04-time @04:39:31	195	325
+2026-10-05T04:39:53Z	60	responding	-	22	323
+2026-10-05T04:40:00Z	61	responding	-	7	323
+2026-10-05T04:43:12Z	62	responding	cal-firm-status fire @04:43:12 (due 04:42:31, +41s; e4 missed)	192	321
+2026-10-05T04:44:41Z	63	responding	owner o05-read-back @04:44:41	89	319
+2026-10-05T04:44:57Z	64	committed	-	16	315
+2026-10-05T04:48:00Z	65	committed	-	183	314
+2026-10-05T04:48:32Z	66	responding	owner o06-keep-going @04:48:32	32	313
+2026-10-05T04:52:48Z	67	committed	cal-window-end fire @04:52:48 (due 04:49:31, +4m34s; admission DISPLAYED at T70, not here)	256	311
+2026-10-05T04:52:53Z	68	committed	-	5	311
+2026-10-05T04:53:02Z	69	committed	-	9	311
+2026-10-05T04:54:05Z	70	responding	(cal-window-end admission displayed here; commit:anticipate released ~04:53:30)	63	308
