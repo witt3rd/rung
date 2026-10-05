@@ -644,7 +644,7 @@ impl McpProvider {
         let structured = structured(&result).ok_or_else(|| {
             Miss::new(Why::Malformed(format!(
                 "{tool}: the answer was not a result object (got: {})",
-                glimpse(&result)
+                scrub_token(&glimpse(&result), self.secret.as_deref())
             )))
         })?;
         let calls = structured
@@ -667,12 +667,7 @@ fn glimpse(result: &Value) -> String {
         .and_then(|c| c.iter().find_map(|i| i.get("text").and_then(Value::as_str)))
         .map_or_else(|| result.to_string(), str::to_string);
     let one: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let cut: String = one.chars().take(60).collect();
-    if cut.len() < one.len() {
-        format!("{cut}…")
-    } else {
-        cut
-    }
+    bound(&one, 60)
 }
 
 /// `structuredContent`, else the first text item parsed as a JSON object.
