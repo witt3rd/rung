@@ -17,9 +17,7 @@ sent.
 
 - Mock: `rung-agent/tests/acp_prefix.rs` runs one ACP session against
   `rung_testkit::llm::mock_llm`. It records every request body and checks
-  that each one extends the one before. `rung-agent/tests/acp_load.rs`
-  checks that the system text and the tools stay byte-equal across a
-  process restart (load, resume, fork).
+  that each one extends the one before.
   `rung-std/tests/llm_wire.rs` pins how the markers are placed, and that
   with markers removed each request is a byte-prefix of the next.
 - Live: `scripts/acp_cache_probe.py` runs the same two-turn ACP session through
@@ -34,7 +32,7 @@ sent.
 | turn 1, call 1 | first call | 2820 / 0 | first call | 2820 / 0 |
 | turn 1, call 2 | extends | 5536 / 4096 | extends | 5536 / 2816 |
 | turn 1, call 3 | extends | 5832 / 5632 | extends | 5832 / 5376 |
-| turn 2, call 1 | message 1 (the ask) | 4530 / 4352, and 0 in another run | extends | 5865 / 5632 |
+| turn 2, call 1 | message 1 (the ask) | 4530 / 4352, and 0 in another run | extends | 5865 / 5632 (author-reported; not independently reproduced) |
 
 Before the fix, turn 2 first diverged at the previous ask and then at the
 shortened tool result. The "before" prompt is smaller only because the

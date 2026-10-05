@@ -16,6 +16,8 @@ writes no header anywhere. Request bodies and usage go to --out.
 """
 
 import argparse
+import atexit
+import shutil
 import http.server
 import json
 import os
@@ -138,7 +140,7 @@ def main():
     ap.add_argument("--upstream", default="https://openrouter.ai/api/v1")
     ap.add_argument("--key-env", default="OPENROUTER_API_KEY")
     ap.add_argument("--bin", default="target/debug/rung-agent")
-    ap.add_argument("--out", default=tempfile.mkdtemp(prefix="cache-probe-"))
+    ap.add_argument("--out", default=None)
     a = ap.parse_args()
     if not os.environ.get(a.key_env):
         raise SystemExit(f"{a.key_env} is not set")
@@ -148,6 +150,7 @@ def main():
     port = srv.server_address[1]
 
     work = Path(tempfile.mkdtemp(prefix="cache-probe-cwd-"))
+    atexit.register(shutil.rmtree, work, ignore_errors=True)
     (work / "notes.txt").write_text(
         "".join(f"note {i:03}: the quick brown fox jumps over the lazy dog\n" for i in range(150))
     )
@@ -173,7 +176,7 @@ def main():
         print("turn:", r.get("result", {}).get("stopReason") or r.get("error"))
     acp.p.kill()
 
-    out = Path(a.out)
+    out = Path(a.out) if a.out else Path(tempfile.mkdtemp(prefix="cache-probe-"))
     out.mkdir(parents=True, exist_ok=True)
     (out / "requests.jsonl").write_text("".join(b + "\n" for b in BODIES))
     (out / "usage.jsonl").write_text("".join(json.dumps(u) + "\n" for u in USAGE))
