@@ -168,7 +168,7 @@ fn memory_scope(rest: &[String]) -> ExitCode {
                         "{}\t{}\t{}",
                         r.id.as_str(),
                         r.observed_at.as_deref().unwrap_or("-"),
-                        t.replace('\n', " ")
+                        t.replace(['\n', '\t'], " ")
                     );
                 }
                 ExitCode::SUCCESS

@@ -1,8 +1,9 @@
 //! `baseline`: the provider rung ships. No model, no network, no cost.
 //!
-//! - **Store**: one append-only JSON-lines file per scope under the
+//! - **Store**: one JSON-lines file per scope, appended to, under the
 //!   provider's directory (`<dir>/<scope hash>.jsonl`), one [`Record`] per
-//!   line. Nothing is rewritten or deleted. The directory is created by the
+//!   line. Only an explicit inspection command ([`Baseline::delete_record`],
+//!   [`Baseline::delete_scope`]) removes anything. The directory is created by the
 //!   first retain; a recall never creates it.
 //! - **Recall**: BM25 over the scope's records, with a small recency term so
 //!   ties go to the newer record. It walks its own [`Store`] (search, then
