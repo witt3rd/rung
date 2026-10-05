@@ -146,7 +146,7 @@ struct FileConfig {
     #[serde(default)]
     free_time_idle_rule: Option<bool>,
     engine: EngineFile,
-    /// Best first; the ruled free ladder when absent.
+    /// Best first; the named ladder when absent (never `openrouter/free`).
     #[serde(default)]
     ladder: Option<Vec<String>>,
     /// List the router's models at start and every six hours (default on
