@@ -1,0 +1,9 @@
+L1 PASS {"windows": [{"window": 1, "exit": 0, "panic": false}], "starts": 1, "halts": 1, "halt_why": [{"by": "limit", "why": "stopped"}], "record_span_s": 7199.7}
+L2 PASS {"listed_before_first_turn": true, "first_turn_model": "qwen/qwen3.8-27b:free", "best_standing": "qwen/qwen3.8-27b:free", "completed_by_model": {"qwen/qwen3.8-27b:free": 88}, "turns_by_status": {"failed": 65, "completed": 88, "bounded": 1}}
+L3 PASS {"provider_failures": 61, "unroutable": 0, "stepped_down": 0, "at_bottom": 61, "not_stepped": 0, "platform_429": 0, "platform_stepped": 0, "probes_up": 0, "exercised": true}
+L4 PASS {"calls": 197, "epochs": 2, "unstable_epochs": [], "cache_breaks": {"rollover": 2}, "cache_cold": {"provider": 14}, "prompt_tokens": 9703366, "cached_tokens": 9207552, "cache_efficiency": 0.9489, "cache_write_tokens": 0}
+L5 FAIL {"owner_items": 10, "deferred_past_first_boundary": 0, "admission_ms_p50": 3371, "admission_ms_p95": 105388, "admission_ms_max": 105388, "turn_ms_p50": 3594, "turn_ms_p95": 94983, "disposed_ms_p50": 144010, "disposed_ms_max": 1242566}
+L6 PASS {"accepted": 18, "disposed": 18, "disposed_twice": [], "open_at_stop": [], "dispositions": {"answered": 14, "digested": 4}}
+L7 PASS {"asks": 317, "outcomes": {"answered": 316, "timeout": 1}, "decisions": 858, "decisions_by": {"{\"rule\": \"nothing_to_ask\"}": 188, "{\"rule\": \"shadow\"}": 668, "{\"rule\": \"timeout\"}": 2}, "by_jev": 0, "per_family": {"admit": {"agree": 26, "disagree": 13}, "consolidate": {"disagree": 71, "agree": 19}, "inject": {"agree": 142, "disagree": 84}, "pack": {"disagree": 27, "agree": 60}, "tools": {
+L8 PASS {"write_syscalls": {}, "outside": {}, "agent_write_calls": 26, "agent_tool_refusals": {"ws_write": 2}, "workspace": "/home/dt/.treehouse/rung-ed5c2d/1/rung/rung-host/live/runs/2026-10-05-qwen-2h/state/workspace", "traces": 0}
+L9 PASS {"agent_usd": 0, "jev_usd": 0.021188, "jev_charged_usd": 0.021225, "total_usd": 0.021225}
