@@ -19,17 +19,33 @@ bin="$repo/target/release/rung-host"
 mkdir -p "$run/trace" "$run/state"
 [ -e "$run/started_at" ] || date +%s.%N > "$run/started_at"
 sed -e "s|@RUN@|$run|g" -e "s|@RUN_FOR_S@|$for_s|g" "$here/rung-host.yaml.in" > "$run/rung-host.yaml"
+# RUNG_LIVE_LADDER="a,b": replace the ladder (comma-separated models, best first).
+if [ -n "${RUNG_LIVE_LADDER:-}" ]; then
+  python3 - "$run/rung-host.yaml" "$RUNG_LIVE_LADDER" <<'PY'
+import re, sys
+p, models = sys.argv[1], sys.argv[2].split(",")
+s = open(p).read()
+new = "ladder:\n" + "".join(f"  - {m}\n" for m in models)
+s = re.sub(r"ladder:[^\n]*\n(?:  - [^\n]*\n)+", new, s)
+open(p, "w").write(s)
+PY
+fi
 shopt -s nullglob
 traces=("$run"/trace/*.strace)
 n=$(( ${#traces[@]} + 1 ))
 python3 "$here/drive.py" "$run" "$here/stimuli.json" >> "$run/drive.log" 2>&1 &
 drive=$!
 echo "window $n: for ${for_s}s from $(date -u +%FT%TZ)" | tee -a "$run/windows.log"
+# strace is optional: without it the L8 syscall trace is not taken ("not exercised").
+TRACE=()
+if command -v strace >/dev/null; then
+  TRACE=(strace -f -qq -o "$run/trace/host.$n.strace"
+    -e trace=open,openat,openat2,creat,mkdir,mkdirat,rename,renameat,renameat2,unlink,unlinkat,rmdir,link,linkat,symlink,symlinkat,truncate,chmod,fchmodat)
+fi
 set +e
 timeout --signal=TERM --kill-after=30 "$(( for_s + 600 ))" \
   doppler run -p fleet -c dev_work --no-fallback --only-secrets OPENROUTER_API_KEY -- \
-  strace -f -qq -o "$run/trace/host.$n.strace" \
-    -e trace=open,openat,openat2,creat,mkdir,mkdirat,rename,renameat,renameat2,unlink,unlinkat,rmdir,link,linkat,symlink,symlinkat,truncate,chmod,fchmodat \
+  ${TRACE[@]+"${TRACE[@]}"} \
     "$bin" run --config "$run/rung-host.yaml" > "$run/host.$n.log" 2>&1
 code=$?
 set -e

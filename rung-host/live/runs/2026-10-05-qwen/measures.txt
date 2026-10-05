@@ -1,0 +1,9 @@
+L1 PASS {"windows": [{"window": 1, "exit": 0, "panic": false}], "starts": 1, "halts": 1, "halt_why": [{"by": "limit", "why": "stopped"}], "record_span_s": 2399.7}
+L2 PASS {"listed_before_first_turn": true, "first_turn_model": "qwen/qwen3.8-27b:free", "best_standing": "qwen/qwen3.8-27b:free", "completed_by_model": {"qwen/qwen3.8-27b:free": 55}, "turns_by_status": {"failed": 16, "completed": 55}}
+L3 PASS {"provider_failures": 16, "unroutable": 0, "stepped_down": 0, "at_bottom": 16, "not_stepped": 0, "platform_429": 0, "platform_stepped": 0, "probes_up": 0, "exercised": true}
+L4 PASS {"calls": 95, "epochs": 1, "unstable_epochs": [], "cache_breaks": {"rollover": 1}, "cache_cold": {"provider": 3}, "prompt_tokens": 2845647, "cached_tokens": 2614272, "cache_efficiency": 0.9187, "cache_write_tokens": 0}
+L5 PASS {"owner_items": 6, "deferred_past_first_boundary": 0, "admission_ms_p50": 247, "admission_ms_p95": 5222, "admission_ms_max": 5222, "turn_ms_p50": 5578, "turn_ms_p95": 53785, "disposed_ms_p50": 41123, "disposed_ms_max": 54339}
+L6 PASS {"accepted": 12, "disposed": 12, "disposed_twice": [], "open_at_stop": [], "dispositions": {"answered": 9, "digested": 3}}
+L7 PASS {"asks": 97, "outcomes": {"answered": 97}, "decisions": 283, "decisions_by": {"{\"rule\": \"nothing_to_ask\"}": 77, "{\"rule\": \"shadow\"}": 206}, "by_jev": 0, "per_family": {"admit": {"agree": 10, "disagree": 5}, "consolidate": {"disagree": 5}, "inject": {"agree": 44, "disagree": 48}, "pack": {"disagree": 1, "agree": 1}, "tools": {"disagree": 44, "agree": 48}}, "jev_ms_p50": 214.352, "jev_ms_p95
+L8 PASS {"write_syscalls": {}, "outside": {}, "agent_write_calls": 19, "agent_tool_refusals": {}, "workspace": "/home/dt/.treehouse/rung-ed5c2d/4/rung/.tasktmp/live4/state/workspace", "traces": 0}
+L9 PASS {"agent_usd": 0, "jev_usd": 0.005407, "jev_charged_usd": 0.005407, "total_usd": 0.005407}
