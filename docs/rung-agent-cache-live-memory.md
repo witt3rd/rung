@@ -49,8 +49,7 @@ the system text and the tools (~2.5k tokens); everything after the ask in turn 1
 This is the cost `docs/rung-agent-cache.md` already records for B3 ("the previous turn's steps
 still follow the block, so they are read once uncached on the next turn"); the live numbers size it
 here at about half of the turn-2 prompt, because the block sits inside the ask message and the
-step that follows is a large tool result. It scales with the tool output in the turn that had
-the recall, and is absent in a turn with a recall but no tool step. A fix would put the block
+step that follows is a large tool result. It scales with the size of the steps that follow the recall in that turn. A fix would put the block
 in a place the next turn can replay byte for byte (store it with the ask, or send it as a separate
 trailing message after the ask's tool-free turn), at the price of the block living in the session.
 Not built here.
