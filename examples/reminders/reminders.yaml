@@ -1,0 +1,10 @@
+state: demo/state
+workspace: demo/sandbox
+inbox: demo/inbox
+engine:
+  kind: mock
+memory: false
+calendar:
+  - id: standup
+    in_s: 1
+    text: "Stand-up in five minutes: remind the owner."
