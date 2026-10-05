@@ -566,6 +566,17 @@ pub fn parse_sse_error(data: &str) -> Option<RawCallError> {
             context: None,
         });
     }
+    // A router may report an upstream failure inside a 2xx, mid-stream or as
+    // the whole body, with an HTTP-shaped numeric `code` (OpenRouter: `503`
+    // for an overloaded provider, `429` for its rate limit). Classify it as
+    // that status is classified, so an overload is not "unusable output".
+    if let Some(code) = err
+        .get("code")
+        .and_then(serde_json::Value::as_u64)
+        .filter(|c| (400..600).contains(c))
+    {
+        return Some(classify_http("POST", "", code as u16, &[], data, ""));
+    }
     // Classify stream errors on the parsed type, not message text.
     if err_type.eq_ignore_ascii_case("overloaded_error")
         || err_type.eq_ignore_ascii_case("service_unavailable_error")
@@ -909,6 +920,33 @@ mod tests {
         )
         .unwrap();
         assert!(e.is_retryable());
+        assert!(matches!(
+            e,
+            RawCallError::ProviderInternal { status: 529, .. }
+        ));
+    }
+
+    #[test]
+    fn a_routers_error_in_a_2xx_is_classified_by_its_numeric_code() {
+        // OpenRouter, seen live: an overloaded upstream as a 200 body or SSE
+        // frame. It is a 503, not unusable output.
+        let e = parse_sse_error(
+            r#"{"id":"gen-1","choices":[],"error":{"code":503,"message":"Upstream error from Nvidia: Service temporarily overloaded","metadata":{"error_type":"provider_overloaded"}}}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            e,
+            RawCallError::ProviderInternal { status: 503, .. }
+        ));
+        assert!(e.is_retryable());
+        let e = parse_sse_error(r#"{"error":{"code":429,"message":"Provider returned error"}}"#)
+            .unwrap();
+        assert!(matches!(e, RawCallError::RateLimit { .. }));
+        // A string code keeps the type-based reading.
+        let e = parse_sse_error(
+            r#"{"error":{"code":"x","type":"overloaded_error","message":"Overloaded"}}"#,
+        )
+        .unwrap();
         assert!(matches!(
             e,
             RawCallError::ProviderInternal { status: 529, .. }
