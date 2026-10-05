@@ -788,7 +788,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         wrap_tools: tool_wraps(emitter.as_ref(), &extra),
         request: request_text.clone(),
         earlier,
-        session_id: route_session_id(engine.llm(), &id),
+        session_id: Some(id.clone()),
         ..TurnCtl::default()
     };
     match engine.turn(thread, ctl).outcome {
@@ -862,13 +862,6 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
             })
         }
     }
-}
-
-/// The session id a turn sends: OpenRouter keeps one session's calls on one
-/// provider, and its warm cache, by it. Other routes get none, as a plain
-/// OpenAI-compatible server may refuse a field it does not know.
-fn route_session_id(config: &LlmConfig, id: &str) -> Option<String> {
-    config.is_openrouter().then(|| id.to_string())
 }
 
 /// The turn's tool wrappers, innermost first: the `--stream` observer, then
@@ -1063,14 +1056,6 @@ mod tests {
     fn the_recorded_view_shows_why_a_turn_stopped() {
         let lines = vec![Line::user("q"), Line::failed("auth: bad key", Vec::new())];
         assert_eq!(last_assistant(&lines), "auth: bad key");
-    }
-
-    #[test]
-    fn only_an_openrouter_route_gets_the_session_id() {
-        let mut c = crate::config::dummy();
-        assert_eq!(route_session_id(&c, "s1"), None);
-        c.base_url = "https://openrouter.ai/api/v1".into();
-        assert_eq!(route_session_id(&c, "s1").as_deref(), Some("s1"));
     }
 
     #[test]
