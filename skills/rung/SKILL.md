@@ -228,3 +228,7 @@ answers in ~0.2 s at ~$0.00005 an ask. Run `route-probe.sh` before a run.
 
 `rung-agent` and the Harbor adapter have landed. Walk the validation
 ladder (`validate next`); then `terminal-bench@2.0` one task at a time.
+
+## Cache-miss probe
+
+`python3 scripts/cache_probe.py REQUESTS.jsonl USAGE.jsonl` prints per call `cached/prompt` tokens and the first differing byte offset vs the previous request (key-sorted JSON; an early offset is the prefix break). Inputs/formats: docstring in the script; tests: `python3 scripts/test_cache_probe.py`.
