@@ -24,7 +24,8 @@ def load(path):
                 r = json.loads(line)
             except ValueError:
                 continue  # torn last line
-            if str(r.get("kind", "")).startswith("decision.") and "agree" in r:
+            if str(r.get("kind", "")).startswith("decision.") and "agree" in r \
+                    and r.get("jev_choice") is not None:
                 out.append(r)
     return out
 

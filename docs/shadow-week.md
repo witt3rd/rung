@@ -17,5 +17,5 @@ asked and logged), tally disagreements per family, audit 50 of them.
 4. Fill each entry's `verdict` (rule / Jev / neither) and `note` in the sheet.
 5. Report: the per-family table, the verdict counts, and the notes.
 
-Decision lines without `agree` (non-shadow, or Jev did not answer) are not
+Decision lines without `agree` (non-shadow, or Jev did not answer or gave no usable choice) are not
 counted. Tests: `cd scripts && python3 -m unittest test_shadow_audit`.

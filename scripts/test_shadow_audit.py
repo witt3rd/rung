@@ -18,6 +18,8 @@ class T(unittest.TestCase):
         rows = [rec("tools", i % 4 != 0, i) for i in range(40)]
         rows += [rec("model", True, 100 + i) for i in range(5)]
         rows.append({"seq": 999, "kind": "decision.tools", "choice": "a"})  # no shadow
+        rows.append({"seq": 998, "kind": "decision.tools", "agree": False,
+                     "choice": "a", "jev_choice": None})  # Jev answer unusable
         rows.append({"seq": 1000, "kind": "turn.ended"})
         with open(self.p, "w") as f:
             f.write("\n".join(json.dumps(r) for r in rows) + "\n{torn")
