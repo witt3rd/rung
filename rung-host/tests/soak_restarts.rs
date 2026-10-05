@@ -145,7 +145,13 @@ fn a_simulated_day_of_kills_faults_and_stimuli_loses_and_repeats_nothing() {
         let (host, rec, _m) = sim::build(sc);
         match catch_unwind(AssertUnwindSafe(|| host.run(rec))) {
             Ok(_) => break,
-            Err(_) => {
+            Err(payload) => {
+                let scripted = payload
+                    .downcast_ref::<String>()
+                    .is_some_and(|m| m.starts_with("soak kill:"));
+                if !scripted {
+                    std::panic::resume_unwind(payload);
+                }
                 kills += 1;
                 drop(host);
                 // Downtime before the supervisor restarts it.

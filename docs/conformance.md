@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 417 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 418 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1081,6 +1081,10 @@ look shorter than it is.
 - `an_owner_waiting_through_a_provider_backoff_hears_from_the_host_at_once`
 - `probes_can_be_turned_off_and_ride_only_with_the_listing`
 - `probes_pass_the_governor_and_a_held_probe_is_on_record`
+
+**`rung-host/tests/soak_restarts.rs`** — 1 unclaimed
+
+- `a_simulated_day_of_kills_faults_and_stimuli_loses_and_repeats_nothing`
 
 **`rung-memory/tests/memory.rs`** — 18 unclaimed
 
