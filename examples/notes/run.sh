@@ -10,7 +10,7 @@ cd "$work"
 export RUNG_HOME=$work HOME=$work XDG_CONFIG_HOME=$work RUNG_CONFIG=$work/none.yaml
 export RUNG_MEMORY=baseline
 if [ -z "${LIVE:-}" ]; then
-  python3 "$here/../mock_llm.py" port "Noted." "release/x" & mock=$!
+  "${RUNG_MOCK_LLM:-$here/../../target/debug/mock-llm}" port "Noted." "release/x" & mock=$!
   while [ ! -s port ]; do sleep 0.1; done
   export RUNG_BASE_URL=http://127.0.0.1:$(cat port) RUNG_MODEL=m RUNG_API_KEY=k RUNG_PROTOCOL=openai
 fi
@@ -19,7 +19,7 @@ second=$("$bin" --tools none "Which deploy branch do we use?")
 echo "$second"
 if [ -z "${LIVE:-}" ]; then
   # the second request carried the note from the first session
-  grep -q "deploy branch is release/x" port.requests
   sed -n 2p port.requests | grep -q "Recalled memory"
+  sed -n 2p port.requests | grep -q "deploy branch is release/x"
 fi
 echo "ok: notes"

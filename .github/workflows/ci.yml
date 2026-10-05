@@ -42,7 +42,7 @@ jobs:
           done
       - name: example agents (mock engine, no key)
         run: |
-          cargo build -q -p rung-agent -p rung-host --locked
+          cargo build -q -p rung-agent -p rung-host -p rung-testkit --locked
           examples/notes/run.sh
           examples/reminders/run.sh
 
