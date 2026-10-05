@@ -2,7 +2,7 @@
 
 Informative. End to end: a `rung-memory/1` provider in a container, one
 owner message per turn, the memory outcome in `_meta.rung.memory`, and the
-`cached_tokens` the route reports. Every command here was run as written.
+`cached_tokens` the route reports. The commands are not verified by a live run; treat them as a sketch.
 The contract is [rung-memory.md](rung-memory.md); the host is
 [rung-host-quickstart.md](rung-host-quickstart.md).
 
