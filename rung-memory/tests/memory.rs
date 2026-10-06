@@ -563,3 +563,28 @@ fn the_registry_builds_baseline_and_refuses_reserved_names() {
     );
     assert!(r.register("off", rung_memory::baseline::factory).is_err());
 }
+
+#[test]
+fn baseline_deletes_one_record_or_a_whole_scope_and_only_that() {
+    let root = tmp("baseline-delete");
+    let dir = root.join("store");
+    let b = Baseline::new(&dir);
+    let (a, other) = (Scope::new("/a"), Scope::new("/b"));
+    for (s, q) in [(&a, "one"), (&a, "two"), (&other, "three")] {
+        b.retain(s, &turn(&format!("deploy branch {q}"), "main", "s"))
+            .unwrap();
+    }
+    let recs = b.records(&a).unwrap();
+    assert_eq!(recs.len(), 2);
+    let gone = recs[0].id.clone();
+    assert!(b.delete_record(&a, &gone).unwrap());
+    assert!(!b.delete_record(&a, &gone).unwrap(), "already gone");
+    let left = b.records(&a).unwrap();
+    assert_eq!(left.len(), 1);
+    assert_ne!(left[0].id, gone);
+    assert_eq!(b.records(&other).unwrap().len(), 1);
+    assert!(b.delete_scope(&a).unwrap());
+    assert!(!b.delete_scope(&a).unwrap());
+    assert!(b.records(&a).unwrap().is_empty());
+    assert_eq!(b.records(&other).unwrap().len(), 1);
+}

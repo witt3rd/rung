@@ -19,7 +19,7 @@ One setting, read from rung's own surfaces only. The first one set wins:
 |---|---|
 | `off` | Nothing. The output is what it was before memory existed. |
 | `external` | The caller owns memory. rung opens no store, recalls and retains nothing, and adds no memory tools. The agent reaches memory only through the MCP tools the caller supplies. `_meta.rung.memory` is `{"provider": "external"}`. |
-| `baseline` | In-process, offline, no model: BM25 with a recency tie-break over an append-only JSON-lines store, one file per scope. Optional ranking settings via `baseline:stem` (fold plural/verb endings; lifts hit@5 0.94→1.0 and MRR 0.865→0.927 on the inflected fixture questions). Default is unchanged. |
+| `baseline` | In-process, offline, no model: BM25 with a recency tie-break over a JSON-lines store (appended to; only `--memory-scope` deletes), one file per scope. Optional ranking settings via `baseline:stem` (fold plural/verb endings; lifts hit@5 0.94→1.0 and MRR 0.865→0.927 on the inflected fixture questions). Default is unchanged. |
 | `mcp:<url>` / `mcp:<command [args]>` | A provider process the host supplies, reached over streamable HTTP or stdio with rung's MCP client. The command is split on whitespace; no shell. |
 
 An unknown or malformed setting is an error that names its surface. It is
@@ -209,6 +209,22 @@ note is stored; recall finds it in its own scope; recall stays within the
 declared budget; recall does not return the note in another scope. The check
 writes one probe note under a scope of its own,
 `rung-memory-check:<uuid>`.
+
+## Inspecting a scope
+
+For `baseline` (one JSON-lines file per scope, see above):
+
+```bash
+export RUNG_MEMORY_SCOPE=<scope> RUNG_MEMORY_DIR=<dir>
+rung-agent --memory-scope ls        # records, newest, bytes, then id/time/text
+rung-agent --memory-scope rm <id>   # delete one record
+rung-agent --memory-scope drop      # delete the whole scope
+```
+
+Without the command, on the scope's own file `f` (`<dir>/<16-hex hash>.jsonl`, one per scope): `jq -s 'length, (map(.observed_at)|max)' f`
+counts and dates a file; `jq -c 'select(.id!="<id>")' f > f.new && mv f.new f`
+deletes a record. An MCP provider keeps its own store: use its own health or
+admin endpoint; rung has no delete verb in `rung-memory/1`.
 
 `rung-agent --memory-fixture [--file PATH]` serves the reference provider on
 stdio. rung's tests use it, and a host can compare its own provider against

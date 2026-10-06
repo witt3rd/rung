@@ -1,8 +1,9 @@
 //! `baseline`: the provider rung ships. No model, no network, no cost.
 //!
-//! - **Store**: one append-only JSON-lines file per scope under the
+//! - **Store**: one JSON-lines file per scope, appended to, under the
 //!   provider's directory (`<dir>/<scope hash>.jsonl`), one [`Record`] per
-//!   line. Nothing is rewritten or deleted. The directory is created by the
+//!   line. Only an explicit inspection command ([`Baseline::delete_record`],
+//!   [`Baseline::delete_scope`]) removes anything. The directory is created by the
 //!   first retain; a recall never creates it.
 //! - **Recall**: BM25 over the scope's records, with a small recency term so
 //!   ties go to the newer record. It walks its own [`Store`] (search, then
@@ -133,6 +134,51 @@ impl Baseline {
     pub fn file(&self, scope: &Scope) -> PathBuf {
         self.dir
             .join(format!("{:016x}.jsonl", fnv1a(scope.as_str().as_bytes())))
+    }
+
+    /// The scope's records, oldest first (for inspection; same as recall sees).
+    pub fn records(&self, scope: &Scope) -> Result<Vec<Record>, Miss> {
+        self.load(scope)
+    }
+
+    /// Delete one record by id; true if it was there. Rewrites the scope file
+    /// (via a temp file and rename) with the remaining lines untouched.
+    pub fn delete_record(&self, scope: &Scope, id: &RecordId) -> Result<bool, String> {
+        let path = self.file(scope);
+        let body = match fs::read_to_string(&path) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(e) => return Err(format!("{}: {e}", path.display())),
+        };
+        let mut found = false;
+        let mut kept = String::new();
+        for l in body.lines() {
+            let hit = serde_json::from_str::<Record>(l)
+                .map(|r| &r.scope == scope && &r.id == id)
+                .unwrap_or(false);
+            if hit {
+                found = true;
+            } else {
+                kept.push_str(l);
+                kept.push('\n');
+            }
+        }
+        if found {
+            let tmp = path.with_extension("jsonl.tmp");
+            fs::write(&tmp, kept).map_err(|e| format!("{}: {e}", tmp.display()))?;
+            fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))?;
+        }
+        Ok(found)
+    }
+
+    /// Delete the scope's file; true if it existed.
+    pub fn delete_scope(&self, scope: &Scope) -> Result<bool, String> {
+        let path = self.file(scope);
+        match fs::remove_file(&path) {
+            Ok(()) => Ok(true),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(e) => Err(format!("{}: {e}", path.display())),
+        }
     }
 
     /// The scope's records, oldest first. A missing file is no records. A
