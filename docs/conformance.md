@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 425 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 426 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1091,7 +1091,7 @@ look shorter than it is.
 
 - `a_simulated_day_of_kills_faults_and_stimuli_loses_and_repeats_nothing`
 
-**`rung-memory/tests/memory.rs`** — 18 unclaimed
+**`rung-memory/tests/memory.rs`** — 19 unclaimed
 
 - `a_failed_step_is_a_miss_carrying_the_calls_and_cost_so_far`
 - `a_provider_over_its_cost_budget_is_unavailable`
@@ -1099,6 +1099,7 @@ look shorter than it is.
 - `a_record_from_another_scope_is_a_miss_not_evidence`
 - `an_undeclared_capability_is_never_called`
 - `baseline_declines_what_it_could_never_show_whole`
+- `baseline_deletes_one_record_or_a_whole_scope_and_only_that`
 - `baseline_is_a_graph_store_whose_neighbours_are_adjacent_records`
 - `baseline_recalls_what_it_retained_and_nothing_from_another_scope`
 - `baseline_tools_go_through_the_ladders`
