@@ -318,6 +318,7 @@ pub fn run(opts: &Options, token: Option<Token>) -> Result<String, String> {
                     dir: dir.join(arms.len().to_string()),
                     arg,
                     timeout: Duration::from_secs(opts.timeout_secs.unwrap_or(30)),
+                    retain_timeout: Duration::from_secs(60),
                     token: token.clone(),
                 },
             ),
