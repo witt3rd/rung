@@ -20,11 +20,8 @@ fn ws_root() -> std::path::PathBuf {
         .unwrap()
         .to_path_buf()
 }
-fn fresh_tmp() -> std::path::PathBuf {
-    let dir = std::path::PathBuf::from("/tmp/rung_patch_").join(std::process::id().to_string());
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn fresh_tmp() -> rung_testkit::TempDir {
+    rung_testkit::TempDir::new("patch")
 }
 
 /// Identify the question file for `id` and inject `note: keep me` into its
