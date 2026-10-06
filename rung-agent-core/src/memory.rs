@@ -155,7 +155,15 @@ pub enum Hooks {
     On {
         provider: Arc<dyn MemoryProvider>,
         scope: Scope,
+        /// The longest [`Hooks::settle`] waits: `min(retain, recall)` timeout.
+        settle_wait: Duration,
     },
+}
+
+/// How long a turn's end waits on a pending retain: the smaller of the two
+/// timeouts, never under one second.
+fn settle_bound(retain_timeout_secs: u64, timeout_secs: u64) -> Duration {
+    Duration::from_secs(retain_timeout_secs.min(timeout_secs).max(1))
 }
 
 impl Hooks {
@@ -192,6 +200,7 @@ impl Hooks {
                     dir,
                     arg: arg.clone(),
                     timeout: Duration::from_secs(s.timeout_secs.max(1)),
+                    retain_timeout: Duration::from_secs(s.retain_timeout_secs.max(1)),
                     token: s.token.clone(),
                 };
                 let provider = match registry.build(name, &settings) {
@@ -211,6 +220,7 @@ impl Hooks {
                 Ok(Hooks::On {
                     provider: Arc::new(Capped(provider)),
                     scope,
+                    settle_wait: settle_bound(s.retain_timeout_secs, s.timeout_secs),
                 })
             }
         }
@@ -234,7 +244,9 @@ impl Hooks {
     pub fn toolset(&self, session: &str) -> Option<Arc<dyn Toolset>> {
         match self {
             Hooks::Off | Hooks::External => None,
-            Hooks::On { provider, scope } => {
+            Hooks::On {
+                provider, scope, ..
+            } => {
                 if !provider.capability().tools {
                     return None;
                 }
@@ -254,7 +266,10 @@ impl Hooks {
         prompt: &str,
         recent: &[String],
     ) -> Option<(RecallReport, Option<String>)> {
-        let Hooks::On { provider, scope } = self else {
+        let Hooks::On {
+            provider, scope, ..
+        } = self
+        else {
             return None;
         };
         if !provider.capability().recall {
@@ -283,11 +298,14 @@ impl Hooks {
     }
 
     /// Offer a verified turn to retain, after the reply: the retain runs on
-    /// its own thread (bounded by the provider's timeout) and its outcome is
+    /// its own thread (bounded by the retain timeout) and its outcome is
     /// a `memory.retained` / `memory.retain_failed` event. The report returned
     /// is `deferred`. [`settle`] waits for pending retains.
     pub fn retain(&self, turn: Turnover) -> Option<RetainReport> {
-        let Hooks::On { provider, scope } = self else {
+        let Hooks::On {
+            provider, scope, ..
+        } = self
+        else {
             return None;
         };
         if !provider.capability().retain {
@@ -332,9 +350,15 @@ static PENDING: std::sync::Mutex<Pending> = std::sync::Mutex::new(Vec::new());
 
 impl Hooks {
     /// Wait for the retains handed off in this scope, so a recall sees the
-    /// turns before it; retains of other scopes are not waited on.
+    /// turns before it; retains of other scopes are not waited on. The wait
+    /// is at most `min(retain timeout, recall timeout)` in all: a retain
+    /// still running after that is left pending (process exit still waits
+    /// for it) and reports through its own event.
     pub fn settle(&self) {
-        let Hooks::On { scope, .. } = self else {
+        let Hooks::On {
+            scope, settle_wait, ..
+        } = self
+        else {
             return;
         };
         let mine = {
@@ -345,9 +369,19 @@ impl Hooks {
             *all = rest;
             mine
         };
-        for (_, h) in mine {
-            let _ = h.join();
+        let deadline = std::time::Instant::now() + *settle_wait;
+        let mut slow = Vec::new();
+        for (k, h) in mine {
+            while !h.is_finished() && std::time::Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            if h.is_finished() {
+                let _ = h.join();
+            } else {
+                slow.push((k, h));
+            }
         }
+        PENDING.lock().unwrap().extend(slow);
     }
 }
 
@@ -566,6 +600,8 @@ pub struct McpProvider {
     capability: Capability,
     budget: Budget,
     timeout: Duration,
+    /// The timeout of a retain call; defaults to `timeout`.
+    retain_timeout: Duration,
     /// Set when a call timed out: the server was stopped, and every later
     /// call is unavailable at once.
     dead: Arc<AtomicBool>,
@@ -630,6 +666,7 @@ fn mcp_factory(s: &ProviderSettings) -> Result<Arc<dyn MemoryProvider>, String> 
     let scrub = |e: String| scrub_token(&e, secret.as_deref());
     let mut p = McpProvider::connect(&spec, s.timeout).map_err(scrub)?;
     p.secret = secret;
+    p.retain_timeout = s.retain_timeout;
     Ok(Arc::new(p))
 }
 
@@ -675,6 +712,7 @@ impl McpProvider {
             capability,
             budget,
             timeout,
+            retain_timeout: timeout,
             dead: Arc::new(AtomicBool::new(false)),
             secret: None,
         })
@@ -682,12 +720,17 @@ impl McpProvider {
 
     /// Call a hook tool within the timeout. Its structured result, the
     /// calls it reports, and its cost.
-    fn hook(&self, tool: &'static str, args: Value) -> Result<(Value, u32, f64), Miss> {
+    fn hook(
+        &self,
+        tool: &'static str,
+        args: Value,
+        timeout: Duration,
+    ) -> Result<(Value, u32, f64), Miss> {
         if self.dead.load(Ordering::SeqCst) {
             return Err(Miss::new(Why::Unreachable("an earlier call timed out".into())).calls(0));
         }
         let hooks = self.hooks.clone();
-        let result = match within(self.timeout, move || hooks.call_raw(tool, &args)) {
+        let result = match within(timeout, move || hooks.call_raw(tool, &args)) {
             Some(Ok(v)) => v,
             Some(Err(e)) => {
                 return Err(Miss::new(Why::Unreachable(scrub_token(
@@ -700,7 +743,7 @@ impl McpProvider {
                 self.hooks.abort();
                 return Err(Miss::new(Why::Unreachable(format!(
                     "{tool}: no answer within {}s",
-                    self.timeout.as_secs()
+                    timeout.as_secs()
                 ))));
             }
         };
@@ -770,7 +813,7 @@ impl MemoryProvider for McpProvider {
                 "max_cost_usd": b.max_cost_usd,
             },
         });
-        let (out, calls, cost) = self.hook(RECALL_TOOL, args)?;
+        let (out, calls, cost) = self.hook(RECALL_TOOL, args, self.timeout)?;
         let malformed = |why: &str| {
             Miss::new(Why::Malformed(format!("{RECALL_TOOL}: {why}")))
                 .calls(calls)
@@ -828,7 +871,7 @@ impl MemoryProvider for McpProvider {
             Body::Note { text } => json!({"kind": "note", "text": text, "attrs": o.attrs}),
         };
         let args = json!({"scope": scope.as_str(), "observation": observation});
-        let (out, calls, cost) = self.hook(RETAIN_TOOL, args)?;
+        let (out, calls, cost) = self.hook(RETAIN_TOOL, args, self.retain_timeout)?;
         let kept = match out.get("status").and_then(Value::as_str) {
             Some("stored") => Kept::Stored(RecordId::new(
                 out.get("id").and_then(Value::as_str).unwrap_or(""),
@@ -985,6 +1028,7 @@ mod tests {
             scope: Some("my key".into()),
             dir: Some(rung_testkit::TempDir::new("verb").to_path_buf()),
             timeout_secs: 1,
+            retain_timeout_secs: 1,
             token: None,
         };
         let Hooks::On { scope, .. } =
@@ -1000,6 +1044,65 @@ mod tests {
             panic!()
         };
         assert!(scope.as_str().starts_with("rung-scope:"));
+    }
+
+    #[derive(Debug)]
+    struct SlowRetain;
+    impl MemoryProvider for SlowRetain {
+        fn name(&self) -> &str {
+            "slow"
+        }
+        fn capability(&self) -> Capability {
+            Capability {
+                recall: false,
+                retain: true,
+                tools: false,
+            }
+        }
+        fn budget(&self) -> Budget {
+            Budget::default()
+        }
+        fn recall(&self, _: &Scope, _: &Cue) -> Result<Charged<Vec<Recalled>>, Miss> {
+            Err(Miss::new(Why::Unreachable("no".into())))
+        }
+        fn retain(&self, _: &Scope, _: &Observation) -> Result<Charged<Kept>, Miss> {
+            std::thread::sleep(Duration::from_millis(800));
+            Ok(Charged::new(Kept::Stored(RecordId::new("r"))))
+        }
+    }
+
+    #[test]
+    fn settle_bound_is_the_smaller_timeout_and_at_least_one_second() {
+        assert_eq!(settle_bound(15, 5), Duration::from_secs(5));
+        assert_eq!(settle_bound(3, 30), Duration::from_secs(3));
+        assert_eq!(settle_bound(0, 30), Duration::from_secs(1));
+    }
+
+    #[test]
+    fn settle_waits_at_most_the_bound_and_leaves_a_slow_retain_pending() {
+        let hooks = |wait| Hooks::On {
+            provider: Arc::new(SlowRetain),
+            scope: Scope::new("settle-bound-test"),
+            settle_wait: wait,
+        };
+        let turn = Turnover {
+            observation: Observation {
+                body: Body::Note { text: "t".into() },
+                attrs: BTreeMap::new(),
+            },
+        };
+        let h = hooks(Duration::from_millis(50));
+        assert!(h.retain(turn).is_some());
+        let t0 = std::time::Instant::now();
+        h.settle();
+        assert!(
+            t0.elapsed() < Duration::from_millis(600),
+            "settle over the bound"
+        );
+        let key = |k: &(String, std::thread::JoinHandle<()>)| k.0 == "settle-bound-test";
+        assert!(PENDING.lock().unwrap().iter().any(key), "dropped, not kept");
+        hooks(Duration::from_secs(10)).settle();
+        assert!(!PENDING.lock().unwrap().iter().any(key));
     }
 
     #[derive(Debug)]
@@ -1068,6 +1171,7 @@ mod tests {
             scope: None,
             dir: None,
             timeout_secs: 1,
+            retain_timeout_secs: 1,
             token: None,
         };
         let e = Hooks::from_settings(&s, Path::new("/tmp"), &registry()).unwrap_err();
@@ -1084,6 +1188,7 @@ mod tests {
             scope: Some("k".into()),
             dir: None,
             timeout_secs: 1,
+            retain_timeout_secs: 1,
             token: None,
         };
         let hooks = Hooks::from_settings(&s, Path::new("/tmp"), &registry()).unwrap();
@@ -1180,6 +1285,7 @@ mod tests {
             scope: Some("k".into()),
             dir: None,
             timeout_secs: 5,
+            retain_timeout_secs: 5,
             token: token.map(|t| rung_memory::Token::new(t).unwrap()),
         }
     }

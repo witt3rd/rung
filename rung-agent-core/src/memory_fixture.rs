@@ -255,6 +255,7 @@ pub fn check(
             dir: dir.to_path_buf(),
             arg: arg.clone(),
             timeout,
+            retain_timeout: timeout,
             token,
         },
     );

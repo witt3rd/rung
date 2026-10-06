@@ -5,9 +5,9 @@
 //! ```
 //!
 //! Memory (`memory:`): `provider` (`off` | `external` | `baseline` |
-//! `mcp:<url or command>`; default off), `scope`, `dir`, `timeout_secs`.
+//! `mcp:<url or command>`; default off), `scope`, `dir`, `timeout_secs`, `retain_timeout_secs`.
 //! `--memory` wins over `RUNG_MEMORY`, which wins over the file;
-//! `RUNG_MEMORY_SCOPE`, `RUNG_MEMORY_DIR`, `RUNG_MEMORY_TIMEOUT_SECS` win
+//! `RUNG_MEMORY_SCOPE`, `RUNG_MEMORY_DIR`, `RUNG_MEMORY_TIMEOUT_SECS`, `RUNG_MEMORY_RETAIN_TIMEOUT_SECS` win
 //! over their keys.
 //!
 //! Env wins over the file. When the file names an `api_key_env`, the key is
@@ -54,6 +54,9 @@ struct MemoryFile {
     /// Longest one provider call may take.
     #[serde(default)]
     timeout_secs: Option<u64>,
+    /// Longest one retain call may take (retain runs after the reply).
+    #[serde(default)]
+    retain_timeout_secs: Option<u64>,
     /// Bearer for an MCP HTTP provider. Never logged or reported.
     #[serde(default)]
     token: Option<String>,
@@ -67,6 +70,7 @@ pub struct MemorySettings {
     pub scope: Option<String>,
     pub dir: Option<PathBuf>,
     pub timeout_secs: u64,
+    pub retain_timeout_secs: u64,
     pub token: Option<rung_memory::Token>,
 }
 
@@ -252,6 +256,10 @@ fn resolve_memory(
         timeout_secs: match env("RUNG_MEMORY_TIMEOUT_SECS") {
             Some(s) => parse_num("RUNG_MEMORY_TIMEOUT_SECS", &s)?,
             None => file.and_then(|f| f.timeout_secs).unwrap_or(30),
+        },
+        retain_timeout_secs: match env("RUNG_MEMORY_RETAIN_TIMEOUT_SECS") {
+            Some(s) => parse_num("RUNG_MEMORY_RETAIN_TIMEOUT_SECS", &s)?,
+            None => file.and_then(|f| f.retain_timeout_secs).unwrap_or(60),
         },
         token: match env("RUNG_MEMORY_TOKEN") {
             Some(t) => {
@@ -611,13 +619,16 @@ llm:
         let none: HashMap<&str, &str> = HashMap::new();
         let m = resolve_memory(None, None, getenv(&none)).unwrap();
         assert_eq!(m.authority, MemoryAuthority::Off);
-        assert_eq!((m.scope, m.dir, m.timeout_secs), (None, None, 30));
+        assert_eq!(
+            (m.scope, m.dir, m.timeout_secs, m.retain_timeout_secs),
+            (None, None, 30, 60)
+        );
     }
 
     #[test]
     fn memory_flag_beats_env_beats_file() {
         let file: FileConfig = serde_yaml::from_str(
-            "memory:\n  provider: external\n  scope: team-a\n  dir: /m\n  timeout_secs: 3\n",
+            "memory:\n  provider: external\n  scope: team-a\n  dir: /m\n  timeout_secs: 3\n  retain_timeout_secs: 20\n",
         )
         .unwrap();
         let mf = file.memory.as_ref();
@@ -632,12 +643,15 @@ llm:
             resolve_memory(None, mf, getenv(&t)).unwrap().timeout_secs,
             45
         );
+        assert_eq!(m.retain_timeout_secs, 20);
         let env = HashMap::from([
             ("RUNG_MEMORY", "baseline"),
             ("RUNG_MEMORY_SCOPE", "team-b"),
             ("RUNG_MEMORY_DIR", "/n"),
+            ("RUNG_MEMORY_RETAIN_TIMEOUT_SECS", "40"),
         ]);
         let m = resolve_memory(None, mf, getenv(&env)).unwrap();
+        assert_eq!(m.retain_timeout_secs, 40);
         assert_eq!(m.authority, MemoryAuthority::provider("baseline"));
         assert_eq!(m.scope.as_deref(), Some("team-b"));
         assert_eq!(m.dir, Some(PathBuf::from("/n")));

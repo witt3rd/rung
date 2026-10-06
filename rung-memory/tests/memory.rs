@@ -543,6 +543,7 @@ fn settings(dir: std::path::PathBuf) -> rung_memory::ProviderSettings {
         dir,
         arg: None,
         timeout: std::time::Duration::from_secs(1),
+        retain_timeout: std::time::Duration::from_secs(1),
         token: None,
     }
 }
