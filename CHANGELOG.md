@@ -7,8 +7,36 @@ git tags only.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-07
+
+Patch bump: backward compatible changes; memory timeouts are withdrawn from
+the 3 s gate.
+
+### Changed
+- Memory timeouts: the recall hook default is 30 s (#254, replacing the 3 s
+  provider default of #240) and retain has its own timeout, default 60 s (#248).
+- `rung-host`: default model selection is the named ladder (#250); runs on its
+  own router key and treats 2xx router errors as classified failures (#249).
+- Turn check sends the request and final message whole, no clip (#253).
+- Memory retain runs after the reply (#242); clearer reason when a provider
+  returns junk (#233).
+
+### Fixed
+- `rung-agent-core`: `memory_score` sets `retain_timeout`; master did not build
+  after #239 and #248 merged together (#256).
+
 ### Added
-- Memory: opt-in retain distillation, `RUNG_MEMORY_RETAIN=distill` (#226).
+- `rung-agent --memory-scope` inspects and deletes baseline memory scopes (#234).
+- `rung-agent --memory-score` scores memory providers on real notes (#239).
+- Memory: opt-in retain distillation, `RUNG_MEMORY_RETAIN=distill` (#226);
+  opt-in `baseline:stem` recall ranking (#235).
+- `rung-host`: opt-in free-time idle rule (#247).
+
+### Documentation and CI
+- Memory quickstart (#225) and loop walkthrough (#246); 2-hour live qwen run
+  (#245); named-ladder soak evidence (#251); `rung_testkit::TempDir` in
+  retain_quality and writeback (#252).
+- Release commit (this one).
 
 ## [0.2.2] - 2026-10-06
 
