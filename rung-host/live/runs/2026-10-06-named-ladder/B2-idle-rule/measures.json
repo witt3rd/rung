@@ -1,0 +1,387 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 7199.5,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "completed_by_model": {
+   "nvidia/nemotron-3-super-120b-a12b:free": 3,
+   "nvidia/nemotron-3-ultra-550b-a55b:free": 15
+  },
+  "first_turn_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": false,
+    "model": "stealth/space-bunny-alpha",
+    "why": "not_listed"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "ok"
+   },
+   {
+    "available": false,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "not_listed"
+   },
+   {
+    "available": true,
+    "model": "google/gemma-4-31b-it:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": true,
+  "turns_by_status": {
+   "completed": 18,
+   "failed": 5
+  }
+ },
+ "L3": {
+  "at_bottom": 0,
+  "exercised": true,
+  "not_stepped": 0,
+  "pass": true,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 3,
+  "provider_failures": 5,
+  "stepped_down": 5,
+  "switches": [
+   {
+    "direction": "down",
+    "from": "stealth/space-bunny-alpha",
+    "to": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "listing: not_listed"
+   },
+   {
+    "direction": "down",
+    "from": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "provider overloaded"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "provider overloaded"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "probe: the rung above has cooled down"
+   }
+  ],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {
+   "model_switch": 5
+  },
+  "cache_cold": {
+   "provider": 50,
+   "ttl": 1
+  },
+  "cache_efficiency": 0.0738,
+  "cache_write_tokens": 0,
+  "cached_tokens": 26016,
+  "calls": 62,
+  "epochs": 5,
+  "pass": true,
+  "prompt_tokens": 352338,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 567,
+  "admission_ms_p50": 324,
+  "admission_ms_p95": 567,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": 58107,
+  "disposed_ms_p50": 17122,
+  "owner_items": 10,
+  "pass": true,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 7490,
+    "disposition": "answered",
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 208,
+    "waited_in": {
+     "paced": 19567
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 32071,
+    "disposition": "answered",
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 235,
+    "waited_in": {
+     "paced": 232371
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 4048,
+    "disposition": "answered",
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 332,
+    "waited_in": {
+     "paced": 267729
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 17122,
+    "disposition": "answered",
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 567,
+    "waited_in": {
+     "paced": 295807
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 8491,
+    "disposition": "answered",
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 316,
+    "waited_in": {
+     "paced": 282582
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 5532,
+    "disposition": "answered",
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 352,
+    "waited_in": {
+     "paced": 43874
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 8164,
+    "disposition": "answered",
+    "id": "o07-reflect",
+    "kind": "peer",
+    "latency_ms": 307,
+    "waited_in": {
+     "paced": 121199
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 58107,
+    "disposition": "answered",
+    "id": "o08-tidy",
+    "kind": "peer",
+    "latency_ms": 365,
+    "waited_in": {
+     "paced": 457710
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 51841,
+    "disposition": "answered",
+    "id": "o09-summary",
+    "kind": "peer",
+    "latency_ms": 215,
+    "waited_in": {
+     "paced": 391372
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": 29897,
+    "disposition": "answered",
+    "id": "o10-last",
+    "kind": "peer",
+    "latency_ms": 324,
+    "waited_in": {
+     "paced": 267049
+    }
+   }
+  ],
+  "turn_ms_p50": 17630,
+  "turn_ms_p95": 48666
+ },
+ "L6": {
+  "accepted": 14,
+  "disposed": 14,
+  "disposed_twice": [],
+  "dispositions": {
+   "answered": 14
+  },
+  "open_at_stop": [],
+  "pass": true
+ },
+ "L7": {
+  "asks": 46,
+  "by_jev": 0,
+  "decisions": 136,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 31,
+   "{\"rule\": \"shadow\"}": 105
+  },
+  "jev_charged_usd": 0.002539,
+  "jev_cost_usd": 0.002539,
+  "jev_ms_max": 1552.152,
+  "jev_ms_p50": 276.779,
+  "jev_ms_p95": 363.776,
+  "outcomes": {
+   "answered": 46
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 13,
+    "disagree": 1
+   },
+   "consolidate": {
+    "disagree": 1
+   },
+   "inject": {
+    "agree": 18,
+    "disagree": 27
+   },
+   "tools": {
+    "agree": 43,
+    "disagree": 2
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {},
+  "agent_write_calls": 10,
+  "outside": {},
+  "pass": true,
+  "traces": 0,
+  "workspace": "/tmp/soak-B2/state/workspace",
+  "write_syscalls": {}
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.002539,
+  "jev_usd": 0.002539,
+  "pass": true,
+  "total_usd": 0.002539
+ },
+ "extra": {
+  "calendar_fired": 4,
+  "completion_tokens": 16378,
+  "degraded": {
+   "backoff": 5,
+   "paced": 17
+  },
+  "degraded_waited_s": {
+   "backoff": 33,
+   "paced": 6680
+  },
+  "kernel": {
+   "kernel.commit": 1,
+   "kernel.progress": 8
+  },
+  "llm_calls": 62,
+  "llm_latency_ms_p50": 5788,
+  "llm_latency_ms_p95": 22047,
+  "outbox": 3,
+  "reasoning_tokens": 7884,
+  "rollovers": 9,
+  "served": {
+   "nvidia/nemotron-3-super-120b-a12b:free": 18,
+   "nvidia/nemotron-3-ultra-550b-a55b:free": 44
+  },
+  "tool_calls": {
+   "commit": 1,
+   "memory_keep": 1,
+   "memory_search": 1,
+   "note": 2,
+   "progress": 8,
+   "send": 2,
+   "ws_list": 11,
+   "ws_read": 11,
+   "ws_write": 10
+  },
+  "turn_kinds": {
+   "committed": 6,
+   "free": 1,
+   "responding": 16
+  },
+  "turns": 23
+ },
+ "lines": 628,
+ "run": "soak-B2"
+}

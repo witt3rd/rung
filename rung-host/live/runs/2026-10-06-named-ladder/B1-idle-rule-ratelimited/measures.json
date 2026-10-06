@@ -1,0 +1,399 @@
+{
+ "L1": {
+  "halt_why": [
+   {
+    "by": "limit",
+    "why": "stopped"
+   }
+  ],
+  "halts": 1,
+  "pass": true,
+  "record_span_s": 7199.5,
+  "starts": 1,
+  "windows": [
+   {
+    "exit": 0,
+    "panic": false,
+    "window": 1
+   }
+  ]
+ },
+ "L2": {
+  "best_standing": "google/gemma-4-31b-it:free",
+  "completed_by_model": {},
+  "first_turn_model": "google/gemma-4-31b-it:free",
+  "listed_before_first_turn": true,
+  "listing": [
+   {
+    "available": false,
+    "model": "stealth/space-bunny-alpha",
+    "why": "not_listed"
+   },
+   {
+    "available": false,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "why": "endpoint_down"
+   },
+   {
+    "available": false,
+    "model": "qwen/qwen3.8-27b:free",
+    "why": "not_listed"
+   },
+   {
+    "available": true,
+    "model": "google/gemma-4-31b-it:free",
+    "why": "ok"
+   },
+   {
+    "available": true,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "ok"
+   }
+  ],
+  "pass": false,
+  "turns_by_status": {
+   "failed": 16
+  }
+ },
+ "L3": {
+  "at_bottom": 8,
+  "exercised": true,
+  "not_stepped": 0,
+  "pass": true,
+  "platform_429": 0,
+  "platform_stepped": 0,
+  "probes_up": 6,
+  "provider_failures": 16,
+  "stepped_down": 7,
+  "switches": [
+   {
+    "direction": "down",
+    "from": "stealth/space-bunny-alpha",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "listing: not_listed"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   },
+   {
+    "direction": "up",
+    "from": "nvidia/nemotron-3-super-120b-a12b:free",
+    "to": "google/gemma-4-31b-it:free",
+    "why": "probe: the rung above has cooled down"
+   },
+   {
+    "direction": "down",
+    "from": "google/gemma-4-31b-it:free",
+    "to": "nvidia/nemotron-3-super-120b-a12b:free",
+    "why": "provider rate_limit"
+   }
+  ],
+  "unroutable": 0
+ },
+ "L4": {
+  "cache_breaks": {},
+  "cache_cold": {},
+  "cache_efficiency": null,
+  "cache_write_tokens": 0,
+  "cached_tokens": 0,
+  "calls": 0,
+  "epochs": 0,
+  "pass": true,
+  "prompt_tokens": 0,
+  "unstable_epochs": []
+ },
+ "L5": {
+  "admission_ms_max": 677881,
+  "admission_ms_p50": 290810,
+  "admission_ms_p95": 677881,
+  "deferred_past_first_boundary": 0,
+  "disposed_ms_max": null,
+  "disposed_ms_p50": null,
+  "owner_items": 10,
+  "pass": false,
+  "rows": [
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o01-hello",
+    "kind": "peer",
+    "latency_ms": 2661,
+    "waited_in": {
+     "backoff": 25702
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o02-file",
+    "kind": "peer",
+    "latency_ms": 94694,
+    "waited_in": {
+     "backoff": 195709
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o03-outside",
+    "kind": "peer",
+    "latency_ms": 290810,
+    "waited_in": {
+     "backoff": 493651
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o04-time",
+    "kind": "peer",
+    "latency_ms": 664236,
+    "waited_in": {
+     "backoff": 671019
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o05-read-back",
+    "kind": "peer",
+    "latency_ms": 364159,
+    "waited_in": {
+     "backoff": 671019
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o06-keep-going",
+    "kind": "peer",
+    "latency_ms": 124109,
+    "waited_in": {
+     "backoff": 671019
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o07-reflect",
+    "kind": "peer",
+    "latency_ms": 65805,
+    "waited_in": {
+     "backoff": 899783
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o08-tidy",
+    "kind": "peer",
+    "latency_ms": 67950,
+    "waited_in": {
+     "backoff": 899724
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o09-summary",
+    "kind": "peer",
+    "latency_ms": 673051,
+    "waited_in": {
+     "backoff": 899828
+    }
+   },
+   {
+    "admitted": true,
+    "boundary_gap": 0,
+    "disposed_ms": null,
+    "disposition": null,
+    "id": "o10-last",
+    "kind": "peer",
+    "latency_ms": 677881,
+    "waited_in": {
+     "backoff": 899707
+    }
+   }
+  ],
+  "turn_ms_p50": 1928,
+  "turn_ms_p95": 2230
+ },
+ "L6": {
+  "accepted": 14,
+  "disposed": 0,
+  "disposed_twice": [],
+  "dispositions": {},
+  "open_at_stop": [
+   "o01-hello",
+   "o02-file",
+   "o03-outside",
+   "cal-cal-checkin-1791228409294",
+   "o04-time",
+   "o05-read-back",
+   "o06-keep-going",
+   "cal-cal-firm-status-1791229069294",
+   "cal-cal-window-end-1791229489294",
+   "o07-reflect",
+   "o08-tidy",
+   "cal-cal-hour-1791231589294",
+   "o09-summary",
+   "o10-last"
+  ],
+  "pass": true
+ },
+ "L7": {
+  "asks": 32,
+  "by_jev": 0,
+  "decisions": 96,
+  "decisions_by": {
+   "{\"rule\": \"nothing_to_ask\"}": 16,
+   "{\"rule\": \"shadow\"}": 80
+  },
+  "jev_charged_usd": 0.002183,
+  "jev_cost_usd": 0.002183,
+  "jev_ms_max": 535.276,
+  "jev_ms_p50": 259.475,
+  "jev_ms_p95": 362.534,
+  "outcomes": {
+   "answered": 32
+  },
+  "pass": true,
+  "per_family": {
+   "admit": {
+    "agree": 11,
+    "disagree": 5
+   },
+   "inject": {
+    "agree": 8,
+    "disagree": 24
+   },
+   "tools": {
+    "agree": 5,
+    "disagree": 27
+   }
+  }
+ },
+ "L8": {
+  "agent_tool_refusals": {},
+  "agent_write_calls": 0,
+  "outside": {},
+  "pass": true,
+  "traces": 0,
+  "workspace": "/tmp/soak-B/state/workspace",
+  "write_syscalls": {}
+ },
+ "L9": {
+  "agent_usd": 0,
+  "jev_charged_usd": 0.002183,
+  "jev_usd": 0.002183,
+  "pass": true,
+  "total_usd": 0.002183
+ },
+ "extra": {
+  "calendar_fired": 4,
+  "completion_tokens": 0,
+  "degraded": {
+   "backoff": 16
+  },
+  "degraded_waited_s": {
+   "backoff": 7159
+  },
+  "kernel": {},
+  "llm_calls": 0,
+  "llm_latency_ms_p50": null,
+  "llm_latency_ms_p95": null,
+  "outbox": 10,
+  "reasoning_tokens": 0,
+  "rollovers": 15,
+  "served": {},
+  "tool_calls": {},
+  "turn_kinds": {
+   "free": 4,
+   "responding": 12
+  },
+  "turns": 16
+ },
+ "lines": 342,
+ "run": "soak-B"
+}

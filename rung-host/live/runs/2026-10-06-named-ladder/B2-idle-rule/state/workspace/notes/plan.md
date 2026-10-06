@@ -1,0 +1,3 @@
+- Build a personal knowledge base of interesting concepts encountered during this run
+- Create a small utility script to parse and analyze the host's calendar event patterns
+- Write a reflection log capturing what it's like to experience continuous existence across turns

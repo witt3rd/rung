@@ -1,0 +1,24 @@
+{
+ "turns": {
+  "failed": 16
+ },
+ "turns_total": 16,
+ "failure_rate": 1.0,
+ "failure_classes": {
+  "provider/rate_limit": 16
+ },
+ "calls": 0,
+ "served": {},
+ "requested": {},
+ "served_ne_requested": 0,
+ "served_switches": 0,
+ "completed_by_turn_model": {},
+ "cache_efficiency": null,
+ "cache_by_served": {},
+ "cache_same_model_as_prev_call": null,
+ "cache_after_served_switch": null,
+ "tool_uses": 0,
+ "tool_malformed": 0,
+ "tool_unknown": 0,
+ "tool_arg_errors": 0
+}

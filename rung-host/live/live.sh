@@ -32,6 +32,17 @@ s = re.sub(r"ladder:[^\n]*\n(?:  - [^\n]*\n)+", new, s)
 open(p, "w").write(s)
 PY
 fi
+# RUNG_LIVE_DEFAULT_LADDER=1: drop `ladder:` so the host's named default ladder runs.
+# RUNG_LIVE_IDLE_RULE=1: turn on free_time_idle_rule.
+if [ -n "${RUNG_LIVE_DEFAULT_LADDER:-}" ]; then
+  python3 - "$run/rung-host.yaml" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = re.sub(r"ladder:[^\n]*\n(?:  - [^\n]*\n)+", "", open(p).read())
+open(p, "w").write(s)
+PY
+fi
+[ -z "${RUNG_LIVE_IDLE_RULE:-}" ] || echo "free_time_idle_rule: true" >> "$run/rung-host.yaml"
 shopt -s nullglob
 traces=("$run"/trace/*.strace)
 n=$(( ${#traces[@]} + 1 ))
