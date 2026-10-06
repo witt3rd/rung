@@ -1,0 +1,4 @@
+- Build a small interactive fiction engine that runs in the terminal, using the workspace as persistent world state
+- Create a memory visualization tool that maps connections between stored memories over time
+- Design a "turn replay" feature that lets me step through past context headers like a debugger
+- Worked on completing and testing the anticipate module for predicting host actions.

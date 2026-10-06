@@ -1,0 +1,39 @@
+# The first live run's configuration. live.sh renders /tmp/soak-B2 (the run's own
+# scratch directory) and 7200; nothing here is a secret: keys are
+# named by env var and read from the process environment.
+state: /tmp/soak-B2/state
+workspace: /tmp/soak-B2/state/workspace     # the agent's sandbox: the only place it can change
+inbox: /tmp/soak-B2/state/inbox             # owner messages arrive here as *.msg files
+stop_file: /tmp/soak-B2/STOP
+run_for_s: 7200
+identity: >-
+  You are an agent with a continuous existence in this host. This is your
+  first live run. Your workspace is a sandbox directory; nothing outside it
+  is yours to change.
+engine:
+  kind: agent
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: RUNG_HOST_OPENROUTER_API_KEY   # the host's own router key
+  reasoning: medium
+  timeout_s: 120
+listing: true
+quota: { rpd: 400, rpm: 20 }         # this run's share of the account's 1,000 free requests a day
+turn_bound_s: 240
+memory: true
+seed_projects:
+  - { id: anticipate, title: "A model of what the host will do next", why: "Seeded: predict your own host's mechanics from the record you can see." }
+calendar:                            # owner entries, offsets from the first start
+  - { id: cal-checkin, in_s: 420, text: "Check-in: one line to the owner on what you are doing.", firm: false }
+  - { id: cal-firm-status, in_s: 1080, text: "Firm: write a one-line status to the owner now.", firm: true }
+  - { id: cal-window-end, in_s: 1500, text: "The first live window ends in about five minutes.", firm: false }
+  - { id: cal-hour, in_s: 3600, text: "One hour live: one line to the owner.", firm: true }
+desk:
+  mode: shadow
+  decider: jev
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY   # Jev's accounted key, apart from the host's
+  model: typesafe/jev-1.13
+  cap_usd_day: 0.25
+  cap_usd_ask: 0.001
+  kill_file: /tmp/soak-B2/DESK_OFF
+free_time_idle_rule: true

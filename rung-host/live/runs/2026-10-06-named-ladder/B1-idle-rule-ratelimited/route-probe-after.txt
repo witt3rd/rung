@@ -1,0 +1,2 @@
+nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+google/gemma-4-31b-it:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""

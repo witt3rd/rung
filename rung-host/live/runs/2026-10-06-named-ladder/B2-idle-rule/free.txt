@@ -1,0 +1,9 @@
+turn_kinds: {"free": 1, "responding": 16, "committed": 6}
+free_turns: 1
+free_failed: 0
+free_completed: 1
+free_filler: 0
+free_filler_share_of_completed: 0.0
+free_tools_used: {"ws_list": 2, "memory_search": 1, "commit": 1, "progress": 1}
+distinct_write_actions: 0
+distinct_write_targets: []

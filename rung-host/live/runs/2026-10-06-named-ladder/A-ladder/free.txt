@@ -1,0 +1,9 @@
+turn_kinds: {"free": 20, "responding": 15, "committed": 16}
+free_turns: 20
+free_failed: 11
+free_completed: 9
+free_filler: 0
+free_filler_share_of_completed: 0.0
+free_tools_used: {"want_tools": 7, "ws_list": 4, "ws_read": 19, "note": 3, "ws_write": 3, "commit": 1, "progress": 1, "trace": 2}
+distinct_write_actions: 2
+distinct_write_targets: ["ws_write:\"anticipate.py\"", "ws_write:\"run_test.py\""]

@@ -1,0 +1,14 @@
+{
+ "turn_kinds": {
+  "free": 4,
+  "responding": 12
+ },
+ "free_turns": 4,
+ "free_failed": 4,
+ "free_completed": 0,
+ "free_filler": 0,
+ "free_filler_share_of_completed": null,
+ "free_tools_used": {},
+ "distinct_write_actions": 0,
+ "distinct_write_targets": []
+}

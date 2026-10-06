@@ -1,0 +1,12 @@
+21:20:34 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+21:35:35 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+21:50:35 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+22:05:36 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+22:20:37 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+22:35:37 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+22:50:38 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+23:05:39 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+23:20:39 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+23:35:40 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+23:50:42 nvidia/nemotron-3-super-120b-a12b:free 429 ERR Rate limit exceeded: free-models-per-day-high-balance.  ""
+00:05:43 nvidia/nemotron-3-super-120b-a12b:free 200 OK served nvidia/nemotron-3-super-120b-a12b:free Nvidia OK
