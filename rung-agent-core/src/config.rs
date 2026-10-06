@@ -627,6 +627,8 @@ llm:
         assert_eq!(m.scope.as_deref(), Some("team-a"));
         assert_eq!(m.dir, Some(PathBuf::from("/m")));
         assert_eq!(m.timeout_secs, 3);
+        let t = HashMap::from([("RUNG_MEMORY_TIMEOUT_SECS", "45")]);
+        assert_eq!(resolve_memory(None, mf, getenv(&t)).unwrap().timeout_secs, 45);
         let env = HashMap::from([
             ("RUNG_MEMORY", "baseline"),
             ("RUNG_MEMORY_SCOPE", "team-b"),
