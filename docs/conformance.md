@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 426 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 430 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -736,6 +736,13 @@ look shorter than it is.
 - `poll_completed_session_json`
 - `poll_missing_session`
 - `the_host_sets_the_per_prompt_call_cap`
+
+**`rung-agent/tests/memory_score.rs`** — 4 unclaimed
+
+- `a_directory_of_note_files_is_a_store`
+- `a_missing_question_file_is_refused`
+- `baseline_and_provider_arms_report_on_the_fixture_set`
+- `the_memory_token_never_reaches_the_report`
 
 **`rung-agent/tests/parity.rs`** — 13 unclaimed
 

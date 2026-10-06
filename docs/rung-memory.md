@@ -232,6 +232,39 @@ the process; rung starts a stdio provider once per prompt. It matches by
 shared words, charges $0.0001 per hook call, and offers one agent tool,
 `memory_lookup`. `--sleep-ms N`, `--no-marker` and `--junk` (every hook answers with non-result text) exist to test rung's side.
 
+## Scoring on your own notes
+
+```bash
+rung-agent --memory-score --notes ~/my-notes --questions ~/my-questions.jsonl \
+  [--arm mcp:http://127.0.0.1:9000/mcp]... [--no-baseline] [--misses] [--timeout 30]
+```
+
+Builds a store per arm (the `baseline` provider, plus every `--arm`, any
+provider setting such as the Jev-Mem MCP provider), retains every note, asks
+each question in turn, and prints a one-page Markdown report: hit@1, hit@5,
+MRR, recall latency (p50, p95, max), failed recalls, and the cost the provider
+reported for recall and retain. Paste the report as is.
+
+- **Notes** (`--notes DIR`): `notes.jsonl` (`{"id","text"}` per line, oldest
+  first), or one note per `*.md` / `*.txt` file (the id is the file name
+  without extension).
+- **Questions** (`--questions FILE`): JSONL, `{"q","expect":["note-id"]}`; the
+  expected id is the note that should answer (the latest, if facts were
+  corrected).
+- A recalled record counts as expected when it is the record the provider
+  stored for that note, or its text contains the note's text.
+- Each arm writes into a scope of its own, `rung-memory-score:<uuid>`; the
+  baseline store is a temp directory removed afterwards. A remote provider
+  keeps those notes: use a provider whose scope you can delete, or a throwaway
+  instance. A paid provider is billed for every retain and recall; the report
+  shows the cost. Credentials come from the usual memory config
+  (`memory.token`), never from the report.
+- `--misses` lists the questions an arm missed (off by default: they may be
+  private).
+- Keep private notes and questions out of the repo. CI runs the scorer only on
+  the generic set in `rung-memory/tests/fixtures/recall/`
+  (`rung-agent/tests/memory_score.rs`).
+
 ## In Rust
 
 For an in-process provider, implement `rung_memory::MemoryProvider` (name,

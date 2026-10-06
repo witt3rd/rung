@@ -19,6 +19,7 @@ fn main() -> ExitCode {
         }
         Some("--memory-scope") => return memory_scope(&argv[2..]),
         Some("--memory-check") => return memory_check(argv.get(2)),
+        Some("--memory-score") => return memory_score(&argv[2..]),
         _ => {}
     }
     let mut args = match Args::parse(&argv) {
@@ -201,5 +202,25 @@ fn memory_scope(rest: &[String]) -> ExitCode {
             Err(e) => fail(e),
         },
         _ => fail("usage: --memory-scope ls | rm ID | drop".into()),
+    }
+}
+
+/// `--memory-score --notes DIR --questions FILE [--arm SETTING]...`: print the
+/// one-page recall report.
+fn memory_score(argv: &[String]) -> ExitCode {
+    let run = || {
+        let opts = rung_agent::memory_score::Options::parse(argv)?;
+        let token = rung_agent::config::load_memory(None)?.token;
+        rung_agent::memory_score::run(&opts, token)
+    };
+    match run() {
+        Ok(report) => {
+            print!("{report}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("rung-agent: {e}");
+            ExitCode::from(2)
+        }
     }
 }
