@@ -251,7 +251,7 @@ fn resolve_memory(
             .map(PathBuf::from),
         timeout_secs: match env("RUNG_MEMORY_TIMEOUT_SECS") {
             Some(s) => parse_num("RUNG_MEMORY_TIMEOUT_SECS", &s)?,
-            None => file.and_then(|f| f.timeout_secs).unwrap_or(3),
+            None => file.and_then(|f| f.timeout_secs).unwrap_or(30),
         },
         token: match env("RUNG_MEMORY_TOKEN") {
             Some(t) => {
@@ -611,7 +611,7 @@ llm:
         let none: HashMap<&str, &str> = HashMap::new();
         let m = resolve_memory(None, None, getenv(&none)).unwrap();
         assert_eq!(m.authority, MemoryAuthority::Off);
-        assert_eq!((m.scope, m.dir, m.timeout_secs), (None, None, 3));
+        assert_eq!((m.scope, m.dir, m.timeout_secs), (None, None, 30));
     }
 
     #[test]
@@ -627,6 +627,11 @@ llm:
         assert_eq!(m.scope.as_deref(), Some("team-a"));
         assert_eq!(m.dir, Some(PathBuf::from("/m")));
         assert_eq!(m.timeout_secs, 3);
+        let t = HashMap::from([("RUNG_MEMORY_TIMEOUT_SECS", "45")]);
+        assert_eq!(
+            resolve_memory(None, mf, getenv(&t)).unwrap().timeout_secs,
+            45
+        );
         let env = HashMap::from([
             ("RUNG_MEMORY", "baseline"),
             ("RUNG_MEMORY_SCOPE", "team-b"),

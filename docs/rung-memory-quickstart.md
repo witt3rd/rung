@@ -111,6 +111,6 @@ Every hook reports `calls`, `cost_usd` and `latency_ms` in the `memory` object
 | other `mcp:` provider | what it declares as `max_cost_usd` at most | what it takes, up to `timeout_secs` |
 
 A recall costing more than the provider's declared `max_cost_usd` is
-`unavailable`, not evidence. A hook over `timeout_secs` (default 10) is
+`unavailable`, not evidence. A hook over `timeout_secs` (default 30) is
 `unavailable` and the turn proceeds without memory. Only a turn that
 completed, and passed the turn check if it is on, is retained.
