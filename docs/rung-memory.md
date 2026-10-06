@@ -37,6 +37,8 @@ Other keys, each with an env override that wins over the file:
 | `timeout_secs` | `RUNG_MEMORY_TIMEOUT_SECS` | `30` |
 | `token` | `RUNG_MEMORY_TOKEN` | none |
 
+Until a separate retain timeout lands, the single shared `timeout_secs` (default 30 s) bounds both the recall and retain hooks; a 60 s retain default follows separately.
+
 `token` is an optional bearer for an `mcp:<url>` provider. When set, rung sends
 `Authorization: Bearer <token>` on every outbound HTTP call to the provider
 (initialize, listing, hooks and agent tools), so a provider can tell rung's
