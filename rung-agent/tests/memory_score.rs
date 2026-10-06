@@ -10,11 +10,19 @@ fn fixtures() -> PathBuf {
 }
 
 fn score(args: &[&str]) -> (bool, String, String) {
+    score_with(args, None)
+}
+
+fn score_with(args: &[&str], config: Option<&str>) -> (bool, String, String) {
     let home = rung_testkit::TempDir::new("memory-score-home");
+    let cfg = home.path().join("config.yaml");
+    if let Some(c) = config {
+        std::fs::write(&cfg, c).unwrap();
+    }
     let out = Command::new(BIN)
         .arg("--memory-score")
         .args(args)
-        .env("RUNG_CONFIG", home.path().join("none.yaml"))
+        .env("RUNG_CONFIG", &cfg)
         .env("RUNG_HOME", home.path())
         .output()
         .unwrap();
@@ -90,7 +98,38 @@ fn a_directory_of_note_files_is_a_store() {
 
 #[test]
 fn a_missing_question_file_is_refused() {
-    let (ok, _, err) = score(&["--notes", "/nonexistent", "--questions", "/nonexistent/q"]);
+    let dir = fixtures();
+    let (ok, _, err) = score(&[
+        "--notes",
+        dir.to_str().unwrap(),
+        "--questions",
+        "/nonexistent/q",
+    ]);
     assert!(!ok);
     assert!(err.contains("nonexistent"), "{err}");
+}
+
+#[test]
+fn the_memory_token_never_reaches_the_report() {
+    const SECRET: &str = "sekrit-token-4f2a9c1d";
+    let dir = fixtures();
+    let questions = dir.join("questions.jsonl");
+    let arm = format!("mcp:{BIN} --memory-fixture");
+    let cfg = format!("memory:\n  token: {SECRET}\n");
+    let (ok, out, err) = score_with(
+        &[
+            "--notes",
+            dir.to_str().unwrap(),
+            "--questions",
+            questions.to_str().unwrap(),
+            "--arm",
+            &arm,
+            "--misses",
+        ],
+        Some(&cfg),
+    );
+    assert!(ok, "{err}");
+    assert!(out.contains("40 notes, 30 questions"), "{out}");
+    assert!(!out.contains(SECRET), "token in report:\n{out}");
+    assert!(!err.contains(SECRET), "token in stderr:\n{err}");
 }
