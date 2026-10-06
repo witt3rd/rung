@@ -160,6 +160,12 @@ pub enum Hooks {
     },
 }
 
+/// How long a turn's end waits on a pending retain: the smaller of the two
+/// timeouts, never under one second.
+fn settle_bound(retain_timeout_secs: u64, timeout_secs: u64) -> Duration {
+    Duration::from_secs(retain_timeout_secs.min(timeout_secs).max(1))
+}
+
 impl Hooks {
     /// Resolve the setting for a run whose session cwd is `origin`. An
     /// unknown setting is an error; a provider that cannot be reached is not
@@ -214,9 +220,7 @@ impl Hooks {
                 Ok(Hooks::On {
                     provider: Arc::new(Capped(provider)),
                     scope,
-                    settle_wait: Duration::from_secs(
-                        s.retain_timeout_secs.min(s.timeout_secs).max(1),
-                    ),
+                    settle_wait: settle_bound(s.retain_timeout_secs, s.timeout_secs),
                 })
             }
         }
@@ -1065,6 +1069,13 @@ mod tests {
             std::thread::sleep(Duration::from_millis(800));
             Ok(Charged::new(Kept::Stored(RecordId::new("r"))))
         }
+    }
+
+    #[test]
+    fn settle_bound_is_the_smaller_timeout_and_at_least_one_second() {
+        assert_eq!(settle_bound(15, 5), Duration::from_secs(5));
+        assert_eq!(settle_bound(3, 30), Duration::from_secs(3));
+        assert_eq!(settle_bound(0, 30), Duration::from_secs(1));
     }
 
     #[test]
