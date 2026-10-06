@@ -66,12 +66,8 @@ struct Score {
 }
 
 fn score(distilled: bool) -> Score {
-    let dir = std::env::temp_dir().join(format!(
-        "rung-retain-quality-{}-{distilled}",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
-    let provider = Arc::new(Baseline::new(&dir));
+    let dir = rung_testkit::TempDir::new(&format!("retain-quality-{distilled}"));
+    let provider = Arc::new(Baseline::new(dir.path()));
     let scope = Scope::new("quality");
     let mut by_record = BTreeMap::new();
     let (mut stored, mut chars) = (0, 0);
@@ -114,7 +110,6 @@ fn score(distilled: bool) -> Score {
         }
     }
     let n = qs.len() as f64;
-    let _ = std::fs::remove_dir_all(&dir);
     Score {
         hit1: h1 / n,
         hit5: h5 / n,
