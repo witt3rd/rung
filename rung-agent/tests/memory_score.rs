@@ -109,14 +109,38 @@ fn a_missing_question_file_is_refused() {
     assert!(err.contains("nonexistent"), "{err}");
 }
 
+/// A one-thread HTTP endpoint that records each request's `Authorization`
+/// header and answers 401, so the configured token provably leaves the
+/// process toward the arm.
+fn auth_recorder() -> (String, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+    use std::io::{Read, Write};
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/mcp", l.local_addr().unwrap());
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let log = seen.clone();
+    std::thread::spawn(move || {
+        for mut c in l.incoming().flatten() {
+            let mut buf = [0u8; 8192];
+            let n = c.read(&mut buf).unwrap_or(0);
+            let head = String::from_utf8_lossy(&buf[..n]).to_string();
+            log.lock().unwrap().push(head);
+            let _ = c.write_all(
+                b"HTTP/1.1 401 Unauthorized\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+            );
+        }
+    });
+    (url, seen)
+}
+
 #[test]
 fn the_memory_token_never_reaches_the_report() {
     const SECRET: &str = "sekrit-token-4f2a9c1d";
     let dir = fixtures();
     let questions = dir.join("questions.jsonl");
-    let arm = format!("mcp:{BIN} --memory-fixture");
+    let (url, seen) = auth_recorder();
+    let arm = format!("mcp:{url}");
     let cfg = format!("memory:\n  token: {SECRET}\n");
-    let (ok, out, err) = score_with(
+    let (_, out, err) = score_with(
         &[
             "--notes",
             dir.to_str().unwrap(),
@@ -125,11 +149,16 @@ fn the_memory_token_never_reaches_the_report() {
             "--arm",
             &arm,
             "--misses",
+            "--timeout",
+            "5",
         ],
         Some(&cfg),
     );
-    assert!(ok, "{err}");
-    assert!(out.contains("40 notes, 30 questions"), "{out}");
+    let sent = seen.lock().unwrap().join("\n");
+    assert!(
+        sent.contains(SECRET),
+        "token never sent; test is vacuous:\n{sent}"
+    );
     assert!(!out.contains(SECRET), "token in report:\n{out}");
     assert!(!err.contains(SECRET), "token in stderr:\n{err}");
 }
