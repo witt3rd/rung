@@ -111,25 +111,55 @@ fn a_missing_question_file_is_refused() {
 
 /// A one-thread HTTP endpoint that records each request's `Authorization`
 /// header and answers 401, so the configured token provably leaves the
-/// process toward the arm.
-fn auth_recorder() -> (String, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+/// process toward the arm. Dropping it stops and joins the thread.
+struct AuthRecorder {
+    url: String,
+    seen: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Drop for AuthRecorder {
+    fn drop(&mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        if let Some(t) = self.thread.take() {
+            let _ = t.join();
+        }
+    }
+}
+
+fn auth_recorder() -> AuthRecorder {
     use std::io::{Read, Write};
+    use std::sync::atomic::Ordering;
     let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    l.set_nonblocking(true).unwrap();
     let url = format!("http://{}/mcp", l.local_addr().unwrap());
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-    let log = seen.clone();
-    std::thread::spawn(move || {
-        for mut c in l.incoming().flatten() {
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (log, flag) = (seen.clone(), stop.clone());
+    let thread = std::thread::spawn(move || {
+        while !flag.load(Ordering::SeqCst) {
+            let Ok((mut c, _)) = l.accept() else {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+                continue;
+            };
+            let _ = c.set_nonblocking(false);
             let mut buf = [0u8; 8192];
             let n = c.read(&mut buf).unwrap_or(0);
-            let head = String::from_utf8_lossy(&buf[..n]).to_string();
-            log.lock().unwrap().push(head);
+            log.lock()
+                .unwrap()
+                .push(String::from_utf8_lossy(&buf[..n]).to_string());
             let _ = c.write_all(
                 b"HTTP/1.1 401 Unauthorized\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
             );
         }
     });
-    (url, seen)
+    AuthRecorder {
+        url,
+        seen,
+        stop,
+        thread: Some(thread),
+    }
 }
 
 #[test]
@@ -137,8 +167,8 @@ fn the_memory_token_never_reaches_the_report() {
     const SECRET: &str = "sekrit-token-4f2a9c1d";
     let dir = fixtures();
     let questions = dir.join("questions.jsonl");
-    let (url, seen) = auth_recorder();
-    let arm = format!("mcp:{url}");
+    let rec = auth_recorder();
+    let arm = format!("mcp:{}", rec.url);
     let cfg = format!("memory:\n  token: {SECRET}\n");
     let (_, out, err) = score_with(
         &[
@@ -154,7 +184,7 @@ fn the_memory_token_never_reaches_the_report() {
         ],
         Some(&cfg),
     );
-    let sent = seen.lock().unwrap().join("\n");
+    let sent = rec.seen.lock().unwrap().join("\n");
     assert!(
         sent.contains(SECRET),
         "token never sent; test is vacuous:\n{sent}"
