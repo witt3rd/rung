@@ -197,7 +197,7 @@ engine:
   base_url: https://openrouter.ai/api/v1
   api_key_env: RUNG_HOST_OPENROUTER_API_KEY   # the env var's name, never the key; a key for the host alone
   reasoning: medium                  # pinned for the agent's life
-ladder: [ ... ]                      # default: the ruled free ladder
+ladder: [ ... ]                      # default: the named ladder (never openrouter/free)
 listing: true                        # list at start and every 6 h (default for agent)
 probe: true                          # with each listing, one keyed probe per standing rung (default with listing)
 quota: { rpd: 1000, rpm: 20 }        # optional
@@ -297,6 +297,25 @@ the day's quota and the per-minute window, and one the quota or the pacer
 holds is not sent (`skipped`, with the wait's reason) and waits for the
 next listing. `probe: false` turns
 probes off; with `listing: false` there are none.
+
+## Choosing arms
+
+An *arm* is a ladder you choose to run. The default arm is the **named
+ladder**: with no `ladder:` in the file the host runs
+`OPENROUTER_FREE_LADDER`, specific model ids best first, and never
+`openrouter/free` (`ladder::default_ladder`, pinned by a unit test). Named
+models keep the prefix cache and the persona steady; the free router serves
+each request from a random free model, so the cache breaks and behaviour can
+drift mid-session. The evidence is in `docs/rung-host-live-v4-hostkey.md`.
+
+- **Named (default):** omit `ladder:`, or list the models yourself.
+- **Named, with a last resort:** list the same models and add
+  `openrouter/free` as the final rung. It is reached only when every named
+  rung is rate-limited or refused. A listed router stands
+  (`why: router`); the keyed probe tests it.
+- **Free router alone:** only for contrast measurements, not for a host.
+
+`rung-host/examples/ladder-arms.yaml` shows the first two side by side.
 
 ## The governor
 

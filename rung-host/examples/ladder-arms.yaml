@@ -1,0 +1,21 @@
+# Two ways to choose a ladder (docs/rung-host.md, "Choosing arms").
+# Copy one list into `ladder:` of your rung-host.yaml. Omitting `ladder:`
+# gives you `named`.
+
+# The default arm: the named ladder, best first. The listing filters it.
+named:
+  - stealth/space-bunny-alpha
+  - nvidia/nemotron-3-ultra-550b-a55b:free
+  - qwen/qwen3.8-27b:free
+  - google/gemma-4-31b-it:free
+  - nvidia/nemotron-3-super-120b-a12b:free
+
+# Opt-in: the same ladder, with the free router as the last resort. It is
+# a random free model per request, so keep it last.
+with_last_resort:
+  - stealth/space-bunny-alpha
+  - nvidia/nemotron-3-ultra-550b-a55b:free
+  - qwen/qwen3.8-27b:free
+  - google/gemma-4-31b-it:free
+  - nvidia/nemotron-3-super-120b-a12b:free
+  - openrouter/free
