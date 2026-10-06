@@ -51,8 +51,6 @@ Do it now with the tools, or say plainly that it was not done.";
 /// this leaves room for the questions. Above it the turn is Unchecked.
 pub const STATE_TOKEN_LIMIT: usize = 24_000;
 
-const REQUEST_CHARS: usize = 2_000;
-const FINAL_CHARS: usize = 2_000;
 // An action's input and result keep head and tail: a heredoc command ends in
 // the upload that matters, and a result opens with what it found.
 const INPUT_CHARS: usize = 300;
@@ -401,11 +399,11 @@ pub fn turn_state(
     }
     let prior: Vec<String> = prior.iter().map(|s| redact(s)).collect();
     let state = json!({
-        "request": clip(&redact(request), REQUEST_CHARS),
+        "request": redact(request),
         "actions": actions,
         "actions_elided": elided,
         "prior_turn_actions": prior,
-        "final_message": clip(&redact(final_message), FINAL_CHARS),
+        "final_message": redact(final_message),
     });
     (state, any_error)
 }
@@ -783,13 +781,12 @@ mod tests {
     }
 
     #[test]
-    fn clip_keeps_head_and_tail() {
-        let s: String = (0..5000)
-            .map(|i| char::from(b'a' + (i % 26) as u8))
-            .collect();
-        let c = clip(&s, 2000);
-        assert!(c.starts_with(&s[..1200]));
-        assert!(c.ends_with(&s[s.len() - 800..]));
-        assert!(c.contains("[…3000 chars…]"));
+    fn the_request_and_final_message_are_sent_whole() {
+        let ask = "THE-ASK";
+        let req = format!("{}{ask}{}", "x".repeat(5000), "y".repeat(5000));
+        let fin = "z".repeat(5000);
+        let (st, _) = turn_state(&req, &[], &[], &fin);
+        assert_eq!(st["request"].as_str().unwrap(), req);
+        assert_eq!(st["final_message"].as_str().unwrap(), fin);
     }
 }
