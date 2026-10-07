@@ -33,9 +33,9 @@ use rung_agent::mcp::{
 };
 #[allow(unused_imports)]
 use rung_agent::memory::{
-    CONTEXT_CHARS, CONTEXT_ITEMS, Hooks, Layered, MARKER, MAX_CHARS, MAX_RECORDS, McpProvider,
-    MemoryReport, PROMPT_CHARS, RECALL_TOOL, RETAIN_TOOL, TURN_CHARS, Turnover, default_scope,
-    inject, mcp_spec, registry, repo_root,
+    CONTEXT_CHARS, CONTEXT_ITEMS, Hooks, Layered, MARKER, McpProvider, MemoryReport, PROMPT_CHARS,
+    RECALL_TOOL, RETAIN_TOOL, TURN_CHARS, Turnover, default_scope, inject, mcp_spec, registry,
+    repo_root,
 };
 #[allow(unused_imports)]
 use rung_agent::memory_fixture::{Clause, FIXTURE_COST_USD, check, report, serve};

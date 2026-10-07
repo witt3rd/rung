@@ -157,7 +157,7 @@ impl Fixture {
                 let max = args
                     .pointer("/budget/max_records")
                     .and_then(Value::as_u64)
-                    .unwrap_or(5) as usize;
+                    .map_or(usize::MAX, |n| n as usize);
                 let records: Vec<Value> = self
                     .records
                     .iter()
