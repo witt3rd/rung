@@ -1,0 +1,6 @@
+
+/* rung-continuous: question cards */
+.q { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 20px; }
+.q h3 { margin: 0 0 6px 0; font-size: 23px; } .q h3 span { color: var(--accent); }
+.q p { margin: 5px 0 0 0; font-size: 20px; line-height: 1.38; color: var(--ink2); }
+.q p b { color: var(--ink); }

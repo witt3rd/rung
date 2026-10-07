@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 560" width="1680" height="560" font-family="Noto Sans, Liberation Sans, sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5163"/></marker>
+    <marker id="arv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b4bd6"/></marker>
+  </defs>
+  <g font-size="21" font-weight="700" fill="#1d2433" text-anchor="middle">
+    <rect x="10" y="60" width="250" height="110" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+    <text x="135" y="108">A new prompt</text><text x="135" y="138" font-size="17" font-weight="400" fill="#4a5163">in any session</text>
+
+    <rect x="350" y="60" width="270" height="110" rx="12" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+    <text x="485" y="104" fill="#5b4bd6">1 · RECALL</text><text x="485" y="134" font-size="17" font-weight="400" fill="#4a5163">ask the provider, add a</text><text x="485" y="156" font-size="17" font-weight="400" fill="#4a5163">quoted note to the prompt</text>
+
+    <rect x="710" y="60" width="270" height="110" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+    <text x="845" y="108">The agent's turn</text><text x="845" y="138" font-size="17" font-weight="400" fill="#4a5163">unchanged</text>
+
+    <rect x="1070" y="60" width="270" height="110" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+    <text x="1205" y="104">Turn check</text><text x="1205" y="134" font-size="17" font-weight="400" fill="#4a5163">did the turn complete?</text>
+
+    <rect x="1420" y="60" width="250" height="110" rx="12" fill="#ece9fb" stroke="#5b4bd6" stroke-width="3"/>
+    <text x="1545" y="104" fill="#5b4bd6">2 · RETAIN</text><text x="1545" y="134" font-size="17" font-weight="400" fill="#4a5163">keep request + answer,</text><text x="1545" y="156" font-size="17" font-weight="400" fill="#4a5163">only if it completed</text>
+
+    <rect x="350" y="360" width="990" height="130" rx="12" fill="#fff" stroke="#2e9e6b" stroke-width="3"/>
+    <text x="845" y="406" fill="#2e9e6b">The memory provider (a separate MCP process, off by default)</text>
+    <text x="845" y="440" font-size="18" font-weight="400" fill="#4a5163">Baseline: a plain keyword search, no model. Jev-Mem is one provider, living outside rung.</text>
+    <text x="845" y="466" font-size="18" font-weight="400" fill="#4a5163">Every record says which session and turn it came from.</text>
+  </g>
+  <g stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)">
+    <path d="M262,115 H346"/><path d="M622,115 H706"/><path d="M982,115 H1066"/><path d="M1342,115 H1416"/>
+  </g>
+  <g stroke="#5b4bd6" stroke-width="3" fill="none" marker-end="url(#arv)">
+    <path d="M1545,172 V300 H1250 V356"/>
+    <path d="M450,356 V300 H485 V174" />
+  </g>
+  <text x="1560" y="250" font-size="17" fill="#5b4bd6" font-weight="700">write</text>
+  <text x="400" y="250" font-size="17" fill="#5b4bd6" font-weight="700" text-anchor="end">read</text>
+  <text x="845" y="300" font-size="17" fill="#4a5163" text-anchor="middle" font-style="italic">Not retained: errors, interrupted turns, raw tool output</text>
+</svg>

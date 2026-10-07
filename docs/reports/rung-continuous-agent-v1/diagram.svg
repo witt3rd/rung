@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 560" width="1680" height="560" font-family="Noto Sans, Liberation Sans, sans-serif">
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5163"/></marker>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d0453d"/></marker>
+</defs>
+<rect x="20" y="170" width="270" height="170" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+<text x="40" y="206" font-size="23" font-weight="700" fill="#1d2433">Inbox</text>
+<g font-size="18" fill="#4a5163"><text x="40" y="238">people, peers, timers,</text><text x="40" y="262">sensors, finished tasks</text><text x="40" y="294">Arrive at any moment.</text><text x="40" y="318">Never enter a running turn.</text></g>
+<rect x="390" y="170" width="260" height="170" rx="12" fill="#ece9fb" stroke="#5b4bd6" stroke-width="2"/>
+<text x="410" y="206" font-size="23" font-weight="700" fill="#1d2433">Resting</text>
+<g font-size="18" fill="#4a5163"><text x="410" y="238">Waits for the inbox.</text><text x="410" y="262">Zero model calls,</text><text x="410" y="286">zero cost.</text></g>
+<rect x="780" y="170" width="400" height="170" rx="12" fill="#fff" stroke="#1d2433" stroke-width="2"/>
+<text x="800" y="206" font-size="23" font-weight="700" fill="#1d2433">Boundary, then one turn</text>
+<g font-size="18" fill="#4a5163"><text x="800" y="238">Takes one batch from the inbox,</text><text x="800" y="262">runs one ordinary, capped agent</text><text x="800" y="286">turn, writes it to the record,</text><text x="800" y="310">checks the spending limits.</text></g>
+<rect x="1320" y="170" width="340" height="170" rx="12" fill="#fbe9e8" stroke="#d0453d" stroke-width="2"/>
+<text x="1340" y="206" font-size="23" font-weight="700" fill="#d0453d">Halted</text>
+<g font-size="18" fill="#4a5163"><text x="1340" y="238">The only way out. Only an</text><text x="1340" y="262">outside authority gets here:</text><text x="1340" y="286">stop switch, budget spent,</text><text x="1340" y="310">access revoked.</text></g>
+<path d="M290 255 L388 255" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<text x="296" y="244" font-size="16" fill="#4a5163">wakes</text>
+<path d="M650 255 L778 255" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<text x="664" y="244" font-size="16" fill="#4a5163">next</text>
+<path d="M1180 255 L1318 255" stroke="#d0453d" stroke-width="3" stroke-dasharray="9 6" fill="none" marker-end="url(#arr)"/>
+<text x="1200" y="244" font-size="16" fill="#d0453d">halt</text>
+<path d="M1100 170 C1100 90 860 90 860 168" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<text x="905" y="82" font-size="18" font-weight="700" fill="#1d2433">Again: more is waiting, go round at once</text>
+<path d="M880 340 C880 450 520 450 520 342" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<text x="560" y="468" font-size="18" font-weight="700" fill="#1d2433">Settle: nothing waiting, go back to rest</text>
+<rect x="20" y="500" width="1640" height="48" rx="10" fill="#e3f4ec" stroke="#2e9e6b" stroke-width="2"/>
+<text x="840" y="531" text-anchor="middle" font-size="19" font-weight="700" fill="#1d2433">Append-only record: every stimulus and turn is written down before anything is forgotten</text>
+</svg>

@@ -4,3 +4,8 @@ docs/.archive/  # archived handoff letters; names are authorship record of dated
 docs/_consumer_guard.py  # the guard's own pattern list
 docs/_consumer_guard.allow  # the guard's own allow-list
 Cargo.lock  # generated
+docs/reports/rung-continuous-agent-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
+docs/reports/rung-continuous-host-v2/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
+docs/reports/rung-continuous-host-v3/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
+docs/reports/rung-jevmem-memory-v2/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
+docs/reports/rung-memory-provider-contract-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text

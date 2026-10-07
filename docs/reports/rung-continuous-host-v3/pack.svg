@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" width="1000" height="640" font-family="Noto Sans, Liberation Sans, sans-serif">
+<defs>
+<marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5163"/></marker>
+</defs>
+<!-- stable -->
+<rect x="20" y="20" width="700" height="150" rx="12" fill="#1d2433"/>
+<text x="44" y="58" font-size="24" font-weight="700" fill="#fff">1. Stable</text>
+<text x="700" y="58" font-size="17" fill="#c9cbe0" text-anchor="end">changes in weeks, only by a planned swap</text>
+<g font-size="18" fill="#e6e7f0"><text x="44" y="92">every tool definition (one fixed superset, sorted)</text><text x="44" y="118">identity · host rules · the free-time rules</text><text x="44" y="144">pinned memory</text></g>
+<!-- slow -->
+<rect x="20" y="190" width="700" height="150" rx="12" fill="#5b4bd6"/>
+<text x="44" y="228" font-size="24" font-weight="700" fill="#fff">2. Slow</text>
+<text x="700" y="228" font-size="17" fill="#ece9fb" text-anchor="end">fixed for one epoch: hours</text>
+<g font-size="18" fill="#fff"><text x="44" y="262">epoch header: start time, any restart gap, the model</text><text x="44" y="288">the agent's own note · its work items as of the start</text><text x="44" y="314">outline of the last epoch · passages kept word for word</text></g>
+<!-- log -->
+<rect x="20" y="360" width="700" height="170" rx="12" fill="#ece9fb" stroke="#5b4bd6" stroke-width="2"/>
+<text x="44" y="398" font-size="24" font-weight="700" fill="#1d2433">3. Append-only log</text>
+<text x="700" y="398" font-size="17" fill="#4a5163" text-anchor="end">grows turn by turn; never edited</text>
+<g font-size="18" fill="#4a5163"><text x="44" y="432">turn 1: header · the agent's replies · tool calls and results</text><text x="44" y="458">turn 2: …</text><text x="44" y="484">turn n: …</text></g>
+<!-- tail -->
+<rect x="20" y="550" width="700" height="72" rx="12" fill="#fff" stroke="#e3a33b" stroke-width="3"/>
+<text x="44" y="584" font-size="22" font-weight="700" fill="#1d2433">4. New turn header</text>
+<text x="44" y="608" font-size="17" fill="#4a5163">the time · mode · items let in · recall · which tools are on</text>
+<!-- right side cache brackets -->
+<path d="M745 22 L765 22 L765 528 L745 528" stroke="#2e9e6b" stroke-width="4" fill="none"/>
+<text x="780" y="250" font-size="22" font-weight="700" fill="#2e9e6b">Same bytes</text>
+<text x="780" y="278" font-size="22" font-weight="700" fill="#2e9e6b">as last call:</text>
+<text x="780" y="306" font-size="22" font-weight="700" fill="#2e9e6b">cache can</text>
+<text x="780" y="334" font-size="22" font-weight="700" fill="#2e9e6b">reuse it</text>
+<path d="M745 552 L765 552 L765 620 L745 620" stroke="#e3a33b" stroke-width="4" fill="none"/>
+<text x="780" y="584" font-size="20" font-weight="700" fill="#a26a0f">only new</text>
+<text x="780" y="610" font-size="20" font-weight="700" fill="#a26a0f">bytes</text>
+</svg>
