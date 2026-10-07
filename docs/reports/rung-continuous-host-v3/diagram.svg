@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 540" width="1680" height="540" font-family="Noto Sans, Liberation Sans, sans-serif">
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5163"/></marker>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d0453d"/></marker>
+<marker id="arp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b4bd6"/></marker>
+</defs>
+<!-- input -->
+<rect x="20" y="140" width="270" height="190" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+<text x="40" y="176" font-size="23" font-weight="700" fill="#1d2433">Waiting items</text>
+<g font-size="18" fill="#4a5163"><text x="40" y="208">owner and peer messages</text><text x="40" y="232">calendar items now due</text><text x="40" y="256">expectations settled</text><text x="40" y="280">world checks</text><text x="40" y="304">all saved on arrival</text></g>
+<!-- 1 decide -->
+<rect x="340" y="140" width="270" height="190" rx="12" fill="#ece9fb" stroke="#5b4bd6" stroke-width="2"/>
+<text x="360" y="176" font-size="23" font-weight="700" fill="#1d2433">1. Jev decides</text>
+<g font-size="18" fill="#4a5163"><text x="360" y="208">interrupt now or later?</text><text x="360" y="232">recall memory? which</text><text x="360" y="256">tool groups are on? time</text><text x="360" y="280">to roll the context over?</text><text x="360" y="304">A fixed rule if Jev fails.</text></g>
+<!-- 2 mode -->
+<rect x="660" y="140" width="270" height="190" rx="12" fill="#fff" stroke="#1d2433" stroke-width="2"/>
+<text x="680" y="176" font-size="23" font-weight="700" fill="#1d2433">2. Which mode</text>
+<g font-size="18" fill="#4a5163"><text x="680" y="208">Responding to an item,</text><text x="680" y="232">or Committed to the</text><text x="680" y="256">agent's own project,</text><text x="680" y="280">or <tspan font-weight="700" fill="#5b4bd6">Free time</tspan>, the</text><text x="680" y="304">default.</text></g>
+<!-- 3 pack -->
+<rect x="980" y="140" width="270" height="190" rx="12" fill="#fff" stroke="#1d2433" stroke-width="2"/>
+<text x="1000" y="176" font-size="23" font-weight="700" fill="#1d2433">3. Pack, then turn</text>
+<g font-size="18" fill="#4a5163"><text x="1000" y="208">Append one short header</text><text x="1000" y="232">to the unchanged context,</text><text x="1000" y="256">then run one bounded</text><text x="1000" y="280">turn of the agent.</text></g>
+<!-- 4 record -->
+<rect x="1300" y="140" width="360" height="190" rx="12" fill="#e3f4ec" stroke="#2e9e6b" stroke-width="2"/>
+<text x="1320" y="176" font-size="23" font-weight="700" fill="#1d2433">4. Record</text>
+<g font-size="18" fill="#4a5163"><text x="1320" y="208">Append-only record first:</text><text x="1320" y="232">every model call's tokens,</text><text x="1320" y="256">cache hits and cost, every</text><text x="1320" y="280">decision and who made it.</text><text x="1320" y="304">A restart rebuilds from it.</text></g>
+<path d="M292 235 L338 235" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<path d="M610 235 L658 235" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<path d="M930 235 L978 235" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<path d="M1250 235 L1298 235" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<path d="M1480 138 C1480 40 475 40 475 136" stroke="#5b4bd6" stroke-width="4" fill="none" marker-end="url(#arp)"/>
+<text x="980" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#5b4bd6">Again, at once. The only waits are ones the world forces, such as a free-tier quota.</text>
+<!-- below -->
+<rect x="660" y="390" width="590" height="130" rx="12" fill="#ece9fb" stroke="#5b4bd6" stroke-width="2" stroke-dasharray="9 6"/>
+<text x="680" y="424" font-size="21" font-weight="700" fill="#1d2433">In free time the agent chooses</text>
+<g font-size="17" fill="#4a5163"><text x="680" y="452">its own todo, projects, open questions, integrity work, or plain</text><text x="680" y="476">curiosity. The host lists them unranked. Jev never picks. The</text><text x="680" y="500">agent may commit to a project; that holds until it releases it.</text></g>
+<path d="M795 332 L795 388" stroke="#5b4bd6" stroke-width="3" fill="none" marker-end="url(#arp)"/>
+<rect x="1300" y="390" width="360" height="130" rx="12" fill="#fbe9e8" stroke="#d0453d" stroke-width="2" stroke-dasharray="9 6"/>
+<text x="1320" y="424" font-size="21" font-weight="700" fill="#d0453d">Halted</text>
+<g font-size="17" fill="#4a5163"><text x="1320" y="452">only by the stop authority: a</text><text x="1320" y="476">signal, a stop file, the owner.</text><text x="1320" y="500">A supervisor watches the loop.</text></g>
+<path d="M1480 332 L1480 388" stroke="#d0453d" stroke-width="3" stroke-dasharray="9 6" fill="none" marker-end="url(#arr)"/>
+<rect x="20" y="390" width="590" height="130" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+<text x="40" y="424" font-size="21" font-weight="700" fill="#1d2433">Jev decides how, never what</text>
+<g font-size="17" fill="#4a5163"><text x="40" y="452">Typed yes-or-no and pick-one questions over a small state.</text><text x="40" y="476">Code applies hard limits. Each answer is logged with who made</text><text x="40" y="500">it. About a hundredth of a cent per turn.</text></g>
+</svg>

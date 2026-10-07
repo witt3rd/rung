@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 560" width="1680" height="560" font-family="Noto Sans, Liberation Sans, sans-serif">
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5163"/></marker>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d0453d"/></marker>
+<marker id="arp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b4bd6"/></marker>
+</defs>
+<!-- inputs -->
+<rect x="20" y="20" width="300" height="205" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+<text x="40" y="56" font-size="23" font-weight="700" fill="#1d2433">Stimuli from outside</text>
+<g font-size="18" fill="#4a5163"><text x="40" y="90">owner and peers, over</text><text x="40" y="113">the agent protocol</text><text x="40" y="143">calendar items now due</text><text x="40" y="173">worker results, checked</text><text x="40" y="203">expectations settled</text></g>
+<rect x="20" y="255" width="300" height="205" rx="12" fill="#ece9fb" stroke="#5b4bd6" stroke-width="2"/>
+<text x="40" y="291" font-size="23" font-weight="700" fill="#1d2433">The agent's own pulls</text>
+<g font-size="18" fill="#4a5163"><text x="40" y="325">obligations to clear</text><text x="40" y="349">trajectories going stale</text><text x="40" y="373">predictions ready to test</text><text x="40" y="397">curiosity, for its own sake</text><text x="40" y="421">integrity checks that fix</text><text x="40" y="445">consolidation of what it knows</text></g>
+<!-- pipeline -->
+<rect x="400" y="140" width="260" height="190" rx="12" fill="#fff" stroke="#1d2433" stroke-width="2"/>
+<text x="420" y="176" font-size="23" font-weight="700" fill="#1d2433">1. Choose</text>
+<g font-size="18" fill="#4a5163"><text x="420" y="208">The owner goes first.</text><text x="420" y="232">Otherwise the strongest</text><text x="420" y="256">pull wins, with fairness</text><text x="420" y="280">floors. Every ballot is</text><text x="420" y="304">written down.</text></g>
+<rect x="710" y="140" width="260" height="190" rx="12" fill="#fff" stroke="#1d2433" stroke-width="2"/>
+<text x="730" y="176" font-size="23" font-weight="700" fill="#1d2433">2. Assemble</text>
+<g font-size="18" fill="#4a5163"><text x="730" y="208">Identity, the time and</text><text x="730" y="232">open work, its own note,</text><text x="730" y="256">recent turns, one recall</text><text x="730" y="280">block, the choice. Each</text><text x="730" y="304">part bounded, labelled.</text></g>
+<rect x="1020" y="140" width="260" height="190" rx="12" fill="#fff" stroke="#1d2433" stroke-width="2"/>
+<text x="1040" y="176" font-size="23" font-weight="700" fill="#1d2433">3. One turn</text>
+<g font-size="18" fill="#4a5163"><text x="1040" y="208">The agent library runs</text><text x="1040" y="232">one capped turn. Long</text><text x="1040" y="256">work is not done here:</text><text x="1040" y="280">it is handed to workers.</text></g>
+<rect x="1330" y="140" width="330" height="190" rx="12" fill="#e3f4ec" stroke="#2e9e6b" stroke-width="2"/>
+<text x="1350" y="176" font-size="23" font-weight="700" fill="#1d2433">4. Record</text>
+<g font-size="18" fill="#4a5163"><text x="1350" y="208">Append-only record first,</text><text x="1350" y="232">then registers, memory</text><text x="1350" y="256">and limits are updated.</text><text x="1350" y="280">A restart rebuilds all of</text><text x="1350" y="304">it from the record.</text></g>
+<path d="M322 122 C360 122 360 200 398 200" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<path d="M322 357 C360 357 360 275 398 275" stroke="#5b4bd6" stroke-width="3" fill="none" marker-end="url(#arp)"/>
+<path d="M660 235 L708 235" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<path d="M970 235 L1018 235" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<path d="M1280 235 L1328 235" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<!-- again loop -->
+<path d="M1495 138 C1495 40 530 40 530 136" stroke="#5b4bd6" stroke-width="4" fill="none" marker-end="url(#arp)"/>
+<text x="1012" y="104" text-anchor="middle" font-size="20" font-weight="700" fill="#5b4bd6">Again, at once. There is no resting state.</text>
+<!-- below -->
+<rect x="710" y="400" width="260" height="130" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+<text x="730" y="434" font-size="21" font-weight="700" fill="#1d2433">Memory provider</text>
+<g font-size="17" fill="#4a5163"><text x="730" y="462">one recall block in;</text><text x="730" y="486">only checked turns and</text><text x="730" y="510">settled outcomes kept</text></g>
+<path d="M840 398 L840 332" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<rect x="1020" y="400" width="260" height="130" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+<text x="1040" y="434" font-size="21" font-weight="700" fill="#1d2433">Workers</text>
+<g font-size="17" fill="#4a5163"><text x="1040" y="462">run in parallel; results</text><text x="1040" y="486">are checked by the host,</text><text x="1040" y="510">then return as stimuli</text></g>
+<path d="M1150 332 L1150 398" stroke="#4a5163" stroke-width="3" fill="none" marker-end="url(#ar)"/>
+<text x="1160" y="372" font-size="16" fill="#4a5163">commission</text>
+<rect x="1330" y="400" width="330" height="130" rx="12" fill="#fbe9e8" stroke="#d0453d" stroke-width="2" stroke-dasharray="9 6"/>
+<text x="1350" y="434" font-size="21" font-weight="700" fill="#d0453d">Halted</text>
+<g font-size="17" fill="#4a5163"><text x="1350" y="462">only by the stop authority:</text><text x="1350" y="486">a signal, a stop file, the</text><text x="1350" y="510">owner. A supervisor watches.</text></g>
+<path d="M1495 332 L1495 398" stroke="#d0453d" stroke-width="3" stroke-dasharray="9 6" fill="none" marker-end="url(#arr)"/>
+<text x="1505" y="372" font-size="16" fill="#d0453d">stop</text>
+</svg>
