@@ -31,6 +31,8 @@ use rung_agent::mcp::{
     SessionSinkGuard, WithMcp, is_session_cancelled, parse_rpc_body, redact, register_secret,
     set_session_cancel, set_session_sink,
 };
+// `MAX_RECORDS` and `MAX_CHARS` were pinned at v0.1.13 and are removed on
+// purpose: rung no longer caps recalled memory (see CHANGELOG, Unreleased).
 #[allow(unused_imports)]
 use rung_agent::memory::{
     CONTEXT_CHARS, CONTEXT_ITEMS, Hooks, Layered, MARKER, McpProvider, MemoryReport, PROMPT_CHARS,

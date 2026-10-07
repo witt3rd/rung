@@ -7,6 +7,13 @@ git tags only.
 
 ## [Unreleased]
 
+### Removed
+- `rung-agent-core`: the public constants `MAX_RECORDS` (5) and `MAX_CHARS`
+  (4000), rung's own ceiling on recalled memory, are removed (a deliberate API
+  break; pinned by the v0.1.13 surface suite until now). Nothing replaces
+  them: the recalled quote is bounded by what the provider returns, a budget
+  the provider declares (still honoured), and the model's context window.
+
 ## [0.2.3] - 2026-10-07
 
 Patch bump: backward compatible changes; memory timeouts are withdrawn from
