@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 300" width="1680" height="300" font-family="Noto Sans, Liberation Sans, sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b4bd6"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2e9e6b"/></marker>
+  </defs>
+  <g font-weight="700" fill="#1d2433">
+    <rect x="10" y="10" width="480" height="280" rx="14" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+    <text x="40" y="52" font-size="26">rung-agent</text>
+    <g font-size="19" font-weight="400" fill="#4a5163">
+      <text x="40" y="92">Runs the turn. Owns the limits:</text>
+      <text x="40" y="122">timeouts, size caps, cost budget,</text>
+      <text x="40" y="152">redaction. Reports what happened</text>
+      <text x="40" y="182">in <tspan font-family="monospace">_meta.rung.memory</tspan>.</text>
+      <text x="40" y="232" font-weight="700" fill="#1d2433">A failed hook never fails the turn.</text>
+    </g>
+    <rect x="1190" y="10" width="480" height="280" rx="14" fill="#fff" stroke="#2e9e6b" stroke-width="3"/>
+    <text x="1220" y="52" font-size="26" fill="#2e9e6b">Memory provider</text>
+    <g font-size="19" font-weight="400" fill="#4a5163">
+      <text x="1220" y="92">A separate MCP process, from any host.</text>
+      <text x="1220" y="122">Announces itself at start-up with the</text>
+      <text x="1220" y="152" font-family="monospace" font-weight="700" fill="#1d2433">rung-memory/1</text>
+      <text x="1220" y="182">marker. Owns tenancy and storage.</text>
+      <text x="1220" y="232" font-weight="700" fill="#1d2433">No marker: not a provider.</text>
+    </g>
+  </g>
+  <g stroke-width="3" fill="none">
+    <path d="M494,72 H1186" stroke="#5b4bd6" marker-end="url(#ar)"/>
+    <path d="M494,162 H1186" stroke="#5b4bd6" marker-end="url(#ar)"/>
+    <path d="M1186,252 H494" stroke="#2e9e6b" marker-end="url(#ag)"/>
+  </g>
+  <g font-size="19" text-anchor="middle">
+    <text x="840" y="50" font-weight="700" fill="#5b4bd6" font-family="monospace">rung_memory_recall · before the turn</text>
+    <text x="840" y="102" fill="#4a5163">rung calls it; whole records come back, shown as quoted data</text>
+    <text x="840" y="140" font-weight="700" fill="#5b4bd6" font-family="monospace">rung_memory_retain · after a completed turn</text>
+    <text x="840" y="192" fill="#4a5163">rung calls it; reserved hooks are never shown to the agent</text>
+    <text x="840" y="230" font-weight="700" fill="#2e9e6b">every other tool the provider lists</text>
+    <text x="840" y="282" fill="#4a5163">is handed to the agent as an ordinary memory tool</text>
+  </g>
+</svg>
