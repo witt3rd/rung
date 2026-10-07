@@ -1,34 +1,16 @@
 #!/usr/bin/env python3
 """Build "A continuous rung host" (v2): slides -> build/deck.html -> render.mjs -> build/deck.pdf, then a text privacy scan.
 Same toolchain as the choir-coordination PDF. Usage: python3 build.py [--publish DIR] [--name FILE]"""
-import argparse, re, shutil, subprocess, sys
+import re, sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "_build"))
+from common import Deck
+
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "build"
-TOTAL = 8
-S = []
-
-
-def svg(name):
-    s = (HERE / name).read_text()
-    return s[s.index("<svg"):]
-
-
-def foot(n, src):
-    return f'<div class="rule"></div><div class="foot"><span>{src}</span><span>{n} / {TOTAL}</span></div>'
-
-
-def slide(kicker, h1, h2, body, src="", cls=""):
-    n = len(S) + 1
-    h2h = f"<h2>{h2}</h2>" if h2 else ""
-    return (f'<section class="slide {cls}"><div class="kicker">{kicker}</div><h1>{h1}</h1>{h2h}'
-            f'<div class="body">{body}</div>{foot(n, src)}</section>')
-
-
-def q(n, title, ask, rec, chg):
-    return (f'<div class="q"><h3><span>{n}.</span> {title}</h3><p>{ask}</p>'
-            f'<p><b>Recommendation.</b> {rec}</p><p><b>What the answer changes.</b> {chg}</p></div>')
+D = Deck(HERE, total=8, questions=True)
+S = D.slides
+svg, foot, slide, q = D.svg, D.foot, D.slide, D.q
 
 
 S.append(f'''<section class="slide title short"><div class="kicker">Rung · design, version 2 · read-only, nothing built</div>
@@ -217,7 +199,7 @@ S.append(slide("Calls for the owner", "Three questions, most blocking first",
   '<li>Spending caps only for paid providers.</li>'
   '<li>The seed identity and first projects are the operator\'s configuration, not rung code.</li></ul></div></div>',
   "Recommendations are mine; the owner decides", cls="tight"))
-assert len(S) == TOTAL, len(S)
+assert len(S) == D.total, len(S)
 
 DAY = re.compile(r"\b(today|tomorrow|yesterday|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|daily)\b", re.I)
 PRIVATE = re.compile(r"janus-?infra|github\.com|deliverable-[0-9a-f]{4,}|[0-9a-f]{8}-[0-9a-f]{4}-|ghp_|\bsk-[A-Za-z0-9]{12,}|"
@@ -226,32 +208,7 @@ PRIVATE = re.compile(r"janus-?infra|github\.com|deliverable-[0-9a-f]{4,}|[0-9a-f
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--publish", default=None)
-    ap.add_argument("--name", default="rung-continuous-host-v2.pdf")
-    a = ap.parse_args()
-    if OUT.exists():
-        shutil.rmtree(OUT)
-    OUT.mkdir()
-    shutil.copy(HERE / "theme.css", OUT / "theme.css")
-    html = ('<!doctype html><html><head><meta charset="utf-8"><title>A continuous rung host</title>'
-            '<link rel="stylesheet" href="theme.css"></head><body>' + "\n".join(S) + "</body></html>")
-    (OUT / "deck.html").write_text(html)
-    subprocess.run(["node", str(HERE / "render.mjs"), str(OUT)], check=True)
-    text = subprocess.run(["pdftotext", str(OUT / "deck.pdf"), "-"], capture_output=True, text=True, check=True).stdout
-    bad = [m.group(0) for m in PRIVATE.finditer(text)] + [m.group(0) for m in DAY.finditer(text)]
-    if bad:
-        sys.exit(f"scan failed: {sorted(set(bad))}")
-    pages = subprocess.run(["pdfinfo", str(OUT / "deck.pdf")], capture_output=True, text=True).stdout
-    print("scan: clean;", [l for l in pages.splitlines() if l.startswith("Pages")][0])
-    if a.publish:
-        dest = Path(a.publish).expanduser()
-        dest.mkdir(parents=True, exist_ok=True)
-        target = dest / a.name
-        if target.exists():
-            sys.exit(f"refusing to overwrite {target}")
-        shutil.copy(OUT / "deck.pdf", target)
-        print("published", target)
+    D.build("A continuous rung host", "\n".join(S), PRIVATE, "rung-continuous-host-v2.pdf")
 
 
 if __name__ == "__main__":

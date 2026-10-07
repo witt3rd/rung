@@ -3,16 +3,15 @@
 Sources, pinned: rung master 1930206 (PR 150) docs page on memory providers, and the settled contract notes.
 Builder as in data/rung-jevmem-pdf/pdf: HTML + inline SVG + theme.css -> Chromium (Playwright) vector PDF -> text scan.
 Usage: python3 build.py [--publish DIR] [--name FILE]   (never overwrites an existing file)"""
-import argparse, re, shutil, subprocess, sys
+import re, sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "_build"))
+from common import Deck
+
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "build"
-
-
-def svg(name):
-    s = (HERE / name).read_text()
-    return s[s.index("<svg"):]
+D = Deck(HERE)
+svg = D.svg
 
 
 def card(h, body, col="#dcd9d0"):
@@ -46,30 +45,7 @@ PRIVATE = re.compile(r"spire|venue|janus|github\.com|deliverable-[0-9a-f]{4,}|[0
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--publish", default=None)
-    ap.add_argument("--name", default="rung-memory-provider-contract-v1.pdf")
-    a = ap.parse_args()
-    if OUT.exists():
-        shutil.rmtree(OUT)
-    OUT.mkdir()
-    shutil.copy(HERE / "theme.css", OUT / "theme.css")
-    (OUT / "deck.html").write_text('<!doctype html><html><head><meta charset="utf-8"><title>Rung memory provider contract</title>'
-        '<link rel="stylesheet" href="theme.css"></head><body>' + html_body + "</body></html>")
-    subprocess.run(["node", str(HERE / "render.mjs"), str(OUT)], check=True)
-    text = subprocess.run(["pdftotext", str(OUT / "deck.pdf"), "-"], capture_output=True, text=True, check=True).stdout
-    bad = [m.group(0) for m in PRIVATE.finditer(text)] + [m.group(0) for m in DAY.finditer(text)]
-    if bad:
-        sys.exit(f"scan failed: {sorted(set(bad))}")
-    pages = subprocess.run(["pdfinfo", str(OUT / "deck.pdf")], capture_output=True, text=True).stdout
-    print("scan: clean;", [l for l in pages.splitlines() if l.startswith("Pages")][0])
-    if a.publish:
-        dest = Path(a.publish).expanduser(); target = dest / a.name
-        if target.exists():
-            sys.exit(f"refusing to overwrite {target}")
-        dest.mkdir(parents=True, exist_ok=True)
-        shutil.copy(OUT / "deck.pdf", target)
-        print("published", target)
+    D.build("Rung memory provider contract", html_body, PRIVATE, "rung-memory-provider-contract-v1.pdf")
 
 
 if __name__ == "__main__":
