@@ -131,8 +131,11 @@ the provider reported, failed calls included. `latency_ms` is rung's measure.
   or every block marked, the session line is the whole prompt, as before. A
   session has no title made from its prompt: `session/list` titles it by its
   kind.
-- **Content in.** At most 5 records and 4000 chars. The provider may
-  declare tighter limits. A record is kept whole or left out, never cut.
+- **Content in.** rung sets no record or size limit of its own: the recalled
+  quote is bounded by what the provider returns, by a budget the provider
+  declares (`max_records`, `max_chars`), and by the model's context window (a
+  quote that overflows it ends the turn through the engine's existing
+  overflow handling). A record is kept whole or left out, never cut.
 - **Cost.** A recall whose reported cost exceeds the provider's declared
   `max_cost_usd` is `unavailable` (`memory budget spent`), not evidence. The
   default is `0`, so a provider that charges must declare its budget.
@@ -166,6 +169,11 @@ when it is both declared and listed.
 {"scope": "<opaque key>", "prompt": "…", "context": ["…"],
  "budget": {"max_records": 5, "max_chars": 4000, "max_cost_usd": 0.01}}
 ```
+
+`budget` carries what the provider declared in its marker. A limit the marker
+did not declare is absent from `budget` (`max_records` and `max_chars` are
+omitted; rung imposes none), so a provider reading the field must treat a
+missing limit as unbounded. `max_cost_usd` is always sent (default `0`).
 
 It returns `structuredContent`, or a JSON object as the first text item:
 

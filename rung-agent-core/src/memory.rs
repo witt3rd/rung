@@ -22,8 +22,8 @@
 //! is passed verbatim.
 //!
 //! The provider sees an opaque scope key and bounded, redacted content, and
-//! owns who may see what. rung holds it to rung's caps ([`MAX_RECORDS`],
-//! [`MAX_CHARS`]) and to the provider's own declared budget, and times out its
+//! owns who may see what. rung imposes no record or size cap of its own: it
+//! holds a provider to the budget the provider declares, and times out its
 //! calls. A provider that fails never fails a turn: each hook ends in a typed
 //! outcome reported in `_meta.rung.memory` and `Outcome.memory`.
 //!
@@ -66,10 +66,6 @@ pub const RECALL_TOOL: &str = "rung_memory_recall";
 /// the agent.
 pub const RETAIN_TOOL: &str = "rung_memory_retain";
 
-/// rung's cap on recalled records, over any provider's declared budget.
-pub const MAX_RECORDS: usize = 5;
-/// rung's cap on recalled text, in chars.
-pub const MAX_CHARS: usize = 4_000;
 /// The prompt as sent to a provider, in chars.
 pub const PROMPT_CHARS: usize = 2_000;
 /// Recent context sent with a recall: this many earlier answers…
@@ -218,7 +214,7 @@ impl Hooks {
                     }
                 };
                 Ok(Hooks::On {
-                    provider: Arc::new(Capped(provider)),
+                    provider,
                     scope,
                     settle_wait: settle_bound(s.retain_timeout_secs, s.timeout_secs),
                 })
@@ -524,36 +520,6 @@ impl Toolset for Layered {
 
 // ─── Provider wrappers ───────────────────────────────────────────────────────
 
-/// A provider held to rung's caps as well as its own budget.
-#[derive(Debug)]
-struct Capped(Arc<dyn MemoryProvider>);
-
-impl MemoryProvider for Capped {
-    fn name(&self) -> &str {
-        self.0.name()
-    }
-    fn capability(&self) -> Capability {
-        self.0.capability()
-    }
-    fn budget(&self) -> Budget {
-        let b = self.0.budget();
-        Budget {
-            max_records: b.max_records.min(MAX_RECORDS),
-            max_chars: b.max_chars.min(MAX_CHARS),
-            max_cost_usd: b.max_cost_usd,
-        }
-    }
-    fn recall(&self, scope: &Scope, cue: &Cue) -> Result<Charged<Vec<Recalled>>, Miss> {
-        self.0.recall(scope, cue)
-    }
-    fn retain(&self, scope: &Scope, o: &Observation) -> Result<Charged<Kept>, Miss> {
-        self.0.retain(scope, o)
-    }
-    fn toolset(self: Arc<Self>, ctx: &ToolContext) -> Option<Arc<dyn Toolset>> {
-        self.0.clone().toolset(ctx)
-    }
-}
-
 /// A provider that could not be built. Every hook is unavailable, with why.
 #[derive(Debug)]
 struct Down {
@@ -699,8 +665,8 @@ impl McpProvider {
         let b = marker.get("budget");
         let num = |k: &str| b.and_then(|b| b.get(k)).and_then(Value::as_u64);
         let budget = Budget {
-            max_records: num("max_records").map_or(MAX_RECORDS, |n| n as usize),
-            max_chars: num("max_chars").map_or(MAX_CHARS, |n| n as usize),
+            max_records: num("max_records").map_or(usize::MAX, |n| n as usize),
+            max_chars: num("max_chars").map_or(usize::MAX, |n| n as usize),
             max_cost_usd: b
                 .and_then(|b| b.get("max_cost_usd"))
                 .and_then(Value::as_f64)
@@ -803,15 +769,20 @@ impl MemoryProvider for McpProvider {
 
     fn recall(&self, scope: &Scope, cue: &Cue) -> Result<Charged<Vec<Recalled>>, Miss> {
         let b = self.budget();
+        // A limit the provider did not declare is absent from the budget
+        // sent: rung imposes none.
+        let mut budget = json!({"max_cost_usd": b.max_cost_usd});
+        if b.max_records != usize::MAX {
+            budget["max_records"] = json!(b.max_records);
+        }
+        if b.max_chars != usize::MAX {
+            budget["max_chars"] = json!(b.max_chars);
+        }
         let args = json!({
             "scope": scope.as_str(),
             "prompt": cue.prompt,
             "context": cue.context,
-            "budget": {
-                "max_records": b.max_records.min(MAX_RECORDS),
-                "max_chars": b.max_chars.min(MAX_CHARS),
-                "max_cost_usd": b.max_cost_usd,
-            },
+            "budget": budget,
         });
         let (out, calls, cost) = self.hook(RECALL_TOOL, args, self.timeout)?;
         let malformed = |why: &str| {
@@ -1325,5 +1296,109 @@ mod tests {
             let text = format!("{r:?}");
             assert!(!text.contains("wrong-wrong-wrong"), "{text}");
         }
+    }
+
+    /// A provider returning `n` records of `len` chars, under `budget`.
+    #[derive(Debug)]
+    struct Many {
+        n: usize,
+        len: usize,
+        budget: Budget,
+    }
+    impl MemoryProvider for Many {
+        fn name(&self) -> &str {
+            "many"
+        }
+        fn capability(&self) -> Capability {
+            Capability {
+                recall: true,
+                retain: false,
+                tools: false,
+            }
+        }
+        fn budget(&self) -> Budget {
+            self.budget
+        }
+        fn recall(&self, scope: &Scope, _: &Cue) -> Result<Charged<Vec<Recalled>>, Miss> {
+            Ok(Charged::new(
+                (0..self.n)
+                    .map(|i| Recalled {
+                        record: rung_memory::Record {
+                            id: RecordId::new(format!("r{i}")),
+                            scope: scope.clone(),
+                            text: "x".repeat(self.len),
+                            observed_at: None,
+                            attrs: BTreeMap::new(),
+                        },
+                        reach: rung_memory::Reach::Hit { score: 1.0 },
+                    })
+                    .collect(),
+            ))
+        }
+        fn retain(&self, _: &Scope, _: &Observation) -> Result<Charged<Kept>, Miss> {
+            Err(Miss::new(Why::Unsupported("retain".into())))
+        }
+    }
+
+    fn recall_many(n: usize, len: usize, budget: Budget) -> (usize, String) {
+        let hooks = Hooks::On {
+            provider: Arc::new(Many { n, len, budget }),
+            scope: Scope::new("many"),
+            settle_wait: Duration::from_secs(1),
+        };
+        let (r, block) = hooks.recall("ask", &[]).unwrap();
+        let block = block.unwrap_or_default();
+        let mut t = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("ask")],
+        };
+        inject(&mut t, &block); // a huge quote must not panic
+        (r.injected.len(), block)
+    }
+
+    fn unbounded() -> Budget {
+        Budget {
+            max_records: usize::MAX,
+            max_chars: usize::MAX,
+            max_cost_usd: 0.0,
+        }
+    }
+
+    #[test]
+    fn rung_imposes_no_cap_on_what_a_provider_returns() {
+        let (n, block) = recall_many(50, 4_000, unbounded());
+        assert_eq!(n, 50);
+        assert_eq!(block.matches("[record r").count(), 50);
+        assert!(block.len() >= 200_000);
+    }
+
+    #[test]
+    fn a_declared_budget_is_honoured() {
+        let b = Budget {
+            max_records: 3,
+            max_chars: 1_000,
+            max_cost_usd: 0.0,
+        };
+        let (n, block) = recall_many(50, 400, b);
+        assert_eq!(n, 2); // 3 records allowed, but 3 x 400 > 1000 chars
+        assert_eq!(block.matches("[record r").count(), 2);
+        let (n, _) = recall_many(50, 10, b);
+        assert_eq!(n, 3);
+    }
+
+    #[test]
+    fn an_mcp_marker_without_a_budget_declares_no_limit() {
+        let (url, _) = bearer_server("Bearer k");
+        let hooks = Hooks::from_settings(
+            &http_settings(&url, Some("k")),
+            Path::new("/tmp"),
+            &registry(),
+        )
+        .unwrap();
+        let Hooks::On { provider, .. } = &hooks else {
+            panic!()
+        };
+        let b = provider.budget();
+        assert_eq!((b.max_records, b.max_chars), (usize::MAX, usize::MAX));
     }
 }
