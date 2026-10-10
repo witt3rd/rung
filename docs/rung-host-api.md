@@ -278,7 +278,7 @@ a count; never log it.
 | headers `Authorization`, `Proxy-Authorization`, `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id` | the value, to the next `,` or `;`, the end of the line or the closing quote |
 | the HTTP session-state request and response headers (their `;`-separated pairs) | the whole value, to the end of the line or the closing quote | the name |
 | `Bearer <token>` | the token | `Bearer` |
-| URL credentials | the password of `scheme://user:pass@host`; the user of an http(s)/ws(s) URL that has only a token | the rest; a plain `ssh://git@host` is left |
+| URL credentials | the password of `scheme://user:pass@host`; the user of a URL that has only a token, in any scheme but a login one (`ssh`, `git+ssh`, `sftp`, `scp`) | the rest; a plain `ssh://git@host` is left |
 | assignments `NAME=value`, `name: value`, `"name": "value"`, `?name=value` whose name says it is a secret | the value | the name and the separator |
 
 An unquoted value also ends at a backslash, so text that is itself JSON-escaped

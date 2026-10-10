@@ -1709,6 +1709,12 @@ mod tests {
             "tool said {key} and DB_PASSWORD=sentinelpass0 done"
         ));
         assert_eq!(out, "tool said [REDACTED] and DB_PASSWORD=[REDACTED] done");
+        // A token-only URL user is removed in any scheme but a login one,
+        // as it was before the redactors were one.
+        assert_eq!(
+            redact("redis://sentineltoken0@h:1/0 ssh://git@h/r"),
+            "redis://[REDACTED]@h:1/0 ssh://git@h/r"
+        );
     }
 
     enum MockAction {

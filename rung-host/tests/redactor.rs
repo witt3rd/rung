@@ -140,6 +140,15 @@ fn url_credentials_lose_the_secret_part() {
         redact("https://SENTINELtoken0123@host.test/x"),
         format!("https://{MARK}@host.test/x")
     );
+    // A token-only user is a secret in any scheme but a login one.
+    assert_eq!(
+        redact("redis://SENTINELtoken0123@host.test:6379/0"),
+        format!("redis://{MARK}@host.test:6379/0")
+    );
+    assert_eq!(
+        redact("mongodb+srv://SENTINELtoken0123@host.test/db"),
+        format!("mongodb+srv://{MARK}@host.test/db")
+    );
     // A plain ssh user is a name, not a secret.
     assert_eq!(
         redact("ssh://git@host.test/repo"),
@@ -329,9 +338,33 @@ fn hostile_text_is_redacted_in_time_linear_in_its_length() {
             "{name}: {took:?} for {} bytes",
             text.len()
         );
-        // Never shorter than the input by more than the replaced values.
-        assert!(out.len() + text.len() >= text.len(), "{name}");
+        // The only change is the replaced values: the text between the marks
+        // is the input's own, in order, and it still starts and ends the text.
+        assert_replaced_only(&text, &out, name);
+        assert_eq!(redact(&out), out, "{name}: not stable");
     }
+}
+
+/// `out` is `text` with some stretches replaced by `MARK` and nothing else
+/// changed: the pieces of `out` between the marks occur in `text` in order,
+/// the first as its start and the last as its end.
+fn assert_replaced_only(text: &str, out: &str, name: &str) {
+    let pieces: Vec<&str> = out.split(MARK).collect();
+    if pieces.len() == 1 {
+        assert_eq!(out, text, "{name}: changed with nothing replaced");
+        return;
+    }
+    let (first, last) = (pieces[0], pieces[pieces.len() - 1]);
+    assert!(text.starts_with(first), "{name}: start changed");
+    assert!(text.ends_with(last), "{name}: end changed");
+    let mut at = first.len();
+    for p in &pieces[1..pieces.len() - 1] {
+        let found = text[at..]
+            .find(p)
+            .unwrap_or_else(|| panic!("{name}: content dropped"));
+        at += found + p.len();
+    }
+    assert!(text.len() - last.len() >= at, "{name}: content dropped");
 }
 
 #[test]

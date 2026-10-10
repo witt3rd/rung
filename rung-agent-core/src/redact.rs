@@ -28,7 +28,8 @@
 //!   six, to the end of the line for the two cookie headers, which carry
 //!   `;`-separated pairs); and a bare `Bearer <token>`;
 //! - **URL credentials**: the password of `scheme://user:pass@host`, and a
-//!   token-only user of an http(s)/ws(s) URL;
+//!   token-only user (`scheme://token@host`) of any scheme but a login one
+//!   (`ssh`, `git+ssh`, `sftp`, `scp`), where the user is a name;
 //! - **assignments** whose name says it is a secret (`NAME=value`,
 //!   `name: value`, `"name": "value"`, `?name=value`): the name stays, the
 //!   value goes. A name says so when its last word is `secret`, `token`,
@@ -406,12 +407,14 @@ impl<'a, 'r> Scan<'a, 'r> {
             let user = &authority[..at];
             let (from, to) = match user.find(':') {
                 Some(c) => (after + c + 1, after + at),
-                None if matches!(scheme.as_str(), "http" | "https" | "ws" | "wss") => {
+                // A token-only user is a secret in any scheme but a login one,
+                // where the user is a name (`ssh://git@host`).
+                None if !matches!(scheme.as_str(), "ssh" | "git+ssh" | "sftp" | "scp") => {
                     (after, after + at)
                 }
                 None => continue,
             };
-            if to > from && keep_value(&text[from..to], self.mark_text) {
+            if to > from && keep_value(&text[from..], self.mark_text) {
                 self.ranges.push((from, to));
             }
         }
@@ -584,7 +587,7 @@ impl<'a, 'r> Scan<'a, 'r> {
                 };
                 // Trailing spaces belong to the line, not the value.
                 let e2 = self.trim_spaces(e).max(start).min(e);
-                if e2 > start && keep_value(&self.text[start..e2], self.mark_text) {
+                if e2 > start && keep_value(&self.text[start..], self.mark_text) {
                     self.ranges.push((start, e2));
                 }
                 return;
@@ -642,13 +645,15 @@ impl<'a, 'r> Scan<'a, 'r> {
             ),
             None => return,
         };
-        if end > start && keep_value(&text[start..end], self.mark_text) {
+        if end > start && keep_value(&text[start..], self.mark_text) {
             self.ranges.push((start, end));
         }
     }
 }
 
-/// A value that is not already redacted and not a reference to a variable.
+/// Whether the value that starts `v` (the text from its first character on,
+/// not only the value, since a marker holds a `]` that ends an unquoted value)
+/// is to be replaced: not already redacted, not a reference to a variable.
 fn keep_value(v: &str, mark: &str) -> bool {
     !v.is_empty()
         && !v.starts_with(mark)
