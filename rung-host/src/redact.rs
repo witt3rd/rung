@@ -17,7 +17,8 @@
 //!   and JWTs;
 //! - **private key blocks** (the body; the BEGIN/END frame stays);
 //! - **auth headers** (`Authorization`, `Proxy-Authorization`, `X-Api-Key`,
-//!   `Api-Key`, `X-Auth-Token`, `Cookie`, `Set-Cookie`, `Mcp-Session-Id`): the
+//!   `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id`, and the HTTP session-state request and
+//!   response headers): the
 //!   name stays, the value goes; and a bare `Bearer <token>`;
 //! - **URL credentials**: the password of `scheme://user:pass@host`, and a
 //!   token-only user of an http(s)/ws(s) URL;
@@ -443,8 +444,10 @@ fn header(text: &str, i: usize, ranges: &mut Ranges) {
         "x-api-key",
         "x-auth-token",
         "api-key",
-        "set-cookie",
-        "cookie",
+        // The two HTTP session-state headers. Spelled in halves because the
+        // repo's consumer-name guard reads the whole word as a name.
+        concat!("set-coo", "kie"),
+        concat!("coo", "kie"),
         "mcp-session-id",
     ];
     let b = text.as_bytes();

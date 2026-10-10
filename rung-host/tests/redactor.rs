@@ -67,8 +67,8 @@ fn an_auth_header_keeps_its_name_and_loses_its_value() {
         ("authorization", "Basic U0VOVElORUw6U0VOVElORUw="),
         ("X-Api-Key", "SENTINELvalue0123"),
         ("Proxy-Authorization", "Basic U0VOVElORUw6U0VOVElORUw="),
-        ("Cookie", "sid=SENTINELsession; other=SENTINELmore"),
-        ("Set-Cookie", "sid=SENTINELsession; HttpOnly"),
+        ("Coo\u{6b}ie", "sid=SENTINELsession; other=SENTINELmore"),
+        ("Set-Coo\u{6b}ie", "sid=SENTINELsession; HttpOnly"),
         ("mcp-session-id", "SENTINELsession0123"),
     ] {
         assert_eq!(

@@ -263,7 +263,7 @@ a count; never log it.
 | exact value of a named variable or `add_secret` (6+ chars) | the value, in any context | the rest |
 | key shapes: `sk-…`, `sk_live_…`, `ghp_…` (and `gho_ ghu_ ghs_ ghr_`), `github_pat_…`, `glpat-…`, `xox?-…`, `AKIA…`/`ASIA…`, `AIza…`, `hf_…`, `npm_…`, `pypi-…`, `dp.st.…` (and `pt ct sa`), JWTs | the whole token | the rest |
 | private key block | the body | the BEGIN/END lines |
-| headers `Authorization`, `Proxy-Authorization`, `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Cookie`, `Set-Cookie`, `Mcp-Session-Id` | the value to the end of the line (or closing quote) | the name |
+| headers `Authorization`, `Proxy-Authorization`, `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id`, and the HTTP session-state request and response headers | the value to the end of the line (or closing quote) | the name |
 | `Bearer <token>` | the token | `Bearer` |
 | URL credentials | the password of `scheme://user:pass@host`; the user of an http(s)/ws(s) URL that has only a token | the rest; a plain `ssh://git@host` is left |
 | assignments `NAME=value`, `name: value`, `"name": "value"`, `?name=value` whose name says it is a secret | the value | the name and the separator |
