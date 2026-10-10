@@ -18,7 +18,7 @@ pub struct Config {
     /// A built app to serve; a relative path is relative to the config file.
     #[serde(default)]
     pub app_dir: Option<PathBuf>,
-    /// Host names, besides loopback, a write request may be addressed to
+    /// Host names, besides loopback, an owner-role request may be addressed to
     /// (the name the tailnet's serve command gives this gateway). Names
     /// only: no scheme, port or path.
     #[serde(default)]
@@ -52,7 +52,7 @@ fn default_listen() -> String {
 pub struct Settings {
     pub listen: SocketAddr,
     pub app_dir: Option<PathBuf>,
-    /// Lower-case host names a write may be addressed to, besides loopback.
+    /// Lower-case host names a request may be addressed to, besides loopback.
     pub allowed_hosts: Vec<String>,
     /// Tokens whose bearer may only read.
     pub read_only_tokens: Vec<String>,

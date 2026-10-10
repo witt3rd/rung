@@ -220,7 +220,7 @@ Names of variables, never secrets:
 ```yaml
 listen: 127.0.0.1:8787            # default; tailscale serve puts it on https
 app_dir: ui/dist                  # optional; relative to this file
-allowed_hosts: [gw.tailnet.example]   # optional: names a write may be addressed to, besides loopback
+allowed_hosts: [gw.tailnet.example]   # optional: names a request may be addressed to, besides loopback
 read_only_token_envs: [RUNG_GATEWAY_VIEW_TOKEN]   # optional, each names a variable
 instances:
   - id: alpha                     # letters, digits, '-', '_' (a path segment)
