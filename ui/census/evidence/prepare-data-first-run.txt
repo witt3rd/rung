@@ -1,0 +1,8 @@
+# prepare-data refusals (unset key variable, --out it does not own), run against the script before they existed: 4 of the new checks failed
+✖ a key variable named by a config but not set is refused, by name (79.234986ms)
+✖ --allow-unset-keys accepts the shapes-only pass, loudly, and the shapes are still removed (77.538717ms)
+✖ failing tests:
+ℹ fail 4
+ℹ pass 18
+✖ --out outside what the script owns is refused and nothing in it is touched (59.29329ms)
+✖ the recorded runs are refused when their configs name key variables that are unset (433.587529ms)

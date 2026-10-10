@@ -1,0 +1,14 @@
+caught  chrome words over budget                   words 91>60
+caught  a banner saying nothing, said twice        repeated 1
+caught  two filled controls                        filled 2; small text 2
+caught  five text sizes                            sizes 15,17,19,21,32
+caught  a key hint drawn on a button               key hints; small text 2; small tap targets 1
+caught  text under 14 pixels                       small text 1
+caught  no heading, or two                         h1 x2
+caught  amber with no owner action                 amber off-meaning
+caught  a small tap target at 390                  small tap targets 1
+caught  sideways scroll at 390                     horizontal scroll
+caught  the active tab clipped                     active tab clipped
+caught  an id shown in the main view               id or hash shown 1
+caught  text cut with an ellipsis                  truncation 1
+selftest: the census failed all 13 cases it was built to fail

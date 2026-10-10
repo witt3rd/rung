@@ -1,0 +1,4 @@
+✖ no key value reaches any prepared file (69.496351ms)
+✖ failing tests:
+✖ no key value reaches any prepared file (69.496351ms)
+  AssertionError [ERR_ASSERTION]: canary value in /tmp/rung-ui-canary-NAXuiq/out/canary-run/record.ndjson
