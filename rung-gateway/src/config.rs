@@ -114,12 +114,19 @@ impl Config {
                     c.id
                 ));
             }
-            instances.push(Instance {
+            let inst = Instance {
                 id: c.id.clone(),
                 name: c.name.clone().unwrap_or_else(|| c.id.clone()),
                 url: c.url.trim_end_matches('/').to_string(),
                 key: var(&c.key_env)?,
-            });
+            };
+            if inst.authorization().is_none() {
+                return Err(format!(
+                    "variable {} holds a key with a byte a header cannot carry (line break, NUL or non-ASCII)",
+                    c.key_env
+                ));
+            }
+            instances.push(inst);
         }
         Ok(Settings {
             listen,

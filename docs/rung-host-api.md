@@ -230,7 +230,7 @@ instances:
 
 Startup refuses, naming the variable and never its value, when a variable is
 unset or empty, an id is repeated or not a plain name, a url is not `http://`,
-or a field is unknown. The instances come from a `Registry` (a trait asked on
+a key has a byte a header cannot carry (line break, NUL, non-ASCII), or a field is unknown. The instances come from a `Registry` (a trait asked on
 every request); the config file is one source, and the registry folder (H2)
 plugs in as another.
 
@@ -283,12 +283,13 @@ The pass-through adds `Authorization: Bearer <that instance's key>`, keeps the
 method, body, query (minus `token`) and end-to-end headers (so `Last-Event-ID`
 resumes a stream), and does not buffer the answer: an event stream arrives as
 the host writes it. An instance that cannot be reached answers 502
-`instance_unreachable`; error text never carries a key.
+`instance_unreachable`; error text never carries a key. A registry that hands over a key a header cannot carry gets the same 502 for that instance (and `reachable: false` in the overview), never a dropped connection. A failed `accept` is logged to stderr and retried after a short pause.
 
 ### The door table
 
-`rung_gateway::doors::DOORS` names each host door, its access, and whether its
-answer is a stream. A request not in the table is classed by method: GET and
+`rung_gateway::doors::DOORS` names each host door and its access. The gateway
+streams every answer through, so a door's being a stream changes nothing
+there; the Stream column below is for the reader of the host's API only. A request not in the table is classed by method: GET and
 HEAD read, anything else writes. The read-only role may use `Read` doors only.
 Later slices add rows as their doors land.
 

@@ -1,5 +1,6 @@
 //! The door table: every `/v1` door the hosts carry, and whether it only
-//! reads. Later slices add their doors here as they land; a request for a
+//! reads. (The gateway streams every answer through; a door's being a stream
+//! is not a gateway concern.) Later slices add their doors here as they land; a request for a
 //! path the table does not name is classed by its method.
 
 /// What a door does to the instance.
@@ -15,43 +16,40 @@ pub struct Door {
     /// Segments; `{}` matches any one segment.
     pub path: &'static str,
     pub access: Access,
-    /// The answer is a stream the gateway must not buffer.
-    pub stream: bool,
 }
 
-const fn door(method: &'static str, path: &'static str, access: Access, stream: bool) -> Door {
+const fn door(method: &'static str, path: &'static str, access: Access) -> Door {
     Door {
         method,
         path,
         access,
-        stream,
     }
 }
 
 /// The doors named by the design note. Writes are the owner's; validating a
 /// change is the owner's too, since it only serves the one who may apply it.
 pub const DOORS: &[Door] = &[
-    door("GET", "/v1/summary", Access::Read, false),
-    door("GET", "/v1/status", Access::Read, false),
-    door("GET", "/v1/report", Access::Read, false),
-    door("GET", "/v1/record", Access::Read, false),
-    door("GET", "/v1/turns", Access::Read, false),
-    door("GET", "/v1/turns/{}", Access::Read, false),
-    door("GET", "/v1/decisions", Access::Read, false),
-    door("GET", "/v1/pack", Access::Read, false),
-    door("GET", "/v1/spend", Access::Read, false),
-    door("GET", "/v1/events", Access::Read, true),
-    door("GET", "/v1/queue", Access::Read, false),
-    door("POST", "/v1/queue", Access::Write, false),
-    door("DELETE", "/v1/queue/{}", Access::Write, false),
-    door("POST", "/v1/queue/{}/move", Access::Write, false),
-    door("GET", "/v1/config", Access::Read, false),
-    door("POST", "/v1/config/validate", Access::Write, false),
-    door("PUT", "/v1/config", Access::Write, false),
-    door("GET", "/v1/console", Access::Read, false),
-    door("GET", "/v1/console/stream", Access::Read, true),
-    door("POST", "/v1/stop", Access::Write, false),
-    door("POST", "/v1/release", Access::Write, false),
+    door("GET", "/v1/summary", Access::Read),
+    door("GET", "/v1/status", Access::Read),
+    door("GET", "/v1/report", Access::Read),
+    door("GET", "/v1/record", Access::Read),
+    door("GET", "/v1/turns", Access::Read),
+    door("GET", "/v1/turns/{}", Access::Read),
+    door("GET", "/v1/decisions", Access::Read),
+    door("GET", "/v1/pack", Access::Read),
+    door("GET", "/v1/spend", Access::Read),
+    door("GET", "/v1/events", Access::Read),
+    door("GET", "/v1/queue", Access::Read),
+    door("POST", "/v1/queue", Access::Write),
+    door("DELETE", "/v1/queue/{}", Access::Write),
+    door("POST", "/v1/queue/{}/move", Access::Write),
+    door("GET", "/v1/config", Access::Read),
+    door("POST", "/v1/config/validate", Access::Write),
+    door("PUT", "/v1/config", Access::Write),
+    door("GET", "/v1/console", Access::Read),
+    door("GET", "/v1/console/stream", Access::Read),
+    door("POST", "/v1/stop", Access::Write),
+    door("POST", "/v1/release", Access::Write),
 ];
 
 fn matches(pattern: &str, path: &str) -> bool {
