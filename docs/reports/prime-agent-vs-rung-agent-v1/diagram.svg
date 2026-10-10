@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 560" width="1680" height="560" font-family="Noto Sans, Liberation Sans, sans-serif">
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5163"/></marker>
+</defs>
+<!-- ROW 1: prime -->
+<text x="20" y="34" font-size="26" font-weight="700" fill="#5b4bd6">prime-agent: one process per session</text>
+<rect x="20" y="56" width="210" height="150" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+<text x="40" y="92" font-size="22" font-weight="700" fill="#1d2433">Clients</text>
+<g font-size="18" fill="#4a5163"><text x="40" y="122">terminal, ACP,</text><text x="40" y="146">other agents</text></g>
+<rect x="290" y="56" width="300" height="150" rx="12" fill="#ece9fb" stroke="#5b4bd6" stroke-width="2"/>
+<text x="310" y="92" font-size="22" font-weight="700" fill="#1d2433">Supervisor</text>
+<g font-size="18" fill="#4a5163"><text x="310" y="122">small; routes, restarts</text><text x="310" y="146">worker list kept on disk</text><text x="310" y="170">adopts workers after restart</text></g>
+<rect x="660" y="56" width="250" height="68" rx="12" fill="#fff" stroke="#2e9e6b" stroke-width="2"/>
+<text x="680" y="82" font-size="20" font-weight="700" fill="#1d2433">Worker A</text><text x="680" y="108" font-size="17" fill="#4a5163">own Python REPL, own log</text>
+<rect x="660" y="138" width="250" height="68" rx="12" fill="#fff" stroke="#2e9e6b" stroke-width="2"/>
+<text x="680" y="164" font-size="20" font-weight="700" fill="#1d2433">Worker B</text><text x="680" y="190" font-size="17" fill="#4a5163">own Python REPL, own log</text>
+<rect x="980" y="56" width="250" height="150" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="1000" y="92" font-size="20" font-weight="700" fill="#1d2433">Child agents</text><g font-size="17" fill="#4a5163"><text x="1000" y="120">each is a worker too</text><text x="1000" y="144">depth set by a setting</text></g>
+<rect x="1290" y="56" width="370" height="150" rx="12" fill="#e3f4ec" stroke="#2e9e6b" stroke-width="2"/>
+<text x="1310" y="92" font-size="21" font-weight="700" fill="#1d2433">If worker A dies</text><g font-size="18" fill="#4a5163"><text x="1310" y="122">B keeps running. A is restarted</text><text x="1310" y="146">(up to 5 tries, 0.25 to 30 s</text><text x="1310" y="170">wait) from its on-disk log.</text></g>
+<path d="M230,131 L288,131" stroke="#4a5163" stroke-width="2.5" marker-end="url(#ar)"/>
+<path d="M590,90 L658,90" stroke="#4a5163" stroke-width="2.5" marker-end="url(#ar)"/>
+<path d="M590,172 L658,172" stroke="#4a5163" stroke-width="2.5" marker-end="url(#ar)"/>
+<path d="M910,131 L978,131" stroke="#4a5163" stroke-width="2.5" marker-end="url(#ar)"/>
+<!-- ROW 2: rung -->
+<text x="20" y="288" font-size="26" font-weight="700" fill="#d0453d">rung-agent --acp: every session in one process</text>
+<rect x="20" y="310" width="210" height="190" rx="12" fill="#fff" stroke="#dcd9d0" stroke-width="2"/>
+<text x="40" y="346" font-size="22" font-weight="700" fill="#1d2433">Clients</text>
+<g font-size="18" fill="#4a5163"><text x="40" y="376">session A</text><text x="40" y="400">session B</text><text x="40" y="424">session C</text></g>
+<rect x="290" y="310" width="1000" height="190" rx="12" fill="#fbe9e8" stroke="#d0453d" stroke-width="2"/>
+<text x="310" y="346" font-size="22" font-weight="700" fill="#1d2433">One rung-agent process</text>
+<text x="310" y="374" font-size="18" fill="#4a5163">one first-in first-out queue; one working directory for the whole process</text>
+<rect x="320" y="396" width="260" height="84" rx="10" fill="#fff" stroke="#d0453d" stroke-width="2"/>
+<text x="340" y="424" font-size="20" font-weight="700" fill="#1d2433">Turn of A (running)</text><text x="340" y="452" font-size="17" fill="#4a5163">may take minutes</text>
+<rect x="610" y="396" width="310" height="84" rx="10" fill="#fff" stroke="#dcd9d0" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="630" y="424" font-size="20" font-weight="700" fill="#1d2433">Turn of B (waiting)</text><text x="630" y="452" font-size="17" fill="#4a5163">starts when A ends</text>
+<rect x="950" y="396" width="310" height="84" rx="10" fill="#fff" stroke="#dcd9d0" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="970" y="424" font-size="20" font-weight="700" fill="#1d2433">Turn of C (waiting)</text><text x="970" y="452" font-size="17" fill="#4a5163">starts when B ends</text>
+<rect x="1320" y="310" width="340" height="190" rx="12" fill="#fbe9e8" stroke="#d0453d" stroke-width="2"/>
+<text x="1340" y="346" font-size="21" font-weight="700" fill="#1d2433">If the process dies</text><g font-size="18" fill="#4a5163"><text x="1340" y="376">A, B and C all stop. Each is</text><text x="1340" y="400">marked interrupted on next</text><text x="1340" y="424">look. The steps of the turn in</text><text x="1340" y="448">flight were not saved yet.</text></g>
+<path d="M230,405 L288,405" stroke="#4a5163" stroke-width="2.5" marker-end="url(#ar)"/>
+<path d="M580,438 L608,438" stroke="#4a5163" stroke-width="2.5" marker-end="url(#ar)"/>
+<path d="M920,438 L948,438" stroke="#4a5163" stroke-width="2.5" marker-end="url(#ar)"/>
+<text x="20" y="540" font-size="18" fill="#4a5163">The continuous host (rung-host) is a different shape: one agent, one fsynced record, restarted by its service manager. It is not drawn here and is not affected by the queue.</text>
+</svg>
