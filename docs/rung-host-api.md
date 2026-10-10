@@ -291,3 +291,22 @@ value of a named variable (including one with a quote or newline inside a
 JSON line), the JSON-value walk, prose and counters left alone, a text with
 no secret returned unchanged and whole, a long mixed text whose only change is
 the replaced values, and a multi-megabyte line redacted whole.
+
+### Wiring checklist
+
+This slice is deliberately the redactor library. The H3 read doors, the H5
+event stream and the H8 console sink do not exist in this tree yet, so wiring
+and the end-to-end canary proof belong to the slice that adds each door. Each
+of these MUST call `rung_host::redact` before emitting and MUST carry its own
+canary test, written red first (a secret in the environment, a tool that
+prints it, zero hits across every door, stream line and console file):
+
+- [ ] H3 read doors (record text)
+- [ ] H5 event stream
+- [ ] H8 console sink
+
+### Follow-up
+
+`rung_agent_core::mcp::redact` (used by the gist in `rung-host/src/inbox.rs`)
+is a second, older redaction definition. It is to be unified with this one
+later; it is intentionally untouched in this slice.
