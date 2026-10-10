@@ -1,0 +1,13 @@
+index     1920  words  42  filled 0  sizes 3  pass
+instance  1920  words  73  filled 1  sizes 4  FAIL words 73>60
+turns     1920  words  67  filled 0  sizes 4  FAIL words 67>60
+queue     1920  words  55  filled 1  sizes 4  pass
+configure 1920  words  86  filled 1  sizes 4  FAIL words 86>60
+console   1920  words  36  filled 0  sizes 3  pass
+index     390   words  42  filled 0  sizes 3  pass
+instance  390   words  55  filled 1  sizes 4  pass
+turns     390   words  56  filled 0  sizes 4  pass
+queue     390   words  49  filled 1  sizes 4  pass
+configure 390   words  62  filled 0  sizes 4  FAIL words 62>60
+console   390   words  34  filled 0  sizes 3  pass
+census: 4 failure(s)
