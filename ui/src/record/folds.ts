@@ -338,7 +338,7 @@ export function summarize(lines: readonly Line[], opts: { lockHeld: boolean; now
     project, idle,
     next: lockHeld && upcoming ? { text: String(upcoming.text ?? upcoming.id), at: upcoming.when.at } : null,
     waiting: accepted.size,
-    lastDecision: decisions.filter((d) => !d.trivial).pop() ?? decisions.pop() ?? null,
+    lastDecision: decisions.findLast((d) => !d.trivial) ?? decisions.at(-1) ?? null,
     context: pack.contextPct, cache: pack.cachePct,
   };
 }

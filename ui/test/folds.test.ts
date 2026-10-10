@@ -6,6 +6,7 @@ import { parseRecord } from "../src/record/parse.ts";
 import { foldDecisions, foldPack, foldSpend, foldTurns, summarize, THRESHOLDS } from "../src/record/folds.ts";
 import { synthetic } from "../src/synthetic.ts";
 import { makeRedactor } from "../src/record/redact.ts";
+import { when } from "../src/pages/format.ts";
 import { ago, sayWho } from "../src/record/words.ts";
 import type { Line } from "../src/record/types.ts";
 
@@ -167,4 +168,26 @@ test("time reads in the largest whole unit", () => {
   assert.equal(ago(0, 30_000), "30 s ago");
   assert.equal(ago(0, 5 * 60_000), "5 min ago");
   assert.equal(ago(0, 3 * 86_400_000), "3 d ago");
+});
+
+test("a time in the future reads 'in N unit', and 'just now' when it is under the threshold", () => {
+  const now = Date.UTC(2026, 9, 7, 12, 0, 0);
+  assert.equal(when(now + 2_000, now), "just now", "not 'in just now'");
+  assert.equal(when(now, now), "just now");
+  assert.equal(when(now + 25 * 60_000, now), "in 25 min");
+  assert.equal(when(now - 3 * 60_000, now), "3 min ago");
+  assert.match(when(now - 5 * 86_400_000, now), /UTC$/);
+});
+
+test("the last decision that meant something is chosen without changing the fold's own list", () => {
+  const base = Date.UTC(2026, 9, 7, 12, 0, 0);
+  const lines = synthetic(base).find((i) => i.id === "atlas")!.lines;
+  const ds = foldDecisions(lines);
+  const n = ds.length;
+  const s = summarize(lines, { lockHeld: true, now: base });
+  assert.equal(s.lastDecision?.family, "consolidate", "the last non-trivial one");
+  assert.equal(foldDecisions(lines).length, n);
+  // Only trivial decisions: the last of them.
+  const only = lines.filter((l) => l.kind !== "decision.pack" && l.kind !== "decision.consolidate" && l.kind !== "decision.tools");
+  assert.equal(summarize(only, { lockHeld: true, now: base }).lastDecision?.family, "inject");
 });
