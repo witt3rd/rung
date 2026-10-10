@@ -71,7 +71,7 @@ function TurnCard({ t, now, open }: { t: Turn; now: number; open: boolean }) {
           <p className="sub" data-content>The turn</p>
           <dl className="dl">
             <dt data-content>Model</dt><dd data-content>{t.model ?? "unknown"}</dd>
-            <dt data-content>Calls</dt><dd data-content>{num(t.llmCalls)} model calls, {num(t.calls.length)} tool calls</dd>
+            <dt data-content>Calls</dt><dd data-content>{num(t.llmCalls)} model {t.llmCalls === 1 ? "call" : "calls"}, {num(t.calls.length)} tool {t.calls.length === 1 ? "call" : "calls"}</dd>
             <dt data-content>Cost</dt><dd data-content>{usd(t.costUsd)}, cache {t.promptTokens ? `${Math.round((t.cachedTokens / t.promptTokens) * 100)}%` : "none"}{t.elapsedMs ? `, took ${duration(t.elapsedMs)}` : ""}</dd>
             <dt data-content>Record</dt><dd data-content>lines {num(t.firstSeq)} to {num(t.lastSeq)}</dd>
           </dl>

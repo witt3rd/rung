@@ -5,7 +5,7 @@
   "type": "module",
   "description": "rung-ui: watch, queue and configure continuous rung hosts. Not published.",
   "scripts": {
-    "data": "node --experimental-strip-types scripts/prepare-data.ts",
+    "data": "node --experimental-strip-types scripts/prepare-data.ts --allow-unset-keys",
     "dev": "npm run data && vite",
     "build": "tsc -b && vite build && npm run data -- --out dist/data",
     "typecheck": "tsc -b --noEmit",

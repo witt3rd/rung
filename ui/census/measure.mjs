@@ -3,7 +3,7 @@ export const B = { words: 60, filled: 1, sizes: 4 };
 
 export async function measure(page, vp) {
   return page.evaluate(({ vh, narrow }) => {
-    const vis = (e) => { const r = e.getBoundingClientRect(); const s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && r.top < vh; };
+    const vis = (e) => { const r = e.getBoundingClientRect(); const s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && r.bottom > 0 && r.top < vh; };
     const words = []; let all = 0; const sizes = new Set(); const sentences = {}; let small = 0; let ids = 0;
     const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n; (n = w.nextNode()); ) {

@@ -13,13 +13,19 @@ let n = 0;
 for (const [vn, vp] of Object.entries(VIEWS)) {
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor });
   for (const p of PAGES) {
-    const page = await open(ctx, srv.url, p.hash);
+    const page = await open(ctx, srv.url, p.hash, p.focus);
     let height = vp.height;
+    // A page with a focus is captured where the link lands: the viewport as scrolled, details open.
+    if (p.focus) {
+      await page.screenshot({ path: join(outDir, `${p.name}-${vn.slice(1)}.png`) });
+      n++;
+      if (full) { await page.locator(p.focus).screenshot({ path: join(outDir, `${p.name}-${vn.slice(1)}-focus.png`) }); n++; }
+      await page.close();
+      continue;
+    }
     if (vp.width > 1000) height = Math.min(vp.height, Math.ceil(await page.evaluate(() => document.querySelector(".page").getBoundingClientRect().bottom)) + 32);
     await page.screenshot({ path: join(outDir, `${p.name}-${vn.slice(1)}.png`), clip: { x: 0, y: 0, width: vp.width, height } });
     n++;
-    // A page with a focus is also captured as that element: what a link to one turn lands on.
-    if (p.focus && full) { await page.locator(p.focus).screenshot({ path: join(outDir, `${p.name}-${vn.slice(1)}-focus.png`) }); n++; }
     if (full) { await page.screenshot({ path: join(outDir, `${p.name}-${vn.slice(1)}-full.png`), fullPage: true }); n++; }
     await page.close();
   }

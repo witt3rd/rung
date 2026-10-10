@@ -32,18 +32,25 @@ Needs node 24 or later (type stripping: the data script and the tests run `.ts` 
   names by environment variable (`api_key_env`), and the shapes of well-known keys. It runs when the data is
   prepared and again when the page loads the record. It replaces; it never shortens, drops or caps.
   `test/canary.test.ts` puts a canary key in the environment, prints it from a tool into a record, and fails if
-  the value is anywhere in the prepared data.
+  the value is anywhere in the prepared data. A key variable a config names but the environment lacks is refused
+  (exit 2, by name) unless `--allow-unset-keys` accepts a shapes-only pass, which warns; the npm scripts pass it,
+  because the keys that wrote the recorded runs are not on this machine. A second check plants a phrase the real
+  records contain as a secret and fails if it survives. `--out` is emptied, so it is refused unless it is strictly
+  inside `ui/public`, `ui/dist` or `ui/.test-tmp` and either empty or marked by an earlier run.
 - **No cap**: turns are paged ("Show 50 more", "Show all"), long text wraps whole, a turn's decisions and
   calls fold under "Details".
 
 ## Evidence (`census/evidence/`)
 
 - `canary-first-run.txt`: the canary check, run before the redactor existed. It failed.
+- `prepare-data-first-run.txt`: the checks for an unset key variable and for an `--out` the script does not own,
+  run against the script before those refusals existed. Four failed.
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged
   by looking at the captures; what looking changed is listed below.
 - `census-final.txt`: the census on the pages as committed.
-- `shots/`: the first screen of every page at 390 and 1920, looked at.
+- `shots/`: the first screen of every page at 390 and 1920, looked at. `turns-why` is where the "Why" link
+  lands (turn 51 of a recorded run, details open), not the top of the list.
 
 What looking changed (the census passed before each of these): a turn the host never ran was listed as the last
 turn (a boundary that decided and then halted); the last turn of a stopped run read "running" (now: cut off);

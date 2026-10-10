@@ -16,7 +16,7 @@ export const PAGES = [
   { name: "now-stuck", hash: "#/i/cedar" },
   { name: "turns-recorded", hash: "#/i/2026-10-05-qwen-2h/turns" },
   { name: "turns-working", hash: "#/i/atlas/turns" },
-  { name: "turns-why", hash: "#/i/2026-10-05-qwen-2h/turns?turn=2", focus: "#turn-2" },
+  { name: "turns-why", hash: "#/i/2026-10-05-qwen-2h/turns?turn=51", focus: "#turn-51" },
 ];
 
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".ndjson": "text/plain", ".svg": "image/svg+xml" };
@@ -34,12 +34,13 @@ export async function serve() {
   return { url: `http://127.0.0.1:${server.address().port}/`, close: () => server.close() };
 }
 
-export async function open(ctx, url, hash) {
+export async function open(ctx, url, hash, focus) {
   const page = await ctx.newPage();
   await page.goto(url + hash, { waitUntil: "load" });
   await page.waitForSelector('.page[data-ready="true"]', { timeout: 20000 });
   await page.evaluate(() => document.fonts.ready);
-  // A link to one turn scrolls to it; the census and the first-screen captures measure the top of the page.
-  await page.evaluate(() => window.scrollTo(0, 0));
+  // A link to one turn lands on it, with its details open. A page with a focus is measured and captured there:
+  // the first screen the owner sees after tapping "Why". Every other page is measured at the top.
+  await page.evaluate((sel) => (sel ? document.querySelector(sel).scrollIntoView({ block: "start" }) : window.scrollTo(0, 0)), focus ?? null);
   return page;
 }

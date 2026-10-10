@@ -4,12 +4,12 @@ now-working     1920  chrome  24 of  137 words  links  7 controls  0 filled 0  s
 now-stuck       1920  chrome  24 of   71 words  links  6 controls  0 filled 0  sizes 4  pass
 turns-recorded  1920  chrome  19 of  235 words  links  3 controls  4 filled 0  sizes 4  pass
 turns-working   1920  chrome  22 of  127 words  links  3 controls  5 filled 0  sizes 4  pass
-turns-why       1920  chrome  19 of  235 words  links  3 controls  4 filled 0  sizes 4  pass
+turns-why       1920  chrome  15 of  268 words  links  0 controls  5 filled 0  sizes 3  pass
 instances       390   chrome   7 of  107 words  links  8 controls  0 filled 0  sizes 3  pass
 now-recorded    390   chrome  17 of  134 words  links  6 controls  0 filled 0  sizes 4  pass
 now-working     390   chrome  21 of  101 words  links  6 controls  0 filled 0  sizes 4  pass
 now-stuck       390   chrome  24 of   59 words  links  6 controls  0 filled 0  sizes 4  pass
 turns-recorded  390   chrome  15 of  113 words  links  3 controls  3 filled 0  sizes 4  pass
 turns-working   390   chrome  15 of   96 words  links  3 controls  4 filled 0  sizes 4  pass
-turns-why       390   chrome  15 of  113 words  links  3 controls  3 filled 0  sizes 4  pass
+turns-why       390   chrome   2 of  131 words  links  0 controls  1 filled 0  sizes 3  pass
 census: all pass

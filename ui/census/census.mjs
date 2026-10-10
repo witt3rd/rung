@@ -20,7 +20,7 @@ const rows = [];
 for (const [vn, vp] of Object.entries(VIEWS)) {
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
   for (const p of PAGES) {
-    const page = await open(ctx, srv.url, p.hash);
+    const page = await open(ctx, srv.url, p.hash, p.focus);
     const r = await measure(page, vp);
     const bad = judge(r);
     fails += bad.length;

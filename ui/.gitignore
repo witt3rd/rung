@@ -3,3 +3,4 @@ dist/
 public/data/
 census/out/
 *.tsbuildinfo
+.test-tmp/

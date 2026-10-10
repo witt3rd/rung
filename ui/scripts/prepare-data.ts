@@ -2,10 +2,16 @@
  *  instances) into a data directory, with a small index of one summary per instance.
  *
  *    node --experimental-strip-types scripts/prepare-data.ts [--out DIR] [--runs DIR] [--no-synthetic] [--now MS]
+ *                                                              [--allow-unset-keys]
+ *
+ *  --out is emptied before it is written, so it must be a directory this script owns: strictly inside ui/public,
+ *  ui/dist or ui/.test-tmp, and either empty/absent or marked by an earlier run. Anything else is refused.
+ *  A key variable named in a run's config but unset here means exact-value redaction cannot run for that key:
+ *  that is refused (exit 2, naming the variable) unless --allow-unset-keys says the shapes-only pass is intended.
  *
  *  This stands where a host's read doors will stand (slice 0 has no running host to ask). */
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { dirname, join, resolve, sep } from "node:path";
 import { parseRecord } from "../src/record/parse.ts";
 import { summarize } from "../src/record/folds.ts";
 import { makeRedactor } from "../src/record/redact.ts";
@@ -18,7 +24,28 @@ const arg = (name: string): string | undefined => {
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
 
-const out = resolve(arg("--out") ?? join(here, "../public/data"));
+const refuse = (why: string): never => {
+  console.error(`prepare-data: ${why}`);
+  process.exit(2);
+};
+
+const uiRoot = realpathSync(resolve(here, ".."));
+// The real path of the nearest existing ancestor, then the rest: a symlink cannot carry --out out of the allowed roots.
+function realish(p: string): string {
+  const rest: string[] = [];
+  let cur = resolve(p);
+  while (!existsSync(cur)) { rest.unshift(cur.slice(dirname(cur).length + 1)); cur = dirname(cur); }
+  return join(realpathSync(cur), ...rest);
+}
+const out = realish(arg("--out") ?? join(here, "../public/data"));
+const MARK = ".rung-ui-data";
+const owned = ["public", "dist", ".test-tmp"].map((d) => join(uiRoot, d) + sep);
+if (!owned.some((root) => out.startsWith(root))) {
+  refuse(`--out ${out} is not a directory this script may empty; it must be inside ui/public, ui/dist or ui/.test-tmp`);
+}
+if (existsSync(out) && readdirSync(out).length > 0 && !existsSync(join(out, MARK))) {
+  refuse(`--out ${out} has files and no ${MARK} mark from an earlier run; refusing to empty it`);
+}
 const runs = resolve(arg("--runs") ?? join(here, "../../rung-host/live/runs"));
 const withSynthetic = !process.argv.includes("--no-synthetic");
 const now = Number(arg("--now") ?? Date.now());
@@ -33,6 +60,12 @@ if (existsSync(runs)) {
     for (const m of readFileSync(cfg, "utf8").matchAll(/^\s*api_key_env:\s*([A-Za-z_][A-Za-z0-9_]*)/gm)) secretNames.add(m[1]);
   }
 }
+const unset = [...secretNames].filter((n) => !process.env[n]);
+if (unset.length) {
+  const msg = `the key variable${unset.length > 1 ? "s" : ""} ${unset.join(", ")} ${unset.length > 1 ? "are" : "is"} named by a run's config but not set here, so exact-value redaction cannot run for ${unset.length > 1 ? "them" : "it"}; only key shapes are removed`;
+  if (!process.argv.includes("--allow-unset-keys")) refuse(`${msg}. Set ${unset.length > 1 ? "them" : "it"}, or pass --allow-unset-keys to accept the shapes-only pass.`);
+  console.warn(`prepare-data: WARNING: ${msg}.`);
+}
 const redact = makeRedactor([...secretNames].map((n) => process.env[n] ?? "").filter(Boolean));
 
 interface Entry { id: string; name: string; kind: "recorded" | "synthetic"; lockHeld: boolean; record: string; summary: unknown }
@@ -40,6 +73,7 @@ const entries: Entry[] = [];
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
+writeFileSync(join(out, MARK), "written by ui/scripts/prepare-data.ts; safe to empty\n");
 
 function put(id: string, kind: Entry["kind"], lockHeld: boolean, lines: Line[]) {
   mkdirSync(join(out, id), { recursive: true });
