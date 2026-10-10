@@ -18,6 +18,11 @@ pub struct Config {
     /// A built app to serve; a relative path is relative to the config file.
     #[serde(default)]
     pub app_dir: Option<PathBuf>,
+    /// Host names, besides loopback, a write request may be addressed to
+    /// (the name the tailnet's serve command gives this gateway). Names
+    /// only: no scheme, port or path.
+    #[serde(default)]
+    pub allowed_hosts: Vec<String>,
     /// Variables each holding one read-only token.
     #[serde(default)]
     pub read_only_token_envs: Vec<String>,
@@ -47,6 +52,8 @@ fn default_listen() -> String {
 pub struct Settings {
     pub listen: SocketAddr,
     pub app_dir: Option<PathBuf>,
+    /// Lower-case host names a write may be addressed to, besides loopback.
+    pub allowed_hosts: Vec<String>,
     /// Tokens whose bearer may only read.
     pub read_only_tokens: Vec<String>,
     pub instances: Vec<Instance>,
@@ -57,6 +64,7 @@ impl std::fmt::Debug for Settings {
         f.debug_struct("Settings")
             .field("listen", &self.listen)
             .field("app_dir", &self.app_dir)
+            .field("allowed_hosts", &self.allowed_hosts)
             .field("read_only_tokens", &self.read_only_tokens.len())
             .field("instances", &self.instances)
             .finish()
@@ -128,9 +136,20 @@ impl Config {
             }
             instances.push(inst);
         }
+        let mut allowed_hosts = Vec::new();
+        for h in &self.allowed_hosts {
+            let h = h.trim().to_ascii_lowercase();
+            if h.is_empty() || h.contains(['/', ':', '@', ' ', '[']) {
+                return Err(format!(
+                    "allowed_hosts entry {h:?}: a host name only, no scheme, port or path"
+                ));
+            }
+            allowed_hosts.push(h);
+        }
         Ok(Settings {
             listen,
             app_dir: self.app_dir.clone(),
+            allowed_hosts,
             read_only_tokens,
             instances,
         })

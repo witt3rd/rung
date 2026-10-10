@@ -220,6 +220,7 @@ Names of variables, never secrets:
 ```yaml
 listen: 127.0.0.1:8787            # default; tailscale serve puts it on https
 app_dir: ui/dist                  # optional; relative to this file
+allowed_hosts: [gw.tailnet.example]   # optional: names a write may be addressed to, besides loopback
 read_only_token_envs: [RUNG_GATEWAY_VIEW_TOKEN]   # optional, each names a variable
 instances:
   - id: alpha                     # letters, digits, '-', '_' (a path segment)
@@ -249,6 +250,27 @@ A write by the read-only role is refused with 403 before it reaches a host:
 ```json
 {"error": "read_only", "message": "this token can only read"}
 ```
+
+### Writes: Origin and Host
+
+The owner role is whoever reaches the gateway, so every write (any method
+other than GET or HEAD under `/api`, whatever door it is for, now or added by
+a later slice) passes one guard first. It applies to the owner role only; the
+read-only role keeps its own 403, and reads are not guarded.
+
+- The `Host` must be `localhost`, `127.0.0.1`, `[::1]` or a name in
+  `allowed_hosts` (compared without case or port). Anything else, or no
+  `Host`, is refused: this is what stops a rebound DNS name from driving a
+  write. Behind the tailnet's serve command, list the name it gives the
+  gateway.
+- An `Origin`, if the client sends one, must be the same origin as the
+  request: the same host name as the `Host` and the same port (a scheme's
+  default port counts as no port). `null`, another host, or another port on
+  the same host is refused. A browser sends `Origin` on every write; a script
+  usually sends none and passes.
+
+Refusals are 403 with `{"error": "bad_host", ...}` or `{"error": "bad_origin",
+...}`, before anything reaches an instance.
 
 ### Routes
 

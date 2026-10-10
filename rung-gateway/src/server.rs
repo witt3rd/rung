@@ -69,6 +69,7 @@ where
 }
 
 struct State {
+    allowed_hosts: Vec<String>,
     read_only_tokens: Vec<String>,
     app_dir: Option<PathBuf>,
     registry: Arc<dyn Registry>,
@@ -93,6 +94,7 @@ pub async fn start_with_registry(
     let mut connector = HttpConnector::new();
     connector.set_connect_timeout(Some(CONNECT_WAIT));
     let state = Arc::new(State {
+        allowed_hosts: settings.allowed_hosts,
         read_only_tokens: settings.read_only_tokens,
         app_dir: settings.app_dir,
         registry,
@@ -188,6 +190,12 @@ async fn api(state: &State, req: Request<Incoming>, path: &str) -> Response<Body
     };
     let method = req.method().clone();
     let reading = matches!(method, Method::GET | Method::HEAD);
+    if role == Role::Owner
+        && !reading
+        && let Some(refusal) = write_guard(state, &req)
+    {
+        return refusal;
+    }
     match path {
         "/api/health" if reading => json_reply(StatusCode::OK, json!({ "ok": true })),
         "/api/instances" if reading => instances(state).await,
@@ -206,6 +214,68 @@ async fn api(state: &State, req: Request<Incoming>, path: &str) -> Response<Body
             Some(tail) => pass_through(state, req, role, tail, query).await,
             None => not_found(),
         },
+    }
+}
+
+/// The owner role is whoever reaches the gateway, so a write must not be
+/// drivable by a page on another origin, or by a rebound DNS name: the `Host`
+/// must be loopback or a configured name, and an `Origin`, if the client sends
+/// one (a browser always does on a write), must be this same origin. A script
+/// sends no `Origin` and passes.
+fn write_guard(state: &State, req: &Request<Incoming>) -> Option<Response<Body>> {
+    let bad_host = || {
+        Some(error(
+            StatusCode::FORBIDDEN,
+            "bad_host",
+            "this host name is not one the gateway answers writes for",
+        ))
+    };
+    let host = req
+        .headers()
+        .get("host")
+        .and_then(|v| v.to_str().ok())
+        .or_else(|| req.uri().authority().map(|a| a.as_str()));
+    let Some(host) = host else { return bad_host() };
+    let (name, host_port) = split_authority(host);
+    let known = matches!(name.as_str(), "localhost" | "127.0.0.1" | "[::1]")
+        || state.allowed_hosts.contains(&name);
+    if !known {
+        return bad_host();
+    }
+    let origin = req.headers().get("origin")?;
+    let same = origin.to_str().ok().is_some_and(|o| {
+        let Some((scheme, rest)) = o.split_once("://") else {
+            return false;
+        };
+        let default_port = match scheme.to_ascii_lowercase().as_str() {
+            "http" => 80,
+            "https" => 443,
+            _ => return false,
+        };
+        let (oname, oport) = split_authority(rest.split('/').next().unwrap_or(""));
+        oname == name && oport.unwrap_or(default_port) == host_port.unwrap_or(default_port)
+    });
+    (!same).then(|| {
+        error(
+            StatusCode::FORBIDDEN,
+            "bad_origin",
+            "a write must come from the gateway's own origin",
+        )
+    })
+}
+
+/// `host[:port]` as a lower-case name and the explicit port, if any.
+fn split_authority(a: &str) -> (String, Option<u16>) {
+    let a = a.to_ascii_lowercase();
+    let cut = if a.starts_with('[') {
+        a.find(']')
+            .and_then(|i| a[i + 1..].starts_with(':').then_some(i + 1))
+    } else {
+        a.rfind(':')
+    };
+    match cut {
+        Some(i) => (a[..i].to_string(), a[i + 1..].parse().ok()),
+        None => (a, None),
     }
 }
 
