@@ -12,7 +12,7 @@
 # trait, and the recall/retain ladders that `rung-agent-core` drives.
 # `rung-host` is product as well: the continuous host, one agent that never
 # rests, built on `rung-agent-core` as a library (docs/rung-host.md).
-members = ["rung", "rung-macro", "rung-std", "rung-het", "rung-doctrine", "rung-driver", "rung-fixture", "rung-agent-core", "rung-agent", "rung-memory", "rung-host", "rung-testkit"]
+members = ["rung", "rung-macro", "rung-std", "rung-het", "rung-doctrine", "rung-driver", "rung-fixture", "rung-agent-core", "rung-agent", "rung-memory", "rung-host", "rung-gateway", "rung-testkit"]
 resolver = "2"
 
 [workspace.package]
