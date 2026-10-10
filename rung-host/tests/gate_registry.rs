@@ -386,3 +386,137 @@ fn a_registry_refusal_creates_nothing_else() {
     signal(&live, libc::SIGTERM);
     live.wait().unwrap();
 }
+
+/// An entry file as a host would write it, but with the id under test.
+fn forged_entry(id: &Value, state: &Path) -> String {
+    serde_json::json!({
+        "schema": 1, "id": id, "name": "forged",
+        "state_dir": state, "config": null, "workspace": state,
+        "address": null, "pid": 1, "started": 1, "version": "0",
+    })
+    .to_string()
+}
+
+#[test]
+fn an_entry_id_that_is_not_a_slug_or_not_its_file_name_is_unreadable_not_followed() {
+    rung_host::sim::test_timeout(180);
+    let f = Fleet::new("registry-bad-id");
+    let reg = f.home().join("instances");
+    std::fs::create_dir_all(&reg).unwrap();
+    // A state directory with a live-looking record: if an entry with a bad
+    // id were trusted it would list as something other than unreadable.
+    let state = f.state("victim");
+    std::fs::create_dir_all(&state).unwrap();
+    let cases: &[(&str, Value)] = &[
+        ("traversal", Value::from("../x")),
+        ("separator", Value::from("a/b")),
+        ("nul", Value::from("a\u{0}b")),
+        ("not-a-slug", Value::from("Has Space")),
+        ("mismatch", Value::from("some-other-id")),
+        ("empty", Value::from("")),
+        ("dots", Value::from("..")),
+    ];
+    for (file, id) in cases {
+        std::fs::write(reg.join(format!("{file}.json")), forged_entry(id, &state)).unwrap();
+    }
+    // One honest entry beside them.
+    std::fs::write(
+        reg.join("fine.json"),
+        forged_entry(&Value::from("fine"), &state),
+    )
+    .unwrap();
+
+    let listed = f.listed();
+    assert_eq!(
+        listed.len(),
+        cases.len() + 1,
+        "every file is a row: {listed:?}"
+    );
+    for (file, _) in cases {
+        let row = listed.iter().find(|e| e["id"] == *file).unwrap_or_else(|| {
+            panic!("no row named for the file {file}: {listed:?}");
+        });
+        assert_eq!(row["word"], "unreadable", "{file}: {row}");
+        assert!(
+            row["problem"].as_str().unwrap().contains("id"),
+            "{file}: {row}"
+        );
+        assert!(
+            row["state_dir"].is_null(),
+            "{file}: its fields are not trusted: {row}"
+        );
+    }
+    let fine = listed.iter().find(|e| e["id"] == "fine").unwrap();
+    assert_eq!(fine["word"], "down");
+    // Nothing outside the registry was created or touched.
+    assert!(!f.home().join("x").exists() && !f.home().join("x.json").exists());
+}
+
+#[test]
+fn hosts_racing_for_one_state_leave_one_id_and_one_entry() {
+    rung_host::sim::test_timeout(180);
+    let f = Fleet::new("registry-state-race");
+    let mut hosts: Vec<Child> = (0..6)
+        .map(|i| {
+            f.sim("shared", &["--name", &format!("racer-{i}")])
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap()
+        })
+        .collect();
+    // Wait until every loser has exited (code 2); one host remains.
+    let t = Instant::now();
+    let mut codes = vec![None; hosts.len()];
+    while codes.iter().filter(|c| c.is_some()).count() < hosts.len() - 1 {
+        assert!(
+            t.elapsed() < Duration::from_secs(60),
+            "losers never exited: {codes:?}"
+        );
+        for (h, c) in hosts.iter_mut().zip(codes.iter_mut()) {
+            if c.is_none()
+                && let Some(s) = h.try_wait().unwrap()
+            {
+                *c = Some(s.code());
+            }
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(codes.iter().flatten().all(|c| *c == Some(2)), "{codes:?}");
+    let winner = codes.iter().position(|c| c.is_none()).unwrap();
+    let want = format!("racer-{winner}");
+    f.wait_word(&want, "running", 60);
+    let listed = f.listed();
+    assert_eq!(listed.len(), 1, "one state, one entry: {listed:?}");
+    assert_eq!(listed[0]["id"], want.as_str());
+    assert_eq!(listed[0]["pid"].as_u64(), Some(hosts[winner].id() as u64));
+
+    signal(&hosts[winner], libc::SIGTERM);
+    hosts[winner].wait().unwrap();
+}
+
+#[test]
+fn a_refused_sim_registration_opens_no_record() {
+    rung_host::sim::test_timeout(180);
+    let f = Fleet::new("registry-sim-refusal");
+    let mut live = f.start("a", "alpha");
+    f.wait_word("alpha", "running", 60);
+
+    // The harness under the live host's name on another state: refused
+    // before its record is opened.
+    let out = f
+        .sim("b", &["--name", "alpha"])
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    let err = String::from_utf8_lossy(&out.stderr).to_string();
+    assert_eq!(out.status.code(), Some(2), "stderr: {err}");
+    assert!(err.contains("alpha"), "{err}");
+    assert!(
+        !f.state("b").join("record").exists(),
+        "a refused registration opened the record"
+    );
+    assert!(!f.state("b").join("mock-calls.log").exists());
+
+    signal(&live, libc::SIGTERM);
+    live.wait().unwrap();
+}

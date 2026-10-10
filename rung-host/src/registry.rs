@@ -119,9 +119,21 @@ fn entry_path(dir: &Path, id: &str) -> PathBuf {
 /// The lock that serializes changes to the registry folder.
 const FOLDER_LOCK: &str = ".registry.lock";
 
+/// Read an entry file. Its id must be a slug (what [`slug`] makes) and the
+/// file's own name: an id is joined into paths, so a file that claims
+/// another one (`../x`, a separator, a NUL, a different name) is refused,
+/// its other fields never trusted.
 fn read_entry(path: &Path) -> Result<Entry, String> {
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&text).map_err(|e| e.to_string())
+    let e: Entry = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string());
+    if slug(&e.id).as_deref() != Some(e.id.as_str()) {
+        return Err(format!("id {:?} is not a registry id", e.id));
+    }
+    if stem.as_deref() != Some(e.id.as_str()) {
+        return Err(format!("id {:?} is not the entry's file name", e.id));
+    }
+    Ok(e)
 }
 
 /// Every `*.json` file in `dir`, sorted by name; an absent folder has none.

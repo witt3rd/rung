@@ -265,37 +265,28 @@ fn main() -> ExitCode {
     match o.cmd.as_str() {
         "sim" => {
             let (start, workspace) = (sc.start, sc.config.workspace.clone());
-            // A state directory held by a live host is a bad start.
-            let (host, rec, _mock) = match sim::try_build(sc) {
+            // The state's lock first, then the registry, then everything
+            // else: a start either one refuses creates nothing but the lock
+            // file. A state directory held by a live host is a bad start.
+            let mut registration = None;
+            let built = sim::try_build_with(sc, |lock| {
+                let Some(name) = &o.name else { return Ok(()) };
+                let instance = rung_host::registry::Instance {
+                    name: name.clone(),
+                    config: None,
+                    workspace,
+                };
+                let r = rung_host::registry::Registration::register(&instance, start, lock)
+                    .map_err(|e| std::io::Error::other(format!("registry: {e}")))?;
+                registration = Some(Arc::new(r));
+                Ok(())
+            });
+            let (host, rec, _mock) = match built {
                 Ok(b) => b,
                 Err(e) => {
                     eprintln!("rung-host: {e}");
                     return ExitCode::from(2);
                 }
-            };
-            // Only a host that holds its state registers (the harness builds
-            // the host first; nothing has run yet, so a refusal ends it
-            // before its first record line).
-            let registration = match &o.name {
-                Some(name) => {
-                    let instance = rung_host::registry::Instance {
-                        name: name.clone(),
-                        config: None,
-                        workspace,
-                    };
-                    match rung_host::registry::Registration::register(
-                        &instance,
-                        start,
-                        host.state_lock(),
-                    ) {
-                        Ok(r) => Some(Arc::new(r)),
-                        Err(e) => {
-                            eprintln!("rung-host: registry: {e}");
-                            return ExitCode::from(2);
-                        }
-                    }
-                }
-                None => None,
             };
             if o.acp || o.acp_http.is_some() {
                 let toks = match tokens(&o) {

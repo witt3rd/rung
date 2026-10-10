@@ -69,9 +69,9 @@ lock** (`STATE_DIR/host.lock`, the H1 section above), not a file here.
 - `rung-host sim` (the test harness) registers only when given `--name NAME`.
 - A host registers only **while it holds its state directory's lock**, so a
   start the lock refuses registers nothing, and two starts can never
-  register one state. For `run` it happens right after the lock is taken and
-  **before anything else is created** (the memory store, the inbox, the
-  record); `sim` builds its host first and registers before it runs. A
+  register one state. For `run` and for `sim` it happens right after the lock is
+  taken and **before anything else is created** (the memory store, the
+  inbox, the record). A
   refusal exits with the bad-start code `2` and names the entry it collides
   with:
   - the id is registered for **another state directory** (the message says
@@ -135,7 +135,11 @@ A reader derives the **state word** from the lock and the record:
    `kind` is `halted` the host stopped itself: **`stopped`**. Anything else
    (or no line): it died: **`down`**.
 3. An entry file that cannot be parsed, or a lock that cannot be probed, is
-   **`unreadable`**, listed with its `problem`.
+   **`unreadable`**, listed with its `problem`. So is an entry whose `id` is
+   not a registry id (not exactly what the slug rule makes: `../x`, a
+   separator, a NUL, spaces, empty) or is not the entry's own file name: ids
+   are joined into paths, so such a file is refused and its other fields are
+   never trusted. It is still a row (named by its file), not dropped.
 
 | word | when |
 |---|---|

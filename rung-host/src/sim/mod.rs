@@ -188,7 +188,19 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
 pub fn try_build(
     sc: Scenario,
 ) -> std::io::Result<(Arc<Host>, crate::presence::Recovered, Arc<MockEngine>)> {
+    try_build_with(sc, |_| Ok(()))
+}
+
+/// [`try_build`], calling `held` once the state directory's lock is taken
+/// and before anything else is created there (the record, the memory
+/// store): an error from it ends the build with nothing written but the
+/// lock file.
+pub fn try_build_with(
+    sc: Scenario,
+    held: impl FnOnce(&crate::statelock::StateLock) -> std::io::Result<()>,
+) -> std::io::Result<(Arc<Host>, crate::presence::Recovered, Arc<MockEngine>)> {
     let lock = crate::statelock::StateLock::acquire(&sc.dir)?;
+    held(&lock)?;
     let clock: Arc<dyn Clock> = sc
         .clock
         .unwrap_or_else(|| Arc::new(SimClock::new(sc.start)));
