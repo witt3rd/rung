@@ -131,6 +131,7 @@ fn settings(app_dir: Option<std::path::PathBuf>, instances: Vec<Instance>) -> Se
     Settings {
         listen: "127.0.0.1:0".parse().unwrap(),
         app_dir,
+        allowed_hosts: vec![],
         read_only_tokens: vec![READ_TOKEN.into()],
         instances,
     }
@@ -732,5 +733,183 @@ async fn a_key_that_cannot_ride_a_header_answers_502_not_a_panic() {
                 .status(),
             200
         );
+    }
+}
+
+// ---- the owner role's write guard: Origin and Host ------------------------
+
+async fn writes_gateway(allowed: &[&str]) -> (rung_gateway::Running, Log) {
+    let (host, log) = stub_host().await;
+    let mut s = settings(None, vec![instance("alpha", host)]);
+    s.allowed_hosts = allowed.iter().map(|h| h.to_string()).collect();
+    (rung_gateway::start(s).await.unwrap(), log)
+}
+
+#[tokio::test]
+async fn a_write_from_another_origin_is_refused() {
+    let (g, log) = writes_gateway(&[]).await;
+    let me = format!("http://{}", g.addr);
+    for origin in [
+        "http://evil.example",
+        "https://evil.example:8443",
+        "null",
+        "http://127.0.0.1.evil.example",
+        "garbage",
+    ] {
+        let r = client()
+            .post(url(&g, "/api/i/alpha/v1/queue"))
+            .header("origin", origin)
+            .body("x")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), 403, "{origin}");
+        let v: serde_json::Value = r.json().await.unwrap();
+        assert_eq!(v["error"], "bad_origin", "{origin}");
+    }
+    // every write method is guarded, not just POST
+    for m in ["PUT", "DELETE", "PATCH"] {
+        let r = client()
+            .request(m.parse().unwrap(), url(&g, "/api/i/alpha/v1/queue/1"))
+            .header("origin", "http://evil.example")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), 403, "{m}");
+    }
+    assert!(log.lock().unwrap().is_empty(), "no write reached the host");
+    // the page's own origin, and a client that sends no Origin (a script), pass
+    let r = client()
+        .post(url(&g, "/api/i/alpha/v1/queue"))
+        .header("origin", &me)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    let r = client()
+        .post(url(&g, "/api/i/alpha/v1/queue"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+}
+
+#[tokio::test]
+async fn a_write_addressed_to_a_foreign_host_is_refused() {
+    let (g, log) = writes_gateway(&[]).await;
+    // DNS rebinding: the page's origin and Host agree on a name that is not ours
+    for (host, origin) in [
+        ("evil.example", None),
+        ("evil.example:8787", Some("http://evil.example:8787")),
+        ("10.9.9.9", None),
+    ] {
+        let mut rq = client()
+            .post(url(&g, "/api/i/alpha/v1/queue"))
+            .header("host", host);
+        if let Some(o) = origin {
+            rq = rq.header("origin", o);
+        }
+        let r = rq.send().await.unwrap();
+        assert_eq!(r.status(), 403, "{host}");
+        let v: serde_json::Value = r.json().await.unwrap();
+        assert_eq!(v["error"], "bad_host", "{host}");
+    }
+    assert!(log.lock().unwrap().is_empty());
+    // loopback names pass, with or without a port, in any case
+    for host in ["localhost", "LOCALHOST:9", "127.0.0.1", "[::1]:8787"] {
+        let r = client()
+            .post(url(&g, "/api/i/alpha/v1/queue"))
+            .header("host", host)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), 200, "{host}");
+    }
+}
+
+#[tokio::test]
+async fn a_configured_host_may_be_written_to_from_its_own_origin_only() {
+    let (g, log) = writes_gateway(&["gw.tailnet.example"]).await;
+    let post = |host: &str, origin: Option<&str>| {
+        let mut rq = client()
+            .post(url(&g, "/api/i/alpha/v1/queue"))
+            .header("host", host);
+        if let Some(o) = origin {
+            rq = rq.header("origin", o);
+        }
+        rq.send()
+    };
+    assert_eq!(
+        post("gw.tailnet.example", Some("https://gw.tailnet.example"))
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    assert_eq!(
+        post("GW.tailnet.example:443", None).await.unwrap().status(),
+        200
+    );
+    // a page on another origin cannot write through an allowed Host
+    assert_eq!(
+        post("gw.tailnet.example", Some("https://evil.example"))
+            .await
+            .unwrap()
+            .status(),
+        403
+    );
+    // and an allowed origin cannot ride a different Host
+    assert_eq!(
+        post("127.0.0.1", Some("https://gw.tailnet.example"))
+            .await
+            .unwrap()
+            .status(),
+        403
+    );
+    assert_eq!(log.lock().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn reads_and_the_read_only_role_are_not_subject_to_the_write_guard() {
+    let (g, _) = writes_gateway(&[]).await;
+    // a read from another origin or host still answers (the guard is for writes)
+    let r = client()
+        .get(url(&g, "/api/health"))
+        .header("origin", "http://evil.example")
+        .header("host", "evil.example")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    // the read-only role keeps its own refusal, whatever the origin
+    let r = client()
+        .post(url(&g, "/api/i/alpha/v1/queue"))
+        .header("authorization", format!("Bearer {READ_TOKEN}"))
+        .header("origin", "http://evil.example")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 403);
+    let v: serde_json::Value = r.json().await.unwrap();
+    assert_eq!(v["error"], "read_only");
+}
+
+#[test]
+fn config_reads_allowed_hosts_as_names_only() {
+    let parse = |y: &str| -> Config { serde_yaml::from_str(y).unwrap() };
+    let s = parse("allowed_hosts: [GW.Tailnet.Example]\n")
+        .resolve(env_of(&[]))
+        .unwrap();
+    assert_eq!(s.allowed_hosts, vec!["gw.tailnet.example".to_string()]);
+    for bad in [
+        "https://gw.example",
+        "gw.example:8787",
+        "gw.example/x",
+        "",
+        "u@gw.example",
+    ] {
+        let y = format!("allowed_hosts: ['{bad}']\n");
+        let e = parse(&y).resolve(env_of(&[])).unwrap_err();
+        assert!(e.contains("allowed_hosts"), "{bad}: {e}");
     }
 }
