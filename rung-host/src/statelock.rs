@@ -69,10 +69,13 @@ impl std::error::Error for LockError {}
 
 impl From<LockError> for std::io::Error {
     fn from(e: LockError) -> Self {
-        match e {
-            LockError::Io { err, .. } => err,
-            held => std::io::Error::new(std::io::ErrorKind::AddrInUse, held.to_string()),
-        }
+        // Both arms keep the directory in the message; a bare OS error
+        // through `?` would not say which state directory failed.
+        let kind = match &e {
+            LockError::Io { err, .. } => err.kind(),
+            LockError::Held { .. } => std::io::ErrorKind::AddrInUse,
+        };
+        std::io::Error::new(kind, e.to_string())
     }
 }
 
@@ -142,6 +145,27 @@ fn holder(file: &mut File) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_io_failure_keeps_its_kind_and_names_the_directory_through_question_mark() {
+        let dir = PathBuf::from("/some/state/dir");
+        let e = LockError::Io {
+            dir: dir.clone(),
+            err: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+        };
+        let io: std::io::Error = e.into();
+        assert_eq!(io.kind(), std::io::ErrorKind::PermissionDenied);
+        assert!(io.to_string().contains("/some/state/dir"), "{io}");
+    }
+
+    #[test]
+    fn a_state_path_that_is_a_file_fails_naming_the_directory() {
+        let g = crate::sim::temp_dir_guard("statelock-io");
+        let file = g.path().join("not-a-dir");
+        std::fs::write(&file, "x").unwrap();
+        let io: std::io::Error = StateLock::acquire(&file.join("state")).unwrap_err().into();
+        assert!(io.to_string().contains("not-a-dir"), "{io}");
+    }
 
     #[test]
     fn a_second_lock_is_refused_naming_this_process_and_frees_on_drop() {
