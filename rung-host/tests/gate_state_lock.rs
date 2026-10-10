@@ -3,6 +3,8 @@
 //! and writes nothing into the record. Against the `rung-host` binary on
 //! the real clock with the mock engine.
 
+use std::io::Read;
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
@@ -16,6 +18,39 @@ fn sim(state: &Path) -> Command {
     c.args(["sim", "--clock", "real", "--no-memory", "--state"])
         .arg(state);
     c
+}
+
+/// A spawned host that dies with its owner: dropped on a pass, a failed
+/// assertion or a panic, it never outlives the test. Only this child is
+/// killed, by its own handle.
+struct Host(Child);
+
+impl Host {
+    fn spawn(c: &mut Command) -> Host {
+        Host(c.spawn().unwrap())
+    }
+}
+
+impl Drop for Host {
+    fn drop(&mut self) {
+        // Kill by this child's own handle, then reap it. Both are harmless
+        // when the test already stopped and waited on it.
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+impl Deref for Host {
+    type Target = Child;
+    fn deref(&self) -> &Child {
+        &self.0
+    }
+}
+
+impl DerefMut for Host {
+    fn deref_mut(&mut self) -> &mut Child {
+        &mut self.0
+    }
 }
 
 fn lines(state: &Path) -> Vec<rung_host::record::Line> {
@@ -33,6 +68,11 @@ fn wait_started(state: &Path) {
     panic!("the first host never started");
 }
 
+fn alive(pid: u32) -> bool {
+    // SAFETY: signal 0 only probes for existence.
+    unsafe { libc::kill(pid as libc::pid_t, 0) == 0 }
+}
+
 fn term(c: &mut Child) -> Option<i32> {
     // SAFETY: signalling our own child.
     unsafe {
@@ -42,19 +82,44 @@ fn term(c: &mut Child) -> Option<i32> {
 }
 
 #[test]
+fn a_host_is_killed_when_its_test_panics() {
+    let guard = rung_host::sim::temp_dir_guard("state-lock-guard");
+    let dir = guard.path().to_path_buf();
+    let pid = std::sync::atomic::AtomicU32::new(0);
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let first = Host::spawn(sim(&dir).stdout(Stdio::null()));
+        pid.store(first.id(), std::sync::atomic::Ordering::SeqCst);
+        wait_started(&dir);
+        panic!("a failing test");
+    }));
+    assert!(r.is_err());
+    let pid = pid.load(std::sync::atomic::Ordering::SeqCst);
+    assert_ne!(pid, 0);
+    // Reaped by the guard, so it is gone, not a zombie.
+    let t = Instant::now();
+    while alive(pid) && t.elapsed() < Duration::from_secs(10) {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let gone = !alive(pid);
+    if !gone {
+        // Do not leak the red run's host: kill only this pid.
+        // SAFETY: our own child from this test.
+        unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    assert!(gone, "the host outlived its panicking test");
+}
+
+#[test]
 fn a_second_host_on_the_same_state_is_refused_and_names_the_holder() {
     let guard = rung_host::sim::temp_dir_guard("state-lock");
     let dir = guard.path().to_path_buf();
-    let mut first = sim(&dir).stdout(Stdio::null()).spawn().unwrap();
+    let mut first = Host::spawn(sim(&dir).stdout(Stdio::null()));
     wait_started(&dir);
     let before = lines(&dir).len();
 
     // Bounded: a second host that is not refused would run for ever.
-    let mut child = sim(&dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+    let mut child = Host::spawn(sim(&dir).stdout(Stdio::null()).stderr(Stdio::piped()));
     let t = Instant::now();
     let refused = loop {
         if child.try_wait().unwrap().is_some() {
@@ -66,20 +131,18 @@ fn a_second_host_on_the_same_state_is_refused_and_names_the_holder() {
         }
         std::thread::sleep(Duration::from_millis(10));
     };
-    let second = child.wait_with_output().unwrap();
+    let mut err = String::new();
+    child
+        .stderr
+        .take()
+        .unwrap()
+        .read_to_string(&mut err)
+        .unwrap();
+    let status = child.wait().unwrap();
     if !refused {
-        let _ = term(&mut first);
-        panic!(
-            "the second host was not refused; it ran; stderr: {}",
-            String::from_utf8_lossy(&second.stderr)
-        );
+        panic!("the second host was not refused; it ran; stderr: {err}");
     }
-    let err = String::from_utf8_lossy(&second.stderr).to_string();
-    assert_eq!(
-        second.status.code(),
-        Some(2),
-        "bad-start code; stderr: {err}"
-    );
+    assert_eq!(status.code(), Some(2), "bad-start code; stderr: {err}");
     assert!(
         err.contains(&format!("pid {}", first.id())),
         "the refusal names the holder; stderr: {err}"
@@ -108,13 +171,13 @@ fn a_second_host_on_the_same_state_is_refused_and_names_the_holder() {
 fn the_lock_dies_with_the_process() {
     let guard = rung_host::sim::temp_dir_guard("state-lock-kill");
     let dir = guard.path().to_path_buf();
-    let mut first = sim(&dir).stdout(Stdio::null()).spawn().unwrap();
+    let mut first = Host::spawn(sim(&dir).stdout(Stdio::null()));
     wait_started(&dir);
     first.kill().unwrap();
     first.wait().unwrap();
 
     // A killed host leaves no lock behind: the next start wakes on it.
-    let mut again = sim(&dir).stdout(Stdio::null()).spawn().unwrap();
+    let mut again = Host::spawn(sim(&dir).stdout(Stdio::null()));
     let t = Instant::now();
     while lines(&dir)
         .iter()
