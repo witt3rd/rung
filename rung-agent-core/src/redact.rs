@@ -29,7 +29,7 @@
 //!   `;`-separated pairs); and a bare `Bearer <token>`;
 //! - **URL credentials**: the password of `scheme://user:pass@host`, and a
 //!   token-only user (`scheme://token@host`) of any scheme but a login one
-//!   (`ssh`, `git+ssh`, `sftp`, `scp`), where the user is a name;
+//!   (`ssh`, `sftp`, `scp`, also as the tail of `git+ssh`), where the user is a name;
 //! - **assignments** whose name says it is a secret (`NAME=value`,
 //!   `name: value`, `"name": "value"`, `?name=value`): the name stays, the
 //!   value goes. A name says so when its last word is `secret`, `token`,
@@ -475,9 +475,7 @@ impl<'a, 'r> Scan<'a, 'r> {
                 Some(c) => (after + c + 1, after + at),
                 // A token-only user is a secret in any scheme but a login one,
                 // where the user is a name (`ssh://git@host`).
-                None if !matches!(scheme.as_str(), "ssh" | "git+ssh" | "sftp" | "scp") => {
-                    (after, after + at)
-                }
+                None if !matches!(scheme.as_str(), "ssh" | "sftp" | "scp") => (after, after + at),
                 None => continue,
             };
             if to > from && keep_value(&text[from..], self.mark_text) {

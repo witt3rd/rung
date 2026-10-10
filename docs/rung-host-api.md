@@ -278,7 +278,7 @@ a count; never log it.
 | headers `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id` | the value, to the next `,` `;` quote or end of line | the name |
 | `Bearer <token>` | the token | `Bearer` |
 | webhook URLs: Slack `hooks.slack.com/services/…`, Discord `…/api/webhooks/…`, Zapier `hooks.zapier.com/hooks/catch/…`, Teams `…/webhook/…` | the path after the host (the credential) | the host and the rest of the URL |
-| URL credentials | the password of `scheme://user:pass@host`; the user of a URL that has only a token, in any scheme but a login one (`ssh`, `git+ssh`, `sftp`, `scp`) | the rest; a plain `ssh://git@host` is left |
+| URL credentials | the password of `scheme://user:pass@host`; the user of a URL that has only a token, in any scheme but a login one (`ssh`, `sftp`, `scp`, also as the tail of `git+ssh`) | the rest; a plain `ssh://git@host` is left |
 | assignments `NAME=value`, `name: value`, `"name": "value"`, `?name=value` whose name says it is a secret | the value | the name and the separator |
 
 Text that is itself JSON-escaped (a recorded tool input) is read as such: an

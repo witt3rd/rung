@@ -153,7 +153,15 @@ fn url_credentials_lose_the_secret_part() {
         redact("mongodb+srv://SENTINELtoken0123@host.test/db"),
         format!("mongodb+srv://{MARK}@host.test/db")
     );
-    // A plain ssh user is a name, not a secret.
+    // A plain ssh user is a name, not a secret, under any ssh-tailed scheme.
+    assert_eq!(
+        redact("git+ssh://git@host.test/repo"),
+        "git+ssh://git@host.test/repo"
+    );
+    assert_eq!(
+        redact("sftp://deploy@host.test/x"),
+        "sftp://deploy@host.test/x"
+    );
     assert_eq!(
         redact("ssh://git@host.test/repo"),
         "ssh://git@host.test/repo"
