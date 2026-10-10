@@ -240,16 +240,15 @@ impl Redactor {
     pub fn with_mark(mark: &'static str) -> Self;           // another marker
     pub fn from_env_names<'a>(names: impl IntoIterator<Item = &'a str>) -> Self;
     pub fn add_env(&mut self, name: &str);                  // value of that env var
-    pub fn add_env_with<'a>(&mut self, names: impl IntoIterator<Item = &'a str>,
-                            lookup: impl Fn(&str) -> Option<String>);
     pub fn add_secret(&mut self, value: &str);              // an exact value
-    pub fn add_secret_min(&mut self, value: &str, min: usize);
     pub fn with_secret(self, value: &str) -> Self;
 
     /// Text out: secrets replaced; borrowed when there were none.
     pub fn redact<'a>(&self, text: &'a str) -> Cow<'a, str>;
-    /// A decoded JSON value: every string redacted, every string under a
-    /// secret-named key replaced, object keys redacted.
+    /// A decoded JSON value: every string redacted; every string at any depth
+    /// under a secret-named key (a secret-looking name or a credential header
+    /// name such as `Authorization`) replaced; object keys
+    /// redacted.
     pub fn redact_value(&self, v: &serde_json::Value) -> serde_json::Value;
 }
 
@@ -273,16 +272,19 @@ a count; never log it.
 | kind | replaced | kept |
 |---|---|---|
 | exact value of a named variable or `add_secret` (6+ chars) | the value, in any context | the rest |
-| key shapes: `sk-…`, `sk_live_…`, `ghp_…` (and `gho_ ghu_ ghs_ ghr_`), `github_pat_…`, `glpat-…`, `xox?-…`, `AKIA…`/`ASIA…`, `AIza…`, `hf_…`, `npm_…`, `pypi-…`, `dp.st.…` (and `pt ct sa`), JWTs | the whole token | the rest |
+| key shapes: `sk-…`, `sk_live_…`, `ghp_…` (and `gho_ ghu_ ghs_ ghr_`), `github_pat_…`, `glpat-…`, `xox?-…`, `xapp-…`, `xai-…`, `gsk_…`, `tskey-…`, `AKIA…`/`ASIA…`, `AIza…`, `hf_…`, `npm_…`, `pypi-…`, `dp.st.…` (and `pt ct sa`), JWTs | the whole token | the rest |
 | private key block | the body | the BEGIN/END lines |
-| headers `Authorization`, `Proxy-Authorization`, `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id` | the value, to the next `,` or `;`, the end of the line or the closing quote |
-| the HTTP session-state request and response headers (their `;`-separated pairs) | the whole value, to the end of the line or the closing quote | the name |
+| headers `Authorization`, `Proxy-Authorization` and the two HTTP session-state headers | the whole value (commas, semicolons and quotes inside it included): to the end of the line, or to the quote that opened the header (`-H "…"`), or to the closing quote of a quoted value | the name |
+| headers `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id` | the value, to the next `,` `;` quote or end of line | the name |
 | `Bearer <token>` | the token | `Bearer` |
+| webhook URLs: Slack `hooks.slack.com/services/…`, Discord `…/api/webhooks/…`, Zapier `hooks.zapier.com/hooks/catch/…`, Teams `…/webhook/…` | the path after the host (the credential) | the host and the rest of the URL |
 | URL credentials | the password of `scheme://user:pass@host`; the user of a URL that has only a token, in any scheme but a login one (`ssh`, `git+ssh`, `sftp`, `scp`) | the rest; a plain `ssh://git@host` is left |
 | assignments `NAME=value`, `name: value`, `"name": "value"`, `?name=value` whose name says it is a secret | the value | the name and the separator |
 
-An unquoted value also ends at a backslash, so text that is itself JSON-escaped
-(a recorded tool input) keeps its `\"` and `\n` around the replaced value.
+Text that is itself JSON-escaped (a recorded tool input) is read as such: an
+escaped quote (`\"`) opens and closes a value, an escaped line break (`\n`)
+ends one, and a value that holds an escaped backslash or an escaped quote runs
+through it.
 
 A name says it is a secret when its last word (split on `_ - .` and camelCase)
 is `secret`, `token`, `password`, `passwd`, `pwd`, `passphrase`,
@@ -328,8 +330,9 @@ prints it, zero hits across every door, stream line and console file):
 There is one definition of what a credential looks like:
 `rung_agent_core::redact::Redactor`. `rung_agent_core::mcp::redact` (used by
 memory, the turn check, MCP errors and the gist in `rung-host/src/inbox.rs`)
-is that redactor with its own marker (`[REDACTED]`) and its own secrets
-(registered ones and the well-known key variables), pinned by its own tests.
+is that redactor, built once, with its own marker (`[REDACTED]`), followed by
+its own exact secrets (registered ones and the well-known key variables),
+pinned by its own tests, which are unchanged.
 `rung_host::redact` re-exports it and adds the canonical JSON line form, which
 needs the host's canonical serializer. A change to what is recognised is made
 once, in `rung-agent-core/src/redact.rs`.

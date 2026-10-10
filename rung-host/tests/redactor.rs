@@ -23,6 +23,10 @@ fn sentinels() -> Vec<(&'static str, String)> {
         ("google", format!("AIza{a}")),
         ("huggingface", format!("hf_{a}")),
         ("npm", format!("npm_{a}")),
+        ("xai", format!("xai-{a}")),
+        ("groq", format!("gsk_{a}")),
+        ("tailnet key", format!("tskey-auth-{a}")),
+        ("slack app", format!("xapp-1-{a}")),
         ("secrets manager", format!("dp.st.{a}")),
         ("jwt", format!("eyJ{a}.eyJ{a}.SENTINELSIGNATURE0123456789")),
     ]
@@ -323,11 +327,28 @@ fn hostile_text_is_redacted_in_time_linear_in_its_length() {
         ("variable references", "token:$"),
         ("header names", "authorization:"),
         ("header names, quoted", "cookie:\""),
+        ("header names, single quoted", "'authorization: "),
+        ("header names, escaped quote", "{\\\"cookie\\\": \\\""),
+        ("cookie pairs with quotes", "cookie: a=\"b\"; "),
         ("token prefixes", "sk-"),
+        ("xai prefixes", "xai-"),
+        ("groq prefixes", "gsk_"),
+        ("tailnet prefixes", "tskey-"),
+        ("slack app prefixes", "xapp-"),
+        ("github prefixes", "ghp_"),
+        ("aws prefixes", "AKIA"),
+        ("google prefixes", "AIza"),
         ("jwt-like runs", "eyJ-"),
         ("bearer words", "bearer a "),
         ("url schemes", "a://"),
         ("quotes", "password=\"x"),
+        ("escaped quotes", "password=\\\"x"),
+        ("escaped backslashes", "password=a\\\\"),
+        ("webhook prefixes", "hooks.slack.com/services/"),
+        ("discord webhooks", "discord.com/api/webhooks/"),
+        ("key block starts", "-----BEGIN "),
+        ("private key starts", "-----BEGIN PRIVATE KEY-----\n"),
+        ("private key stray starts", "-----BEGIN x\n"),
     ] {
         let text = format!("{}{} tail", unit.repeat(n), secret);
         let t = std::time::Instant::now();
@@ -391,5 +412,188 @@ fn a_value_inside_escaped_json_text_stops_at_the_escape() {
     assert_eq!(
         redact(r#"Cookie: sid=SENTINELsession\nnext"#),
         format!(r#"Cookie: {MARK}\nnext"#)
+    );
+}
+
+// ---- review items: skip-ahead, header keys, quotes, backslashes ------------
+
+#[test]
+fn a_secret_next_to_another_never_escapes_after_a_match() {
+    let all = sentinels();
+    for (na, a) in &all {
+        for (nb, b) in &all {
+            for sep in ["", " ", ",", "\"", "'", "\n", ";", "&", "|", ")", "/"] {
+                let text = format!("{a}{sep}{b}");
+                let out = redact(&text);
+                assert!(
+                    !out.contains(a.as_str()),
+                    "{na} then {nb} with {sep:?}: {out}"
+                );
+                assert!(
+                    !out.contains(b.as_str()),
+                    "{na} then {nb} with {sep:?}: {out}"
+                );
+            }
+        }
+    }
+    // After a header value, an assignment, a URL password, a key block.
+    for text in [
+        format!(
+            "Authorization: Bearer SENTINELtoken0123,{}",
+            sentinels()[2].1
+        ),
+        format!("token=SENTINELvalue0123&api_key={}&x=1", sentinels()[1].1),
+        format!("https://u:SENTINELpass0123@h.test/ {}", sentinels()[2].1),
+        format!("{}\n{}", pem("SENTINELBODY0123"), sentinels()[2].1),
+        format!("GH_{}", sentinels()[2].1),
+    ] {
+        let out = redact(&text);
+        assert!(!out.contains("SENTINEL"), "{text} -> {out}");
+    }
+}
+
+#[test]
+fn a_stray_key_block_start_does_not_hide_the_real_block() {
+    let text = format!("-----BEGIN x\nnote {}\nafter", pem("SENTINELBODY0123"));
+    let out = redact(&text);
+    assert!(!out.contains("SENTINELBODY"), "{out}");
+    assert!(out.starts_with("-----BEGIN x\nnote -----BEGIN PRIVATE KEY-----"));
+    assert!(out.ends_with("-----END PRIVATE KEY-----\nafter"));
+    // A certificate before the key is not a secret and survives.
+    let text = format!(
+        "-----BEGIN CERTIFICATE-----\nMIIBpublic\n-----END CERTIFICATE-----\n{}",
+        pem("SENTINELBODY0123")
+    );
+    let out = redact(&text);
+    assert!(
+        out.contains("MIIBpublic") && !out.contains("SENTINELBODY"),
+        "{out}"
+    );
+}
+
+#[test]
+fn a_map_key_that_is_a_header_name_redacts_its_value() {
+    let r = Redactor::new();
+    let v = json!({
+        "Authorization": "Bearer x",
+        "Cookie": "a=b",
+        "X-Api-Key": "k",
+        "headers": {"set-cookie": ["sid=1; HttpOnly", "b=2"], "Proxy-Authorization": "Basic abc"},
+        "mcp-session-id": "s",
+        "credentials": {"user": "alice", "pass": "sentinel-pass", "n": 3},
+        "content-type": "application/json",
+        "accept": "text/html",
+    });
+    let out = r.redact_value(&v);
+    for k in ["Authorization", "Cookie", "X-Api-Key", "mcp-session-id"] {
+        assert_eq!(out[k], MARK, "{k}");
+    }
+    assert_eq!(out["headers"]["set-cookie"], json!([MARK, MARK]));
+    assert_eq!(out["headers"]["Proxy-Authorization"], MARK);
+    assert_eq!(
+        out["credentials"],
+        json!({"user": MARK, "pass": MARK, "n": 3})
+    );
+    assert_eq!(out["content-type"], "application/json");
+    assert_eq!(out["accept"], "text/html");
+    // And as a record line.
+    let line = serde_json::to_string(&json!({"seq": 1, "headers": {"Authorization": "Bearer x"}}))
+        .unwrap();
+    let red: serde_json::Value = serde_json::from_str(&r.redact_json_line(&line)).unwrap();
+    assert_eq!(red["headers"]["Authorization"], MARK);
+}
+
+#[test]
+fn quoted_header_values_are_replaced_to_their_closing_quote() {
+    for (text, want) in [
+        (
+            "Cookie: a=\"b c\"; d=e\nnext",
+            format!("Cookie: {MARK}\nnext"),
+        ),
+        (
+            "curl -H 'Cookie: a=\"b\"; c=d' x",
+            format!("curl -H 'Cookie: {MARK}' x"),
+        ),
+        (
+            "{\"authorization\": \"Digest a=1, b=2\"}",
+            format!("{{\"authorization\": \"{MARK}\"}}"),
+        ),
+        (
+            "Authorization:\"Bearer SENTINELtoken0123\" ok",
+            format!("Authorization:\"{MARK}\" ok"),
+        ),
+        (
+            "{'authorization': 'Bearer SENTINELtoken0123', 'n': 1}",
+            format!("{{'authorization': '{MARK}', 'n': 1}}"),
+        ),
+        (
+            "-H \"X-Api-Key: SENTINELkey0123\" -H \"Accept: x\"",
+            format!("-H \"X-Api-Key: {MARK}\" -H \"Accept: x\""),
+        ),
+    ] {
+        assert_eq!(redact(text), want, "{text}");
+    }
+}
+
+#[test]
+fn escaped_quotes_and_backslashes_do_not_end_a_redaction_early() {
+    for (text, want) in [
+        // JSON-escaped text: the pairs around names and values are escapes.
+        (
+            r#"{\"password\": \"SENTINELpass0123\", \"n\": 1}"#,
+            format!(r#"{{\"password\": \"{MARK}\", \"n\": 1}}"#),
+        ),
+        (
+            r#"{\"Authorization\": \"Bearer SENTINELtoken0123\"}"#,
+            format!(r#"{{\"Authorization\": \"{MARK}\"}}"#),
+        ),
+        (
+            r#"{\"Cookie\": \"sid=SENTINELsession; a=b\", \"n\": 1}"#,
+            format!(r#"{{\"Cookie\": \"{MARK}\", \"n\": 1}}"#),
+        ),
+        // A value holding an escaped backslash runs through it.
+        (
+            r"password=ab\\cdSENTINEL0123 next",
+            format!("password={MARK} next"),
+        ),
+        // A quoted value holding an escaped quote runs through it.
+        (
+            r#"password="SENTINEL\"tail0123" ok"#,
+            format!(r#"password="{MARK}" ok"#),
+        ),
+        (
+            r#"api_key='SENTINEL\'tail0123' ok"#,
+            format!(r#"api_key='{MARK}' ok"#),
+        ),
+    ] {
+        assert_eq!(redact(text), want, "{text}");
+    }
+}
+
+#[test]
+fn webhook_urls_lose_their_token_path() {
+    assert_eq!(
+        redact(
+            "post https://hooks.slack.com/services/T00000000/B00000000/SENTINELwebhook0123456789 now"
+        ),
+        format!("post https://hooks.slack.com/services/{MARK} now")
+    );
+    assert_eq!(
+        redact(
+            "https://discord.com/api/webhooks/123456789012345678/SENTINELwebhook0123456789_-x?wait=true"
+        ),
+        format!("https://discord.com/api/webhooks/{MARK}?wait=true")
+    );
+    assert_eq!(
+        redact("https://discordapp.com/api/webhooks/1/SENTINELwebhook0123456789"),
+        format!("https://discordapp.com/api/webhooks/{MARK}")
+    );
+    assert_eq!(
+        redact("https://hooks.zapier.com/hooks/catch/123/SENTINELhook0123/"),
+        format!("https://hooks.zapier.com/hooks/catch/{MARK}/")
+    );
+    assert_eq!(
+        redact("https://example.test/webhooks/docs is a page"),
+        "https://example.test/webhooks/docs is a page"
     );
 }

@@ -151,15 +151,22 @@ impl McpToolError {
 }
 
 /// Redacts credentials from `text`: the one definition of what a credential
-/// looks like, [`crate::redact::Redactor`], with this module's marker and its
-/// secrets: the values registered by [`register_secret`] and of well-known
-/// API-key env vars. Set `RUNG_REDACT_ENVS` to a comma-separated list of extra
-/// env var names whose values are also redacted.
+/// looks like, [`crate::redact::Redactor`] (built once), with this module's
+/// marker, then the values registered by [`register_secret`] and of
+/// well-known API-key env vars. Set `RUNG_REDACT_ENVS` to a comma-separated
+/// list of extra env var names whose values are also redacted.
 pub fn redact(text: &str) -> String {
-    let mut r = crate::redact::Redactor::with_mark("[REDACTED]");
+    static SHAPES: std::sync::OnceLock<crate::redact::Redactor> = std::sync::OnceLock::new();
+    let mut out = SHAPES
+        .get_or_init(|| crate::redact::Redactor::with_mark("[REDACTED]"))
+        .redact(text)
+        .into_owned();
+
     DYNAMIC_SECRETS.with(|set| {
         for secret in set.borrow().iter() {
-            r.add_secret_min(secret, 1);
+            if !secret.is_empty() {
+                out = out.replace(secret, "[REDACTED]");
+            }
         }
     });
 
@@ -175,8 +182,24 @@ pub fn redact(text: &str) -> String {
         .iter()
         .copied()
         .chain(extra.split(',').map(str::trim).filter(|n| !n.is_empty()));
-    r.add_env_with(names, |k| std::env::var(k).ok());
-    r.redact(text).into_owned()
+    redact_env_values(&out, names, |k| std::env::var(k).ok())
+}
+
+fn redact_env_values<'a>(
+    text: &str,
+    names: impl Iterator<Item = &'a str>,
+    lookup: impl Fn(&str) -> Option<String>,
+) -> String {
+    let mut out = text.to_string();
+    for key in names {
+        if let Some(val) = lookup(key) {
+            let val = val.trim();
+            if val.len() >= 6 {
+                out = out.replace(val, "[REDACTED]");
+            }
+        }
+    }
+    out
 }
 
 fn classify_reqwest_error(
@@ -1597,15 +1620,14 @@ mod tests {
             "B" => Some("short".to_string()),
             _ => None,
         };
-        let mut r = crate::redact::Redactor::with_mark("[REDACTED]");
-        r.add_env_with(["A", "B", "C"], lookup);
-        assert_eq!(
-            r.redact("x s3cr3t-value-xyz short y"),
-            "x [REDACTED] short y"
+        let out = redact_env_values(
+            "x s3cr3t-value-xyz short y",
+            ["A", "B", "C"].into_iter(),
+            lookup,
         );
-        let mut none = crate::redact::Redactor::with_mark("[REDACTED]");
-        none.add_env_with([], lookup);
-        assert_eq!(none.redact("x s3cr3t-value-xyz"), "x s3cr3t-value-xyz");
+        assert_eq!(out, "x [REDACTED] short y");
+        let none = redact_env_values("x s3cr3t-value-xyz", [].into_iter(), lookup);
+        assert_eq!(none, "x s3cr3t-value-xyz");
     }
 
     #[test]
@@ -1714,6 +1736,32 @@ mod tests {
         assert_eq!(
             redact("redis://sentineltoken0@h:1/0 ssh://git@h/r"),
             "redis://[REDACTED]@h:1/0 ssh://git@h/r"
+        );
+    }
+
+    #[test]
+    fn redact_leaves_ordinary_text_alone() {
+        // Memory text, URLs without credentials and prose pass through whole:
+        // counts, variable names, word-alikes and public key material.
+        let text = "\
+note: max_tokens: 4096, prompt_tokens=22114; api_key_env: OPENROUTER_API_KEY\n\
+the task-runner ran ask-me-later; sk-learn is a library; a bearer token is a credential\n\
+password reset flow, token budget, secret garden, sort_key: name, cache_key=abc\n\
+see https://example.org/a/b?page=2&sort=asc#top and ssh://git@example.org/r.git\n\
+mail a@b.example at 14:02:11, ratio 3:1, key: value, 日本語 🚀 ünï\n\
+-----BEGIN CERTIFICATE-----\nMIIBpublicCERTIFICATEbody\n-----END CERTIFICATE-----\n";
+        assert_eq!(redact(text), text);
+    }
+
+    #[test]
+    fn redact_keeps_what_surrounds_a_replaced_value() {
+        let key = format!("ghp_{}", "SENTINEL0123456789abcdefSENTINEL");
+        let text = format!(
+            "before {key} middle Authorization: Bearer sentineltoken0123\nCookie: sid=sentinel0; x=y\nafter, with 日本語"
+        );
+        assert_eq!(
+            redact(&text),
+            "before [REDACTED] middle Authorization: [REDACTED]\nCookie: [REDACTED]\nafter, with 日本語"
         );
     }
 
