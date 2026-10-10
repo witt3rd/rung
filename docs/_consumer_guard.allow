@@ -10,3 +10,4 @@ docs/reports/rung-continuous-host-v3/build.py  # report build: its privacy scan 
 docs/reports/rung-jevmem-memory-v2/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
 docs/reports/rung-memory-provider-contract-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
 docs/reports/prime-agent-vs-rung-agent-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
+docs/reports/rung-ui-design-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
