@@ -26,7 +26,9 @@ use std::sync::Arc;
 
 use rung_agent::turn_check::{self, Turn, TurnReading, arm, turn_ask, turncheck};
 use rung_std::agent::AgentResult;
-use rung_std::decide::{Ask, Decided, Decider, LEGACY_MODEL, Recorded, Undecided, read_answers};
+use rung_std::decide::{
+    Ask, DEFAULT_MODEL, Decided, Decider, LEGACY_MODEL, Recorded, Undecided, read_answers,
+};
 use rung_std::llm::{ChatMessage, MessageContent, MessageContentBlock, Usage};
 use serde_json::{Value, json};
 
@@ -156,7 +158,14 @@ fn mock_jev(replies: Vec<Jev>, tmp: &Path) -> String {
             };
             // The fixtures were recorded from the legacy model; the binary
             // asks for the default one. The mock answers the recorded
-            // exchange, so compare everything but the model name.
+            // exchange, so compare everything but the model name. First
+            // pin what the agent really asked for: no `turn_check.model` is
+            // configured here, so it must be the default.
+            assert_eq!(
+                request["model"],
+                json!(DEFAULT_MODEL),
+                "the binary asked the judge for the wrong model"
+            );
             let mut request = request;
             request["model"] = json!(LEGACY_MODEL);
             match Recorded::from_env_pinned(fixture(name), LEGACY_MODEL).exchange(&request) {
