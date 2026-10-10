@@ -251,23 +251,26 @@ A write by the read-only role is refused with 403 before it reaches a host:
 {"error": "read_only", "message": "this token can only read"}
 ```
 
-### Writes: Origin and Host
+### Host and Origin
 
-The owner role is whoever reaches the gateway, so every write (any method
-other than GET or HEAD under `/api`, whatever door it is for, now or added by
-a later slice) passes one guard first. It applies to the owner role only; the
-read-only role keeps its own 403, and reads are not guarded.
+The owner role is whoever reaches the gateway, so every owner-role request
+under `/api` (reads included) passes a Host check first, and every write (any
+method other than GET or HEAD, whatever door it is for, now or added by a
+later slice) also passes an Origin check. A request with a read-only token
+skips both: the read-only role keeps its own 403 on a write.
 
-- The `Host` must be `localhost`, `127.0.0.1`, `[::1]` or a name in
-  `allowed_hosts` (compared without case or port). Anything else, or no
-  `Host`, is refused: this is what stops a rebound DNS name from driving a
-  write. Behind the tailnet's serve command, list the name it gives the
-  gateway.
-- An `Origin`, if the client sends one, must be the same origin as the
-  request: the same host name as the `Host` and the same port (a scheme's
-  default port counts as no port). `null`, another host, or another port on
-  the same host is refused. A browser sends `Origin` on every write; a script
-  usually sends none and passes.
+- The `Host` must be `localhost`, `127.0.0.1`, `[::1]`, a name or bare IP in
+  `allowed_hosts` (compared without case or port), or the IP the gateway is
+  bound to when that is a specific address that is neither loopback nor
+  unspecified (so a tailnet-bound listener is not locked out). Anything else,
+  or no `Host`, is refused: this is what stops a rebound DNS name from
+  reading or driving an instance. Behind the tailnet's serve command, list
+  the name it gives the gateway.
+- On a write only, an `Origin`, if the client sends one, must be the same
+  origin as the request: the same host name as the `Host` and the same port (a
+  scheme's default port counts as no port). `null`, another host, or another
+  port on the same host is refused. A browser sends `Origin` on every write; a
+  script usually sends none and passes.
 
 Refusals are 403 with `{"error": "bad_host", ...}` or `{"error": "bad_origin",
 ...}`, before anything reaches an instance.
