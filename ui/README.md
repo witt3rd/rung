@@ -3,7 +3,7 @@
 The page for watching, queueing for and configuring continuous rung hosts. Not published.
 Design: `docs/reports/rung-ui-design-v1/` (the acceptance scenario, the host pieces, the five slices).
 
-**Slice 0 (this slice): a read-only observer over a recorded event log.** Instances overview, then one
+**Slice 0: a read-only observer over a recorded event log.** Instances overview, then one
 instance: Now and Turns. Nothing here can change a host. A running host's doors do not exist yet, so the app
 reads recorded files; that one module (`src/data/source.ts`) is the seam a host's read doors replace.
 
@@ -46,7 +46,7 @@ when skipped; against a real host they run once it has a way to be made to write
 
 - **State word**: from the record and from whether the lock on the state directory is held. A recorded run has
   no process, so no lock: it is Stopped (it ended on a halt) or Down (it did not). The synthetic instances stand
-  for a held lock with a flag, `lockHeld`, until slice 1 supplies the real one.
+  for a held lock with a flag, `lockHeld`; live, the host's `/v1/summary` supplies the state word (slice 1).
 - **Credentials**: one redactor (`src/record/redact.ts`) replaces the exact value of every key a run's config
   names by environment variable (`api_key_env`), the variables listed in `RUNG_REDACT_ENVS` (the one surface
   the agent crates use too) and the well-known provider key variables, and the shapes of well-known keys. It runs when the data is
