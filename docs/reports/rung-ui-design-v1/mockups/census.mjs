@@ -4,7 +4,7 @@
 //   filled controls <= 1 (accent fill)       amber marks only on a "needs you" element
 //   text sizes <= 4                          no repeated sentence (>= 4 words, twice)
 //   key hints = 0 (kbd)                      no horizontal scroll at 390
-//   tap targets >= 44 x 44 at 390 (interactive elements)
+//   tap targets >= 44 x 44 at 390: links, buttons, selects, inputs; an input is measured by its label's box
 //   text >= 14 px                            heading level 1 exactly once
 //   the active tab is fully visible (added after the first capture showed it clipped)
 import { chromium, PAGES, VIEWS } from "./lib.mjs";
@@ -33,7 +33,11 @@ for (const [vn, vp] of Object.entries(VIEWS)) {
       const ctrl = [...document.querySelectorAll("a,button,input,select,label")].filter(vis);
       const filled = ctrl.filter((e) => e.matches(".primary")).length;
       const amberBad = [...document.querySelectorAll(".mark.needs,.needs-text")].filter((e) => !e.closest(".next") && !e.closest("[data-needs]")).length;
-      const tiny = narrow ? ctrl.filter((e) => { const r = e.getBoundingClientRect(); return e.matches("a,button,select") && (r.height < 43.5 || r.width < 43.5) && !e.closest("p") && !e.closest(".fold") && !e.closest(".crumb"); }).length : 0;
+      // Hit area: a control inside a label is hit through the label, so the label's box is measured.
+      // Inline text links (in a sentence, a fold line or the breadcrumb) are exempt, as WCAG 2.5.8 allows.
+      const tiny = narrow ? [...new Set(ctrl.filter((e) => e.matches("a,button,select,input,textarea"))
+        .filter((e) => !(e.matches("a") && (e.closest("p") || e.closest(".fold") || e.closest(".crumb"))))
+        .map((e) => e.closest("label") || e))].filter((e) => { const r = e.getBoundingClientRect(); return r.height < 43.5 || r.width < 43.5; }).length : 0;
       return { words: words.length, sizes: [...sizes].sort((a, b) => a - b), filled, repeated: Object.values(sentences).filter((c) => c > 1).length,
         kbd: document.querySelectorAll("kbd").length, h1: document.querySelectorAll("h1").length, small, amberBad, tiny,
         tabClipped: (() => { const t = document.querySelector(".tabs"), a = t && t.querySelector("[aria-current]"); if (!a) return false; const tr = t.getBoundingClientRect(), ar = a.getBoundingClientRect(); return ar.left < tr.left - 1 || ar.right > tr.right + 1; })(),

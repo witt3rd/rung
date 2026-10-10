@@ -1,18 +1,9 @@
 // Render build/deck.html to a vector PDF and one PNG per page, plus a layout lint
 // (nothing may leave its page or run into the footer). Playwright resolution follows
-// the explainer's render.mjs: PLAYWRIGHT_MODULE, then the mise-pinned 1.62.1.
-import { createRequire } from "node:module";
+// playwright.mjs (shared with the report mockup scripts).
 import { join, resolve } from "node:path";
 import { mkdirSync } from "node:fs";
-import { homedir } from "node:os";
-const require = createRequire(import.meta.url);
-const candidates = [
-  process.env.PLAYWRIGHT_MODULE,
-  join(homedir(), ".local/share/mise/installs/npm-playwright/1.62.1/node_modules/playwright"),
-].filter(Boolean);
-let chromium;
-for (const c of candidates) { try { ({ chromium } = require(c)); break; } catch {} }
-if (!chromium) throw new Error(`Playwright not found in: ${candidates.join(", ")}`);
+import { chromium } from "./playwright.mjs";
 const build = resolve(process.argv[2] ?? "build");
 mkdirSync(join(build, "png"), { recursive: true });
 const browser = await chromium.launch();

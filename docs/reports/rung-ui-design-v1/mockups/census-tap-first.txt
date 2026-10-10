@@ -1,0 +1,13 @@
+index     1920  words  39  filled 0  sizes 3  pass
+instance  1920  words  60  filled 1  sizes 4  pass
+turns     1920  words  39  filled 0  sizes 4  pass
+queue     1920  words  51  filled 1  sizes 4  pass
+configure 1920  words  54  filled 1  sizes 4  pass
+console   1920  words  32  filled 0  sizes 3  pass
+index     390   words  39  filled 0  sizes 3  pass
+instance  390   words  46  filled 1  sizes 4  pass
+turns     390   words  28  filled 0  sizes 4  pass
+queue     390   words  45  filled 1  sizes 4  pass
+configure 390   words  44  filled 0  sizes 4  FAIL small tap targets 1
+console   390   words  30  filled 0  sizes 3  pass
+census: 1 failure(s)
