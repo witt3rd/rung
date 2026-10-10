@@ -1,0 +1,14 @@
+# each line: one deliberate fault put into the mock, and the contract tests that caught it
+slow readers never dropped (HIGH_WATER huge):
+  ✖ a slow reader is dropped, does not slow another reader, and loses nothing on resume
+replay starts one line early (a line twice on resume):
+  ✖ a line the host records reaches the stream within a second, in order
+  ✖ a slow reader is dropped, does not slow another reader, and loses nothing on resume
+  ✖ cut and resume: exactly once, in order, nothing missing
+  ✖ events: replay after N is exactly the record's lines after N, in order, then caught_up
+the gateway lets the instance key into an answer header:
+  ✖ no key in any answer, stream line or header
+a delta carries an id (and is replayed as a record would be):
+  ✖ deltas are short-lived: no id, seen live, never replayed
+the read-only role may write:
+  ✖ the read-only token may read and may not write; a wrong token is 401
