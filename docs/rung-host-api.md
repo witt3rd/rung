@@ -57,21 +57,30 @@ The registry folder is `$RUNG_HOME/instances/` (`~/.rung/instances/` when
 | file | what |
 |---|---|
 | `ID.json` | the entry: who the instance is. Written when the host starts; **never removed**, so a stopped or dead instance stays listed. |
-| `ID.lock` | the liveness lock. The running host holds an exclusive `flock` on it for its whole life. |
+
+(`.registry.lock` in the same folder only serializes changes to the folder;
+it says nothing about any instance.) Liveness is the **state directory's
+lock** (`STATE_DIR/host.lock`, the H1 section above), not a file here.
 
 ### Who registers
 
 - `rung-host run --config FILE` always registers. The name is `name:` in the
   file; without it, the last component of `state:`.
 - `rung-host sim` (the test harness) registers only when given `--name NAME`.
-- Registration happens **before the record is opened**: a refused start
-  touches nothing. A refusal exits with the bad-start code `2` and names the
-  entry it collides with:
-  - the id belongs to a **live** host (`pid N`);
-  - the id is registered for **another state directory**;
+- A host registers only **while it holds its state directory's lock**, so a
+  start the lock refuses registers nothing, and two starts can never
+  register one state. For `run` it happens right after the lock is taken and
+  **before anything else is created** (the memory store, the inbox, the
+  record); `sim` builds its host first and registers before it runs. A
+  refusal exits with the bad-start code `2` and names the entry it collides
+  with:
+  - the id is registered for **another state directory** (the message says
+    whether that host is running, with its pid, or not running);
   - this state directory is registered under **another id**.
-  A restart (same id, same state, lock free) renews the entry. Nothing is
-  ever replaced behind the operator's back.
+  A restart (same id, same state) renews the entry. Nothing is ever
+  replaced behind the operator's back. The check against the other entries
+  and the write of this one are one step under the folder lock, so two
+  starts for different states cannot both take one id.
 - The id is the name as a slug: ASCII letters and digits lowercased, every
   other run of characters one `-`, none at the ends (`Deep Thought` →
   `deep-thought`). A name with no letter or digit is refused.
@@ -117,9 +126,10 @@ old entry or the new one, never half of one.
 An entry never says whether its host lives; a dead host cannot say anything.
 A reader derives the **state word** from the lock and the record:
 
-1. Open `ID.lock` and take a shared, non-blocking `flock`. If it **fails
-   because the lock is held** the host lives: **`running`**. Otherwise
-   release it at once. (A missing lock file means no host ever held it.)
+1. Open `STATE_DIR/host.lock` and take a shared, non-blocking `flock`. If
+   it **fails because the lock is held** the host lives: **`running`**.
+   Otherwise release it at once. (A missing lock file means no host ever
+   held it.)
 2. The lock is free. Read the **last line** of `STATE_DIR/record/` (the
    newest segment's last complete line; a torn tail is ignored). If its
    `kind` is `halted` the host stopped itself: **`stopped`**. Anything else

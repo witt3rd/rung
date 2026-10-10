@@ -551,31 +551,33 @@ ladder!(Startup {
     recovered = |listed| {
         let carry = listed.carry().clone();
         let plan = listed.payload;
-        // Before the record is opened: a start the registry refuses (the id
-        // is live, or the state belongs to another id) touches nothing.
-        let registered = if plan.register {
-            let instance = Instance {
-                name: plan.name.clone(),
-                state_dir: plan.state.clone(),
-                config: Some(plan.config_file.clone()),
-                workspace: plan.config.workspace.clone(),
-            };
-            Registration::register(&instance, plan.clock.now()).map(|r| Some(Arc::new(r)))
-        } else {
-            Ok(None)
-        };
-        let (registration, registered) = match registered {
-            Ok(r) => (r, Ok(())),
-            Err(why) => (None, Err(why)),
-        };
         // One live host per state directory: take the hold before anything
-        // is written there (the memory store, the record).
+        // is written there (the memory store, the record, the inbox).
         let lock = match crate::statelock::StateLock::acquire(&plan.state) {
             Ok(l) => l,
             Err(e) => {
                 let opened = Err(e.to_string());
-                return Recovered::new(Opening { opened, acp: plan.acp, registration }, carry);
+                return Recovered::new(Opening { opened, acp: plan.acp, registration: None }, carry);
             }
+        };
+        // Then the registry, still before anything else is created: a start
+        // it refuses (the id belongs to another state, or the state to
+        // another id) leaves nothing behind but the lock file.
+        let registration = if plan.register {
+            let instance = Instance {
+                name: plan.name.clone(),
+                config: Some(plan.config_file.clone()),
+                workspace: plan.config.workspace.clone(),
+            };
+            match Registration::register(&instance, plan.clock.now(), &lock) {
+                Ok(r) => Some(Arc::new(r)),
+                Err(why) => {
+                    let opened = Err(why);
+                    return Recovered::new(Opening { opened, acp: plan.acp, registration: None }, carry);
+                }
+            }
+        } else {
+            None
         };
         let mut b = HostBuilder::new(plan.config, &plan.state, plan.clock, plan.engine);
         stop_install();
@@ -597,7 +599,7 @@ ladder!(Startup {
         if plan.memory {
             b.memory = Some(Arc::new(MemoryHost::baseline(&plan.state.join("memory"), "host")));
         }
-        let opened = registered.and(inbox).and_then(|sources| {
+        let opened = inbox.and_then(|sources| {
             b.sources = sources;
             Host::open(b).map_err(|e| format!("{}: {e}", plan.state.display()))
         });

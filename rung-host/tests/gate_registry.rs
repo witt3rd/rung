@@ -300,3 +300,89 @@ fn run_registers_from_its_config_and_an_empty_registry_lists_nothing() {
     assert_eq!(e["word"], "stopped");
     let _: &Path = &cfg;
 }
+
+#[test]
+fn a_start_refused_for_its_state_leaves_no_entry() {
+    rung_host::sim::test_timeout(180);
+    let f = Fleet::new("registry-lock-first");
+    // A host holds the state without registering (no --name).
+    let mut holder = f.sim("a", &[]).stderr(Stdio::null()).spawn().unwrap();
+    let t = Instant::now();
+    while !f
+        .state("a")
+        .join("record")
+        .read_dir()
+        .map(|mut d| d.next().is_some())
+        .unwrap_or(false)
+    {
+        assert!(
+            t.elapsed() < Duration::from_secs(60),
+            "the holder never started"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+
+    // Another start names itself and asks for the same state: the state's
+    // lock refuses it, and it must not have registered anything first.
+    let out = f
+        .sim("a", &["--name", "intruder"])
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    let err = String::from_utf8_lossy(&out.stderr).to_string();
+    assert_eq!(out.status.code(), Some(2), "stderr: {err}");
+    assert!(
+        err.contains(&format!("pid {}", holder.id())),
+        "names the holder: {err}"
+    );
+    assert!(
+        f.listed().is_empty(),
+        "a refused start registered: {:?}",
+        f.listed()
+    );
+    assert!(!f.home().join("instances/intruder.json").exists());
+
+    signal(&holder, libc::SIGTERM);
+    holder.wait().unwrap();
+}
+
+#[test]
+fn a_registry_refusal_creates_nothing_else() {
+    rung_host::sim::test_timeout(180);
+    let f = Fleet::new("registry-refusal-clean");
+    let mut live = f.start("a", "alpha");
+    f.wait_word("alpha", "running", 60);
+
+    // `run` under the live host's name, on another state, with an inbox
+    // directory that does not exist yet: refused, and the inbox stays absent.
+    let inbox = f.state("inbox");
+    let cfg = f.root.path().join("rung-host.yaml");
+    std::fs::write(
+        &cfg,
+        format!(
+            "name: alpha\nstate: {}\ninbox: {}\nengine:\n  kind: mock\nmemory: false\n",
+            f.state("b").display(),
+            inbox.display()
+        ),
+    )
+    .unwrap();
+    let out = Command::new(BIN)
+        .args(["run", "--config", cfg.to_str().unwrap(), "--turns", "1"])
+        .env("RUNG_HOME", f.home())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    let err = String::from_utf8_lossy(&out.stderr).to_string();
+    assert_eq!(out.status.code(), Some(2), "stderr: {err}");
+    assert!(err.contains("alpha"), "{err}");
+    assert!(
+        !inbox.exists(),
+        "a refused start created its inbox directory"
+    );
+    assert!(!f.state("b").join("record").exists(), "nor opened a record");
+
+    signal(&live, libc::SIGTERM);
+    live.wait().unwrap();
+}

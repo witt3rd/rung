@@ -7,11 +7,11 @@
 //! ever removes it, so a stopped or dead instance is still listed.
 //!
 //! An entry never says whether its host is alive: a dead host cannot say
-//! anything. Liveness is a lock. While it runs the host holds an exclusive
-//! `flock` on `<id>.lock` beside the entry; the kernel drops it when the
-//! process ends, however it ends, so a crash cannot leave a false
-//! "running". [`list`] joins each entry with that lock and with the last
-//! line of the instance's record:
+//! anything. Liveness is the state directory's lock
+//! ([`crate::statelock`], `host.lock`): a running host holds it for its whole
+//! life and the kernel drops it when the process ends, however it ends, so a
+//! crash cannot leave a false "running". [`list`] joins each entry with that
+//! lock and with the last line of the instance's record:
 //!
 //! | word | when |
 //! |---|---|
@@ -26,12 +26,21 @@
 //! One id names one state directory, and one state directory has one id.
 //! A start that would break either is refused, naming the entry it
 //! collides with; nothing is replaced behind the operator's back.
+//!
+//! A host registers only while it holds its state directory's lock
+//! ([`Registration::register_in`] takes the hold as an argument), so two
+//! starts can never register one state, and a start the lock refuses
+//! registers nothing. The check against the other entries and the write of
+//! this one happen under a lock on the registry folder itself, so two
+//! starts for different states cannot both take one id.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+
+use crate::statelock::{self, StateLock};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -44,10 +53,7 @@ pub const SCHEMA: u32 = 1;
 
 /// The rung home: `$RUNG_HOME`, else `~/.rung`.
 pub fn home() -> PathBuf {
-    match std::env::var("RUNG_HOME") {
-        Ok(h) if !h.trim().is_empty() => PathBuf::from(h),
-        _ => PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into())).join(".rung"),
-    }
+    rung_agent_core::memory::rung_home()
 }
 
 /// The registry folder.
@@ -70,11 +76,11 @@ pub fn slug(name: &str) -> Option<String> {
     (!out.is_empty()).then_some(out)
 }
 
-/// What a host says about itself when it registers.
+/// What a host says about itself when it registers. Its state directory is
+/// the one whose lock it holds ([`Registration::register_in`]).
 #[derive(Debug, Clone)]
 pub struct Instance {
     pub name: String,
-    pub state_dir: PathBuf,
     pub config: Option<PathBuf>,
     pub workspace: PathBuf,
 }
@@ -110,9 +116,8 @@ fn entry_path(dir: &Path, id: &str) -> PathBuf {
     dir.join(format!("{id}.json"))
 }
 
-fn lock_path(dir: &Path, id: &str) -> PathBuf {
-    dir.join(format!("{id}.lock"))
-}
+/// The lock that serializes changes to the registry folder.
+const FOLDER_LOCK: &str = ".registry.lock";
 
 fn read_entry(path: &Path) -> Result<Entry, String> {
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
@@ -163,35 +168,84 @@ fn is_contended(e: &std::io::Error) -> bool {
     e.raw_os_error() == Some(libc::EWOULDBLOCK)
 }
 
-/// A host's registration: the entry, and the lock that says it lives. Hold
-/// it for the life of the process; dropping it frees the lock.
+/// Hold the registry folder's lock until dropped.
+fn lock_folder(dir: &Path) -> Result<File, String> {
+    let path = dir.join(FOLDER_LOCK);
+    let f = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&path)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    // SAFETY: a blocking `flock` on a descriptor this function owns.
+    match unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX) } {
+        0 => Ok(f),
+        _ => Err(format!(
+            "{}: {}",
+            path.display(),
+            std::io::Error::last_os_error()
+        )),
+    }
+}
+
+/// Whether the instance an entry names lives, in words, for a refusal.
+fn describe(e: &Entry) -> String {
+    match state_held(&e.state_dir) {
+        Ok(true) => format!("running, pid {}", e.pid),
+        Ok(false) => "not running".into(),
+        Err(why) => why,
+    }
+}
+
+/// A host's registration: its entry. The liveness lock is the state
+/// directory's ([`StateLock`]), held by the host, not by this.
 #[derive(Debug)]
 pub struct Registration {
     dir: PathBuf,
     entry: Mutex<Entry>,
-    _lock: File,
 }
 
 impl Registration {
-    /// Register `instance` in the folder [`dir`].
-    pub fn register(instance: &Instance, started: Millis) -> Result<Self, String> {
-        Self::register_in(&dir(), instance, started)
+    /// Register `instance` in the folder [`dir`], for the state directory
+    /// whose lock `held` is.
+    pub fn register(
+        instance: &Instance,
+        started: Millis,
+        held: &StateLock,
+    ) -> Result<Self, String> {
+        Self::register_in(&dir(), instance, started, held)
     }
 
-    /// Register `instance` in `dir`: refused when its id belongs to a live
-    /// host or to another state directory, or its state directory to another
-    /// id. A restart (same id, same state, lock free) renews the entry.
-    pub fn register_in(dir: &Path, instance: &Instance, started: Millis) -> Result<Self, String> {
+    /// Register `instance` in `dir`, for the state directory whose lock
+    /// `held` is: refused when its id belongs to another state directory, or
+    /// its state directory to another id. A restart (same id, same state)
+    /// renews the entry.
+    pub fn register_in(
+        dir: &Path,
+        instance: &Instance,
+        started: Millis,
+        held: &StateLock,
+    ) -> Result<Self, String> {
         let id = slug(&instance.name)
             .ok_or_else(|| format!("instance name `{}` has no letter or digit", instance.name))?;
         std::fs::create_dir_all(dir).map_err(|e| format!("registry {}: {e}", dir.display()))?;
-        let state_dir = absolute(&instance.state_dir);
+        let state_dir = absolute(held.dir());
 
-        // One state, one id.
+        // The checks and the write are one step: no other start changes the
+        // folder between them.
+        let _folder = lock_folder(dir)?;
         for path in entry_files(dir)? {
             let Ok(other) = read_entry(&path) else {
                 continue;
             };
+            if other.id == id && !same_dir(&other.state_dir, &state_dir) {
+                return Err(format!(
+                    "instance `{id}` is registered for state {} ({}); pick another name for {}",
+                    other.state_dir.display(),
+                    describe(&other),
+                    state_dir.display()
+                ));
+            }
             if other.id != id && same_dir(&other.state_dir, &state_dir) {
                 return Err(format!(
                     "state {} is registered as `{}` ({}); start it under that name",
@@ -200,47 +254,6 @@ impl Registration {
                     path.display()
                 ));
             }
-        }
-
-        // One live host per id.
-        let lock = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .write(true)
-            .open(lock_path(dir, &id))
-            .map_err(|e| format!("registry lock {id}: {e}"))?;
-        let held = {
-            // `ls` holds a shared lock for an instant while it probes.
-            let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1500);
-            loop {
-                match flock(&lock, libc::LOCK_EX) {
-                    Ok(()) => break Ok(()),
-                    Err(e) if is_contended(&e) && std::time::Instant::now() < deadline => {
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                    }
-                    Err(e) => break Err(e),
-                }
-            }
-        };
-        if let Err(e) = held {
-            if !is_contended(&e) {
-                return Err(format!("registry lock {id}: {e}"));
-            }
-            let pid = read_entry(&entry_path(dir, &id))
-                .map(|e| format!("pid {}", e.pid))
-                .unwrap_or_else(|_| "another process".into());
-            return Err(format!(
-                "instance `{id}` is already running ({pid}); one id has one live host"
-            ));
-        }
-        if let Ok(old) = read_entry(&entry_path(dir, &id))
-            && !same_dir(&old.state_dir, &state_dir)
-        {
-            return Err(format!(
-                "instance `{id}` is registered for state {}; pick another name for {}",
-                old.state_dir.display(),
-                state_dir.display()
-            ));
         }
 
         let entry = Entry {
@@ -259,7 +272,6 @@ impl Registration {
         Ok(Registration {
             dir: dir.to_path_buf(),
             entry: Mutex::new(entry),
-            _lock: lock,
         })
     }
 
@@ -331,19 +343,21 @@ impl Row {
     }
 }
 
-/// Is a host holding the lock? A shared, non-blocking probe: it succeeds
-/// only when no host holds the exclusive lock, and it is released at once.
-fn lock_held(dir: &Path, id: &str) -> Result<bool, String> {
-    let f = match File::open(lock_path(dir, id)) {
+/// Is a host holding the state directory's lock? A shared, non-blocking
+/// probe: it succeeds only when no host holds the exclusive lock, and it is
+/// released at once.
+fn state_held(state_dir: &Path) -> Result<bool, String> {
+    let path = state_dir.join(statelock::FILE);
+    let f = match File::open(&path) {
         Ok(f) => f,
-        // No lock file: no host ever took it.
+        // No lock file: no host ever held this state.
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-        Err(e) => return Err(format!("lock {id}: {e}")),
+        Err(e) => return Err(format!("lock {}: {e}", path.display())),
     };
     match flock(&f, libc::LOCK_SH) {
         Ok(()) => Ok(false),
         Err(e) if is_contended(&e) => Ok(true),
-        Err(e) => Err(format!("lock {id}: {e}")),
+        Err(e) => Err(format!("lock {}: {e}", path.display())),
     }
 }
 
@@ -386,7 +400,7 @@ pub fn list_in(dir: &Path) -> Result<Vec<Row>, String> {
                 continue;
             }
         };
-        let held = lock_held(dir, &entry.id);
+        let held = state_held(&entry.state_dir);
         let last = last_of(&entry.state_dir);
         let (word, problem) = match (&held, &last) {
             (Err(why), _) => (Word::Unreadable, Some(why.clone())),
@@ -471,10 +485,13 @@ mod tests {
     fn instance(name: &str, state: &Path) -> Instance {
         Instance {
             name: name.into(),
-            state_dir: state.to_path_buf(),
             config: None,
             workspace: state.join("workspace"),
         }
+    }
+
+    fn hold(state: &Path) -> StateLock {
+        StateLock::acquire(state).unwrap()
     }
 
     #[test]
@@ -485,33 +502,118 @@ mod tests {
         assert_eq!(slug("---"), None);
         assert_eq!(slug(""), None);
         let d = crate::sim::temp_dir_guard("registry-slug");
-        let e = Registration::register_in(d.path(), &instance("!!!", d.path()), 1).unwrap_err();
+        let s = hold(d.path());
+        let e = Registration::register_in(d.path(), &instance("!!!", d.path()), 1, &s).unwrap_err();
         assert!(e.contains("no letter or digit"), "{e}");
     }
 
     #[test]
-    fn a_held_lock_reads_running_and_a_dropped_one_does_not() {
+    fn the_state_lock_reads_running_and_a_dropped_one_does_not() {
         let d = crate::sim::temp_dir_guard("registry-lock");
         let reg = d.path().join("reg");
         let state = d.path().join("s");
-        let held = Registration::register_in(&reg, &instance("one", &state), 5).unwrap();
+        let lock = hold(&state);
+        Registration::register_in(&reg, &instance("one", &state), 5, &lock).unwrap();
         let rows = list_in(&reg).unwrap();
         assert_eq!((rows.len(), rows[0].word), (1, Word::Running));
         assert_eq!(rows[0].entry.as_ref().unwrap().pid, std::process::id());
-        // A second registration of the id is refused while the first lives.
-        let e = Registration::register_in(&reg, &instance("one", &state), 6).unwrap_err();
-        assert!(e.contains("already running"), "{e}");
-        drop(held);
+        drop(lock);
         let rows = list_in(&reg).unwrap();
         assert_eq!(rows[0].word, Word::Down, "no record, no halt: down");
-        assert!(rows[0].problem.is_none() || rows[0].last.is_none());
+        assert!(rows[0].problem.is_none() && rows[0].last.is_none());
+    }
+
+    #[test]
+    fn an_id_is_one_state_and_a_state_is_one_id() {
+        let d = crate::sim::temp_dir_guard("registry-identity");
+        let reg = d.path().join("reg");
+        let (a, b) = (d.path().join("a"), d.path().join("b"));
+        let la = hold(&a);
+        Registration::register_in(&reg, &instance("one", &a), 5, &la).unwrap();
+        // The id again, for another state.
+        let lb = hold(&b);
+        let e = Registration::register_in(&reg, &instance("one", &b), 6, &lb).unwrap_err();
+        assert!(
+            e.contains("registered for state") && e.contains("running"),
+            "{e}"
+        );
+        // Another id, for the same state (once it is free to take again).
+        drop(la);
+        let la = hold(&a);
+        let e = Registration::register_in(&reg, &instance("two", &a), 6, &la).unwrap_err();
+        assert!(e.contains("registered as `one`"), "{e}");
+        // A restart renews.
+        Registration::register_in(&reg, &instance("one", &a), 7, &la).unwrap();
+        assert_eq!(list_in(&reg).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn concurrent_starts_for_one_id_never_both_register() {
+        // The checks against the other entries and the write are one step:
+        // two starts racing for different states under one name must not
+        // both get through.
+        for round in 0..50 {
+            let d = crate::sim::temp_dir_guard(&format!("registry-race-{round}"));
+            let reg = d.path().join("reg");
+            let gate = std::sync::Arc::new(std::sync::Barrier::new(2));
+            let runs: Vec<_> = ["a", "b"]
+                .into_iter()
+                .map(|dir| {
+                    let state = d.path().join(dir);
+                    let (reg, gate) = (reg.clone(), gate.clone());
+                    std::thread::spawn(move || {
+                        let lock = hold(&state);
+                        gate.wait();
+                        Registration::register_in(&reg, &instance("one", &state), 5, &lock).is_ok()
+                    })
+                })
+                .collect();
+            let ok = runs.into_iter().filter(|_| true).map(|h| h.join().unwrap());
+            assert_eq!(
+                ok.filter(|ok| *ok).count(),
+                1,
+                "round {round}: one id, two states"
+            );
+        }
+    }
+
+    #[test]
+    fn a_registration_waits_for_whoever_is_changing_the_folder() {
+        // The checks and the write happen under the folder's lock: while
+        // another start holds it, this one does not read or write.
+        let d = crate::sim::temp_dir_guard("registry-folder-lock");
+        let reg = d.path().join("reg");
+        std::fs::create_dir_all(&reg).unwrap();
+        let busy = lock_folder(&reg).unwrap();
+        let (r2, state) = (reg.clone(), d.path().join("s"));
+        let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let d2 = done.clone();
+        let t = std::thread::spawn(move || {
+            let lock = hold(&state);
+            let r = Registration::register_in(&r2, &instance("one", &state), 5, &lock);
+            d2.store(true, std::sync::atomic::Ordering::SeqCst);
+            r.is_ok()
+        });
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        assert!(
+            !done.load(std::sync::atomic::Ordering::SeqCst),
+            "did not wait"
+        );
+        assert!(
+            entry_files(&reg).unwrap().is_empty(),
+            "wrote while the folder was held"
+        );
+        drop(busy);
+        assert!(t.join().unwrap());
+        assert_eq!(list_in(&reg).unwrap().len(), 1);
     }
 
     #[test]
     fn the_address_is_rewritten_into_the_entry() {
         let d = crate::sim::temp_dir_guard("registry-address");
         let reg = d.path().join("reg");
-        let r = Registration::register_in(&reg, &instance("one", d.path()), 5).unwrap();
+        let lock = hold(d.path());
+        let r = Registration::register_in(&reg, &instance("one", d.path()), 5, &lock).unwrap();
         assert_eq!(r.entry().address, None);
         r.set_address("127.0.0.1:4567").unwrap();
         let rows = list_in(&reg).unwrap();

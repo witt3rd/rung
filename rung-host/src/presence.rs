@@ -236,6 +236,11 @@ fn mode_value(st: &State) -> Value {
 }
 
 impl Host {
+    /// The hold on the state directory (held for the host's life).
+    pub fn state_lock(&self) -> &crate::statelock::StateLock {
+        &self._lock
+    }
+
     /// Open the record, replay it, and build the host. Returns the host and
     /// what waking found.
     pub fn open(mut b: HostBuilder) -> std::io::Result<(Arc<Host>, Recovered)> {

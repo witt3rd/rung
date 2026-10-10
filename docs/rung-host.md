@@ -182,11 +182,11 @@ Configured(Plan) => Listed(Plan) => Recovered(Opening) => { Handed(Handoff) | Re
   is opened. The host records that listing (`ladder.listed` with
   `at_start: true`) at its first boundary, before its first turn; a failed
   listing does not stop the start.
-- **Recovered**: the host registers itself in the instance registry, then
-  the record is opened and replayed; a restart recovers here. A
-  registration the registry refuses (a live host holds the id, or the id and
-  the state directory belong to other entries) is a refusal that touches
-  nothing. See "Instances" below.
+- **Recovered**: the state directory is locked, the host registers itself
+  in the instance registry, then the record is opened and replayed; a
+  restart recovers here. A registration the registry refuses (the id and
+  the state directory belong to other entries) is a refusal that creates
+  nothing but the lock file. See "Instances" below.
 - **Handed** to the Presence loop, with ACP outward when configured; or
   **Refused** when the record cannot be opened.
 
@@ -217,7 +217,7 @@ component of `state` when absent), `workspace`, `identity`, `owner_channel`,
 
 `rung-host run` writes one small entry per instance under
 `$RUNG_HOME/instances/` (`~/.rung/instances/`) when it starts, keeps it when
-it stops, and holds a lock on `<id>.lock` for as long as it lives.
+it stops; the state directory's lock (`host.lock`) says whether it lives.
 `rung-host ls [--json]` lists every entry with a word derived from the lock
 and the record's last line: `running`, `stopped` (the last line is `halted`),
 `down` (the lock is free and the last line is not a halt: it died), or

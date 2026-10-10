@@ -264,16 +264,30 @@ fn main() -> ExitCode {
     };
     match o.cmd.as_str() {
         "sim" => {
-            // Before the record is opened: a refused registration touches nothing.
+            let (start, workspace) = (sc.start, sc.config.workspace.clone());
+            // A state directory held by a live host is a bad start.
+            let (host, rec, _mock) = match sim::try_build(sc) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprintln!("rung-host: {e}");
+                    return ExitCode::from(2);
+                }
+            };
+            // Only a host that holds its state registers (the harness builds
+            // the host first; nothing has run yet, so a refusal ends it
+            // before its first record line).
             let registration = match &o.name {
                 Some(name) => {
                     let instance = rung_host::registry::Instance {
                         name: name.clone(),
-                        state_dir: state.clone(),
                         config: None,
-                        workspace: sc.config.workspace.clone(),
+                        workspace,
                     };
-                    match rung_host::registry::Registration::register(&instance, sc.start) {
+                    match rung_host::registry::Registration::register(
+                        &instance,
+                        start,
+                        host.state_lock(),
+                    ) {
                         Ok(r) => Some(Arc::new(r)),
                         Err(e) => {
                             eprintln!("rung-host: registry: {e}");
@@ -282,14 +296,6 @@ fn main() -> ExitCode {
                     }
                 }
                 None => None,
-            };
-            // A state directory held by a live host is a bad start.
-            let (host, rec, _mock) = match sim::try_build(sc) {
-                Ok(b) => b,
-                Err(e) => {
-                    eprintln!("rung-host: {e}");
-                    return ExitCode::from(2);
-                }
             };
             if o.acp || o.acp_http.is_some() {
                 let toks = match tokens(&o) {
