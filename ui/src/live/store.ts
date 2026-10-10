@@ -2,7 +2,7 @@
  *  running turn is doing right now (deltas: short-lived, never part of the record). Plain subscribe/snapshot so React reads it
  *  with useSyncExternalStore and a test reads it directly. Changes are batched so a burst of lines is one render. */
 import type { Line } from "../record/types.ts";
-import { parseRecordLines } from "./wire.ts";
+import { parseRecordLines, redact } from "./wire.ts";
 import { EventsClient, type Delta, type Status } from "./client.ts";
 
 /** What `GET /v1/summary` answers (ui/contract/README.md). */
@@ -99,12 +99,19 @@ export class LiveStore {
         if (s === "reconnecting") this.setDelta(null); // pieces may have been lost in the cut: show none rather than a torn text
         this.set({ status: s });
       },
-      onReset: () => { this.client = null; this.set({ loaded: false }); void this.start(); },
+      onReset: () => {
+        this.client = null;
+        this.pending = [];
+        if (this.flushTimer) { clearTimeout(this.flushTimer); this.flushTimer = null; }
+        this.set({ loaded: false });
+        void this.start();
+      },
     });
     this.client.start();
   }
 
   private onRecord(l: Line) {
+    l = redact(l) as Line;
     this.pending.push(l);
     if (l.kind === "turn.ended" && this.delta?.turn === l.turn) this.setDelta(null);
     if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(), 20);
@@ -129,7 +136,7 @@ export class LiveStore {
 
   private onDelta(d: Delta) {
     const cur = this.delta && this.delta.turn === d.turn ? this.delta : { turn: d.turn, text: "", tool: null };
-    if (d.kind === "text") this.setDelta({ ...cur, text: cur.text + (d.text ?? "") });
-    else this.setDelta({ ...cur, tool: d.phase === "start" ? d.name ?? null : null });
+    if (d.kind === "text") this.setDelta({ ...cur, text: redact(cur.text + (d.text ?? "")) as string });
+    else this.setDelta({ ...cur, tool: d.phase === "start" && d.name ? (redact(d.name) as string) : null });
   }
 }
