@@ -146,6 +146,8 @@ fn g_d_runs(
     sc.memory = memory;
     let first = sim::run(sc);
     assert!(first.lines.iter().any(|l| l.kind == "calendar.fired"));
+    // The host goes down: it lets go of the state before the next one wakes.
+    drop(first);
     // The host is down from `gap_from` to `gap_to`, then wakes.
     let mut sc = rung_host::sim::Scenario::new(dir, 7);
     sc.clock = Some(Arc::new(SimClock::new(gap_to)));

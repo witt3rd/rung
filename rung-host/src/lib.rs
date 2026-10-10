@@ -32,5 +32,6 @@ pub mod render;
 pub mod sim;
 pub mod startup;
 pub mod state;
+pub mod statelock;
 pub mod stop;
 pub mod toolbox;

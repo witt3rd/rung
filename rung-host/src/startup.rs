@@ -532,8 +532,18 @@ ladder!(Startup {
     recovered = |listed| {
         let carry = listed.carry().clone();
         let plan = listed.payload;
+        // One live host per state directory: take the hold before anything
+        // is written there (the memory store, the record).
+        let lock = match crate::statelock::StateLock::acquire(&plan.state) {
+            Ok(l) => l,
+            Err(e) => {
+                let opened = Err(e.to_string());
+                return Recovered::new(Opening { opened, acp: plan.acp }, carry);
+            }
+        };
         let mut b = HostBuilder::new(plan.config, &plan.state, plan.clock, plan.engine);
         stop_install();
+        b.lock = Some(lock);
         b.stop = Arc::new(StopAuthority::new(plan.stop_file, true));
         b.desk = plan.desk;
         b.seed_calendar = plan.calendar;

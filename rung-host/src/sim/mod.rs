@@ -180,6 +180,15 @@ pub struct RunOutput {
 
 /// Build the host a scenario describes (without running it).
 pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEngine>) {
+    try_build(sc).expect("open host")
+}
+
+/// [`build`], answering a refusal (the state directory is held by a live
+/// host) instead of panicking. Nothing is written to a held state.
+pub fn try_build(
+    sc: Scenario,
+) -> std::io::Result<(Arc<Host>, crate::presence::Recovered, Arc<MockEngine>)> {
+    let lock = crate::statelock::StateLock::acquire(&sc.dir)?;
     let clock: Arc<dyn Clock> = sc
         .clock
         .unwrap_or_else(|| Arc::new(SimClock::new(sc.start)));
@@ -199,6 +208,7 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
         None => mock.clone(),
     };
     let mut b = HostBuilder::new(sc.config, &sc.dir, clock, engine);
+    b.lock = Some(lock);
     if let Some(s) = sc.stop {
         b.stop = s;
     }
@@ -233,8 +243,8 @@ pub fn build(sc: Scenario) -> (Arc<Host>, crate::presence::Recovered, Arc<MockEn
     };
     b.seed_calendar = sc.seed_calendar;
     b.lister = sc.lister;
-    let (host, rec) = Host::open(b).expect("open host");
-    (host, rec, mock)
+    let (host, rec) = Host::open(b)?;
+    Ok((host, rec, mock))
 }
 
 /// Run a scenario to its limit.

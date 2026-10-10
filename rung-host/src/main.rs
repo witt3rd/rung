@@ -248,7 +248,14 @@ fn main() -> ExitCode {
     };
     match o.cmd.as_str() {
         "sim" => {
-            let (host, rec, _mock) = sim::build(sc);
+            // A state directory held by a live host is a bad start.
+            let (host, rec, _mock) = match sim::try_build(sc) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprintln!("rung-host: {e}");
+                    return ExitCode::from(2);
+                }
+            };
             if o.acp || o.acp_http.is_some() {
                 let toks = match tokens(&o) {
                     Ok(t) => t,

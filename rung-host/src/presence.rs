@@ -104,6 +104,9 @@ pub struct HostBuilder {
     /// A listing made at start, before the record was opened (the startup
     /// ladder's): recorded at the first boundary, before the first turn.
     pub initial_listing: Option<Value>,
+    /// The hold on the state directory, when the caller took it before it
+    /// touched the state; `Host::open` takes it otherwise.
+    pub lock: Option<crate::statelock::StateLock>,
 }
 
 impl HostBuilder {
@@ -131,12 +134,15 @@ impl HostBuilder {
             lister: None,
             prober: None,
             initial_listing: None,
+            lock: None,
         }
     }
 }
 
 /// One continuous host.
 pub struct Host {
+    /// Held for the host's life: one live host per state directory.
+    _lock: crate::statelock::StateLock,
     pub core: Arc<Core>,
     engine: Arc<dyn TurnEngine>,
     pub desk: DecisionDesk,
@@ -232,8 +238,13 @@ fn mode_value(st: &State) -> Value {
 impl Host {
     /// Open the record, replay it, and build the host. Returns the host and
     /// what waking found.
-    pub fn open(b: HostBuilder) -> std::io::Result<(Arc<Host>, Recovered)> {
-        std::fs::create_dir_all(&b.state_dir)?;
+    pub fn open(mut b: HostBuilder) -> std::io::Result<(Arc<Host>, Recovered)> {
+        // One live host per state directory: lock before the record is
+        // opened, and hold the lock for as long as the host lives.
+        let lock = match b.lock.take() {
+            Some(l) => l,
+            None => crate::statelock::StateLock::acquire(&b.state_dir)?,
+        };
         let opened = Record::open_with(b.state_dir.join("record"), b.segment_bytes)?;
         let state = State::replay(&opened.lines);
         let recovered = Recovered {
@@ -253,6 +264,7 @@ impl Host {
             b.config,
         ));
         let host = Arc::new(Host {
+            _lock: lock,
             core,
             engine: b.engine,
             desk: b.desk,
