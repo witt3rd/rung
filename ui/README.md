@@ -29,7 +29,8 @@ Needs node 24 or later (type stripping: the data script and the tests run `.ts` 
   no process, so no lock: it is Stopped (it ended on a halt) or Down (it did not). The synthetic instances stand
   for a held lock with a flag, `lockHeld`, until slice 1 supplies the real one.
 - **Credentials**: one redactor (`src/record/redact.ts`) replaces the exact value of every key a run's config
-  names by environment variable (`api_key_env`), and the shapes of well-known keys. It runs when the data is
+  names by environment variable (`api_key_env`), the variables listed in `RUNG_REDACT_ENVS` (the one surface
+  the agent crates use too) and the well-known provider key variables, and the shapes of well-known keys. It runs when the data is
   prepared and again when the page loads the record. It replaces; it never shortens, drops or caps.
   `test/canary.test.ts` puts a canary key in the environment, prints it from a tool into a record, and fails if
   the value is anywhere in the prepared data. A key variable a config names but the environment lacks is refused

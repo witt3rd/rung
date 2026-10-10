@@ -88,8 +88,8 @@ test("the recorded runs: key shapes are gone, and exact-value redaction really r
   const before = readdirSync(join(UI, "../rung-host/live/runs")).map((id) => join(UI, "../rung-host/live/runs", id, "state/record/seg-00000001.ndjson")).filter(existsSync)
     .some((f) => readFileSync(f, "utf8").includes(PLANT));
   assert.ok(before, "the planted phrase is in the real records, so this test can fail");
-  // Every variable the real configs name is set (to unrelated values) so the run needs no flag; RUNG_UI_REDACT_ENV adds the plant.
-  const r = prepare(["--out", join(out, "d")], { OPENROUTER_API_KEY: "unrelated-value-1", RUNG_HOST_OPENROUTER_API_KEY: "unrelated-value-2", RUNG_UI_PLANT: PLANT, RUNG_UI_REDACT_ENV: "RUNG_UI_PLANT" });
+  // Every variable the real configs name is set (to unrelated values) so the run needs no flag; RUNG_REDACT_ENVS adds the plant.
+  const r = prepare(["--out", join(out, "d")], { OPENROUTER_API_KEY: "unrelated-value-1", RUNG_HOST_OPENROUTER_API_KEY: "unrelated-value-2", RUNG_UI_PLANT: PLANT, RUNG_REDACT_ENVS: "RUNG_UI_PLANT" });
   assert.equal(r.status, 0, r.err);
   const files = walk(join(out, "d"));
   assert.ok(files.length > 5);
@@ -102,7 +102,7 @@ test("the recorded runs: key shapes are gone, and exact-value redaction really r
 
 test("the recorded runs are refused when their configs name key variables that are unset", () => {
   const out = mkdtempSync(join(SCRATCH, "real-unset-"));
-  const r = prepare(["--out", join(out, "d")], { OPENROUTER_API_KEY: undefined, RUNG_HOST_OPENROUTER_API_KEY: undefined, RUNG_UI_REDACT_ENV: undefined });
+  const r = prepare(["--out", join(out, "d")], { OPENROUTER_API_KEY: undefined, RUNG_HOST_OPENROUTER_API_KEY: undefined, RUNG_REDACT_ENVS: undefined });
   assert.equal(r.status, 2, r.err);
   assert.match(r.err, /OPENROUTER_API_KEY/);
 });

@@ -51,8 +51,9 @@ const withSynthetic = !process.argv.includes("--no-synthetic");
 const now = Number(arg("--now") ?? Date.now());
 
 // Secrets are named by environment variable in each run's config (`api_key_env`), never held in a file.
-// RUNG_UI_REDACT_ENV adds more names, comma separated. A value is read from this process's environment.
-const secretNames = new Set<string>((process.env.RUNG_UI_REDACT_ENV ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+// RUNG_REDACT_ENVS (rung's one surface for this, shared with the agent crates) adds more names, comma separated.
+// A value is read from this process's environment.
+const secretNames = new Set<string>((process.env.RUNG_REDACT_ENVS ?? "").split(",").map((s) => s.trim()).filter(Boolean));
 if (existsSync(runs)) {
   for (const id of readdirSync(runs)) {
     const cfg = join(runs, id, "rung-host.yaml");
@@ -60,13 +61,15 @@ if (existsSync(runs)) {
     for (const m of readFileSync(cfg, "utf8").matchAll(/^\s*api_key_env:\s*([A-Za-z_][A-Za-z0-9_]*)/gm)) secretNames.add(m[1]);
   }
 }
+// The well-known provider key variables the agent crates always redact: redacted here when set, never required.
+const WELL_KNOWN = ["OPENROUTER_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "RUNG_API_KEY", "XAI_API_KEY"];
 const unset = [...secretNames].filter((n) => !process.env[n]);
 if (unset.length) {
   const msg = `the key variable${unset.length > 1 ? "s" : ""} ${unset.join(", ")} ${unset.length > 1 ? "are" : "is"} named by a run's config but not set here, so exact-value redaction cannot run for ${unset.length > 1 ? "them" : "it"}; only key shapes are removed`;
   if (!process.argv.includes("--allow-unset-keys")) refuse(`${msg}. Set ${unset.length > 1 ? "them" : "it"}, or pass --allow-unset-keys to accept the shapes-only pass.`);
   console.warn(`prepare-data: WARNING: ${msg}.`);
 }
-const redact = makeRedactor([...secretNames].map((n) => process.env[n] ?? "").filter(Boolean));
+const redact = makeRedactor([...new Set([...secretNames, ...WELL_KNOWN])].map((n) => process.env[n] ?? "").filter(Boolean));
 
 interface Entry { id: string; name: string; kind: "recorded" | "synthetic"; lockHeld: boolean; record: string; summary: unknown }
 const entries: Entry[] = [];
