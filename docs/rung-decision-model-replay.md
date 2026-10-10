@@ -1,7 +1,7 @@
 # Decision model replay: `typesafe/jev-1.13` vs `microsoft/microsoft-decision-1`
 
-Informative. Evidence for [#259](https://github.com/witt3rd/rung/issues/259)
-(janus-infra/spire-venue#3103 (reference)). Run 2026-10-10 through OpenRouter's
+Informative. Evidence for [#259](https://github.com/witt3rd/rung/issues/259).
+Run 2026-10-10 through OpenRouter's
 `POST /api/v1/systemone` with the router key from Doppler (read-only), the
 accounted path. Synthetic content only.
 
