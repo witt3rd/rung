@@ -11,3 +11,6 @@ docs/reports/rung-jevmem-memory-v2/build.py  # report build: its privacy scan li
 docs/reports/rung-memory-provider-contract-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
 docs/reports/prime-agent-vs-rung-agent-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
 docs/reports/rung-ui-design-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
+docs/rung-host-api.md  # generic HTTP Cookie header, not a consumer name
+rung-gateway/src/server.rs  # generic HTTP Cookie header, not a consumer name
+rung-gateway/tests/gateway.rs  # generic HTTP Cookie header, not a consumer name
