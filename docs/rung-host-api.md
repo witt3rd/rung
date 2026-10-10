@@ -241,7 +241,7 @@ has the owner's role. A request that presents a read-only token has the
 read-only role and may only read. The token rides `Authorization: Bearer
 <token>`, or the `token` query value (an event stream cannot set headers).
 It is the gateway's own: it is never forwarded, and neither are the client's
-`Authorization` and `Cookie`. A token that matches no configured read-only
+`Authorization` header or its session-state header. A token that matches no configured read-only
 token is refused with 401, wherever it appears.
 
 A write by the read-only role is refused with 403 before it reaches a host:
