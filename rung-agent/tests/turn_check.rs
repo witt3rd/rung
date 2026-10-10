@@ -764,7 +764,6 @@ fn reading_of(d: &Decided) -> TurnReading {
     }
 }
 
-/// The state the binary builds for the narrated first turn.
 /// Recorded from the default model (`microsoft/microsoft-decision-1`) by
 /// replaying the legacy fixture's request (docs/rung-decision-model-replay.md):
 /// the response has the System One shape and reads as `narrated`.
@@ -778,6 +777,7 @@ fn the_default_model_response_reads_through_the_same_decider() {
     assert!(d.noul("claims_unperformed_action").unwrap() > 0.5);
 }
 
+/// The state the binary builds for the narrated first turn.
 fn narration_ask() -> Ask {
     let turn = vec![ChatMessage::assistant(NARRATION)];
     turn_ask(NARRATE_REQUEST, &turn, &[], NARRATION).0
