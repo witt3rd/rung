@@ -12,6 +12,21 @@ pub struct Instance {
     pub key: String,
 }
 
+impl Instance {
+    /// The `Authorization` value that carries this instance's key, or `None`
+    /// when the key has a byte that cannot ride a header (CR, LF, NUL,
+    /// non-ASCII).
+    pub fn authorization(&self) -> Option<hyper::header::HeaderValue> {
+        // visible ASCII only: HeaderValue itself would let bytes >= 0x80 through
+        if !self.key.bytes().all(|b| (0x20..=0x7e).contains(&b)) {
+            return None;
+        }
+        let mut v = hyper::header::HeaderValue::from_str(&format!("Bearer {}", self.key)).ok()?;
+        v.set_sensitive(true);
+        Some(v)
+    }
+}
+
 impl std::fmt::Debug for Instance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Instance")

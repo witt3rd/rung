@@ -560,14 +560,18 @@ fn the_door_table_classifies_every_door_of_the_note() {
 }
 
 #[test]
-fn the_table_marks_the_streams() {
-    let streams: Vec<_> = doors::DOORS
-        .iter()
-        .filter(|d| d.stream)
-        .map(|d| d.path)
-        .collect();
-    assert!(streams.contains(&"/v1/events") && streams.contains(&"/v1/console/stream"));
+fn every_door_is_a_v1_door_with_one_row() {
     assert!(doors::DOORS.iter().all(|d| d.path.starts_with("/v1/")));
+    for (i, d) in doors::DOORS.iter().enumerate() {
+        assert!(
+            doors::DOORS[i + 1..]
+                .iter()
+                .all(|e| (e.method, e.path) != (d.method, d.path)),
+            "{} {} is listed twice",
+            d.method,
+            d.path
+        );
+    }
 }
 
 #[test]
@@ -648,6 +652,13 @@ fn config_refuses_what_it_cannot_serve_naming_the_variable_never_a_value() {
         )
     };
     let parse = |y: &str| -> Config { serde_yaml::from_str(y).unwrap() };
+    // a key that cannot ride a header (CR, LF, NUL, non-ASCII) is refused
+    for bad in ["a\r\nb", "a\nb", "a\0b", "k\u{e9}y"] {
+        let e = parse(&base(""))
+            .resolve(env_of(&[("ALPHA_KEY", bad)]))
+            .unwrap_err();
+        assert!(e.contains("ALPHA_KEY") && !e.contains(bad), "{e:?}");
+    }
     // a missing key variable
     let e = parse(&base("")).resolve(env_of(&[])).unwrap_err();
     assert!(e.contains("ALPHA_KEY"), "{e}");
@@ -681,4 +692,45 @@ fn config_refuses_what_it_cannot_serve_naming_the_variable_never_a_value() {
     assert!(parse("listen: nonsense\n").resolve(env_of(&[])).is_err());
     // unknown fields are a mistake, not ignored
     assert!(serde_yaml::from_str::<Config>("instance: []\n").is_err());
+}
+
+#[tokio::test]
+async fn a_key_that_cannot_ride_a_header_answers_502_not_a_panic() {
+    // a registry may hand over any key; the gateway must answer, not drop the connection
+    for bad in ["bad\r\nkey", "bad\0key", "k\u{e9}y"] {
+        let (host, log) = stub_host().await;
+        let mut inst = instance("alpha", host);
+        inst.key = bad.into();
+        let g = gateway(None, vec![inst]).await;
+        let r = client()
+            .get(url(&g, "/api/i/alpha/v1/summary"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), 502, "{bad:?}");
+        let text = r.text().await.unwrap();
+        assert!(text.contains("instance_unreachable") && !text.contains(bad));
+        assert!(log.lock().unwrap().is_empty(), "nothing reached the host");
+        // the overview lists it as unreachable
+        let v: serde_json::Value = client()
+            .get(url(&g, "/api/instances"))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(v["instances"][0]["reachable"], false);
+        assert!(!v.to_string().contains(bad));
+        // and the gateway keeps serving
+        assert_eq!(
+            client()
+                .get(url(&g, "/api/health"))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            200
+        );
+    }
 }

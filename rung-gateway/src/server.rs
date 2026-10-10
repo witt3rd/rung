@@ -44,6 +44,30 @@ impl Running {
     }
 }
 
+/// How long the listener rests after a failed `accept` before it tries again.
+const ACCEPT_PAUSE: Duration = Duration::from_millis(100);
+
+/// Wait for the next connection. A failed accept (an exhausted descriptor
+/// table, say) is reported and retried after `pause`, never spun on.
+async fn accept_retrying<T, E, Fut>(
+    mut accept: impl FnMut() -> Fut,
+    pause: Duration,
+    mut report: impl FnMut(&E),
+) -> T
+where
+    Fut: std::future::Future<Output = Result<T, E>>,
+{
+    loop {
+        match accept().await {
+            Ok(c) => return c,
+            Err(e) => {
+                report(&e);
+                tokio::time::sleep(pause).await;
+            }
+        }
+    }
+}
+
 struct State {
     read_only_tokens: Vec<String>,
     app_dir: Option<PathBuf>,
@@ -76,9 +100,12 @@ pub async fn start_with_registry(
     });
     let task = tokio::spawn(async move {
         loop {
-            let Ok((stream, _)) = listener.accept().await else {
-                continue;
-            };
+            let (stream, _) = accept_retrying(
+                || listener.accept(),
+                ACCEPT_PAUSE,
+                |e| eprintln!("rung-gateway: accept failed: {e}"),
+            )
+            .await;
             let state = state.clone();
             tokio::spawn(async move {
                 let svc = hyper::service::service_fn(move |req| {
@@ -202,9 +229,12 @@ async fn instances(state: &State) -> Response<Body> {
 
 async fn summary_row(state: &State, inst: &Instance) -> Value {
     let probe = async {
+        let authorization = inst
+            .authorization()
+            .ok_or("the instance's key cannot be sent as a header")?;
         let req = Request::builder()
             .uri(format!("{}/v1/summary", inst.url))
-            .header("authorization", format!("Bearer {}", inst.key))
+            .header("authorization", authorization)
             .body(empty())
             .map_err(|e| e.to_string())?;
         let resp = state.client.request(req).await.map_err(|e| chain(&e))?;
@@ -342,6 +372,13 @@ async fn pass_through(
     if role == Role::ReadOnly && doors::classify(req.method().as_str(), rest) == Access::Write {
         return read_only();
     }
+    let Some(authorization) = inst.authorization() else {
+        return error(
+            StatusCode::BAD_GATEWAY,
+            "instance_unreachable",
+            "the instance's key cannot be sent as a header",
+        );
+    };
     let target = match &query {
         Some(q) => format!("{}{rest}?{q}", inst.url),
         None => format!("{}{rest}", inst.url),
@@ -358,10 +395,8 @@ async fn pass_through(
         up.headers_mut(),
         &["host", "authorization", "cookie"],
     );
-    up.headers_mut().insert(
-        HeaderName::from_static("authorization"),
-        HeaderValue::from_str(&format!("Bearer {}", inst.key)).unwrap(),
-    );
+    up.headers_mut()
+        .insert(HeaderName::from_static("authorization"), authorization);
     match state.client.request(up).await {
         Ok(resp) => {
             let (rp, rb) = resp.into_parts();
@@ -437,5 +472,42 @@ fn content_type(p: &Path) -> &'static str {
         "txt" => "text/plain; charset=utf-8",
         "wasm" => "application/wasm",
         _ => "application/octet-stream",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    /// A listener that keeps failing is reported on every failure and rests
+    /// between tries: it does not spin.
+    #[tokio::test]
+    async fn a_failing_accept_is_reported_and_backed_off() {
+        let calls = Cell::new(0u32);
+        let reported = Cell::new(0u32);
+        let t0 = std::time::Instant::now();
+        let got = accept_retrying(
+            || {
+                calls.set(calls.get() + 1);
+                let n = calls.get();
+                async move {
+                    if n <= 3 {
+                        Err(format!("fd exhausted {n}"))
+                    } else {
+                        Ok(n)
+                    }
+                }
+            },
+            Duration::from_millis(40),
+            |_| reported.set(reported.get() + 1),
+        )
+        .await;
+        assert_eq!(got, 4);
+        assert_eq!(reported.get(), 3, "every failure is reported");
+        assert!(
+            t0.elapsed() >= Duration::from_millis(120),
+            "it rests between tries"
+        );
     }
 }
