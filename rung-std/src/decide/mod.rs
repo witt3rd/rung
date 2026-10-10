@@ -14,7 +14,7 @@
 //!
 //! | backend | what it is |
 //! |---|---|
-//! | [`JevDecider`] | Jev-style decider (default `microsoft/microsoft-decision-1`, legacy `typesafe/jev-1.13`) over the System One API, e.g. through OpenRouter |
+//! | [`JevDecider`] | Jev-style decider (see [`DEFAULT_MODEL`] and [`LEGACY_MODEL`]) over the System One API, e.g. through OpenRouter |
 //! | [`Recorded`] | replays a recorded exchange from a fixture file; records one when told to |
 //! | [`LlmDecider`] | a chat model asked for the same answers. **A stub**: not built yet, always `Undecided` |
 //!
