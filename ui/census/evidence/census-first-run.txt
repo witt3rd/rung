@@ -1,0 +1,17 @@
+
+> rung-ui@0.0.0 census
+> node census/census.mjs
+
+instances       1920  chrome   7 of  265 words  links 16 controls  0 filled 0  sizes 3  pass
+now-recorded    1920  chrome  27 of  124 words  links  8 controls  0 filled 0  sizes 4  pass
+now-working     1920  chrome  28 of  142 words  links  8 controls  0 filled 0  sizes 4  pass
+now-stuck       1920  chrome  28 of   75 words  links  7 controls  0 filled 0  sizes 4  pass
+turns-recorded  1920  chrome  17 of  483 words  links  3 controls  3 filled 0  sizes 4  pass
+turns-working   1920  chrome  24 of  129 words  links  3 controls  5 filled 0  sizes 4  pass
+instances       390   chrome   7 of  107 words  links  8 controls  0 filled 0  sizes 3  pass
+now-recorded    390   chrome  23 of   99 words  links  7 controls  0 filled 0  sizes 4  pass
+now-working     390   chrome  25 of  105 words  links  7 controls  0 filled 0  sizes 4  pass
+now-stuck       390   chrome  28 of   63 words  links  7 controls  0 filled 0  sizes 4  pass
+turns-recorded  390   chrome  17 of  114 words  links  3 controls  3 filled 0  sizes 4  pass
+turns-working   390   chrome  17 of   98 words  links  3 controls  4 filled 0  sizes 4  pass
+census: all pass
