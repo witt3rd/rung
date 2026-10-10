@@ -354,6 +354,8 @@ fn hostile_text_is_redacted_in_time_linear_in_its_length() {
         ("escaped backslashes", "password=a\\\\"),
         ("webhook prefixes", "hooks.slack.com/services/"),
         ("discord webhooks", "discord.com/api/webhooks/"),
+        ("backslash runs before quotes", "password=\"x\\\\\\\""),
+        ("long backslash runs", "\\\\\\\\\\\\\\\\ token="),
         ("key block starts", "-----BEGIN "),
         ("private key starts", "-----BEGIN PRIVATE KEY-----\n"),
         ("private key stray starts", "-----BEGIN x\n"),
@@ -604,4 +606,41 @@ fn webhook_urls_lose_their_token_path() {
         redact("https://example.test/webhooks/docs is a page"),
         "https://example.test/webhooks/docs is a page"
     );
+}
+
+#[test]
+fn a_quote_is_escaped_by_the_parity_of_the_backslashes_before_it() {
+    for (text, want) in [
+        // An escaped backslash, then an escaped quote: the quote does not close.
+        (
+            r#"password="SENTINELabc\\\"xyz0123" ok"#,
+            format!(r#"password="{MARK}" ok"#),
+        ),
+        // Five backslashes before a quote: two pairs and an escape.
+        (
+            r#"password="SENTINELabc\\\\\"xyz0123" ok"#,
+            format!(r#"password="{MARK}" ok"#),
+        ),
+        // Four backslashes before a quote: two pairs, so the quote closes.
+        (
+            r#"password="SENTINELabc\\\\" ok"#,
+            format!(r#"password="{MARK}" ok"#),
+        ),
+        (
+            r#"api_key='SENTINELabc\\\'xyz0123' ok"#,
+            format!(r#"api_key='{MARK}' ok"#),
+        ),
+        // In JSON-escaped text, an inner escaped quote has three backslashes.
+        (
+            r#"{\"password\": \"SENTINELabc\\\"xyz0123\", \"n\": 1}"#,
+            format!(r#"{{\"password\": \"{MARK}\", \"n\": 1}}"#),
+        ),
+        // A line break escape after an escaped backslash still ends a value.
+        (
+            r"password=SENTINELabc\\\nnext ok",
+            format!(r"password={MARK}\nnext ok"),
+        ),
+    ] {
+        assert_eq!(redact(text), want, "{text}");
+    }
 }

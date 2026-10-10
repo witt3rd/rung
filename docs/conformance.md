@@ -1099,7 +1099,7 @@ look shorter than it is.
 
 - `the_quickstart_example_runs`
 
-**`rung-host/tests/redactor.rs`** — 23 unclaimed
+**`rung-host/tests/redactor.rs`** — 24 unclaimed
 
 - `a_bearer_token_alone_is_replaced_but_prose_is_not`
 - `a_clean_json_line_comes_back_byte_for_byte`
@@ -1107,6 +1107,7 @@ look shorter than it is.
 - `a_known_key_shape_is_replaced_wherever_it_sits`
 - `a_map_key_that_is_a_header_name_redacts_its_value`
 - `a_private_key_block_loses_its_body_and_keeps_its_frame`
+- `a_quote_is_escaped_by_the_parity_of_the_backslashes_before_it`
 - `a_secret_after_a_long_run_of_secret_names_is_still_found`
 - `a_secret_next_to_another_never_escapes_after_a_match`
 - `a_secret_with_a_quote_or_newline_is_removed_from_a_json_line`

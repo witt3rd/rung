@@ -332,7 +332,7 @@ There is one definition of what a credential looks like:
 memory, the turn check, MCP errors and the gist in `rung-host/src/inbox.rs`)
 is that redactor, built once, with its own marker (`[REDACTED]`), followed by
 its own exact secrets (registered ones and the well-known key variables),
-pinned by its own tests, which are unchanged.
+whose existing tests pass unchanged.
 `rung_host::redact` re-exports it and adds the canonical JSON line form, which
 needs the host's canonical serializer. A change to what is recognised is made
 once, in `rung-agent-core/src/redact.rs`.

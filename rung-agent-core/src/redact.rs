@@ -254,24 +254,52 @@ impl Next {
     }
 }
 
-/// A backslash that starts an escape: not itself the second of a pair.
-fn escape_at(b: &[u8], i: usize) -> bool {
-    b[i] == b'\\' && !(i > 0 && b[i - 1] == b'\\')
+/// For each index, whether an odd number of backslashes run right up to it:
+/// then a backslash or quote at that index is itself escaped. Empty when the
+/// text holds no backslash (nothing is escaped). One pass, so parity is O(1)
+/// per query however long a run of backslashes is.
+fn escaped_before(b: &[u8]) -> Vec<bool> {
+    if !b.contains(&b'\\') {
+        return Vec::new();
+    }
+    let mut odd = Vec::with_capacity(b.len());
+    let mut run = 0usize;
+    for &c in b {
+        odd.push(run % 2 == 1);
+        run = if c == b'\\' { run + 1 } else { 0 };
+    }
+    odd
+}
+
+fn is_escaped(odd: &[bool], i: usize) -> bool {
+    odd.get(i).copied().unwrap_or(false)
+}
+
+/// A backslash that starts an escape: an even run of backslashes before it.
+fn escape_at(b: &[u8], odd: &[bool], i: usize) -> bool {
+    b[i] == b'\\' && !is_escaped(odd, i)
 }
 
 /// An escape that is a quote (`\"`, `\'`).
-fn escaped_quote_at(b: &[u8], i: usize) -> bool {
-    escape_at(b, i) && matches!(b.get(i + 1), Some(b'"' | b'\''))
+fn escaped_quote_at(b: &[u8], odd: &[bool], i: usize) -> bool {
+    escape_at(b, odd, i) && matches!(b.get(i + 1), Some(b'"' | b'\''))
+}
+
+/// The escaped quote that closes a value inside JSON-escaped text: a single
+/// backslash before the quote (three, `\\\"`, is an inner quote of a value
+/// that holds an escaped backslash).
+fn closing_escaped_quote_at(b: &[u8], i: usize) -> bool {
+    b[i] == b'\\' && !(i > 0 && b[i - 1] == b'\\') && matches!(b.get(i + 1), Some(b'"' | b'\''))
 }
 
 /// An escape that breaks a line or a value (`\n`, `\r`).
-fn escaped_break_at(b: &[u8], i: usize) -> bool {
-    escape_at(b, i) && matches!(b.get(i + 1), Some(b'n' | b'r'))
+fn escaped_break_at(b: &[u8], odd: &[bool], i: usize) -> bool {
+    escape_at(b, odd, i) && matches!(b.get(i + 1), Some(b'n' | b'r'))
 }
 
-/// A quote that closes a quoted value: not escaped by a single backslash.
-fn closing_quote_at(b: &[u8], i: usize, q: u8) -> bool {
-    b[i] == q && !(i > 0 && b[i - 1] == b'\\' && !(i > 1 && b[i - 2] == b'\\'))
+/// A quote that closes a quoted value: not escaped.
+fn closing_quote_at(b: &[u8], odd: &[bool], i: usize, q: u8) -> bool {
+    b[i] == q && !is_escaped(odd, i)
 }
 
 fn line_end(c: u8) -> bool {
@@ -342,6 +370,8 @@ struct Scan<'a, 'r> {
     /// Where the last key shape ended: a key glued on right after it starts
     /// a new word.
     glue: usize,
+    /// Backslash parity before each index (see [`escaped_before`]).
+    odd: Vec<bool>,
 }
 
 impl<'a, 'r> Scan<'a, 'r> {
@@ -366,6 +396,7 @@ impl<'a, 'r> Scan<'a, 'r> {
             asg_end: Next::default(),
             space_trim: (usize::MAX, 0),
             glue: usize::MAX,
+            odd: escaped_before(text.as_bytes()),
         }
     }
 
@@ -638,22 +669,24 @@ impl<'a, 'r> Scan<'a, 'r> {
     /// says.
     fn quoted_end(&mut self, start: usize, close: Close) -> usize {
         let b = self.b;
+        let odd = &self.odd;
         match close {
             Close::Quote(b'"') => self.dq_close.find(b, start, |b, i| {
-                line_end(b[i]) || closing_quote_at(b, i, b'"')
+                line_end(b[i]) || closing_quote_at(b, odd, i, b'"')
             }),
-            Close::Quote(q) => self
-                .sq_close
-                .find(b, start, |b, i| line_end(b[i]) || closing_quote_at(b, i, q)),
-            Close::Escaped => self
-                .esc_close
-                .find(b, start, |b, i| line_end(b[i]) || escaped_quote_at(b, i)),
+            Close::Quote(q) => self.sq_close.find(b, start, |b, i| {
+                line_end(b[i]) || closing_quote_at(b, odd, i, q)
+            }),
+            Close::Escaped => self.esc_close.find(b, start, |b, i| {
+                line_end(b[i]) || closing_escaped_quote_at(b, i)
+            }),
         }
     }
 
     // `Name: value` headers.
     fn header(&mut self, i: usize) {
         let b = self.b;
+        let odd = &self.odd;
         let rest = &b[i..];
         for &(n, class) in HEADERS {
             if rest.len() > n.len() && rest[..n.len()].eq_ignore_ascii_case(n.as_bytes()) {
@@ -696,19 +729,19 @@ impl<'a, 'r> Scan<'a, 'r> {
                             };
                             self.hdr_line[slot].find(b, p, |b, j| {
                                 line_end(b[j])
-                                    || escaped_break_at(b, j)
+                                    || escaped_break_at(b, odd, j)
                                     || match opener {
                                         None => false,
-                                        Some(Close::Quote(q)) => closing_quote_at(b, j, q),
-                                        Some(Close::Escaped) => escaped_quote_at(b, j),
+                                        Some(Close::Quote(q)) => closing_quote_at(b, odd, j, q),
+                                        Some(Close::Escaped) => closing_escaped_quote_at(b, j),
                                     }
                             })
                         }
                         Class::Token => self.hdr_token.find(b, p, |b, j| {
                             line_end(b[j])
                                 || matches!(b[j], b'"' | b'\'' | b',' | b';')
-                                || escaped_quote_at(b, j)
-                                || escaped_break_at(b, j)
+                                || escaped_quote_at(b, odd, j)
+                                || escaped_break_at(b, odd, j)
                         }),
                     };
                     (p, end)
@@ -738,6 +771,7 @@ impl<'a, 'r> Scan<'a, 'r> {
     // `name=value` / `name: value` at the separator at `sep`.
     fn assignment(&mut self, sep: usize) {
         let b = self.b;
+        let odd = &self.odd;
         let text = self.text;
         // The name: optional closing quote (escaped, in JSON-escaped text) and
         // spaces back from the separator.
@@ -771,9 +805,9 @@ impl<'a, 'r> Scan<'a, 'r> {
                 self.asg_end.find(b, v, |b, j| {
                     b[j].is_ascii_whitespace()
                         || matches!(b[j], b',' | b';' | b'&' | b'"' | b'\'' | b')' | b'}' | b']')
-                        || escaped_quote_at(b, j)
-                        || escaped_break_at(b, j)
-                        || (escape_at(b, j) && b.get(j + 1) == Some(&b't'))
+                        || escaped_quote_at(b, odd, j)
+                        || escaped_break_at(b, odd, j)
+                        || (escape_at(b, odd, j) && b.get(j + 1) == Some(&b't'))
                 }),
             )
         } else {
