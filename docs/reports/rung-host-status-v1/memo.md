@@ -10,7 +10,7 @@ footer: rung-host-status-v1
 
 **Running: nothing.** No `rung-host` process, no rung unit under `~/.config/systemd/user`, no rung port open. Newest live record: `rung-host/live/runs/2026-10-06-named-ladder/`, started by hand with `live.sh`.
 
-**Measured.** Offline, 11 gates pass at $0 (`docs/rung-host-results.md`), including 50 `kill -9` restarts losing nothing. Live, on free models: a 26 min first run failed owner latency and found four defects; a 2 h run had 154 turns, 42% failed upstream, cache 0.95; a named-ladder pair compared the idle rule off and on. No crash; agent spend $0.
+**Measured.** Offline, 12 gates pass at $0 (`docs/rung-host-results.md`), including 50 `kill -9` restarts losing nothing. Live, on free models: a 26 min first run failed owner latency and found four defects; a 2 h run had 154 turns, 42% failed upstream, cache 0.95; a named-ladder pair compared the idle rule off and on. No crash; agent spend $0.
 
 **Not built or not proven.** Worker delegation (names reserved only). Idle rule: barely exercised, no verdict. Decision-model disagreement audit: 6 real fixtures replayed (26 of 30 agree), the 50-item shadow sheet has no verdicts. Shadow week: never run; longest window 2 h. Decision mode `decide` never run live. Issue #259 still open.
 
