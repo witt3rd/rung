@@ -69,6 +69,7 @@ where
 }
 
 struct State {
+    bound_host: Option<String>,
     allowed_hosts: Vec<String>,
     read_only_tokens: Vec<String>,
     app_dir: Option<PathBuf>,
@@ -94,6 +95,7 @@ pub async fn start_with_registry(
     let mut connector = HttpConnector::new();
     connector.set_connect_timeout(Some(CONNECT_WAIT));
     let state = Arc::new(State {
+        bound_host: bound_host(addr.ip()),
         allowed_hosts: settings.allowed_hosts,
         read_only_tokens: settings.read_only_tokens,
         app_dir: settings.app_dir,
@@ -121,6 +123,16 @@ pub async fn start_with_registry(
         }
     });
     Ok(Running { addr, task })
+}
+
+fn bound_host(ip: std::net::IpAddr) -> Option<String> {
+    if ip.is_loopback() || ip.is_unspecified() {
+        return None;
+    }
+    Some(match ip {
+        std::net::IpAddr::V4(v) => v.to_string(),
+        std::net::IpAddr::V6(v) => format!("[{v}]"),
+    })
 }
 
 fn full(status: StatusCode, content_type: &str, body: impl Into<Bytes>) -> Response<Body> {
@@ -191,8 +203,7 @@ async fn api(state: &State, req: Request<Incoming>, path: &str) -> Response<Body
     let method = req.method().clone();
     let reading = matches!(method, Method::GET | Method::HEAD);
     if role == Role::Owner
-        && !reading
-        && let Some(refusal) = write_guard(state, &req)
+        && let Some(refusal) = owner_guard(state, &req, !reading)
     {
         return refusal;
     }
@@ -218,16 +229,17 @@ async fn api(state: &State, req: Request<Incoming>, path: &str) -> Response<Body
 }
 
 /// The owner role is whoever reaches the gateway, so a write must not be
-/// drivable by a page on another origin, or by a rebound DNS name: the `Host`
-/// must be loopback or a configured name, and an `Origin`, if the client sends
-/// one (a browser always does on a write), must be this same origin. A script
-/// sends no `Origin` and passes.
-fn write_guard(state: &State, req: &Request<Incoming>) -> Option<Response<Body>> {
+/// drivable, nor a read leaked, by a rebound DNS name: the `Host` of every
+/// owner request must be loopback, the bound address or a configured name. A
+/// write also needs an `Origin`, if the client sends one (a browser always
+/// does on a write), that is this same origin. A script sends no `Origin`
+/// and passes.
+fn owner_guard(state: &State, req: &Request<Incoming>, write: bool) -> Option<Response<Body>> {
     let bad_host = || {
         Some(error(
             StatusCode::FORBIDDEN,
             "bad_host",
-            "this host name is not one the gateway answers writes for",
+            "this host name is not one the gateway answers for",
         ))
     };
     let host = req
@@ -238,9 +250,13 @@ fn write_guard(state: &State, req: &Request<Incoming>) -> Option<Response<Body>>
     let Some(host) = host else { return bad_host() };
     let (name, host_port) = split_authority(host);
     let known = matches!(name.as_str(), "localhost" | "127.0.0.1" | "[::1]")
+        || state.bound_host.as_deref() == Some(name.as_str())
         || state.allowed_hosts.contains(&name);
     if !known {
         return bad_host();
+    }
+    if !write {
+        return None;
     }
     let origin = req.headers().get("origin")?;
     let same = origin.to_str().ok().is_some_and(|o| {
@@ -547,6 +563,17 @@ fn content_type(p: &Path) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_a_specific_non_loopback_bind_is_an_allowed_host() {
+        let b = |s: &str| super::bound_host(s.parse().unwrap());
+        assert_eq!(b("100.64.0.9").as_deref(), Some("100.64.0.9"));
+        assert_eq!(b("fd7a::1").as_deref(), Some("[fd7a::1]"));
+        assert_eq!(b("127.0.0.1"), None);
+        assert_eq!(b("::1"), None);
+        assert_eq!(b("0.0.0.0"), None);
+        assert_eq!(b("::"), None);
+    }
+
     use super::*;
     use std::cell::Cell;
 

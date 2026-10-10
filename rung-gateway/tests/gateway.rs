@@ -870,17 +870,36 @@ async fn a_configured_host_may_be_written_to_from_its_own_origin_only() {
 }
 
 #[tokio::test]
-async fn reads_and_the_read_only_role_are_not_subject_to_the_write_guard() {
-    let (g, _) = writes_gateway(&[]).await;
-    // a read from another origin or host still answers (the guard is for writes)
-    let r = client()
-        .get(url(&g, "/api/health"))
-        .header("origin", "http://evil.example")
-        .header("host", "evil.example")
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(r.status(), 200);
+async fn reads_are_host_checked_for_the_owner_and_not_for_the_read_only_role() {
+    let (g, _) = writes_gateway(&["gw.tailnet.example"]).await;
+    for path in ["/api/instances", "/api/health", "/api/i/alpha/v1/summary"] {
+        let r = client()
+            .get(url(&g, path))
+            .header("host", "evil.example")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), 403, "{path}");
+        let v: serde_json::Value = r.json().await.unwrap();
+        assert_eq!(v["error"], "bad_host", "{path}");
+        for host in ["localhost", "127.0.0.1:9", "[::1]", "gw.tailnet.example"] {
+            let r = client()
+                .get(url(&g, path))
+                .header("host", host)
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(r.status(), 200, "{path} {host}");
+        }
+        let r = client()
+            .get(url(&g, path))
+            .header("host", "evil.example")
+            .header("authorization", format!("Bearer {READ_TOKEN}"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), 200, "{path} read-only");
+    }
     // the read-only role keeps its own refusal, whatever the origin
     let r = client()
         .post(url(&g, "/api/i/alpha/v1/queue"))
