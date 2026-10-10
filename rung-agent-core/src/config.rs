@@ -573,11 +573,22 @@ llm:
     }
 
     #[test]
+    fn turn_check_model_defaults_to_the_decision_model_and_the_old_one_is_a_setting() {
+        let none = |_: &str| None;
+        let t = resolve_turn_check(None, none).unwrap();
+        assert_eq!(t.model, "microsoft/microsoft-decision-1");
+        let file: FileConfig =
+            serde_yaml::from_str("turn_check:\n  model: typesafe/jev-1.13\n").unwrap();
+        let t = resolve_turn_check(file.turn_check.as_ref(), none).unwrap();
+        assert_eq!(t.model, rung_std::decide::LEGACY_MODEL);
+    }
+
+    #[test]
     fn turn_check_is_off_by_default() {
         let env: HashMap<&str, &str> = HashMap::new();
         let t = resolve_turn_check(None, getenv(&env)).unwrap();
         assert_eq!(t.backend, TurnCheckBackend::Off);
-        assert_eq!(t.model, "typesafe/jev-1.13");
+        assert_eq!(t.model, rung_std::decide::DEFAULT_MODEL);
         assert_eq!(t.api_key_env, "OPENROUTER_API_KEY");
     }
 

@@ -451,6 +451,17 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
 
 /// The desk the file asks for. A decider's key is read from the env var
 /// it names; `rule_only` needs no decider.
+/// The decision model: `desk.model`, else the one default
+/// ([`rung_std::decide::DEFAULT_MODEL`]). The previous model is
+/// `rung_std::decide::LEGACY_MODEL`, one `desk.model:` line away.
+fn desk_model(configured: Option<&str>) -> String {
+    configured
+        .map(str::trim)
+        .filter(|m| !m.is_empty())
+        .unwrap_or(rung_std::decide::DEFAULT_MODEL)
+        .to_string()
+}
+
 fn desk_of(d: &DeskFile) -> Result<DecisionDesk, Refusal> {
     let mode = match d.mode.as_str() {
         "decide" => DeskMode::Decide,
@@ -475,10 +486,7 @@ fn desk_of(d: &DeskFile) -> Result<DecisionDesk, Refusal> {
                 .base_url
                 .clone()
                 .unwrap_or_else(|| rung_std::decide::DEFAULT_BASE_URL.into());
-            let model = d
-                .model
-                .clone()
-                .unwrap_or_else(|| rung_std::decide::DEFAULT_MODEL.into());
+            let model = desk_model(d.model.as_deref());
             let jev =
                 rung_std::decide::JevDecider::new(&base, &key, &model, crate::desk::ASK_TIMEOUT);
             DecisionDesk::new(Some(Arc::new(jev)), "jev", mode)
@@ -640,5 +648,20 @@ impl Handoff {
             Ok(w) => Ended::Halted(w),
             Err(_) => Ended::AcpFailed("the loop thread panicked".into()),
         }
+    }
+}
+
+#[cfg(test)]
+mod desk_model_tests {
+    use super::desk_model;
+
+    #[test]
+    fn the_desk_defaults_to_the_decision_model_and_the_old_one_is_a_setting() {
+        assert_eq!(desk_model(None), "microsoft/microsoft-decision-1");
+        assert_eq!(desk_model(Some("  ")), "microsoft/microsoft-decision-1");
+        assert_eq!(
+            desk_model(Some(rung_std::decide::LEGACY_MODEL)),
+            "typesafe/jev-1.13"
+        );
     }
 }

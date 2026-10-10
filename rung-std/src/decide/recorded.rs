@@ -91,21 +91,41 @@ impl Recorded {
     }
 
     /// The mode `RUNG_DECIDE` names. Recording builds a Jev decider from
-    /// `OPENROUTER_API_KEY` (base `RUNG_DECIDE_BASE_URL`, default OpenRouter).
+    /// `OPENROUTER_API_KEY` (base `RUNG_DECIDE_BASE_URL`, default OpenRouter; model `RUNG_DECIDE_MODEL`, default
+    /// [`DEFAULT_MODEL`]).
     pub fn from_env(path: impl Into<PathBuf>) -> Self {
+        let model = std::env::var("RUNG_DECIDE_MODEL")
+            .ok()
+            .map(|m| m.trim().to_string())
+            .filter(|m| !m.is_empty())
+            .unwrap_or_else(|| DEFAULT_MODEL.into());
+        Self::from_env_pinned(path, &model)
+    }
+
+    /// [`from_env`](Self::from_env) for a fixture recorded from a named
+    /// model: `RUNG_DECIDE_MODEL` is ignored, so the fixture stays truthful.
+    pub fn from_env_pinned(path: impl Into<PathBuf>, model: &str) -> Self {
         let mode = Mode::from_env();
+        let model = model.to_string();
         if mode == Mode::Replay {
-            return Self::replay(path);
+            return Self::replay(path).with_model(&model);
         }
         let key = std::env::var("OPENROUTER_API_KEY").unwrap_or_default();
         let base =
             std::env::var("RUNG_DECIDE_BASE_URL").unwrap_or_else(|_| DEFAULT_BASE_URL.into());
         let mut r = Self::record(
             path,
-            JevDecider::new(&base, &key, DEFAULT_MODEL, Duration::from_secs(30)),
+            JevDecider::new(&base, &key, &model, Duration::from_secs(30)),
         );
         r.always = mode == Mode::Rerecord;
         r
+    }
+
+    /// Name the model the replayed request carries (a fixture recorded
+    /// from another model keeps asking for that one).
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = model.into();
+        self
     }
 
     pub fn path(&self) -> &Path {

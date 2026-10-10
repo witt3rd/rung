@@ -6,7 +6,7 @@
 //! `tests/fixtures/decide/turn_check/`. The real binary talks to the mock
 //! through the real `JevDecider`.
 //!
-//! Fixtures were recorded from live Jev (`typesafe/jev-1.13`) with:
+//! Fixtures were recorded from live Jev (`typesafe/jev-1.13`, pinned by `LEGACY_MODEL`) with:
 //!
 //! ```text
 //! RUNG_DECIDE=record doppler run -p fleet -c dev_work -- \
@@ -26,7 +26,9 @@ use std::sync::Arc;
 
 use rung_agent::turn_check::{self, Turn, TurnReading, arm, turn_ask, turncheck};
 use rung_std::agent::AgentResult;
-use rung_std::decide::{Ask, Decided, Decider, Recorded, Undecided, read_answers};
+use rung_std::decide::{
+    Ask, DEFAULT_MODEL, Decided, Decider, LEGACY_MODEL, Recorded, Undecided, read_answers,
+};
 use rung_std::llm::{ChatMessage, MessageContent, MessageContentBlock, Usage};
 use serde_json::{Value, json};
 
@@ -154,7 +156,19 @@ fn mock_jev(replies: Vec<Jev>, tmp: &Path) -> String {
                 Jev::Fixture(n) => (n, None),
                 Jev::Mutated(n, f) => (n, Some(f)),
             };
-            match Recorded::from_env(fixture(name)).exchange(&request) {
+            // The fixtures were recorded from the legacy model; the binary
+            // asks for the default one. The mock answers the recorded
+            // exchange, so compare everything but the model name. First
+            // pin what the agent really asked for: no `turn_check.model` is
+            // configured here, so it must be the default.
+            assert_eq!(
+                request["model"],
+                json!(DEFAULT_MODEL),
+                "the binary asked the judge for the wrong model"
+            );
+            let mut request = request;
+            request["model"] = json!(LEGACY_MODEL);
+            match Recorded::from_env_pinned(fixture(name), LEGACY_MODEL).exchange(&request) {
                 Ok(mut response) => {
                     if let Some(f) = edit {
                         f(&mut response);
@@ -362,7 +376,7 @@ fn flip_to_done(r: &mut Value) {
 fn flipping_only_claims_unperformed_still_nudges() {
     let ask = narration_ask();
     let d = MutatedDecider {
-        inner: Recorded::from_env(fixture("narrated_note")),
+        inner: Recorded::from_env_pinned(fixture("narrated_note"), LEGACY_MODEL),
         edit: |r| r["answers"]["claims_unperformed_action"]["noul"] = json!(0.05),
     };
     let decided = d.decide(&ask).unwrap();
@@ -730,7 +744,7 @@ struct MutatedDecider {
 
 impl Decider for MutatedDecider {
     fn decide(&self, ask: &Ask) -> Result<Decided, Undecided> {
-        let mut r = self.inner.exchange(&ask.body("typesafe/jev-1.13"))?;
+        let mut r = self.inner.exchange(&ask.body(LEGACY_MODEL))?;
         (self.edit)(&mut r);
         read_answers(ask, &r)
     }
@@ -792,7 +806,7 @@ fn check(name: &str, request: &str, turn: Vec<ChatMessage>, final_message: &str)
         elided: 0,
     };
     let carry = turncheck::Carry {
-        decider: Arc::new(Recorded::from_env(fixture(name))),
+        decider: Arc::new(Recorded::from_env_pinned(fixture(name), LEGACY_MODEL)),
         request: request.into(),
         prior_actions: Vec::new(),
     };

@@ -14,7 +14,7 @@
 //!
 //! | backend | what it is |
 //! |---|---|
-//! | [`JevDecider`] | Jev (`typesafe/jev-1.13`) over the System One API, e.g. through OpenRouter |
+//! | [`JevDecider`] | Jev-style decider (see [`DEFAULT_MODEL`] and [`LEGACY_MODEL`]) over the System One API, e.g. through OpenRouter |
 //! | [`Recorded`] | replays a recorded exchange from a fixture file; records one when told to |
 //! | [`LlmDecider`] | a chat model asked for the same answers. **A stub**: not built yet, always `Undecided` |
 //!
@@ -25,7 +25,7 @@ mod jev;
 mod llm;
 mod recorded;
 
-pub use jev::{DEFAULT_BASE_URL, DEFAULT_MODEL, JevDecider};
+pub use jev::{DEFAULT_BASE_URL, DEFAULT_MODEL, JevDecider, LEGACY_MODEL};
 pub use llm::LlmDecider;
 pub use recorded::{Mode, Recorded};
 
