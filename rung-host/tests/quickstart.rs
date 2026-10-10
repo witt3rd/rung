@@ -13,6 +13,7 @@ const BIN: &str = env!("CARGO_BIN_EXE_rung-host");
 fn run(cwd: &Path, turns: Option<&str>) -> std::process::ExitStatus {
     let mut c = Command::new(BIN);
     c.current_dir(cwd)
+        .env("RUNG_HOME", cwd.join("rung-home"))
         .args(["run", "--config", "rung-host-mock.yaml"]);
     if let Some(t) = turns {
         c.args(["--turns", t]);

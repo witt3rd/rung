@@ -773,6 +773,17 @@ pub fn serve_stdio(acp: Arc<Acp>, principal: Principal) -> Result<(), String> {
 /// A request with no known token is refused (401). At least one token is
 /// required: an unauthenticated HTTP surface is not served.
 pub fn serve_http(acp: Arc<Acp>, addr: &str, tokens: Vec<(String, Role)>) -> Result<(), String> {
+    serve_http_bound(acp, addr, tokens, |_| {})
+}
+
+/// [`serve_http`], telling `on_bound` the address actually bound (the real
+/// port when `addr` asked for port 0) before the first connection is served.
+pub fn serve_http_bound(
+    acp: Arc<Acp>,
+    addr: &str,
+    tokens: Vec<(String, Role)>,
+    on_bound: impl FnOnce(std::net::SocketAddr),
+) -> Result<(), String> {
     if tokens.is_empty() {
         return Err("ACP over HTTP needs at least one role token".into());
     }
@@ -796,9 +807,10 @@ pub fn serve_http(acp: Arc<Acp>, addr: &str, tokens: Vec<(String, Role)>) -> Res
         .enable_all()
         .build()
         .map_err(|e| e.to_string())?;
-    rt.block_on(rung_agent_core::acp_http::listen_with(
+    rt.block_on(rung_agent_core::acp_http::listen_bound(
         addr.to_string(),
         serve,
+        on_bound,
     ))
 }
 

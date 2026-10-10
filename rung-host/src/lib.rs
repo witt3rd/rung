@@ -28,6 +28,7 @@ pub mod pack;
 pub mod presence;
 pub mod record;
 pub mod registers;
+pub mod registry;
 pub mod render;
 pub mod sim;
 pub mod startup;

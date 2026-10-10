@@ -13,7 +13,12 @@
 //!               [--acp-http ADDR --acp-token-env ROLE=ENV_VAR ...]
 //! rung-host canon --state DIR [--seed N]   # print the hash of a seeded run's request bytes
 //! rung-host run --config rung-host.yaml [--turns N]   # the startup-handoff ladder, then the host
+//! rung-host ls [--json]                  # the registered instances and whether each lives
 //! ```
+//!
+//! `run` registers the host in the instance registry (`$RUNG_HOME/instances`,
+//! `~/.rung/instances` without it) before it opens its record; `sim`
+//! registers only when given `--name`. See [`rung_host::registry`].
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -48,6 +53,10 @@ struct Opts {
     /// (role, the env var holding its token).
     acp_tokens: Vec<(rung_host::inbox::Role, String)>,
     config: Option<PathBuf>,
+    /// `sim`: register in the instance registry under this name.
+    name: Option<String>,
+    /// `ls`: print JSON.
+    json: bool,
 }
 
 fn role(s: &str) -> Result<rung_host::inbox::Role, String> {
@@ -92,7 +101,7 @@ fn parse() -> Result<Opts, String> {
     let mut a = std::env::args().skip(1);
     let cmd = a
         .next()
-        .ok_or("usage: rung-host sim|canon --state DIR ... | run --config FILE")?;
+        .ok_or("usage: rung-host sim|canon --state DIR ... | run --config FILE | ls [--json]")?;
     let mut o = Opts {
         cmd,
         state: None,
@@ -115,6 +124,8 @@ fn parse() -> Result<Opts, String> {
         acp_http: None,
         acp_tokens: Vec::new(),
         config: None,
+        name: None,
+        json: false,
     };
     while let Some(f) = a.next() {
         let mut v = || a.next().ok_or(format!("{f} needs a value"));
@@ -157,6 +168,8 @@ fn parse() -> Result<Opts, String> {
             "--acp-role" => o.acp_role = role(&v()?)?,
             "--acp-http" => o.acp_http = Some(v()?),
             "--config" => o.config = Some(PathBuf::from(v()?)),
+            "--name" => o.name = Some(v()?),
+            "--json" => o.json = true,
             "--acp-token-env" => {
                 let spec = v()?;
                 let (r, env) = spec
@@ -235,6 +248,9 @@ fn main() -> ExitCode {
     if o.cmd == "run" {
         return run(&o);
     }
+    if o.cmd == "ls" {
+        return ls(&o);
+    }
     let Some(state) = o.state.clone() else {
         eprintln!("rung-host: --state DIR is required");
         return ExitCode::from(2);
@@ -248,6 +264,25 @@ fn main() -> ExitCode {
     };
     match o.cmd.as_str() {
         "sim" => {
+            // Before the record is opened: a refused registration touches nothing.
+            let registration = match &o.name {
+                Some(name) => {
+                    let instance = rung_host::registry::Instance {
+                        name: name.clone(),
+                        state_dir: state.clone(),
+                        config: None,
+                        workspace: sc.config.workspace.clone(),
+                    };
+                    match rung_host::registry::Registration::register(&instance, sc.start) {
+                        Ok(r) => Some(Arc::new(r)),
+                        Err(e) => {
+                            eprintln!("rung-host: registry: {e}");
+                            return ExitCode::from(2);
+                        }
+                    }
+                }
+                None => None,
+            };
             // A state directory held by a live host is a bad start.
             let (host, rec, _mock) = match sim::try_build(sc) {
                 Ok(b) => b,
@@ -264,8 +299,16 @@ fn main() -> ExitCode {
                         return ExitCode::from(2);
                     }
                 };
-                return serve_acp(host, rec, o.acp_role, o.acp_http.clone(), toks);
+                return serve_acp(
+                    host,
+                    rec,
+                    o.acp_role,
+                    o.acp_http.clone(),
+                    toks,
+                    registration,
+                );
             }
+            let _registered = registration;
             match host.run(rec) {
                 Why::Stopped { .. } => ExitCode::SUCCESS,
                 Why::Revoked { .. } | Why::SpendCap { .. } => ExitCode::from(3),
@@ -292,14 +335,23 @@ fn serve_acp(
     role: rung_host::inbox::Role,
     http: Option<String>,
     tokens: Vec<(String, rung_host::inbox::Role)>,
+    registration: Option<Arc<rung_host::registry::Registration>>,
 ) -> ExitCode {
+    let held = registration.clone();
     let acp = rung_host::acp::Acp::attach(host.clone());
     let failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let (f2, h2) = (failed.clone(), host.clone());
     let looped = std::thread::spawn(move || host.run(rec));
     std::thread::spawn(move || match http {
         Some(addr) => {
-            if let Err(e) = rung_host::acp::serve_http(acp, &addr, tokens) {
+            let on_bound = move |bound: std::net::SocketAddr| {
+                if let Some(r) = registration
+                    && let Err(e) = r.set_address(&bound.to_string())
+                {
+                    eprintln!("rung-host: registry: {e}");
+                }
+            };
+            if let Err(e) = rung_host::acp::serve_http_bound(acp, &addr, tokens, on_bound) {
                 eprintln!("rung-host: acp: {e}");
                 f2.store(true, std::sync::atomic::Ordering::SeqCst);
                 h2.core.stop.request(Why::Stopped { by: "acp".into() });
@@ -314,6 +366,7 @@ fn serve_acp(
     let why = looped.join();
     // Let the bridge answer what the halt left open.
     std::thread::sleep(std::time::Duration::from_millis(300));
+    drop(held);
     if failed.load(std::sync::atomic::Ordering::SeqCst) {
         return ExitCode::from(2);
     }
@@ -330,7 +383,9 @@ fn run(o: &Opts) -> ExitCode {
         eprintln!("rung-host: run needs --config FILE");
         return ExitCode::from(2);
     };
-    let started = rung_host::startup::configure(path, o.turns).and_then(rung_host::startup::start);
+    let started = rung_host::startup::configure(path, o.turns)
+        .map(rung_host::startup::registered)
+        .and_then(rung_host::startup::start);
     let handoff = match started {
         Ok(h) => h,
         Err(r) => {
@@ -346,6 +401,27 @@ fn run(o: &Opts) -> ExitCode {
             ExitCode::from(2)
         }
     }
+}
+
+/// `ls`: every registered instance and whether it lives. A dead or stopped
+/// one is listed, not dropped. `--json` prints `{"instances": [...]}`.
+fn ls(o: &Opts) -> ExitCode {
+    let rows = match rung_host::registry::list() {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("rung-host: ls: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    if o.json {
+        let v = serde_json::json!({
+            "instances": rows.iter().map(|r| r.to_json()).collect::<Vec<_>>(),
+        });
+        println!("{v}");
+    } else {
+        print!("{}", rung_host::registry::render(&rows));
+    }
+    ExitCode::SUCCESS
 }
 
 #[cfg(test)]

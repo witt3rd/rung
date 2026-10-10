@@ -296,6 +296,53 @@ impl Record {
         Ok(lines)
     }
 
+    /// The last complete line in `dir`, read from the end of the newest
+    /// segment that has one (a torn last line is ignored, not cut). The
+    /// cost does not grow with the record.
+    pub fn last_line(dir: impl AsRef<Path>) -> io::Result<Option<Line>> {
+        use std::io::{Seek, SeekFrom};
+        for (_, path) in segments(dir.as_ref())?.iter().rev() {
+            let mut f = File::open(path)?;
+            let mut end = f.metadata()?.len();
+            // Bytes after the last newline are a torn line.
+            let mut tail: Vec<u8> = Vec::new();
+            let mut torn_skipped = false;
+            while end > 0 {
+                let start = end.saturating_sub(64 * 1024);
+                let mut chunk = vec![0u8; (end - start) as usize];
+                f.seek(SeekFrom::Start(start))?;
+                f.read_exact(&mut chunk)?;
+                chunk.extend_from_slice(&tail);
+                tail = chunk;
+                end = start;
+                // Drop the torn part once, then look for the line's start.
+                if !torn_skipped {
+                    match tail.iter().rposition(|b| *b == b'\n') {
+                        Some(p) => {
+                            tail.truncate(p + 1);
+                            torn_skipped = true;
+                        }
+                        None => continue,
+                    }
+                }
+                let body = &tail[..tail.len() - 1];
+                let first = body.iter().rposition(|b| *b == b'\n');
+                if first.is_some() || end == 0 {
+                    let from = first.map_or(0, |p| p + 1);
+                    let text = String::from_utf8_lossy(&body[from..]).to_string();
+                    return match Line::parse(&text) {
+                        Some(l) => Ok(Some(l)),
+                        None => Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "last line is not a record line",
+                        )),
+                    };
+                }
+            }
+        }
+        Ok(None)
+    }
+
     pub fn dir(&self) -> &Path {
         &self.dir
     }
