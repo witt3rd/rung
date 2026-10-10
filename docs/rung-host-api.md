@@ -203,7 +203,9 @@ been reused.
 
 ## H4: the credential redactor
 
-`rung_host::redact` is a library piece, not a door. Every door that returns
+`rung_host::redact` is a library piece, not a door. It re-exports the
+workspace's one redactor, `rung_agent_core::redact` (see "One definition"
+below). Every door that returns
 record text, every stream line and the console sink pass what they emit
 through it first. The record on disk stays verbatim (the cached prompt prefix
 is rebuilt from it byte for byte); redaction happens on the way out.
@@ -213,7 +215,9 @@ is rebuilt from it byte for byte); redaction happens on the way out.
 - **Replace, never shorten.** A secret value becomes the literal `[redacted]`
   (`MARK`). Everything else is byte-for-byte the input, so no output is
   shorter than its input except by the replaced value. There is no length cap;
-  the scan is one linear pass, so a very long line is redacted whole.
+  the scan is linear in the text (every forward look is memoised), so a very
+  long line, or hostile text such as a million secret-looking names in a row,
+  is redacted whole in time proportional to its length.
 - **Clean in, same out.** Text with no secret comes back as the same borrowed
   `&str` (`Cow::Borrowed`); a JSON line with no secret comes back byte for
   byte.
@@ -233,9 +237,13 @@ pub struct Redactor { /* the exact values it was told; Clone, Send, Sync */ }
 
 impl Redactor {
     pub fn new() -> Self;                                   // known shapes only
+    pub fn with_mark(mark: &'static str) -> Self;           // another marker
     pub fn from_env_names<'a>(names: impl IntoIterator<Item = &'a str>) -> Self;
     pub fn add_env(&mut self, name: &str);                  // value of that env var
+    pub fn add_env_with<'a>(&mut self, names: impl IntoIterator<Item = &'a str>,
+                            lookup: impl Fn(&str) -> Option<String>);
     pub fn add_secret(&mut self, value: &str);              // an exact value
+    pub fn add_secret_min(&mut self, value: &str, min: usize);
     pub fn with_secret(self, value: &str) -> Self;
 
     /// Text out: secrets replaced; borrowed when there were none.
@@ -243,9 +251,13 @@ impl Redactor {
     /// A decoded JSON value: every string redacted, every string under a
     /// secret-named key replaced, object keys redacted.
     pub fn redact_value(&self, v: &serde_json::Value) -> serde_json::Value;
+}
+
+/// In `rung_host::redact` (bring the trait into scope):
+pub trait RedactJsonLine {
     /// One record/stream line (no newline). Canonical JSON when something was
     /// replaced, the input untouched when not; non-JSON is redacted as text.
-    pub fn redact_json_line<'a>(&self, line: &'a str) -> Cow<'a, str>;
+    fn redact_json_line<'a>(&self, line: &'a str) -> Cow<'a, str>;
 }
 
 pub fn redact(text: &str) -> Cow<'_, str>;                  // known shapes only
@@ -263,10 +275,14 @@ a count; never log it.
 | exact value of a named variable or `add_secret` (6+ chars) | the value, in any context | the rest |
 | key shapes: `sk-…`, `sk_live_…`, `ghp_…` (and `gho_ ghu_ ghs_ ghr_`), `github_pat_…`, `glpat-…`, `xox?-…`, `AKIA…`/`ASIA…`, `AIza…`, `hf_…`, `npm_…`, `pypi-…`, `dp.st.…` (and `pt ct sa`), JWTs | the whole token | the rest |
 | private key block | the body | the BEGIN/END lines |
-| headers `Authorization`, `Proxy-Authorization`, `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id`, and the HTTP session-state request and response headers | the value to the end of the line (or closing quote) | the name |
+| headers `Authorization`, `Proxy-Authorization`, `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id` | the value, to the next `,` or `;`, the end of the line or the closing quote |
+| the HTTP session-state request and response headers (their `;`-separated pairs) | the whole value, to the end of the line or the closing quote | the name |
 | `Bearer <token>` | the token | `Bearer` |
 | URL credentials | the password of `scheme://user:pass@host`; the user of an http(s)/ws(s) URL that has only a token | the rest; a plain `ssh://git@host` is left |
 | assignments `NAME=value`, `name: value`, `"name": "value"`, `?name=value` whose name says it is a secret | the value | the name and the separator |
+
+An unquoted value also ends at a backslash, so text that is itself JSON-escaped
+(a recorded tool input) keeps its `\"` and `\n` around the replaced value.
 
 A name says it is a secret when its last word (split on `_ - .` and camelCase)
 is `secret`, `token`, `password`, `passwd`, `pwd`, `passphrase`,
@@ -290,7 +306,9 @@ private key frame, headers, bearer, assignments, URL credentials, the exact
 value of a named variable (including one with a quote or newline inside a
 JSON line), the JSON-value walk, prose and counters left alone, a text with
 no secret returned unchanged and whole, a long mixed text whose only change is
-the replaced values, and a multi-megabyte line redacted whole.
+the replaced values, a multi-megabyte line redacted whole, and hostile inputs
+(a run of secret names, header names, token prefixes, quotes) redacted in
+linear time.
 
 ### Wiring checklist
 
@@ -305,8 +323,13 @@ prints it, zero hits across every door, stream line and console file):
 - [ ] H5 event stream
 - [ ] H8 console sink
 
-### Follow-up
+### One definition
 
-`rung_agent_core::mcp::redact` (used by the gist in `rung-host/src/inbox.rs`)
-is a second, older redaction definition. It is to be unified with this one
-later; it is intentionally untouched in this slice.
+There is one definition of what a credential looks like:
+`rung_agent_core::redact::Redactor`. `rung_agent_core::mcp::redact` (used by
+memory, the turn check, MCP errors and the gist in `rung-host/src/inbox.rs`)
+is that redactor with its own marker (`[REDACTED]`) and its own secrets
+(registered ones and the well-known key variables), pinned by its own tests.
+`rung_host::redact` re-exports it and adds the canonical JSON line form, which
+needs the host's canonical serializer. A change to what is recognised is made
+once, in `rung-agent-core/src/redact.rs`.

@@ -11,3 +11,5 @@ docs/reports/rung-jevmem-memory-v2/build.py  # report build: its privacy scan li
 docs/reports/rung-memory-provider-contract-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
 docs/reports/prime-agent-vs-rung-agent-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
 docs/reports/rung-ui-design-v1/build.py  # report build: its privacy scan lists the terms it forbids in the PDF text
+rung-agent-core/src/redact.rs  # the credential redactor names the HTTP `Cookie`/`Set-Cookie` headers; the whole-word `cookie` pattern is not a consumer here
+rung-host/tests/redactor.rs  # proves the redactor on the HTTP `Cookie`/`Set-Cookie` headers; same reason

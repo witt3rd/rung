@@ -5,7 +5,7 @@
 //! and console file; no output shorter than its input except by the replaced
 //! value.
 
-use rung_host::redact::{MARK, Redactor, redact};
+use rung_host::redact::{MARK, RedactJsonLine, Redactor, redact};
 use serde_json::json;
 
 /// Sentinel values, one per shape. Built by concatenation so no literal in
@@ -67,8 +67,8 @@ fn an_auth_header_keeps_its_name_and_loses_its_value() {
         ("authorization", "Basic U0VOVElORUw6U0VOVElORUw="),
         ("X-Api-Key", "SENTINELvalue0123"),
         ("Proxy-Authorization", "Basic U0VOVElORUw6U0VOVElORUw="),
-        ("Coo\u{6b}ie", "sid=SENTINELsession; other=SENTINELmore"),
-        ("Set-Coo\u{6b}ie", "sid=SENTINELsession; HttpOnly"),
+        ("Cookie", "sid=SENTINELsession; other=SENTINELmore"),
+        ("Set-Cookie", "sid=SENTINELsession; HttpOnly"),
         ("mcp-session-id", "SENTINELsession0123"),
     ] {
         assert_eq!(
@@ -153,6 +153,15 @@ fn the_exact_value_of_a_named_variable_is_removed_in_any_shape() {
     // Only the Redactor that was told the variable knows the value.
     // SAFETY: a name only this test reads; no other thread touches it.
     unsafe { std::env::set_var("RUNG_H4_TEST_CANARY", canary) };
+    // What this test sets, it retires, on a failed assertion too.
+    struct Unset;
+    impl Drop for Unset {
+        fn drop(&mut self) {
+            // SAFETY: as above.
+            unsafe { std::env::remove_var("RUNG_H4_TEST_CANARY") };
+        }
+    }
+    let _unset = Unset;
     let r = Redactor::from_env_names(["RUNG_H4_TEST_CANARY", "RUNG_H4_TEST_UNSET"]);
     let text = format!("a {canary} b\nwords{canary}words\n{{\"x\":\"{canary}\"}}");
     let out = r.redact(&text);
@@ -290,5 +299,64 @@ fn multibyte_text_around_a_secret_is_untouched() {
     assert_eq!(
         redact(&text),
         format!("日本語🚀{MARK}🚀日本語 ünï Authorization: {MARK}\n✓")
+    );
+}
+
+/// Hostile text that makes a naive scan run to the end of the text from every
+/// match: each of these is a redaction input a tool or a model can print.
+#[test]
+fn hostile_text_is_redacted_in_time_linear_in_its_length() {
+    let n = 100_000;
+    let secret = "SENTINELvalue0123456789";
+    for (name, unit) in [
+        ("secret names, no stop", "token:"),
+        ("secret names, assigned", "api_key="),
+        ("variable references", "token:$"),
+        ("header names", "authorization:"),
+        ("header names, quoted", "cookie:\""),
+        ("token prefixes", "sk-"),
+        ("jwt-like runs", "eyJ-"),
+        ("bearer words", "bearer a "),
+        ("url schemes", "a://"),
+        ("quotes", "password=\"x"),
+    ] {
+        let text = format!("{}{} tail", unit.repeat(n), secret);
+        let t = std::time::Instant::now();
+        let out = redact(&text);
+        let took = t.elapsed();
+        assert!(
+            took < std::time::Duration::from_secs(5),
+            "{name}: {took:?} for {} bytes",
+            text.len()
+        );
+        // Never shorter than the input by more than the replaced values.
+        assert!(out.len() + text.len() >= text.len(), "{name}");
+    }
+}
+
+#[test]
+fn a_secret_after_a_long_run_of_secret_names_is_still_found() {
+    let secret = "SENTINELvalue0123456789";
+    let text = format!("{}api_key={secret}\nnext", "token:".repeat(50_000));
+    let out = redact(&text);
+    assert!(!out.contains(secret));
+    assert!(out.ends_with("\nnext"));
+}
+
+#[test]
+fn a_value_inside_escaped_json_text_stops_at_the_escape() {
+    // A tool's input is recorded as JSON text, so a quote or a newline around
+    // a value shows as a backslash pair; the backslash is not part of the value.
+    assert_eq!(
+        redact(r#"curl \"https://h.test/f?token=SENTINELvalue0123\"; ls"#),
+        format!(r#"curl \"https://h.test/f?token={MARK}\"; ls"#)
+    );
+    assert_eq!(
+        redact(r#"Authorization: Bearer SENTINELtoken0123\nHost: h.test"#),
+        format!(r#"Authorization: {MARK}\nHost: h.test"#)
+    );
+    assert_eq!(
+        redact(r#"Cookie: sid=SENTINELsession\nnext"#),
+        format!(r#"Cookie: {MARK}\nnext"#)
     );
 }

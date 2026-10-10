@@ -150,18 +150,16 @@ impl McpToolError {
     }
 }
 
-/// Redacts credentials from `text`: URL userinfo, bearer tokens and headers,
-/// and the values of well-known API-key env vars. Set `RUNG_REDACT_ENVS` to a
-/// comma-separated list of extra env var names whose values are also redacted.
+/// Redacts credentials from `text`: the one definition of what a credential
+/// looks like, [`crate::redact::Redactor`], with this module's marker and its
+/// secrets: the values registered by [`register_secret`] and of well-known
+/// API-key env vars. Set `RUNG_REDACT_ENVS` to a comma-separated list of extra
+/// env var names whose values are also redacted.
 pub fn redact(text: &str) -> String {
-    let mut out = redact_url_credentials(text);
-    out = redact_tokens_and_headers(&out);
-
+    let mut r = crate::redact::Redactor::with_mark("[REDACTED]");
     DYNAMIC_SECRETS.with(|set| {
         for secret in set.borrow().iter() {
-            if !secret.is_empty() {
-                out = out.replace(secret, "[REDACTED]");
-            }
+            r.add_secret_min(secret, 1);
         }
     });
 
@@ -177,154 +175,8 @@ pub fn redact(text: &str) -> String {
         .iter()
         .copied()
         .chain(extra.split(',').map(str::trim).filter(|n| !n.is_empty()));
-    redact_env_values(&out, names, |k| std::env::var(k).ok())
-}
-
-fn redact_env_values<'a>(
-    text: &str,
-    names: impl Iterator<Item = &'a str>,
-    lookup: impl Fn(&str) -> Option<String>,
-) -> String {
-    let mut out = text.to_string();
-    for key in names {
-        if let Some(val) = lookup(key) {
-            let val = val.trim();
-            if val.len() >= 6 {
-                out = out.replace(val, "[REDACTED]");
-            }
-        }
-    }
-    out
-}
-
-fn redact_url_credentials(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut last = 0;
-    for (idx, _) in s.match_indices("://") {
-        if idx < last {
-            continue;
-        }
-        let after_scheme = idx + 3;
-        let auth_end = s[after_scheme..]
-            .char_indices()
-            .find(|&(_, c)| {
-                c == '/'
-                    || c == '?'
-                    || c == '#'
-                    || c.is_whitespace()
-                    || c == '"'
-                    || c == '\''
-                    || c == ')'
-            })
-            .map(|(i, _)| after_scheme + i)
-            .unwrap_or(s.len());
-
-        let authority = &s[after_scheme..auth_end];
-        if let Some(at_idx) = authority.find('@') {
-            let user_info = &authority[..at_idx];
-            let host_part = &authority[at_idx..];
-            out.push_str(&s[last..after_scheme]);
-            if let Some(colon_idx) = user_info.find(':') {
-                let user = &user_info[..colon_idx];
-                out.push_str(user);
-                out.push_str(":[REDACTED]");
-            } else {
-                out.push_str("[REDACTED]");
-            }
-            out.push_str(host_part);
-            last = auth_end;
-        }
-    }
-    out.push_str(&s[last..]);
-    out
-}
-
-fn starts_with_ascii_ignore_case(slice: &str, pat: &str) -> bool {
-    if slice.len() < pat.len() {
-        false
-    } else {
-        slice.as_bytes()[..pat.len()].eq_ignore_ascii_case(pat.as_bytes())
-    }
-}
-
-fn redact_tokens_and_headers(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut i = 0;
-
-    while i < s.len() {
-        let remainder = &s[i..];
-
-        // Check "bearer "
-        if starts_with_ascii_ignore_case(remainder, "bearer ") {
-            out.push_str(&remainder[..7]);
-            let mut val_idx = i + 7;
-            while val_idx < s.len()
-                && (s.as_bytes()[val_idx] == b' ' || s.as_bytes()[val_idx] == b'\t')
-            {
-                out.push(s.as_bytes()[val_idx] as char);
-                val_idx += 1;
-            }
-            let mut end = val_idx;
-            while end < s.len() {
-                let b = s.as_bytes()[end];
-                if b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.' {
-                    end += 1;
-                } else {
-                    break;
-                }
-            }
-            if end - val_idx >= 6 {
-                out.push_str("[REDACTED]");
-                i = end;
-                continue;
-            } else {
-                out.push_str(&s[val_idx..end]);
-                i = end;
-                continue;
-            }
-        }
-
-        // Check header prefixes
-        let mut matched_header = None;
-        for &hdr in &["authorization:", "x-api-key:", "mcp-session-id:"] {
-            if starts_with_ascii_ignore_case(remainder, hdr) {
-                matched_header = Some(hdr);
-                break;
-            }
-        }
-
-        if let Some(hdr) = matched_header {
-            out.push_str(&remainder[..hdr.len()]);
-            let mut val_idx = i + hdr.len();
-            while val_idx < s.len()
-                && (s.as_bytes()[val_idx] == b' ' || s.as_bytes()[val_idx] == b'\t')
-            {
-                out.push(s.as_bytes()[val_idx] as char);
-                val_idx += 1;
-            }
-            let mut end = val_idx;
-            while end < s.len() {
-                let b = s.as_bytes()[end];
-                if b == b'\r' || b == b'\n' || b == b',' || b == b';' || b == b'"' || b == b'\'' {
-                    break;
-                }
-                let ch_len = s[end..].chars().next().map_or(1, |c| c.len_utf8());
-                end += ch_len;
-            }
-            if end > val_idx {
-                out.push_str("[REDACTED]");
-                i = end;
-                continue;
-            }
-        }
-
-        // Advance by one UTF-8 character
-        let ch = remainder.chars().next().unwrap();
-        out.push(ch);
-        i += ch.len_utf8();
-    }
-
-    out
+    r.add_env_with(names, |k| std::env::var(k).ok());
+    r.redact(text).into_owned()
 }
 
 fn classify_reqwest_error(
@@ -1745,14 +1597,15 @@ mod tests {
             "B" => Some("short".to_string()),
             _ => None,
         };
-        let out = redact_env_values(
-            "x s3cr3t-value-xyz short y",
-            ["A", "B", "C"].into_iter(),
-            lookup,
+        let mut r = crate::redact::Redactor::with_mark("[REDACTED]");
+        r.add_env_with(["A", "B", "C"], lookup);
+        assert_eq!(
+            r.redact("x s3cr3t-value-xyz short y"),
+            "x [REDACTED] short y"
         );
-        assert_eq!(out, "x [REDACTED] short y");
-        let none = redact_env_values("x s3cr3t-value-xyz", [].into_iter(), lookup);
-        assert_eq!(none, "x s3cr3t-value-xyz");
+        let mut none = crate::redact::Redactor::with_mark("[REDACTED]");
+        none.add_env_with([], lookup);
+        assert_eq!(none.redact("x s3cr3t-value-xyz"), "x s3cr3t-value-xyz");
     }
 
     #[test]
@@ -1845,6 +1698,17 @@ mod tests {
         assert!(redacted.contains("mcp-session-id: [REDACTED]"));
         assert!(redacted.contains("dynamic: [REDACTED]"));
         assert!(redacted.contains("http://admin:[REDACTED]@127.0.0.1:8090/mcp"));
+    }
+
+    #[test]
+    fn redact_is_the_shared_redactor_with_this_modules_marker() {
+        // A key shape and a secret-named assignment, which only the shared
+        // redactor knows; the marker is this module's, not the host's.
+        let key = format!("ghp_{}", "SENTINEL0123456789abcdefSENTINEL");
+        let out = redact(&format!(
+            "tool said {key} and DB_PASSWORD=sentinelpass0 done"
+        ));
+        assert_eq!(out, "tool said [REDACTED] and DB_PASSWORD=[REDACTED] done");
     }
 
     enum MockAction {
