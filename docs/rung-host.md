@@ -220,10 +220,20 @@ calendar:                            # owner entries, seeded on the first start 
 desk:                                # rule-only when absent
   mode: shadow                       # decide | shadow | rule_only
   decider: jev                       # System One at base_url (default OpenRouter)
+  # model: typesafe/jev-1.13         # optional; default microsoft/microsoft-decision-1
   api_key_env: OPENROUTER_API_KEY    # the env var's name, never the key
   cap_usd_day: 0.25                  # default 0.25; per ask 0.001 (cap_usd_ask)
   kill_file: /run/rung-host/DESK_OFF # while it exists the decider is not asked
 ```
+
+**The decision model is one setting.** `desk.model` names it; when absent the
+desk uses `rung_std::decide::DEFAULT_MODEL` (`microsoft/microsoft-decision-1`).
+The previous model, `typesafe/jev-1.13` (`rung_std::decide::LEGACY_MODEL`), is
+one line away: `desk.model: typesafe/jev-1.13`. The same default and override
+apply to the agent's turn check (`turn_check.model`) and to `Recorded`
+(`RUNG_DECIDE_MODEL`). Recorded fixtures keep the model that produced them
+and replay pinned to it. The desk's cost estimate (`JEV_USD_PER_INPUT_TOKEN`)
+is still the old model's list price; the cap uses it only as an estimate.
 
 With the kill file present every ask is `desk.ask{outcome: killed}` and
 every family decides by its rule (`by: {"rule": "killed"}`). An ask that

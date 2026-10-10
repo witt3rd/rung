@@ -22,7 +22,7 @@ use rung_host::gates;
 use rung_host::inbox::{ItemKind, Role};
 use rung_host::kernel::TurnKind;
 use rung_host::sim::{self, DeskSpec, SIM_START};
-use rung_std::decide::{Ask, DEFAULT_MODEL, Decider, Recorded, Undecided};
+use rung_std::decide::{Ask, Decider, LEGACY_MODEL, Recorded, Undecided};
 use serde_json::{Value, json};
 
 const NOW: i64 = SIM_START + 60 * MINUTE;
@@ -465,12 +465,12 @@ fn recorded_fixtures_replay_and_a_reworded_question_panics() {
         let path = fixtures().join(format!("{name}.json"));
         if write {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-            let f = json!({"request": ask.body(DEFAULT_MODEL), "response": synthetic_response(&ask),
+            let f = json!({"request": ask.body(LEGACY_MODEL), "response": synthetic_response(&ask),
                            "model": "synthetic", "recorded_at": "synthetic"});
             std::fs::write(&path, serde_json::to_string_pretty(&f).unwrap() + "\n").unwrap();
         }
         let d = DecisionDesk::new(
-            Some(Arc::new(Recorded::replay(&path))),
+            Some(Arc::new(Recorded::replay(&path).with_model(LEGACY_MODEL))),
             "recorded",
             DeskMode::Decide,
         );
@@ -483,7 +483,7 @@ fn recorded_fixtures_replay_and_a_reworded_question_panics() {
         | rung_std::decide::Question::Choice { instructions, .. }) = q;
         instructions.push_str(" (reworded)");
         let id = id.clone();
-        let rec = Recorded::replay(&path);
+        let rec = Recorded::replay(&path).with_model(LEGACY_MODEL);
         let err = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| rec.decide(&reworded)));
         let msg = err.expect_err("a reworded question must panic");
         let text = msg.downcast_ref::<String>().cloned().unwrap_or_default();
