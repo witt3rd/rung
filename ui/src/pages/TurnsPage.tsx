@@ -3,7 +3,8 @@ import { useInstance } from "../data/hooks.ts";
 import { duration, num, usd } from "../record/words.ts";
 import type { ToolCall, Turn } from "../record/folds.ts";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
-import { when } from "./format.ts";
+import { useNow, when } from "./format.ts";
+import { overlayRunning } from "../live/overlay.ts";
 
 const PAGE = 50;
 type Filter = "all" | "tools" | "failed" | "model";
@@ -22,7 +23,8 @@ const shortArg = (v: unknown): string => {
   return s && !s.includes("\n") && s.length <= 80 ? ` ${s}` : "";
 };
 
-function callStatus(c: ToolCall): string {
+function callStatus(c: ToolCall, running: boolean): string {
+  if (running && c.ok === null && !c.refused) return "running";
   if (c.refused) return `refused: ${c.refused}`;
   return c.ok === false ? "failed" : "";
 }
@@ -51,7 +53,7 @@ function TurnCard({ t, now, open }: { t: Turn; now: number; open: boolean }) {
       {t.calls.map((c, i) => (
         <div className="call" key={i}>
           <span className="k" data-content>Tool</span>
-          <span className="mono" data-content>{c.name}{shortArg(c.input)}{callStatus(c) ? ` — ${callStatus(c)}` : ""}</span>
+          <span className="mono" data-content>{c.name}{shortArg(c.input)}{callStatus(c, t.status === "running") ? ` — ${callStatus(c, t.status === "running")}` : ""}</span>
         </div>
       ))}
       {t.decisions.length > 0 && (
@@ -89,13 +91,15 @@ function TurnCard({ t, now, open }: { t: Turn; now: number; open: boolean }) {
 }
 
 export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
-  const { entry, folds, indexLoaded, error } = useInstance(id);
+  const { entry, folds, indexLoaded, error, live: li } = useInstance(id);
   const [q, setQ] = useState("");
   const [f, setF] = useState<Filter>("all");
   const [shown, setShown] = useState(PAGE);
   const missing = indexLoaded && !entry;
 
-  const list = useMemo(() => (folds ? folds.turns.filter((t) => matches(t, q, f)).reverse() : []), [folds, q, f]);
+  const turnsNow = useMemo(() => (folds ? overlayRunning(folds.turns, li?.delta ?? null) : []), [folds, li?.delta]);
+  const list = useMemo(() => turnsNow.filter((t) => matches(t, q, f)).reverse(), [turnsNow, q, f]);
+  const now = useNow(!!li, folds?.now ?? 0);
   // A link to one turn opens the list far enough to hold it.
   const need = turn ? list.findIndex((t) => t.n === turn) + 1 : 0;
   const count = Math.max(shown, need);
@@ -116,8 +120,13 @@ export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
             <option value="all">All turns</option><option value="tools">Tool calls</option><option value="failed">Failed turns</option><option value="model">Decided by model</option>
           </select>
         </div>
+        {li && (
+          <p className="meta" style={{ margin: "0 0 20px" }} data-content>
+            <span className="mark live" />{li.status === "following" ? "Following" : li.status === "catching up" ? "Catching up" : "Reconnecting"}
+          </p>
+        )}
         <section>
-          {list.slice(0, count).map((t) => <TurnCard key={t.n} t={t} now={folds!.now} open={t.n === turn} />)}
+          {list.slice(0, count).map((t) => <TurnCard key={t.n} t={t} now={now} open={t.n === turn} />)}
           {folds && list.length === 0 && <p className="none meta" data-content>{filtered ? "No turn matches." : "No turn yet."}</p>}
         </section>
         {folds && list.length > 0 && (

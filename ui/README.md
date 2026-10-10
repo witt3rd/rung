@@ -18,6 +18,25 @@ reads recorded files; that one module (`src/data/source.ts`) is the seam a host'
 Needs node 24 or later (type stripping: the data script and the tests run `.ts` directly) and Playwright's browser
 (`npx playwright install chromium-headless-shell`).
 
+## Slice 1: the live view, against a contract
+
+The same app is live when a gateway answers `api/health` beside it, and recorded when it does not (slice 0's files). Live:
+the whole record is read once through `/v1/record`, then followed over `/v1/events` (`src/live/`: an SSE parser, an events client that
+keeps the number of the last line it applied and resumes from it, a store, and the overlay that lays the running turn's streamed
+text and tool over the record). The host's own `/v1/summary` decides the state word.
+
+The doors' bodies are proposed in `contract/README.md` (the gateway's names and access classes are in `docs/rung-host-api.md`,
+which is on the host builder's branches, not yet on master). `test/contract.test.ts` states them as checks and runs unchanged against
+`mock/` (a gateway and simulated hosts in this directory) and against a real gateway:
+
+    npm run test:contract                                                       # against the mock
+    RUNG_CONTRACT_URL=http://127.0.0.1:8787 RUNG_CONTRACT_INSTANCE=alpha npm run test:contract   # against a real one
+    npm run mock -- --port 8742 --app dist     # the built app, the mock gateway, and a host writing turns on a real clock
+    npm run live-proof                         # a real browser against the mock: latency, a cut with the page offline, captures
+
+Checks that need to write to the host (a line within a second, a cut, deltas, a slow reader) need the target's control hooks and say so
+when skipped; against a real host they run once it has a way to be made to write.
+
 ## Where the data comes from
 
 `scripts/prepare-data.ts` copies every recorded run's record from `rung-host/live/runs/*/state/record/` into
@@ -46,6 +65,10 @@ Needs node 24 or later (type stripping: the data script and the tests run `.ts` 
 - `canary-first-run.txt`: the canary check, run before the redactor existed. It failed.
 - `prepare-data-first-run.txt`: the checks for an unset key variable and for an `--out` the script does not own,
   run against the script before those refusals existed. Four failed.
+- `contract-first-run.txt`: the contract tests before the mock existed. Every one failed.
+- `contract-mutations.txt`: five faults put into the mock on purpose (a slow reader never dropped, a replay that repeats a line, a key in an
+  answer header, a delta with an id, a read-only token that may write); the tests that caught each.
+- `live-proof.txt`: the live proof against the mock, as run.
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged
   by looking at the captures; what looking changed is listed below.
