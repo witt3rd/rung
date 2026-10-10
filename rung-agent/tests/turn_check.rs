@@ -764,6 +764,19 @@ fn reading_of(d: &Decided) -> TurnReading {
     }
 }
 
+/// Recorded from the default model (`microsoft/microsoft-decision-1`) by
+/// replaying the legacy fixture's request (docs/rung-decision-model-replay.md):
+/// the response has the System One shape and reads as `narrated`.
+#[test]
+fn the_default_model_response_reads_through_the_same_decider() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/decide/turn_check_decision1/narrated_note.json");
+    let d = Recorded::replay(path).decide(&narration_ask()).unwrap();
+    assert!(d.model.starts_with(DEFAULT_MODEL), "{}", d.model);
+    assert_eq!(d.choice("outcome").unwrap().0, "narrated");
+    assert!(d.noul("claims_unperformed_action").unwrap() > 0.5);
+}
+
 /// The state the binary builds for the narrated first turn.
 fn narration_ask() -> Ask {
     let turn = vec![ChatMessage::assistant(NARRATION)];

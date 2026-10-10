@@ -39,7 +39,9 @@ use crate::canon;
 use crate::clock::{HOUR, MINUTE, Millis, day};
 use crate::record::Line;
 
-/// Jev's list price per input token (output is free).
+/// The decision desk's list price per input token (output is free). Replay
+/// of 10 recorded requests billed `typesafe/jev-1.13` and
+/// `microsoft/microsoft-decision-1` at this same rate (docs/rung-decision-model-replay.md).
 pub const JEV_USD_PER_INPUT_TOKEN: f64 = 0.042e-6;
 
 /// One family of host decisions.
