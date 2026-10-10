@@ -232,8 +232,9 @@ The previous model, `typesafe/jev-1.13` (`rung_std::decide::LEGACY_MODEL`), is
 one line away: `desk.model: typesafe/jev-1.13`. The same default and override
 apply to the agent's turn check (`turn_check.model`) and to `Recorded`
 (`RUNG_DECIDE_MODEL`). Recorded fixtures keep the model that produced them
-and replay pinned to it. The desk's cost estimate (`JEV_USD_PER_INPUT_TOKEN`)
-is still the old model's list price; the cap uses it only as an estimate.
+and replay pinned to it. The desk's cost estimate (`JEV_USD_PER_INPUT_TOKEN`,
+$0.042 per million input tokens) is the rate both models were billed at in
+the replay (`docs/rung-decision-model-replay.md`).
 
 With the kill file present every ask is `desk.ask{outcome: killed}` and
 every family decides by its rule (`by: {"rule": "killed"}`). An ask that

@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 430 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 431 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -760,7 +760,7 @@ look shorter than it is.
 - `cli_text`
 - `cli_turn_check`
 
-**`rung-agent/tests/turn_check.rs`** — 21 unclaimed
+**`rung-agent/tests/turn_check.rs`** — 22 unclaimed
 
 - `a_32_iteration_turn_stays_under_the_ceiling_and_is_redacted`
 - `a_401_or_402_leaves_the_turn_unchecked`
@@ -780,6 +780,7 @@ look shorter than it is.
 - `no_key_leaves_the_turn_unchecked`
 - `off_output_is_byte_identical_to_before`
 - `the_blocked_with_error_case_is_escalated_not_nudged`
+- `the_default_model_response_reads_through_the_same_decider`
 - `the_proven_path_completes_with_outcome_done`
 - `the_stream_result_line_carries_the_reading`
 - `with_the_check_off_a_task_child_completes_as_before`
