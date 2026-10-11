@@ -36,6 +36,10 @@ git tags only.
   them: the recalled quote is bounded by what the provider returns, a budget
   the provider declares (still honoured), and the model's context window.
 
+### Changed
+- `rung-std`: `webfetch` returns the whole body; the 512 KiB cut and its
+  `[truncated]` marker are removed. The body streams, so memory stays flat.
+
 ## [0.2.3] - 2026-10-07
 
 Patch bump: backward compatible changes; memory timeouts are withdrawn from
