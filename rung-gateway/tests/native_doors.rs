@@ -1011,11 +1011,17 @@ async fn no_secret_ever_appears_in_any_door() {
             ("reader", gw.get_as_reader(d).await),
         ] {
             assert_eq!(a.status, 200, "{who} {d}: {}", a.body);
-            for secret in [SHAPED, PLAIN, OWNER_KEY, READ_TOKEN] {
+            // named, so a failure says which kind leaked without printing it
+            for (name, secret) in [
+                ("shaped key", SHAPED),
+                ("plain value", PLAIN),
+                ("owner key", OWNER_KEY),
+                ("read-only token", READ_TOKEN),
+            ] {
                 assert!(
                     !a.body.contains(secret),
-                    "{who} {d} leaked {secret}: {}",
-                    a.body
+                    "{who} {d} leaked the {name} (at byte {:?})",
+                    a.body.find(secret)
                 );
                 // nor in the JSON-escaped form a tool's input has
                 assert!(!a.body.contains(&secret.replace('"', "\\\"")), "{who} {d}");
