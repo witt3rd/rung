@@ -324,6 +324,28 @@ fn glob_rec(pat: &[u8], path: &[u8]) -> bool {
 mod tests {
     use super::*;
 
+    /// The walk's directory identity goes through `dir_id` (one counted
+    /// `meta` call). The counter in the cost test only sees counted wrappers,
+    /// so a direct `canonicalize`/`metadata` call in the walk would escape it:
+    /// this pins the walk's own code (a contract of this file, owned here) to
+    /// the wrappers.
+    #[test]
+    fn the_walk_reaches_the_filesystem_identity_only_through_counted_wrappers() {
+        let src = include_str!("fsutil.rs");
+        let from = src.find("pub fn walk_files").unwrap();
+        let to = src.find("/// Glob with").unwrap();
+        let walk = &src[from..to];
+        for banned in [
+            "canonicalize",
+            "metadata",
+            "symlink_metadata",
+            "fs::read_link",
+        ] {
+            assert!(!walk.contains(banned), "the walk calls {banned} directly");
+        }
+        assert!(walk.contains("dir_id("), "the walk must use dir_id");
+    }
+
     #[test]
     fn glob_star_and_double() {
         assert!(glob_match("*.rs", "tools.rs"));
