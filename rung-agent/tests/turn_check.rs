@@ -530,11 +530,19 @@ fn a_huge_turn_reaches_the_judge_whole_and_redacted() {
     let mut turn = Vec::new();
     for i in 0..200 {
         let id = format!("call_{i}");
-        let cmd = format!("echo {secret} {} CMD-END-{i}", "c".repeat(2_000));
+        let cmd = format!(
+            "echo {secret} {} CMD-MID-{i} {} CMD-END-{i}",
+            "c".repeat(1_000),
+            "c".repeat(1_000)
+        );
         turn.push(tool_use(&id, "shell", json!({"command": cmd})));
         turn.push(tool_result(
             &id,
-            &format!("{secret} {} RESULT-END-{i}\n[exit: 0]", "x".repeat(50_000)),
+            &format!(
+                "{secret} {} RESULT-MID-{i} {} RESULT-END-{i}\n[exit: 0]",
+                "x".repeat(25_000),
+                "x".repeat(25_000)
+            ),
             false,
         ));
     }
@@ -546,13 +554,13 @@ fn a_huge_turn_reaches_the_judge_whole_and_redacted() {
     let actions = ask.state["actions"].as_array().unwrap();
     assert_eq!(actions.len(), 200);
     for (i, a) in actions.iter().enumerate() {
-        assert!(
-            a["input"]
-                .as_str()
-                .unwrap()
-                .contains(&format!("CMD-END-{i}"))
-        );
+        let input = a["input"].as_str().unwrap();
+        assert!(input.contains(&format!("CMD-MID-{i}")), "input {i} clipped");
+        assert!(input.contains(&format!("CMD-END-{i}")), "input {i} clipped");
         let r = a["result_excerpt"].as_str().unwrap();
+        // The mid sentinels sit in the part the old clips (head 180/240 chars,
+        // tail 120/160) dropped.
+        assert!(r.contains(&format!("RESULT-MID-{i}")), "action {i} clipped");
         assert!(r.contains(&format!("RESULT-END-{i}")), "action {i} clipped");
         assert!(r.len() > 50_000, "action {i} clipped");
     }
