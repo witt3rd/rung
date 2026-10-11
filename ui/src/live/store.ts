@@ -142,6 +142,8 @@ export class LiveStore {
         this.client = null;
         this.pending = [];
         this.caught = false;
+        this.joinSeq = null; // the replaced stream's cursor, and an answer still on its way for it, must not apply to the next one
+        this.openGen++;
         this.followWhenFlushed = false;
         this.setDelta(null); // a turn the new record may not hold: its pieces are stale
         if (this.flushTimer) { clearTimeout(this.flushTimer); this.flushTimer = null; }

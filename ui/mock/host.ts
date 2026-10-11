@@ -108,7 +108,8 @@ export class SimHost {
         moved = true;
       }
       if (sub.closed) break;
-      if (this.stopped && sub.next >= this.lines.length && !sub.queue.length) {
+      // A reader that is sent no record frames (partials=only) has nothing to replay: it is through once the host has stopped.
+      if (this.stopped && (!sub.records || sub.next >= this.lines.length) && !sub.queue.length) {
         const last = this.lines.at(-1);
         await send(frame("end", { reason: last?.kind === "halted" ? "stopped" : "down", last_seq: this.lines.length, problem: null }));
         res.end();

@@ -145,3 +145,18 @@ test("the streamed text is shown only for the turn that is running", () => {
   assert.equal(visibleDelta(d, null), null);
   assert.equal(visibleDelta(null, { n: 5, status: "running" }), null);
 });
+
+test("a reset supersedes the summary poll of the stream it replaces: its answer cannot mark the new stream caught up", async () => {
+  const m = await startMock();
+  const store = new LiveStore(`${m.url}/api/i/alpha`);
+  try {
+    await store.start();
+    await until(() => store.getState().status === "following");
+    const internal = store as unknown as { joinSeq: number | null; openGen: number; client: { o: { onReset: () => void } } };
+    assert.ok(internal.joinSeq !== null, "the poll for the open stream answered");
+    const gen = internal.openGen;
+    internal.client.o.onReset();
+    assert.equal(internal.joinSeq, null, "the old stream's cursor is gone with it");
+    assert.ok(internal.openGen > gen, "an answer still on its way for the old stream is let go");
+  } finally { store.stop(); await m.stop(); }
+});
