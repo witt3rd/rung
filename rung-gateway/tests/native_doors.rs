@@ -816,7 +816,7 @@ async fn an_unknown_instance_and_an_unserved_door_are_404() {
         (404, json!("no_such_instance"))
     );
     // a door of a later slice, on a native instance: not served, not a crash
-    let a = gw.get("/api/i/alpha/v1/queue").await;
+    let a = gw.get("/api/i/alpha/v1/config").await;
     assert_eq!(
         (a.status, a.json()["error"].clone()),
         (404, json!("not_found"))
@@ -913,7 +913,7 @@ async fn a_configured_id_in_the_registry_is_one_row() {
     // a door the registry cannot serve goes to the configured instance (here
     // an address nothing listens on: refused as unreachable, not 404); a
     // native instance with no configured twin answers 404 `not_found`
-    let q = gw.get("/api/i/alpha/v1/queue").await;
+    let q = gw.get("/api/i/alpha/v1/config").await;
     assert_eq!(
         (q.status, q.json()["error"].clone()),
         (502, json!("instance_unreachable"))

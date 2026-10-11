@@ -94,6 +94,10 @@ pub struct RouteRequest {
     pub query: Option<String>,
     /// Header names lower-cased.
     pub headers: Vec<(String, String)>,
+    /// The request body, whole; empty for a GET or HEAD (the listener reads no
+    /// body for those). A body over the listener's one request limit is
+    /// answered 413 before the route sees it.
+    pub body: Vec<u8>,
 }
 
 /// A body written in pieces, as the client can take them: the listener asks
@@ -363,7 +367,7 @@ async fn dispatch(
     req: Request<Incoming>,
 ) -> Response<BoxBody<Bytes, Infallible>> {
     if req.uri().path() != "/acp" {
-        return route(&state, &req).await;
+        return route(&state, req).await;
     }
     if !authorized(&state, &req) {
         return text(StatusCode::UNAUTHORIZED, "Unauthorized");
@@ -377,19 +381,37 @@ async fn dispatch(
 }
 
 /// A path other than `/acp`: the embedding's own route, or not found.
-async fn route(state: &HttpState, req: &Request<Incoming>) -> Response<BoxBody<Bytes, Infallible>> {
+async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<Bytes, Infallible>> {
     let Some(routes) = &state.serve.routes else {
         return text(StatusCode::NOT_FOUND, "Not Found");
     };
+    let (parts, incoming) = req.into_parts();
+    // a read has no body to wait for; any other method's body is read whole
+    // here, so a route sees the request it was sent
+    let body = if matches!(parts.method, Method::GET | Method::HEAD) {
+        Vec::new()
+    } else {
+        match incoming.collect().await {
+            Ok(c) => {
+                let bytes = c.to_bytes();
+                if bytes.len() > MAX_BODY {
+                    return text(StatusCode::PAYLOAD_TOO_LARGE, "Request body too large");
+                }
+                bytes.to_vec()
+            }
+            Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid request body"),
+        }
+    };
     let request = RouteRequest {
-        method: req.method().as_str().to_string(),
-        path: req.uri().path().to_string(),
-        query: req.uri().query().map(String::from),
-        headers: req
-            .headers()
+        method: parts.method.as_str().to_string(),
+        path: parts.uri.path().to_string(),
+        query: parts.uri.query().map(String::from),
+        headers: parts
+            .headers
             .iter()
             .filter_map(|(k, v)| Some((k.as_str().to_string(), v.to_str().ok()?.to_string())))
             .collect(),
+        body,
     };
     let Some(reply) = routes(request).await else {
         return text(StatusCode::NOT_FOUND, "Not Found");

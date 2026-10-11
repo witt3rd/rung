@@ -363,6 +363,13 @@ impl Bridge {
     }
 }
 
+/// What the one acceptance path did with a message.
+struct Accepted {
+    id: String,
+    /// Recorded by this call (false: the id was already in the record).
+    new: bool,
+}
+
 /// The ACP surface of one host.
 pub struct Acp {
     host: Arc<Host>,
@@ -437,6 +444,28 @@ impl Acp {
 
     fn owner_channel(&self) -> String {
         self.host.core.config.owner_channel.clone()
+    }
+
+    /// The one way a message from a channel reaches the inbox: `_rung/stimulus`
+    /// and the HTTP queue door both come here. The item is on disk (recorded
+    /// and fsynced) before this returns. `id` names the item (an idempotency
+    /// key); none gets a fresh one. `new` is false when the id was already
+    /// accepted: nothing is written then.
+    fn stimulus(
+        &self,
+        role: Role,
+        channel: &str,
+        text: &str,
+        urgency: Option<String>,
+        id: Option<&str>,
+    ) -> Accepted {
+        let mut item = match id {
+            Some(id) => Item::message(id, role, channel, self.host.core.now(), text),
+            None => self.item(role, channel, text),
+        };
+        item.urgency = urgency;
+        let new = self.host.accept_external(&item);
+        Accepted { id: item.id, new }
     }
 
     /// Serve one connection until it closes.
@@ -710,10 +739,9 @@ impl Acp {
                 let text = params["text"]
                     .as_str()
                     .ok_or_else(|| bad("text is required"))?;
-                let mut item = self.item(role, &channel, text);
-                item.urgency = params["urgency"].as_str().map(str::to_string);
-                self.host.accept_external(&item);
-                Ok(json!({"id": item.id}))
+                let urgency = params["urgency"].as_str().map(str::to_string);
+                let accepted = self.stimulus(role, &channel, text, urgency, None);
+                Ok(json!({"id": accepted.id}))
             }
             "_rung/stop" => {
                 owner_only("_rung/stop")?;
@@ -775,8 +803,9 @@ pub fn serve_stdio(acp: Arc<Acp>, principal: Principal) -> Result<(), String> {
 /// A request with no known token is refused (401). At least one token is
 /// required: an unauthenticated HTTP surface is not served.
 ///
-/// The same listener carries the host's own doors beside `/acp`; today one:
-/// `GET /v1/events`, the host's event stream with replay (H5).
+/// The same listener carries the host's own doors beside `/acp`:
+/// `GET /v1/events`, the host's event stream with replay (H5), and
+/// `GET`/`POST /v1/queue`, the owner's queue (S1).
 pub fn serve_http(acp: Arc<Acp>, addr: &str, tokens: Vec<(String, Role)>) -> Result<(), String> {
     serve_http_bound(acp, addr, tokens, |_| {})
 }
@@ -812,19 +841,45 @@ pub fn serve_http_with(
     for (t, _) in &tokens {
         red.add_secret(t);
     }
+    let state_dir = acp
+        .host
+        .core
+        .record_dir()
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_default();
+    let queue = Arc::new(QueueDoor {
+        acp: acp.clone(),
+        state_dir: state_dir.clone(),
+        red: red.clone(),
+        env_unset: env_unset.clone(),
+        owner_tokens: tokens
+            .iter()
+            .filter(|(_, r)| *r == Role::Owner)
+            .map(|(t, _)| t.clone())
+            .collect(),
+        other_tokens: tokens
+            .iter()
+            .filter(|(_, r)| *r != Role::Owner)
+            .map(|(t, _)| t.clone())
+            .collect(),
+    });
     let door = Arc::new(EventsDoor {
-        state_dir: acp
-            .host
-            .core
-            .record_dir()
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_default(),
+        state_dir,
         bus: acp.host.live(),
         red,
         env_unset,
         tokens: tokens.iter().map(|(t, _)| t.clone()).collect(),
     });
+    let (events_routes, queue_routes) = (door.routes(), queue.routes());
+    let routes: rung_agent_core::acp_http::Routes =
+        Arc::new(move |req: rung_agent_core::acp_http::RouteRequest| {
+            if req.path == "/v1/queue" {
+                queue_routes(req)
+            } else {
+                events_routes(req)
+            }
+        });
     let tokens: Arc<HashMap<String, Role>> = Arc::new(tokens.into_iter().collect());
     let t2 = tokens.clone();
     let serve = rung_agent_core::acp_http::Serve {
@@ -840,7 +895,7 @@ pub fn serve_http_with(
             })
         }),
         bind_bearer: true,
-        routes: Some(door.routes()),
+        routes: Some(routes),
     };
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -1052,6 +1107,225 @@ impl EventsDoor {
             headers,
             body: RouteBody::Stream(Box::new(PageStream { rx })),
         })
+    }
+}
+
+/// The longest idempotency key (an item id, not content).
+const KEY_BYTES: usize = 200;
+
+/// A key the door accepts as an item id: letters, digits, `.`, `_`, `:` and
+/// `-`, starting with a letter or digit, so it is safe in a path and a record.
+fn valid_key(k: &str) -> Result<(), String> {
+    if k.is_empty() {
+        return Err("key is empty: leave it out, or give a name for this message".into());
+    }
+    if k.len() > KEY_BYTES {
+        return Err(format!("key is longer than {KEY_BYTES} bytes"));
+    }
+    let plain = k
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b"._:-".contains(&b));
+    if !plain || !k.as_bytes()[0].is_ascii_alphanumeric() {
+        return Err(
+            "key may hold letters, digits, `.`, `_`, `:` and `-`, and starts with a letter or digit"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+/// The owner's queue on the host's listener (S1): `GET /v1/queue` lists what
+/// waits and the one thing being answered, computed from the record;
+/// `POST /v1/queue` adds a message through the same acceptance as ACP's
+/// `_rung/stimulus` from an owner channel, and answers only once the item is on
+/// disk. Only an owner token may use it. Shapes: `docs/rung-host-api.md` (S1).
+pub struct QueueDoor {
+    acp: Arc<Acp>,
+    state_dir: PathBuf,
+    red: Redactor,
+    env_unset: Vec<String>,
+    owner_tokens: std::collections::HashSet<String>,
+    /// The host's other roles' tokens: known, but not the owner's.
+    other_tokens: std::collections::HashSet<String>,
+}
+
+type Reply = rung_agent_core::acp_http::RouteReply;
+
+fn json_reply(status: u16, v: &Value) -> Reply {
+    use rung_agent_core::acp_http::RouteBody;
+    Reply {
+        status,
+        headers: vec![("content-type".into(), "application/json".into())],
+        body: RouteBody::Bytes(v.to_string().into_bytes()),
+    }
+}
+
+fn door_error(status: u16, code: &str, message: &str) -> Reply {
+    json_reply(status, &json!({"error": code, "message": message}))
+}
+
+impl QueueDoor {
+    /// The route of `/v1/queue`; `None` for any other path.
+    pub fn routes(self: &Arc<Self>) -> rung_agent_core::acp_http::Routes {
+        use rung_agent_core::acp_http::RouteRequest;
+        let door = self.clone();
+        Arc::new(move |req: RouteRequest| {
+            let door = door.clone();
+            Box::pin(async move {
+                if req.path != "/v1/queue" {
+                    return None;
+                }
+                Some(door.handle(req).await)
+            }) as std::pin::Pin<Box<dyn std::future::Future<Output = _> + Send>>
+        })
+    }
+
+    async fn handle(self: Arc<Self>, req: rung_agent_core::acp_http::RouteRequest) -> Reply {
+        let header = |n: &str| {
+            req.headers
+                .iter()
+                .find(|(k, _)| k == n)
+                .map(|(_, v)| v.as_str())
+        };
+        let bearer = header("authorization").and_then(|v| v.strip_prefix("Bearer "));
+        match bearer {
+            Some(b) if self.owner_tokens.contains(b) => {}
+            Some(b) if self.other_tokens.contains(b) => {
+                return door_error(
+                    403,
+                    "forbidden",
+                    "the queue is the owner's: this token is not",
+                );
+            }
+            _ => return door_error(401, "unauthorized", "the token is not recognised"),
+        }
+        match req.method.as_str() {
+            "GET" | "HEAD" => self.list(&req).await,
+            "POST" => self.add(&req, header("content-type")).await,
+            _ => door_error(
+                405,
+                "method_not_allowed",
+                "this door lists (GET) and adds (POST)",
+            ),
+        }
+    }
+
+    async fn list(&self, req: &rung_agent_core::acp_http::RouteRequest) -> Reply {
+        let Some(pairs) = crate::stream::query_pairs(req.query.as_deref()) else {
+            return door_error(400, "bad_request", "the query is not UTF-8");
+        };
+        let q = match crate::queue::Query::parse(&pairs) {
+            Ok(q) => q,
+            Err(e) => return door_error(e.status, e.code, &self.red.redact(&e.message)),
+        };
+        let (dir, red, unset) = (
+            self.state_dir.clone(),
+            self.red.clone(),
+            self.env_unset.clone(),
+        );
+        match tokio::task::spawn_blocking(move || crate::queue::answer(&dir, &q, &red, &unset))
+            .await
+        {
+            Ok(Ok(v)) => json_reply(200, &v),
+            Ok(Err(e)) => door_error(e.status, e.code, &self.red.redact(&e.message)),
+            Err(_) => door_error(500, "internal", "the queue could not be read"),
+        }
+    }
+
+    async fn add(
+        self: &Arc<Self>,
+        req: &rung_agent_core::acp_http::RouteRequest,
+        content_type: Option<&str>,
+    ) -> Reply {
+        let json_body = content_type.is_some_and(|c| {
+            c.split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .eq_ignore_ascii_case("application/json")
+        });
+        if !json_body {
+            return door_error(
+                415,
+                "unsupported_media_type",
+                "send the message as application/json",
+            );
+        }
+        let bad = |m: &str| door_error(400, "bad_request", m);
+        let Ok(Value::Object(body)) = serde_json::from_slice::<Value>(&req.body) else {
+            return bad("the body must be a JSON object: {\"text\": \"...\"}");
+        };
+        if let Some(k) = body
+            .keys()
+            .find(|k| !matches!(k.as_str(), "text" | "key" | "intent"))
+        {
+            return bad(&format!("no such field `{k}` (text, key, intent)"));
+        }
+        let Some(text) = body.get("text").and_then(Value::as_str) else {
+            return bad("text is required, and is a string");
+        };
+        if text.trim().is_empty() {
+            return bad("text is empty");
+        }
+        let key = match body.get("key") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(k)) => match valid_key(k) {
+                Ok(()) => Some(k.clone()),
+                Err(m) => return bad(&m),
+            },
+            Some(_) => return bad("key must be a string"),
+        };
+        match body.get("intent") {
+            None | Some(Value::Null) => {}
+            Some(Value::String(i)) if i == "next" => {}
+            Some(Value::String(i)) if i == "steer" || i == "free" => {
+                return bad(&format!(
+                    "intent `{i}` is not available yet: this door takes `next` (read at the next boundary)"
+                ));
+            }
+            Some(_) => {
+                return bad("intent must be `next` (`steer` and `free` are not available yet)");
+            }
+        }
+        // a host that has been told to stop takes nothing more
+        if self.acp.host.core.stop.raised() {
+            return door_error(
+                409,
+                "not_running",
+                "this host is stopping and takes no more messages: start it first",
+            );
+        }
+        let door = self.clone();
+        let text = text.to_string();
+        let done = tokio::task::spawn_blocking(move || {
+            let owner = door.acp.owner_channel();
+            let acc = door
+                .acp
+                .stimulus(Role::Owner, &owner, &text, None, key.as_deref());
+            let (fold, _) = crate::queue::replay(&door.state_dir)?;
+            // a repeat must be the same message: a key names one message only
+            if !acc.new && fold.raw(&acc.id) != Some((text.as_str(), "owner")) {
+                return Ok(Err(()));
+            }
+            let item = fold.item(&acc.id).ok_or_else(|| {
+                crate::read::DoorError::new(500, "internal", "the item is not in the record")
+            })?;
+            Ok::<_, crate::read::DoorError>(Ok((acc, item)))
+        })
+        .await;
+        match done {
+            Ok(Ok(Ok((acc, item)))) => {
+                let v = json!({"id": acc.id, "repeat": !acc.new, "item": item});
+                json_reply(if acc.new { 201 } else { 200 }, &self.red.redact_value(&v))
+            }
+            Ok(Ok(Err(()))) => door_error(
+                409,
+                "key_reused",
+                "that key already names a different message: nothing was written; use a new key for a new message",
+            ),
+            Ok(Err(e)) => door_error(e.status, e.code, &self.red.redact(&e.message)),
+            Err(_) => door_error(500, "internal", "the message could not be queued"),
+        }
     }
 }
 

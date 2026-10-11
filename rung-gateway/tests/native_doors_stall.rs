@@ -72,6 +72,7 @@ async fn world(deadline: Duration) -> World {
         std::sync::Arc::new(StaticRegistry(vec![])),
         Tuning {
             stall_deadline: deadline,
+            ..Tuning::default()
         },
     )
     .await
