@@ -30,8 +30,8 @@ export function InstancesPage() {
               <span className="t" data-content><b>{i.name}</b></span>
               <span data-content className={s.needsYou ? "needs-text" : undefined}>{s.needsYou && <span className="mark needs" />}{s.state}</span>
               <span data-content>{s.doing}</span>
-              <span className="meta" data-content>{requestsLine(s)}</span>
-              <span className="meta" data-content>{when(s.lastAt, data!.generatedAt)}</span>
+              <span className="meta" data-content>{i.reachable === false ? "No answer" : requestsLine(s)}</span>
+              <span className="meta" data-content>{i.reachable === false ? "" : when(s.lastAt, data!.generatedAt)}</span>
             </a>
           );
         })}

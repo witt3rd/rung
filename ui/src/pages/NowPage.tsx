@@ -4,15 +4,18 @@ import { num, usd } from "../record/words.ts";
 import { turnLine } from "../record/folds.ts";
 import { requestsLine } from "./InstancesPage.tsx";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
-import { when } from "./format.ts";
+import { useNow, when } from "./format.ts";
+import type { LiveInfo } from "../data/hooks.ts";
+import { duration } from "../record/words.ts";
 
 export function NowPage({ id }: { id: string }) {
-  const { entry, folds, indexLoaded, error } = useInstance(id);
+  const { entry, folds, indexLoaded, error, live: li } = useInstance(id);
   const s = folds?.summary;
   const live = !!entry?.lockHeld;
   const recent = folds ? folds.turns.slice(-3).reverse() : [];
   const lastTurn = folds && folds.turns.length ? folds.turns[folds.turns.length - 1] : null;
   const missing = indexLoaded && !entry;
+  const now = useNow(!!li, folds?.now ?? 0);
   return (
     <>
       <Top name={id} />
@@ -32,6 +35,7 @@ export function NowPage({ id }: { id: string }) {
                         Committed {num(Math.max(0, (s.lastTurn ?? 0) - s.project.sinceTurn))} turns ago.{s.project.doneWhen ? ` Done when ${s.project.doneWhen}.` : ""}
                       </p>
                     )}
+                    {li && <LiveLine li={li} turn={lastTurn} now={now} />}
                     {!s.project && lastTurn && !live && (
                       <p className="meta" style={{ margin: "6px 0 0" }} data-content>It said: {turnLine(lastTurn)}</p>
                     )}
@@ -44,7 +48,7 @@ export function NowPage({ id }: { id: string }) {
               {recent.map((t) => (
                 <a key={t.n} className="row tr" href={href.turns(id, t.n)} style={{ textDecoration: "none", color: "inherit" }}>
                   <span data-content>{num(t.n)} · {turnLine(t)}</span>
-                  <span className="meta" data-content>{when(t.endedAt ?? t.startedAt, folds!.now)}</span>
+                  <span className="meta" data-content>{when(t.endedAt ?? t.startedAt, now)}</span>
                 </a>
               ))}
               {folds && <p className="fold" style={{ marginTop: 12 }}>Showing {recent.length} of {num(folds.turns.length)}.{folds.turns.length > recent.length && <> <a href={href.turns(id)}>Show more</a></>}</p>}
@@ -54,7 +58,7 @@ export function NowPage({ id }: { id: string }) {
             <section className="sec">
               <h2>Next</h2>
               <p style={{ margin: 0 }} data-content>{s ? (s.next ? s.next.text : live ? "Nothing scheduled." : "Not running.") : "\u00a0"}</p>
-              {s && <p className="meta" style={{ margin: "2px 0 0" }} data-content>{s.next ? `${when(s.next.at, folds!.now)}. ` : ""}{s.waiting === 0 ? "None waiting" : `${num(s.waiting)} waiting`}</p>}
+              {s && <p className="meta" style={{ margin: "2px 0 0" }} data-content>{s.next ? `${when(s.next.at, now)}. ` : ""}{s.waiting === 0 ? "None waiting" : `${num(s.waiting)} waiting`}</p>}
             </section>
             <section className="sec">
               <h2>Decided</h2>
@@ -69,6 +73,22 @@ export function NowPage({ id }: { id: string }) {
           </aside>
         </div>
       </Page>
+    </>
+  );
+}
+
+/** What the running turn is doing, as it does it. The line always has its place; its words change. */
+function LiveLine({ li, turn, now }: { li: LiveInfo; turn: { status: string; startedAt: number } | null; now: number }) {
+  const running = turn?.status === "running";
+  let words: string;
+  if (li.status === "reconnecting" || li.status === "connecting") words = "Reconnecting.";
+  else if (li.status === "catching up") words = "Catching up.";
+  else if (running) words = `${li.delta?.tool ? `Running ${li.delta.tool}` : "Writing"}, ${duration(Math.max(0, now - turn!.startedAt))} in.`;
+  else words = "Between turns.";
+  return (
+    <>
+      {li.delta?.text ? <p className="content" style={{ margin: "12px 0 0" }} data-content>{li.delta.text}</p> : null}
+      <p className="meta" style={{ margin: "12px 0 0" }} data-content><span className="mark live" />Live: {words}</p>
     </>
   );
 }
