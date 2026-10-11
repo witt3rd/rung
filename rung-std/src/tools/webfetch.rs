@@ -1,10 +1,10 @@
-//! `webfetch` — HTTP GET for the agent. Size-capped, http(s) only.
+//! `webfetch` — HTTP GET for the agent. http(s) only; whole body, streamed.
 
 use super::Tool;
 use super::fsutil;
 use serde_json::Value;
+use std::io::Read;
 
-const MAX_BYTES: usize = 512 * 1024;
 const TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug)]
@@ -15,7 +15,7 @@ impl Tool for WebFetch {
         "webfetch"
     }
     fn description(&self) -> &'static str {
-        "Fetch a http(s) URL and return text (HTML stripped to tags-as-space). Cap 512KiB."
+        "Fetch a http(s) URL and return text (HTML stripped to tags-as-space).. Returns the whole body."
     }
     fn input_schema(&self) -> Value {
         serde_json::json!({
@@ -34,6 +34,13 @@ impl Tool for WebFetch {
 
 pub fn fetch_url(url: &str) -> Result<String, String> {
     check_url(url)?;
+    fetch_unguarded(url)
+}
+
+/// [`fetch_url`] without the host check; exists so tests can reach a
+/// loopback server. Not part of the tool surface.
+#[doc(hidden)]
+pub fn fetch_unguarded(url: &str) -> Result<String, String> {
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(TIMEOUT_SECS))
         .redirect(reqwest::redirect::Policy::limited(5))
@@ -54,23 +61,125 @@ pub fn fetch_url(url: &str) -> Result<String, String> {
         .and_then(|v| v.to_str().ok())
         .unwrap_or("")
         .to_ascii_lowercase();
-    let bytes = resp.bytes().map_err(|e| format!("webfetch: {e}"))?;
-    let slice = if bytes.len() > MAX_BYTES {
-        &bytes[..MAX_BYTES]
-    } else {
-        &bytes
-    };
-    let text = String::from_utf8_lossy(slice);
-    let body = if ctype.contains("html") {
-        strip_html(&text)
-    } else {
-        text.into_owned()
-    };
-    let mut out = format!("url: {url}\nstatus: {status}\n\n{body}");
-    if bytes.len() > MAX_BYTES {
-        out.push_str("\n\n[truncated]");
+    let html = ctype.contains("html");
+    let mut out = format!("url: {url}\nstatus: {status}\n\n");
+    // Stream: each chunk is decoded and appended straight to `out`; the
+    // body is never held a second time.
+    let mut sink = Sink::new(html);
+    let mut resp = resp;
+    let mut buf = vec![0u8; 64 * 1024];
+    let mut carry: Vec<u8> = Vec::new();
+    loop {
+        let n = resp.read(&mut buf).map_err(|e| format!("webfetch: {e}"))?;
+        if n == 0 {
+            break;
+        }
+        carry.extend_from_slice(&buf[..n]);
+        let used = decode_lossy(&carry, false, |t| sink.feed(t, &mut out));
+        carry.drain(..used);
     }
+    decode_lossy(&carry, true, |t| sink.feed(t, &mut out));
     Ok(out)
+}
+
+/// Decode `bytes` as lossy UTF-8, calling `f` per piece. Returns bytes
+/// consumed; an incomplete trailing sequence is left unconsumed unless
+/// `last`.
+fn decode_lossy(bytes: &[u8], last: bool, mut f: impl FnMut(&str)) -> usize {
+    let mut i = 0;
+    while i < bytes.len() {
+        match std::str::from_utf8(&bytes[i..]) {
+            Ok(t) => {
+                f(t);
+                return bytes.len();
+            }
+            Err(e) => {
+                let v = e.valid_up_to();
+                f(std::str::from_utf8(&bytes[i..i + v]).unwrap_or(""));
+                i += v;
+                match e.error_len() {
+                    Some(l) => {
+                        f("\u{FFFD}");
+                        i += l;
+                    }
+                    None => {
+                        if last {
+                            f("\u{FFFD}");
+                            return bytes.len();
+                        }
+                        return i;
+                    }
+                }
+            }
+        }
+    }
+    i
+}
+
+/// Incremental text sink: plain passthrough, or HTML tag stripping with
+/// whitespace collapsed to single spaces (state survives chunk edges).
+struct Sink {
+    html: bool,
+    in_tag: bool,
+    skip: bool,
+    tag: String,
+    pending_space: bool,
+    wrote: bool,
+}
+
+impl Sink {
+    fn new(html: bool) -> Self {
+        Sink {
+            html,
+            in_tag: false,
+            skip: false,
+            tag: String::new(),
+            pending_space: false,
+            wrote: false,
+        }
+    }
+
+    fn feed(&mut self, s: &str, out: &mut String) {
+        if !self.html {
+            out.push_str(s);
+            return;
+        }
+        for c in s.chars() {
+            if c == '<' && !self.in_tag {
+                self.in_tag = true;
+                self.tag.clear();
+                continue;
+            }
+            if self.in_tag {
+                if c == '>' {
+                    let t = self.tag.to_ascii_lowercase();
+                    if t.starts_with("script") {
+                        self.skip = true;
+                    }
+                    if t.starts_with("/script") {
+                        self.skip = false;
+                    }
+                    self.in_tag = false;
+                } else {
+                    self.tag.push(c);
+                }
+                continue;
+            }
+            if self.skip {
+                continue;
+            }
+            if c.is_whitespace() {
+                self.pending_space = self.wrote;
+            } else {
+                if self.pending_space {
+                    out.push(' ');
+                    self.pending_space = false;
+                }
+                out.push(c);
+                self.wrote = true;
+            }
+        }
+    }
 }
 
 pub fn check_url(url: &str) -> Result<(), String> {
@@ -109,39 +218,6 @@ pub fn check_url(url: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn strip_html(s: &str) -> String {
-    let mut out = String::new();
-    let mut in_tag = false;
-    let mut skip = false;
-    let mut tag = String::new();
-    for c in s.chars() {
-        if c == '<' {
-            in_tag = true;
-            tag.clear();
-            continue;
-        }
-        if in_tag {
-            if c == '>' {
-                let t = tag.to_ascii_lowercase();
-                if t.starts_with("script") {
-                    skip = true;
-                }
-                if t.starts_with("/script") {
-                    skip = false;
-                }
-                in_tag = false;
-            } else {
-                tag.push(c);
-            }
-            continue;
-        }
-        if !skip {
-            out.push(c);
-        }
-    }
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,7 +232,12 @@ mod tests {
 
     #[test]
     fn html_strip_drops_tags() {
-        let t = strip_html("<html><script>x()</script><p>Hi <b>there</b></p>");
-        assert_eq!(t, "Hi there");
+        let mut out = String::new();
+        let mut s = Sink::new(true);
+        // split mid-tag to exercise chunk-edge state
+        s.feed("<html><scr", &mut out);
+        s.feed("ipt>x()</script><p>Hi <b>the", &mut out);
+        s.feed("re</b></p>", &mut out);
+        assert_eq!(out, "Hi there");
     }
 }

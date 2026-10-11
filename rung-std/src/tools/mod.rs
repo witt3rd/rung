@@ -25,6 +25,8 @@ pub use skill::Skill;
 pub use task::{MAX_DEPTH, Spawn, TASK_COMPLETED, Task, TaskRequest, TaskResult, WithoutTask};
 pub use todo::Todo;
 pub use webfetch::WebFetch;
+#[doc(hidden)]
+pub use webfetch::fetch_unguarded;
 
 // ─── Tool output ───────────────────────────────────────────────────────────────
 
