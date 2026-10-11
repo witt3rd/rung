@@ -56,7 +56,6 @@ fn spied(sc: &mut sim::Scenario) -> Arc<Spy> {
     spy
 }
 
-
 // ─── the tests ───────────────────────────────────────────────────────────────
 
 /// The layers are written whole where they are made, once: a 50-call turn
@@ -69,10 +68,17 @@ fn the_layers_are_recorded_whole_and_once() {
     let out = sim::run(sc);
     let seen = script.seen.lock().unwrap();
     assert_eq!(seen.len(), 3);
-    let layers: Vec<&Line> = out.lines.iter().filter(|l| l.kind == "pack.layers").collect();
+    let layers: Vec<&Line> = out
+        .lines
+        .iter()
+        .filter(|l| l.kind == "pack.layers")
+        .collect();
     assert_eq!(layers.len(), 1, "one pack.layers for the whole run");
     let l = layers[0];
-    assert_eq!(l.get("tools"), &serde_json::to_value(&seen[0].tools).unwrap());
+    assert_eq!(
+        l.get("tools"),
+        &serde_json::to_value(&seen[0].tools).unwrap()
+    );
     assert_eq!(l.str("system"), seen[0].system);
     let calls: Vec<&Line> = out.lines.iter().filter(|l| l.kind == "llm.call").collect();
     assert_eq!(calls.len(), 150, "three turns of 50 calls");
@@ -166,11 +172,19 @@ fn the_door_rebuilds_the_request_that_was_sent() {
         assert_eq!(v["recorded"], true);
         assert_eq!(
             names(&v),
-            ["tools", "system", "epoch", "history", "recall", "message", "this_turn"]
-                .iter()
-                .filter(|n| **n != "recall")
-                .map(|n| n.to_string())
-                .collect::<Vec<_>>(),
+            [
+                "tools",
+                "system",
+                "epoch",
+                "history",
+                "recall",
+                "message",
+                "this_turn"
+            ]
+            .iter()
+            .filter(|n| **n != "recall")
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>(),
             "no recall in this run"
         );
         let s = &seen[(turn - 1) as usize];
@@ -181,7 +195,8 @@ fn the_door_rebuilds_the_request_that_was_sent() {
             .iter()
             .map(|i| serde_json::from_str(i["text"].as_str().unwrap()).unwrap())
             .collect();
-        let mut msgs: Vec<Value> = vec![json!({"content": band(&v, "epoch")["text"], "role": "user"})];
+        let mut msgs: Vec<Value> =
+            vec![json!({"content": band(&v, "epoch")["text"], "role": "user"})];
         for row in band(&v, "history")["rows"].as_array().unwrap() {
             msgs.push(json!({"content": row["header"], "role": "user"}));
             msgs.extend(row["messages"].as_array().unwrap().iter().cloned());
@@ -202,7 +217,10 @@ fn the_door_rebuilds_the_request_that_was_sent() {
             got.extend(canon::bytes(m));
         }
         let want = request_bytes(&s.tools, &s.system, &wire(s, 6, call));
-        assert!(got == want, "turn {turn} call {call}: the bands rebuild the request");
+        assert!(
+            got == want,
+            "turn {turn} call {call}: the bands rebuild the request"
+        );
     }
 }
 
@@ -217,8 +235,14 @@ fn a_call_or_turn_that_is_not_there_is_refused() {
     assert_eq!(door(guard.path(), 1, Some(5), &red).unwrap_err().0, 404);
     assert_eq!(door(guard.path(), 1, Some(0), &red).unwrap_err().0, 404);
     assert_eq!(door(guard.path(), 9, Some(1), &red).unwrap_err().0, 404);
-    assert_eq!(door(guard.path(), 1, Some(5), &red).unwrap_err().1, "no_such_call");
-    assert_eq!(door(guard.path(), 9, None, &red).unwrap_err().1, "no_such_turn");
+    assert_eq!(
+        door(guard.path(), 1, Some(5), &red).unwrap_err().1,
+        "no_such_call"
+    );
+    assert_eq!(
+        door(guard.path(), 9, None, &red).unwrap_err().1,
+        "no_such_turn"
+    );
     // without `call`, the first call
     assert_eq!(door(guard.path(), 1, None, &red).unwrap()["call"], 1);
     assert_eq!(door(guard.path(), 2, Some(4), &red).unwrap()["call"], 4);
@@ -260,7 +284,10 @@ fn the_bands_carry_the_provider_counts_and_cache_marks() {
         "partly" => 1,
         _ => 2,
     };
-    assert!(marks.windows(2).all(|w| rank(w[0]) <= rank(w[1])), "{marks:?}");
+    assert!(
+        marks.windows(2).all(|w| rank(w[0]) <= rank(w[1])),
+        "{marks:?}"
+    );
     assert_eq!(marks[0], "cached");
     assert_eq!(*marks.last().unwrap(), "new");
     // the two breakpoints: the end of the stable layer, the end of the epoch layer
@@ -270,7 +297,6 @@ fn the_bands_carry_the_provider_counts_and_cache_marks() {
     assert_eq!(b[1]["after"], "epoch");
     assert!(v["estimate_tokens"].as_u64().unwrap() > 0);
 }
-
 
 /// A whole tool-definition set, a 100,000-character epoch layer and a
 /// 200,000-character recall go through the record and the door whole.
@@ -282,7 +308,11 @@ fn big_layers_round_trip_whole() {
     let (sc, _) = scripted(guard.path(), 2, 1);
     drop(sim::run(sc));
     let note = format!("{}END-OF-NOTE", "n".repeat(100_000));
-    append_line(guard.path(), "note.written", json!({"turn": 1, "text": note}));
+    append_line(
+        guard.path(),
+        "note.written",
+        json!({"turn": 1, "text": note}),
+    );
     // a restart: its first epoch carries the note; the owner asks, and memory recalls
     let (mut sc, script) = scripted(guard.path(), 3, 3);
     let clk: Arc<dyn Clock> = Arc::new(SimClock::new(SIM_START + HOUR));
@@ -290,7 +320,8 @@ fn big_layers_round_trip_whole() {
     let script2 = Script::new(3, clk);
     sc.engine = Some(script2.clone());
     drop(script);
-    sc.sources.push(owner_says(SIM_START + HOUR, "what is the deploy window"));
+    sc.sources
+        .push(owner_says(SIM_START + HOUR, "what is the deploy window"));
     let recall = long_recall(2_100, None);
     assert!(recall.len() > 200_000);
     sc.memory_host = Some(Arc::new(MemoryHost::new(
@@ -335,10 +366,11 @@ fn big_layers_round_trip_whole() {
     }
     assert_eq!(band(&v, "system")["text"], s.system);
     // and the line on disk holds it all in one piece
-    assert!(out
-        .lines
-        .iter()
-        .any(|l| l.kind == "epoch.rollover" && l.str("slow") == epoch));
+    assert!(
+        out.lines
+            .iter()
+            .any(|l| l.kind == "epoch.rollover" && l.str("slow") == epoch)
+    );
     assert_eq!(with_recall.str("recall_text"), rtext);
     assert_eq!(
         with_recall.str("header_sent").len(),
@@ -356,7 +388,10 @@ fn a_planted_secret_reaches_neither_the_record_nor_the_door() {
     sim::test_timeout(120);
     let guard = sim::temp_dir_guard("ctx-secret");
     let (mut sc, script) = scripted(guard.path(), 3, 2);
-    sc.config.pinned = vec![format!("the vault code is {SENT}"), format!("the key is {SHAPED}")];
+    sc.config.pinned = vec![
+        format!("the vault code is {SENT}"),
+        format!("the key is {SHAPED}"),
+    ];
     sc.redactor = Some(Redactor::new().with_secret(SENT));
     sc.sources.push(owner_says(SIM_START, "what is the code"));
     sc.memory_host = Some(Arc::new(MemoryHost::new(
@@ -368,8 +403,20 @@ fn a_planted_secret_reaches_neither_the_record_nor_the_door() {
     let out = sim::run(sc);
     let seen = script.seen.lock().unwrap();
     // the model was still shown what it was shown
-    assert!(seen[0].system.contains(SENT), "the host's own request is untouched");
-    assert!(seen[0].messages.last().unwrap().content.as_text().unwrap().contains(SENT));
+    assert!(
+        seen[0].system.contains(SENT),
+        "the host's own request is untouched"
+    );
+    assert!(
+        seen[0]
+            .messages
+            .last()
+            .unwrap()
+            .content
+            .as_text()
+            .unwrap()
+            .contains(SENT)
+    );
     // the file
     let bytes = record_bytes(guard.path());
     assert!(!contains(&bytes, SENT), "the record holds the plain secret");
@@ -387,8 +434,18 @@ fn a_planted_secret_reaches_neither_the_record_nor_the_door() {
         let all = v.to_string();
         assert!(!all.contains(SENT), "the door shows the plain secret");
         assert!(!all.contains(SHAPED), "the door shows the key");
-        assert!(band(&v, "system")["text"].as_str().unwrap().contains("[redacted]"));
-        assert!(band(&v, "recall")["text"].as_str().unwrap().contains("[redacted]"));
+        assert!(
+            band(&v, "system")["text"]
+                .as_str()
+                .unwrap()
+                .contains("[redacted]")
+        );
+        assert!(
+            band(&v, "recall")["text"]
+                .as_str()
+                .unwrap()
+                .contains("[redacted]")
+        );
         let tools = band(&v, "tools").to_string();
         assert!(tools.contains("input_schema"));
     }
@@ -417,7 +474,10 @@ fn an_old_record_answers_what_it_has() {
         writeln!(f, "{}", canon::string(&Value::Object(m))).unwrap();
     };
     put("host.start", json!({"pid": 1, "config": {}}));
-    put("epoch.rollover", json!({"from": 0, "to": 1, "cause": "start", "l1": "epoch 1", "first_turn": 1}));
+    put(
+        "epoch.rollover",
+        json!({"from": 0, "to": 1, "cause": "start", "l1": "epoch 1", "first_turn": 1}),
+    );
     let call = |turn: u64, c: u64, prompt: u64, cached: u64| {
         json!({"turn": turn, "call": c, "epoch": 1, "rung": 0, "model_requested": "m", "model_served": "m",
                "provider": "p", "prompt_tokens": prompt, "cached_tokens": cached, "cache_write_tokens": 0,
@@ -425,32 +485,66 @@ fn an_old_record_answers_what_it_has() {
                "expected_cached_tokens": 100}})
     };
     let msgs = |t: u64| {
-        json!([serde_json::to_value(ChatMessage::assistant_with_blocks(vec![
-            MessageContentBlock::ToolUse { id: format!("t{t}"), name: "look".into(), input: json!({}), cache: None }
-        ])).unwrap(),
-        serde_json::to_value(ChatMessage::user_with_blocks(vec![
-            MessageContentBlock::ToolResult { tool_use_id: format!("t{t}"), content: "found".into(), images: vec![], is_error: false, cache: None }
-        ])).unwrap(),
-        serde_json::to_value(ChatMessage::assistant(format!("done {t}"))).unwrap()])
+        json!([
+            serde_json::to_value(ChatMessage::assistant_with_blocks(vec![
+                MessageContentBlock::ToolUse {
+                    id: format!("t{t}"),
+                    name: "look".into(),
+                    input: json!({}),
+                    cache: None
+                }
+            ]))
+            .unwrap(),
+            serde_json::to_value(ChatMessage::user_with_blocks(vec![
+                MessageContentBlock::ToolResult {
+                    tool_use_id: format!("t{t}"),
+                    content: "found".into(),
+                    images: vec![],
+                    is_error: false,
+                    cache: None
+                }
+            ]))
+            .unwrap(),
+            serde_json::to_value(ChatMessage::assistant(format!("done {t}"))).unwrap()
+        ])
     };
     for t in 1..=2u64 {
-        put("turn.started", json!({"turn": t, "epoch": 1, "turn_kind": "free", "model": "m"}));
+        put(
+            "turn.started",
+            json!({"turn": t, "epoch": 1, "turn_kind": "free", "model": "m"}),
+        );
         put("llm.call", call(t, 1, 900, 100));
         put("llm.call", call(t, 2, 1000, 900));
-        put("turn.log", json!({"turn": t, "header": format!("[turn {t}]"), "recall": false, "messages": msgs(t)}));
+        put(
+            "turn.log",
+            json!({"turn": t, "header": format!("[turn {t}]"), "recall": false, "messages": msgs(t)}),
+        );
         put("turn.ended", json!({"turn": t, "status": "completed"}));
     }
     let red = Redactor::new();
     let v = door(guard.path(), 2, Some(2), &red).unwrap();
     assert_eq!(v["recorded"], false);
-    assert!(v["note"].as_str().unwrap().contains("predates context recording"));
+    assert!(
+        v["note"]
+            .as_str()
+            .unwrap()
+            .contains("predates context recording")
+    );
     assert_eq!(names(&v), ["history", "message", "this_turn"]);
     assert_eq!(band(&v, "history")["rows"].as_array().unwrap().len(), 1);
     assert_eq!(band(&v, "message")["text"], "[turn 2]");
-    assert_eq!(band(&v, "this_turn")["messages"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        band(&v, "this_turn")["messages"].as_array().unwrap().len(),
+        2
+    );
     assert_eq!(v["provider"]["prompt_tokens"], 1000);
     assert_eq!(v["provider"]["cached_tokens"], 900);
-    let missing: Vec<&str> = v["missing"].as_array().unwrap().iter().map(|m| m.as_str().unwrap()).collect();
+    let missing: Vec<&str> = v["missing"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m.as_str().unwrap())
+        .collect();
     assert_eq!(missing, ["tools", "system", "epoch", "recall"]);
     // and a call that is not there is still a refusal, not an error of the format
     assert_eq!(door(guard.path(), 2, Some(3), &red).unwrap_err().0, 404);
@@ -499,4 +593,59 @@ fn the_request_bytes_are_unchanged() {
     let fold = |d: &[String]| rung_host::canon::hash(d.join(",").as_bytes());
     assert_eq!(fold(&plain), "87e3a16912b958ae686c2699db0c2e96");
     assert_eq!(fold(&rolled), "1a0a338bfe6d60ed480273722384e4cb");
+}
+
+/// What the request record adds to a record, measured on a seeded busy run
+/// with the mock engine and the baseline memory: the bytes of the new lines
+/// and fields against the bytes of the record without them. The figures are
+/// printed (`--nocapture`); the assertions are the shape: the layers are
+/// written once and the epoch layer once per epoch, never per call.
+#[test]
+fn the_record_grows_by_layers_not_by_calls() {
+    sim::test_timeout(300);
+    let guard = sim::temp_dir_guard("ctx-growth");
+    let mut sc = sim::Scenario::new(guard.path(), 11);
+    sc.world = common::busy_world(11, 3 * HOUR);
+    sc.max_turns = Some(200);
+    sc.config.epoch_budget_tokens = 20_000;
+    let out = sim::run(sc);
+    let len = |l: &Line| l.text().len() + 1;
+    let total: usize = out.lines.iter().map(len).sum();
+    let (mut layers, mut slow, mut sent, mut recall) = (0usize, 0usize, 0usize, 0usize);
+    let (mut starts, mut rolls, mut calls, mut logs, mut recalled) = (0, 0, 0, 0, 0);
+    for l in &out.lines {
+        match l.kind.as_str() {
+            "pack.layers" => {
+                layers += len(l);
+                starts += 1;
+            }
+            "epoch.rollover" => {
+                rolls += 1;
+                slow +=
+                    canon::string(l.get("slow")).len() + canon::string(l.get("l_hash")).len() + 20;
+            }
+            "llm.call" => calls += 1,
+            "turn.log" => {
+                logs += 1;
+                sent += canon::string(l.get("header_sent")).len() + 15;
+                let r = canon::string(l.get("recall_text"));
+                recall += r.len() + 15;
+                recalled += usize::from(l.get("recall") == &json!(true));
+            }
+            _ => {}
+        }
+    }
+    let added = layers + slow + sent + recall;
+    eprintln!(
+        "GROWTH record {total} B; before {} B; added {added} B ({:.1}%): pack.layers {layers} B x{starts}, \
+         epoch layers {slow} B x{rolls}, header_sent {sent} B x{logs}, recall_text {recall} B ({recalled} recalled); {calls} calls",
+        total - added,
+        100.0 * added as f64 / (total - added) as f64
+    );
+    assert_eq!(starts, 1, "the stable layer once for the run");
+    assert!(rolls >= 3, "the run has several epochs");
+    assert!(calls > logs, "more calls than turns");
+    // per call the record grew by nothing of the layers: the added bytes are
+    // a function of epochs and turns, not calls
+    assert!(layers < total / 2);
 }

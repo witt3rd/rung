@@ -699,7 +699,8 @@ async fn native_context(
             "the query is not valid UTF-8",
         );
     };
-    let (turn, q) = match parse_turn(turn).and_then(|t| ContextQuery::parse(&pairs).map(|q| (t, q))) {
+    let (turn, q) = match parse_turn(turn).and_then(|t| ContextQuery::parse(&pairs).map(|q| (t, q)))
+    {
         Ok(x) => x,
         Err(e) => return door_error(e, &red),
     };

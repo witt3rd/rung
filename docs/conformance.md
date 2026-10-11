@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 496 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 506 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1025,6 +1025,19 @@ look shorter than it is.
 - `p0_holds_here_too_without_the_library_knowing_the_domain`
 - `the_pass_is_indifferent_to_which_vocabulary_it_carries`
 - `wont_fix_closes_an_issue_that_remains_non_conforming`
+
+**`rung-host/tests/context_record.rs`** — 10 unclaimed
+
+- `a_call_or_turn_that_is_not_there_is_refused`
+- `a_planted_secret_reaches_neither_the_record_nor_the_door`
+- `a_swap_writes_the_new_layers_once`
+- `an_old_record_answers_what_it_has`
+- `big_layers_round_trip_whole`
+- `the_bands_carry_the_provider_counts_and_cache_marks`
+- `the_door_rebuilds_the_request_that_was_sent`
+- `the_layers_are_recorded_whole_and_once`
+- `the_record_grows_by_layers_not_by_calls`
+- `the_request_bytes_are_unchanged`
 
 **`rung-host/tests/events_adapter.rs`** — 3 unclaimed
 

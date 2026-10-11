@@ -108,7 +108,10 @@ async fn both_roles_read_the_context_of_a_stopped_instance_whole() {
         assert_eq!(v["call"], 3);
         assert_eq!(v["recorded"], true);
         let recall = band(&v, "recall")["text"].as_str().unwrap();
-        assert!(recall.len() > 200_000 && recall.contains("rl02099"), "the recall, whole");
+        assert!(
+            recall.len() > 200_000 && recall.contains("rl02099"),
+            "the recall, whole"
+        );
         assert!(recall.contains("[redacted]"));
         assert!(!body.contains(SENT), "the door shows the plain secret");
         assert_eq!(v["redaction"]["env_unset"][0], "SOME_UNSET_KEY_ENV");
@@ -118,7 +121,13 @@ async fn both_roles_read_the_context_of_a_stopped_instance_whole() {
         }
     }
     // and it is what the library gives for the same record
-    let lib = door(s.dir.path(), s.turn, Some(3), &Redactor::new().with_secret(SENT)).unwrap();
+    let lib = door(
+        s.dir.path(),
+        s.turn,
+        Some(3),
+        &Redactor::new().with_secret(SENT),
+    )
+    .unwrap();
     assert_eq!(first.unwrap()["bands"], lib["bands"]);
 }
 
@@ -132,10 +141,16 @@ async fn the_door_refuses_what_it_should() {
     // a call out of range, a turn that is not there: plain refusals
     let (st, body) = get(&s, &p("?call=99"), Some(OWNER)).await;
     assert_eq!(st, 404);
-    assert_eq!(serde_json::from_str::<Value>(&body).unwrap()["error"], "no_such_call");
+    assert_eq!(
+        serde_json::from_str::<Value>(&body).unwrap()["error"],
+        "no_such_call"
+    );
     let (st, body) = get(&s, "/v1/turns/999/context", Some(OWNER)).await;
     assert_eq!(st, 404);
-    assert_eq!(serde_json::from_str::<Value>(&body).unwrap()["error"], "no_such_turn");
+    assert_eq!(
+        serde_json::from_str::<Value>(&body).unwrap()["error"],
+        "no_such_turn"
+    );
     // a query that is not as documented
     for q in ["?call=abc", "?call=1&call=2", "?after=3", "?call="] {
         assert_eq!(get(&s, &p(q), Some(OWNER)).await.0, 400, "{q}");

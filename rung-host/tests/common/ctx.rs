@@ -143,7 +143,12 @@ pub fn contains(hay: &[u8], needle: &str) -> bool {
 }
 
 /// The context door for one call of one turn, as the JSON it answers.
-pub fn door(dir: &Path, turn: u64, call: Option<u64>, red: &Redactor) -> Result<Value, (u16, String)> {
+pub fn door(
+    dir: &Path,
+    turn: u64,
+    call: Option<u64>,
+    red: &Redactor,
+) -> Result<Value, (u16, String)> {
     let page = open_dir(dir, turn, &ContextQuery { call }, red, Vec::new())
         .map_err(|e| (e.status, e.code.to_string()))?;
     let mut out = Vec::new();
@@ -190,7 +195,6 @@ pub fn wire(seen: &Seen, calls: usize, k: usize) -> Vec<ChatMessage> {
     m
 }
 
-
 /// A memory provider that recalls one record of a given text.
 #[derive(Debug)]
 pub struct Big {
@@ -232,7 +236,9 @@ impl MemoryProvider for Big {
 pub fn long_recall(n: usize, plant: Option<(usize, &str)>) -> String {
     (0..n)
         .map(|i| match plant {
-            Some((at, s)) if at == i => format!("rl{i:05} {s} {}", "x".repeat(99 - 9 - s.len() - 1)),
+            Some((at, s)) if at == i => {
+                format!("rl{i:05} {s} {}", "x".repeat(99 - 9 - s.len() - 1))
+            }
             _ => format!("rl{i:05} {}", "x".repeat(99 - 8)),
         })
         .collect::<Vec<_>>()
@@ -270,4 +276,3 @@ pub fn append_line(dir: &Path, kind: &str, body: Value) {
         .unwrap();
     writeln!(f, "{}", canon::string(&Value::Object(m))).unwrap();
 }
-
