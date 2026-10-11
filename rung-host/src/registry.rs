@@ -393,45 +393,73 @@ pub fn list() -> Result<Vec<Row>, String> {
 /// Every registered instance in `dir`, by id. No entry is dropped: one that
 /// cannot be read is a row with a problem.
 pub fn list_in(dir: &Path) -> Result<Vec<Row>, String> {
-    let mut rows = Vec::new();
-    for path in entry_files(dir)? {
-        let stem = path
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let entry = match read_entry(&path) {
-            Ok(e) => e,
-            Err(why) => {
-                rows.push(Row {
-                    id: stem,
-                    entry: None,
-                    word: Word::Unreadable,
-                    last: None,
-                    problem: Some(format!("{}: {why}", path.display())),
-                });
-                continue;
-            }
-        };
-        let held = state_held(&entry.state_dir);
-        let last = last_of(&entry.state_dir);
-        let (word, problem) = match (&held, &last) {
-            (Err(why), _) => (Word::Unreadable, Some(why.clone())),
-            (Ok(true), Err(why)) => (Word::Running, Some(why.clone())),
-            (Ok(true), Ok(_)) => (Word::Running, None),
-            (Ok(false), Ok(Some(l))) if l.kind == "halted" => (Word::Stopped, None),
-            (Ok(false), Ok(_)) => (Word::Down, None),
-            (Ok(false), Err(why)) => (Word::Down, Some(why.clone())),
-        };
-        rows.push(Row {
-            id: entry.id.clone(),
-            last: last.ok().flatten(),
-            entry: Some(entry),
-            word,
-            problem,
-        });
-    }
+    let mut rows: Vec<Row> = entry_files(dir)?.iter().map(|p| row_of(p)).collect();
     rows.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(rows)
+}
+
+/// Every entry file in `dir` that parses, by id: no lock is probed and no
+/// record is read. An entry that cannot be read is skipped (its row is
+/// [`list_in`]'s business). An absent folder has none.
+pub fn entries_in(dir: &Path) -> Result<Vec<Entry>, String> {
+    let mut v: Vec<Entry> = entry_files(dir)?
+        .iter()
+        .filter_map(|p| read_entry(p).ok())
+        .collect();
+    v.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(v)
+}
+
+/// The one instance `id` in `dir`, or `None` when no entry file has that
+/// name. Only a registry id (what [`slug`] makes) names a file: anything
+/// else, a separator or `..` included, is `None` and touches nothing.
+pub fn row_in(dir: &Path, id: &str) -> Result<Option<Row>, String> {
+    if slug(id).as_deref() != Some(id) {
+        return Ok(None);
+    }
+    let path = entry_path(dir, id);
+    match std::fs::symlink_metadata(&path) {
+        Ok(_) => Ok(Some(row_of(&path))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("{}: {e}", path.display())),
+    }
+}
+
+/// One entry file as a row: joined with the lock and the record's last line.
+fn row_of(path: &Path) -> Row {
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let entry = match read_entry(path) {
+        Ok(e) => e,
+        Err(why) => {
+            return Row {
+                id: stem,
+                entry: None,
+                word: Word::Unreadable,
+                last: None,
+                problem: Some(format!("{}: {why}", path.display())),
+            };
+        }
+    };
+    let held = state_held(&entry.state_dir);
+    let last = last_of(&entry.state_dir);
+    let (word, problem) = match (&held, &last) {
+        (Err(why), _) => (Word::Unreadable, Some(why.clone())),
+        (Ok(true), Err(why)) => (Word::Running, Some(why.clone())),
+        (Ok(true), Ok(_)) => (Word::Running, None),
+        (Ok(false), Ok(Some(l))) if l.kind == "halted" => (Word::Stopped, None),
+        (Ok(false), Ok(_)) => (Word::Down, None),
+        (Ok(false), Err(why)) => (Word::Down, Some(why.clone())),
+    };
+    Row {
+        id: entry.id.clone(),
+        last: last.ok().flatten(),
+        entry: Some(entry),
+        word,
+        problem,
+    }
 }
 
 /// The rows as `ls` prints them: a table, one row per instance, a problem

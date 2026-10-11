@@ -7,6 +7,13 @@ git tags only.
 
 ## [Unreleased]
 
+### Added
+- `rung-host`, `rung-gateway`: the H3 read doors. The gateway answers the
+  instance list, one instance's fold (`/v1/summary`) and its recorded events,
+  paged (`/v1/record`), for the native hosts of a registry folder, read from
+  their state directories, running or not, redacted and never writing
+  (`rung_host::read`; shapes in `docs/rung-host-api.md`).
+
 ### Removed
 - `rung-agent-core`: the public constants `MAX_RECORDS` (5) and `MAX_CHARS`
   (4000), rung's own ceiling on recalled memory, are removed (a deliberate API

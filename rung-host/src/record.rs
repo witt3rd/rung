@@ -190,7 +190,7 @@ fn segment_path(dir: &Path, n: u32) -> PathBuf {
     dir.join(format!("seg-{n:08}.ndjson"))
 }
 
-fn segments(dir: &Path) -> io::Result<Vec<(u32, PathBuf)>> {
+pub(crate) fn segments(dir: &Path) -> io::Result<Vec<(u32, PathBuf)>> {
     let mut out = Vec::new();
     let rd = match fs::read_dir(dir) {
         Ok(rd) => rd,
