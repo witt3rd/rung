@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 484 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 496 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -961,6 +961,10 @@ look shorter than it is.
 - `an_invented_order_settles_exactly_as_a_real_one_does`
 - `the_knowledge_exists_upstream_and_cannot_cross`
 
+**`rung-gateway/tests/events.rs`** — 1 unclaimed
+
+- `waiting_clients_hold_no_blocking_thread`
+
 **`rung-gateway/tests/gateway.rs`** — 6 unclaimed
 
 - `config_names_variables_and_resolves_them`
@@ -1021,6 +1025,23 @@ look shorter than it is.
 - `p0_holds_here_too_without_the_library_knowing_the_domain`
 - `the_pass_is_indifferent_to_which_vocabulary_it_carries`
 - `wont_fix_closes_an_issue_that_remains_non_conforming`
+
+**`rung-host/tests/events_adapter.rs`** — 3 unclaimed
+
+- `streaming_changes_nothing_in_the_record`
+- `the_adapter_streams_partial_text_and_tool_progress_to_a_subscriber`
+- `the_secret_split_across_the_models_chunks_never_leaves_through_the_redactor`
+
+**`rung-host/tests/events_stream.rs`** — 8 unclaimed
+
+- `a_gap_discards_what_was_held_and_the_text_of_blocks_that_were_open`
+- `a_private_key_block_split_across_pieces_is_removed`
+- `a_secret_split_between_two_pieces_is_still_removed`
+- `frames_are_server_sent_events_and_only_record_frames_have_an_id`
+- `text_is_released_as_it_forms_not_only_at_the_end`
+- `text_of_a_block_whose_start_was_not_seen_is_not_sent`
+- `the_end_of_a_block_or_a_turn_releases_what_was_held`
+- `waiting_clients_hold_no_blocking_thread`
 
 **`rung-host/tests/gate_acp.rs`** — 3 unclaimed
 

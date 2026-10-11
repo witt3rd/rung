@@ -115,6 +115,9 @@ pub struct Scenario {
     /// The desk's ask timeout, instead of [`crate::desk::ASK_TIMEOUT`]
     /// (the one wall-clock input a simulated run has).
     pub desk_timeout: Option<std::time::Duration>,
+    /// The bus the host publishes partial frames on (a test subscribes to
+    /// it); a fresh one when not given.
+    pub live: Option<Arc<crate::stream::LiveBus>>,
 }
 
 impl Scenario {
@@ -153,6 +156,7 @@ impl Scenario {
             engine: None,
             lister: None,
             desk_timeout: None,
+            live: None,
             dir,
         }
     }
@@ -255,6 +259,9 @@ pub fn try_build_with(
     };
     b.seed_calendar = sc.seed_calendar;
     b.lister = sc.lister;
+    if let Some(l) = sc.live {
+        b.live = l;
+    }
     let (host, rec) = Host::open(b)?;
     Ok((host, rec, mock))
 }

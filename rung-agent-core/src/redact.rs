@@ -115,9 +115,15 @@ impl Redactor {
     }
 
     /// Also remove the current value of the environment variable `name`.
-    pub fn add_env(&mut self, name: &str) {
-        if let Ok(v) = std::env::var(name) {
-            self.add_secret(&v);
+    /// Returns whether the process holds a value for it (set and not blank):
+    /// a name it does not hold cannot be found by value.
+    pub fn add_env(&mut self, name: &str) -> bool {
+        match std::env::var(name) {
+            Ok(v) if !v.trim().is_empty() => {
+                self.add_secret(&v);
+                true
+            }
+            _ => false,
         }
     }
 
@@ -128,6 +134,13 @@ impl Redactor {
         if v.len() >= MIN_EXACT && !self.exact.iter().any(|e| e == v) {
             self.exact.push(v.to_string());
         }
+    }
+
+    /// The byte length of the longest exact value this redactor holds (0 if
+    /// none). A stream that redacts text arriving in pieces holds back this
+    /// much of the tail so a value split across two pieces is still found.
+    pub fn longest_secret(&self) -> usize {
+        self.exact.iter().map(String::len).max().unwrap_or(0)
     }
 
     /// Builder form of [`Self::add_secret`].

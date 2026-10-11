@@ -205,6 +205,11 @@ pub enum AcpPlan {
     Http {
         addr: String,
         tokens: Vec<(String, Role)>,
+        /// What the host's own doors redact: the value of every variable the
+        /// config names, besides the known key shapes.
+        redactor: crate::redact::Redactor,
+        /// The variables the file names that this process does not hold.
+        env_unset: Vec<String>,
     },
 }
 
@@ -406,9 +411,26 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
                         )));
                     }
                 }
+                // every variable the file names (keys, tokens): their values
+                // never leave the host's doors
+                let mut redactor = crate::redact::Redactor::new();
+                let mut names = Vec::new();
+                if let Ok(v) = serde_yaml::from_str::<Value>(&text) {
+                    crate::read::env_names(&v, &mut names);
+                }
+                names.sort();
+                names.dedup();
+                let mut env_unset = Vec::new();
+                for n in names {
+                    if !redactor.add_env(&n) {
+                        env_unset.push(n);
+                    }
+                }
                 AcpPlan::Http {
                     addr: addr.clone(),
                     tokens,
+                    redactor,
+                    env_unset,
                 }
             }
             (None, None) => AcpPlan::None,
@@ -687,7 +709,12 @@ impl Handoff {
         let looped = std::thread::spawn(move || host.run(recovered));
         std::thread::spawn(move || match acp {
             // A listener that cannot serve stops the host.
-            AcpPlan::Http { addr, tokens } => {
+            AcpPlan::Http {
+                addr,
+                tokens,
+                redactor,
+                env_unset,
+            } => {
                 let on_bound = move |bound: std::net::SocketAddr| {
                     if let Some(r) = on_bound_registration
                         && let Err(e) = r.set_address(&bound.to_string())
@@ -695,7 +722,9 @@ impl Handoff {
                         eprintln!("rung-host: registry: {e}");
                     }
                 };
-                if let Err(e) = crate::acp::serve_http_bound(bridge, &addr, tokens, on_bound) {
+                if let Err(e) = crate::acp::serve_http_with(
+                    bridge, &addr, tokens, redactor, env_unset, on_bound,
+                ) {
                     *crate::core::lock(&e2) = e;
                     f2.store(true, Ordering::SeqCst);
                     h2.core.stop.request(Why::Stopped { by: "acp".into() });

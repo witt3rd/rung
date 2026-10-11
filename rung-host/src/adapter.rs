@@ -25,6 +25,7 @@
 //! caller from the environment variable its configuration names, and is
 //! never written to the record.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -36,8 +37,8 @@ use rung_agent_core::engine::{
 use rung_agent_core::run::{Status, WrapTools};
 use rung_std::agent::FailureKind;
 use rung_std::llm::{
-    CacheBreakpoint, CachePolicy, ChatMessage, HttpFailure, LlmConfig, Protocol, StreamEvent,
-    StreamListener,
+    CacheBreakpoint, CachePolicy, ChatMessage, ContentBlockDelta, ContentBlockStart, HttpFailure,
+    LlmConfig, Protocol, StreamEvent, StreamListener,
 };
 use rung_std::tools::Toolset;
 use serde_json::Value;
@@ -45,6 +46,7 @@ use serde_json::Value;
 use crate::clock::{Clock, Millis};
 use crate::core::lock;
 use crate::engine::{CallRecord, Ended, EngineTurn, HostFailure, Origin, TurnEngine, TurnRequest};
+use crate::stream::LiveTurn;
 
 /// How to reach the route and how to call it.
 #[derive(Debug, Clone)]
@@ -177,17 +179,98 @@ struct Seen {
     refused: Option<HttpFailure>,
 }
 
+/// Where the running model call is, for the partial frames (H5): which call of
+/// the turn, whether its answer text has begun, and its open tool calls. The
+/// stream listener writes it and the tool wrapper reads the call number.
+#[derive(Default)]
+struct Progress {
+    call: u32,
+    text_open: bool,
+    /// Tool-call index to id, for the arguments that arrive by index.
+    tools: HashMap<usize, String>,
+    /// Tool calls whose arguments have not been closed.
+    open: Vec<String>,
+}
+
+impl Progress {
+    /// Everything of the call that is still open is closed, once: text first,
+    /// then each tool call's arguments.
+    fn close(&mut self, live: &LiveTurn) {
+        if self.text_open {
+            self.text_open = false;
+            live.block_end(self.call, None);
+        }
+        for id in std::mem::take(&mut self.open) {
+            live.block_end(self.call, Some(&id));
+        }
+    }
+}
+
 struct Listener {
     clock: Arc<dyn Clock>,
     /// When the next call may have been sent: the turn's start, then each
     /// tool's end.
     mark: Arc<Mutex<Millis>>,
     seen: Arc<Mutex<Seen>>,
+    /// Partial text and tool progress go here: to whoever is watching, never
+    /// to the record.
+    live: LiveTurn,
+    progress: Arc<Mutex<Progress>>,
+}
+
+impl Listener {
+    /// The model call's partial frames. Thinking is not streamed.
+    ///
+    /// The state of the open blocks is tracked for **every** chunk, watched or
+    /// not: only publishing waits for a subscriber. A subscriber that joins in
+    /// the middle of a block must find the block already open, so that the block
+    /// is not announced to it as beginning there (see
+    /// [`crate::stream::PartialRedactor`]). What is tracked is a flag and the
+    /// ids of the open tool calls, never text.
+    fn publish(&self, event: &StreamEvent) {
+        let watched = self.live.watched();
+        let mut p = lock(&self.progress);
+        match event {
+            StreamEvent::ContentBlockStart {
+                index,
+                block: ContentBlockStart::ToolUse { id, name },
+            } => {
+                p.tools.insert(*index, id.clone());
+                p.open.push(id.clone());
+                if watched {
+                    self.live.tool_call(p.call, id, name);
+                }
+            }
+            StreamEvent::ContentBlockDelta { index, delta } => match delta {
+                ContentBlockDelta::TextDelta(t) => {
+                    let begins = !p.text_open;
+                    p.text_open = true;
+                    if watched {
+                        if begins {
+                            self.live.block_start(p.call);
+                        }
+                        self.live.text(p.call, t);
+                    }
+                }
+                ContentBlockDelta::InputJsonDelta(j) => {
+                    if watched && let Some(id) = p.tools.get(index) {
+                        self.live.tool_input(p.call, id, j);
+                    }
+                }
+                _ => {}
+            },
+            // the blocks are all complete by the time the first stop comes
+            StreamEvent::ContentBlockStop { .. } | StreamEvent::MessageStop => p.close(&self.live),
+            _ => {}
+        }
+    }
 }
 
 impl StreamListener for Listener {
     fn on_event(&self, event: StreamEvent) {
         let now = self.clock.now();
+        self.publish_start(&event);
+        self.publish(&event);
         let mut s = lock(&self.seen);
         match event {
             StreamEvent::MessageStart { .. } => {
@@ -209,11 +292,33 @@ impl StreamListener for Listener {
     }
 }
 
+impl Listener {
+    /// A new model call: the frames that follow belong to the next call.
+    fn publish_start(&self, event: &StreamEvent) {
+        if let StreamEvent::MessageStart { .. } = event {
+            let n = lock(&self.seen).calls.len() as u32;
+            *lock(&self.progress) = Progress {
+                call: n,
+                ..Progress::default()
+            };
+        }
+    }
+}
+
 /// Marks the end of each tool call, so the next call's latency starts there.
 struct Marked {
     inner: Arc<dyn Toolset>,
     clock: Arc<dyn Clock>,
     mark: Arc<Mutex<Millis>>,
+    /// Tool progress for whoever is watching (H5).
+    live: LiveTurn,
+    progress: Arc<Mutex<Progress>>,
+}
+
+impl Marked {
+    fn call(&self) -> u32 {
+        lock(&self.progress).call
+    }
 }
 
 impl std::fmt::Debug for Marked {
@@ -228,8 +333,13 @@ impl Toolset for Marked {
     }
 
     fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
+        self.live.tool_run(self.call(), name, input);
         let out = self.inner.execute(name, input);
         *lock(&self.mark) = self.clock.now();
+        match &out {
+            Ok(t) => self.live.tool_done(self.call(), name, true, t),
+            Err(e) => self.live.tool_done(self.call(), name, false, e),
+        }
         out
     }
 
@@ -238,8 +348,13 @@ impl Toolset for Marked {
         name: &str,
         input: &Value,
     ) -> Result<rung_std::tools::ToolOutput, String> {
+        self.live.tool_run(self.call(), name, input);
         let out = self.inner.execute_output(name, input);
         *lock(&self.mark) = self.clock.now();
+        match &out {
+            Ok(o) => self.live.tool_done(self.call(), name, true, &o.text),
+            Err(e) => self.live.tool_done(self.call(), name, false, e),
+        }
         out
     }
 }
@@ -313,10 +428,13 @@ impl TurnEngine for AgentEngine {
         let start = self.clock.now();
         let mark = Arc::new(Mutex::new(start));
         let seen = Arc::new(Mutex::new(Seen::default()));
+        let progress = Arc::new(Mutex::new(Progress::default()));
         let tools: Arc<dyn Toolset> = Arc::new(Marked {
             inner: req.tools.clone(),
             clock: self.clock.clone(),
             mark: mark.clone(),
+            live: req.live.clone(),
+            progress: progress.clone(),
         });
         // The host's toolset replaces the engine's (empty) roster.
         let wrap: WrapTools = Arc::new(move |_roster| tools.clone());
@@ -326,6 +444,8 @@ impl TurnEngine for AgentEngine {
                 clock: self.clock.clone(),
                 mark,
                 seen: seen.clone(),
+                live: req.live.clone(),
+                progress,
             })),
             wrap_tools: vec![wrap],
             sink: Arc::new(Silent),
@@ -447,6 +567,143 @@ fn map_report(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::redact::Redactor;
+    use crate::stream::{LiveBus, Partial, PartialRedactor};
+
+    const SECRET: &str = "plainsentinelh5-0123456789";
+
+    fn listener(bus: &Arc<LiveBus>) -> Listener {
+        Listener {
+            clock: Arc::new(crate::clock::SimClock::new(1)),
+            mark: Arc::new(Mutex::new(0)),
+            seen: Arc::new(Mutex::new(Seen::default())),
+            live: bus.turn(1),
+            progress: Arc::new(Mutex::new(Progress::default())),
+        }
+    }
+
+    fn start(l: &Listener) {
+        l.on_event(StreamEvent::MessageStart {
+            model: "m".into(),
+            id: "i".into(),
+        });
+    }
+
+    fn say(l: &Listener, text: &str) {
+        l.on_event(StreamEvent::ContentBlockDelta {
+            index: 0,
+            delta: ContentBlockDelta::TextDelta(text.into()),
+        });
+    }
+
+    fn stop(l: &Listener) {
+        l.on_event(StreamEvent::ContentBlockStop { index: 0 });
+        l.on_event(StreamEvent::MessageStop);
+    }
+
+    /// What a subscriber's redactor lets out of everything it was sent.
+    fn wire(rx: &mut tokio::sync::broadcast::Receiver<Arc<Partial>>) -> String {
+        let mut pr = PartialRedactor::new(Redactor::new().with_secret(SECRET));
+        let mut out = String::new();
+        while let Ok(p) = rx.try_recv() {
+            for f in pr.push((*p).clone()) {
+                out.push_str(&f.to_string());
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn the_first_subscriber_joining_mid_text_block_never_sees_the_tail_of_a_secret() {
+        let bus = LiveBus::new();
+        let l = listener(&bus);
+        start(&l);
+        // nobody is watching while the block begins and the key's front goes by
+        say(&l, &format!("Some words, then my key {}", &SECRET[..12]));
+        // the first subscriber joins now, in the middle of the block
+        let mut rx = bus.subscribe();
+        say(&l, &format!("{} and the words after it. ", &SECRET[12..]));
+        stop(&l);
+        // the next call's block is whole
+        start(&l);
+        say(
+            &l,
+            "A new block with enough words in it to go out at once. ",
+        );
+        stop(&l);
+        let w = wire(&mut rx);
+        assert!(
+            !w.contains(&SECRET[12..]) && !w.contains(&SECRET[..12]),
+            "a piece of a secret reached a subscriber who joined mid-block"
+        );
+        assert!(
+            !w.contains("the words after it"),
+            "the rest of a block joined in the middle was sent"
+        );
+        assert!(w.contains("A new block with enough words"));
+    }
+
+    #[test]
+    fn the_first_subscriber_joining_mid_tool_arguments_never_sees_the_tail_of_a_secret() {
+        let bus = LiveBus::new();
+        let l = listener(&bus);
+        start(&l);
+        l.on_event(StreamEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockStart::ToolUse {
+                id: "c1".into(),
+                name: "shell".into(),
+            },
+        });
+        let json = |j: &str| StreamEvent::ContentBlockDelta {
+            index: 0,
+            delta: ContentBlockDelta::InputJsonDelta(j.into()),
+        };
+        l.on_event(json(&format!("{{\"cmd\": \"echo {}", &SECRET[..12])));
+        let mut rx = bus.subscribe();
+        l.on_event(json(&format!("{} done\"}}", &SECRET[12..])));
+        stop(&l);
+        let w = wire(&mut rx);
+        assert!(
+            !w.contains(&SECRET[12..]) && !w.contains(&SECRET[..12]),
+            "a piece of a secret reached a subscriber who joined mid-arguments"
+        );
+    }
+
+    #[test]
+    fn tracking_with_no_subscriber_keeps_only_the_open_block_state_not_the_text() {
+        let bus = LiveBus::new();
+        let l = listener(&bus);
+        start(&l);
+        l.on_event(StreamEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockStart::ToolUse {
+                id: "c1".into(),
+                name: "shell".into(),
+            },
+        });
+        let chunk = "x".repeat(10_000);
+        for _ in 0..2_000 {
+            say(&l, &chunk);
+            l.on_event(StreamEvent::ContentBlockDelta {
+                index: 0,
+                delta: ContentBlockDelta::InputJsonDelta(chunk.clone()),
+            });
+        }
+        {
+            let p = lock(&l.progress);
+            // twenty megabytes went by; what is kept is a flag and an id
+            assert!(p.text_open);
+            assert_eq!((p.tools.len(), p.open.len()), (1, 1));
+        }
+        // and nothing was kept for a subscriber who comes later
+        let mut rx = bus.subscribe();
+        assert!(
+            rx.try_recv().is_err(),
+            "the bus kept frames nobody was watching"
+        );
+        assert_eq!(bus.subscribers(), 1);
+    }
 
     fn f(headers: &[(&str, &str)], body: &str) -> HttpFailure {
         HttpFailure {

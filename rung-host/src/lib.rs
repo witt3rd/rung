@@ -37,4 +37,5 @@ pub mod startup;
 pub mod state;
 pub mod statelock;
 pub mod stop;
+pub mod stream;
 pub mod toolbox;

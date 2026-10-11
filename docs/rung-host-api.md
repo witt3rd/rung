@@ -470,7 +470,9 @@ Later slices add rows as their doors land.
 
 Of the H3 rows, the first slice serves `summary` and `record` for native
 instances (the H3 section below); `status`, `report`, `turns`, `decisions`,
-`pack` and `spend` are named here and not served yet.
+`pack` and `spend` are named here and not served yet. `events` (H5) is served
+for native instances from their state directories, and by the host's own
+listener (the H5 section).
 
 Validating a config change is classed as a write: it only serves the owner who
 may then apply it.
@@ -733,3 +735,213 @@ request still completes; a dropped client's answer ends short, never
 complete-looking; and a client that reads a ~12 MB page slowly, taking several
 times the deadline in all but a chunk well inside it each time, gets the whole
 page.
+
+## H5 — the event stream with replay
+
+An instance's record, followed, with a cursor to resume from, and the
+short-lived partial text and tool progress of the turn that is running. Two
+doors carry it, with one shape:
+
+| Door | For | Served from |
+|---|---|---|
+| `GET /api/i/{id}/v1/events` | a native instance of the gateway's `registry_dir` | the instance's own state directory, so a **stopped** instance streams too; partial frames are relayed from the running host's door (below) |
+| `GET /v1/events` on the host's HTTP listener (`acp.http`), beside `/acp` | the host itself (and an instance the gateway config names, which the gateway passes through with its key) | the host's own record and its running turn |
+
+Code: `rung_host::stream` (the stream, no HTTP), `rung_host::acp::EventsDoor`
+(the host's door), the gateway's `native_events`. The gateway's rules come
+first and are not repeated (H9): both roles may read (the owner with no token,
+the read-only role with `Authorization: Bearer <token>` or `?token=`, which an
+event stream needs since it cannot set headers); an unknown token is 401; an
+owner-role request is Host-checked (403 `bad_host`); any other method is 405
+for the owner and 403 `read_only` for the read-only role (a write also meets the
+Origin check first). On the host's own door the bearer must be one of the
+host's role tokens (any role may read; 401 `unauthorized` otherwise).
+
+### The request
+
+| query | meaning |
+|---|---|
+| `after` | the cursor: a record number; the stream starts with the line after it. Default 0 (from the first line). |
+| `partials` | `on` (default): record and partial frames; `off`: record frames only; `only`: partial frames only (no record is read; this is what the gateway asks of a host) |
+
+The `Last-Event-ID` header, if sent, **is** the cursor and beats `after`: a
+browser's `EventSource` reconnects with the id of the last record frame it saw
+while the address it was given still carries its first `after`. An empty
+`Last-Event-ID` is ignored. A name not in the table, a repeated name, a value
+that is not a whole number or `partials` that is not `on`/`off`/`only` is 400
+`bad_request`. A cursor past the record's last line is 409 `cursor_ahead`
+(a record only grows, so such a cursor is from another instance). An unknown
+instance, a missing state directory and the other refusals are the H3 errors,
+answered **before the first byte**; the status is 200 once the stream starts.
+A bound of 64 bits is the biggest number, as in H3: `after` has no maximum.
+
+The answer is `text/event-stream` (`cache-control: no-cache, no-transform`,
+`x-accel-buffering: no`). `HEAD` answers the headers and ends.
+
+### The frames
+
+Each frame is one server-sent event whose `data` is one line of JSON. Only
+**record** frames have an `id:`, so a reconnect's `Last-Event-ID` is always the
+last record line seen, never a partial frame.
+
+| `event` | `id` | `data` | when |
+|---|---|---|---|
+| `open` | – | `{"contract": 1, "after": N, "live": bool, "partials": bool, "redaction": {"env_unset": [names]}}` | first frame. `live`: the host's state lock is held. `partials`: this stream will carry partial frames (false for `partials=off`, or when the gateway has no door to the host: see below). `env_unset` as in H3. |
+| `record` | the record number | the record line, as the host wrote it (`seq`, `at`, `kind` and the body), redacted | every line after the cursor, in order, once |
+| `delta` | – | a partial frame (below), redacted | only while the client is connected; never replayed |
+| `end` | – | `{"reason": "stopped"\|"down"\|"damaged"\|"error", "last_seq": N, "problem": null\|text}` | last frame, then the body ends |
+| comment `: keepalive` | – | – | every 15 s when idle, so a proxy keeps the path open |
+
+`end` reasons: `stopped` (the state lock is free and the record's last line is
+`halted`), `down` (free, any other last line: killed, crashed, never
+started), `damaged` (the record stops being intact, as in H3: everything
+intact was sent first; `problem` says where), `error` (a read failed). A stream
+open when its host stops sends the lines up to and including `halted`, then
+`end`. An empty record has nothing to replay and ends at once if no host holds
+it.
+
+**The seam.** Replay and live are one read: a reader per client reads the
+record's files from the cursor to the end and then as lines are appended, in
+file order, never from a second source. So a line appended during the replay is
+neither missed nor sent twice. A line still being written (no newline yet) is
+not sent until it is whole. A segment rotation is followed. A line is never cut
+or capped, however long.
+
+### The partial frames (`delta`)
+
+Short-lived: they exist only in the host's memory and only for the clients
+connected when they happen. They are **never written to the record, never
+numbered and never replayed**: the record keeps the final text and the
+messages as it always did, so it stays reproducible, and a reconnecting client
+gets the finished turn from the record. Every `delta` has `turn` (the
+`turn.started` line's `turn`), `call` (the model call within the turn, from 0)
+and `kind`:
+
+| `kind` | more fields | meaning |
+|---|---|---|
+| `text` | `text` | more of the answer text |
+| `tool_call` | `id`, `name` | the model began a tool call |
+| `tool_input` | `id`, `delta` | more of that call's arguments (JSON text, in pieces) |
+| `tool_run` | `name`, `input` | the tool is being run with these arguments (a JSON value) |
+| `tool_done` | `name`, `ok`, `output` | the tool finished; `output` is its whole text (or the error when `ok` is false) |
+| `block_start` | `id` (null: the answer text) | an answer-text block begins (a call's arguments begin with its `tool_call`). Only text of a block whose start the client saw is sent (below) |
+| `block_end` | `id` (null for the answer text) | that text block or that call's arguments is complete |
+| `turn_end` | – | the turn's engine returned; everything of the turn has been sent |
+| `behind` | `skipped` | this client read too slowly and missed `skipped` partial frames (see flow control); `turn` and `call` are 0. Every block open at that moment is cut for this client: its remaining text is not sent, and the stream resumes at the next block |
+
+The model's reasoning ("thinking") is not streamed. Within a call the frames
+are in the order the model made them; a call's `tool_run`/`tool_done` come
+after its `tool_input` and `block_end`.
+
+**The streaming engine adapter.** `rung_host::adapter::AgentEngine` publishes
+these frames through the `TurnRequest.live` handle as the model's stream arrives
+(text and argument pieces as they come; `tool_run` and `tool_done` around each
+tool). With no client connected no frame is built, but the state of the open blocks (a flag and the open tool-call ids, never text) is still tracked, so a client that connects in the middle of a block finds it already open and is not told it began there. A turn of any other engine
+that publishes nothing has only the `turn_end` frame, which the host sends
+after every engine turn. The host's `HostBuilder.live` is the bus; a sim
+scenario can hand its own (`Scenario.live`) to subscribe.
+
+### Redaction on every frame
+
+Every frame, of every kind, passes through the shared redactor (H4) before it is
+written: the record line, the `open` and `end` frames, every field of a partial
+frame. The record on disk stays verbatim. A replaced value is `[redacted]`;
+nothing is shortened otherwise.
+
+Text that arrives **in pieces** is redacted across the pieces: a key split
+between two `text` frames (or two `tool_input` frames) would be in neither. So the
+stream holds back the part of a block's text that could still be the start of
+something that is removed, and sends the rest as soon as it is settled:
+
+- the last word (a key shape is a word: it is complete when something follows),
+- the last `longest secret − 1` bytes (an exact value is found whole),
+- a line, or a private-key block, a pattern has left open (`Authorization:`
+  waiting for its value, `NAME=`, `BEGIN … ` without its `END`).
+
+What is held is released, redacted, at that block's `block_end` or at the turn's
+`turn_end`. Nothing is dropped or cut: the text of
+all `text` frames joined is what the redactor makes of the whole text at once
+(the tests check this for every split of a text into two pieces and for one
+character at a time). The cost is latency: text appears a word, and up to the
+longest configured secret, behind the live edge, and a long line a pattern
+holds open appears when it closes. Frames that are complete in themselves (`tool_call`,
+`tool_run`, `tool_done`, `open`, `end`) are redacted whole.
+
+**The redactor's state is per client and starts at a block's start.** The text of
+a block is sent only if this client's redactor saw the block begin (a
+`block_start`, or a `tool_call` for a call's arguments). A client that connects
+in the middle of a block, or that fell behind (`behind`) while one was open,
+has not seen the text a secret may have begun in, and the redactor cannot know
+the rest of a secret whose front it never saw. So the rest of that block is not
+sent to that client, what the redactor held for it is **discarded, not released**
+(a held piece may be the front of a secret), and the stream **resumes at the next
+block**, which the client sees from its start (the safe boundary: redaction state
+never crosses a block). The block's whole text is in the record. A `block_end`
+whose start the client did not see is not sent either. The gateway's relay
+applies the same rule to the frames it gets from a host, so it holds across
+both hops.
+
+Where the secrets come from, at each door: the gateway door uses the H3
+redactor (the gateway's own tokens and keys, and the value of every variable any
+registered instance's config names); the host's own door uses the variables its
+own config names, its role tokens and the known key shapes.
+
+### Flow control: nothing is dropped silently
+
+- **Record frames are pulled, not pushed.** A client's reader reads the next line
+  only when the transport can take it (the body is written one frame at a time),
+  so a slow client simply reads later: nothing is dropped, nothing queues (what a
+  client has consumed is let go as it is consumed: its memory is a read chunk and
+  the unread part of one line, however long the record and however many clients
+  resume at once), no
+  thread waits (the stream is async; the file reads are short and the wait for a
+  new line holds no thread). A client that disconnects drops its reader, file and
+  subscription at once; a stalled client holds only its own position.
+- **Partial frames** go through a bounded buffer per client (4096 frames). A
+  client that falls further behind is **told**: its next frame after the gap is
+  `behind` with the count it missed (what that does to the blocks open at the
+  gap is under "The redactor's state is per client"), and the stream goes on. The record is unaffected: to see the finished turn, reconnect
+  with the last record id.
+- **New lines** wake a host's own streams at once (the host notes each line it
+  writes); a gateway reading a state directory looks again every 100 ms, so a
+  line reaches a client within about a tenth of a second of being written.
+
+### The gateway's door to a running host's partial frames
+
+For a native instance whose state lock is held and whose entry has an
+`address`, the gateway asks that host's own door for its partial frames
+(`GET /v1/events?partials=only`, bearer: the host's own `acp.tokens` value, the
+owner's first, read from the variable its config names; so the gateway must
+hold that variable, as H3 already asks for the redaction ones) and relays them
+through its own redactor. If the host has no address, takes no token the
+gateway holds, does not answer within 5 seconds or refuses, the stream carries
+the record only and `open.partials` is false. A host that goes away later ends
+the relay; the record goes on. The gateway holds that connection only while the
+client holds the stream. For an instance the gateway config names (not in the
+registry folder) the stream is the host's own, passed through with its key.
+
+### Proof
+
+`rung-host/tests/events_stream.rs` (37 tests), `rung-host/tests/events_adapter.rs`
+(3) and `rung-host/tests/events_memory.rs` (1), then `rung-host/tests/events_door.rs`
+(6) and `rung-gateway/tests/events.rs` (11), written first against the code as
+it was and kept red until it made them green: replay then live in order; a
+line appended during the replay neither missed nor repeated, with no poll to
+rescue a missed wake; reconnect from a cursor, by query and by `Last-Event-ID`,
+across segments and across a rotation; a cursor ahead refused; a torn line held
+back; a 3 MB line whole; a damaged record sent as far as intact; a stopped, a
+dead and an empty instance ending cleanly, and a host that stops under a client;
+partial frames flagged, in order, never in the record (the record of a watched
+run equals that of an unwatched one) and never replayed; a sentinel secret absent
+from every kind of frame, from a key split at every point between two pieces, from
+a private-key block sent a character at a time; a lagging client told it fell
+behind and losing no record line; 100 clients (one stalled) and a runtime with
+two blocking threads (thirty waiting streams do not starve the summary door);
+a hundred clients replaying one record at once holding memory for what they have
+not consumed (counting allocator, not a clock); a secret split across the frames
+a lagging client missed, held across a gap, or split by a client's joining in the
+middle of a block, never reaching it, at the stream and through the gateway's
+relay; disconnects freeing the subscription and the gateway's connection to the host;
+both roles, an unknown token, the Host and Origin checks, and the 405s; the
+adapter against a loopback provider that streams text split across a secret and
+a tool call whose arguments arrive in two pieces.

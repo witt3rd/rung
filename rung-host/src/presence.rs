@@ -107,6 +107,9 @@ pub struct HostBuilder {
     /// The hold on the state directory, when the caller took it before it
     /// touched the state; `Host::open` takes it otherwise.
     pub lock: Option<crate::statelock::StateLock>,
+    /// Where the host's turns publish partial frames and wake the streams
+    /// that follow the record (H5). A fresh bus when not given.
+    pub live: Arc<crate::stream::LiveBus>,
 }
 
 impl HostBuilder {
@@ -135,6 +138,7 @@ impl HostBuilder {
             prober: None,
             initial_listing: None,
             lock: None,
+            live: crate::stream::LiveBus::new(),
         }
     }
 }
@@ -171,6 +175,8 @@ pub struct Host {
     deferred_retain: Mutex<Vec<crate::desk::Candidate>>,
     /// The running turn's cancel flag (an owner may cut a shared turn).
     turn_cancel: Mutex<Option<Arc<AtomicBool>>>,
+    /// Partial frames out, record-grew wakes out (H5).
+    live: Arc<crate::stream::LiveBus>,
 }
 
 /// What survives a host-made change, for the next call's expectation.
@@ -236,6 +242,12 @@ fn mode_value(st: &State) -> Value {
 }
 
 impl Host {
+    /// The bus the host's turns publish partial frames on, and that wakes the
+    /// streams following its record (H5).
+    pub fn live(&self) -> Arc<crate::stream::LiveBus> {
+        self.live.clone()
+    }
+
     /// The hold on the state directory (held for the host's life).
     pub fn state_lock(&self) -> &crate::statelock::StateLock {
         &self._lock
@@ -268,6 +280,9 @@ impl Host {
             b.notifier,
             b.config,
         ));
+        // every line written wakes the streams that follow the record
+        let bus = b.live.clone();
+        core.observe(Box::new(move |_| bus.wake()));
         let host = Arc::new(Host {
             _lock: lock,
             core,
@@ -289,6 +304,7 @@ impl Host {
             last_call: Mutex::new(None),
             deferred_retain: Mutex::new(Vec::new()),
             turn_cancel: Mutex::new(None),
+            live: b.live,
             desk_deadline: Mutex::new(Instant::now()),
         });
         Ok((host, recovered))
@@ -1415,7 +1431,11 @@ impl Host {
             session,
             deadline,
             step_cap: cfg.governor.step_cap,
+            live: self.live.turn(turn),
         });
+        // whatever the engine left held back goes out before the record says
+        // the turn is over
+        self.live.turn(turn).end();
         *lock(&self.turn_cancel) = None;
         if let Some((done, h)) = watcher {
             done.store(true, Ordering::SeqCst);
