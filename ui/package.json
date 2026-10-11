@@ -9,10 +9,13 @@
     "dev": "npm run data && vite",
     "build": "tsc -b && vite build && npm run data -- --out dist/data",
     "typecheck": "tsc -b --noEmit",
-    "test": "node --experimental-strip-types --test 'test/*.test.ts'",
+    "test": "node --experimental-strip-types --test --test-timeout=120000 'test/*.test.ts'",
+    "test:contract": "node --experimental-strip-types --test --test-timeout=120000 test/contract.test.ts",
     "census": "node census/census.mjs",
     "census:selftest": "node census/selftest.mjs",
-    "capture": "node census/capture.mjs"
+    "capture": "node census/capture.mjs",
+    "live-proof": "node --experimental-strip-types census/live-proof.ts",
+    "mock": "node --experimental-strip-types mock/serve.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.1",

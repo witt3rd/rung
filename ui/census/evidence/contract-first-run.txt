@@ -1,0 +1,14 @@
+# the contract tests, run before the mock gateway existed (npm run test:contract): every test fails
+    code: 'ERR_MODULE_NOT_FOUND',
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/mock/gateway.ts' imported from ui/test/contract-target.ts
+✖ events: an after beyond the record is 400 (0.029339ms)
+✖ events: replay after N is exactly the record's lines after N, in order, then caught_up (0.02712ms)
+✖ failing tests:
+✖ health, and the instance is listed with its summary (1.147072ms)
+ℹ fail 7
+ℹ pass 0
+ℹ tests 13
+✖ Last-Event-ID resumes the same as ?after, and the header wins (0.036089ms)
+✖ only /v1 passes, and an unknown instance is 404 (0.019195ms)
+✖ record: paging with exact totals, no gaps, either order, no cap on limit (0.028388ms)
+✖ summary has the documented fields and types (0.044649ms)
