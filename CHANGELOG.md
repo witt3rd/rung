@@ -35,9 +35,10 @@ git tags only.
   `cap_output` and `LoopState::tool_output_limit` are removed; the model sees
   each result whole. The reactive elision on a provider context overflow stays
   and now repeats within a turn (no per-turn limit; each pass strictly shrinks
-  the older results, so it is bounded), but never elides a result the model has not yet seen (`LoopState::fresh_from`
-  marks the messages this iteration appended): when nothing older is left to
-  elide the turn ends with an overflow error saying so.
+  the older results, so it is bounded), but never elides a result the model
+  has not yet seen (`LoopState::fresh_from` marks the messages this iteration
+  appended): when nothing older is left to elide the turn ends with an
+  overflow error saying so.
 - `rung-agent-core`: the public constants `MAX_RECORDS` (5) and `MAX_CHARS`
   (4000), rung's own ceiling on recalled memory, are removed (a deliberate API
   break; pinned by the v0.1.13 surface suite until now). Nothing replaces
