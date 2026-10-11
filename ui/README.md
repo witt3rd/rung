@@ -91,7 +91,7 @@ skipped; an external gateway (`RUNG_CONTRACT_URL`) has none, so those skip there
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged
   by looking at the captures; what looking changed is listed below.
 - `census-final.txt`: the census on the pages as committed.
-- `shots/`: the first screen of every page at 390 and 1920, looked at. `turns-why` is where the "Why" link
+- `shots/`: the first screen of every page at 390, 1280, 1920 and 2878, looked at. `turns-why` is where the "Why" link
   lands (turn 51 of a recorded run, details open), not the top of the list.
 
 What looking changed (the census passed before each of these): a turn the host never ran was listed as the last
