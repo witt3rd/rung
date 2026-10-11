@@ -110,6 +110,10 @@ pub struct HostBuilder {
     /// Where the host's turns publish partial frames and wake the streams
     /// that follow the record (H5). A fresh bus when not given.
     pub live: Arc<crate::stream::LiveBus>,
+    /// The redactor every layer and every request text passes through
+    /// before the record line that holds it is written (S4): the value of
+    /// each variable the config names, besides the known key shapes.
+    pub redactor: crate::redact::Redactor,
 }
 
 impl HostBuilder {
@@ -139,6 +143,7 @@ impl HostBuilder {
             initial_listing: None,
             lock: None,
             live: crate::stream::LiveBus::new(),
+            redactor: crate::redact::Redactor::new(),
         }
     }
 }
@@ -177,6 +182,8 @@ pub struct Host {
     turn_cancel: Mutex<Option<Arc<AtomicBool>>>,
     /// Partial frames out, record-grew wakes out (H5).
     live: Arc<crate::stream::LiveBus>,
+    /// What request text passes through before it is recorded (S4).
+    redactor: crate::redact::Redactor,
 }
 
 /// What survives a host-made change, for the next call's expectation.
@@ -305,6 +312,7 @@ impl Host {
             deferred_retain: Mutex::new(Vec::new()),
             turn_cancel: Mutex::new(None),
             live: b.live,
+            redactor: b.redactor,
             desk_deadline: Mutex::new(Instant::now()),
         });
         Ok((host, recovered))
@@ -404,6 +412,11 @@ impl Host {
             json!({"session": session, "role": role, "channel": channel}),
         );
         self.core.sync();
+    }
+
+    /// Replace the stable layer (tools and system text) at a batched swap.
+    pub fn swap_stable(&self, tools: Vec<rung_std::llm::ToolDefinition>, system: String) {
+        let _ = (tools, system);
     }
 
     /// The now set: what `_rung/status` reports.

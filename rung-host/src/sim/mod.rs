@@ -118,6 +118,11 @@ pub struct Scenario {
     /// The bus the host publishes partial frames on (a test subscribes to
     /// it); a fresh one when not given.
     pub live: Option<Arc<crate::stream::LiveBus>>,
+    /// The redactor the host records its request layers through; the known
+    /// key shapes only when not given.
+    pub redactor: Option<crate::redact::Redactor>,
+    /// Use this memory host instead of the baseline one (a test's provider).
+    pub memory_host: Option<Arc<MemoryHost>>,
 }
 
 impl Scenario {
@@ -157,6 +162,8 @@ impl Scenario {
             lister: None,
             desk_timeout: None,
             live: None,
+            redactor: None,
+            memory_host: None,
             dir,
         }
     }
@@ -247,6 +254,12 @@ pub fn try_build_with(
             &sc.dir.join("memory"),
             "host",
         )));
+    }
+    if let Some(m) = sc.memory_host {
+        b.memory = Some(m);
+    }
+    if let Some(r) = sc.redactor {
+        b.redactor = r;
     }
     b.sources = sources;
     b.judge = Some(Arc::new(SeededJudge {
