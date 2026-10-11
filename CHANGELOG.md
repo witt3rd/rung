@@ -15,6 +15,12 @@ git tags only.
   (`rung_host::read`; shapes in `docs/rung-host-api.md`).
 
 ### Removed
+- `rung-host`: no content caps on the host record or its tools. `turn.ended`
+  carries the whole `final_text` (was cut at 2,000 characters); `ws_read` and
+  `web_fetch` return the whole text (was 4,000 characters, silently; the public
+  constant `toolbox::RESULT_CHARS` is gone); `ws_write` no longer refuses text
+  over 64 KiB. A size note, if any, is view folding on the consumer side, never
+  a cut in the tool.
 - `rung-agent-core`: the public constants `MAX_RECORDS` (5) and `MAX_CHARS`
   (4000), rung's own ceiling on recalled memory, are removed (a deliberate API
   break; pinned by the v0.1.13 surface suite until now). Nothing replaces

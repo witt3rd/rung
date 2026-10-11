@@ -1644,7 +1644,7 @@ impl Host {
         let mut body = json!({
             "turn": turn, "turn_kind": kind.as_str(), "status": status, "calls": out.calls.len(),
             "elapsed_ms": elapsed, "rung": rung, "model": model,
-            "final_text": final_text.chars().take(2_000).collect::<String>(),
+            "final_text": final_text,
             "copied": copied,
             "cost": {"calls": out.calls.len(), "prompt": prompt_sum, "cached": cached_sum,
                      "cost_usd": canon::fixed(cost), "jev_usd": 0.0},
