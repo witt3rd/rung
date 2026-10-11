@@ -97,12 +97,21 @@ pub struct RouteHead {
     pub headers: Vec<(String, String)>,
 }
 
-/// Decides from the headers alone, before any body is read, whether a request
-/// to a path other than `/acp` is refused. `Some(reply)` answers it at once: the
-/// body is not read (a client sending one is cut off), and the connection is
-/// closed. `None` lets the request on to its [`Routes`] handler, which then gets
-/// the body whole.
-pub type RouteGate = Arc<dyn Fn(&RouteHead) -> Option<RouteReply> + Send + Sync>;
+/// What a [`RouteGate`] says of a request, from its headers alone.
+pub enum GateVerdict {
+    /// Answered at once: the body is not read (a client sending one is cut
+    /// off), and the connection is closed.
+    Refuse(RouteReply),
+    /// Let on to its [`Routes`] handler, which gets the body whole.
+    Admit,
+    /// Not the gate's: the handler is run with no body read.
+    Leave,
+}
+
+/// Decides from the headers alone, before any body is read, what becomes of a
+/// request to a path other than `/acp`. Only an [`GateVerdict::Admit`]ted
+/// request has its body read.
+pub type RouteGate = Arc<dyn Fn(&RouteHead) -> GateVerdict + Send + Sync>;
 
 /// A request to a path other than `/acp`, as a [`Routes`] handler sees it.
 #[derive(Debug, Clone)]
@@ -114,7 +123,7 @@ pub struct RouteRequest {
     /// Header names lower-cased.
     pub headers: Vec<(String, String)>,
     /// The request body, whole; empty for a GET or HEAD (the listener reads no
-    /// body for those). It is read only after the [`RouteGate`] let the
+    /// body for those, nor for a request the gate did not admit). It is read only after the [`RouteGate`] let the
     /// request on, as it arrives and with no limit on its size.
     pub body: Vec<u8>,
 }
@@ -421,18 +430,20 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
     };
     // refused on its headers: answered at once, the body never read, the
     // connection closed (a client still sending is cut off)
-    if let Some(gate) = &state.serve.route_gate
-        && let Some(reply) = gate(&head)
-    {
-        let mut r = reply_response(reply);
-        r.headers_mut()
-            .insert("connection", HeaderValue::from_static("close"));
-        return r;
-    }
+    let admitted = match state.serve.route_gate.as_ref().map(|g| g(&head)) {
+        Some(GateVerdict::Refuse(reply)) => {
+            let mut r = reply_response(reply);
+            r.headers_mut()
+                .insert("connection", HeaderValue::from_static("close"));
+            return r;
+        }
+        Some(GateVerdict::Admit) => true,
+        Some(GateVerdict::Leave) | None => false,
+    };
     // a read has no body to wait for; any other method's body is read here, as
     // it arrives, into one buffer sized from the declared length (no limit: the
     // gate has already said who may send it)
-    let body = if matches!(parts.method, Method::GET | Method::HEAD) {
+    let body = if !admitted || matches!(parts.method, Method::GET | Method::HEAD) {
         Vec::new()
     } else {
         let hint = parts
@@ -464,10 +475,17 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
         headers: head.headers,
         body,
     };
-    let Some(reply) = routes(request).await else {
-        return text(StatusCode::NOT_FOUND, "Not Found");
+    let unread = !admitted && !matches!(parts.method, Method::GET | Method::HEAD);
+    let mut response = match routes(request).await {
+        Some(reply) => reply_response(reply),
+        None => text(StatusCode::NOT_FOUND, "Not Found"),
     };
-    reply_response(reply)
+    if unread {
+        response
+            .headers_mut()
+            .insert("connection", HeaderValue::from_static("close"));
+    }
+    response
 }
 
 /// A route's reply as the listener's response.

@@ -1189,14 +1189,18 @@ impl QueueDoor {
     /// Refuse, from the headers alone and before any body is read, what this
     /// door will not take: no token (401), a token that is not the owner's (403),
     /// a method it does not have (405), a body that is not JSON (415), a host
-    /// that is stopping (409). Everything else goes on to [`Self::routes`].
+    /// that is stopping (409). Everything else on this path goes on to [`Self::routes`]; any other path is left to the listener, which reads no body for it.
     pub fn gate(self: &Arc<Self>) -> rung_agent_core::acp_http::RouteGate {
         let door = self.clone();
         Arc::new(move |head: &rung_agent_core::acp_http::RouteHead| {
+            use rung_agent_core::acp_http::GateVerdict;
             if head.path != QUEUE_PATH {
-                return None;
+                return GateVerdict::Leave;
             }
-            door.refuse(&head.method, &head.headers)
+            match door.refuse(&head.method, &head.headers) {
+                Some(reply) => GateVerdict::Refuse(reply),
+                None => GateVerdict::Admit,
+            }
         })
     }
 
