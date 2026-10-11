@@ -3,6 +3,7 @@ import { useInstance } from "../data/hooks.ts";
 import { duration, num, usd } from "../record/words.ts";
 import type { ToolCall, Turn } from "../record/folds.ts";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
+import { href } from "../route.ts";
 import { useNow, when } from "./format.ts";
 import { overlayRunning } from "../live/overlay.ts";
 import { describeStatus } from "../live/status.ts";
@@ -39,13 +40,16 @@ function matches(t: Turn, q: string, f: Filter): boolean {
   return hay.includes(q.toLowerCase());
 }
 
-function TurnCard({ t, now, open }: { t: Turn; now: number; open: boolean }) {
+function TurnCard({ id, t, now, open }: { id: string; t: Turn; now: number; open: boolean }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (open) ref.current?.scrollIntoView({ block: "start" }); }, [open]);
   const byModel = t.decisions.filter((d) => d.who === "model").length;
   return (
     <article className="turn" id={`turn-${t.n}`} ref={ref}>
-      <h2>Turn {num(t.n)} <span className="meta" data-content>{when(t.endedAt ?? t.startedAt, now)}</span></h2>
+      <div className="turnhead">
+        <h2>Turn {num(t.n)} <span className="meta" data-content>{when(t.endedAt ?? t.startedAt, now)}</span></h2>
+        <a className="quiet" href={href.context(id, t.n)}>Context</a>
+      </div>
       {t.asked.map((a) => (
         <div className="call" key={a.id}><span className="k" data-content>{a.from[0].toUpperCase() + a.from.slice(1)}</span><span className="content" data-content>{a.text}</span></div>
       ))}
@@ -127,7 +131,7 @@ export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
           </p>
         )}
         <section>
-          {list.slice(0, count).map((t) => <TurnCard key={t.n} t={t} now={now} open={t.n === turn} />)}
+          {list.slice(0, count).map((t) => <TurnCard key={t.n} id={id} t={t} now={now} open={t.n === turn} />)}
           {folds && list.length === 0 && <p className="none meta" data-content>{filtered ? "No turn matches." : "No turn yet."}</p>}
         </section>
         {folds && list.length > 0 && (

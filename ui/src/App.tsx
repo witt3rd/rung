@@ -2,6 +2,7 @@ import { useRoute } from "./route.ts";
 import { useMode } from "./data/hooks.ts";
 import { InstancesPage } from "./pages/InstancesPage.tsx";
 import { NowPage } from "./pages/NowPage.tsx";
+import { ContextPage } from "./pages/ContextPage.tsx";
 import { TurnsPage } from "./pages/TurnsPage.tsx";
 
 export function App() {
@@ -9,6 +10,7 @@ export function App() {
   const mode = useMode();
   if (mode.data === undefined) return null; // one quick question, asked before anything is drawn, so nothing changes shape after
   if (route.page === "now") return <NowPage id={route.id} />;
+  if (route.page === "context") return <ContextPage id={route.id} turn={route.turn} call={route.call} />;
   if (route.page === "turns") return <TurnsPage id={route.id} turn={route.turn} />;
   return <InstancesPage />;
 }

@@ -13,7 +13,7 @@ let n = 0;
 for (const [vn, vp] of Object.entries(VIEWS)) {
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor });
   for (const p of PAGES) {
-    const page = await open(ctx, srv.url, p.hash, p.focus);
+    const page = await open(ctx, srv.url, p.hash, p.focus, p.click);
     let height = vp.height;
     // A page with a focus is captured where the link lands: the viewport as scrolled, details open.
     if (p.focus) {

@@ -80,3 +80,35 @@ details.more .sub { margin: 14px 0 4px; font-size: var(--s-body); font-weight: 6
   details.more .dl { grid-template-columns: 1fr; gap: 0; }
   details.more .dl dd { margin-bottom: 8px; }
 }
+/* The strata page: bands in wire order. Ink and grey only; a cache marker is a shape and a word, never a colour. */
+.turnhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.turnhead h2 { margin: 0; }
+.bands { border-top: 1px solid var(--rule); }
+.band { border-bottom: 1px solid var(--rule); }
+.band.gap .bt b { color: var(--muted); }
+.bh { all: unset; box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 0; cursor: pointer; display: grid; align-items: center; gap: 2px 20px; grid-template-columns: minmax(0, 1fr) 9rem 10rem; }
+.bh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bh .bs { text-align: right; }
+.bh .bm { text-align: left; }
+.boundary { padding: 6px 0; border-bottom: 1px dashed var(--muted); }
+.mk { display: inline-flex; align-items: center; gap: 8px; font-size: var(--s-meta); }
+.cm { width: 12px; height: 12px; border: 2px solid var(--ink); display: inline-block; flex: none; }
+.mk.cached .cm { background: var(--ink); }
+.mk.partly .cm { background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); }
+.mk.empty .cm, .mk.unknown .cm { border-style: dotted; border-color: var(--muted); }
+.mk.empty, .mk.unknown { color: var(--muted); }
+.drill { padding: 4px 0 16px; }
+.drill .text { margin: 6px 0; padding: 12px 14px; background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; font-size: var(--s-meta); }
+.drill .text.folded { max-height: 20em; overflow: hidden; border-bottom-style: dashed; }
+.row-in { margin: 0; }
+.row-in > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.total { padding: 16px 0 0; }
+@media (max-width: 760px) {
+  .bh { grid-template-columns: minmax(0, 1fr) auto; }
+  .bh .bs { grid-column: 2; grid-row: 1; }
+  .bh .bm { grid-column: 1 / -1; grid-row: 2; }
+}
+.bt::before, .row-in > summary::before { content: "▸"; display: inline-block; width: 1.2em; color: var(--muted); }
+.bh[aria-expanded="true"] .bt::before, .row-in[open] > summary::before { content: "▾"; }
+.row-in > summary { list-style: none; }
+.row-in > summary::-webkit-details-marker { display: none; }

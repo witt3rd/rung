@@ -1,0 +1,24 @@
+== a band the cut passes through is drawn cached
+✖ failing tests:
+ℹ fail 3
+✖ the estimates are scaled to the provider's count, so a band's place follows the truth, not the estimate
+✖ the note's example: the stable layers and the epoch are cached, history is partly, the rest is new
+✖ the page's own derivation (provider cached count against the bands in wire order) agrees with the host's marks
+== the host's marks are trusted even where bands are missing
+✖ failing tests:
+ℹ fail 1
+✖ when bands are missing the host's marks are not trusted: they were laid against fewer bands than the request had
+== a tool definition loses its tail
+✖ a recorded turn's call parses into seven bands in wire order, every text whole
+✖ failing tests:
+ℹ fail 1
+== a recall-less turn is drawn as a gap
+✖ a turn that was shown no recall has an empty recall band, not a gap
+✖ failing tests:
+ℹ fail 3
+✖ the host's own cache marks are what the page shows when it has the whole request
+✖ the page's own derivation (provider cached count against the bands in wire order) agrees with the host's marks
+== the page cuts a long text
+ℹ fail 0
+FAIL  the system prompt is in the page whole, character for character
+strata-proof: 3 failure(s)
