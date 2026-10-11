@@ -976,8 +976,8 @@ itself. Nothing is cut or shortened; a layer is one whole string in one line.
 `s_hash` and `l_hash` are the hashes the pack already computes of the
 **unredacted** layers (the ones each `llm.call` carries in `prefix`), so a layer
 is joined to its calls whether or not something in it was replaced.
-`turn.log.header` (the header without recall) and `messages` (verbatim) are
-unchanged. The request bytes sent to the provider, the cache breakpoints and
+`turn.log.header` (the header without recall; redacted at write) and `messages` (verbatim) keep
+their shape. The request bytes sent to the provider, the cache breakpoints and
 the pack are unchanged: only what is written changes.
 
 **The recall is written once.** `turn.log.header` (the header without recall,
