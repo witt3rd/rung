@@ -415,8 +415,31 @@ impl Host {
     }
 
     /// Replace the stable layer (tools and system text) at a batched swap.
+    ///
+    /// The swap and the new layers, whole and redacted, are one write; the
+    /// next call's cache is expected to start over.
     pub fn swap_stable(&self, tools: Vec<rung_std::llm::ToolDefinition>, system: String) {
-        let _ = (tools, system);
+        let mut pack = lock(&self.pack);
+        let from = pack.s_hash().to_string();
+        pack.swap(tools, system);
+        let layers = self.layers_body(&pack, "swap");
+        let to = pack.s_hash().to_string();
+        drop(pack);
+        self.core.emit_many(vec![
+            ("pack.swap", json!({"from": from, "to": to, "cause": "swap"})),
+            ("pack.layers", layers),
+        ]);
+        *lock(&self.reset) = Some(("swap".into(), Validity::Nothing));
+    }
+
+    /// The `pack.layers` body: the stable layer's tool definitions and system
+    /// text, whole, with the hash the calls carry, passed through the
+    /// redactor. Written once where the layer is made, never per call.
+    fn layers_body(&self, pack: &Pack, cause: &str) -> Value {
+        let tools = serde_json::to_value(pack.tools()).unwrap_or(Value::Null);
+        json!({"cause": cause, "s_hash": pack.s_hash(),
+               "tools": self.redactor.redact_value(&tools),
+               "system": self.redactor.redact(pack.system())})
     }
 
     /// The now set: what `_rung/status` reports.
@@ -461,12 +484,20 @@ impl Host {
 
     fn wake(&self, r: &Recovered) {
         let core = &*self.core;
-        let cfg_v = serde_json::to_value(self.cfg()).unwrap_or(Value::Null);
-        let mut pre: Vec<(&'static str, Value)> = vec![(
-            "host.start",
-            json!({"pid": std::process::id(), "config": cfg_v, "desk": self.desk.backend(),
-                   "desk_mode": self.desk.mode, "memory": self.memory.as_ref().map(|m| m.name().to_string())}),
-        )];
+        // the config is recorded as it is, but a value the redactor knows is
+        // never written (a secret in the identity or the pinned lines is also
+        // in the system text, which is recorded whole below)
+        let cfg_v = self
+            .redactor
+            .redact_value(&serde_json::to_value(self.cfg()).unwrap_or(Value::Null));
+        let mut pre: Vec<(&'static str, Value)> = vec![
+            (
+                "host.start",
+                json!({"pid": std::process::id(), "config": cfg_v, "desk": self.desk.backend(),
+                       "desk_mode": self.desk.mode, "memory": self.memory.as_ref().map(|m| m.name().to_string())}),
+            ),
+            ("pack.layers", self.layers_body(&lock(&self.pack), "start")),
+        ];
         let now = core.now();
         let first = r.lines == 0;
         let (epoch, rung) = {
@@ -1238,12 +1269,15 @@ impl Host {
         let first_turn = st.turn + 1;
         let from = st.pack.epoch;
         drop(st);
+        // the epoch layer, whole, once, where it is made (redacted first)
+        let slow_text = self.redactor.redact(&slow).into_owned();
         pack.rollover(to, slow);
         let slow_tokens = pack.slow_tokens();
+        let l_hash = pack.l_hash().to_string();
         drop(pack);
         let mut body = json!({"from": from, "to": to, "cause": cause, "by": by.to_value(), "kept": keep,
                               "tokens_before": tokens_before, "slow_tokens": slow_tokens,
-                              "first_turn": first_turn, "l1": l1});
+                              "first_turn": first_turn, "l1": l1, "l_hash": l_hash, "slow": slow_text});
         if let Some(g) = gap {
             body["gap_ms"] = g.into();
         }
@@ -1282,7 +1316,7 @@ impl Host {
         let cfg = self.cfg();
         let now = core.now();
         // What the header shows.
-        let (admitted, digests, header, recall_on) = {
+        let (admitted, digests, header, recall_block) = {
             let recall = self.recall(turn, &inject, &now_ids);
             let st = core.state();
             let item = |id: &String| st.inbox.in_flight.get(id).map(|(_, p)| p.item.clone());
@@ -1380,7 +1414,7 @@ impl Host {
                 Some(block) => format!("{base}\n{block}"),
                 None => base.clone(),
             };
-            (admitted, digests, (base, full), recall.is_some())
+            (admitted, digests, (base, full), recall)
         };
         let (header_logged, header_full) = header;
         let (rung, model, epoch, pack_tokens_before, thread, header_tokens) = {
@@ -1464,7 +1498,8 @@ impl Host {
             pack_tokens_before,
             out,
             header_logged,
-            recall_on,
+            header_full,
+            recall_block,
             now,
             admitted,
             digests,
@@ -1524,7 +1559,8 @@ impl Host {
         before_header: usize,
         out: EngineTurn,
         header: String,
-        recall_on: bool,
+        header_sent: String,
+        recall: Option<String>,
         started_at: Millis,
         admitted: Vec<Item>,
         digests: Vec<Item>,
@@ -1606,7 +1642,12 @@ impl Host {
         // The turn's messages, verbatim, before the pack moves on.
         core.emit(
             "turn.log",
-            json!({"turn": turn, "header": header, "recall": recall_on,
+            json!({"turn": turn, "header": header, "recall": recall.is_some(),
+                   // what the model was shown at the turn's start, whole: the
+                   // header with its recall block, and the recall text on its
+                   // own (redacted before they are written)
+                   "header_sent": self.redactor.redact(&header_sent),
+                   "recall_text": recall.as_deref().map(|r| self.redactor.redact(r)),
                    "messages": serde_json::to_value(&out.messages).unwrap_or(Value::Null)}),
         );
         lock(&self.pack).end_turn(out.messages.clone());
