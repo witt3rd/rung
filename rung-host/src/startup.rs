@@ -234,6 +234,8 @@ pub struct Plan {
     inbox: Option<PathBuf>,
     stop_file: Option<PathBuf>,
     calendar: Vec<Entry>,
+    /// What the host's record lines pass through before they are written.
+    redactor: crate::redact::Redactor,
 }
 
 impl std::fmt::Debug for Plan {
@@ -296,6 +298,26 @@ fn env(field: &str, name: &str) -> Result<String, Refusal> {
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .ok_or_else(|| refuse(format!("{field}: the env var {name} is not set")))
+}
+
+/// The redactor for a config file: the value of every variable it names
+/// (`*_env` keys, the `acp.tokens` variables), besides the known key shapes;
+/// and the names of the ones this process does not hold.
+fn file_redactor(text: &str) -> (crate::redact::Redactor, Vec<String>) {
+    let mut redactor = crate::redact::Redactor::new();
+    let mut names = Vec::new();
+    if let Ok(v) = serde_yaml::from_str::<Value>(text) {
+        crate::read::env_names(&v, &mut names);
+    }
+    names.sort();
+    names.dedup();
+    let mut env_unset = Vec::new();
+    for n in names {
+        if !redactor.add_env(&n) {
+            env_unset.push(n);
+        }
+    }
+    (redactor, env_unset)
 }
 
 /// Read and check the operator's file: the only way to a [`Configured`]
@@ -388,6 +410,9 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
             }
             other => return Err(refuse(format!("engine.kind: unknown engine `{other}`"))),
         };
+    // what the host's own record lines pass through before they are written:
+    // the value of every variable the file names, besides the known key shapes
+    let mut record_redactor = file_redactor(&text).0;
     let acp = match &f.acp {
         None => AcpPlan::None,
         Some(a) => match (&a.stdio, &a.http) {
@@ -413,18 +438,10 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
                 }
                 // every variable the file names (keys, tokens): their values
                 // never leave the host's doors
-                let mut redactor = crate::redact::Redactor::new();
-                let mut names = Vec::new();
-                if let Ok(v) = serde_yaml::from_str::<Value>(&text) {
-                    crate::read::env_names(&v, &mut names);
-                }
-                names.sort();
-                names.dedup();
-                let mut env_unset = Vec::new();
-                for n in names {
-                    if !redactor.add_env(&n) {
-                        env_unset.push(n);
-                    }
+                let (mut redactor, env_unset) = file_redactor(&text);
+                for (t, _) in &tokens {
+                    record_redactor.add_secret(t);
+                    redactor.add_secret(t);
                 }
                 AcpPlan::Http {
                     addr: addr.clone(),
@@ -481,6 +498,7 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
         inbox: f.inbox.clone(),
         stop_file: f.stop_file.clone(),
         calendar,
+        redactor: record_redactor,
     };
     Ok(Configured::new(
         plan,
@@ -617,6 +635,7 @@ ladder!(Startup {
         b.lister = plan.lister;
         b.prober = plan.prober;
         b.initial_listing = plan.listing;
+        b.redactor = plan.redactor;
         b.limits = plan.limits;
         if plan.memory {
             b.memory = Some(Arc::new(MemoryHost::baseline(&plan.state.join("memory"), "host")));

@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 //! Shared scenario pieces for the gate tests.
 
+pub mod ctx;
+
 use rung_host::clock::{HOUR, MINUTE};
 use rung_host::gates::GateResult;
 use rung_host::sim::{Fault, FaultKind, SIM_START, Scenario, WorldConfig};

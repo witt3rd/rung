@@ -558,6 +558,11 @@ async fn pass_through(
         return native_events(state, dir.clone(), id, &req, query).await;
     }
     if let Some(dir) = native
+        && let Some(turn) = rung_host::context::turn_of_path(rest)
+    {
+        return native_context(state, dir.clone(), id, turn, &req, query).await;
+    }
+    if let Some(dir) = native
         && matches!(rest, "/v1/summary" | "/v1/record")
     {
         return native_door(state, dir.clone(), id, rest, &req, query).await;
@@ -660,10 +665,59 @@ async fn native_door(
     };
     let r = red.clone();
     match blocking(move || rung_host::read::record_open(&dir, &id, &q, &r)).await {
-        Some(Ok(page)) => stream_page(page, state.tuning.stall_deadline),
+        Some(Ok(page)) => stream_page(move |w| page.write_json(w), state.tuning.stall_deadline),
         Some(Err(e)) => door_error(e, &red),
         None => internal(),
     }
+}
+
+/// `GET /v1/turns/{n}/context` of a native instance (S4): what was sent to the
+/// model for one call of one turn, joined from the layers the record holds and
+/// streamed a band at a time. Read from the state directory, so a stopped
+/// instance answers too.
+async fn native_context(
+    state: &State,
+    dir: PathBuf,
+    id: &str,
+    turn: &str,
+    req: &Request<Incoming>,
+    query: Option<String>,
+) -> Response<Body> {
+    use rung_host::context::{ContextQuery, open, parse_turn};
+    if !matches!(*req.method(), Method::GET | Method::HEAD) {
+        return error(
+            StatusCode::METHOD_NOT_ALLOWED,
+            "method_not_allowed",
+            "this door only reads",
+        );
+    }
+    let red = request_redactor(state);
+    let Some(pairs) = query_pairs(query.as_deref()) else {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "bad_request",
+            "the query is not valid UTF-8",
+        );
+    };
+    let (turn, q) = match parse_turn(turn).and_then(|t| ContextQuery::parse(&pairs).map(|q| (t, q)))
+    {
+        Ok(x) => x,
+        Err(e) => return door_error(e, &red),
+    };
+    let id = id.to_string();
+    let r = red.clone();
+    let page = match blocking(move || open(&dir, &id, turn, &q, &r)).await {
+        Some(Ok(page)) => page,
+        Some(Err(e)) => return door_error(e, &red),
+        None => return internal(),
+    };
+    if *req.method() == Method::HEAD {
+        let mut r = Response::new(empty());
+        r.headers_mut()
+            .insert("content-type", HeaderValue::from_static("application/json"));
+        return r;
+    }
+    stream_page(move |w| page.write_json(w), state.tuning.stall_deadline)
 }
 
 fn internal() -> Response<Body> {
@@ -742,7 +796,10 @@ impl std::io::Write for ChannelWriter {
 /// unreadable, or the client was dropped) ends the body with an error, which
 /// closes the connection: the client sees a truncated answer, never a
 /// complete-looking short one.
-fn stream_page(page: rung_host::read::RecordPage, stall: Duration) -> Response<Body> {
+fn stream_page(
+    write: impl FnOnce(&mut dyn std::io::Write) -> std::io::Result<()> + Send + 'static,
+    stall: Duration,
+) -> Response<Body> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, BoxErr>>(AHEAD);
     let cut = Arc::new(AtomicBool::new(false));
     let (rt, flag) = (tokio::runtime::Handle::current(), cut.clone());
@@ -754,7 +811,7 @@ fn stream_page(page: rung_host::read::RecordPage, stall: Duration) -> Response<B
             stall,
             cut: flag,
         };
-        match page.write_json(&mut w) {
+        match write(&mut w) {
             Ok(()) => {}
             // the client went away: nobody is left to tell
             Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {}

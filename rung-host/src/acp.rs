@@ -876,7 +876,8 @@ impl EventsDoor {
         Arc::new(move |req: RouteRequest| {
             let door = door.clone();
             Box::pin(async move {
-                if req.path != "/v1/events" {
+                let context = crate::context::turn_of_path(&req.path).map(str::to_string);
+                if req.path != "/v1/events" && context.is_none() {
                     return None;
                 }
                 let error = |status: u16, code: &str, message: &str| {
@@ -904,6 +905,12 @@ impl EventsDoor {
                 let Some(pairs) = crate::stream::query_pairs(req.query.as_deref()) else {
                     return error(400, "bad_request", "the query is not UTF-8");
                 };
+                if let Some(turn) = context {
+                    return match door.context_page(&turn, &pairs, head).await {
+                        Ok(r) => Some(r),
+                        Err(e) => error(e.status, e.code, &door.red.redact(&e.message)),
+                    };
+                }
                 let q = match crate::stream::EventsQuery::parse(&pairs, header("last-event-id")) {
                     Ok(q) => q,
                     Err(e) => return error(e.status, e.code, &e.message),
@@ -928,6 +935,122 @@ impl EventsDoor {
                     Err(e) => error(e.status, e.code, &e.message),
                 }
             }) as std::pin::Pin<Box<dyn std::future::Future<Output = _> + Send>>
+        })
+    }
+}
+
+/// How long a client of a streamed page may take no chunk before it is
+/// dropped (the one blocking thread that writes its page is then freed).
+pub const PAGE_STALL: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Bytes written to a page go out in chunks of about this size.
+const PAGE_CHUNK: usize = 64 * 1024;
+
+/// A writer that hands what it is given to a channel in chunks; the channel
+/// holds two, so a slow client holds back the read instead of the read
+/// filling memory.
+struct PageWriter {
+    tx: tokio::sync::mpsc::Sender<Vec<u8>>,
+    buf: Vec<u8>,
+    rt: tokio::runtime::Handle,
+}
+
+impl PageWriter {
+    fn send(&mut self) -> std::io::Result<()> {
+        use tokio::sync::mpsc::error::SendTimeoutError;
+        if self.buf.is_empty() {
+            return Ok(());
+        }
+        let chunk = std::mem::replace(&mut self.buf, Vec::with_capacity(PAGE_CHUNK));
+        match self.rt.block_on(self.tx.send_timeout(chunk, PAGE_STALL)) {
+            Ok(()) => Ok(()),
+            Err(SendTimeoutError::Timeout(_)) => Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "client stalled",
+            )),
+            Err(SendTimeoutError::Closed(_)) => Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "client gone",
+            )),
+        }
+    }
+}
+
+impl std::io::Write for PageWriter {
+    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+        self.buf.extend_from_slice(data);
+        if self.buf.len() >= PAGE_CHUNK {
+            self.send()?;
+        }
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.send()
+    }
+}
+
+/// The chunks of a page, as a response body: ends when the writer is done or
+/// gave up (a page that was cut is not a complete JSON document).
+struct PageStream {
+    rx: tokio::sync::mpsc::Receiver<Vec<u8>>,
+}
+
+impl rung_agent_core::acp_http::BodyStream for PageStream {
+    fn next(
+        &mut self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<Vec<u8>>> + Send + '_>> {
+        Box::pin(self.rx.recv())
+    }
+}
+
+impl EventsDoor {
+    /// `GET /v1/turns/{n}/context`: what was sent to the model for one call of
+    /// one turn, read from the record's files and streamed, a band at a time
+    /// (S4). Refusals are answered before the first byte.
+    async fn context_page(
+        &self,
+        turn: &str,
+        pairs: &[(String, String)],
+        head: bool,
+    ) -> crate::read::Door<rung_agent_core::acp_http::RouteReply> {
+        use rung_agent_core::acp_http::{RouteBody, RouteReply};
+        let turn = crate::context::parse_turn(turn)?;
+        let q = crate::context::ContextQuery::parse(pairs)?;
+        let (dir, red, unset) = (
+            self.state_dir.clone(),
+            self.red.clone(),
+            self.env_unset.clone(),
+        );
+        let page = tokio::task::spawn_blocking(move || {
+            crate::context::open_dir(&dir, turn, &q, &red, unset)
+        })
+        .await
+        .map_err(|_| crate::read::DoorError::new(500, "internal", "the read failed"))??;
+        let headers = vec![("content-type".to_string(), "application/json".to_string())];
+        if head {
+            return Ok(RouteReply {
+                status: 200,
+                headers,
+                body: RouteBody::Bytes(Vec::new()),
+            });
+        }
+        let (tx, rx) = tokio::sync::mpsc::channel::<Vec<u8>>(2);
+        let rt = tokio::runtime::Handle::current();
+        tokio::task::spawn_blocking(move || {
+            let mut w = PageWriter {
+                tx,
+                buf: Vec::with_capacity(PAGE_CHUNK),
+                rt,
+            };
+            if page.write_json(&mut w).is_ok() {
+                let _ = std::io::Write::flush(&mut w);
+            }
+        });
+        Ok(RouteReply {
+            status: 200,
+            headers,
+            body: RouteBody::Stream(Box::new(PageStream { rx })),
         })
     }
 }

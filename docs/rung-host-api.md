@@ -322,6 +322,7 @@ canary test, written red first (a secret in the environment, a tool that
 prints it, zero hits across every door, stream line and console file):
 
 - [x] H3 read doors (record text): wired and proven by `rung-gateway/tests/native_doors.rs`
+- [x] S4 request record and context door: wired and proven by `rung-host/tests/context_record.rs`, `context_door.rs` and `rung-gateway/tests/context.rs`
 - [ ] H5 event stream
 - [ ] H8 console sink
 
@@ -460,6 +461,7 @@ Later slices add rows as their doors land.
 | `GET /v1/summary`, `/v1/status`, `/v1/report` | read | | H3 |
 | `GET /v1/record`, `/v1/turns`, `/v1/turns/{n}`, `/v1/decisions`, `/v1/pack`, `/v1/spend` | read | | H3 |
 | `GET /v1/events?after=N` | read | yes | H5 |
+| `GET /v1/turns/{n}/context?call=k` | read | yes | S4 |
 | `GET /v1/queue` | read | | H6 |
 | `POST /v1/queue`, `DELETE /v1/queue/{id}`, `POST /v1/queue/{id}/move` | write | | H6 |
 | `GET /v1/config` | read | | H7 |
@@ -945,3 +947,207 @@ relay; disconnects freeing the subscription and the gateway's connection to the 
 both roles, an unknown token, the Host and Origin checks, and the 405s; the
 adapter against a loopback provider that streams text split across a secret and
 a tool call whose arguments arrive in two pieces.
+
+## S4 — the request record and the context door
+
+What was sent to the model, for one model call of one turn, from the record
+alone: a stopped instance answers like a running one, and a turn of any size is
+streamed. Two parts: the lines the host now writes, and the door that joins
+them. Code: `rung_host::presence` (the lines), `rung_host::context` (the door,
+no HTTP), `rung_host::acp::EventsDoor` (the host's listener), the gateway's
+`native_context`.
+
+### What the host records
+
+The request is recorded **in layers, once, where each layer is made**, never
+once per call (a turn of fifty calls writes the same lines as a turn of one).
+Every text is passed through the shared redactor (H4: the value of each variable
+the config names, the host's own role tokens, the known key shapes) **before the
+line is written**, so a replaced value reads `[redacted]` in the record file
+itself. Nothing is cut or shortened; a layer is one whole string in one line.
+
+| line | new fields | written |
+|---|---|---|
+| `pack.layers` | `cause` (`start`, `swap`), `s_hash`, `tools` (the tool definitions, whole, as the provider is sent them), `system` (the system text, whole) | at every start, in the same write as `host.start`; and at every swap of the stable layer (`Host::swap_stable`, with its `pack.swap`, in one write) |
+| `epoch.rollover` | `l_hash`, `slow` (the epoch layer: the one message the epoch's requests start with, whole) | at every rollover (and at a start or wake, which roll over) |
+| `turn.log` | `recall_text` (the recall block, whole, **once**; null when the turn had none), `recall_hash` (the hash of the text as stored; null with it) | when the turn ends, as `turn.log` always was |
+| `host.start` | `config` now passes the redactor too (a secret in the identity or the pinned lines is also in the system text) | at every start |
+
+`s_hash` and `l_hash` are the hashes the pack already computes of the
+**unredacted** layers (the ones each `llm.call` carries in `prefix`), so a layer
+is joined to its calls whether or not something in it was replaced.
+`turn.log.header` (the header without recall; redacted at write) and `messages` (verbatim) keep
+their shape. The request bytes sent to the provider, the cache breakpoints and
+the pack are unchanged: only what is written changes.
+
+**The recall is written once.** `turn.log.header` (the header without recall,
+as it always was) and `recall_text` are the whole of what the model was shown at
+the turn's start: the header as sent is `header`, a line break and `recall_text`
+(the pack builds it the same way), so the door rebuilds **both** views, the
+header as sent and the recall text, from the one copy of each, byte for byte.
+The redaction is decided once, on the single copy of the recall: a secret inside
+it reads `[redacted]` in both views by construction. `recall_hash` is the hash
+of the text as stored; the door checks it and says in words if the text was
+damaged (below). A turn recorded before S4 has no `recall_text` key at all.
+
+**What it costs.** Measured on a seeded busy run of the mock engine with the
+baseline memory (`rung-host/tests/context_record.rs`,
+`the_record_grows_by_layers_not_by_calls`: 200 turns, about 500 model calls,
+16 epochs, 20 recalls; the run varies a little from one execution to the next):
+the record was 1.19 MB without the new fields and 1.60 MB with them (+34%).
+`pack.layers` was 8 KB for the run; the 16 epoch layers 87 KB (5.4 KB each);
+`recall_text` 316 KB (20 recalls of about 16 KB). Keeping the recall twice (once in a whole copy of the header as sent, once
+alone) would have added about 880 KB (+74%) on this run: the single copy more
+than halves the growth. The fixture's turns are short, so the
+ratio is not a live run's; what carries over is the shape: the cost is per
+epoch and per recalled turn, not per call. A live run that recalls large
+blocks grows by about the size of its recalls, once.
+
+**What stays repeated.** The header (`turn.log.header`, 156 KB over these 200
+turns, already in the record before S4 and not new here) is mostly the same text
+turn after turn: 65% of its lines are the same as the previous turn's (the
+registers, quota and mode lines). It could be shared (a header written as the
+change from the last one, or its unchanging lines once per epoch); this slice
+does not change it.
+
+### `GET /v1/turns/{n}/context?call=k`
+
+| Served by | From |
+|---|---|
+| the host's listener (`acp.http`), beside `/v1/events` | its own record files |
+| `GET /api/i/{id}/v1/turns/{n}/context` of the gateway, for a native instance of `registry_dir` | the instance's state directory |
+
+The gateway's rules come first and are not repeated (H9): both roles may read
+(the owner with no token; the read-only role with `Authorization: Bearer
+<token>`); an unknown token is 401; an owner-role request is Host-checked (403
+`bad_host`); a write by the read-only role is 403 `read_only`, by the owner 405.
+On the host's own door the bearer must be one of the host's role tokens (any
+role may read; 401 `unauthorized` otherwise; 405 for any method but GET and
+HEAD). For an instance the gateway config names, the door is the host's, passed
+through with its key. Nothing is written, and no host need be running.
+
+| query | meaning |
+|---|---|
+| `call` | the model call of the turn, counting from 1; the first when not given |
+
+An unknown name, a repeated name, or a value that is not a whole number is 400
+`bad_request`; so is a turn that is not a whole number.
+
+| status | `error` | when |
+|---|---|---|
+| 404 | `no_such_turn` | the record has no such turn |
+| 404 | `no_such_call` | the turn has no such call (`call=0` too); the message says how many it has |
+| 409 | `turn_not_logged` | the turn started and has not ended: its messages are written when it does (the live view is a later slice) |
+| 404, 500 | `no_such_instance`, `state_dir_missing`, `unreadable` | as the H3 doors |
+
+Every refusal is answered before the first byte.
+
+```json
+{"turn": 2, "call": 2, "calls": 3, "epoch": 3, "turn_kind": "responding",
+ "model": {"requested": "m", "served": "m", "provider": "p"},
+ "provider": {"prompt_tokens": 41880, "cached_tokens": 39400, "cache_write_tokens": 0,
+              "completion_tokens": 120, "expected_cached_tokens": 39000},
+ "cache_event": null, "rewritten": false,
+ "recorded": true, "note": null, "missing": [],
+ "estimate_tokens": 9800, "scale": 4.27,
+ "boundaries": [{"after": "system", "why": "the end of the stable layer: tools and system text",
+                 "est_tokens": 1900, "tokens": 8100},
+                {"after": "epoch", "why": "the end of the epoch layer", "est_tokens": 2400, "tokens": 10250}],
+ "bands": [ … ],
+ "damaged": null, "redaction": {"env_unset": []}}
+```
+
+| field | meaning |
+|---|---|
+| `calls` | the model calls the record holds for the turn |
+| `provider` | the provider's own counts for this call (`llm.call`): the truth for hit rate. `expected_cached_tokens` is the host's expectation |
+| `cache_event` | a `cache.break` or `cache.cold` the host recorded for this call: `{kind, cause}`, else null |
+| `rewritten` | the engine rewrote what it was given inside the turn (a context overflow's elision): the bands are then what the host gave it, not what the last calls saw |
+| `recorded` | true when every layer of this call is in the record and nothing in `problems` |
+| `problems` | in words, what the record cannot give back whole for this turn: a recall the turn was shown but whose text is not in the record, or a stored recall that does not match its hash (it is then still shown, as recorded, with `intact: false`). Empty normally. Never an error: the answer is 200 |
+| `note`, `missing` | for a turn that **predates context recording**: `note` is `this turn predates context recording` and `missing` names the bands that cannot be shown, from `tools`, `system`, `epoch`, `recall` (a turn recorded before S4 has no `recall` band, though it may have had one). The answer is still 200 and holds every band that exists; it is never an error |
+| `estimate_tokens` | the host's own estimate of the request: the sum of the bands' |
+| `scale` | `prompt_tokens` over `estimate_tokens`; null without a provider count |
+| `boundaries` | the two cache breakpoints the engine sets: the end of the stable layer (after `system`) and the end of the epoch layer (after `epoch`), each at its host-estimated token position and at that position scaled to the provider's count (`tokens`); only where the bands before it are in the record |
+
+**The bands** are in the order the model sees them. Each has `band`,
+`est_tokens` and `cache`. All text is whole.
+
+| `band` | holds | when |
+|---|---|---|
+| `tools` | `count` and `items`: one `{name, text}` per tool definition, `text` its canonical JSON | the layers are recorded |
+| `system` | `text`: the system text | the layers are recorded |
+| `epoch` | `text`: the epoch layer | the rollover is recorded whole |
+| `history` | `turns` and `rows`: one `{turn, header, header_complete, messages}` per earlier turn of the epoch, oldest first. `header` is the header as the model saw it; `header_complete` is false for a turn whose recall block is not in the record (one recorded before S4 that was shown a recall, or one whose text is missing) | always |
+| `message` | `text`: the turn's header without its recall (the admitted items, the registers it shows) | always |
+| `recall` | `text`: the recall block, and `intact` (false when its text does not match the recorded hash) | the turn had a recall |
+| `this_turn` | `calls_so_far` and `messages`: this turn's own messages the model had at this call (none at call 1; the earlier calls and their tool results after) | always |
+
+The turn's header is **one** message on the wire: its `message` part first and
+its `recall` block after it. They are two bands because they are two things to
+the reader; `message` + a line break + `recall` is the header as sent
+(the header the model was sent). Joining the bands rebuilds the request byte for byte: the epoch
+layer as the first message, each history row's header and messages, the header,
+then `this_turn`.
+
+**Sizes.** `est_tokens` is the host's own rule (`canon::tokens`: a token for
+four bytes of the band's canonical form, as the pack counts it), not a
+tokenizer's: bands may not sum to the provider's count, which is why both are
+given. `history` is the sum of its rows.
+
+**Cache marks.** `cache` is `cached`, `partly`, `new` or `unknown` (no provider
+count). The provider's `cached_tokens` is laid against the bands in wire order
+(tools, system, epoch, history, message, recall, this turn), the host's estimates
+scaled to sum to the provider's `prompt_tokens`: a band wholly inside the cached
+count is `cached`, one the count ends inside is `partly` (providers cache in
+coarse steps), the rest are `new`. No new data is recorded for this.
+
+**Joining.** A call carries `prefix.s_hash` and `prefix.l_hash`; the door takes
+the `pack.layers` of that `s_hash` and the `epoch.rollover` of that `l_hash`.
+The history is the `turn.log` of every earlier turn since that epoch's rollover.
+A turn's messages are sliced at the call: call *k* held the messages before the
+turn's *k*-th model message.
+
+**What the record keeps verbatim, and what it redacts.** The record file keeps
+history verbatim for the fields the host may replay from or that are the agent's
+own words: the `turn.log` `messages`, the stimulus text, and tool calls and
+results. Every outgoing view (every door, the stream, the page) is redacted on
+read. The content S4 adds (the `pack.layers` text, the epoch layer, the recall
+text and the `turn.log` `header`) is redacted once, at write. Messages stay
+verbatim so that a rebuild of the context from the record could never differ
+from what the model was shown.
+
+**The answer is streamed.** A first read of the record keeps only line numbers
+and sizes (a few numbers per turn of the epoch); a second writes each band as its
+record line is read, redacted, one line in memory, to a client that reads at its
+own pace (a stall deadline of 30 s frees the writer, as in H3). The gateway's
+working memory and the host's do not grow with the turn, the epoch or the
+history, however long. The object is one JSON document with the small facts
+first, then `bands`, then `damaged` and `redaction`; if the record becomes
+unreadable part-way, the body ends in an error (the gateway) or short (the host's
+listener), and a client sees a document that does not parse, never a complete
+short one.
+
+**Redaction.** The record's layers are redacted when written (above); every band
+is redacted again on the way out with the door's redactor (the gateway's, as in
+H3; the host's own, as for H5), which also covers values only that process
+knows, and the turn's `messages` and every history row, which the record keeps
+verbatim. A replaced value is `[redacted]`.
+
+### Proof
+
+`rung-host/tests/context_record.rs` (12 tests), `context_door.rs` (2),
+`rung-gateway/tests/context.rs` (3) and `context_memory.rs` (1), written first
+against stubs and kept red until the code made them green: the layers whole
+(a complete tool-definition set, a 100,000-character epoch layer, a
+200,000-character recall) through the record and the door; the bands rebuilding
+the request the engine was handed, byte for byte, at several calls; a 200,000-character recall that appears once in the record file and comes back whole as both views, a recall that does not resolve (a hash that does not match, text missing or not text) answered in words; a planted
+secret (a plain value the redactor was told, and a known key shape) in the
+system text and in the recall absent from every byte of the record files and
+from the door's answer; one `pack.layers` for a run of 150 model calls, one more
+only for a swap, the epoch layer once per epoch; the cache marks and the
+provider's counts; an old record answering what it has; the refusals; both roles
+over HTTP on a stopped instance, at the host's listener and through the gateway;
+a seven-megabyte answer streamed with a counting allocator showing its peak a
+small fraction of it; and the request bytes of two seeded runs (one with
+rollovers) pinned to the digests taken before this slice.

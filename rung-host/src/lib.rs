@@ -14,6 +14,7 @@ pub mod adapter;
 pub mod calendar;
 pub mod canon;
 pub mod clock;
+pub mod context;
 pub mod core;
 pub mod desk;
 pub mod engine;
