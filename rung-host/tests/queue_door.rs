@@ -30,6 +30,10 @@ impl Drop for Server {
 }
 
 fn spawn(state: &Path) -> Server {
+    spawn_with(state, &[])
+}
+
+fn spawn_with(state: &Path, extra: &[&str]) -> Server {
     let mut child = Command::new(BIN)
         .args([
             "sim",
@@ -47,6 +51,7 @@ fn spawn(state: &Path) -> Server {
             "--acp-token-env",
             "peer=S1_PEER_TOKEN",
         ])
+        .args(extra)
         .env("S1_OWNER_TOKEN", OWNER_TOKEN)
         .env("S1_PEER_TOKEN", PEER_TOKEN)
         .stdin(Stdio::null())
@@ -404,4 +409,89 @@ fn every_outgoing_text_is_redacted_and_the_record_keeps_the_original() {
         item["text"] == text.as_str(),
         "the record holds the original"
     );
+}
+
+#[test]
+fn twenty_concurrent_posts_with_one_key_make_exactly_one_item() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s1-queue-atomic");
+    let s = spawn(guard.path());
+    let base = s.base.clone();
+    let go = std::sync::Barrier::new(20);
+    let answers: Vec<(u16, bool)> = std::thread::scope(|t| {
+        let hs: Vec<_> = (0..20)
+            .map(|_| {
+                t.spawn(|| {
+                    go.wait();
+                    let a = answer(
+                        client()
+                            .post(format!("{base}/v1/queue"))
+                            .header("content-type", "application/json")
+                            .body(json!({"text": "race", "key": "k-race"}).to_string())
+                            .bearer_auth(OWNER_TOKEN),
+                    );
+                    (a.status, a.json()["repeat"] == true)
+                })
+            })
+            .collect();
+        hs.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+    assert_eq!(answers.iter().filter(|(s, _)| *s == 201).count(), 1);
+    assert_eq!(answers.iter().filter(|(s, r)| *s == 200 && *r).count(), 19);
+    assert_eq!(accepted(&lines(guard.path()), "k-race").len(), 1);
+}
+
+#[test]
+fn a_host_that_is_stopping_refuses_with_start_it_first_and_writes_nothing() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s1-queue-stopping");
+    let stop_file = guard.path().join("STOP");
+    let s = spawn_with(guard.path(), &["--stop-file", stop_file.to_str().unwrap()]);
+    let ok = post(
+        &s,
+        &json!({"text": "before", "key": "k-before"}),
+        Some(OWNER_TOKEN),
+    );
+    assert_eq!(ok.status, 201, "{}", ok.body);
+    std::fs::write(&stop_file, "stop").unwrap();
+    // the host answers 409 from the moment the stop is raised until it exits
+    let mut refused = None;
+    for n in 0..400 {
+        let r = client()
+            .post(format!("{}/v1/queue", s.base))
+            .header("content-type", "application/json")
+            .body(json!({"text": "late", "key": format!("k-late-{n}")}).to_string())
+            .bearer_auth(OWNER_TOKEN)
+            .send();
+        let Ok(r) = r else { break };
+        let (status, body) = (r.status().as_u16(), r.text().unwrap_or_default());
+        if status == 409 {
+            refused = Some((n, body));
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    let (n, body) = refused.expect("a 409 while the host was stopping");
+    let v: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["error"], "not_running");
+    assert!(v["message"].as_str().unwrap().contains("start it first"));
+    assert!(accepted(&lines(guard.path()), &format!("k-late-{n}")).is_empty());
+}
+
+#[test]
+fn a_retry_after_the_host_restarts_is_still_one_item() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s1-queue-restart");
+    let body = json!({"text": "survive a restart", "key": "k-restart"});
+    {
+        let s = spawn(guard.path());
+        let a = post(&s, &body, Some(OWNER_TOKEN));
+        assert_eq!(a.status, 201, "{}", a.body);
+        // killed with no goodbye: the item was on disk before the answer
+    }
+    let s = spawn(guard.path());
+    let again = post(&s, &body, Some(OWNER_TOKEN));
+    assert_eq!(again.status, 200, "{}", again.body);
+    assert_eq!(again.json()["repeat"], true);
+    assert_eq!(accepted(&lines(guard.path()), "k-restart").len(), 1);
 }

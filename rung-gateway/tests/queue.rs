@@ -29,6 +29,9 @@ use tokio::net::TcpListener;
 const READ_TOKEN: &str = "view-token-canary-s1-4412";
 /// The owner key the host's config names, planted: no output may carry it.
 const OWNER_KEY: &str = "plainownerkeys1-0123456789-zzz";
+/// A variable the host's own config names for its owner token: the gateway must
+/// never read it, let alone send it anywhere.
+const PLANTED: &str = "plantedhostconfigvaluexx-0123456789";
 const SHAPED: &str = "sk-SENTINELs1gwshaped0123456789abcdef";
 const T0: i64 = 1_791_208_186_000;
 
@@ -41,6 +44,8 @@ fn client() -> reqwest::Client {
 struct Fleet {
     root: TempDir,
     locks: Vec<StateLock>,
+    /// The gateway's own config: the instances it holds a write key for.
+    twins: Vec<rung_gateway::Instance>,
 }
 
 impl Fleet {
@@ -50,6 +55,7 @@ impl Fleet {
         Fleet {
             root,
             locks: Vec::new(),
+            twins: Vec::new(),
         }
     }
 
@@ -119,8 +125,18 @@ impl Fleet {
             allowed_hosts: vec![],
             read_only_tokens: vec![READ_TOKEN.into()],
             registry_dir: Some(self.registry()),
-            instances: vec![],
+            instances: self.twins.clone(),
         }
+    }
+
+    /// The gateway's config names `id`, with the key it holds for it.
+    fn twin(&mut self, id: &str, url: &str, key: &str) {
+        self.twins.push(rung_gateway::Instance {
+            id: id.into(),
+            name: id.into(),
+            url: format!("http://{url}"),
+            key: key.into(),
+        });
     }
 
     async fn serve(&self) -> Gw {
@@ -128,10 +144,13 @@ impl Fleet {
     }
 
     async fn serve_tuned(&self, tuning: Tuning) -> Gw {
-        let running =
-            rung_gateway::start_tuned(self.settings(), Arc::new(StaticRegistry(vec![])), tuning)
-                .await
-                .unwrap();
+        let running = rung_gateway::start_tuned(
+            self.settings(),
+            Arc::new(StaticRegistry(self.twins.clone())),
+            tuning,
+        )
+        .await
+        .unwrap();
         Gw {
             base: format!("http://{}", running.addr),
             _running: running,
@@ -213,6 +232,8 @@ struct FakeHost {
     addr: String,
     hits: Arc<AtomicUsize>,
     seen: Arc<std::sync::Mutex<Vec<(String, String)>>>,
+    /// The bearer of the last request, without `Bearer `.
+    last_bearer: Arc<std::sync::Mutex<Option<String>>>,
 }
 
 fn record_lines(state: &Path) -> Vec<Value> {
@@ -228,14 +249,16 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
     let addr = l.local_addr().unwrap().to_string();
     let hits = Arc::new(AtomicUsize::new(0));
     let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let (h2, s2) = (hits.clone(), seen.clone());
+    let last_bearer = Arc::new(std::sync::Mutex::new(None));
+    let (h2, s2, b2) = (hits.clone(), seen.clone(), last_bearer.clone());
     tokio::spawn(async move {
         loop {
             let (sock, _) = l.accept().await.unwrap();
-            let (state, hits, seen) = (state.clone(), h2.clone(), s2.clone());
+            let (state, hits, seen, lb) = (state.clone(), h2.clone(), s2.clone(), b2.clone());
             tokio::spawn(async move {
                 let svc = hyper::service::service_fn(move |req: Request<hyper::body::Incoming>| {
-                    let (state, hits, seen) = (state.clone(), hits.clone(), seen.clone());
+                    let (state, hits, seen, lb) =
+                        (state.clone(), hits.clone(), seen.clone(), lb.clone());
                     async move {
                         hits.fetch_add(1, Ordering::SeqCst);
                         let bearer = req
@@ -244,6 +267,7 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
                             .and_then(|v| v.to_str().ok())
                             .unwrap_or("")
                             .to_string();
+                        *lb.lock().unwrap() = bearer.strip_prefix("Bearer ").map(str::to_string);
                         let all_headers = format!("{:?}", req.headers());
                         seen.lock().unwrap().push((
                             format!("{} {}", req.method(), req.uri().path()),
@@ -307,17 +331,25 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
             });
         }
     });
-    FakeHost { addr, hits, seen }
+    FakeHost {
+        addr,
+        hits,
+        seen,
+        last_bearer,
+    }
 }
 
 /// A running instance `id`: its owner token named by a variable this process
 /// holds, its lock held, its listener a fake.
 async fn running(f: &mut Fleet, id: &str, mode: Mode) -> FakeHost {
-    let env = format!("S1GW_OWNER_{}", id.to_uppercase());
-    unsafe { std::env::set_var(&env, OWNER_KEY) };
+    // the host's own config names a variable this process holds: it is NOT the
+    // key the gateway sends (that is the gateway's own config's)
+    let env = format!("S1GW_HOSTCFG_{}", id.to_uppercase());
+    unsafe { std::env::set_var(&env, PLANTED) };
     let cfg = f.config(id, Some(&env));
     let fake = fake_host(f.state(id), mode).await;
     f.add(id, Some(&cfg), Some(&fake.addr));
+    f.twin(id, &fake.addr, OWNER_KEY);
     f.hold(id);
     fake
 }
@@ -527,6 +559,7 @@ async fn an_unreachable_host_is_a_502_in_words_and_the_gateway_stays_up() {
         l.local_addr().unwrap().to_string()
     };
     f.add("alpha", Some(&cfg), Some(&dead));
+    f.twin("alpha", &dead, OWNER_KEY);
     f.hold("alpha");
     let gw = f.serve().await;
     let a = gw
@@ -576,9 +609,12 @@ async fn a_host_that_never_answers_is_a_503_in_words_within_the_wait() {
 }
 
 #[tokio::test]
-async fn an_instance_the_gateway_holds_no_owner_key_for_is_refused_in_words() {
+async fn an_instance_the_gateway_config_does_not_name_gets_no_write_whatever_its_own_config_says() {
     let mut f = Fleet::new("s1gw-nokey");
-    let cfg = f.config("alpha", None);
+    // the host's own config names a variable this process holds; the gateway's
+    // config names nothing for this id
+    unsafe { std::env::set_var("S1GW_HOSTCFG_ALPHA", PLANTED) };
+    let cfg = f.config("alpha", Some("S1GW_HOSTCFG_ALPHA"));
     let fake = fake_host(f.state("alpha"), Mode::Normal).await;
     f.add("alpha", Some(&cfg), Some(&fake.addr));
     f.hold("alpha");
@@ -586,14 +622,46 @@ async fn an_instance_the_gateway_holds_no_owner_key_for_is_refused_in_words() {
     let a = gw.post("alpha", &json!({"text": "hello"})).await;
     assert_eq!(a.status, 503, "{}", a.body);
     assert_eq!(a.json()["error"], "no_owner_key");
-    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
-    // the variable is named but not held by this process
-    let cfg = f.config("alpha", Some("S1GW_NOT_SET_ANYWHERE"));
-    f.add("alpha", Some(&cfg), Some(&fake.addr));
+    assert!(a.json()["message"].as_str().unwrap().contains("key_env"));
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0, "nothing was sent");
+    assert!(!a.body.contains(PLANTED));
+}
+
+#[tokio::test]
+async fn a_variable_an_instance_config_names_is_never_read_or_sent() {
+    let mut f = Fleet::new("s1gw-planted");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    let a = gw
+        .post("alpha", &json!({"text": "hello", "key": "k-1"}))
+        .await;
+    assert_eq!(a.status, 201, "{}", a.body);
+    let seen = fake.seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 1);
+    // the host got the gateway's own key and nothing the instance's config named
+    assert!(seen[0].1.contains("authorization"));
+    assert!(
+        !seen[0].1.contains(PLANTED),
+        "the config-named variable was sent"
+    );
+    assert_eq!(fake.last_bearer.lock().unwrap().as_deref(), Some(OWNER_KEY));
+}
+
+#[tokio::test]
+async fn a_registered_address_that_is_not_private_is_refused_and_no_key_goes_to_it() {
+    let mut f = Fleet::new("s1gw-public");
+    let cfg = f.config("alpha", None);
+    // a public address: nothing may be sent to it, with or without a key
+    f.add("alpha", Some(&cfg), Some("203.0.113.9:7001"));
+    f.twin("alpha", "203.0.113.9:7001", OWNER_KEY);
+    f.hold("alpha");
+    let gw = f.serve().await;
+    let t = std::time::Instant::now();
     let a = gw.post("alpha", &json!({"text": "hello"})).await;
-    assert_eq!(a.status, 503);
-    assert_eq!(a.json()["error"], "no_owner_key");
-    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+    assert!(t.elapsed() < Duration::from_secs(5), "refused, not tried");
+    assert_eq!(a.status, 503, "{}", a.body);
+    assert_eq!(a.json()["error"], "no_address");
+    assert!(a.json()["message"].as_str().unwrap().contains("private"));
 }
 
 #[tokio::test]
@@ -835,14 +903,130 @@ async fn an_id_the_gateway_config_also_names_is_written_to_with_the_configured_k
 #[tokio::test]
 async fn an_owner_key_a_header_cannot_carry_is_refused_in_words_and_never_sent() {
     let mut f = Fleet::new("s1gw-badkey");
-    unsafe { std::env::set_var("S1GW_BADKEY_ENV", "kéy-with-non-ascii-0123456789") };
-    let cfg = f.config("alpha", Some("S1GW_BADKEY_ENV"));
+    let cfg = f.config("alpha", None);
     let fake = fake_host(f.state("alpha"), Mode::Normal).await;
     f.add("alpha", Some(&cfg), Some(&fake.addr));
+    f.twin("alpha", &fake.addr, "kéy-with-non-ascii-0123456789");
     f.hold("alpha");
     let gw = f.serve().await;
     let a = gw.post("alpha", &json!({"text": "hello"})).await;
     assert_eq!(a.status, 503, "{}", a.body);
     assert_eq!(a.json()["error"], "no_owner_key");
     assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}
+
+// ─── who a request is: the Authorization header ──────────────────────────────
+
+/// What a present `Authorization` header that is not a read-only token does: it
+/// is refused 401, never read as "no token" (which is the owner's). No header at
+/// all stays the owner's: the tailnet is the boundary.
+#[tokio::test]
+async fn an_authorization_header_that_is_not_a_known_bearer_is_401_on_every_queue_door() {
+    use reqwest::header::{AUTHORIZATION, HeaderValue};
+    let mut f = Fleet::new("s1gw-auth-forms");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    let hv = |b: &[u8]| HeaderValue::from_bytes(b).unwrap();
+    let ro = format!("Bearer {READ_TOKEN}");
+    let host_key = format!("Bearer {OWNER_KEY}");
+    // (label, headers, status on the list, status on an add)
+    let forms: Vec<(&str, Vec<HeaderValue>, u16, u16)> = vec![
+        ("none", vec![], 200, 201),
+        ("bare Bearer", vec![hv(b"Bearer")], 401, 401),
+        ("empty Bearer", vec![hv(b"Bearer ")], 401, 401),
+        ("Basic", vec![hv(b"Basic Zm9vOmJhcg==")], 401, 401),
+        ("garbage", vec![hv(b"garbage")], 401, 401),
+        ("not UTF-8", vec![hv(b"Bearer \xff\xfe")], 401, 401),
+        ("a token nobody holds", vec![hv(b"Bearer nobody")], 401, 401),
+        (
+            "the host's own key",
+            vec![hv(host_key.as_bytes())],
+            401,
+            401,
+        ),
+        (
+            "a token that is one byte off",
+            vec![hv(format!("{ro}x").as_bytes())],
+            401,
+            401,
+        ),
+        (
+            "lower-case scheme, right token",
+            vec![hv(format!("bearer {READ_TOKEN}").as_bytes())],
+            200,
+            403,
+        ),
+        ("read-only token", vec![hv(ro.as_bytes())], 200, 403),
+        (
+            "read-only and garbage",
+            vec![hv(ro.as_bytes()), hv(b"garbage")],
+            401,
+            401,
+        ),
+    ];
+    let mut n = 0;
+    for (label, headers, want_list, want_add) in forms {
+        n += 1;
+        let mut list = client().get(gw.url("alpha", "queue"));
+        let mut add = client()
+            .post(gw.url("alpha", "queue"))
+            .header("content-type", "application/json")
+            .body(json!({"text": "x", "key": format!("k-form-{n}")}).to_string());
+        for h in &headers {
+            list = list.header(AUTHORIZATION, h.clone());
+            add = add.header(AUTHORIZATION, h.clone());
+        }
+        let l = send(list).await;
+        let a = send(add).await;
+        assert_eq!(l.status, want_list, "list: {label}");
+        assert_eq!(a.status, want_add, "add: {label}");
+    }
+    // only the owner's add reached the host, and only it was written
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 1);
+    let wrote = record_lines(&f.state("alpha"))
+        .iter()
+        .filter(|l| l["kind"] == "stimulus.accepted")
+        .count();
+    assert_eq!(wrote, 1);
+    // the query form: an empty token is refused the same way
+    let l = send(client().get(format!("{}?token=", gw.url("alpha", "queue")))).await;
+    assert_eq!(l.status, 401);
+}
+
+// ─── a long upload is not a stall ────────────────────────────────────────────
+
+/// A client that is still sending is not a host that does not answer: the wait
+/// for the host counts from the last byte moved, not from the first.
+#[tokio::test]
+async fn an_upload_slower_than_the_wait_is_not_cut_while_it_keeps_moving() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let mut f = Fleet::new("s1gw-slow-upload");
+    let _fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f
+        .serve_tuned(Tuning {
+            upstream_wait: Duration::from_millis(400),
+            ..Tuning::default()
+        })
+        .await;
+    let body = json!({"text": "t".repeat(3000), "key": "k-slow"}).to_string();
+    let addr = gw.base.trim_start_matches("http://").to_string();
+    let mut s = tokio::net::TcpStream::connect(&addr).await.unwrap();
+    let head = format!(
+        "POST /api/i/alpha/v1/queue HTTP/1.1\r\nHost: {addr}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    s.write_all(head.as_bytes()).await.unwrap();
+    // five pieces, 150 ms apart: 750 ms in all, past the 400 ms wait
+    let piece = body.len().div_ceil(5);
+    for chunk in body.as_bytes().chunks(piece) {
+        s.write_all(chunk).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(150)).await;
+    }
+    let mut out = String::new();
+    s.read_to_string(&mut out).await.unwrap();
+    assert!(
+        out.starts_with("HTTP/1.1 201"),
+        "{}",
+        &out[..out.len().min(200)]
+    );
 }

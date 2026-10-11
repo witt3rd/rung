@@ -85,6 +85,25 @@ pub type Connect = Arc<
 /// Whether a request's bearer token (if any) may reach the agent.
 pub type Authorize = Arc<dyn Fn(Option<&str>) -> bool + Send + Sync>;
 
+/// A request to a path other than `/acp`, before its body: what a
+/// [`RouteGate`] sees.
+#[derive(Debug, Clone)]
+pub struct RouteHead {
+    pub method: String,
+    pub path: String,
+    /// The raw query string, without the `?`.
+    pub query: Option<String>,
+    /// Header names lower-cased.
+    pub headers: Vec<(String, String)>,
+}
+
+/// Decides from the headers alone, before any body is read, whether a request
+/// to a path other than `/acp` is refused. `Some(reply)` answers it at once: the
+/// body is not read (a client sending one is cut off), and the connection is
+/// closed. `None` lets the request on to its [`Routes`] handler, which then gets
+/// the body whole.
+pub type RouteGate = Arc<dyn Fn(&RouteHead) -> Option<RouteReply> + Send + Sync>;
+
 /// A request to a path other than `/acp`, as a [`Routes`] handler sees it.
 #[derive(Debug, Clone)]
 pub struct RouteRequest {
@@ -95,8 +114,8 @@ pub struct RouteRequest {
     /// Header names lower-cased.
     pub headers: Vec<(String, String)>,
     /// The request body, whole; empty for a GET or HEAD (the listener reads no
-    /// body for those). A body over the listener's one request limit is
-    /// answered 413 before the route sees it.
+    /// body for those). It is read only after the [`RouteGate`] let the
+    /// request on, as it arrives and with no limit on its size.
     pub body: Vec<u8>,
 }
 
@@ -137,6 +156,9 @@ pub struct Serve {
     pub bind_bearer: bool,
     /// Paths other than `/acp`, if any (a host's own doors).
     pub routes: Option<Routes>,
+    /// Refuses a request to those paths from its headers, before its body is
+    /// read (authentication, method, media type). `None`: no early refusal.
+    pub route_gate: Option<RouteGate>,
 }
 
 pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
@@ -158,6 +180,7 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
         }),
         bind_bearer: false,
         routes: None,
+        route_gate: None,
     };
     listen_with(addr, serve).await
 }
@@ -386,23 +409,7 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
         return text(StatusCode::NOT_FOUND, "Not Found");
     };
     let (parts, incoming) = req.into_parts();
-    // a read has no body to wait for; any other method's body is read whole
-    // here, so a route sees the request it was sent
-    let body = if matches!(parts.method, Method::GET | Method::HEAD) {
-        Vec::new()
-    } else {
-        match incoming.collect().await {
-            Ok(c) => {
-                let bytes = c.to_bytes();
-                if bytes.len() > MAX_BODY {
-                    return text(StatusCode::PAYLOAD_TOO_LARGE, "Request body too large");
-                }
-                bytes.to_vec()
-            }
-            Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid request body"),
-        }
-    };
-    let request = RouteRequest {
+    let head = RouteHead {
         method: parts.method.as_str().to_string(),
         path: parts.uri.path().to_string(),
         query: parts.uri.query().map(String::from),
@@ -411,11 +418,60 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
             .iter()
             .filter_map(|(k, v)| Some((k.as_str().to_string(), v.to_str().ok()?.to_string())))
             .collect(),
+    };
+    // refused on its headers: answered at once, the body never read, the
+    // connection closed (a client still sending is cut off)
+    if let Some(gate) = &state.serve.route_gate
+        && let Some(reply) = gate(&head)
+    {
+        let mut r = reply_response(reply);
+        r.headers_mut()
+            .insert("connection", HeaderValue::from_static("close"));
+        return r;
+    }
+    // a read has no body to wait for; any other method's body is read here, as
+    // it arrives, into one buffer sized from the declared length (no limit: the
+    // gate has already said who may send it)
+    let body = if matches!(parts.method, Method::GET | Method::HEAD) {
+        Vec::new()
+    } else {
+        let hint = parts
+            .headers
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(0)
+            // only where the buffer starts; it grows to whatever is sent
+            .min(64 << 20);
+        let mut buf = Vec::with_capacity(hint);
+        let mut incoming = incoming;
+        while let Some(frame) = incoming.frame().await {
+            match frame {
+                Ok(f) => {
+                    if let Some(d) = f.data_ref() {
+                        buf.extend_from_slice(d);
+                    }
+                }
+                Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid request body"),
+            }
+        }
+        buf
+    };
+    let request = RouteRequest {
+        method: head.method,
+        path: head.path,
+        query: head.query,
+        headers: head.headers,
         body,
     };
     let Some(reply) = routes(request).await else {
         return text(StatusCode::NOT_FOUND, "Not Found");
     };
+    reply_response(reply)
+}
+
+/// A route's reply as the listener's response.
+fn reply_response(reply: RouteReply) -> Response<BoxBody<Bytes, Infallible>> {
     let mut b = Response::builder().status(reply.status);
     for (k, v) in &reply.headers {
         if let (Ok(k), Ok(v)) = (HeaderName::try_from(k.as_str()), HeaderValue::from_str(v)) {

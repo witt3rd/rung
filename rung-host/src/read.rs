@@ -513,11 +513,6 @@ pub struct StreamTarget {
     pub state_dir: std::path::PathBuf,
     /// The host's state lock is held: a host is running on it.
     pub running: bool,
-    /// The host's `owner` token (value) as the gateway's process holds it: the
-    /// variable the host's config names under `acp.tokens.owner`. What a write
-    /// to the host's door is sent with; `None` when the config names none or
-    /// this process does not hold the variable.
-    pub owner_token: Option<String>,
     /// Where the running host's own door is (`host:port`): only when its lock
     /// is held and its entry has an address.
     pub address: Option<String>,
@@ -537,16 +532,9 @@ pub fn stream_target(registry_dir: &Path, id: &str, base: &Redactor) -> Door<Str
         let (row, entry) = locate(registry_dir, id)?;
         check_state_dir(&entry.state_dir)?;
         let mut tokens = Vec::new();
-        let mut owner_token = None;
         if let Some(c) = ConfigView::read(&entry).content
             && let Some(t) = c["acp"]["tokens"].as_object()
         {
-            owner_token = t
-                .get("owner")
-                .and_then(Value::as_str)
-                .and_then(|n| std::env::var(n).ok())
-                .map(|v| v.trim().to_string())
-                .filter(|v| !v.is_empty());
             let mut named: Vec<(&String, &Value)> = t.iter().collect();
             named.sort_by_key(|(role, _)| role.as_str() != "owner");
             for (_, name) in named {
@@ -561,7 +549,6 @@ pub fn stream_target(registry_dir: &Path, id: &str, base: &Redactor) -> Door<Str
         Ok(StreamTarget {
             state_dir: entry.state_dir.clone(),
             running: row.word == Word::Running,
-            owner_token,
             address: (row.word == Word::Running)
                 .then(|| entry.address.clone())
                 .flatten(),

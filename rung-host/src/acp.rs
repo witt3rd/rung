@@ -896,6 +896,7 @@ pub fn serve_http_with(
         }),
         bind_bearer: true,
         routes: Some(routes),
+        route_gate: Some(queue.gate()),
     };
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -1185,9 +1186,23 @@ impl QueueDoor {
         })
     }
 
-    async fn handle(self: Arc<Self>, req: rung_agent_core::acp_http::RouteRequest) -> Reply {
+    /// Refuse, from the headers alone and before any body is read, what this
+    /// door will not take: no token (401), a token that is not the owner's (403),
+    /// a method it does not have (405), a body that is not JSON (415), a host
+    /// that is stopping (409). Everything else goes on to [`Self::routes`].
+    pub fn gate(self: &Arc<Self>) -> rung_agent_core::acp_http::RouteGate {
+        let door = self.clone();
+        Arc::new(move |head: &rung_agent_core::acp_http::RouteHead| {
+            if head.path != QUEUE_PATH {
+                return None;
+            }
+            door.refuse(&head.method, &head.headers)
+        })
+    }
+
+    fn refuse(&self, method: &str, headers: &[(String, String)]) -> Option<Reply> {
         let header = |n: &str| {
-            req.headers
+            headers
                 .iter()
                 .find(|(k, _)| k == n)
                 .map(|(_, v)| v.as_str())
@@ -1196,22 +1211,64 @@ impl QueueDoor {
         match bearer {
             Some(b) if self.owner_tokens.contains(b) => {}
             Some(b) if self.other_tokens.contains(b) => {
-                return door_error(
+                return Some(door_error(
                     403,
                     "forbidden",
                     "the queue is the owner's: this token is not",
-                );
+                ));
             }
-            _ => return door_error(401, "unauthorized", "the token is not recognised"),
+            _ => {
+                return Some(door_error(
+                    401,
+                    "unauthorized",
+                    "the token is not recognised",
+                ));
+            }
         }
-        match req.method.as_str() {
-            "GET" | "HEAD" => self.list(&req).await,
-            "POST" => self.add(&req, header("content-type")).await,
-            _ => door_error(
+        match method {
+            "GET" | "HEAD" => None,
+            "POST" => {
+                let json_body = header("content-type").is_some_and(|c| {
+                    c.split(';')
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .eq_ignore_ascii_case("application/json")
+                });
+                if !json_body {
+                    return Some(door_error(
+                        415,
+                        "unsupported_media_type",
+                        "send the message as application/json",
+                    ));
+                }
+                // a host that has been told to stop takes nothing more
+                if self.acp.host.core.stop.raised() {
+                    return Some(door_error(
+                        409,
+                        "not_running",
+                        "this host is stopping and takes no more messages: start it first",
+                    ));
+                }
+                None
+            }
+            _ => Some(door_error(
                 405,
                 "method_not_allowed",
                 "this door lists (GET) and adds (POST)",
-            ),
+            )),
+        }
+    }
+
+    async fn handle(self: Arc<Self>, req: rung_agent_core::acp_http::RouteRequest) -> Reply {
+        // the listener's gate has already refused what these checks refuse; they
+        // stay so the route is safe wherever it is mounted
+        if let Some(refusal) = self.refuse(&req.method, &req.headers) {
+            return refusal;
+        }
+        match req.method.as_str() {
+            "GET" | "HEAD" => self.list(&req).await,
+            _ => self.add(&req).await,
         }
     }
 
@@ -1237,25 +1294,7 @@ impl QueueDoor {
         }
     }
 
-    async fn add(
-        self: &Arc<Self>,
-        req: &rung_agent_core::acp_http::RouteRequest,
-        content_type: Option<&str>,
-    ) -> Reply {
-        let json_body = content_type.is_some_and(|c| {
-            c.split(';')
-                .next()
-                .unwrap_or("")
-                .trim()
-                .eq_ignore_ascii_case("application/json")
-        });
-        if !json_body {
-            return door_error(
-                415,
-                "unsupported_media_type",
-                "send the message as application/json",
-            );
-        }
+    async fn add(self: &Arc<Self>, req: &rung_agent_core::acp_http::RouteRequest) -> Reply {
         let bad = |m: &str| door_error(400, "bad_request", m);
         let Ok(Value::Object(body)) = serde_json::from_slice::<Value>(&req.body) else {
             return bad("the body must be a JSON object: {\"text\": \"...\"}");
@@ -1291,14 +1330,6 @@ impl QueueDoor {
             Some(_) => {
                 return bad("intent must be `next` (`steer` and `free` are not available yet)");
             }
-        }
-        // a host that has been told to stop takes nothing more
-        if self.acp.host.core.stop.raised() {
-            return door_error(
-                409,
-                "not_running",
-                "this host is stopping and takes no more messages: start it first",
-            );
         }
         let door = self.clone();
         let text = text.to_string();
