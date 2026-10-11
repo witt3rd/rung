@@ -174,6 +174,9 @@ impl Sink {
     }
 }
 
+/// Nesting levels that indent further; deeper items keep this indent.
+const INDENT_STOPS_AT: usize = 8;
+
 /// Elements whose text is never shown (CSS/JS/template noise).
 const SKIPPED: [&str; 4] = ["style", "script", "noscript", "template"];
 
@@ -425,7 +428,9 @@ impl Md {
             }
             "li" => {
                 self.brk(1);
-                let depth = self.lists.len().saturating_sub(1);
+                // Indentation width stops growing at INDENT_STOPS_AT so deeply
+                // nested lists stay linear in size; item text is never cut.
+                let depth = self.lists.len().saturating_sub(1).min(INDENT_STOPS_AT);
                 let mark = match self.lists.last_mut() {
                     Some(Some(n)) => {
                         *n += 1;
@@ -957,5 +962,33 @@ A | B\n1 | 2\n\n\
         assert!(err.contains("body not complete within"), "{err}");
         let el = t0.elapsed();
         assert!(el < Duration::from_millis(2500), "overran: {el:?}");
+    }
+
+    #[test]
+    fn deeply_nested_lists_stay_linear_and_keep_every_item() {
+        let n = 5_000;
+        let html: String = (0..n)
+            .map(|i| format!("<ul><li>item-number-{i:05}"))
+            .collect();
+        assert!(html.len() > 100_000);
+        let out = md(&html);
+        assert!(
+            out.len() < 2 * html.len(),
+            "output {} for input {}",
+            out.len(),
+            html.len()
+        );
+        for i in 0..n {
+            assert_eq!(out.matches(&format!("item-number-{i:05}")).count(), 1);
+        }
+        // time is linear: 4x the input takes about 4x, not 16x
+        let t = |k: usize| {
+            let h: String = (0..k).map(|i| format!("<ul><li>i{i}")).collect();
+            let t0 = std::time::Instant::now();
+            let _ = md(&h);
+            t0.elapsed().as_secs_f64()
+        };
+        let (a, b) = (t(2_500).max(1e-4), t(10_000));
+        assert!(b / a < 10.0, "x4 input took x{:.1}", b / a);
     }
 }
