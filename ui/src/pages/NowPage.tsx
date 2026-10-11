@@ -10,7 +10,7 @@ import { visibleDelta } from "../live/overlay.ts";
 import { duration } from "../record/words.ts";
 
 export function NowPage({ id }: { id: string }) {
-  const { entry, folds, indexLoaded, error, live: li } = useInstance(id);
+  const { entry, folds, indexLoaded, error, live: li, startCommand } = useInstance(id);
   const s = folds?.summary;
   const live = !!entry?.lockHeld;
   const recent = folds ? folds.turns.slice(-3).reverse() : [];
@@ -36,7 +36,7 @@ export function NowPage({ id }: { id: string }) {
                         Committed {num(Math.max(0, (s.lastTurn ?? 0) - s.project.sinceTurn))} turns ago.{s.project.doneWhen ? ` Done when ${s.project.doneWhen}.` : ""}
                       </p>
                     )}
-                    {li && <LiveLine li={li} turn={lastTurn} now={now} />}
+                    {li && live && <LiveLine li={li} turn={lastTurn} now={now} />}
                     {!s.project && lastTurn && !live && (
                       <p className="meta" style={{ margin: "6px 0 0" }} data-content>It said: {turnLine(lastTurn)}</p>
                     )}
@@ -66,6 +66,13 @@ export function NowPage({ id }: { id: string }) {
               <p style={{ margin: 0 }} data-content>{s ? (s.lastDecision ? s.lastDecision.answer : "Nothing decided yet.") : "\u00a0"}</p>
               {s?.lastDecision && s.lastDecision.turn && <p className="meta" style={{ margin: "2px 0 0" }}><a href={href.turns(id, s.lastDecision.turn)}>Why</a></p>}
             </section>
+            {startCommand && s && !live && (
+              <section className="sec">
+                <h2>Start</h2>
+                <p className="mono" style={{ margin: 0, overflowWrap: "anywhere" }} data-content>{startCommand}</p>
+                <p className="meta" style={{ margin: "2px 0 0" }}>Run it where the instance lives. This page does not start it.</p>
+              </section>
+            )}
             <section className="sec">
               <h2>Health</h2>
               <p style={{ margin: 0 }} data-content>{s ? `${s.context === null ? "No context yet" : `Context ${s.context}% full`}${s.cache === null ? "" : `. Cache ${s.cache}%`}.` : "\u00a0"}</p>
@@ -83,7 +90,8 @@ function LiveLine({ li, turn, now }: { li: LiveInfo; turn: { n: number; status: 
   const running = turn?.status === "running";
   const delta = visibleDelta(li.delta, turn);
   let words: string;
-  if (li.status === "reconnecting" || li.status === "connecting") words = "Reconnecting.";
+  if (li.status === "unavailable") words = "Not followed.";
+  else if (li.status === "reconnecting" || li.status === "connecting") words = "Reconnecting.";
   else if (li.status === "catching up") words = "Catching up.";
   else if (running) words = `${delta?.tool ? `Running ${delta.tool}` : "Writing"}, ${duration(Math.max(0, now - turn!.startedAt))} in.`;
   else words = "Between turns.";

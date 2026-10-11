@@ -1,0 +1,10 @@
+# follow-up: the new tests against the UI source as it was on master (real gateway rows, no event stream)
+  live-index: ✖ an entry the gateway could not read is listed as Unreadable with the reason, and needs the owner
+  live-index: ✖ a stopped native instance shows how to start it, and is not marked as needing the owner
+  live-index: ✖ failing tests:
+  live-index: ℹ fail 2
+  live-index: ℹ pass 1
+  events-client: ✖ a gateway with no event stream for the instance (404): said once, not retried
+  events-client: ✖ failing tests:
+  events-client: ℹ fail 1
+  events-client: ℹ pass 5

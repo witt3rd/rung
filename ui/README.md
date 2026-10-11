@@ -25,14 +25,17 @@ the whole record is read once through `/v1/record`, then followed over `/v1/even
 keeps the number of the last line it applied and resumes from it, a store, and the overlay that lays the running turn's streamed
 text and tool over the record). The host's own `/v1/summary` decides the state word.
 
-The doors' bodies are proposed in `contract/README.md` (the gateway's names and access classes are in `docs/rung-host-api.md`,
-which is on the host builder's branches, not yet on master). `test/contract.test.ts` states them as checks and runs unchanged against
+The doors' bodies: the list, summary and record doors (H3) and the gateway (H9) are on master and written in `docs/rung-host-api.md`; the
+event stream (H5) is still on the host builder's branch, so its bodies are proposed in `contract/README.md`, together with where the real H3
+doors are a superset of the proposal. `test/contract.test.ts` states them as checks and runs unchanged against
 `mock/` (a gateway and simulated hosts in this directory) and against a real gateway:
 
     npm run test:contract                                                       # against the mock
     RUNG_CONTRACT_URL=http://127.0.0.1:8787 RUNG_CONTRACT_INSTANCE=alpha npm run test:contract   # against a real one
     npm run mock -- --port 8742 --app dist     # the built app, the mock gateway, and a host writing turns on a real clock
     npm run live-proof                         # a real browser against the mock: latency, a cut with the page offline, captures
+    cargo build -p rung-gateway && npm run test:contract:real   # the same contract tests against the built rung-gateway (H3 doors; the events checks skip until H5)
+    cargo build -p rung-gateway && npm run real-proof           # a real browser against rung-gateway over a registry folder: the list, a stopped instance's start command, the record
 
 Checks that need to write to the host (a line within a second, a cut, deltas, a slow reader) need the target's control hooks and say so
 when skipped; against a real host they run once it has a way to be made to write.
@@ -77,6 +80,8 @@ when skipped; against a real host they run once it has a way to be made to write
 - `live-review4-first-run.txt`: the word-boundary tests (a Bearer inside a word, a word after a JSON escape) against the redactor before.
 - `live-mutations.txt`: twenty-seven faults put into the live code one at a time; every one is caught by a test.
 - `live-proof.txt`: the live proof against the mock, as run.
+- `real-gateway-first-run.txt`: the tests for the real gateway's rows and a missing event stream, against the UI source as it was on master.
+- `real-proof.txt`: the proof against the real gateway binary, as run; `contract-real.txt`: the contract tests against it, as run.
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged
   by looking at the captures; what looking changed is listed below.

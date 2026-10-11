@@ -4,6 +4,7 @@ import { detectMode, loadIndex, loadLiveIndex, loadRecord, type InstanceEntry } 
 import { foldDecisions, foldPack, foldSpend, foldTurns, summarize } from "../record/folds.ts";
 import { LiveStore, type LiveDelta, type LiveState } from "../live/store.ts";
 import type { Status } from "../live/client.ts";
+import { isLockHeld } from "../record/words.ts";
 import { StoreRegistry } from "../live/registry.ts";
 
 /** Is the app beside a gateway (live) or beside recorded files (static)? Asked once. */
@@ -53,7 +54,7 @@ export function useInstance(id: string) {
   const folds = useMemo(() => {
     if (!lines || !entry) return null;
     const now = live ? Date.now() : index.data!.generatedAt;
-    const lockHeld = live ? (ls.host ? ls.host.state !== "Stopped" && ls.host.state !== "Down" : entry.lockHeld) : entry.lockHeld;
+    const lockHeld = live ? (ls.host ? isLockHeld(ls.host.state) : entry.lockHeld) : entry.lockHeld;
     const folded = summarize(lines, { lockHeld, now });
     // The host knows whether it holds its lock; its word for the state is the one shown.
     const summary = live && ls.host ? { ...folded, state: ls.host.state as typeof folded.state, doing: ls.host.doing, needsYou: ls.host.needs_you } : folded;
@@ -61,5 +62,5 @@ export function useInstance(id: string) {
   }, [lines, entry, index.data, live, ls.host]);
 
   const liveInfo: LiveInfo | null = live ? { status: ls.status, delta } : null;
-  return { entry, folds, indexLoaded: index.isSuccess, error: index.error ?? rec.error ?? (live && ls.error ? new Error(ls.error) : null), live: liveInfo };
+  return { entry, startCommand: (ls.host?.start_command ?? entry?.startCommand) || null, folds, indexLoaded: index.isSuccess, error: index.error ?? rec.error ?? (live && ls.error ? new Error(ls.error) : null), live: liveInfo };
 }

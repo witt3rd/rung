@@ -1,0 +1,7 @@
+# review round: the new tests against the code as it was at the previous head (the scratch tree outlived the run; no single helper for the lock-held states)
+✖ a harness that cannot start the gateway leaves nothing behind
+✖ failing tests:
+ℹ fail 3
+ℹ pass 0
+✖ stopping the real-gateway target removes its scratch tree and ends the gateway
+✖ test/live-index.test.ts

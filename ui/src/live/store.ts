@@ -17,6 +17,8 @@ export interface HostSummary {
   requests: number;
   quota: number | null;
   spend_usd_day: number;
+  /** The command that starts it, when it is a native instance with a config file. The page shows it; nothing here starts a host. */
+  start_command?: string | null;
 }
 
 export interface LiveState {

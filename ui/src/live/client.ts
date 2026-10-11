@@ -5,7 +5,7 @@
 import type { Line } from "../record/types.ts";
 import { SseParser } from "./sse.ts";
 
-export type Status = "connecting" | "catching up" | "following" | "reconnecting";
+export type Status = "connecting" | "catching up" | "following" | "reconnecting" | "unavailable";
 
 export interface Delta {
   turn: number;
@@ -25,6 +25,8 @@ export interface EventsOptions {
   onStatus?: (s: Status) => void;
   /** The host does not know the number we hold (400): the record must be loaded again. */
   onReset?: () => void;
+  /** The gateway has no event stream for this instance (404): the record is shown as it was read, and not followed. */
+  onUnavailable?: () => void;
   fetchImpl?: typeof fetch;
   /** First wait before reconnecting; it doubles to `maxBackoffMs` and resets once the stream has caught up. */
   backoffMs?: number;
@@ -61,6 +63,7 @@ export class EventsClient {
       try {
         const r = await f(this.o.url(this.last), { headers: { accept: "text/event-stream", "last-event-id": String(this.last) }, signal: ac.signal });
         if (r.status === 400) { this.o.onReset?.(); return; }
+        if (r.status === 404) { this.o.onStatus?.("unavailable"); this.o.onUnavailable?.(); return; }
         if (r.status !== 200 || !r.body) throw new Error(`events: status ${r.status}`);
         const p = new SseParser();
         const dec = new TextDecoder();
