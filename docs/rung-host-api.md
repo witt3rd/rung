@@ -1357,7 +1357,7 @@ adds through this door.
 
 ### Proof
 
-`rung-host/tests/queue_door.rs` (11), `rung-host/tests/queue_door_memory.rs` (2), `rung-gateway/tests/queue.rs` (20) and `rung-gateway/tests/queue_memory.rs` (1), and
+`rung-host/tests/queue_door.rs` (11), `rung-host/tests/queue_door_memory.rs` (3), `rung-gateway/tests/queue.rs` (20) and `rung-gateway/tests/queue_memory.rs` (1), and
 the fold's own tests in `rung-host/src/queue.rs`, written first against code with
 neither door and kept red until it made them green: an item in the record before
 the answer; one key twice is one item, a different message under the key is
