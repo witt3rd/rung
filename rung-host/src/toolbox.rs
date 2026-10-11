@@ -770,8 +770,6 @@ mod tests {
         (out, core.clock.now() - start)
     }
 
-    /// #159: a long call no longer holds an owner who arrives during it for
-    /// the whole 30 s tool deadline; it is cut once the owner waits.
     /// One-shot local server (on 127.0.0.2: the URL guard refuses 127.0.0.1) answering a single GET with `body` (HTML).
     fn serve_once(body: String) -> String {
         use std::io::{Read, Write};
@@ -816,6 +814,8 @@ mod tests {
         assert_eq!(out, Err("web_read is not wired in this build".to_string()));
     }
 
+    /// #159: a long call no longer holds an owner who arrives during it for
+    /// the whole 30 s tool deadline; it is cut once the owner waits.
     #[test]
     fn a_long_call_is_cut_when_the_owner_waits() {
         let (out, took) = slow_fetch(Some(5 * SECOND));
