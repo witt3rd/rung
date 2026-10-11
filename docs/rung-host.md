@@ -209,7 +209,7 @@ listing: true                        # list at start and every 6 h (default for 
 probe: true                          # with each listing, one keyed probe per standing rung (default with listing)
 quota: { rpd: 1000, rpm: 20 }        # optional
 memory: true                         # baseline memory under the state dir
-web: true                            # wire the live whole-page web_fetch (group web_read); default false: every fetch is refused
+web: true                            # wire the live whole-page web_fetch (group web_read); default false: every fetch is refused. It fetches any address it is given; it is not a security boundary
 acp: { http: "127.0.0.1:7878", tokens: { owner: RUNG_HOST_OWNER_TOKEN } }   # or { stdio: owner }
 ```
 

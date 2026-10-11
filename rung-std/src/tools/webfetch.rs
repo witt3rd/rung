@@ -1,4 +1,7 @@
 //! `webfetch` — HTTP GET for the agent. http(s) only; whole body, streamed; HTML becomes Markdown.
+//!
+//! It fetches any address it is given (loopback, private networks and
+//! redirect targets included). It is not a security boundary.
 
 use super::Tool;
 use super::fsutil;
@@ -15,7 +18,7 @@ impl Tool for WebFetch {
         "webfetch"
     }
     fn description(&self) -> &'static str {
-        "Fetch a http(s) URL. Returns a header line (final URL after redirects, HTTP status), a blank line, then the whole body: HTML pages are converted to Markdown (headings, [links](url), lists, code, tables as ` | ` rows; style, script, noscript and template text removed); other content types are returned as is."
+        "Fetch a http(s) URL (any address it is given; loopback and private networks are not refused, and this is not a security boundary). Returns a header line (final URL after redirects, HTTP status), a blank line, then the whole body: HTML pages are converted to Markdown (headings, [links](url), lists, code, tables as ` | ` rows; style, script, noscript and template text removed); other content types are returned as is."
     }
     fn input_schema(&self) -> Value {
         serde_json::json!({
@@ -34,10 +37,6 @@ impl Tool for WebFetch {
 
 pub fn fetch_url(url: &str) -> Result<String, String> {
     check_url(url)?;
-    fetch_unguarded(url)
-}
-
-fn fetch_unguarded(url: &str) -> Result<String, String> {
     fetch_with(url, std::time::Duration::from_secs(TIMEOUT_SECS))
 }
 
@@ -590,40 +589,13 @@ fn entity(b: &str) -> Option<char> {
     }
 }
 
-pub fn check_url(url: &str) -> Result<(), String> {
-    let rest = url
-        .strip_prefix("https://")
+/// Only the scheme is checked: http and https are the protocols this tool
+/// speaks. Hosts are not filtered; this is not a security boundary.
+fn check_url(url: &str) -> Result<(), String> {
+    url.strip_prefix("https://")
         .or_else(|| url.strip_prefix("http://"))
-        .ok_or("webfetch: only http and https")?;
-    let hostport = rest.split('/').next().unwrap_or("");
-    let host = hostport
-        .rsplit('@')
-        .next()
-        .unwrap_or(hostport)
-        .split('%')
-        .next()
-        .unwrap_or(hostport);
-    let h = if host.starts_with('[') {
-        host.trim_start_matches('[')
-            .split(']')
-            .next()
-            .unwrap_or("")
-            .to_ascii_lowercase()
-    } else {
-        host.split(':').next().unwrap_or(host).to_ascii_lowercase()
-    };
-    if h == "localhost"
-        || h == "127.0.0.1"
-        || h == "::1"
-        || h == "0.0.0.0"
-        || h.ends_with(".localhost")
-    {
-        return Err("webfetch: refused loopback host".into());
-    }
-    if h.starts_with("10.") || h.starts_with("192.168.") || h.starts_with("169.254.") {
-        return Err("webfetch: refused private host".into());
-    }
-    Ok(())
+        .map(|_| ())
+        .ok_or_else(|| "webfetch: only http and https".into())
 }
 
 #[cfg(test)]
@@ -634,11 +606,14 @@ mod tests {
     use std::net::TcpListener;
 
     #[test]
-    fn refuses_loopback_and_non_http() {
+    fn refuses_only_non_http_schemes() {
         assert!(check_url("ftp://x").is_err());
-        assert!(check_url("http://localhost/x").is_err());
-        assert!(check_url("http://127.0.0.1/").is_err());
+        assert!(check_url("file:///etc/passwd").is_err());
         assert!(check_url("https://example.com/a").is_ok());
+        // Not a boundary: any host is accepted, loopback and private included.
+        assert!(check_url("http://localhost/x").is_ok());
+        assert!(check_url("http://127.0.0.1/").is_ok());
+        assert!(check_url("http://10.0.0.1/").is_ok());
     }
 
     fn md(html: &str) -> String {
@@ -790,19 +765,26 @@ A | B\n1 | 2\n\n\
             }
         }
         let base = serve_routes(route);
-        let out = fetch_unguarded(&format!("{base}/start")).unwrap();
+        let out = fetch_url(&format!("{base}/start")).unwrap();
         assert_eq!(out, format!("url: {base}/final | status: 200 OK\n\n# Hi"));
-        let err = fetch_unguarded(&format!("{base}/nope")).unwrap_err();
+        let err = fetch_url(&format!("{base}/nope")).unwrap_err();
         assert!(err.contains("404"), "{err}");
     }
 
     #[test]
-    fn guard_still_refuses_loopback_via_tool() {
-        assert!(
-            fetch_url("http://127.0.0.1:1/")
-                .unwrap_err()
-                .contains("loopback")
-        );
+    fn the_tool_fetches_a_loopback_server_and_refuses_other_schemes() {
+        fn route(_: &str) -> String {
+            let b = "<h1>Local</h1>";
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{b}",
+                b.len()
+            )
+        }
+        let base = serve_routes(route);
+        let out = WebFetch
+            .execute(&serde_json::json!({"url": format!("{base}/x")}))
+            .unwrap();
+        assert_eq!(out, format!("url: {base}/x | status: 200 OK\n\n# Local"));
         assert!(fetch_url("file:///etc/passwd").is_err());
     }
 
@@ -829,7 +811,7 @@ A | B\n1 | 2\n\n\
             }
         });
         let url = format!("http://127.0.0.1:{port}/");
-        let out = fetch_unguarded(&url).unwrap();
+        let out = fetch_url(&url).unwrap();
         let text = out.split_once("\n\n").unwrap().1;
         let one = "Hello **world** & [y](/x)";
         let want_len = one.len() * reps + 2 * (reps - 1);
@@ -870,7 +852,7 @@ A | B\n1 | 2\n\n\
         let (want_len, want_hash) = (want.len(), hash(&want));
         drop(want);
         let url = serve(n);
-        let out = fetch_unguarded(&url).unwrap();
+        let out = fetch_url(&url).unwrap();
         let text = out.split_once("\n\n").unwrap().1;
         assert_eq!(text.len(), want_len, "whole body, no cut");
         assert_eq!(hash(text.as_bytes()), want_hash);

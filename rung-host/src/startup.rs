@@ -44,6 +44,7 @@ use crate::notify::Notifier;
 use crate::presence::{Host, HostBuilder, Limits, Recovered as Woken};
 use crate::registry::{Instance, Registration};
 use crate::stop::{StopAuthority, Why};
+use crate::toolbox::{LiveWeb, NoWeb, WebReader};
 
 // ─── The file ────────────────────────────────────────────────────────────────
 
@@ -232,7 +233,8 @@ pub struct Plan {
     prober: Option<Arc<dyn Prober>>,
     listing: Option<Value>,
     memory: bool,
-    web: bool,
+    /// The `web_fetch` reader: refuses every fetch unless `web: true`.
+    web: Arc<dyn WebReader>,
     limits: Limits,
     acp: AcpPlan,
     desk: DecisionDesk,
@@ -492,7 +494,11 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
         prober,
         listing: None,
         memory: f.memory.unwrap_or(true),
-        web: f.web.unwrap_or(false),
+        web: if f.web.unwrap_or(false) {
+            Arc::new(LiveWeb)
+        } else {
+            Arc::new(NoWeb)
+        },
         limits: Limits {
             max_turns,
             until: f
@@ -643,9 +649,7 @@ ladder!(Startup {
         b.initial_listing = plan.listing;
         b.redactor = plan.redactor;
         b.limits = plan.limits;
-        if plan.web {
-            b.web = Arc::new(crate::toolbox::LiveWeb);
-        }
+        b.web = plan.web;
         if plan.memory {
             b.memory = Some(Arc::new(MemoryHost::baseline(&plan.state.join("memory"), "host")));
         }
@@ -797,19 +801,71 @@ mod desk_model_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
+    use std::sync::atomic::AtomicUsize;
 
-    #[test]
-    fn the_web_key_is_accepted() {
-        let d = crate::sim::temp_dir_guard("web-key");
+    /// A local server that counts the requests it receives.
+    fn counting_server() -> (String, Arc<AtomicUsize>) {
+        let hits = Arc::new(AtomicUsize::new(0));
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/page", l.local_addr().unwrap());
+        let h = hits.clone();
+        std::thread::spawn(move || {
+            for c in l.incoming() {
+                let Ok(mut c) = c else { return };
+                let mut buf = [0u8; 2048];
+                let _ = c.read(&mut buf);
+                h.fetch_add(1, Ordering::SeqCst);
+                let _ = c.write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok",
+                );
+            }
+        });
+        (url, hits)
+    }
+
+    /// The `web_fetch` reader a config file yields: the `web:` line, or none.
+    fn plan_web(name: &str, web_line: &str) -> Arc<dyn WebReader> {
+        let d = crate::sim::temp_dir_guard(name);
         let cfg = d.path().join("c.yaml");
         std::fs::write(
             &cfg,
             format!(
-                "state: {}\nweb: true\nengine: {{kind: mock}}\n",
+                "state: {}\n{web_line}engine: {{kind: mock}}\n",
                 d.path().join("s").display()
             ),
         )
         .unwrap();
-        assert!(configure(&cfg, Some(1)).is_ok());
+        let configured = configure(&cfg, Some(1)).expect("configured");
+        configured.payload.web.clone()
+    }
+
+    #[test]
+    fn web_is_off_unless_the_config_turns_it_on() {
+        for (name, line) in [("web-unset", ""), ("web-false", "web: false\n")] {
+            let (url, hits) = counting_server();
+            let (out, _) = plan_web(name, line).fetch(&url);
+            assert_eq!(out, Err("web_read is not wired in this build".to_string()));
+            assert_eq!(hits.load(Ordering::SeqCst), 0, "{name}: a request was made");
+        }
+        let (url, hits) = counting_server();
+        let (out, _) = plan_web("web-true", "web: true\n").fetch(&url);
+        assert!(out.unwrap().ends_with("ok"));
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn unknown_config_keys_are_still_refused() {
+        let d = crate::sim::temp_dir_guard("web-unknown");
+        let cfg = d.path().join("c.yaml");
+        std::fs::write(
+            &cfg,
+            format!(
+                "state: {}\nweb: true\nweb_fetch: true\nengine: {{kind: mock}}\n",
+                d.path().join("s").display()
+            ),
+        )
+        .unwrap();
+        assert!(configure(&cfg, Some(1)).is_err());
     }
 }

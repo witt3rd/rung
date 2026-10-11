@@ -251,16 +251,19 @@ impl WebReader for NoWeb {
 
 /// The live web: delegates to the whole-page `webfetch` tool of `rung-std`
 /// (markdown, final URL and status header, 30 s whole-body deadline). The
-/// page is returned whole and an error whole; no cap, no extra guard.
+/// page is returned whole and an error whole; no cap. It fetches any address
+/// it is given: it is not a security boundary.
+///
+/// The fetch spends real time, so it reports no simulated duration: the
+/// real clock would sleep a reported duration again, charging the call
+/// twice against its deadline.
 #[derive(Debug, Default)]
 pub struct LiveWeb;
 
 impl WebReader for LiveWeb {
     fn fetch(&self, url: &str) -> (Result<String, String>, Millis) {
         use rung_std::tools::{Tool, WebFetch};
-        let t = std::time::Instant::now();
-        let out = WebFetch.execute(&json!({"url": url}));
-        (out, t.elapsed().as_millis() as Millis)
+        (WebFetch.execute(&json!({"url": url})), 0)
     }
 }
 
@@ -770,10 +773,10 @@ mod tests {
         (out, core.clock.now() - start)
     }
 
-    /// One-shot local server (on 127.0.0.2: the URL guard refuses 127.0.0.1) answering a single GET with `body` (HTML).
+    /// One-shot local server answering a single GET with `body` (HTML).
     fn serve_once(body: String) -> String {
         use std::io::{Read, Write};
-        let l = std::net::TcpListener::bind("127.0.0.2:0").unwrap();
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = l.local_addr().unwrap();
         std::thread::spawn(move || {
             let (mut c, _) = l.accept().unwrap();
@@ -816,6 +819,86 @@ mod tests {
 
     /// #159: a long call no longer holds an owner who arrives during it for
     /// the whole 30 s tool deadline; it is cut once the owner waits.
+    /// A server that sends its headers and then the page after `delay`
+    /// (or never finishes it when `endless`).
+    fn serve_slow(delay: std::time::Duration, endless: bool) -> String {
+        use std::io::{Read, Write};
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        std::thread::spawn(move || {
+            let (mut c, _) = l.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let _ = c.read(&mut buf);
+            let _ = write!(
+                c,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 1000000\r\nConnection: close\r\n\r\n"
+            );
+            if endless {
+                loop {
+                    if c.write_all(b"x").is_err() {
+                        return;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                }
+            }
+            std::thread::sleep(delay);
+            let _ = c.write_all(&vec![b'p'; 1_000_000]);
+        });
+        format!("http://{addr}/slow")
+    }
+
+    /// A tool set on the real clock, as the running host has.
+    fn real_clock_tools(name: &str, web: Arc<dyn WebReader>) -> (HostTools, crate::sim::TempDir) {
+        let guard = crate::sim::temp_dir_guard(name);
+        let mut sc = crate::sim::Scenario::new(guard.path(), 1);
+        sc.clock = Some(Arc::new(crate::clock::RealClock));
+        let (host, _, _) = crate::sim::build(sc);
+        let core = host.core.clone();
+        let tools = HostTools::new(
+            core.clone(),
+            1,
+            [WEB_READ.to_string()].into(),
+            core.clock.now() + 120 * SECOND,
+            None,
+            web,
+            guard.path().join("ws"),
+        );
+        (tools, guard)
+    }
+
+    /// The fetch is charged once against the 30 s tool deadline: a page that
+    /// takes ~20 s arrives (it used to be charged twice and cut at ~15 s).
+    #[test]
+    fn a_20_second_fetch_is_charged_once() {
+        let url = serve_slow(std::time::Duration::from_secs(20), false);
+        let (tools, _g) = real_clock_tools("fetch-once", Arc::new(LiveWeb));
+        let t = std::time::Instant::now();
+        let out = tools.run("web_fetch", WEB_READ, &json!({"url": url}));
+        let out = out.expect("a 20 s fetch is within the 30 s deadline");
+        assert!(out.ends_with(&"p".repeat(1000)), "page not whole");
+        assert!(t.elapsed().as_secs() < 28, "charged more than once");
+    }
+
+    /// An endless body still stops at the 30 s deadline.
+    #[test]
+    fn an_endless_fetch_stops_at_the_deadline() {
+        let url = serve_slow(std::time::Duration::ZERO, true);
+        let (tools, _g) = real_clock_tools("fetch-endless", Arc::new(LiveWeb));
+        let t = std::time::Instant::now();
+        let out = tools.run("web_fetch", WEB_READ, &json!({"url": url}));
+        assert!(out.is_err(), "an endless body must not succeed");
+        let s = t.elapsed().as_secs();
+        assert!((29..=35).contains(&s), "stopped after {s} s");
+    }
+
+    /// The honest guard: any address is fetched, loopback included.
+    #[test]
+    fn live_web_fetches_loopback() {
+        let url = serve_once("<h1>Local</h1>".into());
+        let (out, _) = LiveWeb.fetch(&url);
+        assert!(out.unwrap().ends_with("# Local"));
+    }
+
     #[test]
     fn a_long_call_is_cut_when_the_owner_waits() {
         let (out, took) = slow_fetch(Some(5 * SECOND));
