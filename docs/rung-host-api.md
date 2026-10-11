@@ -659,7 +659,14 @@ the whole answer sees no difference. All refusals (an unknown instance, a
 missing state directory, a bad query) are answered before the first byte; the
 status is 200 once the page starts. If the record becomes unreadable part-way,
 the body ends with an error and the connection is closed, so a client sees a
-truncated answer, never a complete-looking short one. A reader that stops reading holds one blocking thread until it disconnects: there is no idle timeout (the tailnet is the boundary; declared policy). A newest-first page
+truncated answer, never a complete-looking short one. A reader that stops reading is dropped after a **stall deadline**
+(30 s with no chunk taken by the client; `Tuning::stall_deadline` sets it for
+a test): the one blocking thread that writes its page is freed, and the body
+ends in an error, so the client sees the same truncated answer as above. The
+deadline is on a stall, not on the page: a client that keeps taking chunks is
+never cut off, however large the page or long the read. Without it, a few
+hundred clients that connect and read nothing would hold every slot of the
+blocking pool and starve every other request. A newest-first page
 first reads the record once, holding only its position, to find where it ends,
 then reads backwards from there; an oldest-first page starts at once and learns
 `total` as it goes.
@@ -687,6 +694,18 @@ those lines, with `damaged` set and `problem` saying so. A torn last line of
 the newest segment is a write in flight, not damage, and is ignored. Nothing is
 repaired: reading never writes.
 
+### An id that is both configured and native
+
+An id may be named by the gateway config (with a `url` and a key) and also have
+an entry in the registry folder. The two are one instance with two sources, and
+the gateway splits the doors between them: the **registry wins what it can
+answer**. The list has one row for the id, the registry's (`source: "registry"`),
+and `summary` and `record` are read from the entry's state directory, running or
+not. Every other `/v1` door (the later slices' queue, config, stop, ...) passes
+through to the configured `url` with its key, as for any configured instance;
+an id with no configured entry answers those with 404 `not_found`, since the
+registry holds no address or key. Writes never come from the state directory.
+
 ### Proof
 
 `rung-gateway/tests/native_doors.rs` (22 tests) and
@@ -706,3 +725,11 @@ door, and the unset names reported; both roles allowed, an unknown token
 refused, the Host check applied; the state directory byte-identical (contents
 and times) after every door has answered; and a page of the whole record
 streamed with a counting allocator showing its peak a small fraction of the page.
+
+`rung-gateway/tests/native_doors_stall.rs` (3 tests, H3b), written first and
+kept red until the stall deadline existed: 520 clients that ask for the whole
+record and read nothing (more than the 512 blocking-pool slots) while a normal
+request still completes; a dropped client's answer ends short, never
+complete-looking; and a client that reads a ~12 MB page slowly, taking several
+times the deadline in all but a chunk well inside it each time, gets the whole
+page.

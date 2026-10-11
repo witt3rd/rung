@@ -4,6 +4,7 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -17,6 +18,7 @@ use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder as AutoBuilder;
 use serde_json::{Value, json};
+use tokio::sync::mpsc::error::SendTimeoutError;
 
 use crate::config::Settings;
 use crate::doors::{self, Access};
@@ -83,7 +85,28 @@ struct State {
     /// instance's config names, from everything they return.
     redactor: Redactor,
     client: Client<HttpConnector, Body>,
+    tuning: Tuning,
 }
+
+/// Knobs of a running gateway that tests turn; the defaults are what runs.
+#[derive(Clone, Copy, Debug)]
+pub struct Tuning {
+    /// How long a page being streamed waits for its client to take the next
+    /// chunk before the client is dropped. A bound on a stall, never on the
+    /// size of a page or how long a client that keeps reading takes.
+    pub stall_deadline: Duration,
+}
+
+impl Default for Tuning {
+    fn default() -> Self {
+        Tuning {
+            stall_deadline: STALL_DEADLINE,
+        }
+    }
+}
+
+/// A client that takes no chunk of a streamed page for this long is dropped.
+const STALL_DEADLINE: Duration = Duration::from_secs(30);
 
 /// Serve the settings' own instances.
 pub async fn start(settings: Settings) -> Result<Running, String> {
@@ -95,6 +118,15 @@ pub async fn start(settings: Settings) -> Result<Running, String> {
 pub async fn start_with_registry(
     settings: Settings,
     registry: Arc<dyn Registry>,
+) -> Result<Running, String> {
+    start_tuned(settings, registry, Tuning::default()).await
+}
+
+/// As [`start_with_registry`], with the knobs set.
+pub async fn start_tuned(
+    settings: Settings,
+    registry: Arc<dyn Registry>,
+    tuning: Tuning,
 ) -> Result<Running, String> {
     let listener = tokio::net::TcpListener::bind(settings.listen)
         .await
@@ -118,6 +150,7 @@ pub async fn start_with_registry(
         native_dir: settings.registry_dir,
         redactor,
         client: Client::builder(TokioExecutor::new()).build(connector),
+        tuning,
     });
     let task = tokio::spawn(async move {
         loop {
@@ -630,7 +663,7 @@ async fn native_door(
     };
     let r = red.clone();
     match blocking(move || rung_host::read::record_open(&dir, &id, &q, &r)).await {
-        Some(Ok(page)) => stream_page(page),
+        Some(Ok(page)) => stream_page(page, state.tuning.stall_deadline),
         Some(Err(e)) => door_error(e, &red),
         None => internal(),
     }
@@ -654,6 +687,13 @@ const AHEAD: usize = 2;
 struct ChannelWriter {
     tx: tokio::sync::mpsc::Sender<Result<Bytes, BoxErr>>,
     buf: Vec<u8>,
+    /// The runtime, to wait on the channel from this blocking thread.
+    rt: tokio::runtime::Handle,
+    /// How long the client may take no chunk before it is dropped.
+    stall: Duration,
+    /// Set when the client was dropped for stalling, so the body ends in an
+    /// error and not as a complete-looking short page.
+    cut: Arc<AtomicBool>,
 }
 
 impl ChannelWriter {
@@ -662,9 +702,23 @@ impl ChannelWriter {
             return Ok(());
         }
         let chunk = Bytes::from(std::mem::replace(&mut self.buf, Vec::with_capacity(CHUNK)));
-        self.tx
-            .blocking_send(Ok(chunk))
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::BrokenPipe, "client gone"))
+        match self
+            .rt
+            .block_on(self.tx.send_timeout(Ok(chunk), self.stall))
+        {
+            Ok(()) => Ok(()),
+            Err(SendTimeoutError::Timeout(_)) => {
+                self.cut.store(true, Ordering::SeqCst);
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "client stalled",
+                ))
+            }
+            Err(SendTimeoutError::Closed(_)) => Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "client gone",
+            )),
+        }
     }
 }
 
@@ -684,24 +738,48 @@ impl std::io::Write for ChannelWriter {
 
 /// Answer 200 and write the page as the reader produces it: one blocking task
 /// reads and redacts a line at a time into a channel of a few chunks, and the
-/// body is that channel. A failure part-way (the record became unreadable)
-/// ends the body with an error, which closes the connection: the client sees a
-/// truncated answer, never a complete-looking short one.
-fn stream_page(page: rung_host::read::RecordPage) -> Response<Body> {
+/// body is that channel. The task waits for a client that is slow, but only
+/// while the client keeps taking chunks: one that takes none for `stall` is
+/// dropped, which frees the task's blocking-pool slot (a pool of such waits
+/// would starve every other request). A failure part-way (the record became
+/// unreadable, or the client was dropped) ends the body with an error, which
+/// closes the connection: the client sees a truncated answer, never a
+/// complete-looking short one.
+fn stream_page(page: rung_host::read::RecordPage, stall: Duration) -> Response<Body> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, BoxErr>>(AHEAD);
+    let cut = Arc::new(AtomicBool::new(false));
+    let (rt, flag) = (tokio::runtime::Handle::current(), cut.clone());
     tokio::task::spawn_blocking(move || {
         let mut w = ChannelWriter {
             tx: tx.clone(),
             buf: Vec::with_capacity(CHUNK),
+            rt: rt.clone(),
+            stall,
+            cut: flag,
         };
-        if let Err(e) = page.write_json(&mut w)
-            && e.kind() != std::io::ErrorKind::BrokenPipe
-        {
-            let _ = tx.blocking_send(Err(Box::new(e)));
+        match page.write_json(&mut w) {
+            Ok(()) => {}
+            // the client went away: nobody is left to tell
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {}
+            // unreadable part-way, or the client was dropped for stalling:
+            // the channel may be full, so the failure is a flag the body
+            // reads after its last chunk (see the stream below)
+            Err(_) => w.cut.store(true, Ordering::SeqCst),
         }
     });
-    let stream = futures::stream::unfold(rx, |mut rx| async move {
-        rx.recv().await.map(|item| (item, rx))
+    // after the last chunk, a body whose writer failed ends in an error
+    let stream = futures::stream::unfold((rx, cut, false), |(mut rx, st, done)| async move {
+        if done {
+            return None;
+        }
+        match rx.recv().await {
+            Some(item) => Some((item, (rx, st, false))),
+            None if st.load(Ordering::SeqCst) => {
+                let e: BoxErr = "the page was cut short".into();
+                Some((Err(e), (rx, st, true)))
+            }
+            None => None,
+        }
     });
     let body = http_body_util::StreamBody::new(futures::StreamExt::map(stream, |item| {
         item.map(hyper::body::Frame::data)

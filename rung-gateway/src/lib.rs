@@ -18,4 +18,4 @@ pub use config::{Config, InstanceConfig, Settings};
 pub use doors::{Access, Door};
 pub use registry::{Instance, Registry, StaticRegistry};
 pub use role::Role;
-pub use server::{Running, start, start_with_registry};
+pub use server::{Running, Tuning, start, start_tuned, start_with_registry};
