@@ -53,8 +53,12 @@ material — todo items, projects, open questions, open expectations,
 integrity facts, recent traces — in creation order, never ranked. The
 agent picks. The optional `free_time_idle_rule: true` config key (default
 off) adds a sixth rule bounding the idle reply; see
-[`rung-host-free-time.md`](rung-host-free-time.md). Only the agent's tools
-change the mode:
+[`rung-host-free-time.md`](rung-host-free-time.md).
+On the rule-only desk, every turn kind (free time included) offers the
+`core`, `memory`, `read` and `workspace_write` groups; any other group is
+offered only after a recent `want_tools` request. The workspace is the
+host-owned sandbox, so writing there in free time is harmless.
+Only the agent's tools change the mode:
 
 | tool | effect |
 |---|---|

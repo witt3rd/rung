@@ -142,8 +142,9 @@ impl HostQuestion for Tools {
         let mut on = vec![CORE.to_string()];
         for g in askable(input) {
             let want = match g.as_str() {
-                MEMORY | READ => true,
-                WORKSPACE_WRITE => ctx.kind != TurnKind::Free,
+                // The workspace is the host-owned sandbox, so writing there
+                // is harmless in every turn kind, free time included.
+                MEMORY | READ | WORKSPACE_WRITE => true,
                 _ => ctx.wanted_recently.contains(g),
             };
             if want {
@@ -163,5 +164,48 @@ impl HostQuestion for Tools {
         ToolsChoice {
             enabled: on.into_iter().collect(),
         }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+
+    pub(crate) fn on(kind: TurnKind, wanted: &[&str]) -> Vec<String> {
+        let ceiling: Vec<String> = ["core", "memory", "read", "workspace_write", "web_read"]
+            .map(String::from)
+            .into();
+        let input = ToolsInput {
+            kind,
+            enabled: vec![],
+            ceiling,
+            wants: vec![],
+            uses_last_10: BTreeMap::new(),
+            turns_since_switch: BTreeMap::new(),
+        };
+        let ctx = ToolsCtx {
+            kind,
+            turn: 1,
+            wanted_recently: wanted.iter().map(|s| s.to_string()).collect(),
+        };
+        let c = Tools::rule(&input, &Knobs::default(), &ctx);
+        Tools::guard(&input, c, &Knobs::default(), &ctx).enabled
+    }
+
+    /// Free time offers exactly core, memory, read and workspace_write; web
+    /// and anything else stay off unless the agent asked for it.
+    #[test]
+    fn free_time_offers_workspace_write_and_nothing_wider() {
+        let mut got = on(TurnKind::Free, &[]);
+        got.sort();
+        assert_eq!(got, ["core", "memory", "read", "workspace_write"]);
+        assert!(on(TurnKind::Free, &["web_read"]).contains(&"web_read".to_string()));
+        let mut resp = on(TurnKind::Responding, &[]);
+        resp.sort();
+        assert_eq!(resp, ["core", "memory", "read", "workspace_write"]);
+    }
+
+    pub(crate) fn free_groups() -> Vec<String> {
+        on(TurnKind::Free, &[])
     }
 }

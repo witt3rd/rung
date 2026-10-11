@@ -7,6 +7,13 @@ git tags only.
 
 ## [Unreleased]
 
+### Changed
+- `rung-host`: the rule-only decision desk now enables `workspace_write` in
+  free time too (it was non-free turns only), so an agent can keep its own
+  files in its sandbox in its own time. Nothing else widens: free time still
+  has only `core`, `memory`, `read` and `workspace_write`, and `web_read` stays
+  off unless asked for.
+
 ## [0.3.0] - 2026-10-11
 
 ### Added

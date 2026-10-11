@@ -813,6 +813,32 @@ mod tests {
         assert_eq!(got, Ok(page));
     }
 
+    /// A write inside the workspace succeeds on the rule-only desk's
+    /// free-time tool set.
+    #[test]
+    fn free_time_write_inside_workspace_succeeds() {
+        let groups = crate::desk::tools::tests::free_groups();
+        assert!(groups.iter().any(|g| g == WORKSPACE_WRITE));
+        let guard = crate::sim::temp_dir_guard("free-ws-write");
+        let sc = crate::sim::Scenario::new(guard.path(), 1);
+        let (host, _, _) = crate::sim::build(sc);
+        let tools = HostTools::new(
+            host.core.clone(),
+            1,
+            groups.into_iter().collect(),
+            0,
+            None,
+            Arc::new(NoWeb),
+            guard.path().join("ws"),
+        );
+        let r = tools.run(
+            "ws_write",
+            WORKSPACE_WRITE,
+            &json!({"path": "brief.md", "text": "x"}),
+        );
+        assert_eq!(r, Ok("written".to_string()));
+    }
+
     #[test]
     fn a_huge_due_in_saturates() {
         let guard = crate::sim::temp_dir_guard("huge-due");
