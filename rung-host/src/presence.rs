@@ -366,9 +366,16 @@ impl Host {
     // record line, durable before it returns.
 
     /// Accept a stimulus from outside: recorded and fsynced before this
-    /// returns. An owner control (`stop`, `release`) acts at once.
-    pub fn accept_external(&self, item: &Item) {
-        self.accept(item);
+    /// returns. An owner control (`stop`, `release`) acts at once. True when
+    /// this call recorded it; false when the id was already accepted (nothing
+    /// is written then, but the earlier line is on disk before this returns, so
+    /// a caller that answers a repeat answers about a durable item).
+    pub fn accept_external(&self, item: &Item) -> bool {
+        let recorded = self.accept(item);
+        if !recorded {
+            self.core.sync();
+        }
+        recorded
     }
 
     /// Withdraw a stimulus that no boundary has admitted yet: its one
@@ -642,15 +649,20 @@ impl Host {
     }
 
     /// Record an item, durable before anything else.
-    fn accept(&self, item: &Item) {
+    fn accept(&self, item: &Item) -> bool {
         let core = &*self.core;
         // An id already accepted is never recorded twice: a second line
         // would overwrite the pending or in-flight copy and break
-        // one-disposal-per-item.
-        if core.state().inbox.seen.contains(&item.id) {
-            return;
+        // one-disposal-per-item. The check and the line are one step, so two
+        // callers with one id cannot both record it.
+        let recorded = core.emit_if(
+            "stimulus.accepted",
+            crate::inbox::accepted_body(item),
+            |st| !st.inbox.seen.contains(&item.id),
+        );
+        if recorded.is_none() {
+            return false;
         }
-        core.emit("stimulus.accepted", crate::inbox::accepted_body(item));
         core.sync();
         if let (Some(c), Role::Owner) = (&item.control, item.role) {
             let turn = core.state().turn;
@@ -666,6 +678,7 @@ impl Host {
                 _ => {}
             }
         }
+        true
     }
 
     fn fire_calendar(&self) {
