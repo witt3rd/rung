@@ -36,6 +36,17 @@ git tags only.
   them: the recalled quote is bounded by what the provider returns, a budget
   the provider declares (still honoured), and the model's context window.
 
+### Changed
+- `rung-std`: `webfetch` returns the whole body; the 512 KiB cut and its
+  `[truncated]` marker are removed. The body streams into one copy (the
+  returned text); the 30 s limit covers the whole body read, not only each read, so a slow or
+  endless server still ends in `webfetch: body not complete within 30s`.
+- `rung-std`: `webfetch` output changes format. A header line gives the
+  final URL (after redirects) and the HTTP status, then a blank line, then
+  the body. HTML becomes Markdown (headings, `[links](url)`, lists, code,
+  tables as ` | ` rows, images); text of `style`, `script`, `noscript` and
+  `template` is dropped. Other content types are returned as is.
+
 ## [0.2.3] - 2026-10-07
 
 Patch bump: backward compatible changes; memory timeouts are withdrawn from
