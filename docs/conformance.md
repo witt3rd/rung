@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 444 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 450 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -959,6 +959,15 @@ look shorter than it is.
 - `a_consumer_may_place_an_order_and_drive_it`
 - `an_invented_order_settles_exactly_as_a_real_one_does`
 - `the_knowledge_exists_upstream_and_cannot_cross`
+
+**`rung-gateway/tests/gateway.rs`** — 6 unclaimed
+
+- `config_names_variables_and_resolves_them`
+- `config_reads_allowed_hosts_as_names_only`
+- `config_refuses_what_it_cannot_serve_naming_the_variable_never_a_value`
+- `every_door_is_a_v1_door_with_one_row`
+- `roles_resolve_from_header_or_query`
+- `the_door_table_classifies_every_door_of_the_note`
 
 **`rung-het/tests/acceptance.rs`** — 2 unclaimed
 

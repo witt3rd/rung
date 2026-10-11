@@ -1557,6 +1557,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rung-gateway"
+version = "0.2.3"
+dependencies = [
+ "bytes",
+ "futures",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "reqwest",
+ "rung-testkit",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+]
+
+[[package]]
 name = "rung-het"
 version = "0.2.3"
 dependencies = [
