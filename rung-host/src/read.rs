@@ -47,7 +47,7 @@ pub struct DoorError {
 }
 
 impl DoorError {
-    fn new(status: u16, code: &'static str, message: impl Into<String>) -> Self {
+    pub(crate) fn new(status: u16, code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status,
             code,
@@ -104,7 +104,7 @@ pub struct Scanned {
 
 /// The state directory must be there: a dropped one is an error naming it,
 /// not an empty instance.
-fn check_state_dir(state_dir: &Path) -> Door<()> {
+pub(crate) fn check_state_dir(state_dir: &Path) -> Door<()> {
     match std::fs::metadata(state_dir) {
         Ok(m) if m.is_dir() => Ok(()),
         Ok(_) => Err(DoorError::new(
@@ -392,7 +392,7 @@ fn start_command(entry: &Entry) -> Option<String> {
 
 /// The names of the variables a config file says hold secrets: every
 /// `*_env` key, and the values of `acp.tokens`.
-fn env_names(v: &Value, out: &mut Vec<String>) {
+pub(crate) fn env_names(v: &Value, out: &mut Vec<String>) {
     match v {
         Value::Object(m) => {
             for (k, x) in m {
@@ -466,9 +466,8 @@ pub fn fleet_redactor(registry_dir: &Path, base: &Redactor) -> (Redactor, Vec<St
     names.dedup();
     let mut unset = Vec::new();
     for n in names {
-        match std::env::var(&n) {
-            Ok(v) if !v.trim().is_empty() => red.add_secret(&v),
-            _ => unset.push(n),
+        if !red.add_env(&n) {
+            unset.push(n);
         }
     }
     (red, unset)
@@ -504,6 +503,58 @@ fn locate(registry_dir: &Path, id: &str) -> Door<(Row, Entry)> {
 /// Is `id` a native instance the registry folder lists (readable or not)?
 pub fn is_registered(registry_dir: &Path, id: &str) -> bool {
     matches!(registry::row_in(registry_dir, id), Ok(Some(_)))
+}
+
+// ─── following an instance (H5) ──────────────────────────────────────────────
+
+/// What a gateway needs to follow one native instance's stream.
+#[derive(Debug, Clone)]
+pub struct StreamTarget {
+    pub state_dir: std::path::PathBuf,
+    /// Where the running host's own door is (`host:port`): only when its lock
+    /// is held and its entry has an address.
+    pub address: Option<String>,
+    /// The host's own role tokens (values), the owner's first, as the
+    /// gateway's process holds them: what the host's door takes.
+    pub tokens: Vec<String>,
+    /// The gateway's secrets and every config-named value of the registry.
+    pub red: Redactor,
+    pub env_unset: Vec<String>,
+}
+
+/// Find instance `id` for streaming. Errors are as the other doors', and as
+/// redacted.
+pub fn stream_target(registry_dir: &Path, id: &str, base: &Redactor) -> Door<StreamTarget> {
+    let (red, env_unset) = fleet_redactor(registry_dir, base);
+    let find = || -> Door<StreamTarget> {
+        let (row, entry) = locate(registry_dir, id)?;
+        check_state_dir(&entry.state_dir)?;
+        let mut tokens = Vec::new();
+        if let Some(c) = ConfigView::read(&entry).content
+            && let Some(t) = c["acp"]["tokens"].as_object()
+        {
+            let mut named: Vec<(&String, &Value)> = t.iter().collect();
+            named.sort_by_key(|(role, _)| role.as_str() != "owner");
+            for (_, name) in named {
+                if let Some(v) = name.as_str().and_then(|n| std::env::var(n).ok()) {
+                    let v = v.trim().to_string();
+                    if !v.is_empty() {
+                        tokens.push(v);
+                    }
+                }
+            }
+        }
+        Ok(StreamTarget {
+            state_dir: entry.state_dir.clone(),
+            address: (row.word == Word::Running)
+                .then(|| entry.address.clone())
+                .flatten(),
+            tokens,
+            red: red.clone(),
+            env_unset: env_unset.clone(),
+        })
+    };
+    find().map_err(|e| e.redacted(&red))
 }
 
 // ─── the summary ─────────────────────────────────────────────────────────────

@@ -85,6 +85,42 @@ pub type Connect = Arc<
 /// Whether a request's bearer token (if any) may reach the agent.
 pub type Authorize = Arc<dyn Fn(Option<&str>) -> bool + Send + Sync>;
 
+/// A request to a path other than `/acp`, as a [`Routes`] handler sees it.
+#[derive(Debug, Clone)]
+pub struct RouteRequest {
+    pub method: String,
+    pub path: String,
+    /// The raw query string, without the `?`.
+    pub query: Option<String>,
+    /// Header names lower-cased.
+    pub headers: Vec<(String, String)>,
+}
+
+/// A body written in pieces, as the client can take them: the listener asks
+/// for the next piece only when it can write one, so a client that does not
+/// read stops the producer, and a client that goes away drops it.
+pub trait BodyStream: Send {
+    fn next(&mut self) -> Pin<Box<dyn Future<Output = Option<Vec<u8>>> + Send + '_>>;
+}
+
+/// What a [`Routes`] handler answers.
+pub struct RouteReply {
+    pub status: u16,
+    pub headers: Vec<(String, String)>,
+    pub body: RouteBody,
+}
+
+pub enum RouteBody {
+    Bytes(Vec<u8>),
+    Stream(Box<dyn BodyStream>),
+}
+
+/// Answers a request to a path other than `/acp`, or `None` for not found.
+/// The handler does its own authorization: it sees the headers.
+pub type Routes = Arc<
+    dyn Fn(RouteRequest) -> Pin<Box<dyn Future<Output = Option<RouteReply>> + Send>> + Send + Sync,
+>;
+
 /// What a Streamable HTTP listener serves.
 #[derive(Clone)]
 pub struct Serve {
@@ -95,6 +131,8 @@ pub struct Serve {
     /// Every later request of a connection must carry the bearer token it
     /// initialized with (a connection's principal is fixed at initialize).
     pub bind_bearer: bool,
+    /// Paths other than `/acp`, if any (a host's own doors).
+    pub routes: Option<Routes>,
 }
 
 pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
@@ -115,6 +153,7 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
             })
         }),
         bind_bearer: false,
+        routes: None,
     };
     listen_with(addr, serve).await
 }
@@ -324,7 +363,7 @@ async fn dispatch(
     req: Request<Incoming>,
 ) -> Response<BoxBody<Bytes, Infallible>> {
     if req.uri().path() != "/acp" {
-        return text(StatusCode::NOT_FOUND, "Not Found");
+        return route(&state, &req).await;
     }
     if !authorized(&state, &req) {
         return text(StatusCode::UNAUTHORIZED, "Unauthorized");
@@ -335,6 +374,57 @@ async fn dispatch(
         Method::DELETE => delete(state, req),
         _ => text(StatusCode::METHOD_NOT_ALLOWED, "Method Not Allowed"),
     }
+}
+
+/// A path other than `/acp`: the embedding's own route, or not found.
+async fn route(state: &HttpState, req: &Request<Incoming>) -> Response<BoxBody<Bytes, Infallible>> {
+    let Some(routes) = &state.serve.routes else {
+        return text(StatusCode::NOT_FOUND, "Not Found");
+    };
+    let request = RouteRequest {
+        method: req.method().as_str().to_string(),
+        path: req.uri().path().to_string(),
+        query: req.uri().query().map(String::from),
+        headers: req
+            .headers()
+            .iter()
+            .filter_map(|(k, v)| Some((k.as_str().to_string(), v.to_str().ok()?.to_string())))
+            .collect(),
+    };
+    let Some(reply) = routes(request).await else {
+        return text(StatusCode::NOT_FOUND, "Not Found");
+    };
+    let mut b = Response::builder().status(reply.status);
+    for (k, v) in &reply.headers {
+        if let (Ok(k), Ok(v)) = (HeaderName::try_from(k.as_str()), HeaderValue::from_str(v)) {
+            b = b.header(k, v);
+        }
+    }
+    let body = match reply.body {
+        RouteBody::Bytes(v) => Full::new(Bytes::from(v)).boxed(),
+        RouteBody::Stream(s) => {
+            // one piece in flight at a time: the producer is asked for the next
+            // only when the client has taken the last, and is dropped the moment
+            // the client goes away (its pending wait is cut)
+            let (tx, rx) = mpsc::channel::<Result<Frame<Bytes>, Infallible>>(1);
+            tokio::spawn(async move {
+                let mut s = s;
+                loop {
+                    let piece = tokio::select! {
+                        _ = tx.closed() => break,
+                        p = s.next() => p,
+                    };
+                    let Some(piece) = piece else { break };
+                    if tx.send(Ok(Frame::data(Bytes::from(piece)))).await.is_err() {
+                        break;
+                    }
+                }
+            });
+            let stream = BoundedFrames { rx };
+            BodyExt::boxed(StreamBody::new(stream))
+        }
+    };
+    b.body(body).expect("response")
 }
 
 async fn post(
@@ -845,6 +935,17 @@ fn sse(lease: Lease) -> Response<BoxBody<Bytes, Infallible>> {
         .header(hyper::header::CONNECTION, "keep-alive")
         .body(BodyExt::boxed(StreamBody::new(stream)))
         .expect("response")
+}
+
+struct BoundedFrames {
+    rx: mpsc::Receiver<Result<Frame<Bytes>, Infallible>>,
+}
+
+impl Stream for BoundedFrames {
+    type Item = Result<Frame<Bytes>, Infallible>;
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.rx.poll_recv(cx)
+    }
 }
 
 struct UnboundedFrames {

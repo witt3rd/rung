@@ -358,7 +358,7 @@ impl Row {
 /// Is a host holding the state directory's lock? A shared, non-blocking
 /// probe: it succeeds only when no host holds the exclusive lock, and it is
 /// released at once.
-fn state_held(state_dir: &Path) -> Result<bool, String> {
+pub fn state_held(state_dir: &Path) -> Result<bool, String> {
     let path = state_dir.join(statelock::FILE);
     let f = match File::open(&path) {
         Ok(f) => f,

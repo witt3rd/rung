@@ -94,6 +94,10 @@ pub struct TurnRequest {
     pub deadline: Millis,
     /// Model calls the turn may make.
     pub step_cap: u32,
+    /// Where the turn publishes its partial text and tool progress (H5):
+    /// short-lived frames for whoever is watching, never recorded. An engine
+    /// that has none to give ignores it.
+    pub live: crate::stream::LiveTurn,
 }
 
 /// How a turn ended.

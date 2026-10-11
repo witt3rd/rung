@@ -553,6 +553,11 @@ async fn pass_through(
         return read_only();
     }
     if let Some(dir) = native
+        && rest == "/v1/events"
+    {
+        return native_events(state, dir.clone(), id, &req, query).await;
+    }
+    if let Some(dir) = native
         && matches!(rest, "/v1/summary" | "/v1/record")
     {
         return native_door(state, dir.clone(), id, rest, &req, query).await;
@@ -605,15 +610,7 @@ async fn pass_through(
 
 /// The query's pairs, decoded; `None` when a value is not valid UTF-8.
 fn query_pairs(query: Option<&str>) -> Option<Vec<(String, String)>> {
-    query
-        .unwrap_or("")
-        .split('&')
-        .filter(|p| !p.is_empty())
-        .map(|p| {
-            let (k, v) = p.split_once('=').unwrap_or((p, ""));
-            Some((decode(k)?, decode(v)?))
-        })
-        .collect()
+    rung_host::stream::query_pairs(query)
 }
 
 /// An H3 read door of a native instance, answered from its state directory.
@@ -789,6 +786,175 @@ fn stream_page(page: rung_host::read::RecordPage, stall: Duration) -> Response<B
     r.headers_mut()
         .insert("content-type", HeaderValue::from_static("application/json"));
     r
+}
+
+/// How long the gateway waits for a running host's own door to answer before it
+/// streams the record without partial frames. A bound on a probe, not on any
+/// content.
+const UPSTREAM_WAIT: Duration = Duration::from_secs(5);
+/// Partial frames waiting between the host's door and one client.
+const UPSTREAM_AHEAD: usize = 64;
+
+/// `GET /v1/events` of a native instance (H5): the record from the client's
+/// cursor, then as it is written, read from the instance's own state
+/// directory by one async reader per client; a stopped instance replays and
+/// ends. The partial frames of a running host's turn are relayed from the
+/// host's own door when the registry gives its address and the gateway holds
+/// its token. Every frame is redacted with the registry-wide redactor.
+async fn native_events(
+    state: &State,
+    dir: PathBuf,
+    id: &str,
+    req: &Request<Incoming>,
+    query: Option<String>,
+) -> Response<Body> {
+    use rung_host::stream::{Events, EventsQuery, Options, Partials, sse_headers};
+    let head = *req.method() == Method::HEAD;
+    if !matches!(*req.method(), Method::GET | Method::HEAD) {
+        return error(
+            StatusCode::METHOD_NOT_ALLOWED,
+            "method_not_allowed",
+            "this door only reads",
+        );
+    }
+    let base = request_redactor(state);
+    let bad = |m: &str| error(StatusCode::BAD_REQUEST, "bad_request", m);
+    let Some(pairs) = query_pairs(query.as_deref()) else {
+        return bad("the query is not UTF-8");
+    };
+    let last_id = req
+        .headers()
+        .get("last-event-id")
+        .and_then(|v| v.to_str().ok());
+    let q = match EventsQuery::parse(&pairs, last_id) {
+        Ok(q) => q,
+        Err(e) => return door_error(e, &base),
+    };
+    let (rdir, rid, rbase) = (dir, id.to_string(), base.clone());
+    let target = match blocking(move || rung_host::read::stream_target(&rdir, &rid, &rbase)).await {
+        Some(Ok(t)) => t,
+        Some(Err(e)) => return door_error(e, &base),
+        None => return internal(),
+    };
+    let upstream = match (&target.address, q.partials) {
+        (Some(addr), Partials::On | Partials::Only) if !head => {
+            host_partials(state, addr, &target.tokens).await
+        }
+        _ => None,
+    };
+    let mut o = Options::new(target.red.clone());
+    o.after = q.after;
+    o.partials = q.partials;
+    o.env_unset = target.env_unset.clone();
+    o.upstream = upstream;
+    let events = match Events::open(&target.state_dir, o).await {
+        Ok(ev) => ev,
+        Err(e) => return door_error(e, &target.red),
+    };
+    let body = if head { empty() } else { sse_body(events) };
+    let mut r = Response::new(body);
+    for (k, v) in sse_headers() {
+        if let (Ok(k), Ok(v)) = (HeaderName::try_from(k.as_str()), HeaderValue::from_str(&v)) {
+            r.headers_mut().insert(k, v);
+        }
+    }
+    r
+}
+
+/// A client's event stream as a response body. One task asks the stream for
+/// its next frame only when the client has taken the last (a channel of one),
+/// and it, with the stream's file and subscriptions, goes the moment the client
+/// does. It holds no thread while it waits.
+fn sse_body(mut events: rung_host::stream::Events) -> Body {
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, BoxErr>>(1);
+    tokio::spawn(async move {
+        loop {
+            let frame = tokio::select! {
+                _ = tx.closed() => break,
+                f = events.next() => f,
+            };
+            let Some(frame) = frame else { break };
+            if tx.send(Ok(Bytes::from(frame.sse()))).await.is_err() {
+                break;
+            }
+        }
+    });
+    let stream = futures::stream::unfold(rx, |mut rx| async move {
+        rx.recv().await.map(|item| (item, rx))
+    });
+    http_body_util::StreamBody::new(futures::StreamExt::map(stream, |item| {
+        item.map(hyper::body::Frame::data)
+    }))
+    .boxed()
+}
+
+/// Ask a running host's own door for its partial frames (`partials=only`) and
+/// relay them as they come. `None` when the host cannot be reached or takes no
+/// token the gateway holds: the record still streams, and the first frame says
+/// there are no partial frames. A host that goes away later ends the relay;
+/// the record goes on.
+async fn host_partials(
+    state: &State,
+    address: &str,
+    tokens: &[String],
+) -> Option<tokio::sync::mpsc::Receiver<rung_host::stream::Partial>> {
+    let token = tokens.first()?;
+    let authorization = HeaderValue::from_str(&format!("Bearer {token}")).ok()?;
+    let req = Request::builder()
+        .uri(format!("http://{address}/v1/events?partials=only"))
+        .header("authorization", authorization)
+        .header("accept", "text/event-stream")
+        .body(empty())
+        .ok()?;
+    let resp = tokio::time::timeout(UPSTREAM_WAIT, state.client.request(req))
+        .await
+        .ok()?
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let (tx, rx) = tokio::sync::mpsc::channel(UPSTREAM_AHEAD);
+    let mut body = resp.into_body();
+    tokio::spawn(async move {
+        let mut buf = String::new();
+        loop {
+            let frame = tokio::select! {
+                _ = tx.closed() => break,
+                f = body.frame() => f,
+            };
+            let Some(Ok(frame)) = frame else { break };
+            let Some(data) = frame.data_ref() else {
+                continue;
+            };
+            buf.push_str(&String::from_utf8_lossy(data));
+            while let Some(i) = buf.find("\n\n") {
+                let block: String = buf.drain(..i + 2).collect();
+                if let Some(p) = parse_delta(&block)
+                    && tx.send(p).await.is_err()
+                {
+                    return;
+                }
+            }
+        }
+    });
+    Some(rx)
+}
+
+/// A `delta` frame of the host's door, as a partial frame; anything else
+/// (comments, the open frame) is nothing to relay.
+fn parse_delta(block: &str) -> Option<rung_host::stream::Partial> {
+    let mut event = "";
+    let mut data = String::new();
+    for l in block.lines() {
+        if let Some(v) = l.strip_prefix("event: ") {
+            event = v;
+        } else if let Some(v) = l.strip_prefix("data: ") {
+            data.push_str(v);
+        }
+    }
+    (event == "delta")
+        .then(|| serde_json::from_str(&data).ok())
+        .flatten()
 }
 
 fn door_error(e: rung_host::read::DoorError, red: &Redactor) -> Response<Body> {

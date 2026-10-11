@@ -36,6 +36,7 @@
 //! hook; it never decides anything the loop decides.
 
 use std::collections::{BTreeMap, HashMap};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -59,6 +60,7 @@ use crate::core::lock;
 use crate::inbox::{Item, Role};
 use crate::presence::Host;
 use crate::record::{Line, Record};
+use crate::redact::Redactor;
 
 /// Who is on the other end of a transport: the highest role its channels
 /// may take.
@@ -772,6 +774,9 @@ pub fn serve_stdio(acp: Arc<Acp>, principal: Principal) -> Result<(), String> {
 /// initialized with; every later request on it must carry the same token.
 /// A request with no known token is refused (401). At least one token is
 /// required: an unauthenticated HTTP surface is not served.
+///
+/// The same listener carries the host's own doors beside `/acp`; today one:
+/// `GET /v1/events`, the host's event stream with replay (H5).
 pub fn serve_http(acp: Arc<Acp>, addr: &str, tokens: Vec<(String, Role)>) -> Result<(), String> {
     serve_http_bound(acp, addr, tokens, |_| {})
 }
@@ -784,9 +789,42 @@ pub fn serve_http_bound(
     tokens: Vec<(String, Role)>,
     on_bound: impl FnOnce(std::net::SocketAddr),
 ) -> Result<(), String> {
+    serve_http_with(acp, addr, tokens, Redactor::new(), Vec::new(), on_bound)
+}
+
+/// [`serve_http_bound`], with the redactor the host's own doors pass every
+/// frame through: it removes the value of every key the host's config names
+/// by variable, as well as the known key shapes (and, always, the host's own
+/// tokens). `env_unset` names the variables the config names that this
+/// process does not hold (their values cannot be found by value); the stream's
+/// first frame carries them.
+pub fn serve_http_with(
+    acp: Arc<Acp>,
+    addr: &str,
+    tokens: Vec<(String, Role)>,
+    mut red: Redactor,
+    env_unset: Vec<String>,
+    on_bound: impl FnOnce(std::net::SocketAddr),
+) -> Result<(), String> {
     if tokens.is_empty() {
         return Err("ACP over HTTP needs at least one role token".into());
     }
+    for (t, _) in &tokens {
+        red.add_secret(t);
+    }
+    let door = Arc::new(EventsDoor {
+        state_dir: acp
+            .host
+            .core
+            .record_dir()
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default(),
+        bus: acp.host.live(),
+        red,
+        env_unset,
+        tokens: tokens.iter().map(|(t, _)| t.clone()).collect(),
+    });
     let tokens: Arc<HashMap<String, Role>> = Arc::new(tokens.into_iter().collect());
     let t2 = tokens.clone();
     let serve = rung_agent_core::acp_http::Serve {
@@ -802,6 +840,7 @@ pub fn serve_http_bound(
             })
         }),
         bind_bearer: true,
+        routes: Some(door.routes()),
     };
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -812,6 +851,85 @@ pub fn serve_http_bound(
         serve,
         on_bound,
     ))
+}
+
+/// The host's own doors on its listener (H5).
+pub struct EventsDoor {
+    /// The state directory whose record the door follows.
+    pub state_dir: PathBuf,
+    pub bus: Arc<crate::stream::LiveBus>,
+    pub red: Redactor,
+    /// Variables the config names that this process does not hold, sorted.
+    pub env_unset: Vec<String>,
+    /// The tokens that may read: any role's.
+    pub tokens: std::collections::HashSet<String>,
+}
+
+impl EventsDoor {
+    /// `GET /v1/events`: the record from the client's cursor, then as it is
+    /// written, with the running turn's partial frames. Any of the host's role
+    /// tokens may read it (a token that names no role is refused 401); every
+    /// frame is redacted. Shapes: `docs/rung-host-api.md` (H5).
+    pub fn routes(self: &Arc<Self>) -> rung_agent_core::acp_http::Routes {
+        use rung_agent_core::acp_http::{RouteBody, RouteReply, RouteRequest};
+        let door = self.clone();
+        Arc::new(move |req: RouteRequest| {
+            let door = door.clone();
+            Box::pin(async move {
+                if req.path != "/v1/events" {
+                    return None;
+                }
+                let error = |status: u16, code: &str, message: &str| {
+                    let body = json!({"error": code, "message": message});
+                    Some(RouteReply {
+                        status,
+                        headers: vec![("content-type".into(), "application/json".into())],
+                        body: RouteBody::Bytes(body.to_string().into_bytes()),
+                    })
+                };
+                let header = |n: &str| {
+                    req.headers
+                        .iter()
+                        .find(|(k, _)| k == n)
+                        .map(|(_, v)| v.as_str())
+                };
+                let bearer = header("authorization").and_then(|v| v.strip_prefix("Bearer "));
+                if !bearer.is_some_and(|b| door.tokens.contains(b)) {
+                    return error(401, "unauthorized", "the token is not recognised");
+                }
+                let head = req.method == "HEAD";
+                if req.method != "GET" && !head {
+                    return error(405, "method_not_allowed", "this door only reads");
+                }
+                let Some(pairs) = crate::stream::query_pairs(req.query.as_deref()) else {
+                    return error(400, "bad_request", "the query is not UTF-8");
+                };
+                let q = match crate::stream::EventsQuery::parse(&pairs, header("last-event-id")) {
+                    Ok(q) => q,
+                    Err(e) => return error(e.status, e.code, &e.message),
+                };
+                let mut o = crate::stream::Options::new(door.red.clone());
+                o.after = q.after;
+                o.partials = q.partials;
+                o.env_unset = door.env_unset.clone();
+                o.bus = Some(door.bus.clone());
+                match crate::stream::Events::open(&door.state_dir, o).await {
+                    // HEAD: the headers of a stream, and no body
+                    Ok(_) if head => Some(RouteReply {
+                        status: 200,
+                        headers: crate::stream::sse_headers(),
+                        body: RouteBody::Bytes(Vec::new()),
+                    }),
+                    Ok(ev) => Some(RouteReply {
+                        status: 200,
+                        headers: crate::stream::sse_headers(),
+                        body: RouteBody::Stream(Box::new(ev)),
+                    }),
+                    Err(e) => error(e.status, e.code, &e.message),
+                }
+            }) as std::pin::Pin<Box<dyn std::future::Future<Output = _> + Send>>
+        })
+    }
 }
 
 #[cfg(test)]
