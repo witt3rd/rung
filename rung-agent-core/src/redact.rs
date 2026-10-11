@@ -287,11 +287,33 @@ fn escaped_quote_at(b: &[u8], odd: &[bool], i: usize) -> bool {
     escape_at(b, odd, i) && matches!(b.get(i + 1), Some(b'"' | b'\''))
 }
 
-/// The escaped quote that closes a value inside JSON-escaped text: a single
-/// backslash before the quote (three, `\\\"`, is an inner quote of a value
-/// that holds an escaped backslash).
+/// The quote that closes a value inside JSON-escaped text (a value that
+/// opened with an escaped quote). Such text has two layers of escaping, so a
+/// quote after one backslash closes (`\"`), after three it is an inner quote
+/// of the value (`\\\"` is the document's `\"`), after five it closes again
+/// (the value ends in a backslash, `\\` doubled, then `\"`), and so on: the
+/// backslash run before the quote is 1 mod 4 for a close. When the layers are
+/// unclear the reading that keeps the value going is the safe one, so a
+/// secret is never left in clear.
 fn closing_escaped_quote_at(b: &[u8], i: usize) -> bool {
-    b[i] == b'\\' && !(i > 0 && b[i - 1] == b'\\') && matches!(b.get(i + 1), Some(b'"' | b'\''))
+    if !matches!(b[i], b'"' | b'\'') {
+        return false;
+    }
+    let mut run = 0;
+    while run < i && b[i - 1 - run] == b'\\' {
+        run += 1;
+    }
+    run % 4 == 1
+}
+
+/// Where a value ends given the index `at` a search for its end stopped at:
+/// before the backslash that escapes the closing quote, if it stopped at one.
+fn value_end(b: &[u8], at: usize) -> usize {
+    if at < b.len() && closing_escaped_quote_at(b, at) {
+        at - 1
+    } else {
+        at
+    }
 }
 
 /// An escape that breaks a line or a value (`\n`, `\r`).
@@ -679,9 +701,13 @@ impl<'a, 'r> Scan<'a, 'r> {
             Close::Quote(q) => self.sq_close.find(b, start, |b, i| {
                 line_end(b[i]) || closing_quote_at(b, odd, i, q)
             }),
-            Close::Escaped => self.esc_close.find(b, start, |b, i| {
-                line_end(b[i]) || closing_escaped_quote_at(b, i)
-            }),
+            Close::Escaped => {
+                let at = self.esc_close.find(b, start, |b, i| {
+                    line_end(b[i]) || closing_escaped_quote_at(b, i)
+                });
+                // The hit is the quote; the value ends before its escape.
+                value_end(b, at)
+            }
         }
     }
 
@@ -729,7 +755,7 @@ impl<'a, 'r> Scan<'a, 'r> {
                                 Some(Close::Quote(_)) => 2,
                                 Some(Close::Escaped) => 3,
                             };
-                            self.hdr_line[slot].find(b, p, |b, j| {
+                            let at = self.hdr_line[slot].find(b, p, |b, j| {
                                 line_end(b[j])
                                     || escaped_break_at(b, odd, j)
                                     || match opener {
@@ -737,7 +763,11 @@ impl<'a, 'r> Scan<'a, 'r> {
                                         Some(Close::Quote(q)) => closing_quote_at(b, odd, j, q),
                                         Some(Close::Escaped) => closing_escaped_quote_at(b, j),
                                     }
-                            })
+                            });
+                            match opener {
+                                Some(Close::Escaped) => value_end(b, at),
+                                _ => at,
+                            }
                         }
                         Class::Token => self.hdr_token.find(b, p, |b, j| {
                             line_end(b[j])

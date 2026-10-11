@@ -650,6 +650,17 @@ fn a_quote_is_escaped_by_the_parity_of_the_backslashes_before_it() {
             r#"{\"password\": \"SENTINELabc\\\"xyz0123\", \"n\": 1}"#,
             format!(r#"{{\"password\": \"{MARK}\", \"n\": 1}}"#),
         ),
+        // The same, when the value ends in a backslash: JSON-in-JSON writes it
+        // as four backslashes and the closing quote as one more, five in all.
+        (
+            r#"{\"password\": \"SENTINELabc\\\\\", \"n\": 1}"#,
+            format!(r#"{{\"password\": \"{MARK}\", \"n\": 1}}"#),
+        ),
+        // Seven: an escaped backslash pair and an inner escaped quote (three).
+        (
+            r#"{\"password\": \"SENTINELabc\\\\\\\"xyz0123\", \"n\": 1}"#,
+            format!(r#"{{\"password\": \"{MARK}\", \"n\": 1}}"#),
+        ),
         // A line break escape after an escaped backslash still ends a value.
         (
             r"password=SENTINELabc\\\nnext ok",
