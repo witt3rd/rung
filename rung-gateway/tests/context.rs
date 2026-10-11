@@ -81,13 +81,14 @@ fn story(layers: bool, recall: &str) -> String {
         let mut tl = json!({"turn": t, "header": format!("[turn {t}]"), "recall": layers && t == 2,
                             "messages": [assistant("looking"), user("found"), assistant("done")]});
         if layers {
-            let sent = if t == 2 {
-                format!("[turn {t}]\n{recall}")
+            // the recall once, with the hash of what is stored
+            if t == 2 {
+                tl["recall_text"] = recall.into();
+                tl["recall_hash"] = rung_host::canon::hash(recall.as_bytes()).into();
             } else {
-                format!("[turn {t}]")
-            };
-            tl["header_sent"] = sent.into();
-            tl["recall_text"] = if t == 2 { recall.into() } else { Value::Null };
+                tl["recall_text"] = Value::Null;
+                tl["recall_hash"] = Value::Null;
+            }
         }
         put("turn.log", tl);
         put("turn.ended", json!({"turn": t, "status": "completed"}));

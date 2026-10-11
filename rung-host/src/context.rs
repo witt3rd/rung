@@ -139,11 +139,16 @@ struct HistSeen {
 /// This turn's `turn.log`.
 struct LogSeen {
     seq: u64,
-    /// The line has the header as sent (not a record of before).
+    /// The line is from after the request was recorded (it has `recall_text`,
+    /// null when the turn had no recall).
     sent: bool,
     message_bytes: usize,
     recall_bytes: usize,
     has_recall: bool,
+    /// The stored recall text matches its recorded hash.
+    recall_intact: bool,
+    /// What the record cannot give back whole, in words.
+    problems: Vec<String>,
     /// Canonical bytes of each message of the turn.
     sizes: Vec<usize>,
     /// Which of them are the model's.
@@ -166,6 +171,7 @@ struct Plan {
     /// How many of the turn's messages the request held at this call.
     split: usize,
     missing: Vec<&'static str>,
+    problems: Vec<String>,
     /// Estimated tokens and cache mark of each band present, in order.
     bands: Vec<(&'static str, usize, Mark)>,
     scale: Option<f64>,
@@ -420,6 +426,7 @@ fn plan(
         layers: layer.map(|x| x.seq),
         roll: roll.map(|x| x.seq),
         hist: hist.iter().map(|h| h.seq).collect(),
+        problems: log.problems.clone(),
         log,
         split,
         missing,
@@ -433,11 +440,22 @@ fn plan(
     })
 }
 
-/// A past turn's size in the history: its header as the model saw it (the one
-/// with the recall, when the line has it) and its messages.
+/// The header as the model saw it, rebuilt from the one copy of the recall:
+/// the header, a line break and the recall block, when the turn had one. And
+/// whether that is the whole of it (a turn that was shown a recall the record
+/// holds no text for is not).
+fn header_as_sent(l: &Line) -> (String, bool) {
+    let header = l.str("header");
+    match l.get("recall_text").as_str() {
+        Some(r) => (format!("{header}\n{r}"), true),
+        None => (header.to_string(), l.get("recall") != &Value::Bool(true)),
+    }
+}
+
+/// A past turn's size in the history: its header as the model saw it and its
+/// messages.
 fn history_bytes(l: &Line) -> usize {
-    let header = l.get("header_sent").as_str().unwrap_or(l.str("header"));
-    user_bytes(header)
+    user_bytes(&header_as_sent(l).0)
         + messages_of(l)
             .iter()
             .map(|m| canon::bytes(m).len() + 1)
@@ -453,21 +471,39 @@ fn messages_of(l: &Line) -> &[Value] {
 
 fn log_seen(l: &Line) -> LogSeen {
     let messages = messages_of(l);
-    let sent = l.get("header_sent").as_str();
     let recall = l.get("recall_text").as_str();
+    let mut problems = Vec::new();
+    let mut recall_intact = true;
+    let turn = l.u64("turn");
+    match (recall, l.get("recall") == &Value::Bool(true)) {
+        (None, true) if l.body.contains_key("recall_text") => problems.push(format!(
+            "turn {turn} was shown a recall but the record holds no recall text for it"
+        )),
+        (Some(r), _) => {
+            if let Some(h) = l.get("recall_hash").as_str()
+                && h != canon::hash(r.as_bytes())
+            {
+                recall_intact = false;
+                problems.push(format!(
+                    "the recall text of turn {turn} does not match its recorded hash; it is shown as recorded"
+                ));
+            }
+        }
+        _ => {}
+    }
+    let (full, _) = header_as_sent(l);
     // the header is one message; its recall is the tail, after a line break
     // (the text's bytes as JSON carries them, without the quotes)
     let recall_bytes = recall.map_or(0, |r| canon::of(r).len().saturating_sub(2));
-    let message_bytes = match sent {
-        Some(h) => user_bytes(h).saturating_sub(recall_bytes),
-        None => user_bytes(l.str("header")),
-    };
+    let message_bytes = user_bytes(&full).saturating_sub(recall_bytes);
     LogSeen {
         seq: l.seq,
-        sent: sent.is_some(),
+        sent: l.body.contains_key("recall_text"),
         message_bytes,
         recall_bytes,
         has_recall: recall.is_some(),
+        recall_intact,
+        problems,
         sizes: messages.iter().map(|m| canon::bytes(m).len() + 1).collect(),
         assistant: messages
             .iter()
@@ -510,9 +546,10 @@ impl ContextPage {
                          "expected_cached_tokens": c["prefix"].get("expected_cached_tokens")},
             "cache_event": p.cache_event,
             "rewritten": p.rewritten,
-            "recorded": p.missing.is_empty(),
+            "recorded": p.missing.is_empty() && p.problems.is_empty(),
             "note": if p.missing.is_empty() { Value::Null } else { PREDATES.into() },
             "missing": p.missing,
+            "problems": p.problems,
             "estimate_tokens": p.estimate,
             "scale": p.scale.map(canon::fixed),
             "boundaries": p.boundaries,
@@ -671,11 +708,11 @@ impl Writer<'_> {
             }
             Need::Hist => {
                 self.history_open()?;
-                let sent = l.get("header_sent").as_str();
+                let (header, complete) = header_as_sent(l);
                 let row = self.plan.red.redact_value(&json!({
                     "turn": l.u64("turn"),
-                    "header": sent.unwrap_or(l.str("header")),
-                    "header_complete": sent.is_some(),
+                    "header": header,
+                    "header_complete": complete,
                     "messages": l.get("messages"),
                 }));
                 if self.rows > 0 {
@@ -693,6 +730,7 @@ impl Writer<'_> {
                 if let Some(r) = l.get("recall_text").as_str() {
                     let mut m = Map::new();
                     m.insert("text".into(), r.into());
+                    m.insert("intact".into(), self.plan.log.recall_intact.into());
                     self.band("recall", m)?;
                 }
                 let upto = self.plan.split.min(messages_of(l).len());

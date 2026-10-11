@@ -970,7 +970,7 @@ itself. Nothing is cut or shortened; a layer is one whole string in one line.
 |---|---|---|
 | `pack.layers` | `cause` (`start`, `swap`), `s_hash`, `tools` (the tool definitions, whole, as the provider is sent them), `system` (the system text, whole) | at every start, in the same write as `host.start`; and at every swap of the stable layer (`Host::swap_stable`, with its `pack.swap`, in one write) |
 | `epoch.rollover` | `l_hash`, `slow` (the epoch layer: the one message the epoch's requests start with, whole) | at every rollover (and at a start or wake, which roll over) |
-| `turn.log` | `header_sent` (the turn header as the model saw it, the recall block included), `recall_text` (the recall block alone, or null when the turn had none) | when the turn ends, as `turn.log` always was |
+| `turn.log` | `recall_text` (the recall block, whole, **once**; null when the turn had none), `recall_hash` (the hash of the text as stored; null with it) | when the turn ends, as `turn.log` always was |
 | `host.start` | `config` now passes the redactor too (a secret in the identity or the pinned lines is also in the system text) | at every start |
 
 `s_hash` and `l_hash` are the hashes the pack already computes of the
@@ -980,18 +980,35 @@ is joined to its calls whether or not something in it was replaced.
 unchanged. The request bytes sent to the provider, the cache breakpoints and
 the pack are unchanged: only what is written changes.
 
+**The recall is written once.** `turn.log.header` (the header without recall,
+as it always was) and `recall_text` are the whole of what the model was shown at
+the turn's start: the header as sent is `header`, a line break and `recall_text`
+(the pack builds it the same way), so the door rebuilds **both** views, the
+header as sent and the recall text, from the one copy of each, byte for byte.
+The redaction is decided once, on the single copy of the recall: a secret inside
+it reads `[redacted]` in both views by construction. `recall_hash` is the hash
+of the text as stored; the door checks it and says in words if the text was
+damaged (below). A turn recorded before S4 has no `recall_text` key at all.
+
 **What it costs.** Measured on a seeded busy run of the mock engine with the
 baseline memory (`rung-host/tests/context_record.rs`,
-`the_record_grows_by_layers_not_by_calls`: 200 turns, 477 model calls, 20
-epochs, 25 recalls): the record was 1.19 MB before and 2.36 MB with the layers.
-`pack.layers` was 8 KB for the run; the 20 epoch layers 90 KB (4.5 KB each);
-`header_sent` 619 KB over 200 turns; `recall_text` 445 KB (25 recalls of about
-18 KB). The fixture's turns are short, so the ratio is not a live run's; what
-carries over is the shape: the cost is per epoch and per turn, not per call, and
-**a recall is written twice** (inside `header_sent` and as `recall_text`), so a
-recalled turn adds about twice its recall. A live run that recalls large blocks
-therefore grows by megabytes, not by the few hundred KB the design note
-estimated.
+`the_record_grows_by_layers_not_by_calls`: 200 turns, about 500 model calls,
+16 epochs, 20 recalls; the run varies a little from one execution to the next):
+the record was 1.19 MB without the new fields and 1.60 MB with them (+34%).
+`pack.layers` was 8 KB for the run; the 16 epoch layers 87 KB (5.4 KB each);
+`recall_text` 316 KB (20 recalls of about 16 KB). Keeping the recall twice (once in a whole copy of the header as sent, once
+alone) would have added about 880 KB (+74%) on this run: the single copy more
+than halves the growth. The fixture's turns are short, so the
+ratio is not a live run's; what carries over is the shape: the cost is per
+epoch and per recalled turn, not per call. A live run that recalls large
+blocks grows by about the size of its recalls, once.
+
+**What stays repeated.** The header (`turn.log.header`, 156 KB over these 200
+turns, already in the record before S4 and not new here) is mostly the same text
+turn after turn: 65% of its lines are the same as the previous turn's (the
+registers, quota and mode lines). It could be shared (a header written as the
+change from the last one, or its unchanging lines once per epoch); this slice
+does not change it.
 
 ### `GET /v1/turns/{n}/context?call=k`
 
@@ -1046,8 +1063,9 @@ Every refusal is answered before the first byte.
 | `provider` | the provider's own counts for this call (`llm.call`): the truth for hit rate. `expected_cached_tokens` is the host's expectation |
 | `cache_event` | a `cache.break` or `cache.cold` the host recorded for this call: `{kind, cause}`, else null |
 | `rewritten` | the engine rewrote what it was given inside the turn (a context overflow's elision): the bands are then what the host gave it, not what the last calls saw |
-| `recorded` | true when every layer of this call is in the record |
-| `note`, `missing` | for a turn that **predates context recording**: `note` is `this turn predates context recording` and `missing` names the bands that cannot be shown, from `tools`, `system`, `epoch`, `recall` (a turn recorded before `header_sent` existed has no `recall` band, though it may have had one). The answer is still 200 and holds every band that exists; it is never an error |
+| `recorded` | true when every layer of this call is in the record and nothing in `problems` |
+| `problems` | in words, what the record cannot give back whole for this turn: a recall the turn was shown but whose text is not in the record, or a stored recall that does not match its hash (it is then still shown, as recorded, with `intact: false`). Empty normally. Never an error: the answer is 200 |
+| `note`, `missing` | for a turn that **predates context recording**: `note` is `this turn predates context recording` and `missing` names the bands that cannot be shown, from `tools`, `system`, `epoch`, `recall` (a turn recorded before S4 has no `recall` band, though it may have had one). The answer is still 200 and holds every band that exists; it is never an error |
 | `estimate_tokens` | the host's own estimate of the request: the sum of the bands' |
 | `scale` | `prompt_tokens` over `estimate_tokens`; null without a provider count |
 | `boundaries` | the two cache breakpoints the engine sets: the end of the stable layer (after `system`) and the end of the epoch layer (after `epoch`), each at its host-estimated token position and at that position scaled to the provider's count (`tokens`); only where the bands before it are in the record |
@@ -1060,15 +1078,15 @@ Every refusal is answered before the first byte.
 | `tools` | `count` and `items`: one `{name, text}` per tool definition, `text` its canonical JSON | the layers are recorded |
 | `system` | `text`: the system text | the layers are recorded |
 | `epoch` | `text`: the epoch layer | the rollover is recorded whole |
-| `history` | `turns` and `rows`: one `{turn, header, header_complete, messages}` per earlier turn of the epoch, oldest first. `header` is the header as the model saw it; `header_complete` is false for a turn recorded before `header_sent` existed, whose recall block is not in the record | always |
+| `history` | `turns` and `rows`: one `{turn, header, header_complete, messages}` per earlier turn of the epoch, oldest first. `header` is the header as the model saw it; `header_complete` is false for a turn whose recall block is not in the record (one recorded before S4 that was shown a recall, or one whose text is missing) | always |
 | `message` | `text`: the turn's header without its recall (the admitted items, the registers it shows) | always |
-| `recall` | `text`: the recall block | the turn had a recall |
+| `recall` | `text`: the recall block, and `intact` (false when its text does not match the recorded hash) | the turn had a recall |
 | `this_turn` | `calls_so_far` and `messages`: this turn's own messages the model had at this call (none at call 1; the earlier calls and their tool results after) | always |
 
 The turn's header is **one** message on the wire: its `message` part first and
 its `recall` block after it. They are two bands because they are two things to
 the reader; `message` + a line break + `recall` is the header as sent
-(`header_sent`). Joining the bands rebuilds the request byte for byte: the epoch
+(the header the model was sent). Joining the bands rebuilds the request byte for byte: the epoch
 layer as the first message, each history row's header and messages, the header,
 then `this_turn`.
 
@@ -1109,12 +1127,12 @@ verbatim. A replaced value is `[redacted]`.
 
 ### Proof
 
-`rung-host/tests/context_record.rs` (10 tests), `context_door.rs` (2),
+`rung-host/tests/context_record.rs` (11 tests), `context_door.rs` (2),
 `rung-gateway/tests/context.rs` (3) and `context_memory.rs` (1), written first
 against stubs and kept red until the code made them green: the layers whole
 (a complete tool-definition set, a 100,000-character epoch layer, a
 200,000-character recall) through the record and the door; the bands rebuilding
-the request the engine was handed, byte for byte, at several calls; a planted
+the request the engine was handed, byte for byte, at several calls; a 200,000-character recall that appears once in the record file and comes back whole as both views, a recall that does not resolve (a hash that does not match, text missing or not text) answered in words; a planted
 secret (a plain value the redactor was told, and a known key shape) in the
 system text and in the recall absent from every byte of the record files and
 from the door's answer; one `pack.layers` for a run of 150 model calls, one more
