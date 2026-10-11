@@ -71,3 +71,38 @@ test("the overlay puts the streamed text and the tool in flight on the running t
   assert.equal(overlayRunning(turns, { turn: 1, text: "stale", tool: null })[0].text, "done", "a delta for a turn that is not running is ignored");
   assert.equal(overlayRunning(turns, null), turns);
 });
+
+test("a key shape in a live line or a delta never reaches what the page holds", async () => {
+  const m = await startMock();
+  const host = m.hosts.get("alpha")!;
+  const store = new LiveStore(`${m.url}/api/i/alpha`);
+  const KEY = "sk-or-v1-0123456789abcdef0123456789abcdef";
+  try {
+    await store.start();
+    await until(() => store.getState().status === "following");
+    host.delta({ turn: 99, kind: "text", text: `the key is ${KEY} ok` });
+    host.append("note.written", { turn: 99, text: `printed ${KEY}` });
+    await until(() => store.getState().lines.at(-1)?.kind === "note.written");
+    await until(() => store.getDelta() !== null);
+    assert.equal(JSON.stringify(store.getState().lines).includes(KEY), false, "not in a live line");
+    assert.equal(store.getState().lines.at(-1)!.text, "printed [redacted]");
+    assert.equal(store.getDelta()!.text, "the key is [redacted] ok", "not in a delta");
+  } finally { store.stop(); await m.stop(); }
+});
+
+test("a reset (the host does not know our number) reloads the record and applies no line queued before it", async () => {
+  const m = await startMock();
+  const host = m.hosts.get("alpha")!;
+  const store = new LiveStore(`${m.url}/api/i/alpha`);
+  try {
+    await store.start();
+    await until(() => store.getState().status === "following");
+    // Queue lines, then reset before they are flushed: they are on the record the reload reads, and must not be added twice.
+    const n = host.lastSeq;
+    await host.poke(5);
+    (store as unknown as { client: { o: { onReset: () => void } } }).client.o.onReset();
+    await until(() => store.getState().loaded && store.getState().lines.length === n + 5 && store.getState().status === "following", 8000);
+    await sleep(100);
+    assert.deepEqual(store.getState().lines.map((l) => l.seq), Array.from({ length: n + 5 }, (_, i) => i + 1), "each number once, in order");
+  } finally { store.stop(); await m.stop(); }
+});

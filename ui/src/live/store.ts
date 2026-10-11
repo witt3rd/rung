@@ -100,6 +100,7 @@ export class LiveStore {
         this.set({ status: s });
       },
       onReset: () => {
+        this.client?.stop(); // a client that asked for a reset is done; one still looping would follow a record we are about to replace
         this.client = null;
         this.pending = [];
         if (this.flushTimer) { clearTimeout(this.flushTimer); this.flushTimer = null; }
