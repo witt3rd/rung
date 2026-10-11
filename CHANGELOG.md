@@ -38,8 +38,8 @@ git tags only.
 
 ### Changed
 - `rung-std`: `webfetch` returns the whole body; the 512 KiB cut and its
-  `[truncated]` marker are removed. The body streams into one copy (the returned text); the 30 s
-  limit covers the whole body read, not only each read, so a slow or
+  `[truncated]` marker are removed. The body streams into one copy (the
+  returned text); the 30 s limit covers the whole body read, not only each read, so a slow or
   endless server still ends in `webfetch: body not complete within 30s`.
 - `rung-std`: `webfetch` output changes format. A header line gives the
   final URL (after redirects) and the HTTP status, then a blank line, then
