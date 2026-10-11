@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 481 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 482 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1160,6 +1160,10 @@ look shorter than it is.
 **`rung-host/tests/soak_restarts.rs`** — 1 unclaimed
 
 - `a_simulated_day_of_kills_faults_and_stimuli_loses_and_repeats_nothing`
+
+**`rung-host/tests/whole_content.rs`** — 1 unclaimed
+
+- `a_long_answer_is_recorded_whole`
 
 **`rung-memory/tests/memory.rs`** — 19 unclaimed
 
