@@ -831,3 +831,18 @@ async fn an_id_the_gateway_config_also_names_is_written_to_with_the_configured_k
     assert!(!a.body.contains(OWNER_KEY));
     running.shutdown();
 }
+
+#[tokio::test]
+async fn an_owner_key_a_header_cannot_carry_is_refused_in_words_and_never_sent() {
+    let mut f = Fleet::new("s1gw-badkey");
+    unsafe { std::env::set_var("S1GW_BADKEY_ENV", "kéy-with-non-ascii-0123456789") };
+    let cfg = f.config("alpha", Some("S1GW_BADKEY_ENV"));
+    let fake = fake_host(f.state("alpha"), Mode::Normal).await;
+    f.add("alpha", Some(&cfg), Some(&fake.addr));
+    f.hold("alpha");
+    let gw = f.serve().await;
+    let a = gw.post("alpha", &json!({"text": "hello"})).await;
+    assert_eq!(a.status, 503, "{}", a.body);
+    assert_eq!(a.json()["error"], "no_owner_key");
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}

@@ -727,24 +727,21 @@ async fn queue_write(
                     "the gateway holds no owner key for this instance: its config names none under acp.tokens.owner, or this process does not hold the variable",
                 );
             };
-            let Some(a) = HeaderValue::from_str(&format!("Bearer {token}"))
-                .ok()
-                .map(|mut v| {
-                    v.set_sensitive(true);
-                    v
-                })
-            else {
+            // the one definition of a key as a bearer header
+            let inst = Instance {
+                id: id.to_string(),
+                name: id.to_string(),
+                url: format!("http://{address}"),
+                key: token.clone(),
+            };
+            let Some(a) = inst.authorization() else {
                 return error(
                     StatusCode::SERVICE_UNAVAILABLE,
                     "no_owner_key",
                     "the instance's owner key cannot be sent as a header",
                 );
             };
-            (
-                format!("http://{address}"),
-                a,
-                target.red.clone().with_secret(token),
-            )
+            (inst.url, a, target.red.clone().with_secret(token))
         }
     };
     for t in &target.tokens {

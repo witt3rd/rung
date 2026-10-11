@@ -1312,7 +1312,7 @@ adds through this door.
 
 ### Proof
 
-`rung-host/tests/queue_door.rs` (8) and `rung-gateway/tests/queue.rs` (15), and
+`rung-host/tests/queue_door.rs` (8) and `rung-gateway/tests/queue.rs` (16), and
 the fold's own tests in `rung-host/src/queue.rs`, written first against code with
 neither door and kept red until it made them green: an item in the record before
 the answer; one key twice is one item, a different message under the key is
