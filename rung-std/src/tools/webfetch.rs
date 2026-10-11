@@ -174,7 +174,12 @@ impl Sink {
     }
 }
 
-/// Nesting levels that indent further; deeper items keep this indent.
+/// List nesting levels that indent further. Rule: item `d` (0-based depth)
+/// is padded by `2 * min(d, INDENT_STOPS_AT)` spaces, so output stays
+/// linear in the input for any nesting; from level `INDENT_STOPS_AT + 1`
+/// on, the item line also carries its true depth as `[depth N] ` (N is
+/// 1-based) so no structure information is lost. Only indentation
+/// whitespace is clamped; every item's text is kept whole.
 const INDENT_STOPS_AT: usize = 8;
 
 /// Elements whose text is never shown (CSS/JS/template noise).
@@ -428,9 +433,9 @@ impl Md {
             }
             "li" => {
                 self.brk(1);
-                // Indentation width stops growing at INDENT_STOPS_AT so deeply
-                // nested lists stay linear in size; item text is never cut.
-                let depth = self.lists.len().saturating_sub(1).min(INDENT_STOPS_AT);
+                // Indent clamp and depth number: see INDENT_STOPS_AT.
+                let d = self.lists.len().saturating_sub(1);
+                let pad = "  ".repeat(d.min(INDENT_STOPS_AT));
                 let mark = match self.lists.last_mut() {
                     Some(Some(n)) => {
                         *n += 1;
@@ -438,7 +443,12 @@ impl Md {
                     }
                     _ => "- ".to_string(),
                 };
-                self.put(&format!("{}{mark}", "  ".repeat(depth)), out);
+                let depth = if d > INDENT_STOPS_AT {
+                    format!("[depth {}] ", d + 1)
+                } else {
+                    String::new()
+                };
+                self.put(&format!("{pad}{mark}{depth}"), out);
             }
             "pre" => {
                 self.brk(2);
@@ -968,7 +978,7 @@ A | B\n1 | 2\n\n\
     fn deeply_nested_lists_stay_linear_and_keep_every_item() {
         let n = 5_000;
         let html: String = (0..n)
-            .map(|i| format!("<ul><li>item-number-{i:05}"))
+            .map(|i| format!("<ul><li>item-number-{i:05}-padding-text"))
             .collect();
         assert!(html.len() > 100_000);
         let out = md(&html);
@@ -979,8 +989,20 @@ A | B\n1 | 2\n\n\
             html.len()
         );
         for i in 0..n {
-            assert_eq!(out.matches(&format!("item-number-{i:05}")).count(), 1);
+            assert_eq!(
+                out.matches(&format!("item-number-{i:05}-padding-text"))
+                    .count(),
+                1
+            );
         }
+        // the true depth survives the indent clamp, as a number
+        assert!(
+            out.contains("- [depth 5000] item-number-04999"),
+            "{}",
+            &out[out.len() - 200..]
+        );
+        assert!(out.starts_with("- item-number-00000"));
+        assert!(out.contains("\n  - item-number-00001"));
         // time is linear: 4x the input takes about 4x, not 16x
         let t = |k: usize| {
             let h: String = (0..k).map(|i| format!("<ul><li>i{i}")).collect();
