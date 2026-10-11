@@ -48,7 +48,7 @@ partial frames have a bounded buffer per reader and a reader that falls behind i
 pieces of a text before it sends them.
 
 What the page does with it (`src/live/`): it keeps the number of the last line it applied and resumes from it (applying each line once,
-and treating a skipped number as a broken stream); it asks the summary where the record stood at `open`, and shows no partial frame until
+and treating a skipped number as a broken stream); it asks the summary where the record stood at `open` (asking again, with a growing wait, while that fails), and shows no partial frame until
 the lines to that number are applied (`Following` is said then); the turn that was running at that moment, and any turn after a `behind`
 frame or a cut, is not shown streaming (its start was not seen), and its finished text is on the record; answer text blocks are joined as
 blocks, a tool shows while `tool_call` or `tool_run` is open and is gone at `tool_done`; it redacts again on read over the whole text
