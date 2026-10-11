@@ -354,6 +354,9 @@ fn hostile_text_is_redacted_in_time_linear_in_its_length() {
         ("escaped backslashes", "password=a\\\\"),
         ("webhook prefixes", "hooks.slack.com/services/"),
         ("discord webhooks", "discord.com/api/webhooks/"),
+        ("teams webhooks", "outlook.office.com/webhook/"),
+        ("teams webhooks b2", "webhook.office.com/webhookb2/"),
+        ("zapier webhooks", "hooks.zapier.com/hooks/catch/"),
         ("backslash runs before quotes", "password=\"x\\\\\\\""),
         ("long backslash runs", "\\\\\\\\\\\\\\\\ token="),
         ("key block starts", "-----BEGIN "),
@@ -601,6 +604,18 @@ fn webhook_urls_lose_their_token_path() {
     assert_eq!(
         redact("https://hooks.zapier.com/hooks/catch/123/SENTINELhook0123/"),
         format!("https://hooks.zapier.com/hooks/catch/{MARK}/")
+    );
+    assert_eq!(
+        redact(
+            "https://outlook.office.com/webhook/SENTINELguid0123@SENTINELtenant0123/IncomingWebhook/SENTINELhook0123/SENTINELid0123 ok"
+        ),
+        format!("https://outlook.office.com/webhook/{MARK} ok")
+    );
+    assert_eq!(
+        redact(
+            "https://webhook.office.com/webhookb2/SENTINELguid0123@SENTINELtenant0123/IncomingWebhook/SENTINELhook0123/SENTINELid0123"
+        ),
+        format!("https://webhook.office.com/webhookb2/{MARK}")
     );
     assert_eq!(
         redact("https://example.test/webhooks/docs is a page"),

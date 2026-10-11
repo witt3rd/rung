@@ -532,7 +532,7 @@ impl<'a, 'r> Scan<'a, 'r> {
                 let from = idx + p.len();
                 let mut e = from;
                 while e < b.len()
-                    && (b[e].is_ascii_alphanumeric() || matches!(b[e], b'_' | b'-' | b'/'))
+                    && (b[e].is_ascii_alphanumeric() || matches!(b[e], b'_' | b'-' | b'/' | b'@'))
                 {
                     e += 1;
                 }
