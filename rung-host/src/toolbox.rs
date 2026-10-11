@@ -813,30 +813,39 @@ mod tests {
         assert_eq!(got, Ok(page));
     }
 
-    /// A write inside the workspace succeeds on the rule-only desk's
-    /// free-time tool set.
+    /// The enabled-group gate (`Toolset::execute`) on the rule-only desk's
+    /// free-time set: `ws_write` runs and lands in the workspace, `web_fetch`
+    /// (web_read) is refused as disabled, and a set without
+    /// `workspace_write` refuses `ws_write` the same way.
     #[test]
-    fn free_time_write_inside_workspace_succeeds() {
-        let groups = crate::desk::tools::tests::free_groups();
-        assert!(groups.iter().any(|g| g == WORKSPACE_WRITE));
+    fn free_time_gate_admits_workspace_write_and_nothing_wider() {
         let guard = crate::sim::temp_dir_guard("free-ws-write");
         let sc = crate::sim::Scenario::new(guard.path(), 1);
         let (host, _, _) = crate::sim::build(sc);
-        let tools = HostTools::new(
-            host.core.clone(),
-            1,
-            groups.into_iter().collect(),
-            0,
-            None,
-            Arc::new(NoWeb),
-            guard.path().join("ws"),
+        let tools_for = |groups: Vec<String>| {
+            HostTools::new(
+                host.core.clone(),
+                1,
+                groups.into_iter().collect(),
+                0,
+                None,
+                Arc::new(NoWeb),
+                guard.path().join("ws"),
+            )
+        };
+        let free = crate::desk::tools::tests::free_groups();
+        let tools = tools_for(free.clone());
+        let write = json!({"path": "brief.md", "text": "x"});
+        assert_eq!(tools.execute("ws_write", &write), Ok("written".to_string()));
+        assert_eq!(
+            std::fs::read_to_string(guard.path().join("ws/brief.md")).unwrap(),
+            "x"
         );
-        let r = tools.run(
-            "ws_write",
-            WORKSPACE_WRITE,
-            &json!({"path": "brief.md", "text": "x"}),
-        );
-        assert_eq!(r, Ok("written".to_string()));
+        let web = tools.execute("web_fetch", &json!({"url": "x://a"}));
+        assert!(web.unwrap_err().contains("not enabled this turn"));
+        let without: Vec<String> = free.into_iter().filter(|g| g != WORKSPACE_WRITE).collect();
+        let refused = tools_for(without).execute("ws_write", &write);
+        assert!(refused.unwrap_err().contains("not enabled this turn"));
     }
 
     #[test]
