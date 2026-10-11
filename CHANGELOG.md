@@ -7,6 +7,8 @@ git tags only.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
 ### Added
 - `rung-host`, `rung-gateway`: the H3 read doors. The gateway answers the
   instance list, one instance's fold (`/v1/summary`) and its recorded events,
