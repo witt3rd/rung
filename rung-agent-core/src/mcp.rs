@@ -150,12 +150,17 @@ impl McpToolError {
     }
 }
 
-/// Redacts credentials from `text`: URL userinfo, bearer tokens and headers,
-/// and the values of well-known API-key env vars. Set `RUNG_REDACT_ENVS` to a
-/// comma-separated list of extra env var names whose values are also redacted.
+/// Redacts credentials from `text`: the one definition of what a credential
+/// looks like, [`crate::redact::Redactor`] (built once), with this module's
+/// marker, then the values registered by [`register_secret`] and of
+/// well-known API-key env vars. Set `RUNG_REDACT_ENVS` to a comma-separated
+/// list of extra env var names whose values are also redacted.
 pub fn redact(text: &str) -> String {
-    let mut out = redact_url_credentials(text);
-    out = redact_tokens_and_headers(&out);
+    static SHAPES: std::sync::OnceLock<crate::redact::Redactor> = std::sync::OnceLock::new();
+    let mut out = SHAPES
+        .get_or_init(|| crate::redact::Redactor::with_mark("[REDACTED]"))
+        .redact(text)
+        .into_owned();
 
     DYNAMIC_SECRETS.with(|set| {
         for secret in set.borrow().iter() {
@@ -194,136 +199,6 @@ fn redact_env_values<'a>(
             }
         }
     }
-    out
-}
-
-fn redact_url_credentials(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut last = 0;
-    for (idx, _) in s.match_indices("://") {
-        if idx < last {
-            continue;
-        }
-        let after_scheme = idx + 3;
-        let auth_end = s[after_scheme..]
-            .char_indices()
-            .find(|&(_, c)| {
-                c == '/'
-                    || c == '?'
-                    || c == '#'
-                    || c.is_whitespace()
-                    || c == '"'
-                    || c == '\''
-                    || c == ')'
-            })
-            .map(|(i, _)| after_scheme + i)
-            .unwrap_or(s.len());
-
-        let authority = &s[after_scheme..auth_end];
-        if let Some(at_idx) = authority.find('@') {
-            let user_info = &authority[..at_idx];
-            let host_part = &authority[at_idx..];
-            out.push_str(&s[last..after_scheme]);
-            if let Some(colon_idx) = user_info.find(':') {
-                let user = &user_info[..colon_idx];
-                out.push_str(user);
-                out.push_str(":[REDACTED]");
-            } else {
-                out.push_str("[REDACTED]");
-            }
-            out.push_str(host_part);
-            last = auth_end;
-        }
-    }
-    out.push_str(&s[last..]);
-    out
-}
-
-fn starts_with_ascii_ignore_case(slice: &str, pat: &str) -> bool {
-    if slice.len() < pat.len() {
-        false
-    } else {
-        slice.as_bytes()[..pat.len()].eq_ignore_ascii_case(pat.as_bytes())
-    }
-}
-
-fn redact_tokens_and_headers(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut i = 0;
-
-    while i < s.len() {
-        let remainder = &s[i..];
-
-        // Check "bearer "
-        if starts_with_ascii_ignore_case(remainder, "bearer ") {
-            out.push_str(&remainder[..7]);
-            let mut val_idx = i + 7;
-            while val_idx < s.len()
-                && (s.as_bytes()[val_idx] == b' ' || s.as_bytes()[val_idx] == b'\t')
-            {
-                out.push(s.as_bytes()[val_idx] as char);
-                val_idx += 1;
-            }
-            let mut end = val_idx;
-            while end < s.len() {
-                let b = s.as_bytes()[end];
-                if b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.' {
-                    end += 1;
-                } else {
-                    break;
-                }
-            }
-            if end - val_idx >= 6 {
-                out.push_str("[REDACTED]");
-                i = end;
-                continue;
-            } else {
-                out.push_str(&s[val_idx..end]);
-                i = end;
-                continue;
-            }
-        }
-
-        // Check header prefixes
-        let mut matched_header = None;
-        for &hdr in &["authorization:", "x-api-key:", "mcp-session-id:"] {
-            if starts_with_ascii_ignore_case(remainder, hdr) {
-                matched_header = Some(hdr);
-                break;
-            }
-        }
-
-        if let Some(hdr) = matched_header {
-            out.push_str(&remainder[..hdr.len()]);
-            let mut val_idx = i + hdr.len();
-            while val_idx < s.len()
-                && (s.as_bytes()[val_idx] == b' ' || s.as_bytes()[val_idx] == b'\t')
-            {
-                out.push(s.as_bytes()[val_idx] as char);
-                val_idx += 1;
-            }
-            let mut end = val_idx;
-            while end < s.len() {
-                let b = s.as_bytes()[end];
-                if b == b'\r' || b == b'\n' || b == b',' || b == b';' || b == b'"' || b == b'\'' {
-                    break;
-                }
-                let ch_len = s[end..].chars().next().map_or(1, |c| c.len_utf8());
-                end += ch_len;
-            }
-            if end > val_idx {
-                out.push_str("[REDACTED]");
-                i = end;
-                continue;
-            }
-        }
-
-        // Advance by one UTF-8 character
-        let ch = remainder.chars().next().unwrap();
-        out.push(ch);
-        i += ch.len_utf8();
-    }
-
     out
 }
 
@@ -1845,6 +1720,49 @@ mod tests {
         assert!(redacted.contains("mcp-session-id: [REDACTED]"));
         assert!(redacted.contains("dynamic: [REDACTED]"));
         assert!(redacted.contains("http://admin:[REDACTED]@127.0.0.1:8090/mcp"));
+    }
+
+    #[test]
+    fn redact_is_the_shared_redactor_with_this_modules_marker() {
+        // A key shape and a secret-named assignment, which only the shared
+        // redactor knows; the marker is this module's, not the host's.
+        let key = format!("ghp_{}", "SENTINEL0123456789abcdefSENTINEL");
+        let out = redact(&format!(
+            "tool said {key} and DB_PASSWORD=sentinelpass0 done"
+        ));
+        assert_eq!(out, "tool said [REDACTED] and DB_PASSWORD=[REDACTED] done");
+        // A token-only URL user is removed in any scheme but a login one,
+        // as it was before the redactors were one.
+        assert_eq!(
+            redact("redis://sentineltoken0@h:1/0 ssh://git@h/r"),
+            "redis://[REDACTED]@h:1/0 ssh://git@h/r"
+        );
+    }
+
+    #[test]
+    fn redact_leaves_ordinary_text_alone() {
+        // Memory text, URLs without credentials and prose pass through whole:
+        // counts, variable names, word-alikes and public key material.
+        let text = "\
+note: max_tokens: 4096, prompt_tokens=22114; api_key_env: OPENROUTER_API_KEY\n\
+the task-runner ran ask-me-later; sk-learn is a library; a bearer token is a credential\n\
+password reset flow, token budget, secret garden, sort_key: name, cache_key=abc\n\
+see https://example.org/a/b?page=2&sort=asc#top and ssh://git@example.org/r.git\n\
+mail a@b.example at 14:02:11, ratio 3:1, key: value, 日本語 🚀 ünï\n\
+-----BEGIN CERTIFICATE-----\nMIIBpublicCERTIFICATEbody\n-----END CERTIFICATE-----\n";
+        assert_eq!(redact(text), text);
+    }
+
+    #[test]
+    fn redact_keeps_what_surrounds_a_replaced_value() {
+        let key = format!("ghp_{}", "SENTINEL0123456789abcdefSENTINEL");
+        let text = format!(
+            "before {key} middle Authorization: Bearer sentineltoken0123\nCookie: sid=sentinel0; x=y\nafter, with 日本語"
+        );
+        assert_eq!(
+            redact(&text),
+            "before [REDACTED] middle Authorization: [REDACTED]\nCookie: [REDACTED]\nafter, with 日本語"
+        );
     }
 
     enum MockAction {

@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 444 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 475 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1098,6 +1098,40 @@ look shorter than it is.
 **`rung-host/tests/quickstart.rs`** — 1 unclaimed
 
 - `the_quickstart_example_runs`
+
+**`rung-host/tests/redactor.rs`** — 31 unclaimed
+
+- `a_bearer_token_alone_is_replaced_but_prose_is_not`
+- `a_clean_json_line_comes_back_byte_for_byte`
+- `a_credential_right_after_an_escape_is_redacted`
+- `a_header_name_right_after_an_escape_is_found`
+- `a_json_value_under_a_secret_name_is_replaced_and_counts_are_not`
+- `a_known_key_shape_is_replaced_wherever_it_sits`
+- `a_map_key_that_is_a_header_name_redacts_its_value`
+- `a_private_key_block_loses_its_body_and_keeps_its_frame`
+- `a_quote_is_escaped_by_the_parity_of_the_backslashes_before_it`
+- `a_secret_after_a_long_run_of_secret_names_is_still_found`
+- `a_secret_next_to_another_never_escapes_after_a_match`
+- `a_secret_that_ends_in_a_dash_or_an_underscore_is_removed_whole`
+- `a_secret_with_a_quote_or_newline_is_removed_from_a_json_line`
+- `a_stray_key_block_start_does_not_hide_the_real_block`
+- `a_trailing_full_stop_is_sentence_punctuation_and_stays`
+- `a_value_inside_escaped_json_text_stops_at_the_escape`
+- `a_very_large_line_is_redacted_whole_and_fast`
+- `a_word_that_merely_ends_in_an_escape_letter_is_not_a_boundary`
+- `an_auth_header_keeps_its_name_and_loses_its_value`
+- `an_env_style_assignment_keeps_its_name_and_loses_its_value`
+- `escaped_quotes_and_backslashes_do_not_end_a_redaction_early`
+- `hostile_text_is_redacted_in_time_linear_in_its_length`
+- `multibyte_text_around_a_secret_is_untouched`
+- `quoted_header_values_are_replaced_to_their_closing_quote`
+- `text_that_holds_no_secret_comes_back_unchanged_and_whole`
+- `the_exact_value_of_a_named_variable_is_removed_in_any_shape`
+- `the_only_change_is_the_replaced_value_in_a_long_mixed_text`
+- `trimming_a_long_run_of_trailing_stops_costs_time_linear_in_its_length`
+- `trimming_trailing_punctuation_never_leaves_part_of_a_secret`
+- `url_credentials_lose_the_secret_part`
+- `webhook_urls_lose_their_token_path`
 
 **`rung-host/tests/run_config.rs`** — 12 unclaimed
 

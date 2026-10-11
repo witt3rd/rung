@@ -27,6 +27,7 @@ pub mod notify;
 pub mod pack;
 pub mod presence;
 pub mod record;
+pub mod redact;
 pub mod registers;
 pub mod registry;
 pub mod render;
