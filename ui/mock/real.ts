@@ -4,7 +4,7 @@
  *  that needs it is skipped, by name, until the gateway has the door.
  *    cargo build -p rung-gateway && RUNG_CONTRACT_TARGET=real npm run test:contract */
 import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { synthetic } from "../src/synthetic.ts";
 import type { Target } from "../test/contract-target.ts";
@@ -52,14 +52,24 @@ export async function startReal(opts: RealOptions = {}): Promise<Target & { root
   }
   const token = `view-token-${Math.random().toString(36).slice(2)}`;
   writeFileSync(join(root, "gateway.yaml"), `listen: ${opts.host ?? "127.0.0.1"}:${opts.port ?? 0}\n${opts.appDir ? `app_dir: ${opts.appDir}\n` : ""}read_only_token_envs: [RUNG_GATEWAY_VIEW_TOKEN]\nregistry_dir: ${join(root, "reg")}\ninstances: []\n`);
+  // What this starts it retires: the gateway process and the scratch tree, on the error path too.
+  const retire = () => rmSync(root, { recursive: true, force: true });
   const child = spawn(bin, ["--config", join(root, "gateway.yaml")], { env: { ...process.env, RUNG_GATEWAY_VIEW_TOKEN: token }, stdio: ["ignore", "pipe", "pipe"] });
-  const url = await new Promise<string>((ok, bad) => {
+  let url: string;
+  try {
+    url = await new Promise<string>((ok, bad) => {
     let out = "", err = "";
     const t = setTimeout(() => bad(new Error(`the gateway did not say where it listens: ${out}${err}`)), 15000);
     child.stdout.on("data", (b) => { out += b; const m = /listening on (http:\/\/\S+)/.exec(out); if (m) { clearTimeout(t); ok(m[1]); } });
     child.stderr.on("data", (b) => { err += b; });
+    child.on("error", (e) => { clearTimeout(t); bad(new Error(`the gateway could not be started: ${e.message}`)); });
     child.on("exit", (c) => { clearTimeout(t); bad(new Error(`the gateway exited ${c}: ${out}${err}`)); });
-  });
+    });
+  } catch (e) {
+    child.kill("SIGKILL");
+    retire();
+    throw e;
+  }
   const write = (kind: string, fields: Record<string, unknown>) => {
     appendFileSync(seg, JSON.stringify({ at: Date.now(), kind, seq: ++seq, ...fields }) + "\n");
   };
@@ -70,6 +80,14 @@ export async function startReal(opts: RealOptions = {}): Promise<Target & { root
       flood: async (n, bytes) => { const text = "x".repeat(bytes); for (let i = 0; i < n; i++) write("note.written", { turn: 99, text }); },
       plant: async (key) => { write("note.written", { turn: 99, text: `printed ${key}` }); },
     },
-    stop: async () => { child.kill("SIGTERM"); },
+    stop: async () => {
+      if (child.exitCode === null) {
+        const gone = new Promise<void>((r) => child.once("exit", () => r()));
+        child.kill("SIGTERM");
+        await Promise.race([gone, new Promise((r) => setTimeout(r, 5000))]);
+        if (child.exitCode === null) child.kill("SIGKILL");
+      }
+      retire();
+    },
   };
 }

@@ -1,16 +1,20 @@
 // The canary check, written before the redactor: a key value placed in the environment, and a tool that
 // prints it into a record. After the data is prepared, the value must occur nowhere in what the page can fetch.
 // Also the refusals of scripts/prepare-data.ts: an unset key variable, and an --out it does not own.
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const UI = join(import.meta.dirname, "..");
 const SCRATCH = join(UI, ".test-tmp"); // inside ui/, where prepare-data may write
 mkdirSync(SCRATCH, { recursive: true });
+// What a test makes it removes: every scratch directory and link made here is retired when the file is done.
+const made: string[] = [];
+const scratch = (prefix: string) => { const d = mkdtempSync(join(SCRATCH, prefix)); made.push(d); return d; };
+after(() => { for (const d of made) rmSync(d, { recursive: true, force: true }); });
 
 const CANARY = "canary-7f3a91c2e8b4d6051a9c";
 const SHAPED = "sk-or-v1-0123456789abcdef0123456789abcdef";
@@ -31,7 +35,7 @@ function prepare(args: string[], env: Record<string, string | undefined> = {}) {
 
 /** A run directory whose config names CANARY_KEY, with a tool that printed it. */
 function canaryRuns() {
-  const root = mkdtempSync(join(SCRATCH, "canary-"));
+  const root = scratch("canary-");
   const run = join(root, "runs", "canary-run");
   mkdirSync(join(run, "state", "record"), { recursive: true });
   writeFileSync(join(run, "rung-host.yaml"), "engine:\n  kind: agent\n  api_key_env: CANARY_KEY\n");
@@ -82,7 +86,7 @@ test("--allow-unset-keys accepts the shapes-only pass, loudly, and the shapes ar
 
 test("the recorded runs: key shapes are gone, and exact-value redaction really runs on them", () => {
   const shapes = [/\bsk-[A-Za-z0-9_-]{16,}/, /\bgh[pousr]_[A-Za-z0-9]{20,}/, /\bAKIA[0-9A-Z]{16}\b/, /\bBearer\s+[A-Za-z0-9._~+/=-]{20,}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/];
-  const out = mkdtempSync(join(SCRATCH, "real-"));
+  const out = scratch("real-");
   // Plant as a "secret" a phrase the real records do contain. If exact-value redaction is skipped, it stays and this fails.
   const PLANT = "Holding — e10 due";
   const before = readdirSync(join(UI, "../rung-host/live/runs")).map((id) => join(UI, "../rung-host/live/runs", id, "state/record/seg-00000001.ndjson")).filter(existsSync)
@@ -101,7 +105,7 @@ test("the recorded runs: key shapes are gone, and exact-value redaction really r
 });
 
 test("the recorded runs are refused when their configs name key variables that are unset", () => {
-  const out = mkdtempSync(join(SCRATCH, "real-unset-"));
+  const out = scratch("real-unset-");
   const r = prepare(["--out", join(out, "d")], { OPENROUTER_API_KEY: undefined, RUNG_HOST_OPENROUTER_API_KEY: undefined, RUNG_REDACT_ENVS: undefined });
   assert.equal(r.status, 2, r.err);
   assert.match(r.err, /OPENROUTER_API_KEY/);
@@ -111,6 +115,7 @@ test("--out outside what the script owns is refused and nothing in it is touched
   const sentinelDir = (base: string) => {
     const d = mkdtempSync(join(base, "keep-"));
     writeFileSync(join(d, "precious.txt"), "do not delete");
+    made.push(d);
     return d;
   };
   const args = (out: string) => ["--out", out, "--no-synthetic", "--runs", join(SCRATCH, "none")];
@@ -134,12 +139,14 @@ test("--out outside what the script owns is refused and nothing in it is touched
   assert.equal(existsSync(join(unmarked, "precious.txt")), true);
   // A link that leads out of the owned roots.
   const link = join(SCRATCH, `link-${process.pid}`);
+  made.push(link);
   symlinkSync(outside, link);
   r = prepare(args(link));
   assert.equal(r.status, 2);
   assert.equal(existsSync(join(outside, "precious.txt")), true);
   // And an owned, marked directory is emptied and rewritten.
   const mine = join(SCRATCH, `mine-${process.pid}`);
+  made.push(mine);
   assert.equal(prepare(args(mine)).status, 0);
   writeFileSync(join(mine, "stale.txt"), "x");
   assert.equal(prepare(args(mine)).status, 0);

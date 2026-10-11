@@ -35,3 +35,9 @@ test("an entry the gateway could not read is listed as Unreadable with the reaso
   assert.equal(e.summary.needsYou, true);
   assert.equal(e.reachable, false);
 });
+
+test("which state words mean the lock is held: one helper, one list", async () => {
+  const { isLockHeld } = await import("../src/record/words.ts");
+  for (const s of ["Working", "Answering", "Free time", "Waiting", "Stuck"]) assert.equal(isLockHeld(s), true, s);
+  for (const s of ["Stopped", "Down", "Unreadable"]) assert.equal(isLockHeld(s), false, s);
+});

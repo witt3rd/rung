@@ -2,6 +2,10 @@
  *  from a fold, so the wording can be tested in one place. No ids or hashes reach the main view. */
 import type { Line } from "./types.ts";
 
+/** Does this state word mean the host holds its lock (it is alive)? Stopped, Down and Unreadable come from the registry's word for a host
+ *  that does not; the rest are refinements of a running one. The one place that says so. */
+export const isLockHeld = (state: string): boolean => !["Stopped", "Down", "Unreadable"].includes(state);
+
 export type StateWord = "Working" | "Answering" | "Free time" | "Waiting" | "Stuck" | "Down" | "Stopped" | "Unreadable";
 
 /** The question each decision family settles, as the owner would ask it. */

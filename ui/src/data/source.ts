@@ -5,6 +5,7 @@ import type { Line } from "../record/types.ts";
 import type { Summary } from "../record/folds.ts";
 import type { HostSummary } from "../live/store.ts";
 import { redact } from "../live/wire.ts";
+import { isLockHeld } from "../record/words.ts";
 
 export interface InstanceEntry {
   id: string;
@@ -81,7 +82,7 @@ export async function loadLiveIndex(base = "api", fetchImpl: typeof fetch = (...
     generatedAt: now,
     instances: list.map((g) => ({
       id: g.id, name: g.name, kind: "live" as const,
-      lockHeld: !!g.summary && !["Stopped", "Down", "Unreadable"].includes(g.summary.state),
+      lockHeld: !!g.summary && isLockHeld(g.summary.state),
       reachable: g.reachable, startCommand: g.start_command ?? g.summary?.start_command ?? null, problem: g.summary ? null : g.error, record: "", summary: fromHostSummary(g, now),
     })),
   };

@@ -25,8 +25,9 @@ the whole record is read once through `/v1/record`, then followed over `/v1/even
 keeps the number of the last line it applied and resumes from it, a store, and the overlay that lays the running turn's streamed
 text and tool over the record). The host's own `/v1/summary` decides the state word.
 
-The doors' bodies are proposed in `contract/README.md` (the gateway's names and access classes are in `docs/rung-host-api.md`,
-which is on the host builder's branches, not yet on master). `test/contract.test.ts` states them as checks and runs unchanged against
+The doors' bodies: the list, summary and record doors (H3) and the gateway (H9) are on master and written in `docs/rung-host-api.md`; the
+event stream (H5) is still on the host builder's branch, so its bodies are proposed in `contract/README.md`, together with where the real H3
+doors are a superset of the proposal. `test/contract.test.ts` states them as checks and runs unchanged against
 `mock/` (a gateway and simulated hosts in this directory) and against a real gateway:
 
     npm run test:contract                                                       # against the mock

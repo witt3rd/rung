@@ -2,20 +2,20 @@
 > rung-ui@0.0.0 test:contract:real
 > RUNG_CONTRACT_TARGET=real node --experimental-strip-types --test --test-timeout=120000 test/contract.test.ts
 
-✔ health, and the instance is listed with its summary (36.296258ms)
-✔ summary has the documented fields and types (2.020474ms)
-✔ record: paging with exact totals, no gaps, either order, no cap on limit (133.17758ms)
-﹣ events: replay after N is exactly the record's lines after N, in order, then caught_up (0.207483ms) # the events door (H5) is not on this gateway
-﹣ Last-Event-ID resumes the same as ?after, and the header wins (0.110469ms) # the events door (H5) is not on this gateway
-﹣ events: an after beyond the record is 400 (0.063438ms) # the events door (H5) is not on this gateway
-﹣ a line the host records reaches the stream within a second, in order (0.084999ms) # the events door (H5) is not on this gateway
-﹣ cut and resume: exactly once, in order, nothing missing (0.109282ms) # the events door (H5) is not on this gateway
-﹣ deltas are short-lived: no id, seen live, never replayed (0.132205ms) # the events door (H5) is not on this gateway
-﹣ a slow reader is dropped, does not slow another reader, and loses nothing on resume (0.150271ms) # the events door (H5) is not on this gateway
-✔ the read-only token may read and may not write; a wrong token is 401 (5.748855ms)
-✔ a key a tool prints is on no door and no stream line: the host redacts first (388.611427ms)
-✔ only /v1 passes, and an unknown instance is 404 (1.966833ms)
-﹣ no key in any answer, stream line or header (0.136745ms) # the key is not known to this target
+✔ health, and the instance is listed with its summary (44.617562ms)
+✔ summary has the documented fields and types (2.310491ms)
+✔ record: paging with exact totals, no gaps, either order, no cap on limit (133.360031ms)
+﹣ events: replay after N is exactly the record's lines after N, in order, then caught_up (0.371778ms) # the events door (H5) is not on this gateway
+﹣ Last-Event-ID resumes the same as ?after, and the header wins (0.232188ms) # the events door (H5) is not on this gateway
+﹣ events: an after beyond the record is 400 (0.148032ms) # the events door (H5) is not on this gateway
+﹣ a line the host records reaches the stream within a second, in order (0.201075ms) # the events door (H5) is not on this gateway
+﹣ cut and resume: exactly once, in order, nothing missing (0.311744ms) # the events door (H5) is not on this gateway
+﹣ deltas are short-lived: no id, seen live, never replayed (0.282052ms) # the events door (H5) is not on this gateway
+﹣ a slow reader is dropped, does not slow another reader, and loses nothing on resume (0.282838ms) # the events door (H5) is not on this gateway
+✔ the read-only token may read and may not write; a wrong token is 401 (9.030565ms)
+✔ a key a tool prints is on no door and no stream line: the host redacts first (383.569444ms)
+✔ only /v1 passes, and an unknown instance is 404 (1.967621ms)
+﹣ no key in any answer, stream line or header (0.224398ms) # the key is not known to this target
 ℹ tests 14
 ℹ suites 0
 ℹ pass 6
@@ -23,4 +23,4 @@
 ℹ cancelled 0
 ℹ skipped 8
 ℹ todo 0
-ℹ duration_ms 641.874153
+ℹ duration_ms 5683.038637

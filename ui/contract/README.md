@@ -1,9 +1,9 @@
 # The live-view contract (slice 1)
 
 What the live instance view asks of a host, through the gateway. Names and access classes are the ones in
-`docs/rung-host-api.md` (the gateway section, on the host builder's branches until it merges); the **bodies of the H3 and H5
-doors below are not written there yet**, so this file proposes them. They are meant to be agreed into that document by the host
-builder; until they are, `test/contract.test.ts` is the executable statement, and it runs unchanged against the mock in
+`docs/rung-host-api.md` (the gateway and the H3 read doors are written there, on master; the H5 event stream is on the host builder's branch).
+The bodies below were proposed before H3 landed; the real H3 doors are a superset (see the last section), and the **H5 bodies are still only
+proposed here**, to be agreed into that document by the host builder. Until they are, `test/contract.test.ts` is the executable statement, and it runs unchanged against the mock in
 `mock/` and against a real gateway (`RUNG_CONTRACT_URL=http://… RUNG_CONTRACT_INSTANCE=id npm run test:contract`).
 
 Everything goes through the gateway: `GET /api/health`, `GET /api/instances`, and `/api/i/{id}/v1/…` (a pass-through that adds
