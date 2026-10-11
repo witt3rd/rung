@@ -9,8 +9,8 @@
 //!   ties go to the newer record. It walks its own [`Store`] (search, then
 //!   fetch). Neighbours are the records kept just before and after.
 //! - **Retain**: a finished turn is kept as one record (`User:` / `Assistant:`
-//!   lines), a note as its text. An empty text, a text over the recall budget
-//!   (it could never be shown whole), or an exact duplicate is declined.
+//!   lines), a note as its text. An empty text or an exact duplicate is declined;
+//!   a text of any size is kept whole.
 //! - **Tools**: `memory_search` and `memory_retain` ([`crate::tools`]).
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -356,9 +356,6 @@ impl MemoryProvider for Baseline {
         let declined = |why: &str| Ok(Charged::new(Kept::Declined(why.into())));
         if normal(&text).is_empty() {
             return declined("empty");
-        }
-        if text.chars().count() > self.budget.max_chars {
-            return declined("larger than the recall budget; it could never be shown whole");
         }
         let records = self.load(scope)?;
         let key = normal(&text);

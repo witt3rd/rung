@@ -21,7 +21,7 @@
 //! worktree shares memory with its main checkout. A configured `memory.scope`
 //! is passed verbatim.
 //!
-//! The provider sees an opaque scope key and bounded, redacted content, and
+//! The provider sees an opaque scope key and redacted content, never cut, and
 //! owns who may see what. rung imposes no record or size cap of its own: it
 //! holds a provider to the budget the provider declares, and times out its
 //! calls. A provider that fails never fails a turn: each hook ends in a typed
@@ -66,15 +66,6 @@ pub const RECALL_TOOL: &str = "rung_memory_recall";
 /// the agent.
 pub const RETAIN_TOOL: &str = "rung_memory_retain";
 
-/// The prompt as sent to a provider, in chars.
-pub const PROMPT_CHARS: usize = 2_000;
-/// Recent context sent with a recall: this many earlier answers…
-pub const CONTEXT_ITEMS: usize = 3;
-/// …of at most this many chars each.
-pub const CONTEXT_CHARS: usize = 500;
-/// Each side of a turn offered to retain, in chars.
-pub const TURN_CHARS: usize = 2_000;
-
 /// The providers this build knows: `baseline` and `mcp`.
 pub fn registry() -> Registry {
     let mut r = Registry::builtin();
@@ -107,14 +98,14 @@ pub struct Turnover {
 
 impl Turnover {
     /// The turn `request` → `answer`, the assistant line at `line` of
-    /// `session`. Both sides are redacted and bounded.
+    /// `session`. Both sides are redacted and kept whole.
     pub fn of(done: &Completion, request: &str, answer: &str, session: &str, line: usize) -> Self {
         let checked = if done.was_checked() { "yes" } else { "no" };
         Self {
             observation: Observation {
                 body: Body::Turn {
-                    user: bound(request, TURN_CHARS),
-                    assistant: bound(answer, TURN_CHARS),
+                    user: clean(request),
+                    assistant: clean(answer),
                 },
                 attrs: BTreeMap::from([
                     ("session".into(), session.into()),
@@ -127,18 +118,10 @@ impl Turnover {
     }
 }
 
-/// Redact, then keep the head and tail of a text over `max` chars.
-pub fn bound(text: &str, max: usize) -> String {
-    let text = redact(text.trim());
-    let n = text.chars().count();
-    if n <= max {
-        return text;
-    }
-    let head = max * 3 / 5;
-    let tail = max - head;
-    let h: String = text.chars().take(head).collect();
-    let t: String = text.chars().skip(n - tail).collect();
-    format!("{h} […{} chars…] {t}", n - max)
+/// Redact a text and trim its edges. Nothing is cut: a secret is removed,
+/// the rest is the text as it was.
+pub fn clean(text: &str) -> String {
+    redact(text.trim())
 }
 
 // ─── Hooks ───────────────────────────────────────────────────────────────────
@@ -271,13 +254,9 @@ impl Hooks {
         if !provider.capability().recall {
             return None;
         }
-        let skip = recent.len().saturating_sub(CONTEXT_ITEMS);
         let cue = Cue {
-            prompt: bound(prompt, PROMPT_CHARS),
-            context: recent[skip..]
-                .iter()
-                .map(|t| bound(t, CONTEXT_CHARS))
-                .collect(),
+            prompt: clean(prompt),
+            context: recent.iter().map(|t| clean(t)).collect(),
         };
         let (report, evidence) = rung_memory::recall_outcome(provider.clone(), scope.clone(), cue);
         if report.status == "unavailable" {
@@ -733,7 +712,7 @@ impl McpProvider {
     }
 }
 
-/// The first few characters of what a provider sent, for an error message.
+/// What a provider sent, on one line and redacted, for an error message.
 fn glimpse(result: &Value) -> String {
     let text = result
         .get("content")
@@ -741,7 +720,7 @@ fn glimpse(result: &Value) -> String {
         .and_then(|c| c.iter().find_map(|i| i.get("text").and_then(Value::as_str)))
         .map_or_else(|| result.to_string(), str::to_string);
     let one: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    bound(&one, 60)
+    redact(&one)
 }
 
 /// `structuredContent`, else the first text item parsed as a JSON object.
@@ -929,7 +908,9 @@ impl Toolset for Bounded {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::turn_check::Gate;
     use rung_std::llm::ChatMessage;
+    use std::sync::Mutex;
 
     #[test]
     fn mcp_spec_reads_a_url_or_a_command() {
@@ -1128,13 +1109,68 @@ mod tests {
     }
 
     #[test]
-    fn bound_redacts_and_keeps_head_and_tail() {
-        let long = format!("{}{}", "a".repeat(3_000), "z".repeat(10));
-        let b = bound(&long, 100);
-        assert!(
-            b.starts_with(&"a".repeat(60)) && b.ends_with(&"z".repeat(10)),
-            "{b}"
-        );
+    fn a_huge_turn_is_offered_to_retain_whole_and_redacted() {
+        use crate::config::{TurnCheckBackend, TurnCheckSettings};
+        let Gate::Off(unjudged) = Gate::from_settings(&TurnCheckSettings {
+            backend: TurnCheckBackend::Off,
+            base_url: String::new(),
+            model: String::new(),
+            api_key_env: String::new(),
+            timeout_secs: 1,
+        }) else {
+            panic!()
+        };
+        let request = format!("{} request-tail", "q".repeat(200_000));
+        let answer = format!("{} answer-tail", "a".repeat(200_000));
+        let t = Turnover::of(&unjudged.completion(), &request, &answer, "s", 1);
+        let Body::Turn { user, assistant } = t.observation.body else {
+            panic!()
+        };
+        assert_eq!(user, request);
+        assert_eq!(assistant, answer);
+    }
+
+    #[derive(Debug, Default)]
+    struct Cues(Mutex<Vec<Cue>>);
+    impl MemoryProvider for Cues {
+        fn name(&self) -> &str {
+            "cues"
+        }
+        fn capability(&self) -> Capability {
+            Capability {
+                recall: true,
+                retain: false,
+                tools: false,
+            }
+        }
+        fn budget(&self) -> Budget {
+            Budget::default()
+        }
+        fn recall(&self, _: &Scope, cue: &Cue) -> Result<Charged<Vec<Recalled>>, Miss> {
+            self.0.lock().unwrap().push(cue.clone());
+            Ok(Charged::new(vec![]))
+        }
+        fn retain(&self, _: &Scope, _: &Observation) -> Result<Charged<Kept>, Miss> {
+            Err(Miss::new(Why::Unreachable("no".into())))
+        }
+    }
+
+    #[test]
+    fn a_recall_cue_carries_the_whole_prompt_and_every_earlier_answer() {
+        let p = Arc::new(Cues::default());
+        let hooks = Hooks::On {
+            provider: p.clone(),
+            scope: Scope::new("cue-test"),
+            settle_wait: Duration::from_millis(10),
+        };
+        let prompt = format!("{} prompt-tail", "p".repeat(100_000));
+        let recent: Vec<String> = (0..7)
+            .map(|i| format!("{i}{}", "z".repeat(5_000)))
+            .collect();
+        hooks.recall(&prompt, &recent);
+        let cue = p.0.lock().unwrap()[0].clone();
+        assert_eq!(cue.prompt, prompt);
+        assert_eq!(cue.context, recent);
     }
 
     #[test]

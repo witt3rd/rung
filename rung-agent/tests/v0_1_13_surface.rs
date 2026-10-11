@@ -35,9 +35,8 @@ use rung_agent::mcp::{
 // purpose: rung no longer caps recalled memory (see CHANGELOG, Unreleased).
 #[allow(unused_imports)]
 use rung_agent::memory::{
-    CONTEXT_CHARS, CONTEXT_ITEMS, Hooks, Layered, MARKER, McpProvider, MemoryReport, PROMPT_CHARS,
-    RECALL_TOOL, RETAIN_TOOL, TURN_CHARS, Turnover, default_scope, inject, mcp_spec, registry,
-    repo_root,
+    Hooks, Layered, MARKER, McpProvider, MemoryReport, RECALL_TOOL, RETAIN_TOOL, Turnover,
+    default_scope, inject, mcp_spec, registry, repo_root,
 };
 #[allow(unused_imports)]
 use rung_agent::memory_fixture::{Clause, FIXTURE_COST_USD, check, report, serve};
