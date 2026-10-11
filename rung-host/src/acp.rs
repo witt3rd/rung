@@ -874,7 +874,7 @@ pub fn serve_http_with(
     let (events_routes, queue_routes) = (door.routes(), queue.routes());
     let routes: rung_agent_core::acp_http::Routes =
         Arc::new(move |req: rung_agent_core::acp_http::RouteRequest| {
-            if req.path == "/v1/queue" {
+            if req.path == QUEUE_PATH {
                 queue_routes(req)
             } else {
                 events_routes(req)
@@ -908,6 +908,11 @@ pub fn serve_http_with(
     ))
 }
 
+/// The path of the event stream door (H5).
+pub const EVENTS_PATH: &str = "/v1/events";
+/// The path of the queue door (S1).
+pub const QUEUE_PATH: &str = "/v1/queue";
+
 /// The host's own doors on its listener (H5).
 pub struct EventsDoor {
     /// The state directory whose record the door follows.
@@ -932,7 +937,7 @@ impl EventsDoor {
             let door = door.clone();
             Box::pin(async move {
                 let context = crate::context::turn_of_path(&req.path).map(str::to_string);
-                if req.path != "/v1/events" && context.is_none() {
+                if req.path != EVENTS_PATH && context.is_none() {
                     return None;
                 }
                 let error = |status: u16, code: &str, message: &str| {
@@ -1172,7 +1177,7 @@ impl QueueDoor {
         Arc::new(move |req: RouteRequest| {
             let door = door.clone();
             Box::pin(async move {
-                if req.path != "/v1/queue" {
+                if req.path != QUEUE_PATH {
                     return None;
                 }
                 Some(door.handle(req).await)
