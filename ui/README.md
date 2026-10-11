@@ -74,7 +74,8 @@ when skipped; against a real host they run once it has a way to be made to write
   instance list, a key split across pieces, a torn tail after a cut or a join).
 - `live-review3-first-run.txt`: the third round's tests against the code before: the redactor port and its parity test, and a reset that
   kept the streamed text.
-- `live-mutations.txt`: twenty-three faults put into the live code one at a time; every one is caught by a test.
+- `live-review4-first-run.txt`: the word-boundary tests (a Bearer inside a word, a word after a JSON escape) against the redactor before.
+- `live-mutations.txt`: twenty-seven faults put into the live code one at a time; every one is caught by a test.
 - `live-proof.txt`: the live proof against the mock, as run.
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged

@@ -42,6 +42,11 @@ export const SHAPE_TABLE: readonly (readonly [string, number, boolean])[] = [
 const isWord = (c: string) => /[A-Za-z0-9_]/.test(c);
 const isTok = (c: string | undefined) => c !== undefined && /[A-Za-z0-9_.-]/.test(c);
 const isBearer = (c: string | undefined) => c !== undefined && /[A-Za-z0-9\-._~+/=]/.test(c);
+/** An escape sequence that ends exactly at `i`: `\\n`, `\\r`, `\\t`, `\\b`, `\\f` (with an escaped backslash before it too) or `\\uXXXX`. Its last character is a
+ *  letter or a digit, so a plain word boundary misses it; in JSON-escaped text it is a break, and a word starts after it. */
+function escapeEndsAt(t: string, i: number): boolean {
+  return (i >= 2 && t[i - 2] === "\\" && "nrtbf".includes(t[i - 1])) || (i >= 6 && t[i - 6] === "\\" && t[i - 5] === "u" && /^[0-9a-fA-F]{4}$/.test(t.slice(i - 4, i)));
+}
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
 const PREFIX_RE = new RegExp(SHAPE_TABLE.map(([p]) => esc(p)).join("|") + "|AKIA|ASIA|eyJ", "g");
 
@@ -61,7 +66,7 @@ function shapeRanges(t: string): [number, number][] {
   for (let m = PREFIX_RE.exec(t); m; m = PREFIX_RE.exec(t)) {
     const i = m.index;
     if (i < glue) { PREFIX_RE.lastIndex = glue; continue; }
-    const afterWord = i > 0 && i !== glue && isWord(t[i - 1]);
+    const afterWord = i > 0 && i !== glue && !escapeEndsAt(t, i) && isWord(t[i - 1]);
     const entry = SHAPE_TABLE.find(([p]) => t.startsWith(p, i));
     if (entry) {
       const [p, min, afterUnderscore] = entry;
@@ -87,6 +92,7 @@ function shapeRanges(t: string): [number, number][] {
   }
   // A bare `Bearer <token>`: the token goes, the word stays. Prose ("bearer authentication") has no digit or punctuation.
   for (const m of t.matchAll(/bearer([ \t]+)/gi)) {
+    if (m.index > 0 && isWord(t[m.index - 1]) && !escapeEndsAt(t, m.index)) continue; // inside a word: prose
     const v = m.index + m[0].length;
     let e = v;
     while (isBearer(t[e])) e++;
@@ -123,10 +129,12 @@ export function redactShapes(t: string): string {
 // characters only. Built from SHAPE_TABLE, so a shape added there is protected in a stream with no second edit.
 const GENERIC = SHAPE_TABLE.filter(([, , u]) => !u).map(([p]) => esc(p));
 const DISTINCT = SHAPE_TABLE.filter(([, , u]) => u).map(([p]) => esc(p));
+// Before a prefix: not a word character, or the end of a JSON escape (see escapeEndsAt).
+const ESC_BEFORE = String.raw`(?<=\\[nrtbf])|(?<=\\u[0-9a-fA-F]{4})`;
 const UNFINISHED = new RegExp(
-  `(?:(?<![A-Za-z0-9_])(?:${[...GENERIC, "AKIA", "ASIA", "eyJ"].join("|")})|(?<![A-Za-z0-9])(?:${DISTINCT.join("|")}))[A-Za-z0-9_.-]*$`,
+  `(?:(?:(?<![A-Za-z0-9_])|${ESC_BEFORE})(?:${[...GENERIC, "AKIA", "ASIA", "eyJ"].join("|")})|(?:(?<![A-Za-z0-9])|${ESC_BEFORE})(?:${DISTINCT.join("|")}))[A-Za-z0-9_.-]*$`,
 );
-const UNFINISHED_BEARER = /(bearer[ \t]+)[A-Za-z0-9\-._~+/=]+$/i;
+const UNFINISHED_BEARER = new RegExp(String.raw`((?:(?<![A-Za-z0-9_])|${ESC_BEFORE})bearer[ \t]+)[A-Za-z0-9\-._~+/=]+$`, "i");
 
 /** Hide what may be the start of a key at the end of text that is still being written, until the rest arrives and the whole shape is
  *  replaced. Call it on the whole text so far, after `redactShapes`. */

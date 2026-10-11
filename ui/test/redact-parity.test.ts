@@ -70,3 +70,29 @@ test("streamed text: whole shapes replaced, unfinished ones hidden, in one call 
 test("the exact value of a named secret goes first, whatever its shape", () => {
   assert.equal(makeRedactor(["plain-secret-value"])("x plain-secret-value y"), "x [redacted] y");
 });
+
+// Word boundaries. A plain "not a word character before it" is wrong in both directions: it redacts inside a word, and it misses a word that
+// starts after a JSON escape, whose last character (the `t` of `\t`) is a letter. The host's redactor treats an escape as a break.
+test("a bare Bearer needs a word boundary before it: inside a word it is prose", () => {
+  assert.equal(redactShapes("xBearer abc.def-123_456"), "xBearer abc.def-123_456");
+  assert.equal(redactShapes("a Bearer abc.def-123_456"), "a Bearer [redacted]");
+  assert.equal(redactShapes("Bearer abc.def-123_456"), "Bearer [redacted]", "at the start of the text");
+  assert.equal(redactShapes("x\tBearer abc.def-123_456"), "x\tBearer [redacted]", "after a real tab");
+});
+
+test("a word that starts after a JSON escape is a word: Bearer, and a key shape, after \\t \\n \\r \\b \\f and \\uXXXX", () => {
+  for (const esc of ["\\t", "\\n", "\\r", "\\b", "\\f", "\\u000a", "\\u00A0", "\\\\n"]) {
+    assert.equal(redactShapes(`x${esc}Bearer abc.def-123_456`), `x${esc}Bearer [redacted]`, `Bearer after ${esc}`);
+    assert.equal(redactShapes(`x${esc}sk-or-v1-0123456789abcdef0123456789abcdef`), `x${esc}[redacted]`, `a key after ${esc}`);
+    assert.equal(redactShapes(`x${esc}AKIAABCDEFGHIJKLMNOP`), `x${esc}[redacted]`, `an AWS id after ${esc}`);
+  }
+  // An escape-looking tail that is not an escape is still a word.
+  assert.equal(redactShapes("x\\qBearer abc.def-123_456"), "x\\qBearer abc.def-123_456");
+  assert.equal(redactShapes("x\\u00zzBearer abc.def-123_456"), "x\\u00zzBearer abc.def-123_456");
+});
+
+test("an unfinished key or Bearer after a JSON escape is hidden too", () => {
+  assert.equal(hideUnfinished("x\\nsk-or-v1-01"), "x\\n[redacted]");
+  assert.equal(hideUnfinished("x\\tBearer abc"), "x\\tBearer [redacted]");
+  assert.equal(hideUnfinished("xBearer abc"), "xBearer abc", "inside a word it is prose");
+});
