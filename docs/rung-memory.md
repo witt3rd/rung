@@ -50,8 +50,8 @@ wins over the file. A provider over stdio, or `baseline`, ignores it.
 
 ## A turn with a provider
 
-1. **Recall**, before the agent loop. rung sends the prompt and up to three
-   earlier answers, all redacted and bounded. It shows what comes back as a
+1. **Recall**, before the agent loop. rung sends the whole prompt and every
+   earlier answer offered as context, all redacted and none cut. It shows what comes back as a
    block after the current user message:
 
    ```text
