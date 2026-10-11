@@ -706,7 +706,7 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn a_symlink_to_a_real_directory_is_listed_beside_it() {
+    fn a_symlink_that_sorts_early_never_hides_a_real_directory() {
         let dir = tmp("nocap-alias");
         std::fs::create_dir(dir.join("real")).unwrap();
         std::fs::write(dir.join("real/f.txt"), "needle").unwrap();
@@ -718,14 +718,49 @@ mod tests {
             .execute(&serde_json::json!({"pattern": "real/*.txt", "path": root}))
             .unwrap();
         assert!(out.contains("real/f.txt"), "{out}");
-        let out = Glob
-            .execute(&serde_json::json!({"pattern": "**/f.txt", "path": root}))
-            .unwrap();
-        assert_eq!(out.lines().count(), 3, "{out}");
         let out = Grep
             .execute(&serde_json::json!({"pattern": "needle", "path": root}))
             .unwrap();
-        assert_eq!(out.lines().count(), 3, "{out}");
+        assert_eq!(out.lines().count(), 1, "{out}");
+        assert!(out.contains("real/f.txt"), "{out}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_web_of_sibling_symlinks_is_walked_in_linear_work() {
+        let dir = tmp("nocap-web");
+        let n = 12;
+        for i in 0..n {
+            std::fs::create_dir(dir.join(format!("d{i}"))).unwrap();
+            std::fs::write(dir.join(format!("d{i}/f{i}.txt")), "x").unwrap();
+        }
+        for i in 0..n {
+            for j in 0..n {
+                if i != j {
+                    std::os::unix::fs::symlink(
+                        dir.join(format!("d{j}")),
+                        dir.join(format!("d{i}/link{j}")),
+                    )
+                    .unwrap();
+                }
+            }
+        }
+        let t = std::time::Instant::now();
+        let files = fsutil::walk_files(&dir);
+        assert!(t.elapsed() < std::time::Duration::from_secs(1));
+        assert_eq!(files.len(), n, "{files:?}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_symlink_to_a_directory_outside_the_root_is_followed_once() {
+        let dir = tmp("nocap-out");
+        let outside = tmp("nocap-out-target");
+        std::fs::write(outside.join("o.txt"), "x").unwrap();
+        for n in ["l1", "l2"] {
+            std::os::unix::fs::symlink(&*outside, dir.join(n)).unwrap();
+        }
+        assert_eq!(fsutil::walk_files(&dir).len(), 1);
     }
 
     #[test]

@@ -166,52 +166,70 @@ fn dir_id(path: &Path) -> Option<DirId> {
     fs::canonicalize(path).ok()
 }
 
-/// Every file under `root`, with no depth limit. A directory that is its own
-/// ancestor (a symlink cycle) is not entered again; a real directory reached
-/// a second time by another path (a symlink to a sibling) is listed under
-/// both paths. The ancestor set is pushed on enter and popped on leave, so
-/// the cycle check is O(1) per directory.
+/// Every file under `root`, with no depth or count limit.
+///
+/// Real directories are always walked, each once, by the tree itself, before
+/// any symlinked directory is looked at, so a symlink can never hide a real
+/// directory. A symlinked directory is then followed at most once per target
+/// (one global `(dev, ino)` set shared with the real walk): a target the walk
+/// already covers, an ancestor of the link and a symlink cycle are all
+/// skipped. Work is O(real directories + symlinks), however the links are
+/// wired.
 pub fn walk_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    let mut ancestors = HashSet::new();
-    collect(root, &mut ancestors, &mut out);
+    if root.is_file() {
+        out.push(root.to_path_buf());
+        return out;
+    }
+    let mut seen = HashSet::new();
+    if let Some(id) = dir_id(root) {
+        seen.insert(id);
+    }
+    let mut links = std::collections::VecDeque::new();
+    walk_real(root, &mut seen, &mut links, &mut out);
+    while let Some(link) = links.pop_front() {
+        if let Some(id) = dir_id(&link)
+            && seen.insert(id)
+        {
+            walk_real(&link, &mut seen, &mut links, &mut out);
+        }
+    }
     out
 }
 
-#[allow(clippy::clone_on_copy)] // `DirId` is a `PathBuf` off unix
-fn collect(root: &Path, ancestors: &mut HashSet<DirId>, out: &mut Vec<PathBuf>) {
-    if root.is_file() {
-        out.push(root.to_path_buf());
+/// Walk `dir` (already in `seen`) and the real directories below it; queue
+/// symlinked directories.
+fn walk_real(
+    dir: &Path,
+    seen: &mut HashSet<DirId>,
+    links: &mut std::collections::VecDeque<PathBuf>,
+    out: &mut Vec<PathBuf>,
+) {
+    let Ok(rd) = fs::read_dir(dir) else {
         return;
-    }
-    let id = dir_id(root);
-    if let Some(id) = &id
-        && !ancestors.insert(id.clone())
-    {
-        return;
-    }
-    if let Ok(rd) = fs::read_dir(root) {
-        for entry in rd.flatten() {
-            let path = entry.path();
-            let name = entry.file_name();
-            let name = name.to_string_lossy();
-            let ft = entry.file_type().ok();
-            let (is_dir, is_file) = match ft {
-                Some(t) if !t.is_symlink() => (t.is_dir(), t.is_file()),
-                _ => (path.is_dir(), path.is_file()),
-            };
-            if is_dir {
-                if skip_dir(&name) {
-                    continue;
+    };
+    for entry in rd.flatten() {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        match entry.file_type() {
+            Ok(t) if t.is_dir() => {
+                if !skip_dir(&name) && dir_id(&path).is_none_or(|id| seen.insert(id)) {
+                    walk_real(&path, seen, links, out);
                 }
-                collect(&path, ancestors, out);
-            } else if is_file {
-                out.push(path);
             }
+            Ok(t) if t.is_symlink() => {
+                if path.is_dir() {
+                    if !skip_dir(&name) {
+                        links.push_back(path);
+                    }
+                } else if path.is_file() {
+                    out.push(path);
+                }
+            }
+            Ok(t) if t.is_file() => out.push(path),
+            _ => {}
         }
-    }
-    if let Some(id) = &id {
-        ancestors.remove(id);
     }
 }
 
