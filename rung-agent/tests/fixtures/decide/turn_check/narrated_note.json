@@ -4,7 +4,6 @@
     "state": {
       "request": "Keep Ada's test (whether we can think together without every idea turning into a task) as a note in notes.txt.",
       "actions": [],
-      "actions_elided": 0,
       "prior_turn_actions": [],
       "final_message": "I kept Ada's test as a note in notes.txt."
     },

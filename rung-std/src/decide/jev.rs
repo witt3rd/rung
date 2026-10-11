@@ -20,8 +20,13 @@ pub const DEFAULT_MODEL: &str = "microsoft/microsoft-decision-1";
 /// `desk.model`, agent `turn_check.model`) or `RUNG_DECIDE_MODEL` to this.
 pub const LEGACY_MODEL: &str = "typesafe/jev-1.13";
 
-/// Jev's context is 32,000 tokens. Refuse before sending, never cut.
-const MAX_ESTIMATED_TOKENS: usize = 32_000;
+/// The decision model's context window, in tokens: 32,000, the context length
+/// the decision model is served with (the same figure the previous model,
+/// `typesafe/jev-1.13`, carried). A physical limit of the provider, not a
+/// content cap: an ask above it is refused ([`Undecided::TooLarge`]) before
+/// sending, never cut. Every caller (the turn check included) uses this one
+/// constant.
+pub const DECIDER_WINDOW_TOKENS: usize = 32_000;
 const ATTEMPTS: u32 = 3;
 
 pub struct JevDecider {
@@ -109,7 +114,7 @@ impl JevDecider {
 
 impl Decider for JevDecider {
     fn decide(&self, ask: &Ask) -> Result<Decided, Undecided> {
-        if ask.estimated_tokens() > MAX_ESTIMATED_TOKENS {
+        if ask.estimated_tokens() > DECIDER_WINDOW_TOKENS {
             return Err(Undecided::TooLarge);
         }
         let response = self.post(&ask.body(&self.model))?;
