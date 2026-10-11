@@ -38,8 +38,16 @@ pub fn fetch_url(url: &str) -> Result<String, String> {
 }
 
 fn fetch_unguarded(url: &str) -> Result<String, String> {
+    fetch_with(url, std::time::Duration::from_secs(TIMEOUT_SECS))
+}
+
+/// Fetch with a wall-clock bound `limit` on the request and on reading
+/// the whole body. A time bound, not a content cap: the body, however
+/// large, is returned whole if it arrives in time.
+fn fetch_with(url: &str, limit: std::time::Duration) -> Result<String, String> {
+    let deadline = std::time::Instant::now() + limit;
     let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(TIMEOUT_SECS))
+        .timeout(limit)
         .redirect(reqwest::redirect::Policy::limited(5))
         .user_agent("rung-std-webfetch/0.1")
         .build()
@@ -71,6 +79,12 @@ fn fetch_unguarded(url: &str) -> Result<String, String> {
         let n = resp.read(&mut buf).map_err(|e| format!("webfetch: {e}"))?;
         if n == 0 {
             break;
+        }
+        if std::time::Instant::now() > deadline {
+            return Err(format!(
+                "webfetch: body not complete within {}s",
+                limit.as_secs_f64().ceil() as u64
+            ));
         }
         carry.extend_from_slice(&buf[..n]);
         let used = decode_lossy(&carry, false, |t| sink.feed(t, &mut out));
@@ -790,16 +804,6 @@ A | B\n1 | 2\n\n\
         check_html(5 * MIB / 50);
     }
 
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn whole_html_page_50mb_flat_memory() {
-        let n = 50 * MIB;
-        let base = hwm_kib();
-        check_html(n / 50);
-        let grown = hwm_kib().saturating_sub(base) * 1024;
-        assert!(grown < 3 * n, "peak RSS grew {} MiB", grown / MIB);
-    }
-
     fn expected(n: usize) -> Vec<u8> {
         let chunk = body(1 << 20);
         let mut v = Vec::with_capacity(n);
@@ -835,18 +839,74 @@ A | B\n1 | 2\n\n\
         check(5 * MIB);
     }
 
+    /// The returned String is the one copy of the body (a whole result
+    /// cannot be smaller); nothing else holds it. Old buffering held ~3x.
+    /// One test so parallel 50 MB tests cannot pollute the process peak.
     #[cfg(target_os = "linux")]
     #[test]
-    fn whole_body_flat_memory() {
+    fn whole_50mb_pages_one_copy_in_memory() {
         let n = 50 * MIB;
         let base = hwm_kib();
         check(n);
+        check_html(n / 50);
         let grown = hwm_kib().saturating_sub(base) * 1024;
         assert!(
-            grown < 3 * n,
+            grown < n + n / 2 + 16 * MIB,
             "peak RSS grew {} MiB for a {} MiB body",
             grown / MIB,
             n / MIB
         );
+    }
+
+    /// Serve `200 text/plain` as an endless body (`gap` between writes of
+    /// `chunk` bytes); stops by itself after `give_up` so a missing
+    /// deadline fails the test instead of hanging it.
+    fn serve_endless(
+        chunk: usize,
+        gap: std::time::Duration,
+        give_up: std::time::Duration,
+    ) -> String {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = l.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (mut s, _) = l.accept().unwrap();
+            let mut req = [0u8; 4096];
+            let _ = s.read(&mut req);
+            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n";
+            if s.write_all(head.as_bytes()).is_err() {
+                return;
+            }
+            let data = vec![b'x'; chunk];
+            let t0 = std::time::Instant::now();
+            while t0.elapsed() < give_up {
+                if s.write_all(&data).is_err() {
+                    return;
+                }
+                std::thread::sleep(gap);
+            }
+        });
+        format!("http://127.0.0.1:{port}/")
+    }
+
+    #[test]
+    fn trickle_body_hits_the_whole_body_deadline() {
+        use std::time::Duration;
+        // one byte per 50 ms: every read is quick, only the total is long
+        let url = serve_endless(1, Duration::from_millis(50), Duration::from_secs(5));
+        let t0 = std::time::Instant::now();
+        let err = fetch_with(&url, Duration::from_millis(600)).unwrap_err();
+        assert!(err.contains("body not complete within"), "{err}");
+        assert!(t0.elapsed() < Duration::from_secs(3), "{:?}", t0.elapsed());
+    }
+
+    #[test]
+    fn never_ending_body_hits_the_whole_body_deadline() {
+        use std::time::Duration;
+        // 16 KiB every 2 ms (~8 MB/s): fast, never ends
+        let url = serve_endless(16 * 1024, Duration::from_millis(2), Duration::from_secs(5));
+        let t0 = std::time::Instant::now();
+        let err = fetch_with(&url, Duration::from_millis(600)).unwrap_err();
+        assert!(err.contains("body not complete within"), "{err}");
+        assert!(t0.elapsed() < Duration::from_secs(3), "{:?}", t0.elapsed());
     }
 }
