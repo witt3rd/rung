@@ -68,6 +68,7 @@ when skipped; against a real host they run once it has a way to be made to write
 - `contract-first-run.txt`: the contract tests before the mock existed. Every one failed.
 - `contract-mutations.txt`: five faults put into the mock on purpose (a slow reader never dropped, a replay that repeats a line, a key in an
   answer header, a delta with an id, a read-only token that may write); the tests that caught each.
+- `live-redact-reset-first-run.txt`: the live-store tests before the review fixes (redaction of streamed lines and deltas, reset clearing the queue); the redaction test failed.
 - `live-proof.txt`: the live proof against the mock, as run.
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged
