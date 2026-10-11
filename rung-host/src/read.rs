@@ -10,7 +10,8 @@
 //! - [`summary`]: the instance's **fold**: the record replayed through the
 //!   host's own [`State::apply`], read as what it is doing, what it waits for,
 //!   its queue head, its boundary, its desk's limits and its config as read;
-//! - [`record()`]: the recorded events, paged by the caller and replayable.
+//! - [`record_open`] and [`RecordPage::write_json`]: the recorded events, paged by
+//!   the caller, replayable, and written a line at a time.
 //!
 //! A stopped instance reads the same as a running one: nothing here asks the
 //! host anything. Every answer is passed through the shared redactor
@@ -826,25 +827,6 @@ impl RecordQuery {
     }
 }
 
-/// `GET /v1/record`: the recorded events of instance `id`, one page. Oldest
-/// first by default. The page is the caller's: `limit` lines from `offset` (or
-/// after line number `after`); `total` is the number of intact lines; `next`
-/// is the next offset or null on the last page; `cursor` is the `after` that
-/// continues from this page. A cursor past the end is an empty last page.
-///
-/// This buffers the page. A door writes it with [`record_open`] and
-/// [`RecordPage::write_json`], which hold one line at a time however large the
-/// page is.
-pub fn record(registry_dir: &Path, id: &str, q: &RecordQuery, base: &Redactor) -> Door {
-    let page = record_open(registry_dir, id, q, base)?;
-    let red = page.red.clone();
-    let mut out = Vec::new();
-    page.write_json(&mut out)
-        .map_err(|e| DoorError::new(500, "unreadable", e.to_string()).redacted(&red))?;
-    serde_json::from_slice(&out)
-        .map_err(|e| DoorError::new(500, "internal", format!("the page is not JSON: {e}")))
-}
-
 /// A record page ready to be written: everything that can be refused has been
 /// (an unknown instance, a missing state directory, an unreadable record
 /// directory), so [`write_json`](RecordPage::write_json) can start an answer.
@@ -860,6 +842,16 @@ pub struct RecordPage {
     prefix: Option<ScanOut>,
 }
 
+/// `GET /v1/record`: the recorded events of instance `id`, one page. Oldest
+/// first by default. The page is the caller's: `limit` lines from `offset` (or
+/// after line number `after`); `total` is the number of intact lines; `next`
+/// is the next offset or null on the last page; `cursor` is the `after` that
+/// continues from this page. A cursor past the end is an empty last page.
+///
+/// A door asks for the page with [`record_open`] and writes it with
+/// [`RecordPage::write_json`], which holds one line at a time however large the
+/// page is.
+///
 /// Open the page `q` asks of instance `id`. A newest-first page first reads
 /// the record once to find where it ends (nothing is held but its position);
 /// an oldest-first page reads nothing yet.

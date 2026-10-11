@@ -659,7 +659,7 @@ the whole answer sees no difference. All refusals (an unknown instance, a
 missing state directory, a bad query) are answered before the first byte; the
 status is 200 once the page starts. If the record becomes unreadable part-way,
 the body ends with an error and the connection is closed, so a client sees a
-truncated answer, never a complete-looking short one. A newest-first page
+truncated answer, never a complete-looking short one. A reader that stops reading holds one blocking thread until it disconnects: there is no idle timeout (the tailnet is the boundary; declared policy). A newest-first page
 first reads the record once, holding only its position, to find where it ends,
 then reads backwards from there; an oldest-first page starts at once and learns
 `total` as it goes.
