@@ -246,24 +246,45 @@ fn a_200000_character_task_is_queued_and_listed_whole() {
     assert!(!item["text"].as_str().unwrap().contains('…'));
 }
 
+/// The item of `list` with this id.
+fn item_of<'a>(list: &'a Value, id: &str) -> &'a Value {
+    let mut it = list["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|i| i["id"] == id);
+    let found = it.next().unwrap_or_else(|| panic!("no item {id}"));
+    assert!(it.next().is_none(), "item {id} listed twice");
+    found
+}
+
+/// A running host has items of its own besides the ones a test adds: its own
+/// expectations settle into the queue once it has run free turns (`exp-…`, role
+/// `host`), and how many have by the time a test looks depends on how long the
+/// host has been running. So this test asserts only about the items it added,
+/// by their keys, and about the page arithmetic with a bound that holds however
+/// many others there are; exact totals and positions are the fold's and the
+/// gateway's own tests', over fixed records.
 #[test]
 fn the_list_has_the_shape_a_page_needs() {
     sim::test_timeout(120);
     let guard = sim::temp_dir_guard("s1-queue-list");
     let s = spawn(guard.path());
-    post(
-        &s,
-        &json!({"text": "first", "key": "k-1"}),
-        Some(OWNER_TOKEN),
-    );
+    for n in 1..=4 {
+        let a = post(
+            &s,
+            &json!({"text": format!("m{n}"), "key": format!("k-{n}")}),
+            Some(OWNER_TOKEN),
+        );
+        assert_eq!(a.status, 201, "{}", a.body);
+    }
     let list = get(&s, "/v1/queue?state=all", Some(OWNER_TOKEN));
     assert_eq!(list.status, 200, "{}", list.body);
     let v = list.json();
-    assert_eq!(v["total"], 1);
+    assert!(v["total"].as_u64().unwrap() >= 4);
     assert_eq!(v["offset"], 0);
-    assert!(v["next"].is_null());
-    let i = &v["items"][0];
-    assert_eq!(i["id"], "k-1");
+    let i = item_of(&v, "k-1");
+    assert_eq!(i["text"], "m1");
     assert_eq!(i["role"], "owner");
     assert!(i["name"].is_null());
     assert_eq!(i["intent"], "next");
@@ -273,17 +294,15 @@ fn the_list_has_the_shape_a_page_needs() {
         i["state"].as_str().unwrap(),
         "waiting" | "answering" | "answered"
     ));
-    // paging: no maximum, an exact total, a next offset
-    for n in 2..=4 {
-        post(
-            &s,
-            &json!({"text": format!("m{n}"), "key": format!("k-{n}")}),
-            Some(OWNER_TOKEN),
-        );
-    }
+    // the owner's items are in the order they were added
+    let order = |id: &str| item_of(&v, id)["order"].as_u64().unwrap();
+    assert!(
+        order("k-1") < order("k-2") && order("k-2") < order("k-3") && order("k-3") < order("k-4")
+    );
+    // paging: `limit` is the page, `next` the next offset, past the end empty
     let p = get(&s, "/v1/queue?state=all&limit=3", Some(OWNER_TOKEN)).json();
-    assert_eq!(p["total"], 4);
     assert_eq!(p["items"].as_array().unwrap().len(), 3);
+    assert_eq!(p["limit"], 3);
     assert_eq!(p["next"], 3);
     let p = get(
         &s,
@@ -291,7 +310,11 @@ fn the_list_has_the_shape_a_page_needs() {
         Some(OWNER_TOKEN),
     )
     .json();
-    assert_eq!(p["items"].as_array().unwrap().len(), 1);
+    let n = p["items"].as_array().unwrap().len();
+    assert!((1..=3).contains(&n));
+    assert_eq!(p["offset"], 3);
+    let p = get(&s, "/v1/queue?state=all&offset=100000", Some(OWNER_TOKEN)).json();
+    assert_eq!(p["items"], json!([]));
     assert!(p["next"].is_null());
     // a parameter it does not know, and a state it does not know, are refused
     let bad = get(&s, "/v1/queue?colour=red", Some(OWNER_TOKEN));

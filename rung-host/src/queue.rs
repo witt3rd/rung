@@ -81,13 +81,12 @@ impl Entry {
         self.item["role"].as_str().unwrap_or("")
     }
 
-    /// Owner first, then peers, then anyone else.
+    /// Owner first, then peers, then any other source (the host's own).
     fn rank(&self) -> u8 {
         match self.role() {
             "owner" => 0,
             "peer" => 1,
-            "observer" => 2,
-            _ => 3,
+            _ => 2,
         }
     }
 
@@ -100,7 +99,7 @@ impl Entry {
     fn name(&self) -> Option<String> {
         match self.role() {
             "owner" => None,
-            "peer" | "observer" => Some(
+            "peer" => Some(
                 self.channel()
                     .split_once(':')
                     .map_or(self.channel(), |(_, n)| n)

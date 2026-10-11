@@ -1300,6 +1300,13 @@ checks, in this order:
    the tailnet's 100.64.0.0/10, or an IPv6 unique-local address; a name is not one
    and is not resolved), else 503 `no_address` and nothing is sent; with no
    registered address, the config's `url`.
+   **This is the prototype's trust boundary, stated plainly: the gateway sends
+   its write key to any private registry address.** An instance's registry entry
+   decides where the key for that id goes, so anyone who can edit the registry
+   folder can point the key at any private address (another process on the same
+   machine, another box on the tailnet). The registry is the operator's own
+   files; this is accepted, and the checks above only keep the key from public
+   addresses and from variables an instance names.
 4. the forward: the body is **streamed** to the host as it arrives (the gateway
    holds none of it, whatever its size; a refusal above is answered without
    reading it), and the body, `Content-Type` and query go on; the client's
