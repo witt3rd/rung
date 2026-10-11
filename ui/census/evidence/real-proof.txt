@@ -1,0 +1,11 @@
+pass  the list holds every registered instance: a stopped one, a dead one, a live-looking one and an entry that cannot be read
+pass  the entry that cannot be read is listed as Unreadable, never dropped
+pass  census, real-instances at 1920: chrome 11 words, within every budget
+pass  a stopped instance shows the command that starts it, and says the page does not
+pass  census, real-now-stopped at 1920: chrome 39 words, within every budget
+pass  the record read through the real door is the record: 3 turns shown, 3 in the file
+pass  census, real-turns at 1920: chrome 24 words, within every budget
+pass  census, real-instances at 390: chrome 11 words, within every budget
+pass  census, real-now-stopped at 390: chrome 26 words, within every budget
+pass  census, real-turns at 390: chrome 17 words, within every budget
+real-gateway proof: all pass

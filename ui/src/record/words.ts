@@ -2,7 +2,7 @@
  *  from a fold, so the wording can be tested in one place. No ids or hashes reach the main view. */
 import type { Line } from "./types.ts";
 
-export type StateWord = "Working" | "Answering" | "Free time" | "Waiting" | "Stuck" | "Down" | "Stopped";
+export type StateWord = "Working" | "Answering" | "Free time" | "Waiting" | "Stuck" | "Down" | "Stopped" | "Unreadable";
 
 /** The question each decision family settles, as the owner would ask it. */
 export const FAMILY_QUESTION: Record<string, string> = {

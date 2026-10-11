@@ -61,3 +61,16 @@ both are given). Events:
 
 As in the gateway section of `docs/rung-host-api.md`; `summary` is the instance's `/v1/summary` as it answered. An instance that does
 not answer is listed with `reachable: false`.
+
+## Where the real doors are (docs/rung-host-api.md, H3 and H5)
+
+- **H3 is on master** (`summary`, `record`, the list): they are a superset of the bodies above. `summary` adds `id`, `name`, `word`, `day`,
+  `start_command`, `waiting_for`, `boundary`, `turn_in_progress`, `queue`, `desk`, `governor`, `config`, `fold_hash`, `redaction`, `damaged`
+  and `problem`, and `state` may also be `Unreadable`; `record` adds `cursor`, `order`, `after`, `damaged`, `redaction`, and takes `after` and
+  `order` as well. The list rows add `word`, `source`, `last_at` and `start_command`; a row with no summary says why in `error`.
+  `test/contract.test.ts` passes against the built `rung-gateway` for these doors (`npm run test:contract:real`).
+- **H5 is not on master** (it is on the host builder's branch). Its frames differ from the proposal here and the mock follows the proposal
+  until it lands: an `open` frame first (with `live`, `partials`, `redaction`) where this file has `caught_up`; a last `end` frame (`stopped`,
+  `down`, `damaged`, `error`); `409 cursor_ahead` for a cursor past the record where this file has 400; a `partials` query value; partial
+  frames that carry `call` as well as `turn` and `kind`. When it merges, this file, the mock and the client move to its shapes in one change,
+  and the events checks, skipped on a gateway without the door, run against it.

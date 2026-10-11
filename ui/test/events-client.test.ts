@@ -86,3 +86,13 @@ test("failures back off and then follow; deltas pass through and a cut stream's 
   for (const d of deltas) assert.deepEqual(d, { turn: 1, kind: "text", text: "hi " });
   assert.ok(statuses.filter((s) => s === "reconnecting").length >= 2);
 });
+
+test("a gateway with no event stream for the instance (404): said once, not retried", async () => {
+  const statuses: Status[] = [];
+  let calls = 0;
+  const f = (async () => { calls++; return new Response("{}", { status: 404 }); }) as typeof fetch;
+  const c = new EventsClient({ url: () => "x", after: 3, onRecord: () => {}, onStatus: (s) => statuses.push(s), backoffMs: 5, fetchImpl: f });
+  c.start(); await sleep(150); c.stop();
+  assert.equal(calls, 1, "no retry loop against a door that is not there");
+  assert.equal(statuses.at(-1), "unavailable");
+});

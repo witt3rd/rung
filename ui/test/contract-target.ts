@@ -1,5 +1,5 @@
 /** What the contract tests talk to: a gateway URL and one instance behind it. By default the mock in ../mock is started;
- *  with RUNG_CONTRACT_URL (and RUNG_CONTRACT_INSTANCE) the same tests run against a real gateway, with no control hooks. */
+ *  with RUNG_CONTRACT_TARGET=real the built rung-gateway over files this suite writes (mock/real.ts); with RUNG_CONTRACT_URL (and RUNG_CONTRACT_INSTANCE) the same tests run against a real gateway, with no control hooks. */
 export interface Control {
   /** Make the host write `n` more record lines (with deltas) and resolve once they are on the record. */
   poke(n: number): Promise<void>;
@@ -16,11 +16,17 @@ export interface Target {
   readOnlyToken: string | null;
   /** An instance id the gateway lists that does not answer, when the target has one. */
   deadInstance: string | null;
+  /** Whether the target can stream short-lived partial frames while a turn runs (a host writing a turn; not the files alone). */
+  deltas?: boolean;
   control: Control | null;
   stop(): Promise<void>;
 }
 
 export async function startTarget(): Promise<Target> {
+  if (process.env.RUNG_CONTRACT_TARGET === "real") {
+    const { startReal } = await import("../mock/real.ts");
+    return startReal();
+  }
   if (process.env.RUNG_CONTRACT_URL) {
     return {
       url: process.env.RUNG_CONTRACT_URL.replace(/\/$/, ""),

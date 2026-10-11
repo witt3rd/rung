@@ -29,7 +29,7 @@ export function InstancesPage() {
             <a key={i.id} className={`row ov${s.needsYou ? " next" : ""}`} href={href.now(i.id)} data-needs={s.needsYou ? "" : undefined}>
               <span className="t" data-content><b>{i.name}</b></span>
               <span data-content className={s.needsYou ? "needs-text" : undefined}>{s.needsYou && <span className="mark needs" />}{s.state}</span>
-              <span data-content>{s.doing}</span>
+              <span data-content title={i.problem ?? undefined}>{s.doing}</span>
               <span className="meta" data-content>{i.reachable === false ? "No answer" : requestsLine(s)}</span>
               <span className="meta" data-content>{i.reachable === false ? "" : when(s.lastAt, data!.generatedAt)}</span>
             </a>

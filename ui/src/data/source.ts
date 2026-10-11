@@ -14,6 +14,10 @@ export interface InstanceEntry {
   lockHeld: boolean;
   /** A live instance that did not answer is listed, with nothing known about it but that. Recorded ones always are. */
   reachable?: boolean;
+  /** How to start it, for a native instance that has a config file: shown, never run. */
+  startCommand?: string | null;
+  /** Why a row has no summary, as the gateway said it (a path may be in it): kept for the row to offer, not shown in the line. */
+  problem?: string | null;
   record: string;
   summary: Summary;
 }
@@ -47,15 +51,19 @@ export async function detectMode(): Promise<"live" | "static"> {
   }
 }
 
-interface GatewayInstance { id: string; name: string; reachable: boolean; summary: HostSummary | null; error: string | null }
+interface GatewayInstance {
+  id: string; name: string; reachable: boolean; summary: HostSummary | null; error: string | null;
+  /** Native rows (H3): the registry's word (running, stopped, down, unreadable) and how to start it. */
+  word?: string; start_command?: string | null;
+}
 
 /** The overview's row for a live instance: what the host's own summary says, and nothing the page could only guess. */
 export function fromHostSummary(g: GatewayInstance, now: number): Summary {
   const h = g.summary;
   const day = new Date(h?.last_at ?? now).toISOString().slice(0, 10);
   return {
-    state: h ? (h.state as Summary["state"]) : "Down",
-    doing: h ? h.doing : "It does not answer.",
+    state: h ? (h.state as Summary["state"]) : g.word === "unreadable" ? "Unreadable" : "Down",
+    doing: h ? h.doing : g.word === "unreadable" ? "Its registry entry cannot be read." : "It does not answer.",
     needsYou: h ? h.needs_you : true,
     turns: h?.turn ?? 0, lastTurn: h?.turn ?? null, lastAt: h?.last_at ?? now,
     requests: h?.requests ?? 0, quota: h?.quota ?? null, requestsDay: day, spendDayUsd: h?.spend_usd_day ?? 0,
@@ -73,8 +81,8 @@ export async function loadLiveIndex(base = "api", fetchImpl: typeof fetch = (...
     generatedAt: now,
     instances: list.map((g) => ({
       id: g.id, name: g.name, kind: "live" as const,
-      lockHeld: !!g.summary && g.summary.state !== "Stopped" && g.summary.state !== "Down",
-      reachable: g.reachable, record: "", summary: fromHostSummary(g, now),
+      lockHeld: !!g.summary && !["Stopped", "Down", "Unreadable"].includes(g.summary.state),
+      reachable: g.reachable, startCommand: g.start_command ?? g.summary?.start_command ?? null, problem: g.summary ? null : g.error, record: "", summary: fromHostSummary(g, now),
     })),
   };
 }

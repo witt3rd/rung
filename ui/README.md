@@ -33,6 +33,8 @@ which is on the host builder's branches, not yet on master). `test/contract.test
     RUNG_CONTRACT_URL=http://127.0.0.1:8787 RUNG_CONTRACT_INSTANCE=alpha npm run test:contract   # against a real one
     npm run mock -- --port 8742 --app dist     # the built app, the mock gateway, and a host writing turns on a real clock
     npm run live-proof                         # a real browser against the mock: latency, a cut with the page offline, captures
+    cargo build -p rung-gateway && npm run test:contract:real   # the same contract tests against the built rung-gateway (H3 doors; the events checks skip until H5)
+    cargo build -p rung-gateway && npm run real-proof           # a real browser against rung-gateway over a registry folder: the list, a stopped instance's start command, the record
 
 Checks that need to write to the host (a line within a second, a cut, deltas, a slow reader) need the target's control hooks and say so
 when skipped; against a real host they run once it has a way to be made to write.
@@ -77,6 +79,8 @@ when skipped; against a real host they run once it has a way to be made to write
 - `live-review4-first-run.txt`: the word-boundary tests (a Bearer inside a word, a word after a JSON escape) against the redactor before.
 - `live-mutations.txt`: twenty-seven faults put into the live code one at a time; every one is caught by a test.
 - `live-proof.txt`: the live proof against the mock, as run.
+- `real-gateway-first-run.txt`: the tests for the real gateway's rows and a missing event stream, against the UI source as it was on master.
+- `real-proof.txt`: the proof against the real gateway binary, as run; `contract-real.txt`: the contract tests against it, as run.
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged
   by looking at the captures; what looking changed is listed below.

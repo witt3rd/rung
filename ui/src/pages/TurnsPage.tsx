@@ -122,7 +122,7 @@ export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
         </div>
         {li && (
           <p className="meta" style={{ margin: "0 0 20px" }} data-content>
-            <span className="mark live" />{li.status === "following" ? "Following" : li.status === "catching up" ? "Catching up" : "Reconnecting"}
+            <span className="mark live" />{li.status === "following" ? "Following" : li.status === "catching up" ? "Catching up" : li.status === "unavailable" ? "Recorded, not followed" : "Reconnecting"}
           </p>
         )}
         <section>
