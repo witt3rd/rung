@@ -39,6 +39,11 @@ git tags only.
 ### Changed
 - `rung-std`: `webfetch` returns the whole body; the 512 KiB cut and its
   `[truncated]` marker are removed. The body streams, so memory stays flat.
+- `rung-std`: `webfetch` output changes format. A header line gives the
+  final URL (after redirects) and the HTTP status, then a blank line, then
+  the body. HTML becomes Markdown (headings, `[links](url)`, lists, code,
+  tables as ` | ` rows, images); text of `style`, `script`, `noscript` and
+  `template` is dropped. Other content types are returned as is.
 
 ## [0.2.3] - 2026-10-07
 

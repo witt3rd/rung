@@ -1,4 +1,4 @@
-//! `webfetch` — HTTP GET for the agent. http(s) only; whole body, streamed.
+//! `webfetch` — HTTP GET for the agent. http(s) only; whole body, streamed; HTML becomes Markdown.
 
 use super::Tool;
 use super::fsutil;
@@ -15,7 +15,7 @@ impl Tool for WebFetch {
         "webfetch"
     }
     fn description(&self) -> &'static str {
-        "Fetch a http(s) URL and return text (HTML stripped to tags-as-space). Returns the whole body."
+        "Fetch a http(s) URL. Returns a header line (final URL after redirects, HTTP status), a blank line, then the whole body: HTML pages are converted to Markdown (headings, [links](url), lists, code, tables as ` | ` rows; style, script, noscript and template text removed); other content types are returned as is."
     }
     fn input_schema(&self) -> Value {
         serde_json::json!({
@@ -59,7 +59,8 @@ fn fetch_unguarded(url: &str) -> Result<String, String> {
         .unwrap_or("")
         .to_ascii_lowercase();
     let html = ctype.contains("html");
-    let mut out = format!("url: {url}\nstatus: {status}\n\n");
+    // Header: the URL actually reached (after redirects) and the status.
+    let mut out = format!("url: {} | status: {status}\n\n", resp.url());
     // Stream: each chunk is decoded and appended straight to `out`; the
     // body is never held a second time.
     let mut sink = Sink::new(html);
@@ -76,6 +77,7 @@ fn fetch_unguarded(url: &str) -> Result<String, String> {
         carry.drain(..used);
     }
     decode_lossy(&carry, true, |t| sink.feed(t, &mut out));
+    sink.finish(&mut out);
     Ok(out)
 }
 
@@ -113,68 +115,418 @@ fn decode_lossy(bytes: &[u8], last: bool, mut f: impl FnMut(&str)) -> usize {
     i
 }
 
-/// Incremental text sink: plain passthrough, or HTML tag stripping with
-/// whitespace collapsed to single spaces (state survives chunk edges).
+/// Incremental output sink: plain passthrough, or HTML -> Markdown.
 struct Sink {
-    html: bool,
-    in_tag: bool,
-    skip: bool,
-    tag: String,
-    pending_space: bool,
-    wrote: bool,
+    md: Option<Md>,
 }
 
 impl Sink {
     fn new(html: bool) -> Self {
         Sink {
-            html,
-            in_tag: false,
-            skip: false,
-            tag: String::new(),
-            pending_space: false,
-            wrote: false,
+            md: html.then(Md::default),
+        }
+    }
+    fn feed(&mut self, s: &str, out: &mut String) {
+        match &mut self.md {
+            Some(m) => m.feed(s, out),
+            None => out.push_str(s),
+        }
+    }
+    fn finish(&mut self, out: &mut String) {
+        if let Some(m) = &mut self.md {
+            m.finish(out);
+        }
+    }
+}
+
+/// Elements whose text is never shown (CSS/JS/template noise).
+const SKIPPED: [&str; 4] = ["style", "script", "noscript", "template"];
+
+/// Streaming HTML -> Markdown. All state survives chunk edges, so memory
+/// is the tag being parsed, never the page. Breaks and spaces are lazy:
+/// they are written only when more content follows.
+#[derive(Default)]
+struct Md {
+    lt: bool,
+    in_tag: bool,
+    in_comment: bool,
+    comment_tail: [char; 2],
+    tag: String,
+    skip: Option<&'static str>,
+    ent: Option<String>,
+    pre: bool,
+    links: Vec<Option<String>>,
+    lists: Vec<Option<u32>>,
+    cell: u32,
+    pending_break: u8,
+    pending_space: bool,
+    wrote: bool,
+}
+
+impl Md {
+    fn feed(&mut self, s: &str, out: &mut String) {
+        for c in s.chars() {
+            self.ch(c, out);
         }
     }
 
-    fn feed(&mut self, s: &str, out: &mut String) {
-        if !self.html {
-            out.push_str(s);
+    fn finish(&mut self, out: &mut String) {
+        if self.lt && self.skip.is_none() {
+            self.lt = false;
+            self.text('<', out);
+        }
+        if let Some(e) = self.ent.take() {
+            self.text('&', out);
+            for c in e.chars() {
+                self.text(c, out);
+            }
+        }
+    }
+
+    fn ch(&mut self, c: char, out: &mut String) {
+        if self.in_comment {
+            if c == '>' && self.comment_tail == ['-', '-'] {
+                self.in_comment = false;
+                self.in_tag = false;
+            }
+            self.comment_tail = [self.comment_tail[1], c];
             return;
         }
-        for c in s.chars() {
+        if self.in_tag {
             if c == '<' {
+                self.in_tag = false;
+                self.lt = true;
+            } else if c == '>' {
+                self.in_tag = false;
+                let t = std::mem::take(&mut self.tag);
+                self.dispatch(&t, out);
+            } else {
+                self.tag.push(c);
+                if self.tag == "!--" {
+                    self.in_comment = true;
+                    self.comment_tail = [' ', ' '];
+                    self.tag.clear();
+                }
+            }
+            return;
+        }
+        if self.lt {
+            self.lt = false;
+            if c.is_ascii_alphabetic() || c == '/' || c == '!' || c == '?' {
                 self.in_tag = true;
                 self.tag.clear();
-                continue;
+                self.ch(c, out);
+                return;
             }
-            if self.in_tag {
-                if c == '>' {
-                    let t = self.tag.to_ascii_lowercase();
-                    if t.starts_with("script") {
-                        self.skip = true;
-                    }
-                    if t.starts_with("/script") {
-                        self.skip = false;
-                    }
-                    self.in_tag = false;
-                } else {
-                    self.tag.push(c);
+            if self.skip.is_none() {
+                self.text('<', out);
+            }
+        }
+        if c == '<' {
+            if let Some(b) = self.ent.take() {
+                self.text('&', out);
+                for x in b.chars() {
+                    self.text(x, out);
                 }
-                continue;
             }
-            if self.skip {
-                continue;
+            self.lt = true;
+            return;
+        }
+        if self.skip.is_some() {
+            return;
+        }
+        if let Some(buf) = &mut self.ent {
+            if c == ';' {
+                let b = self.ent.take().unwrap_or_default();
+                match entity(&b) {
+                    Some(d) => self.text(d, out),
+                    None => {
+                        self.text('&', out);
+                        for x in b.chars() {
+                            self.text(x, out);
+                        }
+                        self.text(';', out);
+                    }
+                }
+                return;
             }
-            if c.is_whitespace() {
-                self.pending_space = self.wrote;
-            } else {
-                if self.pending_space {
-                    out.push(' ');
+            if (c.is_ascii_alphanumeric() || c == '#') && buf.len() < 10 {
+                buf.push(c);
+                return;
+            }
+            let b = self.ent.take().unwrap_or_default();
+            self.text('&', out);
+            for x in b.chars() {
+                self.text(x, out);
+            }
+        }
+        if c == '&' {
+            self.ent = Some(String::new());
+            return;
+        }
+        self.text(c, out);
+    }
+
+    /// One decoded character of page text.
+    fn text(&mut self, c: char, out: &mut String) {
+        if self.pre {
+            self.flush_break(out);
+            out.push(c);
+            self.wrote = true;
+            return;
+        }
+        if c.is_whitespace() {
+            self.pending_space = true;
+            return;
+        }
+        self.lead(out);
+        out.push(c);
+    }
+
+    fn flush_break(&mut self, out: &mut String) {
+        if self.wrote {
+            for _ in 0..self.pending_break {
+                out.push('\n');
+            }
+        }
+        self.pending_break = 0;
+    }
+
+    /// Write whatever must precede new inline content: a pending
+    /// line/paragraph break, else a pending single space.
+    fn lead(&mut self, out: &mut String) {
+        if self.pending_break > 0 {
+            self.flush_break(out);
+        } else if self.pending_space && self.wrote {
+            out.push(' ');
+        }
+        self.pending_space = false;
+        self.wrote = true;
+    }
+
+    fn put(&mut self, s: &str, out: &mut String) {
+        self.lead(out);
+        out.push_str(s);
+    }
+
+    /// Closing marker: glued to the text before it; pending spacing and
+    /// breaks still follow it.
+    fn put_close(&mut self, s: &str, out: &mut String) {
+        out.push_str(s);
+        self.wrote = true;
+    }
+
+    fn brk(&mut self, n: u8) {
+        self.pending_break = self.pending_break.max(n);
+    }
+
+    fn dispatch(&mut self, tag: &str, out: &mut String) {
+        let closing = tag.starts_with('/');
+        let body = tag.trim_start_matches('/');
+        let name: String = body
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric())
+            .collect::<String>()
+            .to_ascii_lowercase();
+        if let Some(sk) = self.skip {
+            if closing && name == sk {
+                self.skip = None;
+            }
+            return;
+        }
+        let self_closing = tag.ends_with('/');
+        if !closing && !self_closing {
+            if let Some(sk) = SKIPPED.iter().find(|n| **n == name) {
+                self.skip = Some(sk);
+                return;
+            }
+        }
+        if closing {
+            self.close(&name, out);
+        } else {
+            self.open(&name, tag, out);
+        }
+    }
+
+    fn open(&mut self, name: &str, tag: &str, out: &mut String) {
+        match name {
+            "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
+                self.brk(2);
+                let n = (name.as_bytes()[1] - b'0') as usize;
+                self.put(&format!("{} ", "#".repeat(n)), out);
+            }
+            "title" => {
+                self.brk(2);
+                self.put("# ", out);
+            }
+            "p" | "blockquote" | "table" | "figure" | "details" | "dl" => {
+                self.brk(2);
+                if name == "blockquote" {
+                    self.put("> ", out);
+                }
+            }
+            "div" | "section" | "article" | "main" | "header" | "footer" | "nav" | "aside"
+            | "form" | "fieldset" | "address" | "summary" | "figcaption" | "dt" | "dd" => {
+                self.brk(1)
+            }
+            "br" => self.brk(1),
+            "hr" => {
+                self.brk(2);
+                self.put("---", out);
+                self.brk(2);
+            }
+            "ul" | "ol" => {
+                self.brk(if self.lists.is_empty() { 2 } else { 1 });
+                self.lists.push((name == "ol").then_some(0));
+            }
+            "li" => {
+                self.brk(1);
+                let depth = self.lists.len().saturating_sub(1);
+                let mark = match self.lists.last_mut() {
+                    Some(Some(n)) => {
+                        *n += 1;
+                        format!("{n}. ")
+                    }
+                    _ => "- ".to_string(),
+                };
+                self.put(&format!("{}{mark}", "  ".repeat(depth)), out);
+            }
+            "pre" => {
+                self.brk(2);
+                self.put("```\n", out);
+                self.pre = true;
+            }
+            "code" if !self.pre => self.put("`", out),
+            "b" | "strong" if !self.pre => self.put("**", out),
+            "i" | "em" if !self.pre => self.put("*", out),
+            "a" => {
+                let href = attr(tag, "href");
+                if href.is_some() {
+                    self.put("[", out);
+                }
+                self.links.push(href);
+            }
+            "img" => {
+                if let Some(src) = attr(tag, "src") {
+                    let alt = attr(tag, "alt").unwrap_or_default();
+                    self.put(&format!("![{alt}]({src})"), out);
+                }
+            }
+            "tr" => {
+                self.brk(1);
+                self.cell = 0;
+            }
+            "td" | "th" => {
+                if self.cell > 0 {
                     self.pending_space = false;
+                    self.put_close(" | ", out);
                 }
-                out.push(c);
-                self.wrote = true;
+                self.cell += 1;
             }
+            _ => {}
+        }
+    }
+
+    fn close(&mut self, name: &str, out: &mut String) {
+        match name {
+            "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "title" | "p" | "blockquote" | "table"
+            | "figure" | "details" | "dl" => self.brk(2),
+            "div" | "section" | "article" | "main" | "header" | "footer" | "nav" | "aside"
+            | "form" | "fieldset" | "address" | "summary" | "figcaption" | "dt" | "dd" | "li"
+            | "tr" => self.brk(1),
+            "ul" | "ol" => {
+                self.lists.pop();
+                self.brk(if self.lists.is_empty() { 2 } else { 1 });
+            }
+            "pre" => {
+                if self.pre {
+                    if !out.ends_with('\n') {
+                        out.push('\n');
+                    }
+                    out.push_str("```");
+                    self.pre = false;
+                    self.brk(2);
+                }
+            }
+            "code" if !self.pre => self.put_close("`", out),
+            "b" | "strong" if !self.pre => self.put_close("**", out),
+            "i" | "em" if !self.pre => self.put_close("*", out),
+            "a" => {
+                if let Some(Some(h)) = self.links.pop() {
+                    self.put_close(&format!("]({h})"), out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Value of attribute `name` in a raw tag body (quoted or bare), entities
+/// decoded.
+fn attr(tag: &str, name: &str) -> Option<String> {
+    let lower = tag.to_ascii_lowercase();
+    let mut from = 0;
+    while let Some(i) = lower[from..].find(name) {
+        let at = from + i;
+        from = at + name.len();
+        let before_ok = at > 0 && lower.as_bytes()[at - 1].is_ascii_whitespace();
+        let rest = tag[from..].trim_start();
+        if !before_ok || !rest.starts_with('=') {
+            continue;
+        }
+        let v = rest[1..].trim_start();
+        let raw = match v.chars().next()? {
+            q @ ('"' | '\'') => v[1..].split(q).next().unwrap_or(""),
+            _ => v
+                .split(|c: char| c.is_whitespace() || c == '/' && v.ends_with('/'))
+                .next()
+                .unwrap_or(""),
+        };
+        return Some(decode_entities(raw));
+    }
+    None
+}
+
+fn decode_entities(s: &str) -> String {
+    let mut out = String::new();
+    let mut rest = s;
+    while let Some(i) = rest.find('&') {
+        out.push_str(&rest[..i]);
+        rest = &rest[i..];
+        match rest
+            .find(';')
+            .and_then(|j| entity(&rest[1..j]).map(|c| (j, c)))
+        {
+            Some((j, c)) => {
+                out.push(c);
+                rest = &rest[j + 1..];
+            }
+            None => {
+                out.push('&');
+                rest = &rest[1..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Decode the inside of `&...;`.
+fn entity(b: &str) -> Option<char> {
+    match b {
+        "amp" => Some('&'),
+        "lt" => Some('<'),
+        "gt" => Some('>'),
+        "quot" => Some('"'),
+        "apos" => Some('\''),
+        "nbsp" => Some('\u{a0}'),
+        _ => {
+            let n = b.strip_prefix('#')?;
+            let v = match n.strip_prefix(['x', 'X']) {
+                Some(h) => u32::from_str_radix(h, 16).ok()?,
+                None => n.parse().ok()?,
+            };
+            char::from_u32(v)
         }
     }
 }
@@ -218,6 +570,9 @@ pub fn check_url(url: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::hash::{DefaultHasher, Hasher};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
 
     #[test]
     fn refuses_loopback_and_non_http() {
@@ -227,79 +582,64 @@ mod tests {
         assert!(check_url("https://example.com/a").is_ok());
     }
 
-    #[test]
-    fn html_strip_drops_tags() {
+    fn md(html: &str) -> String {
         let mut out = String::new();
         let mut s = Sink::new(true);
-        // split mid-tag to exercise chunk-edge state
-        s.feed("<html><scr", &mut out);
-        s.feed("ipt>x()</script><p>Hi <b>the", &mut out);
-        s.feed("re</b></p>", &mut out);
-        assert_eq!(out, "Hi there");
-    }
-
-    use std::hash::{DefaultHasher, Hasher};
-    use std::io::{Read, Write};
-    use std::net::TcpListener;
-
-    // Reference: the pre-streaming implementation.
-    fn old_strip_html(s: &str) -> String {
-        let mut out = String::new();
-        let (mut in_tag, mut skip) = (false, false);
-        let mut tag = String::new();
-        for c in s.chars() {
-            if c == '<' {
-                in_tag = true;
-                tag.clear();
-                continue;
-            }
-            if in_tag {
-                if c == '>' {
-                    let t = tag.to_ascii_lowercase();
-                    if t.starts_with("script") {
-                        skip = true;
-                    }
-                    if t.starts_with("/script") {
-                        skip = false;
-                    }
-                    in_tag = false;
-                } else {
-                    tag.push(c);
-                }
-                continue;
-            }
-            if !skip {
-                out.push(c);
-            }
+        s.feed(html, &mut out);
+        s.finish(&mut out);
+        // chunk-edge invariance: one char at a time gives the same text
+        let mut out2 = String::new();
+        let mut s2 = Sink::new(true);
+        for ch in html.chars() {
+            s2.feed(&ch.to_string(), &mut out2);
         }
-        out.split_whitespace().collect::<Vec<_>>().join(" ")
+        s2.finish(&mut out2);
+        assert_eq!(out, out2, "per-char feed differs for {html:?}");
+        out
     }
 
     #[test]
-    fn html_sink_matches_old_strip_html() {
-        let cases = [
-            "<html><script>x()</script><p>Hi <b>there</b></p>",
-            "  \n\t<p> a  b\n\nc </p>  ",
-            "a<b>c</b> d <i> e </i>f",
-            "x < y <b>z</b>",
-            "<<b>q</b>>r",
-            "<SCRIPT type=x>no</ScRiPt>yes",
-            "<p>caf\u{e9}  \u{3000} \u{4e16}\u{754c}</p>",
-            "",
-            "   ",
-        ];
-        for c in cases {
-            let mut out = String::new();
-            let mut s = Sink::new(true);
-            s.feed(c, &mut out);
-            assert_eq!(out, old_strip_html(c), "{c:?}");
-            let mut out2 = String::new();
-            let mut s2 = Sink::new(true);
-            for ch in c.chars() {
-                s2.feed(&ch.to_string(), &mut out2);
-            }
-            assert_eq!(out2, out, "per-char {c:?}");
+    fn style_script_noscript_template_text_removed() {
+        let h = "<html><head><style>p{color:red}</style><script>if(a<b){x()}</script>\
+                 </head><body><noscript>enable js</noscript><template><b>t</b></template>\
+                 <p>Hi <b>there</b></p><script>a<b; y</script>after";
+        let t = md(h);
+        assert_eq!(t, "Hi **there**\n\nafter");
+        for bad in ["color", "x()", "enable", "<b>", "y"] {
+            assert!(!t.contains(bad), "{bad} leaked: {t:?}");
         }
+    }
+
+    #[test]
+    fn markdown_shape_of_a_small_page() {
+        let h = r#"<!doctype html><html><head><title>My &amp; Page</title></head><body>
+<!-- note -> hidden -->
+<h1>Top</h1>
+<p>See <a href="https://e.com/a?x=1&amp;y=2">the <em>docs</em></a> and <code>f()</code>.
+Next   line &lt;ok&gt; &#169; x < y</p>
+<ul><li>one</li><li>two<ol><li>sub</li></ol></li></ul>
+<h2>Sec</h2><pre>fn a() {
+    1
+}</pre>
+<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>
+<img src="/i.png" alt="pic"><hr>
+</body></html>"#;
+        let want = "# My & Page\n\n# Top\n\n\
+See [the *docs*](https://e.com/a?x=1&y=2) and `f()`. Next line <ok> \u{a9} x < y\n\n\
+- one\n- two\n  1. sub\n\n\
+## Sec\n\n```\nfn a() {\n    1\n}\n```\n\n\
+A | B\n1 | 2\n\n\
+![pic](/i.png)\n\n---";
+        assert_eq!(md(h), want);
+    }
+
+    #[test]
+    fn plain_text_passes_through_untouched() {
+        let mut out = String::new();
+        let mut s = Sink::new(false);
+        s.feed("a <b>  c\n", &mut out);
+        s.finish(&mut out);
+        assert_eq!(out, "a <b>  c\n");
     }
 
     #[test]
@@ -359,6 +699,104 @@ mod tests {
             }
         });
         format!("http://127.0.0.1:{port}/")
+    }
+
+    /// Serve each connection with `route(path) -> raw HTTP response`.
+    fn serve_routes(route: fn(&str) -> String) -> String {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = l.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for conn in l.incoming() {
+                let mut s = conn.unwrap();
+                let mut req = [0u8; 4096];
+                let n = s.read(&mut req).unwrap_or(0);
+                let line = String::from_utf8_lossy(&req[..n]).to_string();
+                let path = line.split_whitespace().nth(1).unwrap_or("/").to_string();
+                let _ = s.write_all(route(&path).as_bytes());
+            }
+        });
+        format!("http://127.0.0.1:{port}")
+    }
+
+    #[test]
+    fn header_states_final_url_and_status() {
+        fn route(p: &str) -> String {
+            match p {
+                "/start" => "HTTP/1.1 302 Found\r\nLocation: /final\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into(),
+                "/final" => {
+                    let b = "<h1>Hi</h1><style>x{}</style>";
+                    format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{b}", b.len())
+                }
+                _ => "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into(),
+            }
+        }
+        let base = serve_routes(route);
+        let out = fetch_unguarded(&format!("{base}/start")).unwrap();
+        assert_eq!(out, format!("url: {base}/final | status: 200 OK\n\n# Hi"));
+        let err = fetch_unguarded(&format!("{base}/nope")).unwrap_err();
+        assert!(err.contains("404"), "{err}");
+    }
+
+    #[test]
+    fn guard_still_refuses_loopback_via_tool() {
+        assert!(
+            fetch_url("http://127.0.0.1:1/")
+                .unwrap_err()
+                .contains("loopback")
+        );
+        assert!(fetch_url("file:///etc/passwd").is_err());
+    }
+
+    /// An HTML page of `reps` identical paragraphs: whole, in order, hashed.
+    fn check_html(reps: usize) {
+        const UNIT: &str = "<p>Hello <b>world</b> &amp; <a href=\"/x\">y</a></p>\n";
+        let n = UNIT.len() * reps;
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = l.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (mut s, _) = l.accept().unwrap();
+            let mut req = [0u8; 4096];
+            let _ = s.read(&mut req);
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {n}\r\nConnection: close\r\n\r\n"
+            );
+            s.write_all(head.as_bytes()).unwrap();
+            let chunk = UNIT.repeat(10_000);
+            let mut left = reps;
+            while left > 0 {
+                let k = left.min(10_000);
+                s.write_all(&chunk.as_bytes()[..k * UNIT.len()]).unwrap();
+                left -= k;
+            }
+        });
+        let url = format!("http://127.0.0.1:{port}/");
+        let out = fetch_unguarded(&url).unwrap();
+        let text = out.split_once("\n\n").unwrap().1;
+        let one = "Hello **world** & [y](/x)";
+        let want_len = one.len() * reps + 2 * (reps - 1);
+        assert_eq!(text.len(), want_len, "whole html page, no cut");
+        let unit = format!("{one}\n\n");
+        let mut h = DefaultHasher::new();
+        for _ in 0..reps - 1 {
+            h.write(unit.as_bytes());
+        }
+        h.write(one.as_bytes());
+        assert_eq!(hash(text.as_bytes()), h.finish());
+    }
+
+    #[test]
+    fn whole_html_page_5mb() {
+        check_html(5 * MIB / 50);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn whole_html_page_50mb_flat_memory() {
+        let n = 50 * MIB;
+        let base = hwm_kib();
+        check_html(n / 50);
+        let grown = hwm_kib().saturating_sub(base) * 1024;
+        assert!(grown < 3 * n, "peak RSS grew {} MiB", grown / MIB);
     }
 
     fn expected(n: usize) -> Vec<u8> {
