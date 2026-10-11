@@ -89,7 +89,7 @@ pub struct Damaged {
 }
 
 impl Damaged {
-    fn to_json(&self) -> Value {
+    pub(crate) fn to_json(&self) -> Value {
         json!({"after_seq": self.after_seq, "segment": self.segment,
                "line": self.line, "problem": self.problem})
     }
@@ -130,8 +130,8 @@ struct End {
 }
 
 #[derive(Debug)]
-struct ScanOut {
-    scanned: Scanned,
+pub(crate) struct ScanOut {
+    pub(crate) scanned: Scanned,
     segments: Vec<std::path::PathBuf>,
     end: Option<End>,
 }
@@ -152,7 +152,7 @@ pub fn scan(state_dir: &Path, mut each: impl FnMut(&Line)) -> Door<Scanned> {
 
 /// [`scan`], stopping early (the `total` is then only what was read) when
 /// `each` returns false.
-fn scan_while(state_dir: &Path, mut each: impl FnMut(&Line) -> bool) -> Door<ScanOut> {
+pub(crate) fn scan_while(state_dir: &Path, mut each: impl FnMut(&Line) -> bool) -> Door<ScanOut> {
     check_state_dir(state_dir)?;
     let dir = state_dir.join("record");
     let segs: Vec<std::path::PathBuf> = record::segments(&dir)
@@ -476,7 +476,7 @@ pub fn fleet_redactor(registry_dir: &Path, base: &Redactor) -> (Redactor, Vec<St
 impl DoorError {
     /// The error with its message through `red`: a path, an id or a query value
     /// in it can hold a key too.
-    fn redacted(mut self, red: &Redactor) -> Self {
+    pub(crate) fn redacted(mut self, red: &Redactor) -> Self {
         self.message = red.redact(&self.message).into_owned();
         self
     }
@@ -484,7 +484,7 @@ impl DoorError {
 
 // ─── finding an instance ─────────────────────────────────────────────────────
 
-fn locate(registry_dir: &Path, id: &str) -> Door<(Row, Entry)> {
+pub(crate) fn locate(registry_dir: &Path, id: &str) -> Door<(Row, Entry)> {
     let row = registry::row_in(registry_dir, id)
         .map_err(|e| DoorError::new(500, "unreadable", e))?
         .ok_or_else(|| DoorError::new(404, "no_such_instance", "no instance has that id"))?;

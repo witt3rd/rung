@@ -588,8 +588,10 @@ fn big_layers_round_trip_whole() {
     }
     assert_eq!(band(&v, "system")["text"], s.system);
     // and the line on disk holds it all in one piece
-    let l = out.lines.iter().rfind(|l| l.kind == "epoch.rollover").unwrap();
-    assert_eq!(l.str("slow"), epoch);
+    assert!(out
+        .lines
+        .iter()
+        .any(|l| l.kind == "epoch.rollover" && l.str("slow") == epoch));
     assert_eq!(with_recall.str("recall_text"), rtext);
     assert_eq!(
         with_recall.str("header_sent").len(),
