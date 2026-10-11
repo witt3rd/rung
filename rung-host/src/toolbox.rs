@@ -249,6 +249,21 @@ impl WebReader for NoWeb {
     }
 }
 
+/// The live web: delegates to the whole-page `webfetch` tool of `rung-std`
+/// (markdown, final URL and status header, 30 s whole-body deadline). The
+/// page is returned whole and an error whole; no cap, no extra guard.
+#[derive(Debug, Default)]
+pub struct LiveWeb;
+
+impl WebReader for LiveWeb {
+    fn fetch(&self, url: &str) -> (Result<String, String>, Millis) {
+        use rung_std::tools::{Tool, WebFetch};
+        let t = std::time::Instant::now();
+        let out = WebFetch.execute(&json!({"url": url}));
+        (out, t.elapsed().as_millis() as Millis)
+    }
+}
+
 /// A call that has run this long is cut as soon as an owner stimulus waits
 /// (#159): a long call would otherwise hold the owner for the whole tool
 /// deadline, since admission happens only at a boundary.
@@ -757,6 +772,50 @@ mod tests {
 
     /// #159: a long call no longer holds an owner who arrives during it for
     /// the whole 30 s tool deadline; it is cut once the owner waits.
+    /// One-shot local server (on 127.0.0.2: the URL guard refuses 127.0.0.1) answering a single GET with `body` (HTML).
+    fn serve_once(body: String) -> String {
+        use std::io::{Read, Write};
+        let l = std::net::TcpListener::bind("127.0.0.2:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        std::thread::spawn(move || {
+            let (mut c, _) = l.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let _ = c.read(&mut buf);
+            let _ = write!(
+                c,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        });
+        format!("http://{addr}/paper")
+    }
+
+    #[test]
+    fn live_web_returns_the_whole_page_with_final_url() {
+        let filler = "word ".repeat(40_000);
+        let url = serve_once(format!(
+            "<html><body><h1>Paper</h1><p>{filler}END</p></body></html>"
+        ));
+        let (out, _) = LiveWeb.fetch(&url);
+        let out = out.unwrap();
+        assert!(
+            out.starts_with(&format!("url: {url} | status: 200")),
+            "{}",
+            &out[..80]
+        );
+        assert!(
+            out.contains("# Paper") && out.ends_with("END"),
+            "page not whole"
+        );
+        assert!(out.len() > 200_000);
+    }
+
+    #[test]
+    fn no_web_refuses_with_the_clear_message() {
+        let (out, _) = NoWeb.fetch("http://127.0.0.1:1/");
+        assert_eq!(out, Err("web_read is not wired in this build".to_string()));
+    }
+
     #[test]
     fn a_long_call_is_cut_when_the_owner_waits() {
         let (out, took) = slow_fetch(Some(5 * SECOND));

@@ -21,6 +21,12 @@ git tags only.
   records a swap of the stable layer. `host.start` now passes the host's
   redactor too (`docs/rung-host-api.md`, S4).
 
+- `rung-host`: `web: true` in `rung-host.yaml` wires the live `web_fetch` (group
+  `web_read`) into the host-run agent: the whole-page `webfetch` of `rung-std`
+  (markdown, final URL and status, 30 s whole-body deadline), page and error
+  returned whole. Default off keeps the refusal "web_read is not wired in this
+  build"; the sim stays on its fake web.
+
 ### Changed
 - `rung-host`: the rule-only decision desk now enables `workspace_write` in
   free time too (it was non-free turns only), so an agent can keep its own

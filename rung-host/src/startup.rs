@@ -174,6 +174,10 @@ struct FileConfig {
     /// Baseline memory under the state directory (default on).
     #[serde(default)]
     memory: Option<bool>,
+    /// Wire the live whole-page `web_fetch` (group `web_read`) into the
+    /// agent (default off: every fetch is refused).
+    #[serde(default)]
+    web: Option<bool>,
     #[serde(default)]
     seed_projects: Vec<SeedProject>,
     #[serde(default)]
@@ -228,6 +232,7 @@ pub struct Plan {
     prober: Option<Arc<dyn Prober>>,
     listing: Option<Value>,
     memory: bool,
+    web: bool,
     limits: Limits,
     acp: AcpPlan,
     desk: DecisionDesk,
@@ -487,6 +492,7 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
         prober,
         listing: None,
         memory: f.memory.unwrap_or(true),
+        web: f.web.unwrap_or(false),
         limits: Limits {
             max_turns,
             until: f
@@ -637,6 +643,9 @@ ladder!(Startup {
         b.initial_listing = plan.listing;
         b.redactor = plan.redactor;
         b.limits = plan.limits;
+        if plan.web {
+            b.web = Arc::new(crate::toolbox::LiveWeb);
+        }
         if plan.memory {
             b.memory = Some(Arc::new(MemoryHost::baseline(&plan.state.join("memory"), "host")));
         }
@@ -782,5 +791,25 @@ mod desk_model_tests {
             desk_model(Some(rung_std::decide::LEGACY_MODEL)),
             "typesafe/jev-1.13"
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_web_key_is_accepted() {
+        let d = crate::sim::temp_dir_guard("web-key");
+        let cfg = d.path().join("c.yaml");
+        std::fs::write(
+            &cfg,
+            format!(
+                "state: {}\nweb: true\nengine: {{kind: mock}}\n",
+                d.path().join("s").display()
+            ),
+        )
+        .unwrap();
+        assert!(configure(&cfg, Some(1)).is_ok());
     }
 }
