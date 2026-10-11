@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 431 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 443 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1059,10 +1059,28 @@ look shorter than it is.
 - `a_stop_is_prompt_from_a_turn_and_from_any_wait_and_the_watchdog_fires`
 - `fifty_kills_lose_nothing_and_restore_everything`
 
+**`rung-host/tests/gate_registry.rs`** — 9 unclaimed
+
+- `a_refused_sim_registration_opens_no_record`
+- `a_registry_refusal_creates_nothing_else`
+- `a_restart_keeps_the_entry_and_a_second_live_host_with_the_id_is_refused`
+- `a_start_refused_for_its_state_leaves_no_entry`
+- `an_entry_id_that_is_not_a_slug_or_not_its_file_name_is_unreadable_not_followed`
+- `hosts_racing_for_one_state_leave_one_id_and_one_entry`
+- `run_registers_from_its_config_and_an_empty_registry_lists_nothing`
+- `start_registers_stop_keeps_and_a_killed_host_reads_down`
+- `the_real_port_is_written_and_a_broken_entry_is_listed_not_dropped`
+
 **`rung-host/tests/gate_startup.rs`** — 2 unclaimed
 
 - `no_stage_of_the_startup_ladder_can_be_skipped_or_forged`
 - `startup_lists_recovers_and_hands_off_or_refuses`
+
+**`rung-host/tests/gate_state_lock.rs`** — 3 unclaimed
+
+- `a_second_host_on_the_same_state_is_refused_and_names_the_holder`
+- `the_configured_start_is_refused_on_a_held_state_too`
+- `the_lock_dies_with_the_process`
 
 **`rung-host/tests/gate_time.rs`** — 5 unclaimed
 

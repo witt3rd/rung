@@ -182,8 +182,11 @@ Configured(Plan) => Listed(Plan) => Recovered(Opening) => { Handed(Handoff) | Re
   is opened. The host records that listing (`ladder.listed` with
   `at_start: true`) at its first boundary, before its first turn; a failed
   listing does not stop the start.
-- **Recovered**: the record is opened and replayed; a restart recovers
-  here.
+- **Recovered**: the state directory is locked, the host registers itself
+  in the instance registry, then the record is opened and replayed; a
+  restart recovers here. A registration the registry refuses (the id and
+  the state directory belong to other entries) is a refusal that creates
+  nothing but the lock file. See "Instances" below.
 - **Handed** to the Presence loop, with ACP outward when configured; or
   **Refused** when the record cannot be opened.
 
@@ -205,9 +208,21 @@ memory: true                         # baseline memory under the state dir
 acp: { http: "127.0.0.1:7878", tokens: { owner: RUNG_HOST_OWNER_TOKEN } }   # or { stdio: owner }
 ```
 
-Other optional keys: `workspace`, `identity`, `owner_channel`,
+Other optional keys: `name` (the instance's name in the registry; the last
+component of `state` when absent), `workspace`, `identity`, `owner_channel`,
 `epoch_budget_tokens`, `turn_bound_s`, `backoff_base_ms`, `seed_projects`
 (`[{id, title, why}]`), and under `engine`: `step_cap`, `timeout_s`.
+
+### Instances
+
+`rung-host run` writes one small entry per instance under
+`$RUNG_HOME/instances/` (`~/.rung/instances/`) when it starts, keeps it when
+it stops; the state directory's lock (`host.lock`) says whether it lives.
+`rung-host ls [--json]` lists every entry with a word derived from the lock
+and the record's last line: `running`, `stopped` (the last line is `halted`),
+`down` (the lock is free and the last line is not a halt: it died), or
+`unreadable`. A dead instance is listed, never dropped. The file shapes,
+the derivation and the JSON are in `docs/rung-host-api.md`.
 
 For a bounded run with real stimuli:
 

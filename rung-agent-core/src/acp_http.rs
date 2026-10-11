@@ -121,11 +121,23 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
 
 /// Listen on `addr` and serve each connection with `serve`.
 pub async fn listen_with(addr: String, serve: Serve) -> Result<(), String> {
+    listen_bound(addr, serve, |_| {}).await
+}
+
+/// [`listen_with`], telling `on_bound` the address actually bound (the real
+/// port when `addr` asked for port 0) before the first connection is
+/// accepted.
+pub async fn listen_bound(
+    addr: String,
+    serve: Serve,
+    on_bound: impl FnOnce(SocketAddr),
+) -> Result<(), String> {
     let bind = resolve_addr(&addr)?;
     let listener = TcpListener::bind(bind)
         .await
         .map_err(|e| format!("bind {bind}: {e}"))?;
     let local = listener.local_addr().map_err(|e| e.to_string())?;
+    on_bound(local);
     rung_std::events::emit(
         "rung-agent",
         "acp.listen",

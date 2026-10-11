@@ -470,7 +470,9 @@ fn origin_url(root: &Path) -> Option<String> {
     (!url.is_empty()).then_some(url)
 }
 
-fn rung_home() -> PathBuf {
+/// The rung home: `$RUNG_HOME`, else `~/.rung`. The one definition; other
+/// crates that keep files under the rung home call this.
+pub fn rung_home() -> PathBuf {
     match std::env::var("RUNG_HOME") {
         Ok(h) if !h.trim().is_empty() => PathBuf::from(h),
         _ => PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into())).join(".rung"),

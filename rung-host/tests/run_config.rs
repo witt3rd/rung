@@ -24,6 +24,8 @@ fn run(cfg: &Path, turns: Option<u64>, key: Option<&str>) -> Output {
     if let Some(t) = turns {
         c.args(["--turns", &t.to_string()]);
     }
+    // The host registers itself: keep that out of the operator's home.
+    c.env("RUNG_HOME", cfg.with_extension("rung-home"));
     match key {
         Some(k) => c.env(KEY_ENV, k),
         None => c.env_remove(KEY_ENV),
@@ -520,6 +522,7 @@ fn a_pacing_wait_sends_no_acknowledgement() {
     let mut child = Command::new(BIN)
         .args(["run", "--config", cfg.to_str().unwrap(), "--turns", "2"])
         .env(KEY_ENV, "k")
+        .env("RUNG_HOME", root.join("rung-home"))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())

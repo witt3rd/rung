@@ -4,11 +4,13 @@ fn mint(
     host: std::sync::Arc<rung_host::presence::Host>,
     recovered: rung_host::presence::Recovered,
     acp: rung_host::startup::AcpPlan,
+    registration: Option<std::sync::Arc<rung_host::registry::Registration>>,
 ) {
     let _ = rung_host::startup::Handoff {
         host,
         recovered,
         acp,
+        registration,
     };
 }
 

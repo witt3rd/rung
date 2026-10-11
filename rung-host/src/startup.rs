@@ -42,6 +42,7 @@ use crate::ladder::{HttpLister, HttpProber, Lister, Prober, default_ladder};
 use crate::memory::MemoryHost;
 use crate::notify::Notifier;
 use crate::presence::{Host, HostBuilder, Limits, Recovered as Woken};
+use crate::registry::{Instance, Registration};
 use crate::stop::{StopAuthority, Why};
 
 // ─── The file ────────────────────────────────────────────────────────────────
@@ -134,6 +135,10 @@ struct DeskFile {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FileConfig {
+    /// The instance's name in the registry (`rung-host ls`); its id is the
+    /// name as a slug. The state directory's last component when absent.
+    #[serde(default)]
+    name: Option<String>,
     state: PathBuf,
     #[serde(default)]
     workspace: Option<PathBuf>,
@@ -206,6 +211,10 @@ pub enum AcpPlan {
 /// A checked configuration, ready to list and open. Built only by
 /// [`configure`].
 pub struct Plan {
+    /// Register in the instance registry before the record is opened.
+    register: bool,
+    name: String,
+    config_file: PathBuf,
     state: PathBuf,
     config: HostConfig,
     clock: Arc<dyn Clock>,
@@ -236,6 +245,7 @@ impl std::fmt::Debug for Plan {
 pub struct Opening {
     opened: Result<(Arc<Host>, Woken), String>,
     acp: AcpPlan,
+    registration: Option<Arc<Registration>>,
 }
 
 /// A host ready to run: built only by the ladder's last step.
@@ -243,6 +253,7 @@ pub struct Handoff {
     host: Arc<Host>,
     recovered: Woken,
     acp: AcpPlan,
+    registration: Option<Arc<Registration>>,
 }
 
 /// Why a start was refused, and at which stage.
@@ -420,7 +431,15 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
             missed: Missed::OnceLate,
         })
         .collect();
+    let name = f
+        .name
+        .clone()
+        .or_else(|| f.state.file_name().map(|n| n.to_string_lossy().to_string()))
+        .unwrap_or_else(|| "host".into());
     let plan = Plan {
+        register: false,
+        name,
+        config_file: path.to_path_buf(),
         state: f.state.clone(),
         config,
         clock: clock.clone(),
@@ -532,8 +551,37 @@ ladder!(Startup {
     recovered = |listed| {
         let carry = listed.carry().clone();
         let plan = listed.payload;
+        // One live host per state directory: take the hold before anything
+        // is written there (the memory store, the record, the inbox).
+        let lock = match crate::statelock::StateLock::acquire(&plan.state) {
+            Ok(l) => l,
+            Err(e) => {
+                let opened = Err(e.to_string());
+                return Recovered::new(Opening { opened, acp: plan.acp, registration: None }, carry);
+            }
+        };
+        // Then the registry, still before anything else is created: a start
+        // it refuses (the id belongs to another state, or the state to
+        // another id) leaves nothing behind but the lock file.
+        let registration = if plan.register {
+            let instance = Instance {
+                name: plan.name.clone(),
+                config: Some(plan.config_file.clone()),
+                workspace: plan.config.workspace.clone(),
+            };
+            match Registration::register(&instance, plan.clock.now(), &lock) {
+                Ok(r) => Some(Arc::new(r)),
+                Err(why) => {
+                    let opened = Err(why);
+                    return Recovered::new(Opening { opened, acp: plan.acp, registration: None }, carry);
+                }
+            }
+        } else {
+            None
+        };
         let mut b = HostBuilder::new(plan.config, &plan.state, plan.clock, plan.engine);
         stop_install();
+        b.lock = Some(lock);
         b.stop = Arc::new(StopAuthority::new(plan.stop_file, true));
         b.desk = plan.desk;
         b.seed_calendar = plan.calendar;
@@ -555,15 +603,16 @@ ladder!(Startup {
             b.sources = sources;
             Host::open(b).map_err(|e| format!("{}: {e}", plan.state.display()))
         });
-        Recovered::new(Opening { opened, acp: plan.acp }, carry)
+        Recovered::new(Opening { opened, acp: plan.acp, registration }, carry)
     },
     step = |recovered| {
-        let Opening { opened, acp } = recovered.payload;
+        let Opening { opened, acp, registration } = recovered.payload;
         Ok(match opened {
             Ok((host, woken)) => StepOutcome::Handed(Handed::new(Handoff {
                 host,
                 recovered: woken,
                 acp,
+                registration,
             })),
             Err(why) => StepOutcome::Refused(Refused::new(Refusal {
                 stage: "recovered",
@@ -591,6 +640,16 @@ pub fn start(configured: Configured) -> Result<Handoff, Refusal> {
     }
 }
 
+/// Have the start register the host in the instance registry
+/// ([`crate::registry`]), before its record is opened. Off unless asked: a
+/// library caller or a test does not write the operator's registry.
+pub fn registered(configured: Configured) -> Configured {
+    let carry = configured.carry().clone();
+    let mut plan = configured.payload;
+    plan.register = true;
+    Configured::new(plan, carry)
+}
+
 pub use startup::{
     Carry, Configured, Handed, Listed, Recovered, Refused, StepOutcome, listed, recovered, step,
 };
@@ -606,12 +665,15 @@ pub enum Ended {
 
 impl Handoff {
     /// Run the Presence loop (and ACP outward, when configured) until the
-    /// stop authority halts it.
+    /// stop authority halts it. A registered host records its HTTP address
+    /// in its registry entry as soon as it is bound (the real port, when
+    /// the file asked for port 0) and holds its registration until it ends.
     pub fn run(self) -> Ended {
         let Handoff {
             host,
             recovered,
             acp,
+            registration,
         } = self;
         if matches!(acp, AcpPlan::None) {
             return Ended::Halted(host.run(recovered));
@@ -620,11 +682,20 @@ impl Handoff {
         let failed = Arc::new(AtomicBool::new(false));
         let err = Arc::new(std::sync::Mutex::new(String::new()));
         let (f2, e2, h2) = (failed.clone(), err.clone(), host.clone());
+        // The host's own handle on the registration lives until it ends.
+        let on_bound_registration = registration.clone();
         let looped = std::thread::spawn(move || host.run(recovered));
         std::thread::spawn(move || match acp {
             // A listener that cannot serve stops the host.
             AcpPlan::Http { addr, tokens } => {
-                if let Err(e) = crate::acp::serve_http(bridge, &addr, tokens) {
+                let on_bound = move |bound: std::net::SocketAddr| {
+                    if let Some(r) = on_bound_registration
+                        && let Err(e) = r.set_address(&bound.to_string())
+                    {
+                        eprintln!("rung-host: registry: {e}");
+                    }
+                };
+                if let Err(e) = crate::acp::serve_http_bound(bridge, &addr, tokens, on_bound) {
                     *crate::core::lock(&e2) = e;
                     f2.store(true, Ordering::SeqCst);
                     h2.core.stop.request(Why::Stopped { by: "acp".into() });

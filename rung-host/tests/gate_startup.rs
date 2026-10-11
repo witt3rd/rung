@@ -45,6 +45,8 @@ fn run(cfg: &Path, turns: u64, key: Option<&str>) -> Output {
         "--turns",
         &turns.to_string(),
     ]);
+    // The host registers itself: keep that out of the operator's home.
+    c.env("RUNG_HOME", cfg.with_extension("rung-home"));
     match key {
         Some(k) => c.env(KEY_ENV, k),
         None => c.env_remove(KEY_ENV),
