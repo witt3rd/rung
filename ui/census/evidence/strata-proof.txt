@@ -26,8 +26,24 @@ pass  each earlier turn is its own row
 pass  a history row opens to the turn's header and its messages, whole
 pass  the recalled memory is shown whole
 pass  this turn so far: one row per message
+pass  the top line: the provider's count for the call
 pass  no field or form that could write
 pass  no sideways scrolling
+pass  a 1 MB line of mixed CJK and ASCII opens in 328 ms, not tens of seconds
+pass  that band is whole (the 1 MB line to its last character), the markup is text, the key is gone
+pass  a very long line scrolls sideways and the page says so
+pass  Show more keeps the same whole text
+pass  a tool definition that is one 1 MB line of CJK JSON opens at once too
+pass  no key shape anywhere in the page, in any band or row
+pass  markup in a band ran nothing
+pass  markup in a band made no element
+pass  the page stored nothing: no local or session storage, no cookie
+pass  the title did not follow a band's text
+pass  no band text in the address: it is what it was when the page opened
+pass  nothing written to the console, no page error (0, 0)
+pass  every request was a GET (GET)
+pass  history of 59 turns: the first 50 rows, the rest one click away
+pass  Show all: every earlier turn is a row
 pass  old run: the host's note is on the page
 pass  old run: the four bands the host cannot show are marked not recorded
 pass  old run: no band is drawn cached or new on the host's marks, which were laid against fewer bands (unknown, unknown, unknown, unknown, unknown, unknown, unknown)
@@ -68,8 +84,24 @@ pass  each earlier turn is its own row
 pass  a history row opens to the turn's header and its messages, whole
 pass  the recalled memory is shown whole
 pass  this turn so far: one row per message
+pass  the top line: the provider's count for the call
 pass  no field or form that could write
 pass  no sideways scrolling
+pass  a 1 MB line of mixed CJK and ASCII opens in 359 ms, not tens of seconds
+pass  that band is whole (the 1 MB line to its last character), the markup is text, the key is gone
+pass  a very long line scrolls sideways and the page says so
+pass  Show more keeps the same whole text
+pass  a tool definition that is one 1 MB line of CJK JSON opens at once too
+pass  no key shape anywhere in the page, in any band or row
+pass  markup in a band ran nothing
+pass  markup in a band made no element
+pass  the page stored nothing: no local or session storage, no cookie
+pass  the title did not follow a band's text
+pass  no band text in the address: it is what it was when the page opened
+pass  nothing written to the console, no page error (0, 0)
+pass  every request was a GET (GET)
+pass  history of 59 turns: the first 50 rows, the rest one click away
+pass  Show all: every earlier turn is a row
 pass  old run: the host's note is on the page
 pass  old run: the four bands the host cannot show are marked not recorded
 pass  old run: no band is drawn cached or new on the host's marks, which were laid against fewer bands (unknown, unknown, unknown, unknown, unknown, unknown, unknown)
@@ -110,8 +142,24 @@ pass  each earlier turn is its own row
 pass  a history row opens to the turn's header and its messages, whole
 pass  the recalled memory is shown whole
 pass  this turn so far: one row per message
+pass  the top line: the provider's count for the call
 pass  no field or form that could write
 pass  no sideways scrolling
+pass  a 1 MB line of mixed CJK and ASCII opens in 426 ms, not tens of seconds
+pass  that band is whole (the 1 MB line to its last character), the markup is text, the key is gone
+pass  a very long line scrolls sideways and the page says so
+pass  Show more keeps the same whole text
+pass  a tool definition that is one 1 MB line of CJK JSON opens at once too
+pass  no key shape anywhere in the page, in any band or row
+pass  markup in a band ran nothing
+pass  markup in a band made no element
+pass  the page stored nothing: no local or session storage, no cookie
+pass  the title did not follow a band's text
+pass  no band text in the address: it is what it was when the page opened
+pass  nothing written to the console, no page error (0, 0)
+pass  every request was a GET (GET)
+pass  history of 59 turns: the first 50 rows, the rest one click away
+pass  Show all: every earlier turn is a row
 pass  old run: the host's note is on the page
 pass  old run: the four bands the host cannot show are marked not recorded
 pass  old run: no band is drawn cached or new on the host's marks, which were laid against fewer bands (unknown, unknown, unknown, unknown, unknown, unknown, unknown)

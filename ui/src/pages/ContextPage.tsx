@@ -4,10 +4,10 @@ import { href } from "../route.ts";
 import { useInstance, useMode } from "../data/hooks.ts";
 import { num } from "../record/words.ts";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
-import { loadContext } from "../context/load.ts";
+import { contextQueryKey, loadContext } from "../context/load.ts";
 import { cachedLine, marksFor, type Mark } from "../context/cache.ts";
 import { BOUNDARY_AFTER, type Band, type BandItem, type ContextView } from "../context/types.ts";
-import { BOUNDARY, MARK_WORD, TITLE, WHAT, fact, isEmpty, isLong, sayEvent, tilde } from "../context/words.ts";
+import { BOUNDARY, MARK_WORD, TITLE, WHAT, fact, hasLongLine, isEmpty, isLong, sayEvent, tilde } from "../context/words.ts";
 
 const ROWS = 50;
 
@@ -15,9 +15,11 @@ const ROWS = 50;
 function Text({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const long = isLong(text);
+  const wide = useMemo(() => hasLongLine(text), [text]);
   return (
     <div>
-      <pre className={`content mono text${long && !open ? " folded" : ""}`} data-content>{text}</pre>
+      {wide && <p className="meta" data-content>This text has a very long line, so it scrolls sideways instead of wrapping. It is whole.</p>}
+      <pre className={`content mono text${long && !open ? " folded" : ""}${wide ? " nowrap" : ""}`} data-content>{text}</pre>
       {long && <button className="quiet" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Show less" : "Show more"}</button>}
     </div>
   );
@@ -110,7 +112,7 @@ export function ContextPage({ id, turn, call }: { id: string; turn: number; call
   const lastTurn = folds && folds.turns.length ? folds.turns[folds.turns.length - 1] : null;
   const live = !!entry?.lockHeld;
   const q = useQuery({
-    queryKey: ["context", id, turn, k, mode, folds?.lines.length ?? 0],
+    queryKey: contextQueryKey(id, turn, k, mode!, folds?.lines ?? []),
     queryFn: () => loadContext({ mode: mode!, id, turn, call: k, lines: folds!.lines }),
     enabled: !!folds && !!t && k > 0 && mode !== undefined,
   });

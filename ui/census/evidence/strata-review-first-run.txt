@@ -1,0 +1,43 @@
+== M1: the strata page on a running instance, against the page as it was (npm run strata-live-proof)
+pass  two bands opened
+pass  the door was asked once for the past turn (1)
+pass  the host wrote 12 lines while the page was open
+FAIL  the opened bands stayed open through every line (12 polls found one closed)
+FAIL  the door was not asked again for a turn that did not change (13 asks in all)
+pass  every request was a GET (GET)
+strata-live-proof: 2 failure(s)
+
+== S1: the page's redactor on hostile text, before the fix (ms to redact; four times the time for twice the text is quadratic)
+eyJ- repeated, no dots                            16000     459 ms
+eyJ- repeated, no dots                            32000    1690 ms
+eyJ- repeated, no dots                            64000    6691 ms
+-----BEGIN PRIVATE KEY----- repeated, no END      16000       3 ms
+-----BEGIN PRIVATE KEY----- repeated, no END      32000      10 ms
+-----BEGIN PRIVATE KEY----- repeated, no END      64000      40 ms
+-----BEGIN  repeated                              16000       4 ms
+-----BEGIN  repeated                              32000      15 ms
+-----BEGIN  repeated                              64000      60 ms
+
+== S1: test/redact-linear.test.ts against the redactor as it was: it does not finish within its bound (the file is cancelled by the 25 s test timeout)
+✖ test/redact-linear.test.ts
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+✖ failing tests:
+✖ test/redact-linear.test.ts
+== S2/S5: the strata proof against the page before the fixes (a 1 MB one-line mixed CJK and ASCII band: the click on the band does not finish in 10 s)
+-- 390
+FAIL  the top line: the provider's count for the call
+page.click: Timeout 10000ms exceeded.
+  name: 'TimeoutError'
+
+== after the fix, the same hostile texts (ms to redact)
+eyJ- repeated, no dots                            16000       6 ms
+eyJ- repeated, no dots                            32000       5 ms
+eyJ- repeated, no dots                            64000       8 ms
+-----BEGIN PRIVATE KEY----- repeated, no END      16000       0 ms
+-----BEGIN PRIVATE KEY----- repeated, no END      32000       0 ms
+-----BEGIN PRIVATE KEY----- repeated, no END      64000       0 ms
+-----BEGIN  repeated                              16000       0 ms
+-----BEGIN  repeated                              32000       0 ms
+-----BEGIN  repeated                              64000       1 ms

@@ -17,7 +17,7 @@ const check = (ok, what) => { console.log(`${ok ? "pass" : "FAIL"}  ${what}`); i
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const n = (v) => v.toLocaleString("en-US");
-for (const width of [390, 1280, 1920]) {
+for (const width of (process.env.STRATA_WIDTHS ?? "390,1280,1920").split(",").map(Number)) {
   const ctx = await browser.newContext({ viewport: { width, height: 1000 } });
   console.log(`-- ${width}`);
 
@@ -98,10 +98,76 @@ for (const width of [390, 1280, 1920]) {
   await page.click("[data-band=this_turn] .bh");
   check((await page.locator("[data-band=this_turn] details").count()) === band(d2, "this_turn").messages.length, "this turn so far: one row per message");
 
+  // the top line carries the provider's count, not a sum of the estimates
+  check((await page.locator("p.line", { hasText: "Call 2 of turn 4" }).innerText()).includes(`sent ${n(p2.prompt_tokens)} tokens (provider count)`), "the top line: the provider's count for the call");
+
   // read-only: the page has nothing that writes
   const writes = await page.locator("textarea, input[type=text], input[type=submit], form").count();
   check(writes === 0, "no field or form that could write");
   check((await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)), "no sideways scrolling");
+  await page.close();
+
+  // a hostile door answer: markup, a key shape the host failed to redact, a very long line. Nothing runs, nothing leaks, nothing is cut, nothing freezes.
+  {
+    const page2 = await ctx.newPage();
+    const consoleMsgs = [], methods = new Set(), pageErrors = [];
+    page2.on("console", (m) => { if (!/Failed to load resource/.test(m.text())) consoleMsgs.push(m.text()); });
+    page2.on("pageerror", (e) => pageErrors.push(String(e)));
+    page2.on("request", (r) => methods.add(r.method()));
+    const KEY = "sk-or-v1-" + "a1b2c3d4e5f6".repeat(6);
+    const MARKUP = `<img src=x onerror="window.__x=1"><script>window.__x=2</script><svg onload="window.__x=3"></svg>`;
+    const LONG = "this is 世 text, ".repeat(Math.ceil(1_000_000 / 16));
+    const hostile = structuredClone(fx(4, 2));
+    band(hostile, "system").text = `${MARKUP}\nthe key is ${KEY} ok\n${LONG}`;
+    band(hostile, "tools").items[0].text = `${MARKUP} ${KEY}`;
+    band(hostile, "tools").items[1].text = JSON.stringify({ d: "世界 and words ".repeat(70_000) });
+    band(hostile, "recall").text += `\n${MARKUP} ${KEY}`;
+    band(hostile, "message").text += `\n${MARKUP}`;
+    band(hostile, "history").rows[0].header += `\n${MARKUP} ${KEY}`;
+    band(hostile, "this_turn").messages[0] = { role: "assistant", content: [{ type: "text", text: `${MARKUP} ${KEY}` }] };
+    hostile.note = `${MARKUP}`;
+    await page2.route("**/data/ctx-demo/context/4-2.json", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify(hostile) }));
+    await page2.goto(srv.url + "#/i/ctx-demo/turns/4/context?call=2", { waitUntil: "load" });
+    await page2.waitForSelector('.page[data-ready="true"] .bands', { timeout: 30000 });
+    const title0 = await page2.title();
+    const url0 = page2.url();
+    const t0 = Date.now();
+    await page2.click("[data-band=system] .bh", { timeout: 10000 });
+    await page2.waitForSelector("[data-band=system] pre", { timeout: 10000 });
+    const sysText = await page2.locator("[data-band=system] pre").evaluate((e) => e.textContent);
+    const opened = Date.now() - t0;
+    check(opened < 5000, `a 1 MB line of mixed CJK and ASCII opens in ${opened} ms, not tens of seconds`);
+    check(sysText.endsWith(LONG) && sysText.includes("<img src=x onerror") && !sysText.includes(KEY) && sysText.includes("[redacted]"), "that band is whole (the 1 MB line to its last character), the markup is text, the key is gone");
+    check(await page2.locator("[data-band=system] pre.nowrap").count() === 1 && (await page2.locator("[data-band=system] .drill").innerText()).includes("scrolls sideways"), "a very long line scrolls sideways and the page says so");
+    await page2.click("[data-band=system] button:has-text('Show more')", { timeout: 10000 });
+    check((await page2.locator("[data-band=system] pre").evaluate((e) => e.textContent)) === sysText, "Show more keeps the same whole text");
+    for (const id of ["tools", "epoch", "history", "message", "recall", "this_turn"]) await page2.click(`[data-band=${id}] .bh`, { timeout: 10000 });
+    const rowsT = await page2.locator("[data-band=tools] details summary").count();
+    for (let i = 0; i < 2; i++) await page2.locator("[data-band=tools] details summary").nth(i).click({ timeout: 10000 });
+    const t1 = Date.now();
+    await page2.locator("[data-band=tools] details[open] pre").nth(1).evaluate((e) => e.textContent.length);
+    check(Date.now() - t1 < 5000 && rowsT === 20, "a tool definition that is one 1 MB line of CJK JSON opens at once too");
+    await page2.locator("[data-band=history] details summary").first().click();
+    await page2.locator("[data-band=this_turn] details summary").first().click();
+    const everything = await page2.evaluate(() => document.body.innerHTML + document.body.innerText);
+    check(!everything.includes(KEY) && !everything.includes("a1b2c3d4e5f6a1b2"), "no key shape anywhere in the page, in any band or row");
+    check((await page2.evaluate(() => window.__x)) === undefined, "markup in a band ran nothing");
+    check((await page2.locator(".bands img, .bands script, .bands svg, .drill img, .drill script").count()) === 0, "markup in a band made no element");
+    check((await page2.evaluate(() => [localStorage.length, sessionStorage.length, document.cookie].join("|"))) === "0|0|", "the page stored nothing: no local or session storage, no cookie");
+    check((await page2.title()) === title0 && !(await page2.title()).includes("<"), "the title did not follow a band's text");
+    check(page2.url() === url0, "no band text in the address: it is what it was when the page opened");
+    check(consoleMsgs.length === 0 && pageErrors.length === 0, `nothing written to the console, no page error (${consoleMsgs.length}, ${pageErrors.length})`);
+    check([...methods].join() === "GET", `every request was a GET (${[...methods].join()})`);
+    await page2.close();
+  }
+
+  // more than 50 rows are paged, never dropped
+  page = await open(ctx, srv.url, "#/i/2026-10-05-qwen-2h/turns/60/context", null);
+  await page.click("[data-band=history] .bh");
+  const total = Number((await page.locator("[data-band=history] .fold").innerText()).match(/of (\d+)/)[1]);
+  check(total > 50 && (await page.locator("[data-band=history] details").count()) === 50, `history of ${total} turns: the first 50 rows, the rest one click away`);
+  await page.click("[data-band=history] button:has-text('Show all')");
+  check((await page.locator("[data-band=history] details").count()) === total, "Show all: every earlier turn is a row");
   await page.close();
 
   // an old run: the door's answer for a record that predates context recording: partial strata, with what is missing and why

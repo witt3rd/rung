@@ -144,3 +144,36 @@ test("a very long band comes through whole (no cap anywhere)", () => {
   big.bands.find((b: any) => b.band === "system").text = text;
   assert.equal(parseContext(big).bands.find((b) => b.id === "system")!.text, text);
 });
+
+// The long-text guards: every kind of text a band holds comes through whole at a size well past any cap a careless edit might add.
+import { hasLongLine, isLong, LONG_LINE } from "../src/context/words.ts";
+const BIG = ("a line of text that is long enough to matter, again and again. " + "世界 ").repeat(60_000);
+
+test("every kind of text comes through whole: the recall, the message, the epoch, a string message, a tool result, a tool definition, a history row", () => {
+  const raw = structuredClone(fixture("ctx-demo/4-3.json"));
+  const set = (id: string, f: (b: any) => void) => f(raw.bands.find((b: any) => b.band === id));
+  set("recall", (b) => { b.text = BIG; });
+  set("message", (b) => { b.text = BIG; });
+  set("epoch", (b) => { b.text = BIG; });
+  set("tools", (b) => { b.items[0].text = BIG; });
+  set("history", (b) => { b.rows[0].header = BIG; b.rows[0].messages = [{ role: "assistant", content: BIG }, { role: "user", content: [{ type: "tool_result", tool_use_id: "x", content: BIG }] }]; });
+  set("this_turn", (b) => { b.messages = [{ role: "user", content: BIG }, { role: "assistant", content: [{ type: "text", text: BIG }] }]; });
+  const v = parseContext(raw);
+  const by = (id: string) => v.bands.find((b) => b.id === id)!;
+  assert.equal(by("recall").text, BIG);
+  assert.equal(by("message").text, BIG);
+  assert.equal(by("epoch").text, BIG);
+  assert.equal(by("tools").items[0].text, BIG);
+  assert.equal(by("history").items[0].text, [BIG, BIG, `result: ${BIG}`].join("\n"));
+  assert.equal(by("this_turn").items[0].text, BIG);
+  assert.equal(by("this_turn").items[1].text, BIG);
+});
+
+test("a text with a very long line is told apart from a long text of short lines", () => {
+  assert.equal(hasLongLine("x".repeat(LONG_LINE)), false);
+  assert.equal(hasLongLine("x".repeat(LONG_LINE + 1)), true);
+  assert.equal(hasLongLine(("x".repeat(1000) + "\n").repeat(5000)), false, "five megabytes of ordinary lines");
+  assert.equal(hasLongLine("short\n" + "世".repeat(LONG_LINE + 1) + "\nshort"), true);
+  assert.equal(isLong("x\n".repeat(20)), true);
+  assert.equal(isLong("a line"), false);
+});

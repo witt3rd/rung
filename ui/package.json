@@ -20,7 +20,8 @@
     "real-proof": "node --experimental-strip-types census/real-proof.ts",
     "live-proof": "node --experimental-strip-types census/live-proof.ts",
     "mock": "node --experimental-strip-types mock/serve.ts",
-    "strata-proof": "node census/strata-proof.mjs"
+    "strata-proof": "node census/strata-proof.mjs",
+    "strata-live-proof": "node --experimental-strip-types census/strata-live-proof.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.1",

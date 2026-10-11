@@ -67,3 +67,19 @@ test("the route: a turn's context page, with the call in the address", () => {
   // the turns page still reads its own address
   assert.deepEqual(parseHash("#/i/ctx-demo/turns?turn=3"), { page: "turns", id: "ctx-demo", turn: 3 });
 });
+
+// A running host writes a record line every moment. A past turn's context does not change while it does: the page must not ask again
+// (and so must not draw again, which closes what the reader has open) for each line.
+import { contextQueryKey } from "../src/context/load.ts";
+test("the query key of a past turn's context does not move with the record's length; it moves with the turn, the call and the turn's log", () => {
+  const upTo = (n: number) => lines.slice(0, n);
+  const logAt = lines.findIndex((l) => l.kind === "turn.log" && l.turn === 4);
+  assert.ok(logAt > 0 && logAt < lines.length - 5, "the record has lines after turn 4's log");
+  const k = (ls: typeof lines, turn = 4, call = 2) => JSON.stringify(contextQueryKey("ctx-demo", turn, call, "live", ls));
+  assert.equal(k(upTo(logAt + 2)), k(upTo(logAt + 40)), "more lines after the log: the same key");
+  assert.equal(k(lines), k(upTo(logAt + 2)));
+  assert.notEqual(k(upTo(logAt)), k(upTo(logAt + 1)), "the turn's log appearing (the door's 409 turns into an answer): a new key");
+  assert.notEqual(k(lines, 4, 2), k(lines, 4, 3), "another call");
+  assert.notEqual(k(lines, 4, 2), k(lines, 5, 2), "another turn");
+  assert.notEqual(JSON.stringify(contextQueryKey("ctx-demo", 4, 2, "live", lines)), JSON.stringify(contextQueryKey("ctx-demo", 4, 2, "static", lines)), "another mode");
+});

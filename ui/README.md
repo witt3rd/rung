@@ -44,9 +44,10 @@ skipped; an external gateway (`RUNG_CONTRACT_URL`) has none, so those skip there
 
 Every turn has a **Context** link (`#/i/<id>/turns/<n>/context?call=<k>`). It opens what was sent to the model for one model call of that
 turn, as seven bands in the order the model reads them: Tools, System prompt, (cache boundary 1), Epoch summary, (cache boundary 2), History,
-Memory recall, Message, This turn so far. Per band: the host's estimate (marked `~`) beside the provider's own count for the call (the truth),
-a cache marker (cached, new, partly cached) derived from the call's cached-token count against the bands in order, and a drill-in that opens the
-band's whole text (a long text folds under Show more; nothing is cut; each tool definition and each past turn is its own row). The bottom line is
+Message, Memory recall, This turn so far (the turn's header is one message on the wire: its message part first, its recalled memory after it). Per band: the host's estimate (marked `~`) beside the provider's own count for the call (the truth),
+a cache marker (cached, new, partly cached) from the call's cached-token count laid against the bands in order, and a drill-in that opens the
+band's whole text (a long text folds under Show more; nothing is cut; each tool definition and each past turn is its own row; a text with a line
+of more than 50,000 characters is not wrapped, because a browser takes tens of seconds to wrap a megabyte of mixed scripts, and scrolls sideways). The bottom line is
 cached N of M provider tokens. A small selector picks the call when a turn made several; a cache break at a call is named. Read-only.
 
 - **Where it reads**: the host's context door (`GET /v1/turns/{n}/context?call=k`, host S4; see `contract/README.md`). Where that is absent, fails
@@ -58,8 +59,14 @@ cached N of M provider tokens. A small selector picks the call when a turn made 
   built gateway answered; `prepare-data` copies them beside the record (`data/<id>/context/<turn>-<call>.json`).
 - `npm run test:contract:context:real` runs the checks for the door against the built `rung-gateway`; `RUNG_CONTRACT_URL=… npm run test:contract:context`
   runs them against any gateway (every check skips, by name, on one without the door).
+- On a **running** instance the page asks the door once for a past turn and keeps the bands the reader has open as the host writes record lines:
+  the query is keyed on the turn, the call, the mode and whether the turn's log is written, not on the record's length (`npm run strata-live-proof`,
+  against the mock gateway and a host that keeps writing).
+- Every text a band shows passes the page's redactor, which is linear in the text (a port of the memoised scan in `rung-agent-core/src/redact.rs`;
+  `test/redact-linear.test.ts` doubles hostile inputs and bounds the time).
 - `npm run strata-proof` drives the built app in a real browser at 390, 1280 and 1920 (bands, boundaries, markers, whole text, the selector, an
-  old run's missing bands, no write control).
+  old run's missing bands, no write control, and a hostile door answer: markup, a key shape, a 1 MB line of mixed scripts: nothing runs, leaks, is cut or
+  freezes; nothing is written to the console, storage, the title or the address; every request is a GET).
 - The plain-words line of each band (what it holds) is at the top of its opened drill-in, not on its row: the first screen stays inside the census's word budget.
 
 ## Where the data comes from
@@ -103,6 +110,8 @@ cached N of M provider tokens. A small selector picks the call when a turn made 
 - `strata-door-shape-first-run.txt`: the first reader, written to a proposed door shape, against the real door's answers: 15 of 21 checks fail.
 - `strata-mutations.txt`: five faults put into the strata code on purpose (a band drawn cached where the cut passes through it, the host's marks trusted where bands
   are missing, a tool definition that loses its tail, a recall-less turn drawn as a gap, a page that cuts a long text); the checks that caught each.
+- `strata-review-first-run.txt`, `strata-review-mutations.txt`: the review round's checks against the page as it was (the open band closing on a running host, the
+  quadratic redactor, a 1 MB line freezing the layout), and thirteen faults put into the page, the loader and the redactor on purpose, each caught (one only after its check was tightened).
 - `strata-proof.txt`, `strata-census.txt`: the browser proof (at 390, 1280 and 1920) and the census (390 and 1920) with the strata pages.
 - `live-review4-first-run.txt`: the word-boundary tests (a Bearer inside a word, a word after a JSON escape) against the redactor before.
 - `h5-first-run-mock.txt`, `h5-first-run-ui.txt`: the contract tests written for H5's frames against the mock as it was, and the page's live code against the mock

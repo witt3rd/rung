@@ -12,6 +12,12 @@ export function contextUrl(mode: Mode, id: string, turn: number, call: number): 
   return mode === "live" ? `api/i/${encodeURIComponent(id)}/v1/turns/${turn}/context?call=${call}` : `data/${encodeURIComponent(id)}/context/${turn}-${call}.json`;
 }
 
+/** What a past turn's context depends on: the turn, the call, the mode, and whether the turn's log is written yet (until it is, the door
+ *  answers 409). Not the length of the record: a running host writes a line every moment, and a key that moved with them would ask the door again
+ *  for the same answer, and draw it again, which closes the band the reader has open. */
+export const contextQueryKey = (id: string, turn: number, call: number, mode: Mode, lines: readonly Line[]) =>
+  ["context", id, turn, call, mode, lines.some((l) => l.kind === "turn.log" && l.turn === turn)] as const;
+
 export interface LoadArgs { mode: Mode; id: string; turn: number; call: number; lines: readonly Line[]; fetchImpl?: typeof fetch }
 
 export async function loadContext(a: LoadArgs): Promise<ContextView | null> {

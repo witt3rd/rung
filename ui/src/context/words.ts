@@ -58,3 +58,18 @@ export function sayEvent(e: { kind: string; cause: string } | null): string {
   if (!e) return "No cache break before this call.";
   return e.kind === "cache.cold" ? `The cache was cold at this call: ${sayCause(e.cause)}.` : `A cache break came before this call: ${sayCause(e.cause)}.`;
 }
+
+/** A line this long is not wrapped: a browser that breaks a one-line megabyte of mixed scripts into lines takes tens of seconds, and the tab
+ *  is frozen for all of them. The text is whole either way; such a text scrolls sideways instead of wrapping. */
+export const LONG_LINE = 50_000;
+export function hasLongLine(t: string): boolean {
+  if (t.length <= LONG_LINE) return false;
+  let at = 0;
+  while (at < t.length) {
+    const nl = t.indexOf("\n", at);
+    const end = nl < 0 ? t.length : nl;
+    if (end - at > LONG_LINE) return true;
+    at = end + 1;
+  }
+  return false;
+}

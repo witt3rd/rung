@@ -112,3 +112,4 @@ details.more .sub { margin: 14px 0 4px; font-size: var(--s-body); font-weight: 6
 .bh[aria-expanded="true"] .bt::before, .row-in[open] > summary::before { content: "▾"; }
 .row-in > summary { list-style: none; }
 .row-in > summary::-webkit-details-marker { display: none; }
+.drill .text.nowrap { white-space: pre; overflow-x: auto; overflow-wrap: normal; }

@@ -50,18 +50,39 @@ function escapeEndsAt(t: string, i: number): boolean {
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
 const PREFIX_RE = new RegExp(SHAPE_TABLE.map(([p]) => esc(p)).join("|") + "|AKIA|ASIA|eyJ", "g");
 
-/** The end of a token that starts at `at`: the run of token characters, without the dots that end it. */
-function tokRun(t: string, at: number): number {
-  let e = at;
-  while (isTok(t[e])) e++;
-  while (e > at && t[e - 1] === ".") e--;
-  return e;
+/** The first index at or after `from` where a predicate holds, or the end of the text. Queries from one site come in rising order, so the last
+ *  answer serves every query that falls before it: the total work over a text is one pass, however many candidates ask. (This is what keeps a
+ *  hostile text, a million `eyJ-` in a row, from making every candidate rescan the rest of it: the page's port of `Next` in `redact.rs`.) */
+class Next {
+  private from = 0;
+  private at = 0;
+  private known = false;
+  find(len: number, from: number, hit: (i: number) => boolean): number {
+    if (this.known && this.from <= from && from <= this.at) return this.at;
+    let e = from;
+    while (e < len && !hit(e)) e++;
+    this.from = from; this.at = e; this.known = true;
+    return e;
+  }
 }
 
-/** The ranges of known key shapes in `t`: the port of `Scan::token_shape`, `bearer` and `private_keys`. */
+/** The ranges of known key shapes in `t`: the port of `Scan::token_shape`, `bearer` and `private_keys`. Linear in the text. */
 function shapeRanges(t: string): [number, number][] {
   const out: [number, number][] = [];
   let glue = 0;
+  // Every forward look is memoised (see `Next`): the end of a token run, where trailing dots stop it, and the next dots.
+  const tokEnd = new Next(), dot1 = new Next(), dot2 = new Next();
+  let trim: [number, number] = [-1, -1];
+  /** The end of a token that starts at `at`: the run of token characters, without the dots that end it. */
+  const tokRun = (at: number): number => {
+    const runEnd = tokEnd.find(t.length, at, (i) => !isTok(t[i]));
+    if (trim[0] !== runEnd) {
+      let e = runEnd;
+      while (e > 0 && t[e - 1] === ".") e--;
+      trim = [runEnd, e];
+    }
+    return Math.min(Math.max(trim[1], at), runEnd);
+  };
   PREFIX_RE.lastIndex = 0;
   for (let m = PREFIX_RE.exec(t); m; m = PREFIX_RE.exec(t)) {
     const i = m.index;
@@ -72,7 +93,7 @@ function shapeRanges(t: string): [number, number][] {
       const [p, min, afterUnderscore] = entry;
       if (afterWord && !(afterUnderscore && t[i - 1] === "_")) continue;
       const tail = i + p.length;
-      const end = tokRun(t, tail);
+      const end = tokRun(tail);
       const len = end - tail;
       const ok = len >= min && (p === "sk-" || p === "hf_" ? len >= 32 || /[0-9]/.test(t.slice(tail, end)) : true);
       if (ok) { out.push([i, end]); glue = end; PREFIX_RE.lastIndex = end; }
@@ -82,11 +103,13 @@ function shapeRanges(t: string): [number, number][] {
     if ((t.startsWith("AKIA", i) || t.startsWith("ASIA", i)) && /^[A-Z0-9]{16}/.test(t.slice(i + 4, i + 20)) && t.length >= i + 20) {
       out.push([i, i + 20]); glue = i + 20; PREFIX_RE.lastIndex = glue;
     } else if (t.startsWith("eyJ", i)) {
-      const end = tokRun(t, i);
+      const end = tokRun(i);
       if (end - i >= 30) {
-        const d1 = t.indexOf(".", i);
-        const d2 = d1 >= 0 && d1 < end ? t.indexOf(".", d1 + 1) : -1;
-        if (d2 >= 0 && d2 < end) { out.push([i, end]); glue = end; PREFIX_RE.lastIndex = end; }
+        const d1 = dot1.find(t.length, i, (j) => t[j] === ".");
+        if (d1 < end) {
+          const d2 = dot2.find(t.length, d1 + 1, (j) => t[j] === ".");
+          if (d2 < end) { out.push([i, end]); glue = end; PREFIX_RE.lastIndex = end; }
+        }
       }
     }
   }
@@ -99,15 +122,26 @@ function shapeRanges(t: string): [number, number][] {
     const tokenish = /[0-9\-._~+/=]/.test(t.slice(v, e));
     if (e - v >= 8 && (tokenish || e - v >= 20)) out.push([v, e]);
   }
-  // Private key blocks: the body goes, the BEGIN and END frame stays.
-  for (const m of t.matchAll(/-----BEGIN ([^\n]*?PRIVATE KEY)-----/g)) {
-    const from = m.index + m[0].length;
-    const endAt = t.indexOf("-----END ", from);
-    const to = endAt < 0 ? t.length : endAt;
-    const body = t.slice(from, to);
+  // Private key blocks: the body goes, the BEGIN and END frame stays. The port of `private_keys`: a marker whose label is not a private key
+  // is passed over by one step, a block runs to its END (or the end of the text), and the scan resumes after the block, so it is one pass.
+  const BEGIN = "-----BEGIN ";
+  for (let from = 0; ;) {
+    const p = t.indexOf(BEGIN, from);
+    if (p < 0) break;
+    const labelAt = p + BEGIN.length;
+    const q = t.indexOf("-----", labelAt);
+    if (q < 0) break;
+    const label = t.slice(labelAt, q);
+    const bodyFrom = q + 5;
+    if (!label.includes("PRIVATE KEY") || label.includes("\n")) { from = labelAt; continue; }
+    const endAt = t.indexOf("-----END ", bodyFrom);
+    const bodyTo = endAt < 0 ? t.length : endAt;
+    const body = t.slice(bodyFrom, bodyTo);
     const lead = body.length - body.trimStart().length;
     const trimmed = body.trim();
-    if (trimmed) out.push([from + lead, from + lead + trimmed.length]);
+    if (trimmed) out.push([bodyFrom + lead, bodyFrom + lead + trimmed.length]);
+    from = Math.max(bodyTo, bodyFrom);
+    if (from >= t.length) break;
   }
   return out;
 }
