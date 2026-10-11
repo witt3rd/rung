@@ -1334,8 +1334,10 @@ a body that is not `application/json` 415, a host that is stopping 409
 `not_running`. Each is answered at once with `Connection: close` and the body is
 never read, so a client sending a body of any size to a request that is refused
 costs the host nothing (a 1 GiB generated body to each refusal left the host's
-peak memory where it was). Only a request let on has its body read, as it arrives
-and with no limit, and passed whole to the route (`RouteRequest.body`). An item an
+peak memory where it was). Only a request the gate *admits* has its body read, as it
+arrives and with no limit, and passed whole to the route (`RouteRequest.body`); a
+request to any path the gate does not own (an unserved path, or a door with no
+body to take) has none read, and the connection is closed after its answer. An item an
 owner sends is stored whole; storing it takes a bounded number of copies of it
 (the body, the parsed item, the inbox's, the line written, the answer: about nine
 measured), because an item is one record line that every reader reads whole and
