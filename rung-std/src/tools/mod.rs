@@ -760,7 +760,8 @@ mod tests {
         let _warm = time(20);
         let small = time(60).max(std::time::Duration::from_micros(200));
         let big = time(240);
-        // 4x depth: linear is ~4x, cubic is ~64x.
-        assert!(big < small * 24, "1x {small:?} vs 4x {big:?}");
+        // 4x depth: the kernel resolves each path in O(depth), so ~16x is the floor
+        // for any path-based walk; cubic would be ~64x.
+        assert!(big < small * 48, "1x {small:?} vs 4x {big:?}");
     }
 }

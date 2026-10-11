@@ -195,12 +195,17 @@ fn collect(root: &Path, ancestors: &mut HashSet<DirId>, out: &mut Vec<PathBuf>) 
             let path = entry.path();
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            if path.is_dir() {
+            let ft = entry.file_type().ok();
+            let (is_dir, is_file) = match ft {
+                Some(t) if !t.is_symlink() => (t.is_dir(), t.is_file()),
+                _ => (path.is_dir(), path.is_file()),
+            };
+            if is_dir {
                 if skip_dir(&name) {
                     continue;
                 }
                 collect(&path, ancestors, out);
-            } else if path.is_file() {
+            } else if is_file {
                 out.push(path);
             }
         }
