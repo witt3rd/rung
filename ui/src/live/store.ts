@@ -3,7 +3,7 @@
  *  with useSyncExternalStore and a test reads it directly. Changes are batched so a burst of lines is one render. */
 import type { Line } from "../record/types.ts";
 import { parseRecordLines, redact, redactStreaming } from "./wire.ts";
-import { EventsClient, type Delta, type Open, type Status } from "./client.ts";
+import { EventsClient, type Delta, type End, type Open, type Status } from "./client.ts";
 
 /** What `GET /v1/summary` answers (ui/contract/README.md). */
 export interface HostSummary {
@@ -27,6 +27,8 @@ export interface LiveState {
   status: Status;
   lines: Line[];
   host: HostSummary | null;
+  /** The stream ended because the host stopped (the last frame it sent), until a stream opens on a host that is running again. */
+  ended: End | null;
 }
 
 /** What the running turn is doing now. Gone when the turn's end is on the record, and on a cut (pieces were lost). */
@@ -37,7 +39,7 @@ export interface LiveDelta {
 }
 
 export class LiveStore {
-  private state: LiveState = { loaded: false, error: null, status: "connecting", lines: [], host: null };
+  private state: LiveState = { loaded: false, error: null, status: "connecting", lines: [], host: null, ended: null };
   /** The streamed text exactly as it came. It is redacted when read, over the whole text so far: a key split across pieces
    *  is whole in here, and redacting the running text would leave the tail of a key the next piece completes. */
   private raw: LiveDelta | null = null;
@@ -129,9 +131,9 @@ export class LiveStore {
       onRecord: (l) => this.onRecord(l),
       onDelta: (d) => this.onDelta(d),
       onOpen: (o) => void this.onOpen(o),
-      onEnd: () => void this.refreshSummary(),
+      onEnd: (e) => { this.set({ ended: e }); void this.refreshSummary(); },
       onStatus: (s) => {
-        if (s === "reconnecting" || s === "connecting") { this.caught = false; this.setDelta(null); } // pieces may have been lost in the cut: show none rather than a torn text
+        if (s === "reconnecting" || s === "connecting") { this.caught = false; this.setDelta(null); this.set({ ended: null }); } // pieces may have been lost in the cut: show none rather than a torn text
         // "following" is the store's to say: it is true once the replay has been applied (checkCaught).
         this.set({ status: s });
       },
@@ -159,6 +161,7 @@ export class LiveStore {
     this.joinSeq = null;
     this.newBlock = false;
     this.setDelta(null);
+    if (o.live) this.set({ ended: null });
     if (!o.live) return; // a stopped host: its stream ends right after the replay
     // Without the summary the page cannot say where the replay ends, so it would show no partial frame at all: ask again, with a growing
     // wait, for as long as this stream is the open one. The record is followed meanwhile.

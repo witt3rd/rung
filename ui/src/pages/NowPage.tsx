@@ -7,12 +7,13 @@ import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
 import { useNow, when } from "./format.ts";
 import type { LiveInfo } from "../data/hooks.ts";
 import { visibleDelta } from "../live/overlay.ts";
+import { describeStatus } from "../live/status.ts";
 import { duration } from "../record/words.ts";
 
 export function NowPage({ id }: { id: string }) {
   const { entry, folds, indexLoaded, error, live: li, startCommand } = useInstance(id);
   const s = folds?.summary;
-  const live = !!entry?.lockHeld;
+  const live = folds ? folds.lockHeld : !!entry?.lockHeld;
   const recent = folds ? folds.turns.slice(-3).reverse() : [];
   const lastTurn = folds && folds.turns.length ? folds.turns[folds.turns.length - 1] : null;
   const missing = indexLoaded && !entry;
@@ -36,7 +37,7 @@ export function NowPage({ id }: { id: string }) {
                         Committed {num(Math.max(0, (s.lastTurn ?? 0) - s.project.sinceTurn))} turns ago.{s.project.doneWhen ? ` Done when ${s.project.doneWhen}.` : ""}
                       </p>
                     )}
-                    {li && live && <LiveLine li={li} turn={lastTurn} now={now} />}
+                    {li && (live || li.status === "ended") && <LiveLine li={li} turn={lastTurn} now={now} />}
                     {!s.project && lastTurn && !live && (
                       <p className="meta" style={{ margin: "6px 0 0" }} data-content>It said: {turnLine(lastTurn)}</p>
                     )}
@@ -89,16 +90,11 @@ export function NowPage({ id }: { id: string }) {
 function LiveLine({ li, turn, now }: { li: LiveInfo; turn: { n: number; status: string; startedAt: number } | null; now: number }) {
   const running = turn?.status === "running";
   const delta = visibleDelta(li.delta, turn);
-  let words: string;
-  if (li.status === "unavailable") words = "Not followed.";
-  else if (li.status === "reconnecting" || li.status === "connecting") words = "Reconnecting.";
-  else if (li.status === "catching up") words = "Catching up.";
-  else if (running) words = `${delta?.tool ? `Running ${delta.tool}` : "Writing"}, ${duration(Math.max(0, now - turn!.startedAt))} in.`;
-  else words = "Between turns.";
+  const d = describeStatus(li.status, { turnRunning: running, tool: delta?.tool, elapsed: running ? duration(Math.max(0, now - turn!.startedAt)) : undefined });
   return (
     <>
       {delta?.text ? <p className="content" style={{ margin: "12px 0 0" }} data-content>{delta.text}</p> : null}
-      <p className="meta" style={{ margin: "12px 0 0" }} data-content><span className="mark live" />Live: {words}</p>
+      <p className="meta" style={{ margin: "12px 0 0" }} data-content>{d.running === "no" ? d.nowWords : <><span className="mark live" />Live: {d.nowWords}</>}</p>
     </>
   );
 }

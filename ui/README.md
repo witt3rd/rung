@@ -81,7 +81,8 @@ skipped; an external gateway (`RUNG_CONTRACT_URL`) has none, so those skip there
 - `h5-first-run-mock.txt`, `h5-first-run-ui.txt`: the contract tests written for H5's frames against the mock as it was, and the page's live code against the mock
   once it spoke H5: what failed before the page followed the real stream.
 - `h5-summary-retry-first-run.txt`: the summary-retry test against the store before the retry.
-- `live-mutations.txt`: thirty-five faults put into the live code one at a time; every one is caught by a test.
+- `status-first-run.txt`: the shared-status tests, and a proof step where the host stops under two open pages with a stale summary, against the code before: the Now page did not say Not running.
+- `live-mutations.txt`: thirty-eight faults put into the live code one at a time; every one is caught by a test.
 - `live-proof.txt`: the live proof against the mock, as run.
 - `real-gateway-first-run.txt`: the tests for the real gateway's rows and a missing event stream, against the UI source as it was on master.
 - `real-proof.txt`: the proof against the real gateway binary, as run; `contract-real.txt`: the contract tests against it, as run.

@@ -1,12 +1,12 @@
 pass  census, real-instances at 390: chrome 11 words, within every budget
 pass  census, real-now-stopped at 390: chrome 26 words, within every budget
 pass  census, real-now-running at 390: chrome 20 words, within every budget
-pass  a turn written to the record while the page watched is on the screen after 84 ms, through the real gateway's stream (390)
+pass  a turn written to the record while the page watched is on the screen after 83 ms, through the real gateway's stream (390)
 pass  census, real-turns at 390: chrome 17 words, within every budget
 pass  census, real-instances at 1280: chrome 11 words, within every budget
 pass  census, real-now-stopped at 1280: chrome 39 words, within every budget
 pass  census, real-now-running at 1280: chrome 26 words, within every budget
-pass  a turn written to the record while the page watched is on the screen after 84 ms, through the real gateway's stream (1280)
+pass  a turn written to the record while the page watched is on the screen after 83 ms, through the real gateway's stream (1280)
 pass  census, real-turns at 1280: chrome 19 words, within every budget
 pass  the list holds every registered instance: a stopped one, a dead one, a live-looking one and an entry that cannot be read
 pass  the entry that cannot be read is listed as Unreadable, never dropped
@@ -14,13 +14,13 @@ pass  census, real-instances at 1920: chrome 11 words, within every budget
 pass  a stopped instance shows the command that starts it, and says the page does not
 pass  census, real-now-stopped at 1920: chrome 39 words, within every budget
 pass  census, real-now-running at 1920: chrome 26 words, within every budget
-pass  a turn written to the record while the page watched is on the screen after 85 ms, through the real gateway's stream (1920)
+pass  a turn written to the record while the page watched is on the screen after 84 ms, through the real gateway's stream (1920)
 pass  the record read through the real door is the record: 6 turns shown, 6 in the file
 pass  the page says it is following (the instance's lock is held)
 pass  census, real-turns at 1920: chrome 23 words, within every budget
 pass  census, real-instances at 2878: chrome 11 words, within every budget
 pass  census, real-now-stopped at 2878: chrome 39 words, within every budget
 pass  census, real-now-running at 2878: chrome 26 words, within every budget
-pass  a turn written to the record while the page watched is on the screen after 83 ms, through the real gateway's stream (2878)
+pass  a turn written to the record while the page watched is on the screen after 102 ms, through the real gateway's stream (2878)
 pass  census, real-turns at 2878: chrome 30 words, within every budget
 real-gateway proof: all pass

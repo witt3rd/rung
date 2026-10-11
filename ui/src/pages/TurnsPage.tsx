@@ -5,6 +5,7 @@ import type { ToolCall, Turn } from "../record/folds.ts";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
 import { useNow, when } from "./format.ts";
 import { overlayRunning } from "../live/overlay.ts";
+import { describeStatus } from "../live/status.ts";
 
 const PAGE = 50;
 type Filter = "all" | "tools" | "failed" | "model";
@@ -105,7 +106,7 @@ export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
   const count = Math.max(shown, need);
   const s = folds?.summary;
   const lastTurn = folds && folds.turns.length ? folds.turns[folds.turns.length - 1] : null;
-  const live = !!entry?.lockHeld;
+  const live = folds ? folds.lockHeld : !!entry?.lockHeld;
   const filtered = q !== "" || f !== "all";
 
   return (
@@ -122,7 +123,7 @@ export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
         </div>
         {li && (
           <p className="meta" style={{ margin: "0 0 20px" }} data-content>
-            <span className="mark live" />{li.status === "following" ? "Following" : li.status === "catching up" ? "Catching up" : li.status === "unavailable" ? "Recorded, not followed" : li.status === "ended" ? "Not running" : "Reconnecting"}
+            <span className="mark live" />{describeStatus(li.status).turnsLine}
           </p>
         )}
         <section>

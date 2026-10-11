@@ -1,0 +1,6 @@
+# review round: the new status tests and the stopped-with-a-stale-summary proof step against the code as it was at the previous head
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/live/status.ts' imported from ui/test/status.test.ts
+pass  after the host stopped, the Turns page says Not running
+FAIL  after the host stopped, the Now page says Not running (with a stale summary)
+FAIL  neither page still says the instance is working
+live proof: 2 failure(s)

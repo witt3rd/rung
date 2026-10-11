@@ -5,7 +5,9 @@
 import type { Line } from "../record/types.ts";
 import { SseParser } from "./sse.ts";
 
-export type Status = "connecting" | "catching up" | "following" | "reconnecting" | "unavailable" | "ended";
+/** Every state the stream can be in. `describeStatus` has an entry for each: add one here and it does not compile until it has words. */
+export const STATUSES = ["connecting", "catching up", "following", "reconnecting", "unavailable", "ended"] as const;
+export type Status = (typeof STATUSES)[number];
 
 /** A partial frame (docs/rung-host-api.md, H5): short-lived, never numbered, never replayed. `turn` and `call` are 0 on `behind`. */
 export type Delta =

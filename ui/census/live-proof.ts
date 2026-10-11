@@ -114,6 +114,31 @@ try {
   }
 
 
+
+  // 4 ---------------------------------------------------------------------------------------------------------------
+  // The host stops while two pages watch it, and the summary they would refresh from is stale (it still says Working): both pages must
+  // say Not running, from one shared mapping, and neither may say the instance is working.
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const staleBody = JSON.stringify(await (await fetch(`${m.url}/api/i/alpha/v1/summary`)).json());
+    let frozen = false;
+    await ctx.route("**/v1/summary", (route) => (frozen ? route.fulfill({ status: 200, contentType: "application/json", body: staleBody }) : route.continue()));
+    const now = await ctx.newPage();
+    const turns = await ctx.newPage();
+    await ready(now, "#/i/alpha");
+    await ready(turns, "#/i/alpha/turns");
+    await turns.waitForFunction(() => document.body.innerText.includes("Following"));
+    frozen = true;
+    await host.halt();
+    await turns.waitForFunction(() => document.body.innerText.includes("Not running"), null, { timeout: 8000 });
+    await now.waitForFunction(() => document.body.innerText.includes("Not running"), null, { timeout: 8000 }).catch(() => {});
+    const nowText = await now.evaluate(() => document.body.innerText);
+    const turnsText = await turns.evaluate(() => document.body.innerText);
+    check(/Not running/.test(turnsText), "after the host stopped, the Turns page says Not running");
+    check(/Not running/.test(nowText), "after the host stopped, the Now page says Not running (with a stale summary)");
+    check(!/Live: (Writing|Running|Between)/.test(nowText) && !/Working\./.test(nowText + turnsText), "neither page still says the instance is working");
+    await ctx.close();
+  }
 } finally {
   await browser?.close();
   await m.stop();
