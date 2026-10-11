@@ -1501,7 +1501,6 @@ impl Host {
             pack_tokens_before,
             out,
             header_logged,
-            header_full,
             recall_block,
             now,
             admitted,
@@ -1562,7 +1561,6 @@ impl Host {
         before_header: usize,
         out: EngineTurn,
         header: String,
-        header_sent: String,
         recall: Option<String>,
         started_at: Millis,
         admitted: Vec<Item>,
@@ -1643,14 +1641,15 @@ impl Host {
         let deferred = std::mem::take(&mut *lock(&self.deferred_retain));
         self.retain(turn, deferred);
         // The turn's messages, verbatim, before the pack moves on.
+        // The recall block is written once, redacted, with the hash of what is
+        // stored; the header as the model saw it is `header`, a line break and
+        // the recall (the door rebuilds both views from these two fields).
+        let recall_text = recall.as_deref().map(|r| self.redactor.redact(r));
+        let recall_hash = recall_text.as_ref().map(|r| canon::hash(r.as_bytes()));
         core.emit(
             "turn.log",
             json!({"turn": turn, "header": header, "recall": recall.is_some(),
-                   // what the model was shown at the turn's start, whole: the
-                   // header with its recall block, and the recall text on its
-                   // own (redacted before they are written)
-                   "header_sent": self.redactor.redact(&header_sent),
-                   "recall_text": recall.as_deref().map(|r| self.redactor.redact(r)),
+                   "recall_text": recall_text, "recall_hash": recall_hash,
                    "messages": serde_json::to_value(&out.messages).unwrap_or(Value::Null)}),
         );
         lock(&self.pack).end_turn(out.messages.clone());

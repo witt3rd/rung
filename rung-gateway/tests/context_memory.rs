@@ -111,7 +111,7 @@ async fn a_long_history_is_streamed_in_bounded_memory() {
         );
         put(
             "turn.log",
-            json!({"turn": t, "header": "h", "header_sent": "h", "recall": false,
+            json!({"turn": t, "header": "h", "recall_text": null, "recall_hash": null, "recall": false,
                    "messages": [{"role": "assistant", "content": words},
                                 {"role": "user", "content": words},
                                 {"role": "assistant", "content": "done"}]}),

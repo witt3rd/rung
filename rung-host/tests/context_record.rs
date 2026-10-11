@@ -102,10 +102,17 @@ fn the_layers_are_recorded_whole_and_once() {
     assert_eq!(logs.len(), 3);
     for (i, t) in logs.iter().enumerate() {
         let sent = seen[i].messages.last().unwrap().content.as_text().unwrap();
-        assert_eq!(t.str("header"), sent, "no recall this turn: the header is what was sent");
+        assert_eq!(
+            t.str("header"),
+            sent,
+            "no recall this turn: the header is what was sent"
+        );
         assert!(t.body.contains_key("recall_text") && t.get("recall_text").is_null());
         assert!(t.get("recall_hash").is_null());
-        assert!(!t.body.contains_key("header_sent"), "the header is not written twice");
+        assert!(
+            !t.body.contains_key("header_sent"),
+            "the header is not written twice"
+        );
     }
 }
 
@@ -444,11 +451,19 @@ fn a_recall_that_does_not_resolve_is_answered_in_words() {
     };
     // the hash does not match the text: shown as recorded, and said so
     mutate(&|m| {
-        m.insert("recall_hash".into(), json!("00000000000000000000000000000000"));
+        m.insert(
+            "recall_hash".into(),
+            json!("00000000000000000000000000000000"),
+        );
     });
     let v = door(guard.path(), turn, Some(1), &red).unwrap();
     assert_eq!(band(&v, "recall")["intact"], false);
-    assert!(v["problems"][0].as_str().unwrap().contains("does not match"));
+    assert!(
+        v["problems"][0]
+            .as_str()
+            .unwrap()
+            .contains("does not match")
+    );
     assert_eq!(band(&v, "recall")["text"], band(&ok, "recall")["text"]);
     // the text is gone, or is not text: said in words, no recall band
     for bad in [Value::Null, json!(42)] {
@@ -456,7 +471,12 @@ fn a_recall_that_does_not_resolve_is_answered_in_words() {
             m.insert("recall_text".into(), bad.clone());
         });
         let v = door(guard.path(), turn, Some(1), &red).unwrap();
-        assert!(v["problems"][0].as_str().unwrap().contains("no recall text"));
+        assert!(
+            v["problems"][0]
+                .as_str()
+                .unwrap()
+                .contains("no recall text")
+        );
         assert!(!names(&v).contains(&"recall".to_string()));
         assert!(names(&v).contains(&"message".to_string()));
     }

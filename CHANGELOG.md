@@ -12,7 +12,8 @@ git tags only.
   The record keeps each layer of what is sent to the model once, where it is
   made, whole and redacted: `pack.layers` (tool definitions and system text,
   at start and at a swap), the epoch layer on `epoch.rollover`, and on
-  `turn.log` the header as sent and the recall text. `GET
+  `turn.log` the recall text, once (the header as sent is the header and the
+  recall, rebuilt by the door). `GET
   /v1/turns/{n}/context?call=k` on the host's listener and the gateway's
   native door joins them by their hashes and answers the stacked bands of one
   model call, with the host's size estimates, the provider's counts and cache
