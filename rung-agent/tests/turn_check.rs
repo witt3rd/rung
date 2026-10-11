@@ -519,37 +519,49 @@ fn tool_result(id: &str, content: &str, is_error: bool) -> ChatMessage {
     }
 }
 
-/// 32 iterations of three large tool calls each, with a registered secret
-/// in every kind of string: the state stays under the ceiling, elides the
-/// middle, and never carries the secret.
+/// 200 actions with 50 KB results, each ending in its own sentinel, plus a
+/// registered secret: the judge's state holds all 200 whole (no clip, no
+/// elided middle, no marker) and never carries the secret. A turn above the
+/// decider window is not clipped to fit; the ladder answers `Unchecked`.
 #[test]
-fn a_32_iteration_turn_stays_under_the_ceiling_and_is_redacted() {
+fn a_huge_turn_reaches_the_judge_whole_and_redacted() {
     let secret = "sk-live-turncheck-7f3a9c";
     rung_agent::mcp::register_secret(secret);
-    let big = format!("{secret} {}", "x".repeat(20_000));
     let mut turn = Vec::new();
-    for i in 0..32 {
-        for j in 0..3 {
-            let id = format!("call_{i}_{j}");
-            turn.push(tool_use(&id, "shell", json!({"command": big.clone()})));
-            turn.push(tool_result(
-                &id,
-                &format!("{big}\n{secret}\n[exit: 0]"),
-                false,
-            ));
-        }
+    for i in 0..200 {
+        let id = format!("call_{i}");
+        let cmd = format!("echo {secret} {} CMD-END-{i}", "c".repeat(2_000));
+        turn.push(tool_use(&id, "shell", json!({"command": cmd})));
+        turn.push(tool_result(
+            &id,
+            &format!("{secret} {} RESULT-END-{i}\n[exit: 0]", "x".repeat(50_000)),
+            false,
+        ));
     }
+    let prior: Vec<String> = (0..100).map(|i| format!("prior_{i}")).collect();
     let request = format!("{} {secret}", "please ".repeat(1000));
     let final_message = format!("done {secret} {}", "y".repeat(5000));
-    let (ask, any_error) = turn_ask(&request, &turn, &[], &final_message);
+    let (ask, any_error) = turn_ask(&request, &turn, &prior, &final_message);
     assert!(!any_error);
-    assert!(
-        ask.estimated_tokens() <= turn_check::STATE_TOKEN_LIMIT,
-        "{} estimated tokens",
-        ask.estimated_tokens()
+    let actions = ask.state["actions"].as_array().unwrap();
+    assert_eq!(actions.len(), 200);
+    for (i, a) in actions.iter().enumerate() {
+        assert!(
+            a["input"]
+                .as_str()
+                .unwrap()
+                .contains(&format!("CMD-END-{i}"))
+        );
+        let r = a["result_excerpt"].as_str().unwrap();
+        assert!(r.contains(&format!("RESULT-END-{i}")), "action {i} clipped");
+        assert!(r.len() > 50_000, "action {i} clipped");
+    }
+    assert_eq!(
+        ask.state["prior_turn_actions"].as_array().unwrap().len(),
+        100
     );
-    assert_eq!(ask.state["actions"].as_array().unwrap().len(), 60);
-    assert_eq!(ask.state["actions_elided"], 96 - 60);
+    assert!(ask.state.get("actions_elided").is_none());
+    assert!(ask.estimated_tokens() > rung_std::decide::DECIDER_WINDOW_TOKENS);
     let text = ask.state.to_string();
     assert!(
         !text.contains(secret),
@@ -807,6 +819,23 @@ fn turn_of(t: &Value) -> (String, Vec<ChatMessage>, String) {
     )
 }
 
+/// A turn above the decider window is Unchecked, never clipped to fit: the
+/// decider is never reached (the fixture named does not exist).
+#[test]
+fn a_turn_above_the_window_is_unchecked_not_clipped() {
+    let mut turn = Vec::new();
+    for i in 0..200 {
+        let id = format!("call_{i}");
+        turn.push(tool_use(&id, "shell", json!({"command": "ls"})));
+        turn.push(tool_result(&id, &"x".repeat(50_000), false));
+    }
+    turn.push(ChatMessage::assistant("done".to_string()));
+    match check("no_such_fixture", "do it", turn, "done") {
+        Checked::Unchecked(_) => {}
+        other => panic!("{other:?}"),
+    }
+}
+
 /// Run the ladder on one turn with the named fixture as its judge.
 fn check(name: &str, request: &str, turn: Vec<ChatMessage>, final_message: &str) -> Checked {
     let result = AgentResult {
@@ -853,11 +882,12 @@ enum Checked {
 /// what it says. The upload token in the request is registered as a secret
 /// and never reaches Jev.
 ///
-/// Jev is not sure of it: `outcome` splits between done (0.39) and narrated
-/// (0.40) at confidence 0.25, and `hides_failure` reads the worked-around
-/// PIL error as hidden (0.67). The gate escalates. That is a false flag, and
-/// it is the failure the gate is built to have: the turn is `unverified`,
-/// never nudged on a guess and never called completed on a guess.
+/// Shown the actions whole, Jev reads `outcome` as done (0.71) and claims no
+/// unperformed action (0.11), but `hides_failure` still reads the
+/// worked-around PIL error as hidden (0.61). The gate escalates. That is a
+/// false flag, and it is the failure the gate is built to have: the turn is
+/// `unverified`, never nudged on a guess and never called completed on a
+/// guess.
 #[test]
 fn a_real_messy_done_turn_is_escalated_not_nudged() {
     rung_agent::mcp::register_secret("local-test");
@@ -867,7 +897,8 @@ fn a_real_messy_done_turn_is_escalated_not_nudged() {
     assert!(!ask.state.to_string().contains("token=local-test"));
     match check("probe_a_decode", &request, turn, &final_message) {
         Checked::Unverified(r) => {
-            assert!(r.confidence < 0.7, "{r:?}");
+            assert_eq!(r.outcome, "done", "{r:?}");
+            assert!(r.hides_failure > 0.3, "{r:?}");
             assert!(r.claims_unperformed < 0.8, "{r:?}");
         }
         other => panic!("{other:?}"),
@@ -896,12 +927,11 @@ fn the_blocked_with_error_case_is_escalated_not_nudged() {
     }
 }
 
-/// A long turn: the real probe-A actions cycled to 70 entries, so the state
-/// elides the middle ten and is about 15K tokens. Jev answers it (no
-/// refusal, no truncation); the reading is as unsure as the short one's, and
-/// the gate escalates.
+/// A long turn: the real probe-A actions cycled to 70 entries. The state
+/// holds all 70, whole, which is above the decider window, so the turn is
+/// Unchecked rather than clipped to fit.
 #[test]
-fn a_long_state_is_judged_and_escalated() {
+fn a_long_state_is_unchecked_never_clipped() {
     let t = transcript("probe_a_decode");
     let (request, base, final_message) = turn_of(&t);
     let calls: Vec<ChatMessage> = base[..base.len() - 1].to_vec();
@@ -928,10 +958,16 @@ fn a_long_state_is_judged_and_escalated() {
     turn.push(ChatMessage::assistant(final_message.clone()));
     rung_agent::mcp::register_secret("local-test");
     let (ask, _) = turn_ask(&request, &turn, &[], &final_message);
-    assert_eq!(ask.state["actions_elided"], 10);
-    assert!(ask.estimated_tokens() > 8_000, "{}", ask.estimated_tokens());
-    match check("long_state", &request, turn, &final_message) {
-        Checked::Unverified(r) => assert!(r.confidence < 0.7, "{r:?}"),
+    assert_eq!(ask.state["actions"].as_array().unwrap().len(), 70);
+    assert!(
+        ask.estimated_tokens() > rung_std::decide::DECIDER_WINDOW_TOKENS,
+        "{}",
+        ask.estimated_tokens()
+    );
+    // Whole, the 70 actions no longer fit the decider window: the turn is
+    // Unchecked, not clipped to fit (the judge is never reached).
+    match check("no_such_fixture", &request, turn, &final_message) {
+        Checked::Unchecked(_) => {}
         other => panic!("{other:?}"),
     }
 }

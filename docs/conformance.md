@@ -760,16 +760,17 @@ look shorter than it is.
 - `cli_text`
 - `cli_turn_check`
 
-**`rung-agent/tests/turn_check.rs`** — 22 unclaimed
+**`rung-agent/tests/turn_check.rs`** — 23 unclaimed
 
-- `a_32_iteration_turn_stays_under_the_ceiling_and_is_redacted`
 - `a_401_or_402_leaves_the_turn_unchecked`
 - `a_failed_rerun_keeps_the_steps_it_ran`
-- `a_long_state_is_judged_and_escalated`
+- `a_huge_turn_reaches_the_judge_whole_and_redacted`
+- `a_long_state_is_unchecked_never_clipped`
 - `a_malformed_answer_is_unchecked_never_completed`
 - `a_narrated_turn_is_nudged_and_completes_when_it_acts`
 - `a_narrating_task_child_is_checked_and_not_completed`
 - `a_real_messy_done_turn_is_escalated_not_nudged`
+- `a_turn_above_the_window_is_unchecked_not_clipped`
 - `a_turn_still_narrating_after_its_nudge_is_unverified`
 - `acp_carries_the_reading_in_meta_and_ends_the_turn`
 - `acp_with_the_check_off_has_no_meta`

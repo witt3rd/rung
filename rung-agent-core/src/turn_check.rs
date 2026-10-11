@@ -35,7 +35,9 @@ use std::time::Duration;
 
 use rung::ladder;
 use rung_std::agent::{AgentResult, FailureKind, Filtered};
-use rung_std::decide::{Ask, Decided, Decider, JevDecider, Question, Undecided};
+use rung_std::decide::{
+    Ask, DECIDER_WINDOW_TOKENS, Decided, Decider, JevDecider, Question, Undecided,
+};
 use rung_std::llm::{ChatMessage, MessageContent, MessageContentBlock};
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -47,17 +49,10 @@ use crate::mcp::redact;
 pub const NUDGE: &str = "Your last message says something was done that no tool call in this turn did. \
 Do it now with the tools, or say plainly that it was not done.";
 
-/// Estimated-token ceiling for a state (bytes / 3). Jev's context is 32K;
-/// this leaves room for the questions. Above it the turn is Unchecked.
-pub const STATE_TOKEN_LIMIT: usize = 24_000;
-
-// An action's input and result keep head and tail: a heredoc command ends in
-// the upload that matters, and a result opens with what it found.
-const INPUT_CHARS: usize = 300;
-const RESULT_CHARS: usize = 400;
-const KEEP_FIRST_ACTIONS: usize = 10;
-const KEEP_LAST_ACTIONS: usize = 50;
-const PRIOR_ACTIONS: usize = 20;
+// The judge sees every action whole: no clip of an input or a result, no
+// dropped middle, no cut of the prior turns' actions. The one limit is the
+// decider's context window ([`DECIDER_WINDOW_TOKENS`]); above it the turn is
+// Unchecked, never cut to fit.
 
 // Gate thresholds (Jev plan §4(b); Phase 0 met its bar with them unchanged).
 const ACT_MIN_CONFIDENCE: f64 = 0.7;
@@ -296,19 +291,6 @@ pub fn questions() -> BTreeMap<String, Question> {
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
-/// Cut `s` to `max` chars, keeping its head and tail.
-fn clip(s: &str, max: usize) -> String {
-    let n = s.chars().count();
-    if n <= max {
-        return s.to_string();
-    }
-    let head = max * 3 / 5;
-    let tail = max - head;
-    let h: String = s.chars().take(head).collect();
-    let t: String = s.chars().skip(n - tail).collect();
-    format!("{h} […{} chars…] {t}", n - max)
-}
-
 /// A shell result ends `[exit: N]`; N ≠ 0 is an error, whatever `is_error` says.
 fn shell_failed(content: &str) -> bool {
     content
@@ -321,7 +303,7 @@ fn shell_failed(content: &str) -> bool {
 
 /// Tool names used by earlier turns, most recent last.
 pub fn prior_actions(earlier: &[ChatMessage]) -> Vec<String> {
-    let mut names: Vec<String> = earlier
+    earlier
         .iter()
         .flat_map(|m| match &m.content {
             MessageContent::Blocks(b) => b.clone(),
@@ -331,14 +313,11 @@ pub fn prior_actions(earlier: &[ChatMessage]) -> Vec<String> {
             MessageContentBlock::ToolUse { name, .. } => Some(name),
             _ => None,
         })
-        .collect();
-    let skip = names.len().saturating_sub(PRIOR_ACTIONS);
-    names.drain(..skip);
-    names
+        .collect()
 }
 
 /// Build the judge's state for one turn. Every string passes through
-/// [`redact`] before it is cut, so a cut never leaves half a secret.
+/// [`redact`]; nothing is cut.
 ///
 /// `turn` is the messages this turn added; `final_message` is its last text.
 /// Returns the state and whether any action errored.
@@ -376,7 +355,7 @@ pub fn turn_state(
         }
     }
     let mut any_error = false;
-    let mut actions: Vec<Value> = calls
+    let actions: Vec<Value> = calls
         .iter()
         .map(|(id, name, input)| {
             let (content, failed) = results
@@ -386,22 +365,16 @@ pub fn turn_state(
             any_error |= failed;
             json!({
                 "tool": name,
-                "input": clip(&redact(input), INPUT_CHARS),
+                "input": redact(input),
                 "result": if failed { "error" } else { "ok" },
-                "result_excerpt": clip(&redact(content.trim()), RESULT_CHARS),
+                "result_excerpt": redact(content.trim()),
             })
         })
         .collect();
-    let mut elided = 0;
-    if actions.len() > KEEP_FIRST_ACTIONS + KEEP_LAST_ACTIONS {
-        elided = actions.len() - KEEP_FIRST_ACTIONS - KEEP_LAST_ACTIONS;
-        actions.drain(KEEP_FIRST_ACTIONS..KEEP_FIRST_ACTIONS + elided);
-    }
     let prior: Vec<String> = prior.iter().map(|s| redact(s)).collect();
     let state = json!({
         "request": redact(request),
         "actions": actions,
-        "actions_elided": elided,
         "prior_turn_actions": prior,
         "final_message": redact(final_message),
     });
@@ -614,7 +587,7 @@ ladder!(TurnCheck {
             &carry.prior_actions,
             &turn.result.final_response,
         );
-        if ask.estimated_tokens() > STATE_TOKEN_LIMIT {
+        if ask.estimated_tokens() > DECIDER_WINDOW_TOKENS {
             return Ok(StepOutcome::Unchecked(Unchecked::new(unread(
                 turn.result, nudged, &Undecided::TooLarge,
             ))));

@@ -51,9 +51,8 @@ use rung_agent::session::{Line, Session, SessionStore, check_id, new_id};
 use rung_agent::stream::{Emitter, NotifyingToolset, ObservingToolset, ToolNotify};
 #[allow(unused_imports)]
 use rung_agent::turn_check::{
-    Arm, Checked, Completion, Facts, Flagged, Gate, NUDGE, Nudged, STATE_TOKEN_LIMIT, Turn,
-    TurnCheckReport, TurnReading, Unjudged, Unread, arm, prior_actions, questions, turn_ask,
-    turn_state, turncheck,
+    Arm, Checked, Completion, Facts, Flagged, Gate, NUDGE, Nudged, Turn, TurnCheckReport,
+    TurnReading, Unjudged, Unread, arm, prior_actions, questions, turn_ask, turn_state, turncheck,
 };
 
 #[allow(unused_imports)]

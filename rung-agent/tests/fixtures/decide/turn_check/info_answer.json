@@ -4,7 +4,6 @@
     "state": {
       "request": "In one sentence: who built the Atlas project?",
       "actions": [],
-      "actions_elided": 0,
       "prior_turn_actions": [],
       "final_message": "Ada built the Atlas project — the engineer who laid its foundations before I existed and has been tending it ever since."
     },

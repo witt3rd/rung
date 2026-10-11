@@ -14,6 +14,15 @@ git tags only.
   their state directories, running or not, redacted and never writing
   (`rung_host::read`; shapes in `docs/rung-host-api.md`).
 
+### Changed
+- `rung-agent-core`, `rung-std`: the turn check sends every action's input and
+  result whole, all actions of the turn and all prior-turn actions; the clips
+  (`INPUT_CHARS`, `RESULT_CHARS`), the dropped middle (`KEEP_FIRST_ACTIONS`,
+  `KEEP_LAST_ACTIONS`, the `actions_elided` state field) and `PRIOR_ACTIONS` are
+  gone. The one limit is the decider context window, now the public
+  `rung_std::decide::DECIDER_WINDOW_TOKENS` (32,000); above it the turn is
+  Unchecked, never cut. `turn_check::STATE_TOKEN_LIMIT` (24,000) is removed.
+
 ### Removed
 - `rung-host`: no content caps on the host record or its tools. `turn.ended`
   carries the whole `final_text` (was cut at 2,000 characters); `ws_read` and

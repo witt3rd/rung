@@ -11,7 +11,6 @@
           "result_excerpt": "wrote 11 bytes to <tmp>/notes.txt"
         }
       ],
-      "actions_elided": 0,
       "prior_turn_actions": [],
       "final_message": "I kept Ada's test as a note in notes.txt."
     },

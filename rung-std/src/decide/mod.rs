@@ -25,7 +25,7 @@ mod jev;
 mod llm;
 mod recorded;
 
-pub use jev::{DEFAULT_BASE_URL, DEFAULT_MODEL, JevDecider, LEGACY_MODEL};
+pub use jev::{DECIDER_WINDOW_TOKENS, DEFAULT_BASE_URL, DEFAULT_MODEL, JevDecider, LEGACY_MODEL};
 pub use llm::LlmDecider;
 pub use recorded::{Mode, Recorded};
 
