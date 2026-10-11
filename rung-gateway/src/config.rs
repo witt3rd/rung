@@ -26,6 +26,12 @@ pub struct Config {
     /// Variables each holding one read-only token.
     #[serde(default)]
     pub read_only_token_envs: Vec<String>,
+    /// The registry folder of native hosts (`$RUNG_HOME/instances`): the
+    /// instances in it are read from their own state directories, running
+    /// or not. A relative path is relative to the config file. Absent: no
+    /// native instances.
+    #[serde(default)]
+    pub registry_dir: Option<PathBuf>,
     /// The instances behind the gateway.
     #[serde(default)]
     pub instances: Vec<InstanceConfig>,
@@ -56,6 +62,8 @@ pub struct Settings {
     pub allowed_hosts: Vec<String>,
     /// Tokens whose bearer may only read.
     pub read_only_tokens: Vec<String>,
+    /// The registry folder of native hosts, read for the H3 doors.
+    pub registry_dir: Option<PathBuf>,
     pub instances: Vec<Instance>,
 }
 
@@ -66,6 +74,7 @@ impl std::fmt::Debug for Settings {
             .field("app_dir", &self.app_dir)
             .field("allowed_hosts", &self.allowed_hosts)
             .field("read_only_tokens", &self.read_only_tokens.len())
+            .field("registry_dir", &self.registry_dir)
             .field("instances", &self.instances)
             .finish()
     }
@@ -83,6 +92,12 @@ impl Config {
             && let Some(base) = path.parent()
         {
             cfg.app_dir = Some(base.join(dir));
+        }
+        if let Some(dir) = &cfg.registry_dir
+            && dir.is_relative()
+            && let Some(base) = path.parent()
+        {
+            cfg.registry_dir = Some(base.join(dir));
         }
         Ok(cfg)
     }
@@ -151,6 +166,7 @@ impl Config {
             app_dir: self.app_dir.clone(),
             allowed_hosts,
             read_only_tokens,
+            registry_dir: self.registry_dir.clone(),
             instances,
         })
     }

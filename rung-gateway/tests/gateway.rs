@@ -133,6 +133,7 @@ fn settings(app_dir: Option<std::path::PathBuf>, instances: Vec<Instance>) -> Se
         app_dir,
         allowed_hosts: vec![],
         read_only_tokens: vec![READ_TOKEN.into()],
+        registry_dir: None,
         instances,
     }
 }

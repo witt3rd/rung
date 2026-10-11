@@ -1566,6 +1566,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "reqwest",
+ "rung-host",
  "rung-testkit",
  "serde",
  "serde_json",

@@ -314,14 +314,14 @@ linear time.
 
 ### Wiring checklist
 
-This slice is deliberately the redactor library. The H3 read doors, the H5
-event stream and the H8 console sink do not exist in this tree yet, so wiring
-and the end-to-end canary proof belong to the slice that adds each door. Each
+This slice is deliberately the redactor library. Wiring and the end-to-end
+canary proof belong to the slice that adds each door (the H3 read doors have
+them; the H5 event stream and the H8 console sink do not exist yet). Each
 of these MUST call `rung_host::redact` before emitting and MUST carry its own
 canary test, written red first (a secret in the environment, a tool that
 prints it, zero hits across every door, stream line and console file):
 
-- [ ] H3 read doors (record text)
+- [x] H3 read doors (record text): wired and proven by `rung-gateway/tests/native_doors.rs`
 - [ ] H5 event stream
 - [ ] H8 console sink
 
@@ -358,6 +358,7 @@ listen: 127.0.0.1:8787            # default; tailscale serve puts it on https
 app_dir: ui/dist                  # optional; relative to this file
 allowed_hosts: [gw.tailnet.example]   # optional: names a request may be addressed to, besides loopback
 read_only_token_envs: [RUNG_GATEWAY_VIEW_TOKEN]   # optional, each names a variable
+registry_dir: /home/me/.rung/instances   # optional: the H2 registry folder of native hosts (relative to this file if not absolute)
 instances:
   - id: alpha                     # letters, digits, '-', '_' (a path segment)
     name: Alpha                   # optional, defaults to the id
@@ -416,8 +417,8 @@ Refusals are 403 with `{"error": "bad_host", ...}` or `{"error": "bad_origin",
 | Route | What |
 |---|---|
 | `GET /api/health` | `{"ok": true}` |
-| `GET /api/instances` | the registry with each instance's summary (below) |
-| `/api/i/{id}/v1/...` | pass-through to that instance's `/v1/...`, any method |
+| `GET /api/instances` | the configured instances with each one's summary, and the native instances of `registry_dir` read from their state directories (below, and H3) |
+| `/api/i/{id}/v1/...` | pass-through to that instance's `/v1/...`, any method; for a native instance of `registry_dir`, `summary` and `record` are answered from its state directory (H3) |
 | anything else | the app: a file under `app_dir`, or `index.html` for a path with no extension (client-side routes); `/api/...` is never the app |
 
 Only `/v1/` of an instance passes (its ACP and other paths do not). A path
@@ -467,9 +468,204 @@ Later slices add rows as their doors land.
 | `GET /v1/console/stream` | read | yes | H8 |
 | `POST /v1/stop`, `POST /v1/release` | write | | exist over ACP |
 
+Of the H3 rows, the first slice serves `summary` and `record` for native
+instances (the H3 section below); `status`, `report`, `turns`, `decisions`,
+`pack` and `spend` are named here and not served yet.
+
 Validating a config change is classed as a write: it only serves the owner who
 may then apply it.
 
 Lists on the host's doors follow one paging rule: `offset`, `limit`, `total`,
 `next`; `limit` has no maximum and `total` is exact. The gateway does not
 interpret it.
+
+## H3 — the read doors and folds
+
+Three read-only doors over the native instances of a registry folder
+(`registry_dir` in the gateway config, the H2 folder): the list, one
+instance's **fold**, and its recorded events, paged. They are computed from
+the instance's own files, never ask a host anything and never write: a stopped
+instance reads the same as a running one, and the state directory is byte for
+byte what it was (the one probe is H2's, a shared non-blocking `flock` on
+`host.lock`, released at once). Code: `rung_host::read` (the folds and paging,
+no HTTP) and the gateway's routes.
+
+### Who, and what is refused first
+
+They are the gateway's doors, so the gateway's rules come first and are not
+repeated here: both roles may read (owner with no token; the read-only role
+with `Authorization: Bearer <token>` or `?token=`); an unknown token is 401
+`unauthorized`; an owner-role request is Host-checked (403 `bad_host`); a write
+by the read-only role is 403 `read_only`; any method but GET or HEAD on these
+doors is 405 `method_not_allowed` for the owner.
+
+**Every outgoing text is redacted** with the shared redactor (H4) before it is
+written: the gateway's own secrets (its read-only tokens and instance keys),
+the value of every variable the instance's config file names (`*_env` keys,
+`acp.tokens`), and every known key shape. This covers every field of every
+answer: an event body, a queue item, a config value. The record on disk stays
+verbatim. A replaced value is `[redacted]`; nothing is shortened otherwise.
+
+Errors are the gateway's `{"error": <code>, "message": <text>}`:
+
+| status | `error` | when |
+|---|---|---|
+| 400 | `bad_request` | a query that is not as below |
+| 404 | `no_such_instance` | no entry in the registry folder has that id |
+| 404 | `state_dir_missing` | the entry's state directory is gone |
+| 404 | `not_found` | a door of a later slice (`queue`, `config`, …) on a native instance |
+| 500 | `unreadable` | the entry file, the state directory or a record file cannot be read (permissions, not a directory, an unparseable entry) |
+
+A record that is **damaged** is not an error: it is read as far as it is
+intact (see `damaged` below). A record directory that is not there yet is an
+empty record, not an error.
+
+### `GET /api/instances` — the list
+
+The gateway's overview, with the registry's instances added. Every row, native
+or configured, has `id`, `name`, `source`, `reachable`, `summary`, `error`; one
+id is one row (an id the registry lists is the registry's row, even when the
+config names it too). Top level: `instances`, and `registry_error` (null, or the
+reason the registry folder could not be listed; the configured instances are
+still listed).
+
+A native row (`source: "registry"`) is the H2 row (`rung-host ls --json`: the
+entry's fields, `word`, `last`, `problem`) plus:
+
+| field | type | meaning |
+|---|---|---|
+| `name` | string | the name as written (the file name for an unreadable entry) |
+| `source` | string | `registry` (`config` for an instance the gateway config names) |
+| `reachable` | bool | false only for an `unreadable` entry |
+| `last_at` | number or null | wall time (ms) of the record's last line: the last event |
+| `start_command` | string or null | `rung-host run --config <file>` (the config path shell-quoted) when the entry has a config file; null for a `sim` host. Showing it is the page's job; nothing here starts a host |
+| `summary` | object or null | the fold, as `GET /v1/summary` below; null when it could not be read, with `error` the reason (and `problem` carrying it too if the row had none) |
+| `error` | string or null | why `summary` is null |
+
+`word` is the registry's: `running` (the state lock is held), `stopped` (free,
+last line `halted`), `down` (free, any other last line), `unreadable`. No
+instance is ever dropped from the list. The list folds every instance's whole
+record, so its cost grows with the records; the event stream (H5) is the way to
+follow one live.
+
+### `GET /api/i/{id}/v1/summary` — the fold
+
+No parameters (400 if one is given). The record replayed through the host's own
+state fold (`State::apply`, the code the live host runs), plus what the lines
+say. The fold of a recorded run equals what the live host computed at each turn
+end: every `turn.ended` line carries the hash of the state replayed up to it,
+and `fold_hash` is the same hash over the whole record.
+
+```json
+{"contract": 1, "id": "alpha", "name": "Alpha", "word": "running",
+ "state": "Working", "doing": "Committed to notes: Tidy the notes index",
+ "needs_you": false, "turn": 2, "last_seq": 9, "last_at": 1791208194000,
+ "requests": 1, "quota": 400, "spend_usd_day": 0.0125, "day": "2026-10-05",
+ "start_command": "rung-host run --config /srv/alpha/rung-host.yaml",
+ "waiting_for": {"kind": "turn", "turn": 2, "since": 1791208193000},
+ "boundary": {"n": 2, "at": 1791208192000, "mode": "committed:notes", "pending": 2},
+ "turn_in_progress": {"turn": 2, "turn_kind": "committed", "started_at": 1791208193000,
+                      "model": "model-a", "project": "notes", "mode": "committed:notes"},
+ "queue": {"waiting": 2, "in_flight": 0,
+           "head": {"id": "m-1", "kind": "peer", "role": "owner", "channel": "owner",
+                    "at": 1791208190000, "firm": false, "text": "please look at the build", "order": 5}},
+ "desk": {"backend": "jev", "mode": "shadow", "spent_today_usd": 0.0,
+          "interrupts_last_hour": 0, "enabled_groups": ["core"],
+          "limits": {"cap_usd_day": 0.5, "cap_usd_ask": 0.002, "max_interrupts_per_hour": 6,
+                     "max_deferral": {"peer": 1800000}, "pack_ceiling": 0.85, "...": "every knob"}},
+ "governor": {"rung": 0, "model": "model-a", "failures": 0, "blocked": false,
+              "ladder": [{"rung": 0, "model": "model-a", "available": true}]},
+ "config": {"file": {"path": "/srv/alpha/rung-host.yaml", "content": {"...": "the YAML as read"}, "problem": null},
+            "started_with": {"engine": "agent", "ladder": ["model-a"], "...": "the latest host.start's config"}},
+ "fold_hash": "…", "damaged": null, "problem": null}
+```
+
+| field | meaning |
+|---|---|
+| `contract` | `1`; the UI contract's summary fields (`state`, `doing`, `needs_you`, `turn`, `last_seq`, `last_at`, `requests`, `quota`, `spend_usd_day`) are all here |
+| `word` | the registry's word (above) |
+| `state` | `Working`, `Answering`, `Free time`, `Waiting`, `Stuck` (the lock is held), or `Down`, `Stopped`, `Unreadable` (from `word`). Order of the held ones: **Stuck** when the governor is blocked (a refused key) or the copy guard has seen `COPY_LOOP_TURNS` copying turns in a row; **Waiting** when a degraded wait is open (`paced`, `quota`, `backoff`); **Answering** when an item is in a turn or the turn running is `responding`; **Working** when committed to a project; else **Free time**. Thresholds that need a clock (a turn past its bound, a missed watchdog, no progress for a set number of turns) are not derived here |
+| `doing` | one line: the commitment, `Free time`, or why it is not running |
+| `needs_you` | true for `Stuck` and `Down` (what the record can say; an unread message to the owner is not recorded) |
+| `turn` | the last turn started, or null |
+| `last_seq`, `last_at` | the last intact line's number and time (ms); `0` and null for an empty record |
+| `requests`, `spend_usd_day` | the llm calls and their paid cost for the UTC `day` of the last line (counters are those of that day, not of the day the page is read); `quota` is the config's requests-a-day or null |
+| `waiting_for` | what it waits for: `degraded` (`class`, `until`, `why`), `turn` (running now), `boundary` (items waiting for the next one), `calendar` (the next entry due), or null |
+| `boundary` | the last `boundary` line: `n`, `at`, `mode`, `pending` (items waiting then), or null |
+| `turn_in_progress` | the turn started and not ended (cleared by `recovered`), or null |
+| `queue` | `waiting` and `in_flight` counts, and `head`: the oldest waiting item whole, with `order` (the number of its `stimulus.accepted` line), or null. The full list is H6's door |
+| `desk` | the decision desk: `backend`, `mode` (from the latest `host.start`), `spent_today_usd`, `interrupts_last_hour`, `enabled_groups`, and `limits`: the code-owned thresholds (every `Knobs` field) plus `cap_usd_day`, `cap_usd_ask` (the config file's `desk:` values, else the defaults) |
+| `governor` | the ladder rung in use, its model, failures, `blocked`, and the ladder with each rung's availability |
+| `config` | the config **as read** (nothing here writes it): `file` is the instance's config file parsed as YAML (`content`, null with `problem` when it cannot be read or parsed; all null for a `sim` host), `started_with` is the config the latest `host.start` line recorded |
+| `fold_hash` | `State::hash` of the fold |
+| `damaged`, `problem` | null for an intact record; see below |
+
+### `GET /api/i/{id}/v1/record` — the recorded events, paged
+
+The record's lines, as the host wrote them (`seq`, `at`, `kind` and the body),
+oldest first, **paged by the caller**. The same paging rule as every list
+(`offset`, `limit`, `total`, `next`), plus a line-number cursor.
+
+| query | meaning |
+|---|---|
+| `limit` | lines in the page, a whole number ≥ 1; default 500 (a default, not a bound). **No maximum**: a number too big for 64 bits is the biggest one |
+| `offset` | lines to skip, default 0 |
+| `after` | the cursor: the page starts after this line number (`after=N` is `offset=N`: line numbers count from 1 with no gap). Not with `offset`; oldest first only |
+| `order` | `asc` (default) or `desc`; with `desc` the offset counts from the newest line and the page is newest first |
+
+A name not in the table, a repeated name, a value that is not a whole number,
+`limit=0`, `offset` with `after`, or `after` with `order=desc` is 400
+`bad_request`.
+
+```json
+{"lines": [{"seq": 11, "at": 1791208196000, "kind": "note.written", "…": "…"}],
+ "offset": 10, "limit": 10, "total": 25, "next": 20, "cursor": 20,
+ "order": "asc", "after": null, "damaged": null}
+```
+
+| field | meaning |
+|---|---|
+| `lines` | the page: whole lines, none cut, however long |
+| `offset`, `limit` | as asked (`offset` is `after` when that was used) |
+| `total` | the exact number of intact lines |
+| `next` | the next `offset`, or null on the last page |
+| `cursor` | the `after` that continues from this page (the last line's number; the requested position for an empty page); `null` for `desc`. A poller keeps it and asks again |
+| `order`, `after` | as asked |
+| `damaged` | null, or where the record stops being intact (below) |
+
+- **A cursor past the end** (`after` or `offset` beyond `total`) is an empty
+  last page: 200, `lines: []`, `next: null`, the exact `total`.
+- **An empty instance** (no record directory, or no lines) is `lines: []`,
+  `total: 0`, `next: null`, `cursor: 0`.
+- **Walking the pages** with `after=cursor` until `next` is null yields every
+  line once, in order.
+
+### A damaged record
+
+The host writes one line per `write`, gap-free. A reader reads the **intact
+prefix**: lines in order until one is not a record line, is not the next
+number, or is not UTF-8 (a gap in the numbers is damage). Everything before it
+is served, `total` counts it, and `damaged` says where it stopped:
+
+```json
+{"after_seq": 3, "segment": "seg-00000001.ndjson", "line": 4, "problem": "the line is not a record line"}
+```
+
+(`line` is the bad line's number in that file.) The summary is then the fold of
+those lines, with `damaged` set and `problem` saying so. A torn last line of
+the newest segment is a write in flight, not damage, and is ignored. Nothing is
+repaired: reading never writes.
+
+### Proof
+
+`rung-gateway/tests/native_doors.rs`, written first against the gateway as it
+was (19 tests, 17 red): every door's shape; the state words from the record
+and the lock; paging (page one, the cursor, the last page, an empty instance, a
+cursor past the end, a huge page size, newest first, a full walk); a stopped
+instance reading the same as a running one; a corrupt, gapped, torn or
+non-UTF-8 record, a dropped state directory, an unreadable entry; the fold of a
+recorded live run equal to its own `projection` at every turn end; a sentinel
+secret in an event body, a config value, a queue item, a tool result and the
+gateway's own keys absent from every door for both roles; both roles allowed,
+an unknown token refused, the Host check applied; and the state directory
+byte-identical (contents and times) after every door has answered.

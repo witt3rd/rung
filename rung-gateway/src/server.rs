@@ -22,6 +22,7 @@ use crate::config::Settings;
 use crate::doors::{self, Access};
 use crate::registry::{Instance, Registry, StaticRegistry};
 use crate::role::{self, Role, Who};
+use rung_host::redact::Redactor;
 
 type BoxErr = Box<dyn std::error::Error + Send + Sync>;
 type Body = BoxBody<Bytes, BoxErr>;
@@ -74,6 +75,13 @@ struct State {
     read_only_tokens: Vec<String>,
     app_dir: Option<PathBuf>,
     registry: Arc<dyn Registry>,
+    /// The registry folder of native hosts; their H3 doors are read from
+    /// each one's own state directory.
+    native_dir: Option<PathBuf>,
+    /// The gateway's own secrets: read-only tokens and instance keys. The
+    /// doors that read a state directory redact these, and what each
+    /// instance's config names, from everything they return.
+    redactor: Redactor,
     client: Client<HttpConnector, Body>,
 }
 
@@ -94,12 +102,21 @@ pub async fn start_with_registry(
     let addr = listener.local_addr().map_err(|e| e.to_string())?;
     let mut connector = HttpConnector::new();
     connector.set_connect_timeout(Some(CONNECT_WAIT));
+    let mut redactor = Redactor::new();
+    for t in &settings.read_only_tokens {
+        redactor.add_secret(t);
+    }
+    for i in &settings.instances {
+        redactor.add_secret(&i.key);
+    }
     let state = Arc::new(State {
         bound_host: bound_host(addr.ip()),
         allowed_hosts: settings.allowed_hosts,
         read_only_tokens: settings.read_only_tokens,
         app_dir: settings.app_dir,
         registry,
+        native_dir: settings.registry_dir,
+        redactor,
         client: Client::builder(TokioExecutor::new()).build(connector),
     });
     let task = tokio::spawn(async move {
@@ -307,10 +324,48 @@ fn read_only() -> Response<Body> {
     )
 }
 
+/// A redactor for one request: the gateway's secrets, and the key of every
+/// instance the registry lists now.
+fn request_redactor(state: &State) -> Redactor {
+    let mut r = state.redactor.clone();
+    for i in state.registry.list() {
+        r.add_secret(&i.key);
+    }
+    r
+}
+
+/// Run a blocking read of state directories off the async threads.
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Option<T> {
+    tokio::task::spawn_blocking(f).await.ok()
+}
+
 async fn instances(state: &State) -> Response<Body> {
-    let list = state.registry.list();
-    let rows = futures::future::join_all(list.iter().map(|i| summary_row(state, i))).await;
-    json_reply(StatusCode::OK, json!({ "instances": rows }))
+    // native instances: read from their state directories, running or not
+    let (native, registry_error) = match &state.native_dir {
+        None => (Vec::new(), Value::Null),
+        Some(dir) => {
+            let (dir, red) = (dir.clone(), request_redactor(state));
+            match blocking(move || rung_host::read::rows(&dir, &red)).await {
+                Some(Ok(rows)) => (rows, Value::Null),
+                Some(Err(e)) => (Vec::new(), json!(e.message)),
+                None => (Vec::new(), json!("the registry could not be read")),
+            }
+        }
+    };
+    // one row per id: a configured instance the registry also lists is the
+    // registry's row
+    let list: Vec<Instance> = state
+        .registry
+        .list()
+        .into_iter()
+        .filter(|i| !native.iter().any(|n| n["id"] == i.id.as_str()))
+        .collect();
+    let mut rows = futures::future::join_all(list.iter().map(|i| summary_row(state, i))).await;
+    rows.extend(native);
+    json_reply(
+        StatusCode::OK,
+        json!({ "instances": rows, "registry_error": registry_error }),
+    )
 }
 
 async fn summary_row(state: &State, inst: &Instance) -> Value {
@@ -347,6 +402,7 @@ async fn summary_row(state: &State, inst: &Instance) -> Value {
     json!({
         "id": inst.id,
         "name": inst.name,
+        "source": "config",
         "reachable": reachable,
         "summary": summary,
         "error": err,
@@ -444,13 +500,18 @@ async fn pass_through(
         Some(i) => (&tail[..i], &tail[i..]),
         None => (tail, ""),
     };
-    let Some(inst) = state.registry.get(id) else {
+    let native = state
+        .native_dir
+        .as_ref()
+        .filter(|d| rung_host::read::is_registered(d, id));
+    let configured = state.registry.get(id);
+    if native.is_none() && configured.is_none() {
         return error(
             StatusCode::NOT_FOUND,
             "no_such_instance",
             "no instance has that id",
         );
-    };
+    }
     // only the host's own /v1 doors pass; its ACP and anything else do not
     if !rest.starts_with("/v1/") || !plain_segments(rest) {
         return not_found();
@@ -458,6 +519,16 @@ async fn pass_through(
     if role == Role::ReadOnly && doors::classify(req.method().as_str(), rest) == Access::Write {
         return read_only();
     }
+    if let Some(dir) = native
+        && matches!(rest, "/v1/summary" | "/v1/record")
+    {
+        return native_door(state, dir.clone(), id, rest, &req, query).await;
+    }
+    // a native instance has no listener the gateway knows: only the doors
+    // read from its state directory exist for it until a later slice adds more
+    let Some(inst) = configured else {
+        return not_found();
+    };
     let Some(authorization) = inst.authorization() else {
         return error(
             StatusCode::BAD_GATEWAY,
@@ -497,6 +568,79 @@ async fn pass_through(
             &scrub(&chain(&e), &inst),
         ),
     }
+}
+
+/// The query's pairs, decoded; `None` when a value is not valid UTF-8.
+fn query_pairs(query: Option<&str>) -> Option<Vec<(String, String)>> {
+    query
+        .unwrap_or("")
+        .split('&')
+        .filter(|p| !p.is_empty())
+        .map(|p| {
+            let (k, v) = p.split_once('=').unwrap_or((p, ""));
+            Some((decode(k)?, decode(v)?))
+        })
+        .collect()
+}
+
+/// An H3 read door of a native instance, answered from its state directory.
+async fn native_door(
+    state: &State,
+    dir: PathBuf,
+    id: &str,
+    door: &str,
+    req: &Request<Incoming>,
+    query: Option<String>,
+) -> Response<Body> {
+    if !matches!(*req.method(), Method::GET | Method::HEAD) {
+        return error(
+            StatusCode::METHOD_NOT_ALLOWED,
+            "method_not_allowed",
+            "this door only reads",
+        );
+    }
+    let red = request_redactor(state);
+    let id = id.to_string();
+    let answer = if door == "/v1/summary" {
+        if query.as_deref().is_some_and(|q| !q.is_empty()) {
+            return error(
+                StatusCode::BAD_REQUEST,
+                "bad_request",
+                "this door takes no parameters",
+            );
+        }
+        blocking(move || rung_host::read::summary(&dir, &id, &red)).await
+    } else {
+        let Some(pairs) = query_pairs(query.as_deref()) else {
+            return error(
+                StatusCode::BAD_REQUEST,
+                "bad_request",
+                "the query is not valid UTF-8",
+            );
+        };
+        let q = match rung_host::read::RecordQuery::parse(&pairs) {
+            Ok(q) => q,
+            Err(e) => return door_error(e),
+        };
+        blocking(move || rung_host::read::record(&dir, &id, &q, &red)).await
+    };
+    match answer {
+        Some(Ok(v)) => json_reply(StatusCode::OK, v),
+        Some(Err(e)) => door_error(e),
+        None => error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "internal",
+            "the read failed",
+        ),
+    }
+}
+
+fn door_error(e: rung_host::read::DoorError) -> Response<Body> {
+    error(
+        StatusCode::from_u16(e.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+        e.code,
+        &e.message,
+    )
 }
 
 fn app(state: &State, method: &Method, path: &str) -> Response<Body> {
