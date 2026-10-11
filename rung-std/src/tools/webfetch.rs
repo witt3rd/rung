@@ -335,11 +335,12 @@ impl Md {
             return;
         }
         let self_closing = tag.ends_with('/');
-        if !closing && !self_closing {
-            if let Some(sk) = SKIPPED.iter().find(|n| **n == name) {
-                self.skip = Some(sk);
-                return;
-            }
+        if !closing
+            && !self_closing
+            && let Some(sk) = SKIPPED.iter().find(|n| **n == name)
+        {
+            self.skip = Some(sk);
+            return;
         }
         if closing {
             self.close(&name, out);
