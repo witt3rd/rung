@@ -1136,7 +1136,7 @@ verbatim. A replaced value is `[redacted]`.
 
 ### Proof
 
-`rung-host/tests/context_record.rs` (11 tests), `context_door.rs` (2),
+`rung-host/tests/context_record.rs` (12 tests), `context_door.rs` (2),
 `rung-gateway/tests/context.rs` (3) and `context_memory.rs` (1), written first
 against stubs and kept red until the code made them green: the layers whole
 (a complete tool-definition set, a 100,000-character epoch layer, a
