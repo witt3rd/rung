@@ -559,6 +559,47 @@ fn a_planted_secret_reaches_neither_the_record_nor_the_door() {
     }
 }
 
+/// A secret in an owner message never reaches the record file (the
+/// `turn.log` header is redacted at write); the door shows `[redacted]`.
+#[test]
+fn a_secret_in_a_message_stays_out_of_the_record() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("ctx-msg-secret");
+    let (mut sc, _script) = scripted(guard.path(), 2, 2);
+    sc.redactor = Some(Redactor::new().with_secret(SENT));
+    sc.sources.push(owner_says(
+        SIM_START,
+        &format!("the code is {SENT} and the key is {SHAPED}"),
+    ));
+    let out = sim::run(sc);
+    let bytes = record_bytes(guard.path());
+    let header_leaks = |needle: &str| {
+        String::from_utf8_lossy(&bytes)
+            .lines()
+            .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+            .filter(|v| v.to_string().contains("\"turn.log\""))
+            .any(|v| v["header"].to_string().contains(needle))
+    };
+    assert!(!header_leaks(SENT), "the header holds the plain secret");
+    assert!(!header_leaks(SHAPED), "the header holds the key");
+    let turn = out
+        .lines
+        .iter()
+        .find(|l| l.kind == "turn.log")
+        .expect("a turn")
+        .u64("turn");
+    let v = door(guard.path(), turn, Some(1), &Redactor::new()).unwrap();
+    let all = v.to_string();
+    assert!(!all.contains(SENT));
+    assert!(!all.contains(SHAPED));
+    assert!(
+        band(&v, "message")["text"]
+            .as_str()
+            .unwrap()
+            .contains("[redacted]")
+    );
+}
+
 /// A record from before the layers were recorded still answers: with what it
 /// has, and a plain word that the rest predates context recording.
 #[test]

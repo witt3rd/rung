@@ -1108,6 +1108,15 @@ The history is the `turn.log` of every earlier turn since that epoch's rollover.
 A turn's messages are sliced at the call: call *k* held the messages before the
 turn's *k*-th model message.
 
+**What the record keeps verbatim, and what it redacts.** The record file keeps
+history verbatim for the fields the host may replay from or that are the agent's
+own words: the `turn.log` `messages`, the stimulus text, and tool calls and
+results. Every outgoing view (every door, the stream, the page) is redacted on
+read. The content S4 adds (the `pack.layers` text, the epoch layer, the recall
+text and the `turn.log` `header`) is redacted once, at write. Messages stay
+verbatim so that a rebuild of the context from the record could never differ
+from what the model was shown.
+
 **The answer is streamed.** A first read of the record keeps only line numbers
 and sizes (a few numbers per turn of the epoch); a second writes each band as its
 record line is read, redacted, one line in memory, to a client that reads at its

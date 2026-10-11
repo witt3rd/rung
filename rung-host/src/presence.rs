@@ -1648,7 +1648,7 @@ impl Host {
         let recall_hash = recall_text.as_ref().map(|r| canon::hash(r.as_bytes()));
         core.emit(
             "turn.log",
-            json!({"turn": turn, "header": header, "recall": recall.is_some(),
+            json!({"turn": turn, "header": self.redactor.redact(&header), "recall": recall.is_some(),
                    "recall_text": recall_text, "recall_hash": recall_hash,
                    "messages": serde_json::to_value(&out.messages).unwrap_or(Value::Null)}),
         );
