@@ -25,10 +25,11 @@ const PLATFORM_429_TURN: u64 = 12;
 fn script(turn: u64, step: usize) -> (Option<String>, Vec<(&'static str, Value)>) {
     let done = |t: &str| (Some(t.to_string()), Vec::new());
     match (turn, step) {
-        // A disabled tool (free time has no workspace_write).
+        // A disabled tool (free time has no web_read; it does have
+        // workspace_write).
         (1, 0) => (
             None,
-            vec![("ws_write", json!({"path": "x.txt", "text": "x"}))],
+            vec![("web_fetch", json!({"url": "http://example.invalid/"}))],
         ),
         // A long result: the file holds more than the host returns.
         (2, 0) => (None, vec![("ws_read", json!({"path": "long.txt"}))]),
