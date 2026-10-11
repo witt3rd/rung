@@ -183,6 +183,20 @@ fn canon(path: &Path) -> std::io::Result<PathBuf> {
     fs::canonicalize(path)
 }
 
+/// `path.is_dir()` (a stat), counted in tests.
+fn stat_is_dir(path: &Path) -> bool {
+    #[cfg(test)]
+    count_ops(1);
+    path.is_dir()
+}
+
+/// `path.is_file()` (a stat), counted in tests.
+fn stat_is_file(path: &Path) -> bool {
+    #[cfg(test)]
+    count_ops(1);
+    path.is_file()
+}
+
 #[cfg(unix)]
 fn dir_id(path: &Path) -> Option<DirId> {
     use std::os::unix::fs::MetadataExt;
@@ -205,7 +219,7 @@ fn dir_id(path: &Path) -> Option<DirId> {
 /// wired.
 pub fn walk_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    if root.is_file() {
+    if stat_is_file(root) {
         out.push(root.to_path_buf());
         return out;
     }
@@ -247,11 +261,11 @@ fn walk_real(
                 }
             }
             Ok(t) if t.is_symlink() => {
-                if path.is_dir() {
+                if stat_is_dir(&path) {
                     if !skip_dir(&name) {
                         links.push_back(path);
                     }
-                } else if path.is_file() {
+                } else if stat_is_file(&path) {
                     out.push(path);
                 }
             }
@@ -340,6 +354,12 @@ mod tests {
             "metadata",
             "symlink_metadata",
             "fs::read_link",
+            // `Path` stat shortcuts; `FileType` methods (`t.is_dir()`) are free.
+            "path.is_",
+            "root.is_",
+            "dir.is_",
+            "link.is_",
+            ".exists(",
         ] {
             assert!(!walk.contains(banned), "the walk calls {banned} directly");
         }
