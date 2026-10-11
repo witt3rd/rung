@@ -716,14 +716,17 @@ pub fn record(registry_dir: &Path, id: &str, q: &RecordQuery, base: &Redactor) -
         let hi = counted.total.saturating_sub(offset);
         let lo = hi.saturating_sub(q.limit);
         let mut at = 0u64;
-        let s = scan(dir, |l| {
+        // The window and the reported total come from the first scan alone: a
+        // line appended between the two scans is past `hi` and not read, so
+        // the page always agrees with its `total`.
+        scan(dir, |l| {
             if at >= lo && at < hi {
                 lines.push(l.to_value());
             }
             at += 1;
         })?;
         lines.reverse();
-        (counted.total.max(s.total), counted.damaged.or(s.damaged))
+        (counted.total, counted.damaged)
     } else {
         let end = offset.saturating_add(q.limit);
         let mut at = 0u64;

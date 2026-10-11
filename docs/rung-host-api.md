@@ -513,7 +513,7 @@ Errors are the gateway's `{"error": <code>, "message": <text>}`:
 | 400 | `bad_request` | a query that is not as below |
 | 404 | `no_such_instance` | no entry in the registry folder has that id |
 | 404 | `state_dir_missing` | the entry's state directory is gone |
-| 404 | `not_found` | a door of a later slice (`queue`, `config`, …) on a native instance |
+| 404 | `not_found` | a door of a later slice (`queue`, `config`, …) on a native instance that the gateway config does not also name (the registry holds no address or key). If the config names the same id, those doors pass through to its `url` with its key, and only `summary` and `record` are read from the state directory |
 | 500 | `unreadable` | the entry file, the state directory or a record file cannot be read (permissions, not a directory, an unparseable entry) |
 
 A record that is **damaged** is not an error: it is read as far as it is

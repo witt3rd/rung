@@ -910,6 +910,15 @@ async fn a_configured_id_in_the_registry_is_one_row() {
     assert_eq!(rows[0]["source"], "registry");
     let p = gw.get("/api/i/alpha/v1/record").await.json();
     assert_eq!(p["total"], 2);
+    // a door the registry cannot serve goes to the configured instance (here
+    // an address nothing listens on: refused as unreachable, not 404); a
+    // native instance with no configured twin answers 404 `not_found`
+    let q = gw.get("/api/i/alpha/v1/queue").await;
+    assert_eq!(
+        (q.status, q.json()["error"].clone()),
+        (502, json!("instance_unreachable"))
+    );
+    assert!(!q.body.contains(OWNER_KEY));
 }
 
 // ─── no secret leaves ────────────────────────────────────────────────────────
