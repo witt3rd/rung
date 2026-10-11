@@ -133,14 +133,24 @@ async fn a_long_history_is_streamed_in_bounded_memory() {
     })
     .await
     .unwrap();
-    let url = format!("http://{}/api/i/alpha/v1/turns/{}/context", gw.addr, TURNS + 1);
+    let url = format!(
+        "http://{}/api/i/alpha/v1/turns/{}/context",
+        gw.addr,
+        TURNS + 1
+    );
     let before = CUR.load(Ordering::Relaxed);
     PEAK.store(before, Ordering::Relaxed);
     let (status, got) = drain(&url).await;
     let peak = PEAK.load(Ordering::Relaxed).saturating_sub(before);
     eprintln!("context: answer {got} bytes, peak {peak}");
     assert_eq!(status, 200);
-    assert!(got > file_bytes * 9 / 10, "only {got} bytes of {file_bytes}");
+    assert!(
+        got > file_bytes * 9 / 10,
+        "only {got} bytes of {file_bytes}"
+    );
     // an answer of ~7 MB held in a small fraction of it
-    assert!(peak < 2_000_000, "peak {peak} bytes while writing a {got}-byte answer");
+    assert!(
+        peak < 2_000_000,
+        "peak {peak} bytes while writing a {got}-byte answer"
+    );
 }

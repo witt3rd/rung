@@ -418,7 +418,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `tool.call` / `tool.refused` | `turn`, `name`, `group`, `ok`; a refusal has `why` (`disabled`, `overran`, `owner_waiting`) and `message` |
 | `llm.call` | `turn`, `call`, `epoch`, `rung`, `model_requested`, `model_served`, `provider`, `prompt_tokens`, `cached_tokens`, `cache_write_tokens`, `completion_tokens`, `reasoning_tokens`, `cost_usd`, `latency_ms`, `prefix {s_hash, l_hash, log_len_bytes, expected_cached_tokens}` |
 | `cache.break` / `cache.cold` | `turn`, `call`, `cause` |
-| `turn.log` | `turn`, `header` (recall stripped), `messages` (verbatim, as sent) |
+| `turn.log` | `turn`, `header` (recall stripped), `header_sent` (the header as the model saw it, recall block included), `recall_text` (the recall block alone, or null), `recall` (bool), `messages` (verbatim, as sent); `header_sent` and `recall_text` are redacted before they are written (S4) |
 | `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at, unroutable}`, `rewritten` (only when true), `cost`, `projection`, `wall_post_us` |
 | `kernel.commit` / `.progress` / `.release` / `.trace` | the agent's own tool calls (`via`, `released_by`, `similarity`) |
 | `note.written`, `todo.*`, `project.added`, `question.*` | the agent's registers |
@@ -431,7 +431,8 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `ladder.refused` | `rung`, `model`, `reasons` (the router's `ineligibility_reasons`), `by` (`probe` when a keyed probe found it): unavailable until the next listing |
 | `ladder.probed` | `probes`, `rungs [{rung, model, verdict, reasons?, error?, why?}]` (`verdict`: `routes`, `refused`, `unknown`, `skipped`) |
 | `ladder.listed` | `ok`, `error` (when not), `at_start` (the startup ladder's listing), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`, `router` (a free router such as `openrouter/free`: no endpoints of its own, the keyed probe tests it); `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
-| `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms` |
+| `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms`; a rollover also has `l_hash` and `slow`, the epoch layer whole (redacted); a swap has `from`, `to`, `cause` (S4) |
+| `pack.layers` | `cause` (`start`, `swap`), `s_hash`, `tools` (the tool definitions, whole), `system` (the system text, whole): written once at each start and each swap, redacted (S4) |
 | `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |
 | `halted` | `why` |
 

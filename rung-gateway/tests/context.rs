@@ -4,8 +4,6 @@
 //! directories are written by hand; nothing starts a host. A sentinel is never
 //! put in an assertion message.
 
-use std::path::PathBuf;
-
 use rung_gateway::Settings;
 use rung_testkit::TempDir;
 use serde_json::{Value, json};
@@ -65,7 +63,10 @@ fn story(layers: bool, recall: &str) -> String {
         );
     }
     for t in 1..=2u64 {
-        put("turn.started", json!({"turn": t, "epoch": 1, "turn_kind": "free"}));
+        put(
+            "turn.started",
+            json!({"turn": t, "epoch": 1, "turn_kind": "free"}),
+        );
         for c in 1..=2u64 {
             put(
                 "llm.call",
@@ -147,7 +148,9 @@ fn band<'a>(v: &'a Value, name: &str) -> &'a Value {
 }
 
 fn long_recall() -> String {
-    let mut lines: Vec<String> = (0..2_100).map(|i| format!("rl{i:05} {}", "x".repeat(91))).collect();
+    let mut lines: Vec<String> = (0..2_100)
+        .map(|i| format!("rl{i:05} {}", "x".repeat(91)))
+        .collect();
     lines[5] = format!("rl00005 the key is {SHAPED} {}", "y".repeat(40));
     lines.join("\n")
 }
@@ -175,13 +178,24 @@ async fn both_roles_read_the_context_of_a_stopped_instance() {
         .collect();
     assert_eq!(
         names,
-        ["tools", "system", "epoch", "history", "message", "recall", "this_turn"]
+        [
+            "tools",
+            "system",
+            "epoch",
+            "history",
+            "message",
+            "recall",
+            "this_turn"
+        ]
     );
     assert_eq!(band(&v, "system")["text"], "the system text");
     assert_eq!(band(&v, "epoch")["text"], "the epoch layer");
     assert_eq!(band(&v, "tools")["items"][0]["name"], "note");
     assert_eq!(band(&v, "history")["rows"].as_array().unwrap().len(), 1);
-    assert_eq!(band(&v, "this_turn")["messages"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        band(&v, "this_turn")["messages"].as_array().unwrap().len(),
+        2
+    );
     let recall = band(&v, "recall")["text"].as_str().unwrap();
     assert!(recall.len() > 200_000, "the recall is whole");
     assert!(recall.contains("rl02099"));
@@ -194,7 +208,8 @@ async fn both_roles_read_the_context_of_a_stopped_instance() {
 async fn an_old_record_answers_that_it_predates() {
     let f = Fleet::new("s4-ctx-old", &story(false, ""));
     let (base, _gw) = f.serve().await;
-    let (st, body) = send(client().get(format!("{base}/api/i/alpha/v1/turns/2/context?call=2"))).await;
+    let (st, body) =
+        send(client().get(format!("{base}/api/i/alpha/v1/turns/2/context?call=2"))).await;
     assert_eq!(st, 200);
     let v: Value = serde_json::from_str(&body).unwrap();
     assert_eq!(v["recorded"], false);
@@ -230,15 +245,30 @@ async fn the_door_refuses_what_it_should() {
         assert_eq!((st, v["error"].as_str().unwrap()), (status, code), "{path}");
     }
     // an unknown token; a bad Host; a write by either role
-    let (st, _) = send(client().get(at("alpha/v1/turns/1/context")).bearer_auth("nope")).await;
+    let (st, _) = send(
+        client()
+            .get(at("alpha/v1/turns/1/context"))
+            .bearer_auth("nope"),
+    )
+    .await;
     assert_eq!(st, 401);
-    let (st, body) = send(client().get(at("alpha/v1/turns/1/context")).header("host", "evil.example")).await;
+    let (st, body) = send(
+        client()
+            .get(at("alpha/v1/turns/1/context"))
+            .header("host", "evil.example"),
+    )
+    .await;
     assert_eq!(st, 403);
     assert!(body.contains("bad_host"));
-    let (st, body) = send(client().post(at("alpha/v1/turns/1/context")).bearer_auth(READ_TOKEN)).await;
+    let (st, body) = send(
+        client()
+            .post(at("alpha/v1/turns/1/context"))
+            .bearer_auth(READ_TOKEN),
+    )
+    .await;
     assert_eq!(st, 403);
     assert!(body.contains("read_only"));
     let (st, _) = send(client().post(at("alpha/v1/turns/1/context"))).await;
     assert_eq!(st, 405);
-    let _: PathBuf = f.root.path().to_path_buf();
+    drop(f);
 }

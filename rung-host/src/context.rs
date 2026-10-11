@@ -27,8 +27,8 @@ use serde_json::{Map, Value, json};
 
 use crate::canon;
 use crate::read::{self, Damaged, Door, DoorError};
-use crate::redact::Redactor;
 use crate::record::Line;
+use crate::redact::Redactor;
 
 /// What the door says of a turn that predates the request record.
 pub const PREDATES: &str = "this turn predates context recording";
@@ -78,9 +78,7 @@ fn bad(message: impl Into<String>) -> DoorError {
 /// The turn segment of the path `/v1/turns/{n}/context`, or `None` for any
 /// other path.
 pub fn turn_of_path(path: &str) -> Option<&str> {
-    let n = path
-        .strip_prefix("/v1/turns/")?
-        .strip_suffix("/context")?;
+    let n = path.strip_prefix("/v1/turns/")?.strip_suffix("/context")?;
     (!n.is_empty() && !n.contains('/')).then_some(n)
 }
 
@@ -349,10 +347,8 @@ fn plan(
     }
     sizes.push(("this_turn", log.sizes[..split].iter().sum()));
     // the host's estimate: a token for four bytes, by the pack's own rule
-    let est: Vec<(&'static str, usize)> = sizes
-        .iter()
-        .map(|(b, n)| (*b, canon::tokens(*n)))
-        .collect();
+    let est: Vec<(&'static str, usize)> =
+        sizes.iter().map(|(b, n)| (*b, canon::tokens(*n))).collect();
     let estimate: usize = est.iter().map(|(_, t)| *t).sum();
     let prompt = call_line["prompt_tokens"].as_u64().unwrap_or(0);
     let cached = call_line["cached_tokens"].as_u64().unwrap_or(0);
@@ -381,10 +377,12 @@ fn plan(
         };
         bands.push((*b, *t, mark));
     }
-    debug_assert!(bands.iter().map(|b| b.0).eq(ORDER
-        .iter()
-        .copied()
-        .filter(|o| bands.iter().any(|b| b.0 == *o))));
+    debug_assert!(
+        bands.iter().map(|b| b.0).eq(ORDER
+            .iter()
+            .copied()
+            .filter(|o| bands.iter().any(|b| b.0 == *o)))
+    );
     // the two breakpoints the engine sets: the end of the stable layer and of
     // the epoch layer; known where the bands before them are
     let mut boundaries = Vec::new();

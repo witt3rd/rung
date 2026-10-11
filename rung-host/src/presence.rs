@@ -426,7 +426,10 @@ impl Host {
         let to = pack.s_hash().to_string();
         drop(pack);
         self.core.emit_many(vec![
-            ("pack.swap", json!({"from": from, "to": to, "cause": "swap"})),
+            (
+                "pack.swap",
+                json!({"from": from, "to": to, "cause": "swap"}),
+            ),
             ("pack.layers", layers),
         ]);
         *lock(&self.reset) = Some(("swap".into(), Validity::Nothing));

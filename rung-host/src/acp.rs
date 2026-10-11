@@ -997,7 +997,9 @@ struct PageStream {
 }
 
 impl rung_agent_core::acp_http::BodyStream for PageStream {
-    fn next(&mut self) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<Vec<u8>>> + Send + '_>> {
+    fn next(
+        &mut self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<Vec<u8>>> + Send + '_>> {
         Box::pin(self.rx.recv())
     }
 }
