@@ -48,6 +48,7 @@ impl Host {
             connect: Arc::new(|_, _| Box::pin(async {})),
             bind_bearer: false,
             routes: Some(door.routes()),
+            route_gate: None,
         };
         let (tx, rx) = tokio::sync::oneshot::channel();
         tokio::spawn(async move {

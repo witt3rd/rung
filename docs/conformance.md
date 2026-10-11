@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 516 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 521 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1141,16 +1141,24 @@ look shorter than it is.
 
 - `admission_latency_by_long_work_share`
 
-**`rung-host/tests/queue_door.rs`** — 8 unclaimed
+**`rung-host/tests/queue_door.rs`** — 11 unclaimed
 
 - `a_200000_character_task_is_queued_and_listed_whole`
 - `a_bad_request_is_refused_in_words_and_writes_nothing`
+- `a_host_that_is_stopping_refuses_with_start_it_first_and_writes_nothing`
 - `a_message_is_in_the_record_before_the_door_answers`
 - `a_message_without_a_key_gets_its_own_id_each_time`
+- `a_retry_after_the_host_restarts_is_still_one_item`
 - `every_outgoing_text_is_redacted_and_the_record_keeps_the_original`
 - `only_the_owner_token_may_use_the_queue`
 - `the_list_has_the_shape_a_page_needs`
 - `the_same_key_twice_is_one_item`
+- `twenty_concurrent_posts_with_one_key_make_exactly_one_item`
+
+**`rung-host/tests/queue_door_memory.rs`** — 2 unclaimed
+
+- `a_request_refused_on_its_headers_is_refused_without_reading_its_body`
+- `an_item_past_the_old_request_limit_is_recorded_whole`
 
 **`rung-host/tests/quickstart.rs`** — 1 unclaimed
 

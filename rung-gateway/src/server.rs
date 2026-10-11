@@ -235,18 +235,55 @@ fn split_query(query: Option<&str>) -> (Option<String>, Option<String>) {
     (rest, token)
 }
 
-fn bearer(headers: &HeaderMap) -> Option<String> {
-    let v = headers.get("authorization")?.to_str().ok()?;
-    let (scheme, token) = v.split_once(' ')?;
-    scheme
-        .eq_ignore_ascii_case("bearer")
-        .then(|| token.trim().to_string())
+/// What a request's `Authorization` header says.
+enum Presented {
+    /// No such header: the owner's, by the gateway's posture (the tailnet is
+    /// the boundary).
+    Nothing,
+    /// `Bearer <token>`.
+    Token(String),
+    /// A header that is there but is not a bearer token the gateway can read (a
+    /// bare or empty `Bearer`, another scheme, text that is not UTF-8, or more
+    /// than one header): never taken for "no token".
+    Malformed,
+}
+
+fn presented(headers: &HeaderMap) -> Presented {
+    let mut all = headers.get_all("authorization").iter();
+    let Some(first) = all.next() else {
+        return Presented::Nothing;
+    };
+    if all.next().is_some() {
+        return Presented::Malformed;
+    }
+    let Ok(v) = first.to_str() else {
+        return Presented::Malformed;
+    };
+    match v.split_once(' ') {
+        Some((scheme, token))
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() =>
+        {
+            Presented::Token(token.trim().to_string())
+        }
+        _ => Presented::Malformed,
+    }
 }
 
 async fn api(state: &State, req: Request<Incoming>, path: &str) -> Response<Body> {
     let (query, query_token) = split_query(req.uri().query());
+    let bearer = match presented(req.headers()) {
+        Presented::Nothing => None,
+        Presented::Token(t) => Some(t),
+        Presented::Malformed => {
+            return error(
+                StatusCode::UNAUTHORIZED,
+                "unauthorized",
+                "the Authorization header is not a bearer token the gateway knows",
+            );
+        }
+    };
     let role = match role::resolve(
-        bearer(req.headers()).as_deref(),
+        bearer.as_deref(),
         query_token.as_deref(),
         &state.read_only_tokens,
     ) {
@@ -694,56 +731,38 @@ async fn queue_write(
             "this instance is not running, so it cannot take a message: start it first (the gateway has no start door); nothing was sent",
         );
     }
-    // where the host is, and the key it takes: the gateway's own config for the
-    // id when it has one, else the registry's address and the owner token the
-    // host's config names
-    let (url, authorization, mut red) = match &configured {
-        Some(inst) => match inst.authorization() {
-            Some(a) => (
-                inst.url.clone(),
-                a,
-                target.red.clone().with_secret(&inst.key),
-            ),
-            None => {
-                return error(
-                    StatusCode::BAD_GATEWAY,
-                    "instance_unreachable",
-                    "the instance's key cannot be sent as a header",
-                );
-            }
-        },
-        None => {
-            let Some(address) = &target.address else {
-                return error(
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    "no_address",
-                    "the instance is running but registered no address, so the gateway cannot reach it",
-                );
-            };
-            let Some(token) = &target.owner_token else {
-                return error(
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    "no_owner_key",
-                    "the gateway holds no owner key for this instance: its config names none under acp.tokens.owner, or this process does not hold the variable",
-                );
-            };
-            // the one definition of a key as a bearer header
-            let inst = Instance {
-                id: id.to_string(),
-                name: id.to_string(),
-                url: format!("http://{address}"),
-                key: token.clone(),
-            };
-            let Some(a) = inst.authorization() else {
-                return error(
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    "no_owner_key",
-                    "the instance's owner key cannot be sent as a header",
-                );
-            };
-            (inst.url, a, target.red.clone().with_secret(token))
-        }
+    // The key is the gateway's own: only the one its own config names for this
+    // id (`instances[].key_env`). A variable name an instance supplies (its
+    // config, its registry entry) is never read, so nothing an instance says can
+    // make the gateway send it an environment variable.
+    let Some(inst) = &configured else {
+        return error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "no_owner_key",
+            "the gateway holds no write key for this instance: name it in the gateway's own config (instances[].key_env) to let the gateway write to it",
+        );
     };
+    let Some(authorization) = inst.authorization() else {
+        return error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "no_owner_key",
+            "the gateway's key for this instance cannot be sent as a header",
+        );
+    };
+    // where: the running host's registered address (it may have asked for a
+    // port of its own choosing), but only a private one; else the configured url
+    let url = match &target.address {
+        Some(a) if private_address(a) => format!("http://{a}"),
+        Some(_) => {
+            return error(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "no_address",
+                "the instance's registered address is not a private one (loopback, a private range or the tailnet), so the gateway will not send it a key",
+            );
+        }
+        None => inst.url.clone(),
+    };
+    let mut red = target.red.clone().with_secret(&inst.key);
     for t in &target.tokens {
         red.add_secret(t);
     }
@@ -752,7 +771,22 @@ async fn queue_write(
         None => format!("{url}/v1/queue"),
     };
     let (parts, body) = req.into_parts();
-    let mut up = Request::new(body.map_err(|e| Box::new(e) as BoxErr).boxed());
+    // the wait counts from the last byte moved either way, not from the first:
+    // a client still sending a long message is not a host that does not answer
+    let clock = std::time::Instant::now();
+    let moved = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let touch = {
+        let moved = moved.clone();
+        move || moved.store(clock.elapsed().as_millis() as u64, Ordering::SeqCst)
+    };
+    let watched = {
+        let touch = touch.clone();
+        body.map_err(|e| Box::new(e) as BoxErr).map_frame(move |f| {
+            touch();
+            f
+        })
+    };
+    let mut up = Request::new(watched.boxed());
     *up.method_mut() = parts.method;
     *up.uri_mut() = match target_uri.parse() {
         Ok(u) => u,
@@ -768,6 +802,7 @@ async fn queue_write(
     let wait = state.tuning.upstream_wait;
     let exchange = async {
         let resp = state.client.request(up).await.map_err(Err)?;
+        touch();
         let (rp, rb) = resp.into_parts();
         let bytes = rb
             .collect()
@@ -776,8 +811,23 @@ async fn queue_write(
             .to_bytes();
         Ok::<_, Result<String, hyper_util::client::legacy::Error>>((rp.status, bytes))
     };
-    match tokio::time::timeout(wait, exchange).await {
-        Ok(Ok((status, bytes))) => {
+    let waited = async {
+        let mut exchange = std::pin::pin!(exchange);
+        loop {
+            let idle = clock
+                .elapsed()
+                .saturating_sub(Duration::from_millis(moved.load(Ordering::SeqCst)));
+            if idle >= wait {
+                return None;
+            }
+            tokio::select! {
+                r = &mut exchange => return Some(r),
+                _ = tokio::time::sleep(wait - idle) => {}
+            }
+        }
+    };
+    match waited.await {
+        Some(Ok((status, bytes))) => {
             // what the host said, through the gateway's own redactor too
             let out = match serde_json::from_slice::<Value>(&bytes) {
                 Ok(v) => red.redact_value(&v).to_string(),
@@ -785,7 +835,7 @@ async fn queue_write(
             };
             full(status, "application/json", out)
         }
-        Ok(Err(Err(e))) if e.is_connect() => error(
+        Some(Err(Err(e))) if e.is_connect() => error(
             StatusCode::BAD_GATEWAY,
             "instance_unreachable",
             &format!(
@@ -793,7 +843,7 @@ async fn queue_write(
                 red.redact(&chain(&e))
             ),
         ),
-        Ok(Err(Err(e))) => error(
+        Some(Err(Err(e))) => error(
             StatusCode::BAD_GATEWAY,
             "instance_unreachable",
             &format!(
@@ -801,7 +851,7 @@ async fn queue_write(
                 red.redact(&chain(&e))
             ),
         ),
-        Ok(Err(Ok(e))) => error(
+        Some(Err(Ok(e))) => error(
             StatusCode::BAD_GATEWAY,
             "instance_unreachable",
             &format!(
@@ -809,11 +859,11 @@ async fn queue_write(
                 red.redact(&e)
             ),
         ),
-        Err(_) => error(
+        None => error(
             StatusCode::SERVICE_UNAVAILABLE,
             "instance_not_answering",
             &format!(
-                "the instance did not answer within {} seconds: the message may or may not be queued; look at the queue, or send it again with the same key (a repeat adds once)",
+                "the instance did not answer, and nothing moved, for {} seconds: the message may or may not be queued; look at the queue, or send it again with the same key (a repeat adds once)",
                 wait.as_secs_f64()
             ),
         ),
@@ -1291,8 +1341,63 @@ fn content_type(p: &Path) -> &'static str {
     }
 }
 
+/// An address a key may be sent to: loopback, a private range, link-local, the
+/// tailnet's shared range (100.64.0.0/10) or a unique-local IPv6 address. A name
+/// is not one (it is not resolved to find out).
+fn private_address(address: &str) -> bool {
+    use std::net::IpAddr;
+    let Ok(sock) = address.parse::<SocketAddr>() else {
+        return false;
+    };
+    match sock.ip() {
+        IpAddr::V4(v) => {
+            let o = v.octets();
+            v.is_loopback()
+                || v.is_private()
+                || v.is_link_local()
+                || (o[0] == 100 && (64..128).contains(&o[1]))
+        }
+        IpAddr::V6(v) => {
+            let seg = v.segments();
+            v.is_loopback() || (seg[0] & 0xfe00) == 0xfc00 || (seg[0] & 0xffc0) == 0xfe80
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_key_goes_only_to_a_private_address() {
+        for ok in [
+            "127.0.0.1:7001",
+            "10.1.2.3:80",
+            "172.16.0.9:80",
+            "192.168.1.5:80",
+            "169.254.1.1:80",
+            "100.64.0.1:80",
+            "100.127.255.254:80",
+            "[::1]:80",
+            "[fd7a:115c::1]:80",
+            "[fe80::1]:80",
+        ] {
+            assert!(super::private_address(ok), "{ok}");
+        }
+        for no in [
+            "203.0.113.9:80",
+            "8.8.8.8:80",
+            "100.63.0.1:80",
+            "100.128.0.1:80",
+            "172.32.0.1:80",
+            "[2001:db8::1]:80",
+            "example.com:80",
+            "localhost:80",
+            "127.0.0.1",
+            "",
+        ] {
+            assert!(!super::private_address(no), "{no}");
+        }
+    }
+
     #[test]
     fn only_a_specific_non_loopback_bind_is_an_allowed_host() {
         let b = |s: &str| super::bound_host(s.parse().unwrap());

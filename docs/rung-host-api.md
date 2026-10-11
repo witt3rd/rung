@@ -371,7 +371,9 @@ Startup refuses, naming the variable and never its value, when a variable is
 unset or empty, an id is repeated or not a plain name, a url is not `http://`,
 a key has a byte a header cannot carry (line break, NUL, non-ASCII), or a field is unknown. The instances come from a `Registry` (a trait asked on
 every request); the config file is one source, and the registry folder (H2)
-plugs in as another.
+plugs in as another. An instance named here is also the one a **native**
+instance of the same id is written to with (S1): `key_env` is the only key the
+gateway ever sends a host to write.
 
 ### Who may do what
 
@@ -382,6 +384,15 @@ read-only role and may only read. The token rides `Authorization: Bearer
 It is the gateway's own: it is never forwarded, and neither are the client's
 `Authorization` header or its session-state header. A token that matches no configured read-only
 token is refused with 401, wherever it appears.
+
+**An `Authorization` header that is there but is not a bearer token the
+gateway can read is 401, never "no token".** Only a request with *no*
+`Authorization` header (and no `token` value) is the owner's. These are all 401
+`unauthorized`, on every door, reads and writes alike: a bare `Bearer`, an empty
+`Bearer `, another scheme (`Basic ...`), text that is not UTF-8, more than one
+`Authorization` header, a bearer that is not a configured read-only token (the
+hosts' own keys included), and an empty `?token=`. The scheme name is read
+without regard to case.
 
 A write by the read-only role is refused with 403 before it reaches a host:
 
@@ -1229,8 +1240,9 @@ role (through the gateway); on the host's own door, an owner token only.
 ```
 
 `Content-Type: application/json` (415 otherwise). `text` is required, a string,
-and not blank; it is stored whole (the request body is read whole; the one limit
-is the listener's 16 MiB request limit, answered 413). `key` is optional: when
+and not blank; it is stored whole, **with no limit on its size**. A request is
+refused on its headers alone, **before any of its body is read** (see "The
+host's own door"). `key` is optional: when
 given it **becomes the item id**, so a repeat adds once. A key is 1 to 200 bytes
 of letters, digits, `.`, `_`, `:` and `-`, starting with a letter or digit (it is
 an id in a path and a record, not content). `intent` is optional and only `next`
@@ -1254,7 +1266,12 @@ path), so a message the page shows survives a crash. Answers:
 | 415 | `unsupported_media_type` | not JSON |
 
 A message is never added twice by a retry: send it again with the same key and
-the answer is the first one's item with `repeat: true`.
+the answer is the first one's item with `repeat: true`. Any client that may retry
+(the page does) sends a key: the gateway mints none, and a keyless message gets
+a new id each time. Item ids are one namespace: the host's own items use the
+prefixes `cal-`, `exp-` and `acp-`, and a peer's file names are theirs, so a key
+that begins with one of those can collide; `kind` is `peer` for any message from
+a channel, so a page marks the owner by `role`.
 
 ### The gateway's write path to a native instance
 
@@ -1271,15 +1288,21 @@ checks, in this order:
 2. the state word: a registry instance whose state lock is not held (`stopped`,
    `down`) is **409 `not_running`**, with the words "start it first", and nothing
    is sent.
-3. where and with what key: the registry entry's `address`, and **the owner
-   token the gateway holds by name**: the variable the host's own config file
-   names under `acp.tokens.owner`, read from this process's environment (so the
-   gateway must hold it, as H3 and H5 already ask for the redaction and
-   partial-frame ones). If the gateway config also names the id (a `url` and
-   `key_env`), that url and key are used instead. A running host with no address
-   is 503 `no_address`; one the gateway holds no owner key for is 503
-   `no_owner_key`, naming neither a variable's value nor the key.
-4. the forward: the body, `Content-Type` and query go on; the client's
+3. where and with what key. **The key is the gateway's own**: the one its own
+   config names for this id (`instances[].key_env`, read from this process's
+   environment). A variable name an instance supplies (its config file's
+   `acp.tokens`, its registry entry) is **never read**, so nothing an instance
+   says can make the gateway send it an environment variable. An id the gateway
+   config does not name has no write key: 503 `no_owner_key` ("name it in the
+   gateway's own config (instances[].key_env)"), nothing sent. Where it goes: the
+   running host's registered `address` (it may have asked for a port of its own
+   choosing) if that is a **private** address (loopback, a private range, link-local,
+   the tailnet's 100.64.0.0/10, or an IPv6 unique-local address; a name is not one
+   and is not resolved), else 503 `no_address` and nothing is sent; with no
+   registered address, the config's `url`.
+4. the forward: the body is **streamed** to the host as it arrives (the gateway
+   holds none of it, whatever its size; a refusal above is answered without
+   reading it), and the body, `Content-Type` and query go on; the client's
    `Authorization`, its session-state header and `Host` do not, and the host's key is added as the
    bearer. The key value is held in memory only: it is in no response, log, error,
    record or file the gateway writes, and the host's answer, even one that echoes
@@ -1291,7 +1314,8 @@ held while the host is slow): a host that cannot be connected to is **502
 `instance_unreachable`** ("... could not be reached ...: nothing was queued"); a
 connection that broke after the message was sent is 502 saying the message may be
 queued; a host that does not answer within the gateway's wait (30 seconds, a
-bound on a wait and not on any content) is **503 `instance_not_answering`**
+bound on a wait and not on any content: it counts from the last byte moved in
+either direction, so a client still sending a long message is not cut off) is **503 `instance_not_answering`**
 ("the message may or may not be queued; look at the queue, or send it again with
 the same key (a repeat adds once)"). Other methods on `/v1/queue` are 405 for a
 native instance.
@@ -1301,8 +1325,27 @@ native instance.
 `GET` and `POST /v1/queue` are on the host's HTTP listener beside `/acp` and
 `/v1/events`, owner token only (the host's `acp.tokens`: an unknown token is 401,
 another role's token is 403). The list reads the host's own record; every text
-and every error is passed through the host's redactor. The listener passes a
-non-GET request's body, whole, to the route (`RouteRequest.body`).
+and every error is passed through the host's redactor.
+
+**Refused before the body is read.** The listener asks the door, from the request's
+headers alone, whether to take a request at all (`RouteGate`): no token or an
+unknown one is 401, another role's token 403, a method the door does not have 405,
+a body that is not `application/json` 415, a host that is stopping 409
+`not_running`. Each is answered at once with `Connection: close` and the body is
+never read, so a client sending a body of any size to a request that is refused
+costs the host nothing (a 1 GiB generated body to each refusal left the host's
+peak memory where it was). Only a request let on has its body read, as it arrives
+and with no limit, and passed whole to the route (`RouteRequest.body`). An item an
+owner sends is stored whole; storing it takes a bounded number of copies of it
+(the body, the parsed item, the inbox's, the line written, the answer: about nine
+measured), because an item is one record line that every reader reads whole and
+the inbox holds it until a turn reads it. Making that flat needs the item's text
+kept outside its record line, a change to the record's format, and is not part of
+this slice.
+
+Each list and each add reads the record from its start (a fold; linear in the
+record's size, about a tenth of a second at 24 MB). That is fine now and is a
+cost to watch as records grow; nothing else is read or kept.
 
 ### Not here
 
@@ -1312,7 +1355,7 @@ adds through this door.
 
 ### Proof
 
-`rung-host/tests/queue_door.rs` (8) and `rung-gateway/tests/queue.rs` (16), and
+`rung-host/tests/queue_door.rs` (11), `rung-host/tests/queue_door_memory.rs` (2), `rung-gateway/tests/queue.rs` (20) and `rung-gateway/tests/queue_memory.rs` (1), and
 the fold's own tests in `rung-host/src/queue.rs`, written first against code with
 neither door and kept red until it made them green: an item in the record before
 the answer; one key twice is one item, a different message under the key is
@@ -1325,3 +1368,16 @@ before any host; a stopped instance's list from its record; a 200,000-character
 task queued and listed whole, through the gateway and on the host; peer items
 never above owner items; the desk's reason in words; states from the record's
 lines; paging with an exact total.
+
+The harm review of the first version added, each written first and each killed
+by a mutation of the code it guards: refusals answered before the body is read
+and the host's memory unchanged by a 1 GiB generated body (the gate removed:
+red); an item past 16 MiB stored whole; 20 concurrent posts with one key make one
+201, nineteen 200s and one record line (the atomic check-and-write replaced by
+check, wait, write: red); a retry after the host is killed and restarted is one item; a stopping host refuses 409 (the check removed: red);
+every form of `Authorization` on the list and the add (a bare, empty or foreign
+header read as no token: red); a variable an instance's config names never read
+or sent (the old read: red); a registered public address never sent a key; a
+256 MiB body streamed through the gateway with its peak memory unchanged, and
+refused ones not read (the gateway collecting the body: red); an upload slower
+than the wait not cut.
