@@ -5,6 +5,7 @@ import type { ServerResponse } from "node:http";
 import type { Line } from "../src/record/types.ts";
 import { summarize } from "../src/record/folds.ts";
 import { synthetic } from "../src/synthetic.ts";
+import { makeRedactor } from "../src/record/redact.ts";
 
 /** A reader whose unsent output passes this is dropped (contract: "a slow reader is dropped"). */
 export const HIGH_WATER = 1024 * 1024;
@@ -34,6 +35,13 @@ export class SimHost {
   private turn = 0;
   private stopped = false;
   keepaliveMs = 15_000;
+  /** A test puts a line of its own in the summary, as a host that did not redact would. */
+  doingOverride: string | null = null;
+  /** The host redacts at every door and on the stream before it writes (contract: "the host redacts first"). A test turns it off to
+   *  model a host that has not been given its redactor yet, so the page's own second line can be shown to hold. */
+  redactDoors = true;
+  private scrub = makeRedactor([]);
+  out<T>(v: T): T { return this.redactDoors ? (this.scrub(v) as T) : v; }
   /** How many readers were dropped for being slow; the tests read it. */
   dropped = 0;
 
@@ -54,12 +62,12 @@ export class SimHost {
   append(kind: string, fields: Record<string, unknown> = {}): Line {
     const line: Line = { at: Date.now(), kind, seq: this.lines.length + 1, ...fields };
     this.lines.push(line);
-    this.broadcast(frame("record", line, line.seq));
+    this.broadcast(frame("record", this.out(line), line.seq));
     return line;
   }
 
   /** A short-lived delta: sent to whoever is following now, never numbered, never kept. */
-  delta(d: Record<string, unknown>) { this.broadcast(frame("delta", d)); }
+  delta(d: Record<string, unknown>) { this.broadcast(frame("delta", this.out(d))); }
 
   private broadcast(f: string) {
     for (const s of this.subs) {
@@ -91,7 +99,7 @@ export class SimHost {
     for (let i = after; i < upTo; i++) {
       if (res.destroyed) return;
       const l = this.lines[i];
-      const ok = res.write(frame("record", l, l.seq));
+      const ok = res.write(frame("record", this.out(l), l.seq));
       if (res.writableLength > HIGH_WATER) { this.drop(sub); return; }
       if (!ok) await new Promise<void>((r) => { res.once("drain", r); res.once("close", r); });
     }
@@ -105,10 +113,10 @@ export class SimHost {
   summary() {
     const s = summarize(this.lines, { lockHeld: !this.stopped, now: Date.now() });
     const last = this.lines.at(-1)!;
-    return {
-      contract: 1, state: s.state, doing: s.doing, needs_you: s.needsYou, turn: s.lastTurn,
+    return this.out({
+      contract: 1, state: s.state, doing: this.doingOverride ?? s.doing, needs_you: s.needsYou, turn: s.lastTurn,
       last_seq: last.seq, last_at: last.at, requests: s.requests, quota: s.quota, spend_usd_day: s.spendDayUsd,
-    };
+    });
   }
 
   // -- writing -------------------------------------------------------------------------------------------------

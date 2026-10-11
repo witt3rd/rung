@@ -2,7 +2,7 @@
  *  running turn is doing right now (deltas: short-lived, never part of the record). Plain subscribe/snapshot so React reads it
  *  with useSyncExternalStore and a test reads it directly. Changes are batched so a burst of lines is one render. */
 import type { Line } from "../record/types.ts";
-import { parseRecordLines, redact } from "./wire.ts";
+import { parseRecordLines, redact, redactStreaming } from "./wire.ts";
 import { EventsClient, type Delta, type Status } from "./client.ts";
 
 /** What `GET /v1/summary` answers (ui/contract/README.md). */
@@ -36,7 +36,13 @@ export interface LiveDelta {
 
 export class LiveStore {
   private state: LiveState = { loaded: false, error: null, status: "connecting", lines: [], host: null };
+  /** The streamed text exactly as it came. It is redacted when read, over the whole text so far: a key split across pieces
+   *  is whole in here, and redacting the running text would leave the tail of a key the next piece completes. */
+  private raw: LiveDelta | null = null;
   private delta: LiveDelta | null = null;
+  /** The turn whose deltas are not shown: it was already running when we joined or when the stream came back, so some of its
+   *  pieces were never seen and what we would show is a torn tail. Its finished text arrives in the record. */
+  private tornTurn: number | null = null;
   private subs = new Set<() => void>();
   private deltaSubs = new Set<() => void>();
   private pending: Line[] = [];
@@ -58,13 +64,28 @@ export class LiveStore {
   getDelta = (): LiveDelta | null => this.delta;
 
   private set(patch: Partial<LiveState>) { this.state = { ...this.state, ...patch }; for (const s of this.subs) s(); }
-  private setDelta(d: LiveDelta | null) { this.delta = d; for (const s of this.deltaSubs) s(); }
+  private setDelta(d: LiveDelta | null) {
+    this.raw = d;
+    this.delta = d ? { turn: d.turn, text: redactStreaming(d.text), tool: d.tool === null ? null : (redact(d.tool) as string) } : null;
+    for (const s of this.deltaSubs) s();
+  }
+
+  /** The turn that has started and not ended, from the lines held and those queued. */
+  private runningTurn(): number | null {
+    let running: number | null = null;
+    for (const l of [...this.state.lines, ...this.pending]) {
+      if (l.kind === "turn.started") running = l.turn;
+      else if (l.kind === "turn.ended" && l.turn === running) running = null;
+    }
+    return running;
+  }
 
   async start(): Promise<void> {
     this.stopped = false;
     try {
       const lines = await this.loadRecord();
       if (this.stopped) return;
+      this.tornTurn = null;
       this.set({ loaded: true, error: null, lines });
       void this.refreshSummary();
       this.follow(lines.at(-1)?.seq ?? 0);
@@ -97,6 +118,8 @@ export class LiveStore {
       onDelta: (d) => this.onDelta(d),
       onStatus: (s) => {
         if (s === "reconnecting") this.setDelta(null); // pieces may have been lost in the cut: show none rather than a torn text
+        // Caught up, from a join or a cut: a turn already running has pieces we never saw. Show its text when it is finished.
+        if (s === "following") this.tornTurn = this.runningTurn();
         this.set({ status: s });
       },
       onReset: () => {
@@ -114,7 +137,7 @@ export class LiveStore {
   private onRecord(l: Line) {
     l = redact(l) as Line;
     this.pending.push(l);
-    if (l.kind === "turn.ended" && this.delta?.turn === l.turn) this.setDelta(null);
+    if (l.kind === "turn.ended" && this.raw?.turn === l.turn) this.setDelta(null);
     if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(), 20);
   }
 
@@ -131,13 +154,14 @@ export class LiveStore {
   private async refreshSummary() {
     try {
       const r = await this.fetchImpl(`${this.base}/v1/summary`);
-      if (r.ok && !this.stopped) this.set({ host: (await r.json()) as HostSummary });
+      if (r.ok && !this.stopped) this.set({ host: redact(await r.json()) as HostSummary });
     } catch { /* the stream shows the trouble; the summary will be asked for again with the next line */ }
   }
 
   private onDelta(d: Delta) {
-    const cur = this.delta && this.delta.turn === d.turn ? this.delta : { turn: d.turn, text: "", tool: null };
-    if (d.kind === "text") this.setDelta({ ...cur, text: redact(cur.text + (d.text ?? "")) as string });
-    else this.setDelta({ ...cur, tool: d.phase === "start" && d.name ? (redact(d.name) as string) : null });
+    if (d.turn === this.tornTurn) return;
+    const cur = this.raw && this.raw.turn === d.turn ? this.raw : { turn: d.turn, text: "", tool: null };
+    if (d.kind === "text") this.setDelta({ ...cur, text: cur.text + (d.text ?? "") });
+    else this.setDelta({ ...cur, tool: d.phase === "start" && d.name ? d.name : null });
   }
 }

@@ -33,7 +33,7 @@ function hostServer(host: SimHost, key: string): Server {
       if (offset === null || limit === null || (order !== "asc" && order !== "desc")) return err(res, 400, "bad_request", "offset, limit or order is not valid");
       const total = host.lines.length;
       const view = order === "asc" ? host.lines : [...host.lines].reverse();
-      const lines = view.slice(offset, offset + limit);
+      const lines = host.out(view.slice(offset, offset + limit));
       return json(res, 200, { lines, offset, limit, total, next: offset + limit < total ? offset + limit : null });
     }
     if (url.pathname === "/v1/events") {
@@ -87,9 +87,9 @@ export async function startMock(opts: MockOptions = {}): Promise<Target & { host
   const gateway = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://gw");
     const path = url.pathname;
-    // Who is asking. No token is the owner; a token must be one of the read-only tokens, wherever it appears.
+    // Who is asking. No token is the owner; a token, sent in the Authorization header only, must be a read-only token.
     const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? "")?.[1];
-    const presented = bearer ?? url.searchParams.get("token") ?? undefined;
+    const presented = bearer;
     if (presented !== undefined && presented !== READ_TOKEN) return err(res, 401, "unauthorized", "that token is not known");
     const readOnly = presented === READ_TOKEN;
 
@@ -111,7 +111,7 @@ export async function startMock(opts: MockOptions = {}): Promise<Target & { host
       const rest = m[2] ?? "/";
       if (!rest.startsWith("/v1/")) return err(res, 404, "not_found", "only /v1 passes");
       if (readOnly && req.method !== "GET" && req.method !== "HEAD") return err(res, 403, "read_only", "this token can only read");
-      return passThrough(req, res, inst, rest + url.search.replace(/([?&])token=[^&]*&?/, "$1").replace(/[?&]$/, ""));
+      return passThrough(req, res, inst, rest + url.search);
     }
     if (path.startsWith("/api/")) return err(res, 404, "not_found", "no such route");
     return serveApp(res, path, opts.appDir);
@@ -123,7 +123,10 @@ export async function startMock(opts: MockOptions = {}): Promise<Target & { host
 
   return {
     url: base, instance: "alpha", hostKey: KEY, readOnlyToken: READ_TOKEN, deadInstance: "gone", hosts,
-    control: { poke: (n) => alpha.poke(n), flood: (n, b) => alpha.flood(n, b) },
+    control: {
+      poke: (n) => alpha.poke(n), flood: (n, b) => alpha.flood(n, b),
+      plant: async (key) => { alpha.doingOverride = `printing ${key}`; alpha.delta({ turn: 99, kind: "text", text: `the key is ${key} ok` }); alpha.append("note.written", { turn: 99, text: `printed ${key}` }); },
+    },
     stop: async () => { for (const h of hosts.values()) h.stop(); for (const s of servers) { s.closeAllConnections(); await new Promise((r) => s.close(r)); } },
   };
 }

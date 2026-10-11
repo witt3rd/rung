@@ -13,7 +13,7 @@ export function useIndex() {
   const mode = useMode().data;
   return useQuery({
     queryKey: ["index", mode],
-    queryFn: mode === "live" ? loadLiveIndex : loadIndex,
+    queryFn: mode === "live" ? () => loadLiveIndex() : loadIndex,
     enabled: mode !== undefined,
     refetchInterval: mode === "live" ? 5000 : false, // the overview of live instances is asked again; one instance page is followed
   });

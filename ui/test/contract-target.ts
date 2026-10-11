@@ -5,6 +5,8 @@ export interface Control {
   poke(n: number): Promise<void>;
   /** Write `n` record lines of about `bytes` each, as fast as possible. */
   flood(n: number, bytes: number): Promise<void>;
+  /** Make the host print `key` the way a tool would: into a record line, a streamed piece of text, and the line it says it is on. */
+  plant(key: string): Promise<void>;
 }
 export interface Target {
   url: string;

@@ -1,4 +1,4 @@
-record to screen, 12 finished turns, a real browser on a real clock: median 22 ms, worst 23 ms
+record to screen, 12 finished turns, a real browser on a real clock: median 22 ms, worst 25 ms
 pass  every finished turn's text is on the screen within a second of its record line
 pass  after the cut the page lists turns 1 to 19: 19 turns, each once, in order (before: 15)
 pass  the turns written while it was away are there

@@ -77,6 +77,7 @@ test("a key shape in a live line or a delta never reaches what the page holds", 
   const host = m.hosts.get("alpha")!;
   const store = new LiveStore(`${m.url}/api/i/alpha`);
   const KEY = "sk-or-v1-0123456789abcdef0123456789abcdef";
+  host.redactDoors = false; // a host that has not been given its redactor yet: the page's own redaction is what is tested
   try {
     await store.start();
     await until(() => store.getState().status === "following");
@@ -87,6 +88,21 @@ test("a key shape in a live line or a delta never reaches what the page holds", 
     assert.equal(JSON.stringify(store.getState().lines).includes(KEY), false, "not in a live line");
     assert.equal(store.getState().lines.at(-1)!.text, "printed [redacted]");
     assert.equal(store.getDelta()!.text, "the key is [redacted] ok", "not in a delta");
+  } finally { store.stop(); await m.stop(); }
+});
+
+test("a reset stops the client that asked for it: no old stream is left running beside the new one", async () => {
+  const m = await startMock();
+  const signals: AbortSignal[] = [];
+  const f = ((url: string, init?: RequestInit) => { if (String(url).includes("/events")) signals.push(init!.signal!); return fetch(url, init); }) as typeof fetch;
+  const store = new LiveStore(`${m.url}/api/i/alpha`, f);
+  try {
+    await store.start();
+    await until(() => store.getState().status === "following");
+    (store as unknown as { client: { o: { onReset: () => void } } }).client.o.onReset();
+    await until(() => signals.length === 2 && store.getState().status === "following", 8000);
+    assert.equal(signals[0].aborted, true, "the old stream was ended");
+    assert.equal(signals[1].aborted, false, "the new one follows");
   } finally { store.stop(); await m.stop(); }
 });
 
