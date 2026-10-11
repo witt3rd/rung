@@ -277,7 +277,7 @@ a count; never log it.
 | headers `Authorization`, `Proxy-Authorization` and the two HTTP session-state headers | the whole value (commas, semicolons and quotes inside it included): to the end of the line, or to the quote that opened the header (`-H "…"`), or to the closing quote of a quoted value | the name |
 | headers `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id` | the value, to the next `,` `;` quote or end of line | the name |
 | `Bearer <token>` | the token | `Bearer` |
-| webhook URLs: Slack `hooks.slack.com/services/…`, Discord `…/api/webhooks/…`, Zapier `hooks.zapier.com/hooks/catch/…`, Teams `…/webhook/…` | the path after the host (the credential) | the host and the rest of the URL |
+| webhook URLs, exactly these six prefixes: `hooks.slack.com/services/`, `discord.com/api/webhooks/`, `discordapp.com/api/webhooks/`, `hooks.zapier.com/hooks/catch/`, `outlook.office.com/webhook/`, `webhook.office.com/webhookb2/` | the path after the host (the credential) | the host and the rest of the URL |
 | URL credentials | the password of `scheme://user:pass@host`; the user of a URL that has only a token, in any scheme but a login one (`ssh`, `sftp`, `scp`, also as the tail of `git+ssh`) | the rest; a plain `ssh://git@host` is left |
 | assignments `NAME=value`, `name: value`, `"name": "value"`, `?name=value` whose name says it is a secret | the value | the name and the separator |
 
