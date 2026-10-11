@@ -43,8 +43,9 @@ export async function startReal(opts: RealOptions = {}): Promise<Target & { root
       mkdirSync(join(dir, "record"), { recursive: true });
       const lines = synthetic(Date.now()).find((i) => i.id === id)!.lines;
       writeFileSync(join(dir, "record", "seg-00000001.ndjson"), lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
-      const cfg = join(root, `${id}.yaml`);
-      if (config) writeFileSync(cfg, "engine:\n  kind: mock\n");
+      // The entry names a config file by an invented, neutral path: the page shows the start command it gives, and a capture of it must not
+      // show where this machine keeps its files. The gateway only needs the path to build the command.
+      const cfg = `/srv/${id}/rung-host.yaml`;
       writeFileSync(join(root, "reg", `${id}.json`), JSON.stringify({ schema: 1, id, name: id, state_dir: dir, config: config ? cfg : null, workspace: join(root, "ws"), address: null, pid: 1, started: Date.now(), version: "contract" }));
     }
     writeFileSync(join(root, "reg", "bad.json"), "{ this is not json");
