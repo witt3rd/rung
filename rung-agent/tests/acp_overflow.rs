@@ -351,9 +351,11 @@ fn a_session_still_overflowing_after_one_elision_fails_typed_and_is_not_wedged()
     assert_eq!(user_texts(&next), ["read a", "next"], "{next}");
 }
 
-/// A turn whose tool calls ran and then overflowed, twice: nothing of it
-/// is stored, not its ask and not its calls, and the next prompt does not
-/// see it.
+/// A turn whose own tool result alone overflows the window: the newest
+/// result is never elided, so the turn ends at once with the typed
+/// `overflow` and a reason that says so (no retry, nothing cut). Nothing of
+/// it is stored, not its ask and not its calls, and the next prompt does
+/// not see it.
 #[test]
 fn an_overflow_turn_persists_nothing() {
     let dir = tempdir();
@@ -363,18 +365,24 @@ fn an_overflow_turn_persists_nothing() {
         vec![
             read_call("call_a", "a.txt"),
             overflow(),
-            overflow(),
             text_reply("fresh"),
         ],
     );
     let first = acp.prompt("read a");
     let terminal = &first.response["error"]["data"]["rung"]["terminal"];
     assert_eq!(terminal["state"], "overflow", "{}", first.response);
+    assert!(
+        terminal["reason"]
+            .as_str()
+            .unwrap()
+            .contains("the newest tool result alone exceeds"),
+        "{}",
+        first.response
+    );
     acp.body();
-    acp.body();
-    let retry = acp.body();
-    // The elision reached this turn's own result: it was the only one.
-    assert!(tool_results(&retry)[0].1.starts_with(ELIDED), "{retry}");
+    let over = acp.body();
+    // Whole, not elided and not retried.
+    assert!(tool_results(&over)[0].1.contains("ALPHA-059"), "{over}");
 
     let lines = acp.session()["lines"].clone();
     assert_eq!(lines, json!([]), "the overflow turn was stored: {lines}");
