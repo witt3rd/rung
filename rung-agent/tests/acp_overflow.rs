@@ -87,6 +87,12 @@ impl Acp {
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
+        // A hang fails fast: the process is killed, stdout ends, the test panics.
+        let pid = child.id();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(30));
+            let _ = Command::new("kill").arg(pid.to_string()).status();
+        });
         let stdin = child.stdin.take();
         let stdout = BufReader::new(child.stdout.take().unwrap());
         let mut acp = Acp {
@@ -118,7 +124,8 @@ impl Acp {
         let mut updates = Vec::new();
         loop {
             let mut line = String::new();
-            self.stdout.read_line(&mut line).expect("stdout line");
+            let n = self.stdout.read_line(&mut line).expect("stdout line");
+            assert!(n > 0, "rung-agent ended or timed out awaiting a response");
             let v: Value =
                 serde_json::from_str(line.trim()).unwrap_or_else(|e| panic!("json {e}: {line}"));
             if v["id"] == id && v.get("method").is_none() {
@@ -351,9 +358,9 @@ fn a_session_still_overflowing_after_one_elision_fails_typed_and_is_not_wedged()
     assert_eq!(user_texts(&next), ["read a", "next"], "{next}");
 }
 
-/// A turn whose own tool result alone overflows the window: the newest
-/// result is never elided, so the turn ends at once with the typed
-/// `overflow` and a reason that says so (no retry, nothing cut). Nothing of
+/// A turn whose own fresh tool result is followed by an overflow, with
+/// nothing older to elide: the turn ends at once with the typed `overflow`
+/// and a reason that says so (no retry, nothing cut). Nothing of
 /// it is stored, not its ask and not its calls, and the next prompt does
 /// not see it.
 #[test]
@@ -375,7 +382,7 @@ fn an_overflow_turn_persists_nothing() {
         terminal["reason"]
             .as_str()
             .unwrap()
-            .contains("the newest tool result is what fills"),
+            .contains("the overflow follows a tool result the model has not yet seen"),
         "{}",
         first.response
     );
