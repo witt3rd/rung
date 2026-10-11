@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 521 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 522 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1155,8 +1155,9 @@ look shorter than it is.
 - `the_same_key_twice_is_one_item`
 - `twenty_concurrent_posts_with_one_key_make_exactly_one_item`
 
-**`rung-host/tests/queue_door_memory.rs`** — 2 unclaimed
+**`rung-host/tests/queue_door_memory.rs`** — 3 unclaimed
 
+- `a_body_to_a_path_the_queue_door_does_not_serve_is_not_read`
 - `a_request_refused_on_its_headers_is_refused_without_reading_its_body`
 - `an_item_past_the_old_request_limit_is_recorded_whole`
 
