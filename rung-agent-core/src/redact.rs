@@ -18,15 +18,17 @@
 //! - the **exact value** of every variable the caller names
 //!   ([`Redactor::from_env_names`], [`Redactor::add_env`]) or hands over
 //!   ([`Redactor::add_secret`]), in any shape and any context;
-//! - the **known key shapes**: `sk-…`, `ghp_…`, `github_pat_…`, `glpat-…`,
-//!   `xox?-…`, `AKIA…`, `AIza…`, `hf_…`, `npm_…`, `pypi-…`, `dp.st.…`
-//!   and JWTs;
+//! - the **known key shapes**: the `SHAPES` table in `Scan::token_shape` is the
+//!   one list (restated nowhere else; `docs/rung-host-api.md` describes it),
+//!   plus AWS key ids and JWTs;
+//! - **webhook URL tokens** (the path after a known webhook host);
 //! - **private key blocks** (the body; the BEGIN/END frame stays);
-//! - **auth headers** (`Authorization`, `Proxy-Authorization`, `X-Api-Key`,
-//!   `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id`, `Cookie`, `Set-Cookie`):
-//!   the name stays, the value goes (to the next `,` or `;` for the first
-//!   six, to the end of the line for the two cookie headers, which carry
-//!   `;`-separated pairs); and a bare `Bearer <token>`;
+//! - **auth headers** (the `HEADERS` table is the one list): the name stays,
+//!   the value goes. `Authorization`, `Proxy-Authorization` and the two HTTP
+//!   session-state headers run to the end of the line (or to the quote that
+//!   opened them), because their values carry commas, semicolons and quotes;
+//!   the others run to the next `,`, `;`, quote or end of line. And a bare
+//!   `Bearer <token>`;
 //! - **URL credentials**: the password of `scheme://user:pass@host`, and a
 //!   token-only user (`scheme://token@host`) of any scheme but a login one
 //!   (`ssh`, `sftp`, `scp`, also as the tail of `git+ssh`), where the user is a name;
