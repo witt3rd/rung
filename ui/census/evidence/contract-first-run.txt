@@ -1,6 +1,6 @@
 # the contract tests, run before the mock gateway existed (npm run test:contract): every test fails
     code: 'ERR_MODULE_NOT_FOUND',
-  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/dt/.treehouse/rung-ed5c2d/11/rung/ui/mock/gateway.ts' imported from /home/dt/.treehouse/rung-ed5c2d/11/rung/ui/test/contract-target.ts
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/mock/gateway.ts' imported from ui/test/contract-target.ts
 ✖ events: an after beyond the record is 400 (0.029339ms)
 ✖ events: replay after N is exactly the record's lines after N, in order, then caught_up (0.02712ms)
 ✖ failing tests:

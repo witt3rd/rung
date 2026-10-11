@@ -12,3 +12,12 @@ export function parseRecordLines(answer: { lines: Line[] }): Line[] {
   }
   return lines;
 }
+
+/** Streamed text is read while it is still arriving, so a key may be half written at its end. Shapes that are not yet whole are
+ *  hidden too, until the rest arrives and the whole shape is replaced; nothing of a key's head or tail is ever shown. */
+const UNFINISHED = /(?:\bsk-|\bgh[pousr]_|\bgithub_pat_|\bxox[abprs]-|\bAKIA|\bAIza|\bBearer\s+)[A-Za-z0-9._~+/=-]*$/;
+
+/** Redact text that is still being written. Always called on the whole text received so far, never on a piece. */
+export function redactStreaming(text: string): string {
+  return (redact(text) as string).replace(UNFINISHED, "[redacted]");
+}

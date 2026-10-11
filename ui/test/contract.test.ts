@@ -242,12 +242,30 @@ test("the read-only token may read and may not write; a wrong token is 401", asy
   if (!(t.readOnlyToken)) return ctx.skip("no read-only token on this target");
   const tok = t.readOnlyToken!;
   assert.equal((await get(api("/v1/summary"), { headers: { authorization: `Bearer ${tok}` } })).status, 200);
-  assert.equal((await get(api(`/v1/summary?token=${tok}`))).status, 200, "the query value works where a header cannot be set");
   const w = await get(api("/v1/queue"), { method: "POST", headers: { authorization: `Bearer ${tok}`, "content-type": "application/json" }, body: "{}" });
   assert.equal(w.status, 403);
   assert.equal(w.json().error, "read_only");
   assert.equal((await get(api("/v1/summary"), { headers: { authorization: "Bearer not-a-token" } })).status, 401);
-  assert.equal((await get(api("/v1/summary?token=not-a-token"))).status, 401);
+});
+
+test("a key a tool prints is on no door and no stream line: the host redacts first", async (ctx) => {
+  if (!t.control) return ctx.skip("no control hook on this target");
+  const KEY = "sk-or-v1-0123456789abcdef0123456789abcdef";
+  const total = (await summary()).last_seq;
+  const live: SseEvent[] = [];
+  const s = stream(`/v1/events?after=${total}`, (e) => live.push(e));
+  await sleep(100);
+  await t.control.plant(KEY);
+  await until(() => live.some((e) => e.event === "record") && live.some((e) => e.event === "delta"), 5000, "the planted line and piece");
+  s.abort(); await s.done;
+  const doors = [await get(api("/v1/summary")), await get(`${t.url}/api/instances`), await get(api("/v1/record?offset=0&limit=100000000"))];
+  for (const d of doors) assert.equal(d.text.includes(KEY), false, "a key in an answer");
+  assert.equal(JSON.stringify(live).includes(KEY), false, "a key on the stream");
+  const replay: SseEvent[] = [];
+  const s2 = stream(`/v1/events?after=${Math.max(0, total - 2)}`, (e) => replay.push(e));
+  await until(() => replay.some((e) => e.event === "caught_up"), 5000, "caught_up");
+  s2.abort(); await s2.done;
+  assert.equal(JSON.stringify(replay).includes(KEY), false, "a key in a replay");
 });
 
 test("only /v1 passes, and an unknown instance is 404", async () => {

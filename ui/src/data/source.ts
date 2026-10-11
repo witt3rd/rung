@@ -1,10 +1,10 @@
 /** Where the observer gets its data. Slice 0 reads recorded files served beside the app; a running host's
  *  doors (docs/rung-host-api.md) replace this one module, and nothing above it changes. */
 import { parseRecord } from "../record/parse.ts";
-import { makeRedactor } from "../record/redact.ts";
 import type { Line } from "../record/types.ts";
 import type { Summary } from "../record/folds.ts";
 import type { HostSummary } from "../live/store.ts";
+import { redact } from "../live/wire.ts";
 
 export interface InstanceEntry {
   id: string;
@@ -25,11 +25,10 @@ async function get(url: string): Promise<Response> {
   return r;
 }
 
-export const loadIndex = async (): Promise<InstanceIndex> => (await get("data/index.json")).json();
+export const loadIndex = async (): Promise<InstanceIndex> => redact(await (await get("data/index.json")).json()) as InstanceIndex;
 
 // The data is redacted where it is prepared; the shapes of known keys are removed again here, so a page
 // never shows one whatever served the data.
-const redact = makeRedactor([]);
 
 export async function loadRecord(entry: InstanceEntry): Promise<Line[]> {
   const text = await (await get(`data/${entry.record}`)).text();
@@ -64,10 +63,12 @@ export function fromHostSummary(g: GatewayInstance, now: number): Summary {
   };
 }
 
-export async function loadLiveIndex(): Promise<InstanceIndex> {
+export async function loadLiveIndex(base = "api", fetchImpl: typeof fetch = (...a) => fetch(...a)): Promise<InstanceIndex> {
   const now = Date.now();
-  const r = await get("api/instances");
-  const list = ((await r.json()) as { instances: GatewayInstance[] }).instances;
+  const r = await fetchImpl(`${base}/instances`);
+  if (!r.ok) throw new Error(`${base}/instances: ${r.status}`);
+  // Everything a host or the gateway wrote into the answer (a name, the line it says it is on, an error) is redacted before the page holds it.
+  const list = (redact(await r.json()) as { instances: GatewayInstance[] }).instances;
   return {
     generatedAt: now,
     instances: list.map((g) => ({

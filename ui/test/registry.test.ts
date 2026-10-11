@@ -60,3 +60,16 @@ test("a store another page still holds is not stopped", async () => {
   await sleep(100);
   assert.equal(made[0].stopped, 0);
 });
+
+test("a release that follows a re-acquire gets its own full grace, not what is left of the first", async () => {
+  const { reg, made } = stub();
+  reg.acquire("alpha");
+  reg.release("alpha"); // the first grace starts: 40 ms
+  await sleep(25);
+  reg.acquire("alpha");
+  reg.release("alpha"); // the second starts here and ends at 65 ms
+  await sleep(25); // 50 ms in: the first grace would have ended; the second has not
+  assert.equal(made[0].stopped, 0, "not stopped on the first release's clock");
+  await sleep(60);
+  assert.equal(made[0].stopped, 1);
+});

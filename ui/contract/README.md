@@ -7,9 +7,14 @@ builder; until they are, `test/contract.test.ts` is the executable statement, an
 `mock/` and against a real gateway (`RUNG_CONTRACT_URL=http://… RUNG_CONTRACT_INSTANCE=id npm run test:contract`).
 
 Everything goes through the gateway: `GET /api/health`, `GET /api/instances`, and `/api/i/{id}/v1/…` (a pass-through that adds
-the instance's key and streams without buffering). A read-only token (`Authorization: Bearer …` or `?token=…`) may only read;
+the instance's key and streams without buffering). A read-only token, sent in the `Authorization: Bearer …` header only (the page never puts a token in a URL, where it would reach logs and history; the gateway's own query form is not part of this contract), may only read;
 a write by it is 403 `{"error":"read_only",…}`. Errors are always `{"error": code, "message": text}`. No answer, stream line or
 header ever carries a key.
+
+**The host redacts first.** A host redacts credentials at every door and on the stream, before it writes the answer (the redactor of
+H4): the summary and record answers, every stream line, and the text of every delta (a host that streams text holds back what may be the start of a key until it is whole). The page redacts what it receives as well, over
+the whole of a streamed text and never a piece (a key may arrive in pieces), but that is a second line, not the first: a page cannot
+undo what a host has already put on the wire. The contract tests' canary checks are the host's to pass.
 
 ## `GET /v1/summary`
 

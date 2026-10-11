@@ -1,6 +1,0 @@
-# the live-store tests against the store before the review fixes: the redaction test failed; the reset test passed (the window it closes is narrow), and the file never exited because the old client kept looping after a reset
-✖ a key shape in a live line or a delta never reaches what the page holds (35.911038ms)
-✖ failing tests:
-ℹ fail 1
-ℹ pass 4
-✖ test/live-store.test.ts (119977.305645ms)

@@ -1,0 +1,22 @@
+# slice 1 mutation sweep: one deliberate fault at a time put into src/live, src/data or the record check, run against the contract, events-client, live-redact, live-store, registry and wire tests.
+# 'caught' with a hung run: a test failed and the client it was driving kept looping, so the run had to be killed; that is a failure, not a pass.
+# 19 faults, 0 survived. (The first sweep found 4 that survived: the old client left running after a reset, a torn turn never cleared, a re-acquire not cancelling a release, a gap in the loaded record accepted; each now has a test.)
+caught    client: a line at or below the last is applied again  <- (the run hung: a loop left running)
+caught    client: a skipped number is applied  <- (the run hung: a loop left running)
+caught    client: a 400 is not a reset  <- (the run hung: a loop left running)
+caught    client: no Last-Event-ID sent  <- a skipped number is a broken stream: nothing after the gap is applied, and the client resumes from its last
+caught    client: deltas dropped  <- failures back off and then follow; deltas pass through and a cut stream's half frame is dropped | a key split across four pieces of streamed text is n
+caught    store: reset keeps the pending queue  <- a reset
+caught    store: reset leaves the old client running  <- (the run hung: a loop left running)
+caught    store: a cut keeps showing the delta  <- after a cut the running turn's text is not shown | a second cut, in a later turn, hides that turn's tail too
+caught    store: live lines not redacted  <- a key shape in a live line or a delta never reaches what the page holds
+caught    store: summary not redacted  <- through the mock: a key in /v1/summary and in /api/instances is on the wire, and not on the page
+caught    store: torn turn shown after a join or cut  <- after a cut the running turn's text is not shown | joining while a turn runs: that turn's pieces are not shown either
+caught    store: only the first cut hides the torn turn  <- a second cut, in a later turn, hides that turn's tail too
+caught    registry: released at once (no grace)  <- moving between an instance's tabs keeps the store: released and taken again within the grace | a release that follows a re-acquire gets its own full g
+caught    registry: a held store is stopped though another page holds it  <- a store another page still holds is not stopped
+caught    registry: a re-acquire does not cancel the release  <- a release that follows a re-acquire gets its own full grace, not what is left of the first
+caught    overlay: the text is laid over a finished turn  <- the overlay puts the streamed text and the tool in flight on the running turn only
+caught    wire: a gap in the loaded record is accepted  <- a record with a gap in its numbers is refused, not shown | a store that is given a record with a gap says so and shows nothing of it
+caught    source: the instance list is not redacted  <- the instance list: a name, a summary line or an error with a key in it is redacted before the page holds it | through the mock: a key in /v1/summary a
+caught    words: streaming text not hidden while unfinished  <- a key split across four pieces of streamed text is never shown, head or tail, at any moment | redactStreaming hides a key that is not whole yet, and o
