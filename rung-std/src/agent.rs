@@ -30,10 +30,15 @@
 //!   answers a provider context overflow: the same call again, with the
 //!   oldest tool results elided ([`elide_oldest_tool_results`]). The macro
 //!   wraps it in `must_progress`, so a retry that did not shrink the thread
-//!   panics instead of resending the request. `step` offers it once per turn
-//!   ([`LoopState::elided`]) and only when there is something to elide;
-//!   otherwise the overflow is `ContentFiltered` with
-//!   [`FailureKind::Overflow`].
+//!   panics instead of resending the request. `step` offers it whenever the
+//!   provider overflows and there is something older to elide, so it repeats
+//!   within a turn; each time it strictly shrinks the finite set of
+//!   candidate results ([`LoopState::elided`] counts them), so the work is
+//!   bounded and there is no retry without progress. Otherwise the overflow is `ContentFiltered` with
+//!   [`FailureKind::Overflow`]. Tool results are never cut on the way in;
+//!   results the model has not yet seen ([`LoopState::fresh_from`]) are never
+//!   elided, so when nothing older is left to elide the turn ends with an
+//!   overflow that says so.
 //!
 //! - **G11 (terminal payloads).** `EndTurn(AgentResult)` carries the
 //!   structured result out through the verdict.
@@ -85,9 +90,6 @@ use std::time::{Duration, Instant};
 
 // ─── Carry data ────────────────────────────────────────────────────────────────
 
-/// Characters of a tool result kept in history. OpenCode prunes at 2k for
-/// compaction; live turns stay larger. 0 means no cap.
-pub const DEFAULT_TOOL_OUTPUT_LIMIT: usize = 8_192;
 /// Identical name+input calls in a row that made no progress before we
 /// warn, then stop (OpenCode uses 3, on input alone).
 pub const DOOM_STREAK: u32 = 3;
@@ -110,16 +112,18 @@ pub struct LoopState {
     pub grace_call: bool,
     pub usage: Usage,
     pub watch: ToolWatch,
-    pub tool_output_limit: usize,
     /// Shared cancel. Checked before an LLM call and around each tool.
     pub cancel: Option<Arc<AtomicBool>>,
     /// The model takes images, so a tool's images go to it. Off by default:
     /// each image is then an explicit note in the result text.
     pub tool_images: bool,
     /// Tool results [`elide`](agentloop::elide) replaced after a context
-    /// overflow this turn. Nonzero means the turn's one elision is spent: a
-    /// second overflow ends the turn.
+    /// overflow this turn, summed over every elision of the turn.
     pub elided: usize,
+    /// Index of the first message this loop iteration appended: the fresh
+    /// tool results and any corrective text the model has not yet seen.
+    /// Elision never touches them. `usize::MAX` when nothing is fresh.
+    pub fresh_from: usize,
 }
 
 impl LoopState {
@@ -131,10 +135,10 @@ impl LoopState {
             grace_call: true,
             usage: Usage::default(),
             watch: ToolWatch::default(),
-            tool_output_limit: DEFAULT_TOOL_OUTPUT_LIMIT,
             cancel: None,
             tool_images: false,
             elided: 0,
+            fresh_from: usize::MAX,
         }
     }
 
@@ -247,25 +251,14 @@ pub fn is_last_call(state: &LoopState) -> bool {
         || (state.budget_remaining == 0 && state.grace_call)
 }
 
-pub fn cap_output(text: &str, limit: usize) -> String {
-    if limit == 0 || text.len() <= limit {
-        return text.to_string();
-    }
-    let mut end = limit;
-    while end > 0 && !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{}\n[truncated {} chars]", &text[..end], text.len() - end)
-}
-
 /// Why a tool's image is not sent when [`LoopState::tool_images`] is off.
 pub const TEXT_ONLY_MODEL: &str = "this model is set to take text only (tool images off)";
 
-/// A tool's output as the result the model gets: text capped at the loop's
-/// limit, images kept when the model takes them and noted when it does not.
+/// A tool's output as the result the model gets: the whole text, images kept
+/// when the model takes them and noted when it does not.
 /// Images have their own size cap ([`crate::llm::image::MAX_IMAGE_BYTES`]).
 fn admit_images(out: ToolOutput, state: &LoopState) -> (String, Vec<ImageSource>) {
-    let text = cap_output(&out.text, state.tool_output_limit);
+    let text = out.text;
     if state.tool_images {
         (text, out.images)
     } else {
@@ -350,19 +343,27 @@ fn result_weight(content: &str, images: &[ImageSource]) -> usize {
 /// user message, the assistant text and the system prompt stay whole, so the
 /// model still sees what it did and can call a tool again.
 ///
+/// Messages from `fresh_from` on were appended in this loop iteration: the
+/// model has not yet seen them, so eliding them would answer an overflow by
+/// hiding the very result just asked for (and the model would ask again).
+/// They are never candidates; when nothing older remains, the overflow is an
+/// error, not a cut.
+///
 /// Oldest first, until at least half of the tool-result weight is gone. A
 /// result is a candidate when its note would be smaller than it (an elided
 /// or short one is not). Deterministic, and in one batch, so a provider's
 /// prompt cache loses its prefix once. `None` when no result is a
 /// candidate: elision cannot shrink the thread.
-pub fn elide_oldest_tool_results(thread: &Thread) -> Option<(Thread, usize)> {
+pub fn elide_oldest_tool_results(thread: &Thread, fresh_from: usize) -> Option<(Thread, usize)> {
     use crate::llm::MessageContentBlock::ToolResult;
     let candidate = |content: &str, images: &[ImageSource]| {
         result_weight(content, images) > ELIDED_TOOL_RESULT.len()
     };
+    let newest = fresh_from.min(thread.messages.len());
     let total: usize = thread
         .messages
         .iter()
+        .take(newest)
         .filter_map(|m| match &m.content {
             MessageContent::Blocks(b) => Some(b),
             MessageContent::Text(_) => None,
@@ -380,7 +381,7 @@ pub fn elide_oldest_tool_results(thread: &Thread) -> Option<(Thread, usize)> {
     }
     let mut out = thread.clone();
     let (mut freed, mut n) = (0usize, 0usize);
-    'messages: for m in &mut out.messages {
+    'messages: for m in out.messages.iter_mut().take(newest) {
         let MessageContent::Blocks(blocks) = &mut m.content else {
             continue;
         };
@@ -401,6 +402,21 @@ pub fn elide_oldest_tool_results(thread: &Thread) -> Option<(Thread, usize)> {
         }
     }
     Some((out, n))
+}
+
+/// Whether a tool result sits at or after `fresh_from`: one the model has
+/// not yet seen, which elision never touches.
+fn has_fresh_result(thread: &Thread, fresh_from: usize) -> bool {
+    thread
+        .messages
+        .iter()
+        .skip(fresh_from)
+        .any(|m| match &m.content {
+            MessageContent::Blocks(b) => b
+                .iter()
+                .any(|b| matches!(b, crate::llm::MessageContentBlock::ToolResult { .. })),
+            MessageContent::Text(_) => false,
+        })
 }
 
 /// System prompt for [`InlinePython::only_answer`] / [`InlinePython::only`].
@@ -946,13 +962,25 @@ ladder!(AgentLoop {
                     };
                     let mut filtered = map_llm_failure(failure, thread.messages.clone());
                     if filtered.kind == FailureKind::Overflow {
-                        // One elision per turn, and only when it shrinks the
-                        // thread (the guard on `elide` holds us to that).
-                        if state.elided == 0 && elide_oldest_tool_results(&thread).is_some() {
+                        // The only limit here is physical: the provider's own
+                        // context window, known only from its overflow reply (an
+                        // HTTP 400 context-length error, mapped by `map_llm_failure`);
+                        // rung holds no window figure of its own.
+                        // Elide again whenever that shrinks the thread (the guard
+                        // on `elide` holds us to that): an elided result is no
+                        // longer a candidate, so this stops once nothing older
+                        // is left.
+                        if elide_oldest_tool_results(&thread, state.fresh_from).is_some() {
                             crate::events::emit("rung-std", "llm.overflow", &format!(
-                                "[rung-std] {call_id}: context overflow — eliding the oldest tool results, retrying once"
+                                "[rung-std] {call_id}: context overflow — eliding the oldest tool results and retrying"
                             ));
                             return Ok(StepOutcome::Overflowed(Overflowed::new(calling)));
+                        }
+                        if has_fresh_result(&thread, state.fresh_from) {
+                            filtered.reason = format!(
+                                "{}; the overflow follows a tool result the model has not yet seen",
+                                filtered.reason
+                            );
                         }
                         if state.elided > 0 {
                             filtered.reason = format!(
@@ -972,7 +1000,8 @@ ladder!(AgentLoop {
         };
 
         // ── classify the response ────────────────────────────────────────
-        let next = next_state(&state, is_grace, &response.usage, state.watch.clone());
+        let mut next = next_state(&state, is_grace, &response.usage, state.watch.clone());
+        next.fresh_from = thread.messages.len();
         if next.is_cancelled() {
             return Ok(StepOutcome::Interrupted(Interrupted::new(Interrupt {
                 at_api_call: next.api_call_count,
@@ -1017,10 +1046,7 @@ ladder!(AgentLoop {
                     let mut updated_messages = thread.messages.clone();
                     updated_messages.push(ChatMessage::assistant(turn.assistant));
                     if let Some(follow) = turn.follow_up {
-                        updated_messages.push(ChatMessage::user(cap_output(
-                            &follow,
-                            next.tool_output_limit,
-                        )));
+                        updated_messages.push(ChatMessage::user(follow));
                     }
                     let updated_thread = Thread {
                         system_prompt: thread.system_prompt.clone(),
@@ -1298,14 +1324,14 @@ ladder!(AgentLoop {
     },
 
     // Overflowed → Calling: the same call again on a thread with its oldest
-    // tool results elided. The carry records the elision, which spends the
-    // turn's one retry. The macro wraps this body in `must_progress` (G8).
+    // tool results elided. The carry adds the elision to the turn's count; each
+    // one strictly shrinks the candidates, so repeats are bounded. The macro wraps this body in `must_progress` (G8).
     elide = |overflowed| {
         let calling = overflowed.into_source();
         let mut carry = calling.carry().clone();
-        let (thread, n) = elide_oldest_tool_results(&calling.payload)
+        let (thread, n) = elide_oldest_tool_results(&calling.payload, calling.carry().state.fresh_from)
             .unwrap_or_else(|| (calling.payload.clone(), 0));
-        carry.state.elided = n;
+        carry.state.elided += n;
         Calling::new(thread, carry)
     },
 });
@@ -1532,20 +1558,6 @@ mod tests {
                 .unwrap_or("")
                 .contains("ZeroDivisionError")
         );
-    }
-
-    #[test]
-    fn cap_output_keeps_char_boundary() {
-        let s = "éééé";
-        let out = cap_output(s, 3);
-        assert!(out.contains("[truncated"));
-        assert!(out.starts_with('é') || out.starts_with('['));
-    }
-
-    #[test]
-    fn cap_output_unlimited_when_zero() {
-        let s = "x".repeat(100);
-        assert_eq!(cap_output(&s, 0), s);
     }
 
     /// Drive the watch over calls of one name and input: each gives its
@@ -1986,6 +1998,12 @@ mod tests {
         // 4. Thread messages preserve valid sibling history/results and include corrective feedback
         let msgs = &next_calling.payload.messages;
         assert_eq!(msgs.len(), 4); // [initial user, assistant (valid tool), user (tool result), user (corrective)]
+        // The valid result and the corrective text are both fresh: elision
+        // may not touch them.
+        let fresh = next_calling.carry().state.fresh_from;
+        assert_eq!(fresh, 1);
+        assert!(elide_oldest_tool_results(&next_calling.payload, fresh).is_none());
+        assert!(has_fresh_result(&next_calling.payload, fresh));
 
         // Assistant message has valid ToolUse
         match &msgs[1].content {
@@ -2065,8 +2083,7 @@ mod tests {
         let mut roster = ToolRoster::new();
         roster.add(c);
 
-        let mut state = LoopState::new(5, 5);
-        state.tool_output_limit = 20; // Very small limit!
+        let state = LoopState::new(5, 5);
 
         let carry = agentloop::Carry {
             state,
@@ -2840,7 +2857,7 @@ mod tests {
     #[test]
     fn elision_takes_the_oldest_results_until_half_the_weight_is_gone() {
         let thread = history(&[("a", 1000), ("b", 1000), ("c", 1000), ("d", 1000)]);
-        let (out, n) = elide_oldest_tool_results(&thread).expect("elidable");
+        let (out, n) = elide_oldest_tool_results(&thread, usize::MAX).expect("elidable");
         assert_eq!(n, 2);
         let got = results(&out);
         assert_eq!(got[0], ELIDED_TOOL_RESULT);
@@ -2848,13 +2865,16 @@ mod tests {
         assert_eq!(got[2], "c".repeat(1000));
         assert_eq!(got[3], "d".repeat(1000));
         // Deterministic: the same thread elides the same way.
-        assert_eq!(elide_oldest_tool_results(&thread).unwrap().0, out);
+        assert_eq!(
+            elide_oldest_tool_results(&thread, usize::MAX).unwrap().0,
+            out
+        );
     }
 
     #[test]
     fn elision_keeps_every_call_and_every_user_message() {
         let thread = history(&[("a", 2000), ("b", 2000)]);
-        let (out, _) = elide_oldest_tool_results(&thread).unwrap();
+        let (out, _) = elide_oldest_tool_results(&thread, usize::MAX).unwrap();
         assert_eq!(out.system_prompt, thread.system_prompt);
         assert_eq!(out.messages.len(), thread.messages.len());
         for (before, after) in thread.messages.iter().zip(&out.messages) {
@@ -2871,15 +2891,46 @@ mod tests {
         }
     }
 
+    /// Everything from the marker on is fresh, whatever its shape: with a
+    /// tiny older result and a huge fresh one followed by corrective text,
+    /// nothing may be elided. Drop the marker and the fresh result goes.
+    #[test]
+    fn fresh_messages_are_protected_though_text_follows_them() {
+        let mut thread = history(&[("a", 10)]);
+        let fresh = thread.messages.len();
+        thread.messages.extend(tool_round("n", &"n".repeat(3000)));
+        thread.messages.push(ChatMessage::user("corrective note"));
+        assert!(elide_oldest_tool_results(&thread, fresh).is_none());
+        assert!(has_fresh_result(&thread, fresh));
+        assert!(elide_oldest_tool_results(&thread, usize::MAX).is_some());
+    }
+
+    /// A previous turn's answered result is before the marker: elidable.
+    #[test]
+    fn a_previous_turns_result_stays_elidable_beside_a_fresh_one() {
+        let mut thread = history(&[("a", 3000)]);
+        let fresh = thread.messages.len();
+        thread.messages.extend(tool_round("n", &"n".repeat(3000)));
+        let (out, n) = elide_oldest_tool_results(&thread, fresh).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(
+            results(&out),
+            [ELIDED_TOOL_RESULT.to_string(), "n".repeat(3000)]
+        );
+    }
+
     #[test]
     fn elision_passes_over_results_its_note_would_not_shrink() {
-        let thread = history(&[("a", 10), ("b", 3000)]);
-        let (out, n) = elide_oldest_tool_results(&thread).unwrap();
+        let thread = history(&[("a", 10), ("b", 3000), ("c", 10)]);
+        let (out, n) = elide_oldest_tool_results(&thread, usize::MAX).unwrap();
         assert_eq!(n, 1);
-        assert_eq!(results(&out), ["a".repeat(10), ELIDED_TOOL_RESULT.into()]);
+        assert_eq!(
+            results(&out),
+            ["a".repeat(10), ELIDED_TOOL_RESULT.into(), "c".repeat(10)]
+        );
         // Elided again: nothing left to elide, so no retry is offered.
-        assert!(elide_oldest_tool_results(&out).is_none());
-        assert!(elide_oldest_tool_results(&history(&[("a", 10)])).is_none());
+        assert!(elide_oldest_tool_results(&out, usize::MAX).is_none());
+        assert!(elide_oldest_tool_results(&history(&[("a", 10)]), usize::MAX).is_none());
     }
 
     /// Answers each request with the next `(status, body)` and records the
@@ -2950,11 +3001,22 @@ mod tests {
         replies: Vec<(u16, String)>,
         thread: Thread,
     ) -> (Result<AgentResult, Filtered>, Vec<String>) {
+        run_against_fresh(replies, thread, usize::MAX)
+    }
+
+    fn run_against_fresh(
+        replies: Vec<(u16, String)>,
+        thread: Thread,
+        fresh_from: usize,
+    ) -> (Result<AgentResult, Filtered>, Vec<String>) {
         let (url, bodies, handle) = serve_replies(replies);
         let mut config = dummy_llm();
         config.base_url = url;
         let carry = agentloop::Carry {
-            state: LoopState::new(5, 5),
+            state: LoopState {
+                fresh_from,
+                ..LoopState::new(5, 5)
+            },
             tools: Arc::new(ToolRoster::new()),
             config,
             python: None,
@@ -2962,6 +3024,138 @@ mod tests {
         let out = run(thread, carry);
         handle.join().unwrap();
         (out, bodies.try_iter().collect())
+    }
+
+    /// A provider with a byte window serving a 20-iteration tool loop whose
+    /// every result is large. Overflow is a 400 whenever a request body is
+    /// over `window`; the model asks for the tool `calls` times, then answers.
+    /// Returns the outcome and how many requests were refused.
+    fn windowed_loop(
+        window: usize,
+        calls: usize,
+        result_len: usize,
+    ) -> (Result<AgentResult, Filtered>, usize) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        // The server ends when the turn does (`stop`), not when it has seen
+        // a final answer: a turn that ends in an error never asks again.
+        listener.set_nonblocking(true).unwrap();
+        let stop = Arc::new(AtomicBool::new(false));
+        let stop_server = stop.clone();
+        let handle = std::thread::spawn(move || {
+            let (mut accepted, mut refused) = (0usize, 0usize);
+            let deadline = std::time::Instant::now() + Duration::from_secs(60);
+            loop {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "windowed_loop: no end in 60 s"
+                );
+                let mut socket = match listener.accept() {
+                    Ok((socket, _)) => socket,
+                    Err(_) if stop_server.load(Ordering::SeqCst) => return refused,
+                    Err(_) => {
+                        std::thread::sleep(Duration::from_millis(5));
+                        continue;
+                    }
+                };
+                socket.set_nonblocking(false).unwrap();
+                socket
+                    .set_read_timeout(Some(Duration::from_secs(10)))
+                    .unwrap();
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 65536];
+                let body = loop {
+                    let n = socket.read(&mut chunk).unwrap();
+                    buf.extend_from_slice(&chunk[..n]);
+                    let text = String::from_utf8_lossy(&buf).to_string();
+                    if let Some(at) = text.find("\r\n\r\n") {
+                        let len = text[..at]
+                            .lines()
+                            .find_map(|l| {
+                                l.to_ascii_lowercase()
+                                    .strip_prefix("content-length:")
+                                    .map(|v| v.trim().parse::<usize>().unwrap())
+                            })
+                            .unwrap_or(0);
+                        if buf.len() >= at + 4 + len {
+                            break text[at + 4..].to_string();
+                        }
+                    }
+                    assert!(n > 0, "short request");
+                };
+                let (status, reply) = if body.len() > window {
+                    refused += 1;
+                    overflow_reply()
+                } else if accepted < calls {
+                    accepted += 1;
+                    (
+                        200,
+                        format!(
+                            r#"{{"id": "c", "model": "m", "choices": [{{"message": {{"tool_calls": [{{"id": "call_{accepted}", "function": {{"name": "big_tool", "arguments": "{{\"n\": {accepted}}}"}}}}]}}, "finish_reason": "tool_calls"}}]}}"#
+                        ),
+                    )
+                } else {
+                    answer_reply()
+                };
+                let resp = format!(
+                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}",
+                    reply.len()
+                );
+                let _ = socket.write_all(resp.as_bytes());
+            }
+        });
+        let mut config = dummy_llm();
+        config.base_url = format!("http://127.0.0.1:{port}");
+        let mut c = ToolCollection::new("test");
+        c.admit(BigTool("r".repeat(result_len)));
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+        let carry = agentloop::Carry {
+            state: LoopState::new(40, 40),
+            tools: Arc::new(roster),
+            config,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("loop")],
+        };
+        let out = run(thread, carry);
+        stop.store(true, Ordering::SeqCst);
+        let refused = handle.join().unwrap();
+        (out, refused)
+    }
+
+    /// Results are uncapped, so a long loop of large results outgrows the
+    /// window more than once. Each overflow elides the oldest older results
+    /// again; the turn finishes. (One elision per turn ended it at iteration
+    /// 12 of 20.)
+    #[test]
+    fn a_long_loop_of_large_results_survives_repeated_overflow() {
+        let (out, refused) = windowed_loop(250_000, 20, 40_000);
+        let r = out.expect("the turn finishes");
+        assert_eq!(r.final_response, "answer");
+        assert!(
+            refused >= 2,
+            "the window was exceeded repeatedly: {refused}"
+        );
+        assert!(r.elided > 3, "{}", r.elided);
+    }
+
+    /// Fresh results over the window end the turn typed, however many
+    /// elisions came before: bounded work, no retry without progress.
+    #[test]
+    fn a_fresh_result_over_the_window_still_ends_the_turn_typed() {
+        let (out, _) = windowed_loop(100_000, 20, 120_000);
+        let f = out.expect_err("over the window");
+        assert_eq!(f.kind, FailureKind::Overflow);
+        assert!(
+            f.reason
+                .contains("a tool result the model has not yet seen"),
+            "{}",
+            f.reason
+        );
     }
 
     #[test]
@@ -2987,7 +3181,7 @@ mod tests {
 
     #[test]
     fn a_second_overflow_ends_the_turn_as_overflow() {
-        let thread = history(&[("a", 3000)]);
+        let thread = history(&[("a", 3000), ("b", 10)]);
         let (out, bodies) = run_against(vec![overflow_reply(), overflow_reply()], thread);
         let f = out.expect_err("still over");
         assert_eq!(f.kind, FailureKind::Overflow);
@@ -2998,6 +3192,83 @@ mod tests {
             f.reason
         );
         assert_eq!(bodies.len(), 2, "one elision, one retry");
+    }
+
+    /// A mock tool returns 1 MiB ending in a sentinel; the next provider
+    /// request carries all of it and no truncation marker.
+    #[test]
+    fn a_large_tool_result_reaches_the_next_request_whole() {
+        const SENTINEL: &str = "END_OF_BIG_RESULT_7f3a";
+        let big = format!("{}{SENTINEL}", "x".repeat(1 << 20));
+        let (url, bodies, handle) = serve_replies(vec![
+            (
+                200,
+                r#"{"id": "c", "model": "m", "choices": [{"message": {"tool_calls": [{"id": "call_big", "function": {"name": "big_tool", "arguments": "{}"}}]}, "finish_reason": "tool_calls"}]}"#.into(),
+            ),
+            answer_reply(),
+        ]);
+        let mut cfg = dummy_llm();
+        cfg.base_url = url;
+        let mut c = ToolCollection::new("test");
+        c.admit(BigTool(big));
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+        let carry = agentloop::Carry {
+            state: LoopState::new(5, 5),
+            tools: Arc::new(roster),
+            config: cfg,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("run tool")],
+        };
+        let out = run(thread, carry).expect("turn");
+        handle.join().unwrap();
+        let bodies: Vec<String> = bodies.try_iter().collect();
+        assert_eq!(bodies.len(), 2);
+        assert!(bodies[1].contains(SENTINEL));
+        assert!(!bodies[1].contains("[truncated"));
+        assert_eq!(out.final_response, "answer");
+    }
+
+    #[derive(Debug)]
+    struct BigTool(String);
+
+    impl Tool for BigTool {
+        fn name(&self) -> &'static str {
+            "big_tool"
+        }
+        fn description(&self) -> &'static str {
+            "returns a very large result"
+        }
+        fn input_schema(&self) -> serde_json::Value {
+            serde_json::json!({"type": "object"})
+        }
+        fn execute(&self, _input: &serde_json::Value) -> Result<String, String> {
+            Ok(self.0.clone())
+        }
+    }
+
+    /// An overflow that follows a result the model has not seen, with
+    /// nothing older to elide, ends the turn with a clear overflow. The
+    /// result is not elided and not retried.
+    #[test]
+    fn an_overflow_after_a_fresh_result_ends_the_turn_clearly() {
+        let mut thread = history(&[("a", 10)]);
+        let fresh = thread.messages.len();
+        thread.messages.extend(tool_round("n", &"n".repeat(5000)));
+        let (out, bodies) = run_against_fresh(vec![overflow_reply()], thread, fresh);
+        let f = out.expect_err("over");
+        assert_eq!(f.kind, FailureKind::Overflow);
+        assert!(
+            f.reason
+                .contains("the overflow follows a tool result the model has not yet seen"),
+            "{}",
+            f.reason
+        );
+        assert_eq!(bodies.len(), 1, "no elide-then-loop");
+        assert!(bodies[0].contains(&"n".repeat(5000)));
     }
 
     #[test]

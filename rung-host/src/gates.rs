@@ -1481,8 +1481,9 @@ pub fn g_k(lines: &[Line]) -> GateResult {
 // OpenAI-compatible wire shape a router documents. No live model, no live
 // Jev, no key.
 
-/// G-n: a host tool result at least this long (the CLI history's shortening
-/// threshold) must reach a later request of its epoch unchanged.
+/// G-n: a host tool result at least this long must reach a later request of
+/// its epoch unchanged. (The loop cut every result at 8,192 bytes once; it no
+/// longer cuts any, so the length is only a size the probe must exceed.)
 pub const G_N_LONG_RESULT_CHARS: usize = 4_000;
 
 /// What the scripted loopback provider served for one completion.
