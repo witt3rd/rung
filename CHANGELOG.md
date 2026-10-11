@@ -7,6 +7,8 @@ git tags only.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-11
+
 ### Added
 - `rung-host`, `rung-gateway`: the request record and the context door (S4).
   The record keeps each layer of what is sent to the model once, where it is
@@ -19,14 +21,20 @@ git tags only.
   model call, with the host's size estimates, the provider's counts and cache
   marks; a record from before answers with what it has. `Host::swap_stable`
   records a swap of the stable layer. `host.start` now passes the host's
-  redactor too (`docs/rung-host-api.md`, S4).
+  redactor too (`docs/rung-host-api.md`, S4) (#299).
 
 - `rung-host`: `web: true` in `rung-host.yaml` wires the live `web_fetch` (group
   `web_read`) into the host-run agent: the whole-page `webfetch` of `rung-std`
   (markdown, final URL and status, 30 s whole-body deadline), page and error
   returned whole. Default off keeps the refusal "web_read is not wired in this
   build"; the sim stays on its fake web. The web tool fetches any address it
-  is given; it is not a security boundary.
+  is given; it is not a security boundary (#293).
+- `rung-host`, `rung-gateway`: the event stream with replay and partial frames
+  (H5, `docs/rung-host-api.md`), with the streaming engine adapter (#283).
+- `ui`: the page follows a running instance live over the H5 event stream:
+  record frames resumed from the last applied line, partial text after the
+  replay, "Not running" when the host stops, and a reset on `cursor_ahead`.
+  The page stays read-only (#295).
 
 ### Fixed
 - `rung-host`: a live fetch is charged once against the 30 s tool deadline
@@ -43,7 +51,7 @@ git tags only.
   free time too (it was non-free turns only), so an agent can keep its own
   files in its sandbox in its own time. Nothing else widens: free time still
   has only `core`, `memory`, `read` and `workspace_write`, and `web_read` stays
-  off unless asked for.
+  off unless asked for (#294).
 
 ## [0.3.0] - 2026-10-11
 
@@ -369,7 +377,9 @@ First tagged release; the foundation of everything above.
   evidence.
 - CI: fmt, clippy `-D warnings`, tests, propositions job.
 
-[Unreleased]: https://github.com/witt3rd/rung/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/witt3rd/rung/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/witt3rd/rung/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/witt3rd/rung/compare/v0.2.3...v0.3.0
 [0.2.0]: https://github.com/witt3rd/rung/compare/v0.1.13...v0.2.0
 [0.1.13]: https://github.com/witt3rd/rung/compare/v0.1.12...v0.1.13
 [0.1.12]: https://github.com/witt3rd/rung/compare/v0.1.11...v0.1.12
