@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 473 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 475 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1099,11 +1099,12 @@ look shorter than it is.
 
 - `the_quickstart_example_runs`
 
-**`rung-host/tests/redactor.rs`** — 29 unclaimed
+**`rung-host/tests/redactor.rs`** — 31 unclaimed
 
 - `a_bearer_token_alone_is_replaced_but_prose_is_not`
 - `a_clean_json_line_comes_back_byte_for_byte`
 - `a_credential_right_after_an_escape_is_redacted`
+- `a_header_name_right_after_an_escape_is_found`
 - `a_json_value_under_a_secret_name_is_replaced_and_counts_are_not`
 - `a_known_key_shape_is_replaced_wherever_it_sits`
 - `a_map_key_that_is_a_header_name_redacts_its_value`
@@ -1127,6 +1128,7 @@ look shorter than it is.
 - `text_that_holds_no_secret_comes_back_unchanged_and_whole`
 - `the_exact_value_of_a_named_variable_is_removed_in_any_shape`
 - `the_only_change_is_the_replaced_value_in_a_long_mixed_text`
+- `trimming_a_long_run_of_trailing_stops_costs_time_linear_in_its_length`
 - `trimming_trailing_punctuation_never_leaves_part_of_a_secret`
 - `url_credentials_lose_the_secret_part`
 - `webhook_urls_lose_their_token_path`

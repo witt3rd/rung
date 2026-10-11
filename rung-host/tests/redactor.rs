@@ -677,17 +677,9 @@ fn a_quote_is_escaped_by_the_parity_of_the_backslashes_before_it() {
 
 // ---- delta review: the escaped boundary and token trimming -------------------
 
-/// The shapes that start at a word boundary, by name.
-fn boundary_shapes() -> Vec<(&'static str, String)> {
-    sentinels()
-}
-
-#[test]
-fn a_credential_right_after_an_escape_is_redacted() {
-    // In JSON-escaped text a line break, tab, return or unicode escape is two
-    // or six characters ending in a letter or a digit, which is not a word
-    // boundary to a naive scan: the secret after it must still go.
-    let escapes = [
+/// The escapes that can sit right before a credential in JSON-escaped text.
+fn escapes() -> [&'static str; 12] {
+    [
         r"\n",
         r"\t",
         r"\r",
@@ -700,7 +692,20 @@ fn a_credential_right_after_an_escape_is_redacted() {
         r"\u0022",
         r"\n\t",       // two escapes precede it
         r"\r\n\u0020", // three
-    ];
+    ]
+}
+
+/// The shapes that start at a word boundary, by name.
+fn boundary_shapes() -> Vec<(&'static str, String)> {
+    sentinels()
+}
+
+#[test]
+fn a_credential_right_after_an_escape_is_redacted() {
+    // In JSON-escaped text a line break, tab, return or unicode escape is two
+    // or six characters ending in a letter or a digit, which is not a word
+    // boundary to a naive scan: the secret after it must still go.
+    let escapes = escapes();
     for (name, s) in boundary_shapes() {
         for esc in escapes {
             let text = format!("x{esc}{s} tail");
@@ -819,5 +824,85 @@ fn a_trailing_full_stop_is_sentence_punctuation_and_stays() {
     assert_eq!(
         redact(&format!("it was {s}...")),
         format!("it was {MARK}...")
+    );
+}
+
+#[test]
+fn a_header_name_right_after_an_escape_is_found() {
+    // Headers with values no shape would catch, so only the header rule can:
+    // after `\n` the name must not be read as the tail of a word.
+    for esc in escapes() {
+        for (h, v) in [
+            ("Authorization", "Basic U0VOVElORUw6U0VOVElORUw="),
+            ("Proxy-Authorization", "Basic U0VOVElORUw6U0VOVElORUw="),
+            ("Cookie", "sid=SENTINELsession; other=SENTINELmore"),
+            ("Set-Cookie", "sid=SENTINELsession; HttpOnly"),
+            ("X-Api-Key", "SENTINELvalue0123"),
+            ("Api-Key", "SENTINELvalue0123"),
+            ("X-Auth-Token", "SENTINELvalue0123"),
+            ("Mcp-Session-Id", "SENTINELsession0123"),
+        ] {
+            let text = format!("x{esc}{h}: {v}\nnext");
+            assert_eq!(
+                redact(&text),
+                format!("x{esc}{h}: {MARK}\nnext"),
+                "{h} after {esc}"
+            );
+            let text = format!("{esc}{h}: {v}\nnext");
+            assert_eq!(
+                redact(&text),
+                format!("{esc}{h}: {MARK}\nnext"),
+                "{h} at start after {esc}"
+            );
+        }
+    }
+}
+
+/// The best of three runs of `redact` on `text`.
+fn best_of_three(text: &str) -> std::time::Duration {
+    (0..3)
+        .map(|_| {
+            let t = std::time::Instant::now();
+            let out = redact(text);
+            let took = t.elapsed();
+            drop(out);
+            took
+        })
+        .min()
+        .unwrap()
+}
+
+#[test]
+fn trimming_a_long_run_of_trailing_stops_costs_time_linear_in_its_length() {
+    // Many candidate tokens share one run that ends in a long row of full
+    // stops. If each candidate walked back over the stops itself the work
+    // would grow with the square of the input (about 12 s per megabyte). The
+    // check is the growth, not a clock reading: a ten-times larger input may
+    // cost about ten times more (linear); it must not cost a hundred times
+    // (quadratic). The ratio allowed is 40, far above noise.
+    let make = |n: usize| format!("{}{}", "sk-".repeat(n / 6), ".".repeat(n / 2));
+    let small = make(50_000);
+    let big = make(500_000);
+    let small_time = best_of_three(&small);
+    // One run of the big input: the quadratic case would take minutes to repeat.
+    let big_time = {
+        let t = std::time::Instant::now();
+        let out = redact(&big);
+        let took = t.elapsed();
+        drop(out);
+        took
+    };
+    let floor = std::time::Duration::from_millis(5);
+    assert!(
+        big_time.as_secs_f64() < 40.0 * small_time.max(floor).as_secs_f64(),
+        "10x the input cost {:?} against {:?}: more than linear",
+        big_time,
+        small_time
+    );
+    // The stops stay, the key before them goes.
+    let out = redact(&big);
+    assert!(
+        out.starts_with(MARK) && out.ends_with(&".".repeat(10)),
+        "output changed shape"
     );
 }
