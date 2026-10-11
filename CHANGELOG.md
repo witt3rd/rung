@@ -33,8 +33,9 @@ git tags only.
 - `rung-std`: the agent loop no longer cuts a tool result (it was cut at 8,192
   bytes with a `[truncated N chars]` marker). `DEFAULT_TOOL_OUTPUT_LIMIT`,
   `cap_output` and `LoopState::tool_output_limit` are removed; the model sees
-  each result whole. The reactive elision on a provider context overflow stays,
-  but never elides a result the model has not yet seen (`LoopState::fresh_from`
+  each result whole. The reactive elision on a provider context overflow stays
+  and now repeats within a turn (no per-turn limit; each pass strictly shrinks
+  the older results, so it is bounded), but never elides a result the model has not yet seen (`LoopState::fresh_from`
   marks the messages this iteration appended): when nothing older is left to
   elide the turn ends with an overflow error saying so.
 - `rung-agent-core`: the public constants `MAX_RECORDS` (5) and `MAX_CHARS`

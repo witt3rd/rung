@@ -30,9 +30,11 @@
 //!   answers a provider context overflow: the same call again, with the
 //!   oldest tool results elided ([`elide_oldest_tool_results`]). The macro
 //!   wraps it in `must_progress`, so a retry that did not shrink the thread
-//!   panics instead of resending the request. `step` offers it once per turn
-//!   ([`LoopState::elided`]) and only when there is something to elide;
-//!   otherwise the overflow is `ContentFiltered` with
+//!   panics instead of resending the request. `step` offers it whenever the
+//!   provider overflows and there is something older to elide, so it repeats
+//!   within a turn; each time it strictly shrinks the finite set of
+//!   candidate results ([`LoopState::elided`] counts them), so the work is
+//!   bounded and there is no retry without progress. Otherwise the overflow is `ContentFiltered` with
 //!   [`FailureKind::Overflow`]. Tool results are never cut on the way in;
 //!   results the model has not yet seen ([`LoopState::fresh_from`]) are never
 //!   elided, so when nothing older is left to elide the turn ends with an
@@ -116,8 +118,7 @@ pub struct LoopState {
     /// each image is then an explicit note in the result text.
     pub tool_images: bool,
     /// Tool results [`elide`](agentloop::elide) replaced after a context
-    /// overflow this turn. Nonzero means the turn's one elision is spent: a
-    /// second overflow ends the turn.
+    /// overflow this turn, summed over every elision of the turn.
     pub elided: usize,
     /// Index of the first message this loop iteration appended: the fresh
     /// tool results and any corrective text the model has not yet seen.
@@ -961,15 +962,21 @@ ladder!(AgentLoop {
                     };
                     let mut filtered = map_llm_failure(failure, thread.messages.clone());
                     if filtered.kind == FailureKind::Overflow {
-                        // One elision per turn, and only when it shrinks the
-                        // thread (the guard on `elide` holds us to that).
-                        if state.elided == 0 && elide_oldest_tool_results(&thread, state.fresh_from).is_some() {
+                        // The only limit here is physical: the provider's own
+                        // context window, known only from its overflow reply (an
+                        // HTTP 400 context-length error, mapped by `map_llm_failure`);
+                        // rung holds no window figure of its own.
+                        // Elide again whenever that shrinks the thread (the guard
+                        // on `elide` holds us to that): an elided result is no
+                        // longer a candidate, so this stops once nothing older
+                        // is left.
+                        if elide_oldest_tool_results(&thread, state.fresh_from).is_some() {
                             crate::events::emit("rung-std", "llm.overflow", &format!(
-                                "[rung-std] {call_id}: context overflow — eliding the oldest tool results, retrying once"
+                                "[rung-std] {call_id}: context overflow — eliding the oldest tool results and retrying"
                             ));
                             return Ok(StepOutcome::Overflowed(Overflowed::new(calling)));
                         }
-                        if state.elided == 0 && has_fresh_result(&thread, state.fresh_from) {
+                        if has_fresh_result(&thread, state.fresh_from) {
                             filtered.reason = format!(
                                 "{}; the overflow follows a tool result the model has not yet seen",
                                 filtered.reason
@@ -1317,14 +1324,14 @@ ladder!(AgentLoop {
     },
 
     // Overflowed → Calling: the same call again on a thread with its oldest
-    // tool results elided. The carry records the elision, which spends the
-    // turn's one retry. The macro wraps this body in `must_progress` (G8).
+    // tool results elided. The carry adds the elision to the turn's count; each
+    // one strictly shrinks the candidates, so repeats are bounded. The macro wraps this body in `must_progress` (G8).
     elide = |overflowed| {
         let calling = overflowed.into_source();
         let mut carry = calling.carry().clone();
         let (thread, n) = elide_oldest_tool_results(&calling.payload, calling.carry().state.fresh_from)
             .unwrap_or_else(|| (calling.payload.clone(), 0));
-        carry.state.elided = n;
+        carry.state.elided += n;
         Calling::new(thread, carry)
     },
 });
@@ -3017,6 +3024,138 @@ mod tests {
         let out = run(thread, carry);
         handle.join().unwrap();
         (out, bodies.try_iter().collect())
+    }
+
+    /// A provider with a byte window serving a 20-iteration tool loop whose
+    /// every result is large. Overflow is a 400 whenever a request body is
+    /// over `window`; the model asks for the tool `calls` times, then answers.
+    /// Returns the outcome and how many requests were refused.
+    fn windowed_loop(
+        window: usize,
+        calls: usize,
+        result_len: usize,
+    ) -> (Result<AgentResult, Filtered>, usize) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        // The server ends when the turn does (`stop`), not when it has seen
+        // a final answer: a turn that ends in an error never asks again.
+        listener.set_nonblocking(true).unwrap();
+        let stop = Arc::new(AtomicBool::new(false));
+        let stop_server = stop.clone();
+        let handle = std::thread::spawn(move || {
+            let (mut accepted, mut refused) = (0usize, 0usize);
+            let deadline = std::time::Instant::now() + Duration::from_secs(60);
+            loop {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "windowed_loop: no end in 60 s"
+                );
+                let mut socket = match listener.accept() {
+                    Ok((socket, _)) => socket,
+                    Err(_) if stop_server.load(Ordering::SeqCst) => return refused,
+                    Err(_) => {
+                        std::thread::sleep(Duration::from_millis(5));
+                        continue;
+                    }
+                };
+                socket.set_nonblocking(false).unwrap();
+                socket
+                    .set_read_timeout(Some(Duration::from_secs(10)))
+                    .unwrap();
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 65536];
+                let body = loop {
+                    let n = socket.read(&mut chunk).unwrap();
+                    buf.extend_from_slice(&chunk[..n]);
+                    let text = String::from_utf8_lossy(&buf).to_string();
+                    if let Some(at) = text.find("\r\n\r\n") {
+                        let len = text[..at]
+                            .lines()
+                            .find_map(|l| {
+                                l.to_ascii_lowercase()
+                                    .strip_prefix("content-length:")
+                                    .map(|v| v.trim().parse::<usize>().unwrap())
+                            })
+                            .unwrap_or(0);
+                        if buf.len() >= at + 4 + len {
+                            break text[at + 4..].to_string();
+                        }
+                    }
+                    assert!(n > 0, "short request");
+                };
+                let (status, reply) = if body.len() > window {
+                    refused += 1;
+                    overflow_reply()
+                } else if accepted < calls {
+                    accepted += 1;
+                    (
+                        200,
+                        format!(
+                            r#"{{"id": "c", "model": "m", "choices": [{{"message": {{"tool_calls": [{{"id": "call_{accepted}", "function": {{"name": "big_tool", "arguments": "{{\"n\": {accepted}}}"}}}}]}}, "finish_reason": "tool_calls"}}]}}"#
+                        ),
+                    )
+                } else {
+                    answer_reply()
+                };
+                let resp = format!(
+                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}",
+                    reply.len()
+                );
+                let _ = socket.write_all(resp.as_bytes());
+            }
+        });
+        let mut config = dummy_llm();
+        config.base_url = format!("http://127.0.0.1:{port}");
+        let mut c = ToolCollection::new("test");
+        c.admit(BigTool("r".repeat(result_len)));
+        let mut roster = ToolRoster::new();
+        roster.add(c);
+        let carry = agentloop::Carry {
+            state: LoopState::new(40, 40),
+            tools: Arc::new(roster),
+            config,
+            python: None,
+        };
+        let thread = Thread {
+            system_prompt: String::new(),
+            messages: vec![ChatMessage::user("loop")],
+        };
+        let out = run(thread, carry);
+        stop.store(true, Ordering::SeqCst);
+        let refused = handle.join().unwrap();
+        (out, refused)
+    }
+
+    /// Results are uncapped, so a long loop of large results outgrows the
+    /// window more than once. Each overflow elides the oldest older results
+    /// again; the turn finishes. (One elision per turn ended it at iteration
+    /// 12 of 20.)
+    #[test]
+    fn a_long_loop_of_large_results_survives_repeated_overflow() {
+        let (out, refused) = windowed_loop(250_000, 20, 40_000);
+        let r = out.expect("the turn finishes");
+        assert_eq!(r.final_response, "answer");
+        assert!(
+            refused >= 2,
+            "the window was exceeded repeatedly: {refused}"
+        );
+        assert!(r.elided > 3, "{}", r.elided);
+    }
+
+    /// Fresh results over the window end the turn typed, however many
+    /// elisions came before: bounded work, no retry without progress.
+    #[test]
+    fn a_fresh_result_over_the_window_still_ends_the_turn_typed() {
+        let (out, _) = windowed_loop(100_000, 20, 120_000);
+        let f = out.expect_err("over the window");
+        assert_eq!(f.kind, FailureKind::Overflow);
+        assert!(
+            f.reason
+                .contains("a tool result the model has not yet seen"),
+            "{}",
+            f.reason
+        );
     }
 
     #[test]
