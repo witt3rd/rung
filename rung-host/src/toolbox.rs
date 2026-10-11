@@ -817,8 +817,6 @@ mod tests {
         assert_eq!(out, Err("web_read is not wired in this build".to_string()));
     }
 
-    /// #159: a long call no longer holds an owner who arrives during it for
-    /// the whole 30 s tool deadline; it is cut once the owner waits.
     /// A server that sends its headers and then the page after `delay`
     /// (or never finishes it when `endless`).
     fn serve_slow(delay: std::time::Duration, endless: bool) -> String {
@@ -899,6 +897,8 @@ mod tests {
         assert!(out.unwrap().ends_with("# Local"));
     }
 
+    /// #159: a long call no longer holds an owner who arrives during it for
+    /// the whole 30 s tool deadline; it is cut once the owner waits.
     #[test]
     fn a_long_call_is_cut_when_the_owner_waits() {
         let (out, took) = slow_fetch(Some(5 * SECOND));

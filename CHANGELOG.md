@@ -35,7 +35,8 @@ git tags only.
   hosts. The string-match refusal (it missed `127.1`, decimal and hex
   addresses, `::ffff:` forms, and redirects) is removed; only non-http(s)
   schemes are refused. The tool fetches any address it is given and is not a
-  security boundary.
+  security boundary; the other agents using the shared tool (kernel tools, the
+  `web` group) get the same behaviour.
 
 ### Changed
 - `rung-host`: the rule-only decision desk now enables `workspace_write` in
