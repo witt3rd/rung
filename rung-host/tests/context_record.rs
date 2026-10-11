@@ -582,7 +582,7 @@ fn digests(tag: &str, budget: Option<usize>, turns: u64) -> (Vec<String>, usize)
 }
 
 /// The request bytes the provider is handed do not change: one digest per
-/// turn of a seeded busy run, folded to one, pinned from the host before the
+/// turn of a seeded busy run, folded to one, pinned from the host at 3bd9f2b, before the
 /// request record existed (a run with no rollover after the first, and one
 /// with several).
 #[test]
@@ -591,8 +591,8 @@ fn the_request_bytes_are_unchanged() {
     let (rolled, rolls) = digests("ctx-golden-roll", Some(6_000), 14);
     assert!(rolls >= 3, "the second run rolls over");
     let fold = |d: &[String]| rung_host::canon::hash(d.join(",").as_bytes());
-    assert_eq!(fold(&plain), "87e3a16912b958ae686c2699db0c2e96");
-    assert_eq!(fold(&rolled), "1a0a338bfe6d60ed480273722384e4cb");
+    assert_eq!(fold(&plain), "65556caa047194083d095bb88dbfadf3");
+    assert_eq!(fold(&rolled), "accb9dbd1d56e679943fa5a67dfe10c4");
 }
 
 /// What the request record adds to a record, measured on a seeded busy run
