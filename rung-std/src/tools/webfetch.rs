@@ -70,23 +70,44 @@ fn fetch_with(url: &str, limit: std::time::Duration) -> Result<String, String> {
     // Header: the URL actually reached (after redirects) and the status.
     let mut out = format!("url: {} | status: {status}\n\n", resp.url());
     // Stream: each chunk is decoded and appended straight to `out`; the
-    // body is never held a second time.
+    // body is never held a second time. A reader thread feeds the chunks
+    // so the whole-body deadline is enforced exactly, even while a single
+    // read is blocked (a bare read can wait out its own timeout).
     let mut sink = Sink::new(html);
-    let mut resp = resp;
-    let mut buf = vec![0u8; 64 * 1024];
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<u8>, String>>(4);
+    std::thread::spawn(move || {
+        let mut resp = resp;
+        loop {
+            let mut buf = vec![0u8; 64 * 1024];
+            match resp.read(&mut buf) {
+                Ok(0) => return, // dropping `tx` signals end of body
+                Ok(n) => {
+                    buf.truncate(n);
+                    if tx.send(Ok(buf)).is_err() {
+                        return; // deadline passed; the fetch is over
+                    }
+                }
+                Err(e) => {
+                    let _ = tx.send(Err(format!("webfetch: {e}")));
+                    return;
+                }
+            }
+        }
+    });
     let mut carry: Vec<u8> = Vec::new();
     loop {
-        let n = resp.read(&mut buf).map_err(|e| format!("webfetch: {e}"))?;
-        if n == 0 {
-            break;
-        }
-        if std::time::Instant::now() > deadline {
-            return Err(format!(
-                "webfetch: body not complete within {}s",
-                limit.as_secs_f64().ceil() as u64
-            ));
-        }
-        carry.extend_from_slice(&buf[..n]);
+        let left = deadline.saturating_duration_since(std::time::Instant::now());
+        let chunk = match rx.recv_timeout(left) {
+            Ok(r) => r?,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                return Err(format!(
+                    "webfetch: body not complete within {}s",
+                    limit.as_secs_f64().ceil() as u64
+                ));
+            }
+        };
+        carry.extend_from_slice(&chunk);
         let used = decode_lossy(&carry, false, |t| sink.feed(t, &mut out));
         carry.drain(..used);
     }
@@ -358,8 +379,16 @@ impl Md {
         }
         if closing {
             self.close(&name, out);
+        } else if self_closing && name == "pre" {
+            // an empty preformatted block: nothing to fence, and no
+            // closing tag will come to leave pre mode
         } else {
             self.open(&name, tag, out);
+            if self_closing {
+                // `<x/>` opens and closes at once, so no state (link,
+                // list, emphasis) outlives the tag
+                self.close(&name, out);
+            }
         }
     }
 
@@ -908,5 +937,25 @@ A | B\n1 | 2\n\n\
         let err = fetch_with(&url, Duration::from_millis(600)).unwrap_err();
         assert!(err.contains("body not complete within"), "{err}");
         assert!(t0.elapsed() < Duration::from_secs(3), "{:?}", t0.elapsed());
+    }
+
+    #[test]
+    fn self_closed_pre_does_not_swallow_the_page() {
+        assert_eq!(md("<pre/><p>a  b</p><p>c</p>"), "a b\n\nc");
+        assert_eq!(md("<pre />x   y"), "x y");
+        assert_eq!(md("<a href=\"/u\"/>t"), "[](/u)t"); // closed at once: no link state leaks
+    }
+
+    #[test]
+    fn one_slow_read_cannot_overrun_the_deadline() {
+        use std::time::Duration;
+        // One byte every 1.5 s, each read well inside the 2 s per-read
+        // timeout; a check only between reads would end at ~3 s.
+        let url = serve_endless(1, Duration::from_millis(1500), Duration::from_secs(8));
+        let t0 = std::time::Instant::now();
+        let err = fetch_with(&url, Duration::from_secs(2)).unwrap_err();
+        assert!(err.contains("body not complete within"), "{err}");
+        let el = t0.elapsed();
+        assert!(el < Duration::from_millis(2500), "overran: {el:?}");
     }
 }
