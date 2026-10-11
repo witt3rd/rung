@@ -7,15 +7,22 @@ import { summarize } from "../src/record/folds.ts";
 import { synthetic } from "../src/synthetic.ts";
 import { makeRedactor } from "../src/record/redact.ts";
 
-/** A reader whose unsent output passes this is dropped (contract: "a slow reader is dropped"). */
-export const HIGH_WATER = 1024 * 1024;
+/** A reader's partial frames wait in a buffer this big; past it the reader is told how many it missed (H5, flow control). */
+const PARTIAL_BUFFER = 4096;
 
 interface Sub {
   res: ServerResponse;
-  /** While the replay runs, live frames wait here so the order is replay, caught_up, live. */
-  held: string[] | null;
+  partials: boolean;
+  records: boolean;
+  /** The next line this reader has not been sent. Record frames are pulled: a reader that does not read stays where it is. */
+  next: number;
+  queue: string[];
+  skipped: number;
+  wake: (() => void) | null;
+  closed: boolean;
 }
 
+/** One server-sent event: only a record frame has an id. */
 export const frame = (event: string, data: unknown, id?: number): string =>
   `${id !== undefined ? `id: ${id}\n` : ""}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
@@ -42,8 +49,6 @@ export class SimHost {
   redactDoors = true;
   private scrub = makeRedactor([]);
   out<T>(v: T): T { return this.redactDoors ? (this.scrub(v) as T) : v; }
-  /** How many readers were dropped for being slow; the tests read it. */
-  dropped = 0;
 
   constructor(seed: string | false = "atlas") {
     if (seed) {
@@ -62,52 +67,58 @@ export class SimHost {
   append(kind: string, fields: Record<string, unknown> = {}): Line {
     const line: Line = { at: Date.now(), kind, seq: this.lines.length + 1, ...fields };
     this.lines.push(line);
-    this.broadcast(frame("record", this.out(line), line.seq));
+    this.wakeAll();
     return line;
   }
 
-  /** A short-lived delta: sent to whoever is following now, never numbered, never kept. */
-  delta(d: Record<string, unknown>) { this.broadcast(frame("delta", this.out(d))); }
-
-  private broadcast(f: string) {
+  /** A partial frame: given to whoever is connected now, never numbered, never kept. */
+  delta(d: Record<string, unknown>) {
+    const f = frame("delta", this.out(d));
     for (const s of this.subs) {
-      if (s.held) { s.held.push(f); continue; }
-      this.write(s, f);
+      if (!s.partials) continue;
+      if (s.queue.length >= PARTIAL_BUFFER) { s.skipped++; continue; }
+      s.queue.push(f);
+      s.wake?.();
     }
   }
 
-  private write(s: Sub, f: string) {
-    if (s.res.destroyed) { this.subs.delete(s); return; }
-    s.res.write(f);
-    if (s.res.writableLength > HIGH_WATER) { this.drop(s); }
-  }
+  private wakeAll() { for (const s of this.subs) s.wake?.(); }
 
-  private drop(s: Sub) {
-    this.subs.delete(s);
-    this.dropped++;
-    s.res.destroy();
-  }
-
-  /** Follow the record from `after`: replay, then `caught_up`, then live lines and deltas. */
-  async follow(res: ServerResponse, after: number) {
-    res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", "x-accel-buffering": "no" });
-    const sub: Sub = { res, held: [] };
+  /** Follow the record from `after` (H5): an `open` frame, every line after the cursor once and in order, partial frames while
+   *  connected, and an `end` frame when the host stops. Lines are pulled as the reader takes them. */
+  async follow(res: ServerResponse, after: number, mode: "on" | "off" | "only" = "on") {
+    res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", "x-accel-buffering": "no" });
+    const sub: Sub = { res, partials: mode !== "off" && !this.stopped, records: mode !== "only", next: after, queue: [], skipped: 0, wake: null, closed: false };
     this.subs.add(sub);
-    const upTo = this.lines.length;
     const ka = setInterval(() => { if (!res.destroyed) res.write(": keepalive\n\n"); }, this.keepaliveMs);
-    res.on("close", () => { clearInterval(ka); this.subs.delete(sub); });
-    for (let i = after; i < upTo; i++) {
+    const done = () => { sub.closed = true; clearInterval(ka); this.subs.delete(sub); sub.wake?.(); };
+    res.on("close", done);
+    const send = async (f: string) => {
       if (res.destroyed) return;
-      const l = this.lines[i];
-      const ok = res.write(frame("record", this.out(l), l.seq));
-      if (res.writableLength > HIGH_WATER) { this.drop(sub); return; }
-      if (!ok) await new Promise<void>((r) => { res.once("drain", r); res.once("close", r); });
+      if (!res.write(f)) await new Promise<void>((r) => { res.once("drain", r); res.once("close", r); });
+    };
+    await send(frame("open", { contract: 1, after, live: !this.stopped, partials: sub.partials, redaction: { env_unset: [] } }));
+    while (!sub.closed) {
+      let moved = false;
+      if (sub.skipped) { const n = sub.skipped; sub.skipped = 0; await send(frame("delta", { turn: 0, call: 0, kind: "behind", skipped: n })); moved = true; }
+      while (sub.queue.length && !sub.closed) { await send(sub.queue.shift()!); moved = true; }
+      while (sub.records && sub.next < this.lines.length && !sub.closed) {
+        const l = this.lines[sub.next++];
+        await send(frame("record", this.out(l), l.seq));
+        moved = true;
+      }
+      if (sub.closed) break;
+      // A reader that is sent no record frames (partials=only) has nothing to replay: it is through once the host has stopped.
+      if (this.stopped && (!sub.records || sub.next >= this.lines.length) && !sub.queue.length) {
+        const last = this.lines.at(-1);
+        await send(frame("end", { reason: last?.kind === "halted" ? "stopped" : "down", last_seq: this.lines.length, problem: null }));
+        res.end();
+        break;
+      }
+      if (!moved) await new Promise<void>((r) => { sub.wake = r; });
+      sub.wake = null;
     }
-    if (res.destroyed) return;
-    res.write(frame("caught_up", { last_seq: upTo }));
-    const held = sub.held!;
-    sub.held = null;
-    for (const f of held) this.write(sub, f); // lines written during the replay, after the snapshot
+    done();
   }
 
   summary() {
@@ -121,10 +132,9 @@ export class SimHost {
 
   // -- writing -------------------------------------------------------------------------------------------------
 
-  /** `n` quick lines, with a delta before each: what the tests poke the host with. */
+  /** `n` quick lines: what the tests poke the host with. */
   async poke(n: number) {
     for (let i = 0; i < n; i++) {
-      this.delta({ turn: this.turn + 1, kind: "text", text: `thinking ${i + 1}… ` });
       this.append("note.written", { turn: this.turn + 1, text: `a note, number ${i + 1}` });
       await sleep(2);
     }
@@ -166,19 +176,31 @@ export class SimHost {
     // The model writes a little, runs a tool, writes the rest.
     const words = text.split(" ");
     const half = Math.floor(words.length / 2);
-    const say = async (ws: string[]) => {
-      for (let i = 0; i < ws.length; i += 4) { this.delta({ turn: n, kind: "text", text: ws.slice(i, i + 4).join(" ") + " " }); if (pace) await sleep(pace); }
+    const f = (call: number, rest: Record<string, unknown>) => ({ turn: n, call, ...rest });
+    // The model's answer text is a block: it begins, arrives in pieces, ends. A tool call is a block too (its arguments arrive in pieces).
+    const say = async (call: number, ws: string[]) => {
+      this.delta(f(call, { kind: "block_start", id: null }));
+      for (let i = 0; i < ws.length; i += 4) { this.delta(f(call, { kind: "text", text: ws.slice(i, i + 4).join(" ") + " " })); if (pace) await sleep(pace); }
+      this.delta(f(call, { kind: "block_end", id: null }));
     };
-    await say(words.slice(0, half));
+    await say(0, words.slice(0, half));
     for (let i = 0; i < tools.length; i++) {
-      this.delta({ turn: n, kind: "tool", name: tools[i], phase: "start" });
+      const id = `t${n}_${i}`;
+      const input = { path: `notes/${tools[i]}.md` };
+      this.delta(f(0, { kind: "tool_call", id, name: tools[i] }));
+      const args = JSON.stringify(input);
+      this.delta(f(0, { kind: "tool_input", id, delta: args.slice(0, 8) }));
+      this.delta(f(0, { kind: "tool_input", id, delta: args.slice(8) }));
+      this.delta(f(0, { kind: "block_end", id }));
+      this.delta(f(0, { kind: "tool_run", name: tools[i], input }));
       if (pace) await sleep(pace * 3);
-      this.delta({ turn: n, kind: "tool", name: tools[i], phase: "end" });
+      this.delta(f(0, { kind: "tool_done", name: tools[i], ok: true, output: "done" }));
       this.append("tool.call", { turn: n, name: tools[i], group: "read", ok: true });
-      messages.push({ role: "assistant", content: [{ type: "tool_use", id: `t${n}_${i}`, name: tools[i], input: { path: `notes/${tools[i]}.md` } }] });
-      messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: `t${n}_${i}`, content: "done", is_error: false }] });
+      messages.push({ role: "assistant", content: [{ type: "tool_use", id, name: tools[i], input }] });
+      messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: id, content: "done", is_error: false }] });
     }
-    await say(words.slice(half));
+    await say(1, words.slice(half));
+    this.delta(f(1, { kind: "turn_end" }));
     if (kind === "committed") this.append("kernel.progress", { turn: n, project: "p1", next_step: "Write the next index entry" });
     messages.push({ role: "assistant", content: text });
     this.append("llm.call", { turn: n, call: 1, epoch: 1, rung: 0, model_requested: "model-a", model_served: "model-a", provider: "router.example", prompt_tokens: 22000, cached_tokens: 20500, cache_write_tokens: 0, completion_tokens: 300, cost_usd: 0, latency_ms: Date.now() - started });
@@ -198,5 +220,8 @@ export class SimHost {
   /** Close every reader, as a restart or a dropped link would. They resume from their last number. */
   cutAll() { for (const s of [...this.subs]) s.res.destroy(); this.subs.clear(); }
 
-  stop() { this.stopped = true; for (const s of [...this.subs]) s.res.end(); }
+  /** The host stops itself: a halted line, then every stream ends with an `end` frame (the lock is released). */
+  async halt() { this.append("halted", { why: { by: "limit", why: "stopped" } }); this.stopped = true; this.wakeAll(); await sleep(50); }
+
+  stop() { this.stopped = true; this.wakeAll(); for (const s of [...this.subs]) s.res.destroy(); }
 }

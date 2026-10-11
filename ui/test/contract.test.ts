@@ -1,4 +1,4 @@
-// The contract tests for the live view's doors (ui/contract/README.md). Written before the mock they first ran against.
+// The contract tests for the live view's doors (docs/rung-host-api.md: H3 reads, H5 events; ui/contract/README.md). Written before the mock they first ran against.
 // The same file runs against a real gateway: RUNG_CONTRACT_URL=http://… RUNG_CONTRACT_INSTANCE=id npm run test:contract
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -7,19 +7,8 @@ import { startTarget, type Target } from "./contract-target.ts";
 import { SseParser, type SseEvent } from "../src/live/sse.ts";
 
 let t: Target;
-/** Does this gateway have the events door yet (H5)? The checks that follow a stream are skipped, by name, where it does not. */
-let events = true;
-const NO_EVENTS = "the events door (H5) is not on this gateway";
 const seen: string[] = []; // every body and header block the target answered, for the leak check
-before(async () => {
-  t = await startTarget();
-  const last = ((await (await fetch(`${t.url}/api/i/${t.instance}/v1/summary`)).json()) as { last_seq: number }).last_seq;
-  const ac = new AbortController();
-  const r = await fetch(`${t.url}/api/i/${t.instance}/v1/events?after=${last}`, { headers: { accept: "text/event-stream" }, signal: ac.signal });
-  events = r.status !== 404;
-  ac.abort();
-  await r.body?.cancel().catch(() => {});
-});
+before(async () => { t = await startTarget(); });
 after(async () => { await t?.stop(); });
 
 const api = (path: string) => `${t.url}/api/i/${t.instance}${path}`;
@@ -109,59 +98,74 @@ test("record: paging with exact totals, no gaps, either order, no cap on limit",
   }
 });
 
-test("events: replay after N is exactly the record's lines after N, in order, then caught_up", async (ctx) => {
-  if (!events) return ctx.skip(NO_EVENTS);
-  const total = (await summary()).last_seq;
+const lastSeq = async () => (await summary()).last_seq as number;
+const records = (evs: SseEvent[]) => evs.filter((e) => e.event === "record");
+
+test("events: an open frame first, then every line after N once and in order, equal to the record", async () => {
+  const total = await lastSeq();
   const after_ = Math.max(0, total - 5);
   const got: SseEvent[] = [];
   const s = stream(`/v1/events?after=${after_}`, (e) => got.push(e));
-  await until(() => got.some((e) => e.event === "caught_up"), 5000, "caught_up");
+  await until(() => records(got).length >= total - after_, 5000, "the replay");
   s.abort(); await s.done;
-  const upTo = got.findIndex((e) => e.event === "caught_up");
-  const replay = got.slice(0, upTo).filter((e) => e.event === "record");
-  assert.equal(got.slice(0, upTo).every((e) => e.event === "record"), true, "only record lines before caught_up");
+  assert.equal(got[0].event, "open", "the first frame is open");
+  assert.equal(got[0].id, undefined);
+  const open = JSON.parse(got[0].data);
+  assert.equal(open.contract, 1);
+  assert.equal(open.after, after_);
+  assert.equal(typeof open.live, "boolean");
+  assert.equal(typeof open.partials, "boolean");
+  assert.ok(Array.isArray(open.redaction.env_unset));
   const want = (await record(`?offset=${after_}&limit=100000000`)).lines;
-  assert.ok(replay.length >= total - after_);
-  replay.forEach((e, i) => {
-    assert.equal(e.id, String(after_ + 1 + i), "the event id is the line's number, with no gap");
+  const recs = records(got);
+  recs.slice(0, total - after_).forEach((e, i) => {
+    assert.equal(e.id, String(after_ + 1 + i), "the id is the line's number, with no gap");
     assert.deepEqual(JSON.parse(e.data), want[i]);
   });
-  assert.ok(JSON.parse(got[upTo].data).last_seq >= total);
 });
 
-test("Last-Event-ID resumes the same as ?after, and the header wins", async (ctx) => {
-  if (!events) return ctx.skip(NO_EVENTS);
-  const total = (await summary()).last_seq;
+test("Last-Event-ID is the cursor and beats ?after; partials=off carries no partial frame", async () => {
+  const total = await lastSeq();
   const ids = async (path: string, headers: Record<string, string> = {}) => {
     const got: SseEvent[] = [];
     const s = stream(path, (e) => got.push(e), headers);
-    await until(() => got.some((e) => e.event === "caught_up"), 5000, "caught_up");
+    await until(() => records(got).length >= 3, 5000, "three lines");
     s.abort(); await s.done;
-    return got.filter((e) => e.event === "record").map((e) => e.id);
+    return records(got).slice(0, 3).map((e) => e.id);
   };
   const a = await ids(`/v1/events?after=${total - 3}`);
   const b = await ids("/v1/events", { "last-event-id": String(total - 3) });
   const c = await ids(`/v1/events?after=${total - 1}`, { "last-event-id": String(total - 3) });
+  const d = await ids(`/v1/events?after=${total - 3}&partials=off`);
   assert.deepEqual(b, a);
   assert.deepEqual(c, a, "the header wins when both are given");
+  assert.deepEqual(d, a);
+  const off: SseEvent[] = [];
+  const s = stream(`/v1/events?after=${total - 3}&partials=off`, (e) => off.push(e));
+  await until(() => off.some((e) => e.event === "open"), 5000, "open");
+  s.abort(); await s.done;
+  assert.equal(JSON.parse(off[0].data).partials, false, "open says no partial frames will come");
 });
 
-test("events: an after beyond the record is 400", async (ctx) => {
-  if (!events) return ctx.skip(NO_EVENTS);
-  const total = (await summary()).last_seq;
-  const r = await get(api(`/v1/events?after=${total + 1000000}`), { headers: { accept: "text/event-stream" } });
-  assert.equal(r.status, 400);
-  assert.equal(r.json().error, "bad_request");
+test("events: a cursor past the record is 409 cursor_ahead; a bad query is 400 bad_request", async () => {
+  const total = await lastSeq();
+  const ahead = await get(api(`/v1/events?after=${total + 1000000}`), { headers: { accept: "text/event-stream" } });
+  assert.equal(ahead.status, 409);
+  assert.equal(ahead.json().error, "cursor_ahead");
+  for (const bad of ["?after=abc", "?after=-1", "?partials=maybe", "?after=1&after=2", "?nothing=1"]) {
+    const r = await get(api(`/v1/events${bad}`), { headers: { accept: "text/event-stream" } });
+    assert.equal(r.status, 400, bad);
+    assert.equal(r.json().error, "bad_request", bad);
+  }
 });
 
 test("a line the host records reaches the stream within a second, in order", async (ctx) => {
-  if (!events) return ctx.skip(NO_EVENTS);
-  if (!(t.control)) return ctx.skip("no control hook on this target");
-  const total = (await summary()).last_seq;
+  if (!t.control) return ctx.skip("no control hook on this target");
+  const total = await lastSeq();
   const got: { seq: number; lag: number }[] = [];
   const s = stream(`/v1/events?after=${total}`, (e, at) => { if (e.event === "record") got.push({ seq: Number(e.id), lag: at - JSON.parse(e.data).at }); });
-  await sleep(100);
-  await t.control!.poke(8);
+  await sleep(150);
+  await t.control.poke(8);
   await until(() => got.length >= 8, 5000, "eight lines");
   s.abort(); await s.done;
   got.forEach((g, i) => assert.equal(g.seq, total + 1 + i));
@@ -170,17 +174,16 @@ test("a line the host records reaches the stream within a second, in order", asy
 });
 
 test("cut and resume: exactly once, in order, nothing missing", async (ctx) => {
-  if (!events) return ctx.skip(NO_EVENTS);
-  if (!(t.control)) return ctx.skip("no control hook on this target");
-  const total = (await summary()).last_seq;
+  if (!t.control) return ctx.skip("no control hook on this target");
+  const total = await lastSeq();
   const a: number[] = [];
   const s1 = stream(`/v1/events?after=${total}`, (e) => { if (e.event === "record") a.push(Number(e.id)); });
-  await sleep(100);
-  await t.control!.poke(4);
+  await sleep(150);
+  await t.control.poke(4);
   await until(() => a.length >= 4, 5000, "first four");
   s1.abort(); await s1.done; // the cut
   const last = a.at(-1)!;
-  await t.control!.poke(6); // written while nobody is listening
+  await t.control.poke(6); // written while nobody is listening
   const b: number[] = [];
   const s2 = stream("/v1/events", (e) => { if (e.event === "record") b.push(Number(e.id)); }, { "last-event-id": String(last) });
   await until(() => b.length >= 6, 5000, "the missed lines");
@@ -191,70 +194,61 @@ test("cut and resume: exactly once, in order, nothing missing", async (ctx) => {
   assert.deepEqual(all, rec.slice(0, all.length), "equal to the record, line by line");
 });
 
-test("deltas are short-lived: no id, seen live, never replayed", async (ctx) => {
-  if (!events) return ctx.skip(NO_EVENTS);
-  if (t.deltas === false) return ctx.skip("this target writes the record's files and runs no turn, so there is nothing partial to stream");
-  if (!(t.control)) return ctx.skip("no control hook on this target");
-  const total = (await summary()).last_seq;
+test("partial frames are short-lived: no id, seen live, never replayed, never in the record", async (ctx) => {
+  if (!t.control) return ctx.skip("no control hook on this target");
+  if (!t.deltas) return ctx.skip("this target runs no turn, so there is nothing partial to stream (a running host is needed)");
+  const total = await lastSeq();
   const live: SseEvent[] = [];
   const s1 = stream(`/v1/events?after=${total}`, (e) => live.push(e));
-  await sleep(100);
-  await t.control!.poke(3);
-  await until(() => live.filter((e) => e.event === "record").length >= 3, 5000, "lines");
+  await until(() => live.some((e) => e.event === "open"), 5000, "open");
+  assert.equal(JSON.parse(live[0].data).partials, true, "open says partial frames will come");
+  await t.control.turn();
+  await until(() => live.some((e) => e.event === "delta" && JSON.parse(e.data).kind === "turn_end"), 8000, "the turn's end");
   s1.abort(); await s1.done;
   const deltas = live.filter((e) => e.event === "delta");
-  assert.ok(deltas.length >= 1, "a delta was seen live");
-  assert.ok(deltas.every((d) => d.id === undefined), "a delta has no id");
-  const d = JSON.parse(deltas[0].data);
-  assert.equal(typeof d.turn, "number");
-  assert.ok(d.kind === "text" || d.kind === "tool");
+  assert.ok(deltas.every((d) => d.id === undefined), "a partial frame has no id");
+  const kinds = new Set(deltas.map((d) => JSON.parse(d.data).kind));
+  for (const k of ["text", "tool_call", "tool_run", "tool_done", "turn_end"]) assert.ok(kinds.has(k), `a ${k} frame was seen`);
+  for (const d of deltas) { const j = JSON.parse(d.data); assert.equal(typeof j.turn, "number"); assert.equal(typeof j.call, "number"); }
+  const text = deltas.map((d) => JSON.parse(d.data)).filter((j) => j.kind === "text").map((j) => j.text).join("");
+  const done = records(live).findLast((e) => JSON.parse(e.data).kind === "turn.ended");
+  assert.ok(done, "the turn's end is on the record too");
+  assert.ok(String(JSON.parse(done!.data).final_text).includes(text.trim().slice(0, 40)), "the finished text on the record is the text that streamed");
   const replay: SseEvent[] = [];
   const s2 = stream(`/v1/events?after=${total}`, (e) => replay.push(e));
-  await until(() => replay.some((e) => e.event === "caught_up"), 5000, "caught_up");
+  await until(() => records(replay).length >= records(live).length, 5000, "the replay");
   s2.abort(); await s2.done;
-  assert.equal(replay.some((e) => e.event === "delta"), false, "a replay carries no delta");
-  assert.equal((await record(`?offset=0&limit=100000000`)).lines.some((l: { kind: string }) => l.kind === "delta"), false, "a delta is never in the record");
+  assert.equal(replay.some((e) => e.event === "delta"), false, "a replay carries no partial frame");
+  assert.equal((await record("?offset=0&limit=100000000")).lines.some((l: { kind: string }) => l.kind === "delta"), false, "a partial frame is never in the record");
 });
 
-test("a slow reader is dropped, does not slow another reader, and loses nothing on resume", { timeout: 60000 }, async (ctx) => {
-  if (!events) return ctx.skip(NO_EVENTS);
-  if (!(t.control)) return ctx.skip("no control hook on this target");
-  const total = (await summary()).last_seq;
+test("a slow reader holds only its own place: others are not slowed, and it loses nothing", { timeout: 60000 }, async (ctx) => {
+  if (!t.control) return ctx.skip("no control hook on this target");
+  const total = await lastSeq();
   const u = new URL(t.url);
-  // A raw socket that asks for the stream and then never reads.
+  // A raw socket that asks for the stream and then does not read.
   const sock = connect({ host: u.hostname, port: Number(u.port) });
   sock.pause();
   await new Promise((r) => sock.once("connect", r));
-  sock.write(`GET /api/i/${t.instance}/v1/events?after=${total} HTTP/1.1\r\nHost: x\r\naccept: text/event-stream\r\n\r\n`);
-  await sleep(100);
-  // A fast reader beside it.
+  sock.write(`GET /api/i/${t.instance}/v1/events?after=${total} HTTP/1.1\r\nHost: 127.0.0.1\r\naccept: text/event-stream\r\n\r\n`);
+  await sleep(200);
   const fast: number[] = [];
   const s = stream(`/v1/events?after=${total}`, (e) => { if (e.event === "record") fast.push(Number(e.id)); });
-  await sleep(100);
-  const N = 300;
-  await t.control!.flood(N, 40_000); // 12 MB: far more than a socket buffers
-  await until(() => fast.length >= N, 20000, "the fast reader to get every line");
+  await sleep(150);
+  const N = 120;
+  await t.control.flood(N, 40_000); // about 5 MB: far more than a socket buffers
+  await until(() => fast.length >= N, 30000, "the fast reader to get every line");
   s.abort(); await s.done;
   assert.deepEqual(fast, Array.from({ length: N }, (_, i) => total + 1 + i), "the fast reader was not slowed or short-changed");
-  // Now read what the slow socket was given: the host must have closed it before the end.
+  // The slow reader reads at last: every line, once, in order. Nothing was dropped for it and nothing was skipped.
   const p = new SseParser();
   const dec = new TextDecoder();
   const slow: number[] = [];
-  let ended = false;
   sock.on("data", (b: Buffer) => { for (const e of p.push(dec.decode(b, { stream: true }))) if (e.event === "record") slow.push(Number(e.id)); });
-  sock.on("close", () => { ended = true; });
-  sock.on("end", () => { ended = true; });
   sock.resume();
-  await until(() => ended, 20000, "the host to have closed the slow connection");
-  assert.ok(slow.length < N, `the slow reader was dropped before the end (${slow.length} of ${N})`);
-  slow.forEach((q, i) => assert.equal(q, total + 1 + i, "what it did get was in order"));
-  // It resumes from the last number it applied and gets the rest, exactly once.
-  const last = slow.at(-1) ?? total;
-  const rest: number[] = [];
-  const s2 = stream("/v1/events", (e) => { if (e.event === "record") rest.push(Number(e.id)); }, { "last-event-id": String(last) });
-  await until(() => rest.length >= total + N - last, 20000, "the rest");
-  s2.abort(); await s2.done;
-  assert.deepEqual([...slow, ...rest].slice(0, N), Array.from({ length: N }, (_, i) => total + 1 + i));
+  await until(() => slow.length >= N, 30000, "the slow reader to catch up");
+  sock.destroy();
+  assert.deepEqual(slow.slice(0, N), Array.from({ length: N }, (_, i) => total + 1 + i), "every line once and in order");
 });
 
 test("the read-only token may read and may not write; a wrong token is 401", async (ctx) => {
@@ -267,27 +261,24 @@ test("the read-only token may read and may not write; a wrong token is 401", asy
   assert.equal((await get(api("/v1/summary"), { headers: { authorization: "Bearer not-a-token" } })).status, 401);
 });
 
-test("a key a tool prints is on no door and no stream line: the host redacts first", async (ctx) => {
+test("a key a tool prints is on no door and no frame: the host redacts first", async (ctx) => {
   if (!t.control) return ctx.skip("no control hook on this target");
   const KEY = "sk-or-v1-0123456789abcdef0123456789abcdef";
-  const total = (await summary()).last_seq;
+  const total = await lastSeq();
   const live: SseEvent[] = [];
-  const s = events ? stream(`/v1/events?after=${total}`, (e) => live.push(e)) : null;
-  await sleep(100);
+  const s = stream(`/v1/events?after=${total}`, (e) => live.push(e));
+  await sleep(150);
   await t.control.plant(KEY);
-  if (s) {
-    await until(() => live.some((e) => e.event === "record") && (t.deltas === false || live.some((e) => e.event === "delta")), 5000, "the planted line and piece");
-    s.abort(); await s.done;
-  }
-  // The doors, always: the line is on the record, and a key in it is on no answer.
+  await until(() => records(live).length >= 1, 5000, "the planted line");
+  await sleep(300);
+  s.abort(); await s.done;
   const doors = [await get(api("/v1/summary")), await get(`${t.url}/api/instances`), await get(api("/v1/record?offset=0&limit=100000000"))];
   assert.ok(doors[2].text.includes("printed "), "the planted line is on the record, so the check can fail");
   for (const d of doors) assert.equal(d.text.includes(KEY), false, "a key in an answer");
-  if (!events) return;
-  assert.equal(JSON.stringify(live).includes(KEY), false, "a key on the stream");
+  assert.equal(JSON.stringify(live).includes(KEY), false, "a key in a frame");
   const replay: SseEvent[] = [];
   const s2 = stream(`/v1/events?after=${Math.max(0, total - 2)}`, (e) => replay.push(e));
-  await until(() => replay.some((e) => e.event === "caught_up"), 5000, "caught_up");
+  await until(() => records(replay).length >= 3, 5000, "the replay");
   s2.abort(); await s2.done;
   assert.equal(JSON.stringify(replay).includes(KEY), false, "a key in a replay");
 });
@@ -298,6 +289,30 @@ test("only /v1 passes, and an unknown instance is 404", async () => {
   const n = await get(`${t.url}/api/i/no-such-instance/v1/summary`);
   assert.equal(n.status, 404);
   assert.equal(n.json().error, "no_such_instance");
+});
+
+test("a host that stops: the lines up to and including halted, then an end frame, then the body ends", async (ctx) => {
+  if (!t.control) return ctx.skip("no control hook on this target");
+  const total = await lastSeq();
+  const got: SseEvent[] = [];
+  const s = stream(`/v1/events?after=${total}`, (e) => got.push(e));
+  await until(() => got.some((e) => e.event === "open"), 5000, "open");
+  await t.control.halt();
+  await until(() => got.some((e) => e.event === "end"), 10000, "the end frame");
+  await s.done; // the body ends by itself
+  const recs = records(got);
+  assert.equal(JSON.parse(recs.at(-1)!.data).kind, "halted", "the last line sent is halted");
+  const end = JSON.parse(got.at(-1)!.data);
+  assert.equal(got.at(-1)!.event, "end", "end is the last frame");
+  assert.equal(end.reason, "stopped");
+  assert.equal(end.last_seq, Number(recs.at(-1)!.id));
+  // The stopped instance streams too: a new stream replays what it has and ends.
+  const again: SseEvent[] = [];
+  const s2 = stream(`/v1/events?after=${Math.max(0, total)}`, (e) => again.push(e));
+  await s2.done;
+  assert.equal(again.at(-1)!.event, "end");
+  assert.equal(JSON.parse(again.at(-1)!.data).reason, "stopped");
+  assert.equal((await summary()).state, "Stopped");
 });
 
 test("no key in any answer, stream line or header", (ctx) => {

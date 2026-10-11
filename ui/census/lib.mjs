@@ -8,6 +8,9 @@ export const here = resolve(new URL(".", import.meta.url).pathname);
 export const dist = process.env.RUNG_UI_DIST ?? join(here, "../dist");
 export const VIEWS = { w1920: { width: 1920, height: 1080, deviceScaleFactor: 1 }, w390: { width: 390, height: 844, deviceScaleFactor: 2 } };
 
+// The live and real-gateway proofs also look at a laptop and at a large display.
+export const VIEWS_LIVE = { w390: VIEWS.w390, w1280: { width: 1280, height: 800, deviceScaleFactor: 1 }, w1920: VIEWS.w1920, w2878: { width: 2878, height: 1600, deviceScaleFactor: 1 } };
+
 // Each page is a hash route. One recorded run and two synthetic instances stand for the states.
 export const PAGES = [
   { name: "instances", hash: "#/" },

@@ -5,6 +5,7 @@ import { foldDecisions, foldPack, foldSpend, foldTurns, summarize } from "../rec
 import { LiveStore, type LiveDelta, type LiveState } from "../live/store.ts";
 import type { Status } from "../live/client.ts";
 import { isLockHeld } from "../record/words.ts";
+import { stoppedByStream, withStreamEnd } from "../live/status.ts";
 import { StoreRegistry } from "../live/registry.ts";
 
 /** Is the app beside a gateway (live) or beside recorded files (static)? Asked once. */
@@ -25,7 +26,7 @@ export function useIndex() {
 const registry = new StoreRegistry((id) => new LiveStore(`api/i/${encodeURIComponent(id)}`));
 const acquire = (id: string) => registry.acquire(id);
 const release = (id: string) => registry.release(id);
-const idle: LiveState = { loaded: false, error: null, status: "connecting", lines: [], host: null };
+const idle: LiveState = { loaded: false, error: null, status: "connecting", lines: [], host: null, ended: null };
 const never = () => () => {};
 
 export interface LiveInfo { status: Status; delta: LiveDelta | null }
@@ -54,12 +55,15 @@ export function useInstance(id: string) {
   const folds = useMemo(() => {
     if (!lines || !entry) return null;
     const now = live ? Date.now() : index.data!.generatedAt;
-    const lockHeld = live ? (ls.host ? isLockHeld(ls.host.state) : entry.lockHeld) : entry.lockHeld;
+    // The stream's last frame says the host stopped: that is the newer word, and a summary read before it may still say Working.
+    const ended = live ? ls.ended : null;
+    const lockHeld = stoppedByStream(ended) ? false : live ? (ls.host ? isLockHeld(ls.host.state) : entry.lockHeld) : entry.lockHeld;
     const folded = summarize(lines, { lockHeld, now });
     // The host knows whether it holds its lock; its word for the state is the one shown.
-    const summary = live && ls.host ? { ...folded, state: ls.host.state as typeof folded.state, doing: ls.host.doing, needsYou: ls.host.needs_you } : folded;
+    const fromHost = live && ls.host ? { ...folded, state: ls.host.state as typeof folded.state, doing: ls.host.doing, needsYou: ls.host.needs_you } : folded;
+    const summary = withStreamEnd(fromHost, ended);
     return { lines, turns: foldTurns(lines, { live: lockHeld }), decisions: foldDecisions(lines), pack: foldPack(lines), spend: foldSpend(lines), summary, now, lockHeld };
-  }, [lines, entry, index.data, live, ls.host]);
+  }, [lines, entry, index.data, live, ls.host, ls.ended]);
 
   const liveInfo: LiveInfo | null = live ? { status: ls.status, delta } : null;
   return { entry, startCommand: (ls.host?.start_command ?? entry?.startCommand) || null, folds, indexLoaded: index.isSuccess, error: index.error ?? rec.error ?? (live && ls.error ? new Error(ls.error) : null), live: liveInfo };

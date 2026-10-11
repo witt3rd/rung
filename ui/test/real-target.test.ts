@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startReal } from "../mock/real.ts";
 
@@ -18,11 +19,14 @@ test("stopping the real-gateway target removes its scratch tree and ends the gat
 });
 
 test("a harness that cannot start the gateway leaves nothing behind", { skip: existsSync(BIN) ? false : "the gateway binary is not built" }, async () => {
-  const before = (await import("node:fs")).readdirSync(join(import.meta.dirname, "../.test-tmp")).filter((f) => f.startsWith("real-")).length;
-  // A registry the gateway refuses (a read-only token variable it cannot read is a start error): the gateway exits at once.
-  process.env.RUNG_GATEWAY_BIN = join(import.meta.dirname, "../package.json"); // not executable: spawn fails
-  await assert.rejects(startReal());
-  delete process.env.RUNG_GATEWAY_BIN;
-  const after = (await import("node:fs")).readdirSync(join(import.meta.dirname, "../.test-tmp")).filter((f) => f.startsWith("real-")).length;
-  assert.equal(after, before, "no scratch tree left by the failed start");
+  const mine = mkdtempSync(join(tmpdir(), "rung-ui-real-target-"));
+  try {
+    process.env.RUNG_GATEWAY_BIN = join(import.meta.dirname, "../package.json"); // not executable: the gateway cannot be launched
+    await assert.rejects(startReal({ scratch: mine }));
+    delete process.env.RUNG_GATEWAY_BIN;
+    assert.deepEqual(readdirSync(mine), [], "no scratch tree left by the failed start");
+  } finally {
+    delete process.env.RUNG_GATEWAY_BIN;
+    rmSync(mine, { recursive: true, force: true });
+  }
 });

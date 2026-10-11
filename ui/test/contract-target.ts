@@ -7,6 +7,12 @@ export interface Control {
   flood(n: number, bytes: number): Promise<void>;
   /** Make the host print `key` the way a tool would: into a record line, a streamed piece of text, and the line it says it is on. */
   plant(key: string): Promise<void>;
+  /** Run one whole turn: partial frames while it runs, its lines on the record. Only a target with `deltas`. */
+  turn(): Promise<void>;
+  /** Write one finished turn to the record (a target without a host to stream from). */
+  writeTurn?(text: string): Promise<void>;
+  /** The host stops itself: a halted line, the lock released. */
+  halt(): Promise<void>;
 }
 export interface Target {
   url: string;

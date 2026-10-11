@@ -1,6 +1,6 @@
 # slice 1 mutation sweep: one deliberate fault at a time put into src/live, src/data or the record check, run against the contract, events-client, live-redact, live-store, registry and wire tests.
 # 'caught' with a hung run: a test failed and the client it was driving kept looping, so the run had to be killed; that is a failure, not a pass.
-# 27 faults, 0 survived. (The first sweep found 4 that survived: the old client left running after a reset, a torn turn never cleared, a re-acquire not cancelling a release, a gap in the loaded record accepted; each now has a test.)
+# 41 faults, 0 survived. (The first sweep found 4 that survived: the old client left running after a reset, a torn turn never cleared, a re-acquire not cancelling a release, a gap in the loaded record accepted; each now has a test.)
 caught    client: a line at or below the last is applied again  <- (the run hung: a loop left running)
 caught    client: a skipped number is applied  <- (the run hung: a loop left running)
 caught    client: a 400 is not a reset  <- (the run hung: a loop left running)
@@ -28,3 +28,20 @@ caught    redact: Bearer inside a word is redacted  <- a bare Bearer needs a wor
 caught    redact: Bearer after an escape is missed  <- a word that starts after a JSON escape is a word: Bearer, and a key shape, after \t \n \r \b \f and \uXXXX
 caught    redact: a key after an escape is missed  <- a word that starts after a JSON escape is a word: Bearer, and a key shape, after \t \n \r \b \f and \uXXXX
 caught    redact: an unfinished prefix after an escape is not hidden  <- an unfinished key or Bearer after a JSON escape is hidden too
+# H5 (the page follows the real frames): eight more faults. The first run of these found three that survived (partial frames shown before the replay is applied, a behind frame ignored, answer text blocks run together): the tests for them passed because the turn happened to end, or because the text already held a blank line; each is tightened, and none survives now.
+caught    h5: partial frames shown before the replay is applied  <- until the replay is applied no partial frame is shown, and the turn running when the page joined is never shown streaming
+caught    h5: the turn running at join is shown streaming  <- after a cut the running turn's text is not shown | joining while a turn runs: that turn's pieces are not shown either
+caught    h5: a behind frame is ignored  <- a behind frame: this reader missed partial frames, so the rest of that turn's text is not shown
+caught    h5: a finished tool keeps showing  <- a turn with two model calls and a tool: the text is joined as blocks, the tool shows while it runs and is gone when done
+caught    h5: text blocks run together  <- answer text blocks are set apart by a blank line, exactly; one block alone is not
+caught    h5: a 409 is not a reset  <- (the run hung: a loop left running)
+caught    h5: after an end the host is asked again at once  <- (the run hung: a loop left running)
+caught    h5: an open frame is not passed on  <- (the run hung: a loop left running)# slice 1 mutation sweep: one deliberate fault at a time put into src/live, src/data or the record check, run against the contract, events-client, live-redact, live-store, registry and wire tests.
+# the one status mapping (review round): three more faults, each caught.
+caught    status: an ended stream says the turn is still running  <- an ended stream says Not running on both pages, and means not running, whatever a stale record says
+caught    status: a stale summary is left standing after the stream ended  <- a stale summary that still says Working is replaced by the stream's word once the host stopped, on every page that reads it
+caught    status: a damaged record counts as a stopped host  <- a stale summary that still says Working is replaced by the stream's word once the host stopped, on every page that reads it
+# the two inspector threads (review round 5): three more faults, each caught.
+caught    store: a reset leaves the old stream's cursor  <- a reset supersedes the summary poll of the stream it replaces: its answer cannot mark the new stream caught up
+caught    store: a reset does not supersede the old summary poll  <- a reset supersedes the summary poll of the stream it replaces: its answer cannot mark the new stream caught up
+caught    mock: a partials=only stream never ends  <- a partials=only stream ends with an end frame when the host stops, as the others do

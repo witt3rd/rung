@@ -1,0 +1,18 @@
+# the H5 contract tests against the mock as it was (the proposal's frames: caught_up, 400 for a cursor ahead, a slow reader dropped)
+✖ a host that stops: the lines up to and including halted, then an end frame, then the body ends
+✔ a key a tool prints is on no door and no frame: the host redacts first
+✔ a line the host records reaches the stream within a second, in order
+✔ a slow reader holds only its own place: others are not slowed, and it loses nothing
+✔ cut and resume: exactly once, in order, nothing missing
+✖ events: a cursor past the record is 409 cursor_ahead; a bad query is 400 bad_request
+✖ events: an open frame first, then every line after N once and in order, equal to the record
+✖ failing tests:
+✔ health, and the instance is listed with its summary
+ℹ fail 4
+ℹ pass 10
+ℹ skipped 1
+✔ no key in any answer, stream line or header
+✔ only /v1 passes, and an unknown instance is 404
+✔ record: paging with exact totals, no gaps, either order, no cap on limit
+✔ summary has the documented fields and types
+✔ the read-only token may read and may not write; a wrong token is 401

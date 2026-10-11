@@ -1,0 +1,9 @@
+# the two review threads' tests against the code before: a partials=only stream never ended; a reset left the old stream's cursor
+  mock-host: ✖ a partials=only stream ends with an end frame when the host stops, as the others do
+  mock-host: ✖ failing tests:
+  mock-host: ℹ fail 1
+  mock-host: ℹ pass 0
+  live-store: ✖ a reset supersedes the summary poll of the stream it replaces: its answer cannot mark the new stream caught up
+  live-store: ✖ failing tests:
+  live-store: ℹ fail 1
+  live-store: ℹ pass 8
