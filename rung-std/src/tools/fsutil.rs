@@ -155,15 +155,43 @@ type DirId = (u64, u64);
 #[cfg(not(unix))]
 type DirId = PathBuf;
 
+#[cfg(test)]
+thread_local! {
+    /// Filesystem identity operations this thread made: one per `metadata`,
+    /// one per path component resolved by `canonicalize` (an lstat each).
+    pub static IDENTITY_OPS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+fn count_ops(n: usize) {
+    IDENTITY_OPS.with(|c| c.set(c.get() + n));
+}
+
+/// `fs::metadata`, counted in tests.
+#[cfg(unix)]
+fn meta(path: &Path) -> std::io::Result<fs::Metadata> {
+    #[cfg(test)]
+    count_ops(1);
+    fs::metadata(path)
+}
+
+/// `fs::canonicalize`, counted in tests as one lstat per path component.
+#[cfg(not(unix))]
+fn canon(path: &Path) -> std::io::Result<PathBuf> {
+    #[cfg(test)]
+    count_ops(path.components().count());
+    fs::canonicalize(path)
+}
+
 #[cfg(unix)]
 fn dir_id(path: &Path) -> Option<DirId> {
     use std::os::unix::fs::MetadataExt;
-    fs::metadata(path).ok().map(|m| (m.dev(), m.ino()))
+    meta(path).ok().map(|m| (m.dev(), m.ino()))
 }
 
 #[cfg(not(unix))]
 fn dir_id(path: &Path) -> Option<DirId> {
-    fs::canonicalize(path).ok()
+    canon(path).ok()
 }
 
 /// Every file under `root`, with no depth or count limit.

@@ -745,9 +745,11 @@ mod tests {
                 }
             }
         }
-        let t = std::time::Instant::now();
+        fsutil::IDENTITY_OPS.with(|c| c.set(0));
         let files = fsutil::walk_files(&dir);
-        assert!(t.elapsed() < std::time::Duration::from_secs(1));
+        let ops = fsutil::IDENTITY_OPS.with(|c| c.get());
+        // 13 real dirs + 132 links: linear work, not a walk of every path.
+        assert!(ops <= 3 * (n + 1 + n * (n - 1)), "{ops} identity ops");
         assert_eq!(files.len(), n, "{files:?}");
     }
 
@@ -777,26 +779,28 @@ mod tests {
         assert!(out.contains("a/b/f.txt"), "{out}");
     }
 
-    #[test]
-    fn walk_cost_grows_linearly_with_depth() {
-        fn time(depth: usize) -> std::time::Duration {
-            let dir = tmp("nocap-cost");
-            let mut d = dir.to_path_buf();
-            for i in 0..depth {
-                d = d.join(format!("d{i}"));
-            }
-            std::fs::create_dir_all(&d).unwrap();
-            std::fs::write(d.join("f.txt"), "x").unwrap();
-            let t = std::time::Instant::now();
-            let n = fsutil::walk_files(&dir).len();
-            assert_eq!(n, 1);
-            t.elapsed()
+    /// Identity operations (metadata / canonicalize lstats) the walk makes on
+    /// a chain of `depth` directories. Counted, not timed: a clock is flaky.
+    fn walk_ops(depth: usize) -> usize {
+        let dir = tmp("nocap-cost");
+        let mut d = dir.to_path_buf();
+        for _ in 0..depth {
+            d = d.join("d");
         }
-        let _warm = time(20);
-        let small = time(60).max(std::time::Duration::from_micros(200));
-        let big = time(240);
-        // 4x depth: the kernel resolves each path in O(depth), so ~16x is the floor
-        // for any path-based walk; cubic would be ~64x.
-        assert!(big < small * 48, "1x {small:?} vs 4x {big:?}");
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("f.txt"), "x").unwrap();
+        fsutil::IDENTITY_OPS.with(|c| c.set(0));
+        assert_eq!(fsutil::walk_files(&dir).len(), 1);
+        fsutil::IDENTITY_OPS.with(|c| c.get())
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn walk_identity_ops_are_linear_in_directories() {
+        let (a, b) = (walk_ops(400), walk_ops(1600));
+        // One identity call per directory (the chain plus the root).
+        assert!(a <= 3 * 401, "400 deep: {a} ops");
+        assert!(b <= 3 * 1601, "1600 deep: {b} ops");
+        assert!(b <= a * 5, "4x depth must be ~4x ops: {a} vs {b}");
     }
 }
