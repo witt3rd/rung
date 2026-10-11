@@ -102,9 +102,10 @@ fn the_layers_are_recorded_whole_and_once() {
     assert_eq!(logs.len(), 3);
     for (i, t) in logs.iter().enumerate() {
         let sent = seen[i].messages.last().unwrap().content.as_text().unwrap();
-        assert_eq!(t.str("header_sent"), sent);
-        assert_eq!(t.str("header_sent"), t.str("header"), "no recall this turn");
-        assert!(t.get("recall_text").is_null());
+        assert_eq!(t.str("header"), sent, "no recall this turn: the header is what was sent");
+        assert!(t.body.contains_key("recall_text") && t.get("recall_text").is_null());
+        assert!(t.get("recall_hash").is_null());
+        assert!(!t.body.contains_key("header_sent"), "the header is not written twice");
     }
 }
 
@@ -322,7 +323,7 @@ fn big_layers_round_trip_whole() {
     drop(script);
     sc.sources
         .push(owner_says(SIM_START + HOUR, "what is the deploy window"));
-    let recall = long_recall(2_100, None);
+    let recall = long_recall(2_100, Some((100, MARKER)));
     assert!(recall.len() > 200_000);
     sc.memory_host = Some(Arc::new(MemoryHost::new(
         Arc::new(Big {
@@ -372,10 +373,97 @@ fn big_layers_round_trip_whole() {
             .any(|l| l.kind == "epoch.rollover" && l.str("slow") == epoch)
     );
     assert_eq!(with_recall.str("recall_text"), rtext);
+    // the recall is written once: its unique marker is in one place in the
+    // record file, once per turn that was shown a recall
+    let shown = out
+        .lines
+        .iter()
+        .filter(|l| l.kind == "turn.log" && l.get("recall") == &json!(true))
+        .count();
+    assert_eq!(shown, 1);
+    let file = record_bytes(guard.path());
+    let found = file
+        .windows(MARKER.len())
+        .filter(|w| *w == MARKER.as_bytes())
+        .count();
+    assert_eq!(found, shown, "the recall text is in the record once");
+    assert!(!with_recall.body.contains_key("header_sent"));
+    // and the header as sent is rebuilt from the one copy: what the engine got
     assert_eq!(
-        with_recall.str("header_sent").len(),
-        mtext.len() + 1 + rtext.len()
+        with_recall.str("header").len() + 1 + with_recall.str("recall_text").len(),
+        s.messages.last().unwrap().content.as_text().unwrap().len()
     );
+    assert_eq!(
+        with_recall.get("recall_hash"),
+        &json!(canon::hash(rtext.as_bytes()))
+    );
+}
+
+const MARKER: &str = "UNIQUE-RECALL-MARKER-8841";
+
+/// A recall the record cannot give back whole is said in words: the door
+/// answers, shows what is there, and never panics or cuts.
+#[test]
+fn a_recall_that_does_not_resolve_is_answered_in_words() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("ctx-corrupt");
+    let (mut sc, _script) = scripted(guard.path(), 2, 2);
+    sc.sources.push(owner_says(SIM_START, "a question"));
+    sc.memory_host = Some(Arc::new(MemoryHost::new(
+        Arc::new(Big {
+            text: long_recall(30, None),
+        }),
+        "s",
+    )));
+    let out = sim::run(sc);
+    let turn = out
+        .lines
+        .iter()
+        .find(|l| l.kind == "turn.log" && l.get("recall") == &json!(true))
+        .expect("a recall")
+        .u64("turn");
+    drop(out);
+    let red = Redactor::new();
+    let ok = door(guard.path(), turn, Some(1), &red).unwrap();
+    assert_eq!(ok["problems"], json!([]));
+    assert_eq!(band(&ok, "recall")["intact"], true);
+    let seg = guard.path().join("record/seg-00000001.ndjson");
+    let original = std::fs::read_to_string(&seg).unwrap();
+    let mutate = |f: &dyn Fn(&mut serde_json::Map<String, Value>)| {
+        let text: String = original
+            .lines()
+            .map(|l| {
+                let mut v: Value = serde_json::from_str(l).unwrap();
+                if v["kind"] == "turn.log" && v["turn"] == turn {
+                    f(v.as_object_mut().unwrap());
+                }
+                format!("{}\n", canon::string(&v))
+            })
+            .collect();
+        std::fs::write(&seg, text).unwrap();
+    };
+    // the hash does not match the text: shown as recorded, and said so
+    mutate(&|m| {
+        m.insert("recall_hash".into(), json!("00000000000000000000000000000000"));
+    });
+    let v = door(guard.path(), turn, Some(1), &red).unwrap();
+    assert_eq!(band(&v, "recall")["intact"], false);
+    assert!(v["problems"][0].as_str().unwrap().contains("does not match"));
+    assert_eq!(band(&v, "recall")["text"], band(&ok, "recall")["text"]);
+    // the text is gone, or is not text: said in words, no recall band
+    for bad in [Value::Null, json!(42)] {
+        mutate(&|m| {
+            m.insert("recall_text".into(), bad.clone());
+        });
+        let v = door(guard.path(), turn, Some(1), &red).unwrap();
+        assert!(v["problems"][0].as_str().unwrap().contains("no recall text"));
+        assert!(!names(&v).contains(&"recall".to_string()));
+        assert!(names(&v).contains(&"message".to_string()));
+    }
+    // the history row of the same turn says it is incomplete, from a later turn
+    let later = door(guard.path(), turn + 1, Some(1), &red).unwrap();
+    let row = &band(&later, "history")["rows"][0];
+    assert_eq!(row["header_complete"], false);
 }
 
 const SENT: &str = "plainsentinels4ctx-0123456789";
@@ -611,8 +699,11 @@ fn the_record_grows_by_layers_not_by_calls() {
     let out = sim::run(sc);
     let len = |l: &Line| l.text().len() + 1;
     let total: usize = out.lines.iter().map(len).sum();
-    let (mut layers, mut slow, mut sent, mut recall) = (0usize, 0usize, 0usize, 0usize);
+    let (mut layers, mut slow, mut recall, mut header) = (0usize, 0usize, 0usize, 0usize);
     let (mut starts, mut rolls, mut calls, mut logs, mut recalled) = (0, 0, 0, 0, 0);
+    // how much of each turn's header repeats the previous turn's, by line
+    let (mut hdr_lines, mut hdr_same) = (0usize, 0usize);
+    let mut prev: std::collections::BTreeSet<String> = Default::default();
     for l in &out.lines {
         match l.kind.as_str() {
             "pack.layers" => {
@@ -627,20 +718,29 @@ fn the_record_grows_by_layers_not_by_calls() {
             "llm.call" => calls += 1,
             "turn.log" => {
                 logs += 1;
-                sent += canon::string(l.get("header_sent")).len() + 15;
-                let r = canon::string(l.get("recall_text"));
-                recall += r.len() + 15;
+                header += l.str("header").len();
+                let now: std::collections::BTreeSet<String> =
+                    l.str("header").lines().map(str::to_string).collect();
+                hdr_lines += now.len();
+                hdr_same += now.intersection(&prev).count();
+                prev = now;
+                // the recall text and its hash: the only new fields of the line
+                recall += canon::string(l.get("recall_text")).len()
+                    + canon::string(l.get("recall_hash")).len()
+                    + 30;
                 recalled += usize::from(l.get("recall") == &json!(true));
             }
             _ => {}
         }
     }
-    let added = layers + slow + sent + recall;
+    let added = layers + slow + recall;
     eprintln!(
         "GROWTH record {total} B; before {} B; added {added} B ({:.1}%): pack.layers {layers} B x{starts}, \
-         epoch layers {slow} B x{rolls}, header_sent {sent} B x{logs}, recall_text {recall} B ({recalled} recalled); {calls} calls",
+         epoch layers {slow} B x{rolls}, recall_text {recall} B ({recalled} recalled); {calls} calls, {logs} turns; \
+         the header (already recorded, not new) is {header} B, {:.0}% of its lines the same as the turn before",
         total - added,
-        100.0 * added as f64 / (total - added) as f64
+        100.0 * added as f64 / (total - added) as f64,
+        100.0 * hdr_same as f64 / hdr_lines.max(1) as f64
     );
     assert_eq!(starts, 1, "the stable layer once for the run");
     assert!(rolls >= 3, "the run has several epochs");
