@@ -3,7 +3,7 @@
  *  with useSyncExternalStore and a test reads it directly. Changes are batched so a burst of lines is one render. */
 import type { Line } from "../record/types.ts";
 import { parseRecordLines, redact, redactStreaming } from "./wire.ts";
-import { EventsClient, type Delta, type Status } from "./client.ts";
+import { EventsClient, type Delta, type Open, type Status } from "./client.ts";
 
 /** What `GET /v1/summary` answers (ui/contract/README.md). */
 export interface HostSummary {
@@ -45,6 +45,14 @@ export class LiveStore {
   /** The turn whose deltas are not shown: it was already running when we joined or when the stream came back, so some of its
    *  pieces were never seen and what we would show is a torn tail. Its finished text arrives in the record. */
   private tornTurn: number | null = null;
+  /** Has the stream replayed what existed when it opened? Partial frames are shown only after it has: until then the page cannot tell
+   *  which turn was already running, and a turn already running was not seen from its start. */
+  private caught = false;
+  /** The number of the last line the record held when the stream opened (asked of the summary), or null while that is not known. */
+  private joinSeq: number | null = null;
+  /** The next piece of answer text begins a new text block: it is set apart from what came before. */
+  private newBlock = false;
+  private followWhenFlushed = false;
   private subs = new Set<() => void>();
   private deltaSubs = new Set<() => void>();
   private pending: Line[] = [];
@@ -118,16 +126,19 @@ export class LiveStore {
       fetchImpl: this.fetchImpl,
       onRecord: (l) => this.onRecord(l),
       onDelta: (d) => this.onDelta(d),
+      onOpen: (o) => void this.onOpen(o),
+      onEnd: () => void this.refreshSummary(),
       onStatus: (s) => {
-        if (s === "reconnecting") this.setDelta(null); // pieces may have been lost in the cut: show none rather than a torn text
-        // Caught up, from a join or a cut: a turn already running has pieces we never saw. Show its text when it is finished.
-        if (s === "following") this.tornTurn = this.runningTurn();
+        if (s === "reconnecting" || s === "connecting") { this.caught = false; this.setDelta(null); } // pieces may have been lost in the cut: show none rather than a torn text
+        // "following" is the store's to say: it is true once the replay has been applied (checkCaught).
         this.set({ status: s });
       },
       onReset: () => {
         this.client?.stop(); // a client that asked for a reset is done; one still looping would follow a record we are about to replace
         this.client = null;
         this.pending = [];
+        this.caught = false;
+        this.followWhenFlushed = false;
         this.setDelta(null); // a turn the new record may not hold: its pieces are stale
         if (this.flushTimer) { clearTimeout(this.flushTimer); this.flushTimer = null; }
         this.set({ loaded: false });
@@ -137,11 +148,40 @@ export class LiveStore {
     this.client.start();
   }
 
+  /** The stream opened. Ask where the record stood, so that the replay's end is known: until the lines to that number are applied no
+   *  partial frame is shown, and the turn running then (started before we were connected) is never shown streaming. */
+  private async onOpen(o: Open) {
+    this.caught = false;
+    this.tornTurn = null;
+    this.joinSeq = null;
+    this.newBlock = false;
+    this.setDelta(null);
+    if (!o.live) return; // a stopped host: its stream ends right after the replay
+    try {
+      const r = await this.fetchImpl(`${this.base}/v1/summary`);
+      if (!r.ok || this.stopped) return;
+      const host = redact(await r.json()) as HostSummary;
+      this.set({ host });
+      this.joinSeq = host.last_seq;
+      this.checkCaught();
+    } catch { /* without it no partial frame is shown: the record is still followed */ }
+  }
+
+  private checkCaught() {
+    if (this.caught || this.joinSeq === null || !this.client || this.client.lastSeq < this.joinSeq) return;
+    this.caught = true;
+    this.tornTurn = this.runningTurn();
+    // "Following" is said once the replayed lines are in the state the page shows, not when they have only been received.
+    if (this.pending.length) this.followWhenFlushed = true;
+    else if (this.state.status === "catching up") this.set({ status: "following" });
+  }
+
   private onRecord(l: Line) {
     l = redact(l) as Line;
     this.pending.push(l);
     if (l.kind === "turn.ended" && this.raw?.turn === l.turn) this.setDelta(null);
     if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(), 20);
+    this.checkCaught();
   }
 
   private flush() {
@@ -150,6 +190,7 @@ export class LiveStore {
     const lines = this.state.lines.concat(this.pending);
     this.pending = [];
     this.set({ lines });
+    if (this.followWhenFlushed) { this.followWhenFlushed = false; if (this.state.status === "catching up") this.set({ status: "following" }); }
     // The host's own summary is the authority for the state word; ask again soon after the record moves.
     if (!this.summaryTimer) this.summaryTimer = setTimeout(() => { this.summaryTimer = null; void this.refreshSummary(); }, 250);
   }
@@ -162,9 +203,32 @@ export class LiveStore {
   }
 
   private onDelta(d: Delta) {
+    if (!this.caught) return;
+    if (d.kind === "behind") {
+      // This reader missed partial frames and the host cut every block that was open: what follows is not the turn's whole text.
+      this.tornTurn = this.raw?.turn ?? this.runningTurn();
+      this.setDelta(null);
+      return;
+    }
     if (d.turn === this.tornTurn) return;
     const cur = this.raw && this.raw.turn === d.turn ? this.raw : { turn: d.turn, text: "", tool: null };
-    if (d.kind === "text") this.setDelta({ ...cur, text: cur.text + (d.text ?? "") });
-    else this.setDelta({ ...cur, tool: d.phase === "start" && d.name ? d.name : null });
+    switch (d.kind) {
+      case "block_start":
+        if (d.id === null && cur.text) this.newBlock = true;
+        if (cur !== this.raw) this.setDelta(cur);
+        break;
+      case "text":
+        this.setDelta({ ...cur, text: cur.text + (this.newBlock ? "\n\n" : "") + d.text });
+        this.newBlock = false;
+        break;
+      case "tool_call":
+      case "tool_run":
+        this.setDelta({ ...cur, tool: d.name });
+        break;
+      case "tool_done":
+        this.setDelta({ ...cur, tool: null });
+        break;
+      default: // tool_input, block_end, turn_end: nothing to show; the record has the whole of it
+    }
   }
 }

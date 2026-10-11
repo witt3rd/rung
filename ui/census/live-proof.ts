@@ -2,7 +2,7 @@
 //   node --experimental-strip-types census/live-proof.ts      (needs a built dist/)
 // 1. record time to screen time for the text of finished turns (median and worst), 2. a cut with the page offline while turns run:
 // what the page holds equals the record, line by line, 3. mid-turn captures at 390 and 1920, judged by the census budgets.
-import { chromium, VIEWS, here } from "./lib.mjs";
+import { chromium, VIEWS_LIVE as VIEWS, here } from "./lib.mjs";
 import { measure, judge } from "./measure.mjs";
 import { startMock } from "../mock/gateway.ts";
 import { join } from "node:path";

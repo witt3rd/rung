@@ -1,0 +1,18 @@
+# the page's live code (client, store) against the mock now speaking H5's frames: what fails before the client follows them
+✖ a cut mid-turn: the page shows no torn text, catches up, and holds the same record as the host
+✖ after a cut the running turn's text is not shown (a torn tail); the next turn is shown whole
+✖ against the mock: cut by the host, cut by the client, and a host that was written to while nobody listened
+✖ a harness that cannot start the gateway leaves nothing behind
+✖ a key shape in a live line or a delta never reaches what the page holds
+✖ a key split across four pieces of streamed text is never shown, head or tail, at any moment
+✖ a reset drops the streamed text it held: the new record may not hold that turn
+✖ a reset stops the client that asked for it: no old stream is left running beside the new one
+✖ a reset (the host does not know our number) reloads the record and applies no line queued before it
+✖ a second cut, in a later turn, hides that turn's tail too
+✖ failing tests:
+ℹ fail 12
+ℹ pass 76
+ℹ tests 89
+✖ joining while a turn runs: that turn's pieces are not shown either
+✖ test/events-client.test.ts
+✖ the store loads the record, follows it, shows deltas while a turn runs and drops them at its end

@@ -37,10 +37,15 @@ function hostServer(host: SimHost, key: string): Server {
       return json(res, 200, { lines, offset, limit, total, next: offset + limit < total ? offset + limit : null });
     }
     if (url.pathname === "/v1/events") {
+      // H5's query: `after`, `partials`; each once, a whole number or one of on/off/only. The Last-Event-ID header is the cursor and beats `after`.
+      const names = [...q.keys()];
+      const bad = names.some((n) => n !== "after" && n !== "partials") || new Set(names).size !== names.length;
       const header = req.headers["last-event-id"];
-      const raw = typeof header === "string" ? header : q.get("after") ?? "0";
-      if (!/^\d+$/.test(raw) || Number(raw) > host.lastSeq) return err(res, 400, "bad_request", "after is not a line number this host has");
-      return void (await host.follow(res, Number(raw)));
+      const raw = typeof header === "string" && header !== "" ? header : q.get("after") ?? "0";
+      const partials = q.get("partials") ?? "on";
+      if (bad || !/^\d+$/.test(raw) || !["on", "off", "only"].includes(partials)) return err(res, 400, "bad_request", "after or partials is not valid");
+      if (Number(raw) > host.lastSeq) return err(res, 409, "cursor_ahead", "that cursor is past this record's last line");
+      return void (await host.follow(res, Number(raw), partials as "on" | "off" | "only"));
     }
     return err(res, 404, "not_found", "no such door on this mock");
   });
@@ -122,10 +127,12 @@ export async function startMock(opts: MockOptions = {}): Promise<Target & { host
   if (opts.live) void alpha.live();
 
   return {
-    url: base, instance: "alpha", hostKey: KEY, readOnlyToken: READ_TOKEN, deadInstance: "gone", hosts,
+    url: base, instance: "alpha", hostKey: KEY, readOnlyToken: READ_TOKEN, deadInstance: "gone", deltas: true, hosts,
     control: {
       poke: (n) => alpha.poke(n), flood: (n, b) => alpha.flood(n, b),
-      plant: async (key) => { alpha.doingOverride = `printing ${key}`; alpha.delta({ turn: 99, kind: "text", text: `the key is ${key} ok` }); alpha.append("note.written", { turn: 99, text: `printed ${key}` }); },
+      plant: async (key) => { alpha.doingOverride = `printing ${key}`; alpha.delta({ turn: 99, call: 0, kind: "text", text: `the key is ${key} ok` }); alpha.append("note.written", { turn: 99, text: `printed ${key}` }); },
+      turn: async () => { await alpha.runTurn({ pace: 5 }); },
+      halt: () => alpha.halt(),
     },
     stop: async () => { for (const h of hosts.values()) h.stop(); for (const s of servers) { s.closeAllConnections(); await new Promise((r) => s.close(r)); } },
   };

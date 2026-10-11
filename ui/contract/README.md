@@ -38,24 +38,22 @@ The record's lines, oldest first (`order=desc` newest first). `offset`, `limit`,
 large as `total`), `total` is exact, `next` is the next offset or null. Line numbers have no gaps, so oldest first `offset` is
 `seq - 1`. An unknown parameter value is 400 `bad_request`.
 
-## `GET /v1/events?after=N`
+## `GET /v1/events?after=N&partials=on|off|only`
 
-A server-sent event stream: the record, followed. `Last-Event-ID: N` resumes the same way as `?after=N` (the header wins if
-both are given). Events:
+Written in `docs/rung-host-api.md`, H5 (on master): `open` first, then `record` frames (the only ones with an id) with replay from the cursor
+(`Last-Event-ID` beats `after`), `delta` partial frames while connected (never numbered, never replayed, never in the record), an `end`
+frame when the host stops (`stopped`, `down`, `damaged`, `error`), and keep-alive comments. A cursor past the record is 409 `cursor_ahead`;
+a bad query is 400. Record frames are pulled as the reader takes them (a slow reader holds only its place; nothing is dropped for it);
+partial frames have a bounded buffer per reader and a reader that falls behind is told with a `behind` frame. The host redacts across the
+pieces of a text before it sends them.
 
-| event | id | data |
-|---|---|---|
-| `record` | the line's `seq` | the record line, as `/v1/record` gives it |
-| `caught_up` | none | `{"last_seq": N}`, once, after the replay and before the first live line |
-| `delta` | none | what the running turn is doing now: `{"turn": 7, "kind": "text", "text": "…"}` (a piece of the model's text) or `{"turn": 7, "kind": "tool", "name": "ws_write", "phase": "start" \| "end"}` |
-
-- **Replay**: every line with `seq > N` is sent first, in order, then live lines. Over a cut and a resume each line is delivered
-  exactly once from the client's point of view: the client keeps the last `seq` it applied and ignores anything at or below it.
-- **Deltas** are short-lived: never numbered, never replayed, never in the record. The finished text arrives in the record.
-- **Keep-alive**: a comment line (`: keepalive`) at least every 15 seconds.
-- **A slow reader is dropped**: when the host's unsent output for one connection passes a bound, it closes that connection. It does
-  not slow the host or any other reader, and nothing is lost: the record holds it and the reader resumes from its last `seq`.
-- An `after` beyond `last_seq` is 400 `bad_request`; a host that was restarted keeps its numbers, so a client's `after` is valid.
+What the page does with it (`src/live/`): it keeps the number of the last line it applied and resumes from it (applying each line once,
+and treating a skipped number as a broken stream); it asks the summary where the record stood at `open`, and shows no partial frame until
+the lines to that number are applied (`Following` is said then); the turn that was running at that moment, and any turn after a `behind`
+frame or a cut, is not shown streaming (its start was not seen), and its finished text is on the record; answer text blocks are joined as
+blocks, a tool shows while `tool_call` or `tool_run` is open and is gone at `tool_done`; it redacts again on read over the whole text
+received. An `end` frame is shown as "Not running", and the host is asked again every few seconds whether it is back. A 404 (a gateway with
+no event stream) is "Recorded, not followed", said once.
 
 ## `GET /api/instances`
 
@@ -64,13 +62,13 @@ not answer is listed with `reachable: false`.
 
 ## Where the real doors are (docs/rung-host-api.md, H3 and H5)
 
-- **H3 is on master** (`summary`, `record`, the list): they are a superset of the bodies above. `summary` adds `id`, `name`, `word`, `day`,
-  `start_command`, `waiting_for`, `boundary`, `turn_in_progress`, `queue`, `desk`, `governor`, `config`, `fold_hash`, `redaction`, `damaged`
-  and `problem`, and `state` may also be `Unreadable`; `record` adds `cursor`, `order`, `after`, `damaged`, `redaction`, and takes `after` and
-  `order` as well. The list rows add `word`, `source`, `last_at` and `start_command`; a row with no summary says why in `error`.
-  `test/contract.test.ts` passes against the built `rung-gateway` for these doors (`npm run test:contract:real`).
-- **H5 is not on master** (it is on the host builder's branch). Its frames differ from the proposal here and the mock follows the proposal
-  until it lands: an `open` frame first (with `live`, `partials`, `redaction`) where this file has `caught_up`; a last `end` frame (`stopped`,
-  `down`, `damaged`, `error`); `409 cursor_ahead` for a cursor past the record where this file has 400; a `partials` query value; partial
-  frames that carry `call` as well as `turn` and `kind`. When it merges, this file, the mock and the client move to its shapes in one change,
-  and the events checks, skipped on a gateway without the door, run against it.
+Both are on master. H3's `summary`, `record` and list are a superset of the bodies above: `summary` adds `id`, `name`, `word`, `day`,
+`start_command`, `waiting_for`, `boundary`, `turn_in_progress`, `queue`, `desk`, `governor`, `config`, `fold_hash`, `redaction`, `damaged`
+and `problem`, and `state` may also be `Unreadable`; `record` adds `cursor`, `order`, `after`, `damaged`, `redaction`, and takes `after` and
+`order` as well. The list rows add `word`, `source`, `last_at` and `start_command`; a row with no summary says why in `error`.
+
+`test/contract.test.ts` is the executable statement and runs against the mock (`npm run test:contract`) and against the built
+`rung-gateway` (`npm run test:contract:real`, with the suite playing the host's part for the record and holding the state lock). Against the
+gateway every events check runs except the partial frames, which a gateway has only from a running host (it asks the host's own door): that
+check runs against the mock, whose frames are H5's. The mock is a stand-in for what the gateway cannot yet be shown to do here, not a
+source of shapes: where the two differ, the gateway and `docs/rung-host-api.md` win.

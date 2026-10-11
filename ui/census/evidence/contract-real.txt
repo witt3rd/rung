@@ -2,25 +2,26 @@
 > rung-ui@0.0.0 test:contract:real
 > RUNG_CONTRACT_TARGET=real node --experimental-strip-types --test --test-timeout=120000 test/contract.test.ts
 
-✔ health, and the instance is listed with its summary (44.617562ms)
-✔ summary has the documented fields and types (2.310491ms)
-✔ record: paging with exact totals, no gaps, either order, no cap on limit (133.360031ms)
-﹣ events: replay after N is exactly the record's lines after N, in order, then caught_up (0.371778ms) # the events door (H5) is not on this gateway
-﹣ Last-Event-ID resumes the same as ?after, and the header wins (0.232188ms) # the events door (H5) is not on this gateway
-﹣ events: an after beyond the record is 400 (0.148032ms) # the events door (H5) is not on this gateway
-﹣ a line the host records reaches the stream within a second, in order (0.201075ms) # the events door (H5) is not on this gateway
-﹣ cut and resume: exactly once, in order, nothing missing (0.311744ms) # the events door (H5) is not on this gateway
-﹣ deltas are short-lived: no id, seen live, never replayed (0.282052ms) # the events door (H5) is not on this gateway
-﹣ a slow reader is dropped, does not slow another reader, and loses nothing on resume (0.282838ms) # the events door (H5) is not on this gateway
-✔ the read-only token may read and may not write; a wrong token is 401 (9.030565ms)
-✔ a key a tool prints is on no door and no stream line: the host redacts first (383.569444ms)
-✔ only /v1 passes, and an unknown instance is 404 (1.967621ms)
-﹣ no key in any answer, stream line or header (0.224398ms) # the key is not known to this target
-ℹ tests 14
+✔ health, and the instance is listed with its summary (242.332939ms)
+✔ summary has the documented fields and types (2.379574ms)
+✔ record: paging with exact totals, no gaps, either order, no cap on limit (132.883444ms)
+✔ events: an open frame first, then every line after N once and in order, equal to the record (58.287411ms)
+✔ Last-Event-ID is the cursor and beats ?after; partials=off carries no partial frame (96.095253ms)
+✔ events: a cursor past the record is 409 cursor_ahead; a bad query is 400 bad_request (6.003009ms)
+✔ a line the host records reaches the stream within a second, in order (214.698541ms)
+✔ cut and resume: exactly once, in order, nothing missing (228.19236ms)
+﹣ partial frames are short-lived: no id, seen live, never replayed, never in the record (0.497668ms) # this target runs no turn, so there is nothing partial to stream (a running host is needed)
+✔ a slow reader holds only its own place: others are not slowed, and it loses nothing (685.719094ms)
+✔ the read-only token may read and may not write; a wrong token is 401 (6.683494ms)
+✔ a key a tool prints is on no door and no frame: the host redacts first (717.288265ms)
+✔ only /v1 passes, and an unknown instance is 404 (2.000353ms)
+✔ a host that stops: the lines up to and including halted, then an end frame, then the body ends (1861.670276ms)
+﹣ no key in any answer, stream line or header (0.189655ms) # the key is not known to this target
+ℹ tests 15
 ℹ suites 0
-ℹ pass 6
+ℹ pass 13
 ℹ fail 0
 ℹ cancelled 0
-ℹ skipped 8
+ℹ skipped 2
 ℹ todo 0
-ℹ duration_ms 5683.038637
+ℹ duration_ms 9331.749744

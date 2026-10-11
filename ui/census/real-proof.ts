@@ -2,7 +2,7 @@
 //   cargo build -p rung-gateway && node --experimental-strip-types census/real-proof.ts      (needs a built dist/)
 // What it shows is what the doors give today: the list (a stopped one with its start command, a dead one, an entry that cannot be read),
 // the fold for the state word, the record paged. There is no event stream yet, so nothing is followed: the page says so.
-import { chromium, VIEWS, here } from "./lib.mjs";
+import { chromium, VIEWS_LIVE as VIEWS, here } from "./lib.mjs";
 import { measure, judge } from "./measure.mjs";
 import { startReal } from "../mock/real.ts";
 import { join } from "node:path";
@@ -23,8 +23,10 @@ try {
   const pages = [
     ["real-instances", "#/"],
     ["real-now-stopped", "#/i/gorse"],
+    ["real-now-running", "#/i/alpha"],
     ["real-turns", "#/i/alpha/turns"],
   ] as const;
+  let written = 0;
   for (const [vn, vp] of Object.entries(VIEWS)) {
     const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor });
     for (const [name, hash] of pages) {
@@ -32,7 +34,16 @@ try {
       await page.goto(`${real.url}/${hash}`, { waitUntil: "load" });
       await page.waitForSelector('.page[data-ready="true"]', { timeout: 20000 });
       await page.evaluate(() => document.fonts.ready);
-      if (name === "real-turns") await page.waitForFunction(() => document.body.innerText.includes("Recorded, not followed"), null, { timeout: 15000 });
+      if (name === "real-turns" || name === "real-now-running") await page.waitForFunction(() => /Following|Live:/.test(document.body.innerText), null, { timeout: 15000 });
+      if (name === "real-turns") {
+        // The host writes a turn while the page watches: it must appear, through the real gateway's stream, within a second.
+        const tag = `ARRIVED${written++}`;
+        const at = Date.now();
+        await real.control!.writeTurn!(`${tag} the next entry is written.`);
+        await page.waitForFunction((t: string) => document.body.innerText.includes(t), tag, { timeout: 5000 });
+        const lag = Date.now() - at;
+        check(lag < 1500, `a turn written to the record while the page watched is on the screen after ${lag} ms, through the real gateway's stream (${vn.slice(1)})`);
+      }
       const text = await page.evaluate(() => document.body.innerText);
       if (vn === "w1920") {
         if (name === "real-instances") {
@@ -42,7 +53,8 @@ try {
         if (name === "real-now-stopped") check(/rung-host run --config/.test(text) && /does not start it/.test(text), "a stopped instance shows the command that starts it, and says the page does not");
         if (name === "real-turns") {
           const shown = await page.$$eval("article.turn h2", (hs) => hs.length);
-          check(shown === 3, `the record read through the real door is the record: ${shown} turns shown, 3 in the file`);
+          check(shown === 3 + written, `the record read through the real door is the record: ${shown} turns shown, ${3 + written} in the file`);
+          check(/Following/.test(text), "the page says it is following (the instance's lock is held)");
         }
       }
       let height = vp.height;
