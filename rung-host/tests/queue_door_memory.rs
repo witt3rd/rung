@@ -103,13 +103,13 @@ fn peak_rss(pid: u32) -> u64 {
 /// Send a request declaring `len` body bytes, then generate zeros until the
 /// host closes or `len` is sent. Returns the status line's code (0 if none) and
 /// how many body bytes the host took.
-fn post_generated(addr: &str, headers: &[(&str, &str)], len: u64) -> (u16, u64) {
+fn post_generated(addr: &str, path: &str, headers: &[(&str, &str)], len: u64) -> (u16, u64) {
     let mut sock = TcpStream::connect(addr).unwrap();
     sock.set_write_timeout(Some(Duration::from_secs(20)))
         .unwrap();
     sock.set_read_timeout(Some(Duration::from_secs(20)))
         .unwrap();
-    let mut head = format!("POST /v1/queue HTTP/1.1\r\nHost: {addr}\r\nContent-Length: {len}\r\n");
+    let mut head = format!("POST {path} HTTP/1.1\r\nHost: {addr}\r\nContent-Length: {len}\r\n");
     for (k, v) in headers {
         head.push_str(&format!("{k}: {v}\r\n"));
     }
@@ -181,7 +181,7 @@ fn a_request_refused_on_its_headers_is_refused_without_reading_its_body() {
         ),
     ];
     for (what, headers, want) in cases {
-        let (status, sent) = post_generated(&s.addr, &headers, HUGE);
+        let (status, sent) = post_generated(&s.addr, "/v1/queue", &headers, HUGE);
         assert_eq!(status, want, "{what}");
         assert!(
             sent < 64 << 20,
@@ -203,6 +203,41 @@ fn a_request_refused_on_its_headers_is_refused_without_reading_its_body() {
         .send()
         .unwrap();
     assert_eq!(r.status(), 200);
+}
+
+#[test]
+fn a_body_to_a_path_the_queue_door_does_not_serve_is_not_read() {
+    sim::test_timeout(180);
+    let guard = sim::temp_dir_guard("s1mem-other");
+    let s = spawn(guard.path());
+    let pid = s.child.id();
+    let before = peak_rss(pid);
+    let bearer_owner = format!("Bearer {OWNER_TOKEN}");
+    for path in ["/v1/events", "/v1/nowhere"] {
+        for (what, auth) in [
+            ("no token", None),
+            ("the owner's token", Some(&bearer_owner)),
+        ] {
+            let mut headers = vec![("Content-Type", "application/json")];
+            if let Some(a) = auth {
+                headers.push(("Authorization", a.as_str()));
+            }
+            let (status, sent) = post_generated(&s.addr, path, &headers, HUGE);
+            assert!(
+                matches!(status, 401 | 403 | 404 | 405),
+                "{path} with {what}: answered {status}"
+            );
+            assert!(
+                sent < 64 << 20,
+                "{path} with {what}: the host took {sent} bytes of a body"
+            );
+        }
+    }
+    let grown = peak_rss(pid).saturating_sub(before);
+    assert!(
+        grown < 64 << 20,
+        "unserved bodies grew the host's peak memory by {grown} bytes"
+    );
 }
 
 #[test]
