@@ -50,7 +50,9 @@ when skipped; against a real host they run once it has a way to be made to write
 - **Credentials**: one redactor (`src/record/redact.ts`) replaces the exact value of every key a run's config
   names by environment variable (`api_key_env`), the variables listed in `RUNG_REDACT_ENVS` (the one surface
   the agent crates use too) and the well-known provider key variables, and the shapes of well-known keys. It runs when the data is
-  prepared and again when the page loads the record. It replaces; it never shortens, drops or caps.
+  prepared and again when the page loads the record. It is a port of the token-shape part of the workspace's one redactor (`rung-agent-core/src/redact.rs`), from the same table (a test reads the Rust
+  file and fails if the tables differ); header values, URL passwords and secret-named assignments are not ported and are the host's to remove.
+  It replaces; it never shortens, drops or caps.
   `test/canary.test.ts` puts a canary key in the environment, prints it from a tool into a record, and fails if
   the value is anywhere in the prepared data. A key variable a config names but the environment lacks is refused
   (exit 2, by name) unless `--allow-unset-keys` accepts a shapes-only pass, which warns; the npm scripts pass it,
@@ -70,7 +72,9 @@ when skipped; against a real host they run once it has a way to be made to write
   answer header, a delta with an id, a read-only token that may write); the tests that caught each.
 - `live-redact-first-run.txt`: the redaction and torn-tail tests against the store and loaders as they were before: all six failed (summary,
   instance list, a key split across pieces, a torn tail after a cut or a join).
-- `live-mutations.txt`: nineteen faults put into the live code one at a time; every one is caught by a test.
+- `live-review3-first-run.txt`: the third round's tests against the code before: the redactor port and its parity test, and a reset that
+  kept the streamed text.
+- `live-mutations.txt`: twenty-three faults put into the live code one at a time; every one is caught by a test.
 - `live-proof.txt`: the live proof against the mock, as run.
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged

@@ -1,0 +1,11 @@
+# review round 3: the new tests against the code as it was at the previous head
+- redact-parity.test.ts (previous redact.ts and wire.ts; the file cannot load because SHAPE_TABLE, redactShapes and hideUnfinished do not exist):
+    ✖ failing tests:
+    ℹ fail 1
+    ℹ pass 0
+    SyntaxError: The requested module '../src/record/redact.ts' does not provide an export named 'SHAPE_TABLE'
+- live-store.test.ts, previous store.ts only:
+    ✖ a reset drops the streamed text it held: the new record may not hold that turn
+    ✖ failing tests:
+    ℹ fail 1
+    ℹ pass 7

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LiveStore } from "../src/live/store.ts";
-import { overlayRunning } from "../src/live/overlay.ts";
+import { overlayRunning, visibleDelta } from "../src/live/overlay.ts";
 import { foldTurns } from "../src/record/folds.ts";
 import { startMock } from "../mock/gateway.ts";
 
@@ -121,4 +121,27 @@ test("a reset (the host does not know our number) reloads the record and applies
     await sleep(100);
     assert.deepEqual(store.getState().lines.map((l) => l.seq), Array.from({ length: n + 5 }, (_, i) => i + 1), "each number once, in order");
   } finally { store.stop(); await m.stop(); }
+});
+
+test("a reset drops the streamed text it held: the new record may not hold that turn", async () => {
+  const m = await startMock();
+  const host = m.hosts.get("alpha")!;
+  const store = new LiveStore(`${m.url}/api/i/alpha`);
+  try {
+    await store.start();
+    await until(() => store.getState().status === "following");
+    host.delta({ turn: 99, kind: "text", text: "a stale piece" });
+    await until(() => store.getDelta() !== null);
+    (store as unknown as { client: { o: { onReset: () => void } } }).client.o.onReset();
+    assert.equal(store.getDelta(), null, "gone at once, not when something else clears it");
+  } finally { store.stop(); await m.stop(); }
+});
+
+test("the streamed text is shown only for the turn that is running", () => {
+  const d = { turn: 5, text: "so far", tool: null };
+  assert.equal(visibleDelta(d, { n: 5, status: "running" }), d);
+  assert.equal(visibleDelta(d, { n: 5, status: "completed" }), null, "the turn has ended: its text is on the record");
+  assert.equal(visibleDelta(d, { n: 6, status: "running" }), null, "another turn is running");
+  assert.equal(visibleDelta(d, null), null);
+  assert.equal(visibleDelta(null, { n: 5, status: "running" }), null);
 });

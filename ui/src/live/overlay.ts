@@ -13,3 +13,9 @@ export function overlayRunning(turns: Turn[], d: LiveDelta | null): Turn[] {
   out[i] = { ...t, text: d.text || t.text, calls };
   return out;
 }
+
+/** The streamed text belongs on the page only while the turn it came from is the one running. After a reset, or once the turn has
+ *  ended, a delta that is still held is stale and is not shown (the same guard `overlayRunning` applies). */
+export function visibleDelta(d: LiveDelta | null, running: { n: number; status: string } | null): LiveDelta | null {
+  return d && running && running.status === "running" && running.n === d.turn ? d : null;
+}

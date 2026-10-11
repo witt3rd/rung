@@ -6,6 +6,7 @@ import { requestsLine } from "./InstancesPage.tsx";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
 import { useNow, when } from "./format.ts";
 import type { LiveInfo } from "../data/hooks.ts";
+import { visibleDelta } from "../live/overlay.ts";
 import { duration } from "../record/words.ts";
 
 export function NowPage({ id }: { id: string }) {
@@ -78,16 +79,17 @@ export function NowPage({ id }: { id: string }) {
 }
 
 /** What the running turn is doing, as it does it. The line always has its place; its words change. */
-function LiveLine({ li, turn, now }: { li: LiveInfo; turn: { status: string; startedAt: number } | null; now: number }) {
+function LiveLine({ li, turn, now }: { li: LiveInfo; turn: { n: number; status: string; startedAt: number } | null; now: number }) {
   const running = turn?.status === "running";
+  const delta = visibleDelta(li.delta, turn);
   let words: string;
   if (li.status === "reconnecting" || li.status === "connecting") words = "Reconnecting.";
   else if (li.status === "catching up") words = "Catching up.";
-  else if (running) words = `${li.delta?.tool ? `Running ${li.delta.tool}` : "Writing"}, ${duration(Math.max(0, now - turn!.startedAt))} in.`;
+  else if (running) words = `${delta?.tool ? `Running ${delta.tool}` : "Writing"}, ${duration(Math.max(0, now - turn!.startedAt))} in.`;
   else words = "Between turns.";
   return (
     <>
-      {li.delta?.text ? <p className="content" style={{ margin: "12px 0 0" }} data-content>{li.delta.text}</p> : null}
+      {delta?.text ? <p className="content" style={{ margin: "12px 0 0" }} data-content>{delta.text}</p> : null}
       <p className="meta" style={{ margin: "12px 0 0" }} data-content><span className="mark live" />Live: {words}</p>
     </>
   );

@@ -74,7 +74,7 @@ test("a key split across four pieces of streamed text is never shown, head or ta
 
 test("redactStreaming hides a key that is not whole yet, and only that", () => {
   assert.equal(redactStreaming("see sk-or-v1-01"), "see [redacted]");
-  assert.equal(redactStreaming("a Bearer abc"), "a [redacted]");
+  assert.equal(redactStreaming("a Bearer abc"), "a Bearer [redacted]");
   assert.equal(redactStreaming("an ask- for help"), "an ask- for help", "a word that merely contains the letters is left alone");
   assert.equal(redactStreaming(`whole ${KEY} and more`), "whole [redacted] and more");
 });

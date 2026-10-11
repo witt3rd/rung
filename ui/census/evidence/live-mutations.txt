@@ -1,6 +1,6 @@
 # slice 1 mutation sweep: one deliberate fault at a time put into src/live, src/data or the record check, run against the contract, events-client, live-redact, live-store, registry and wire tests.
 # 'caught' with a hung run: a test failed and the client it was driving kept looping, so the run had to be killed; that is a failure, not a pass.
-# 19 faults, 0 survived. (The first sweep found 4 that survived: the old client left running after a reset, a torn turn never cleared, a re-acquire not cancelling a release, a gap in the loaded record accepted; each now has a test.)
+# 23 faults, 0 survived. (The first sweep found 4 that survived: the old client left running after a reset, a torn turn never cleared, a re-acquire not cancelling a release, a gap in the loaded record accepted; each now has a test.)
 caught    client: a line at or below the last is applied again  <- (the run hung: a loop left running)
 caught    client: a skipped number is applied  <- (the run hung: a loop left running)
 caught    client: a 400 is not a reset  <- (the run hung: a loop left running)
@@ -20,3 +20,7 @@ caught    overlay: the text is laid over a finished turn  <- the overlay puts th
 caught    wire: a gap in the loaded record is accepted  <- a record with a gap in its numbers is refused, not shown | a store that is given a record with a gap says so and shows nothing of it
 caught    source: the instance list is not redacted  <- the instance list: a name, a summary line or an error with a key in it is redacted before the page holds it | through the mock: a key in /v1/summary a
 caught    words: streaming text not hidden while unfinished  <- a key split across four pieces of streamed text is never shown, head or tail, at any moment | redactStreaming hides a key that is not whole yet, and o
+caught    store: a reset keeps the streamed text  <- a reset drops the streamed text it held: the new record may not hold that turn
+caught    overlay: a stale delta is shown for any turn  <- the streamed text is shown only for the turn that is running
+caught    redact: a shape in the table left out of the page  <- the shape table is the Rust one, entry for entry and in its order
+caught    redact: an unfinished prefix not hidden  <- a key split across four pieces of streamed text is never shown, head or tail, at any moment | redactStreaming hides a key that is not whole yet, and o

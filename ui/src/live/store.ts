@@ -126,6 +126,7 @@ export class LiveStore {
         this.client?.stop(); // a client that asked for a reset is done; one still looping would follow a record we are about to replace
         this.client = null;
         this.pending = [];
+        this.setDelta(null); // a turn the new record may not hold: its pieces are stale
         if (this.flushTimer) { clearTimeout(this.flushTimer); this.flushTimer = null; }
         this.set({ loaded: false });
         void this.start();
