@@ -14,6 +14,19 @@ git tags only.
   has only `core`, `memory`, `read` and `workspace_write`, and `web_read` stays
   off unless asked for.
 
+### Added
+- `rung-host`, `rung-gateway`: the queue, list and add (S1). `GET /v1/queue`
+  lists what waits for the agent and the one thing being answered, computed
+  from the record (so a stopped instance lists too), every text whole and
+  redacted; `POST /v1/queue` adds a message through the same acceptance as ACP's
+  `_rung/stimulus` and answers only once it is on disk, a key given becoming the
+  item id so a repeat adds once. The host serves both on its HTTP listener
+  (owner token); the gateway reads the list from a native instance's state
+  directory and forwards the write to the running host with the owner key it
+  holds by name, refusing a stopped instance with "start it first"
+  (`rung_host::queue`; shapes in `docs/rung-host-api.md`). `rung-agent-core`'s
+  HTTP listener hands a route the request body.
+
 ## [0.3.0] - 2026-10-11
 
 ### Added

@@ -95,15 +95,24 @@ pub struct Tuning {
     /// chunk before the client is dropped. A bound on a stall, never on the
     /// size of a page or how long a client that keeps reading takes.
     pub stall_deadline: Duration,
+    /// How long a write forwarded to a running host waits for the host's whole
+    /// answer before the client is told the host did not answer. A bound on a
+    /// wait, never on the size of what is sent.
+    pub upstream_wait: Duration,
 }
 
 impl Default for Tuning {
     fn default() -> Self {
         Tuning {
             stall_deadline: STALL_DEADLINE,
+            upstream_wait: WRITE_WAIT,
         }
     }
 }
+
+/// A host that does not answer a forwarded write within this long is reported
+/// as not answering.
+const WRITE_WAIT: Duration = Duration::from_secs(30);
 
 /// A client that takes no chunk of a streamed page for this long is dropped.
 const STALL_DEADLINE: Duration = Duration::from_secs(30);
@@ -562,6 +571,11 @@ async fn pass_through(
     {
         return native_door(state, dir.clone(), id, rest, &req, query).await;
     }
+    if let Some(dir) = native
+        && rest == "/v1/queue"
+    {
+        return native_queue(state, dir.clone(), id, req, query, configured).await;
+    }
     // a native instance has no listener the gateway knows: only the doors
     // read from its state directory exist for it until a later slice adds more
     let Some(inst) = configured else {
@@ -604,6 +618,202 @@ async fn pass_through(
             StatusCode::BAD_GATEWAY,
             "instance_unreachable",
             &scrub(&chain(&e), &inst),
+        ),
+    }
+}
+
+/// The queue door of a native instance (S1). A read is computed from the
+/// instance's own record, running or not. A write goes to the running host's own
+/// listener, with the owner key the gateway holds by name (see
+/// [`rung_host::read::StreamTarget`]); a stopped instance is refused first, and
+/// nothing is sent.
+async fn native_queue(
+    state: &State,
+    dir: PathBuf,
+    id: &str,
+    req: Request<Incoming>,
+    query: Option<String>,
+    configured: Option<Instance>,
+) -> Response<Body> {
+    let base = request_redactor(state);
+    match *req.method() {
+        Method::GET | Method::HEAD => {
+            let Some(pairs) = query_pairs(query.as_deref()) else {
+                return error(
+                    StatusCode::BAD_REQUEST,
+                    "bad_request",
+                    "the query is not valid UTF-8",
+                );
+            };
+            let q = match rung_host::queue::Query::parse(&pairs) {
+                Ok(q) => q,
+                Err(e) => return door_error(e, &base),
+            };
+            let (id, r) = (id.to_string(), base.clone());
+            match blocking(move || rung_host::read::queue(&dir, &id, &q, &r)).await {
+                Some(Ok(v)) => json_reply(StatusCode::OK, v),
+                Some(Err(e)) => door_error(e, &base),
+                None => internal(),
+            }
+        }
+        Method::POST => queue_write(state, dir, id, req, query, configured, base).await,
+        _ => error(
+            StatusCode::METHOD_NOT_ALLOWED,
+            "method_not_allowed",
+            "this door lists (GET) and adds (POST)",
+        ),
+    }
+}
+
+/// Forward one write to a running host and return its answer, redacted.
+async fn queue_write(
+    state: &State,
+    dir: PathBuf,
+    id: &str,
+    req: Request<Incoming>,
+    query: Option<String>,
+    configured: Option<Instance>,
+    base: Redactor,
+) -> Response<Body> {
+    let (rdir, rid, rbase) = (dir, id.to_string(), base.clone());
+    let target = match blocking(move || rung_host::read::stream_target(&rdir, &rid, &rbase)).await {
+        Some(Ok(t)) => t,
+        Some(Err(e)) => return door_error(e, &base),
+        None => return internal(),
+    };
+    // no host, no write: the gateway cannot start one, and nothing is sent
+    if !target.running {
+        return error(
+            StatusCode::CONFLICT,
+            "not_running",
+            "this instance is not running, so it cannot take a message: start it first (the gateway has no start door); nothing was sent",
+        );
+    }
+    // where the host is, and the key it takes: the gateway's own config for the
+    // id when it has one, else the registry's address and the owner token the
+    // host's config names
+    let (url, authorization, mut red) = match &configured {
+        Some(inst) => match inst.authorization() {
+            Some(a) => (
+                inst.url.clone(),
+                a,
+                target.red.clone().with_secret(&inst.key),
+            ),
+            None => {
+                return error(
+                    StatusCode::BAD_GATEWAY,
+                    "instance_unreachable",
+                    "the instance's key cannot be sent as a header",
+                );
+            }
+        },
+        None => {
+            let Some(address) = &target.address else {
+                return error(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "no_address",
+                    "the instance is running but registered no address, so the gateway cannot reach it",
+                );
+            };
+            let Some(token) = &target.owner_token else {
+                return error(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "no_owner_key",
+                    "the gateway holds no owner key for this instance: its config names none under acp.tokens.owner, or this process does not hold the variable",
+                );
+            };
+            let Some(a) = HeaderValue::from_str(&format!("Bearer {token}"))
+                .ok()
+                .map(|mut v| {
+                    v.set_sensitive(true);
+                    v
+                })
+            else {
+                return error(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "no_owner_key",
+                    "the instance's owner key cannot be sent as a header",
+                );
+            };
+            (
+                format!("http://{address}"),
+                a,
+                target.red.clone().with_secret(token),
+            )
+        }
+    };
+    for t in &target.tokens {
+        red.add_secret(t);
+    }
+    let target_uri = match &query {
+        Some(q) => format!("{url}/v1/queue?{q}"),
+        None => format!("{url}/v1/queue"),
+    };
+    let (parts, body) = req.into_parts();
+    let mut up = Request::new(body.map_err(|e| Box::new(e) as BoxErr).boxed());
+    *up.method_mut() = parts.method;
+    *up.uri_mut() = match target_uri.parse() {
+        Ok(u) => u,
+        Err(_) => return not_found(),
+    };
+    forward_headers(
+        &parts.headers,
+        up.headers_mut(),
+        &["host", "authorization", "cookie"],
+    );
+    up.headers_mut()
+        .insert(HeaderName::from_static("authorization"), authorization);
+    let wait = state.tuning.upstream_wait;
+    let exchange = async {
+        let resp = state.client.request(up).await.map_err(Err)?;
+        let (rp, rb) = resp.into_parts();
+        let bytes = rb
+            .collect()
+            .await
+            .map_err(|e| Ok(e.to_string()))?
+            .to_bytes();
+        Ok::<_, Result<String, hyper_util::client::legacy::Error>>((rp.status, bytes))
+    };
+    match tokio::time::timeout(wait, exchange).await {
+        Ok(Ok((status, bytes))) => {
+            // what the host said, through the gateway's own redactor too
+            let out = match serde_json::from_slice::<Value>(&bytes) {
+                Ok(v) => red.redact_value(&v).to_string(),
+                Err(_) => red.redact(&String::from_utf8_lossy(&bytes)).into_owned(),
+            };
+            full(status, "application/json", out)
+        }
+        Ok(Err(Err(e))) if e.is_connect() => error(
+            StatusCode::BAD_GATEWAY,
+            "instance_unreachable",
+            &format!(
+                "the instance could not be reached ({}): nothing was queued",
+                red.redact(&chain(&e))
+            ),
+        ),
+        Ok(Err(Err(e))) => error(
+            StatusCode::BAD_GATEWAY,
+            "instance_unreachable",
+            &format!(
+                "the connection to the instance broke ({}): the message may be queued; look at the queue, or send it again with the same key (a repeat adds once)",
+                red.redact(&chain(&e))
+            ),
+        ),
+        Ok(Err(Ok(e))) => error(
+            StatusCode::BAD_GATEWAY,
+            "instance_unreachable",
+            &format!(
+                "the instance's answer broke off ({}): the message may be queued; look at the queue, or send it again with the same key (a repeat adds once)",
+                red.redact(&e)
+            ),
+        ),
+        Err(_) => error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "instance_not_answering",
+            &format!(
+                "the instance did not answer within {} seconds: the message may or may not be queued; look at the queue, or send it again with the same key (a repeat adds once)",
+                wait.as_secs_f64()
+            ),
         ),
     }
 }

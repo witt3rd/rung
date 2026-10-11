@@ -460,8 +460,9 @@ Later slices add rows as their doors land.
 | `GET /v1/summary`, `/v1/status`, `/v1/report` | read | | H3 |
 | `GET /v1/record`, `/v1/turns`, `/v1/turns/{n}`, `/v1/decisions`, `/v1/pack`, `/v1/spend` | read | | H3 |
 | `GET /v1/events?after=N` | read | yes | H5 |
-| `GET /v1/queue` | read | | H6 |
-| `POST /v1/queue`, `DELETE /v1/queue/{id}`, `POST /v1/queue/{id}/move` | write | | H6 |
+| `GET /v1/queue` | read | | S1 |
+| `POST /v1/queue` | write | | S1 |
+| `DELETE /v1/queue/{id}`, `POST /v1/queue/{id}/move` | write | | H6 |
 | `GET /v1/config` | read | | H7 |
 | `POST /v1/config/validate`, `PUT /v1/config` | write | | H7 |
 | `GET /v1/console` | read | | H8 |
@@ -528,7 +529,7 @@ Errors are the gateway's `{"error": <code>, "message": <text>}`:
 | 400 | `bad_request` | a query that is not as below |
 | 404 | `no_such_instance` | no entry in the registry folder has that id |
 | 404 | `state_dir_missing` | the entry's state directory is gone |
-| 404 | `not_found` | a door of a later slice (`queue`, `config`, …) on a native instance that the gateway config does not also name (the registry holds no address or key). If the config names the same id, those doors pass through to its `url` with its key, and only `summary` and `record` are read from the state directory |
+| 404 | `not_found` | a door of a later slice (`config`, `stop`, …) on a native instance that the gateway config does not also name (the registry holds no address or key). If the config names the same id, those doors pass through to its `url` with its key, and only `summary`, `record` and `queue` are answered from the state directory (S1) |
 | 500 | `unreadable` | the entry file, the state directory or a record file cannot be read (permissions, not a directory, an unparseable entry) |
 
 A record that is **damaged** is not an error: it is read as far as it is
@@ -703,7 +704,7 @@ an entry in the registry folder. The two are one instance with two sources, and
 the gateway splits the doors between them: the **registry wins what it can
 answer**. The list has one row for the id, the registry's (`source: "registry"`),
 and `summary` and `record` are read from the entry's state directory, running or
-not. Every other `/v1` door (the later slices' queue, config, stop, ...) passes
+not, and `queue` is read from it too (S1: a write to it goes to the configured `url` with its key once the state word says a host runs). Every other `/v1` door (the later slices' config, stop, ...) passes
 through to the configured `url` with its key, as for any configured instance;
 an id with no configured entry answers those with 404 `not_found`, since the
 registry holds no address or key. Writes never come from the state directory.
@@ -945,3 +946,176 @@ relay; disconnects freeing the subscription and the gateway's connection to the 
 both roles, an unknown token, the Host and Origin checks, and the 405s; the
 adapter against a loopback provider that streams text split across a secret and
 a tool call whose arguments arrive in two pieces.
+
+## S1 — the queue: list and add, and the gateway's write path
+
+A message to the agent is a **stimulus**. The queue door lists the stimuli that
+wait and the one being answered; the same door adds one. Code: `rung_host::queue`
+(the fold, no HTTP), `rung_host::acp::QueueDoor` (the host's door),
+`rung_gateway` (the write path to a native instance). The slices after this one
+add `intent` `steer` and `free`, move and cancel, and the stop and release doors;
+this section is only what S1 serves.
+
+### The item
+
+Every list answer, and the `item` of an add, uses one shape, computed from the
+record's `stimulus.accepted`, `admitted`, `requeued` and `disposed` lines and the
+desk's latest `decision.admit`:
+
+```json
+{"id": "q-77", "text": "also include the appendix",
+ "role": "owner", "name": null, "channel": "owner", "kind": "peer",
+ "intent": "next", "order": 1569, "position": 1,
+ "accepted_at": 1791749955653, "state": "waiting",
+ "turn": null, "disposition": null, "held": null}
+```
+
+| field | meaning |
+|---|---|
+| `id` | the item's id (an idempotency key, when the sender gave one) |
+| `text` | the message, **whole**, through the shared redactor (the record keeps the original) |
+| `role`, `name`, `channel` | who sent it. `role` is `owner`, `peer` or `host` (calendar, expectations and other host sources); `name` is the peer's name, the host source's name, or null for the owner; `channel` is the channel as recorded |
+| `kind` | the item kind as recorded (`peer` for a message from a channel) |
+| `intent` | `next` today. Read from the item's own `intent` when a later slice writes one, else `next` |
+| `order` | the number of the item's `stimulus.accepted` line: its place by acceptance. Stable |
+| `position` | the 1-based place among the items that wait, in list order (owner items first); null for any other state |
+| `accepted_at` | when the host accepted it, ms since the epoch (the time sent) |
+| `state` | `waiting` (accepted, no boundary has read it), `answering` (in the turn that is answering it), `answered` (disposed by a turn, whatever its `disposition`: `answered`, `digested`, …), `withdrawn` (withdrawn before any turn read it) |
+| `turn` | the turn that is answering it, or that disposed it; else null |
+| `disposition` | the recorded disposition once over, else null |
+| `held` | words saying why the host holds a waiting item (the decision desk holds it until the agent's next break, or as one line in the next turn header; or the model is unavailable and the owner was told), else null |
+
+### `GET /v1/queue`
+
+Computed from the record, so a stopped instance answers the same as a running
+one (the gateway reads the state directory; the host's own door reads its own).
+The list is ordered for a page: the item being answered; then what waits, **the
+owner's items first, then every other sender's, each group in the order the
+items were accepted** (a peer's item is never listed above an owner's); then what
+is over, the most recently settled first.
+
+Query (all optional; a name it does not know, a repeated name, or a value that is
+not as below is 400 `bad_request`):
+
+| parameter | meaning |
+|---|---|
+| `state` | a comma list of `waiting`, `answering`, `answered`, `withdrawn`, `open` (waiting and answering: **the default**) or `all` |
+| `offset`, `limit` | the page, by the paging rule above: `limit` has no maximum (default 500) |
+
+```json
+{"items": ["...the items above..."], "total": 3, "offset": 0, "limit": 500,
+ "next": null,
+ "counts": {"waiting": 2, "answering": 1, "answered": 9, "withdrawn": 0},
+ "record_lines": 412, "damaged": null, "redaction": {"env_unset": []}}
+```
+
+`total` is the number of items in the asked states, exact; `next` is the next
+offset or null on the last page; `counts` is over all four states whatever was
+asked; `record_lines` is the last record line read; `damaged` is as in H3 (the
+record is read as far as it is intact). `redaction.env_unset` is as for the
+other gateway answers (H3). Who may read: the owner role, and the read-only
+role (through the gateway); on the host's own door, an owner token only.
+
+### `POST /v1/queue`
+
+```json
+{"text": "also include the appendix", "key": "q-77", "intent": "next"}
+```
+
+`Content-Type: application/json` (415 otherwise). `text` is required, a string,
+and not blank; it is stored whole (the request body is read whole; the one limit
+is the listener's 16 MiB request limit, answered 413). `key` is optional: when
+given it **becomes the item id**, so a repeat adds once. A key is 1 to 200 bytes
+of letters, digits, `.`, `_`, `:` and `-`, starting with a letter or digit (it is
+an id in a path and a record, not content). `intent` is optional and only `next`
+is served: `steer` and `free` are refused in words (400) until their slice, and
+any other value is refused as not an intent. Any other field is refused by name.
+
+The door answers **only after the item is written to the record and fsynced**
+(the same acceptance as the ACP `_rung/stimulus` from an owner channel: one code
+path), so a message the page shows survives a crash. Answers:
+
+| status | `error` | when |
+|---|---|---|
+| 201 | | added: `{"id", "repeat": false, "item"}` |
+| 200 | | the key was already accepted with this same text: nothing written, `{"id", "repeat": true, "item"}` (the item as it stands now) |
+| 400 | `bad_request` | the body, a field or the key is not as above (the message says which) |
+| 401 | `unauthorized` | no token, or one that is not the host's |
+| 403 | `forbidden` | a token of the host that is not the owner's (host door) |
+| 405 | `method_not_allowed` | not GET, HEAD or POST |
+| 409 | `key_reused` | the key already names a **different** message; nothing written |
+| 409 | `not_running` | the host is stopping, or (gateway) no host is running: **"start it first"**; nothing written. The gateway has no start door |
+| 415 | `unsupported_media_type` | not JSON |
+
+A message is never added twice by a retry: send it again with the same key and
+the answer is the first one's item with `repeat: true`.
+
+### The gateway's write path to a native instance
+
+`GET /api/i/{id}/v1/queue` is answered from the instance's state directory (a
+registry instance; the same redactor and `env_unset` as `summary`), running or
+not. `POST /api/i/{id}/v1/queue` is **forwarded to the running host's own
+listener** and its answer is returned (status and body), after the gateway's own
+checks, in this order:
+
+1. the gateway's roles and checks, first: an unknown token is 401; the
+   read-only token is 403 `read_only` (it may `GET` only); an owner-role request
+   passes the Host check and, for a write, the Origin check (H9, 403
+   `bad_host` / `bad_origin`). Nothing reaches a host before them.
+2. the state word: a registry instance whose state lock is not held (`stopped`,
+   `down`) is **409 `not_running`**, with the words "start it first", and nothing
+   is sent.
+3. where and with what key: the registry entry's `address`, and **the owner
+   token the gateway holds by name**: the variable the host's own config file
+   names under `acp.tokens.owner`, read from this process's environment (so the
+   gateway must hold it, as H3 and H5 already ask for the redaction and
+   partial-frame ones). If the gateway config also names the id (a `url` and
+   `key_env`), that url and key are used instead. A running host with no address
+   is 503 `no_address`; one the gateway holds no owner key for is 503
+   `no_owner_key`, naming neither a variable's value nor the key.
+4. the forward: the body, `Content-Type` and query go on; the client's
+   `Authorization`, its session-state header and `Host` do not, and the host's key is added as the
+   bearer. The key value is held in memory only: it is in no response, log, error,
+   record or file the gateway writes, and the host's answer, even one that echoes
+   its bearer, is passed through the redactor (the key, every config-named value
+   and every known key shape) before it is returned.
+
+Failures are plain and never a hang (one async task per request; no thread is
+held while the host is slow): a host that cannot be connected to is **502
+`instance_unreachable`** ("... could not be reached ...: nothing was queued"); a
+connection that broke after the message was sent is 502 saying the message may be
+queued; a host that does not answer within the gateway's wait (30 seconds, a
+bound on a wait and not on any content) is **503 `instance_not_answering`**
+("the message may or may not be queued; look at the queue, or send it again with
+the same key (a repeat adds once)"). Other methods on `/v1/queue` are 405 for a
+native instance.
+
+### The host's own door
+
+`GET` and `POST /v1/queue` are on the host's HTTP listener beside `/acp` and
+`/v1/events`, owner token only (the host's `acp.tokens`: an unknown token is 401,
+another role's token is 403). The list reads the host's own record; every text
+and every error is passed through the host's redactor. The listener passes a
+non-GET request's body, whole, to the route (`RouteRequest.body`).
+
+### Not here
+
+`intent` `steer` and `free`, moving and cancelling an item, `stop` and `release`
+doors, and the page. Peers' items are listed and ordered here but only the owner
+adds through this door.
+
+### Proof
+
+`rung-host/tests/queue_door.rs` (8) and `rung-gateway/tests/queue.rs` (15), and
+the fold's own tests in `rung-host/src/queue.rs`, written first against code with
+neither door and kept red until it made them green: an item in the record before
+the answer; one key twice is one item, a different message under the key is
+refused; a stopped or down instance 409 "start it first" with the record byte for
+byte unchanged and no request sent upstream; the read-only token cannot write
+and can read; a planted owner key (and a shaped secret, and a host that echoes
+its bearer) in no gateway answer; an unreachable host 502 and a silent one 503
+while the gateway keeps answering; no key held 503; a bad Host or Origin refused
+before any host; a stopped instance's list from its record; a 200,000-character
+task queued and listed whole, through the gateway and on the host; peer items
+never above owner items; the desk's reason in words; states from the record's
+lines; paging with an exact total.
