@@ -143,3 +143,18 @@ test("until the replay is applied no partial frame is shown, and the turn runnin
     await until(() => store.getDelta()?.text === "arrives after");
   } finally { store.stop(); await m.stop(); }
 });
+
+test("the summary that says where the replay ends fails twice: it is asked again, and the page gets to following", async () => {
+  const m = await startMock();
+  let summaryCalls = 0;
+  const flaky = (async (url: string, init?: RequestInit) => {
+    if (String(url).includes("/v1/summary") && ++summaryCalls <= 3) return new Response("{}", { status: 503 }); // the first is the store's own refresh
+    return fetch(url, init);
+  }) as typeof fetch;
+  const store = new LiveStore(`${m.url}/api/i/alpha`, flaky);
+  try {
+    await store.start();
+    await until(() => store.getState().status === "following", 8000);
+    assert.ok(summaryCalls >= 4, `asked again (${summaryCalls} calls)`);
+  } finally { store.stop(); await m.stop(); }
+});

@@ -1,0 +1,5 @@
+# the summary-retry test against the store before the retry (the page stayed at 'catching up' for as long as the connection lasted)
+✖ failing tests:
+ℹ fail 1
+ℹ pass 7
+✖ the summary that says where the replay ends fails twice: it is asked again, and the page gets to following

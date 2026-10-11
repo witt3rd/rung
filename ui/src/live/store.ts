@@ -53,6 +53,8 @@ export class LiveStore {
   /** The next piece of answer text begins a new text block: it is set apart from what came before. */
   private newBlock = false;
   private followWhenFlushed = false;
+  /** Which opening of the stream is the current one: an answer to the summary asked for an older one is let go. */
+  private openGen = 0;
   private subs = new Set<() => void>();
   private deltaSubs = new Set<() => void>();
   private pending: Line[] = [];
@@ -151,20 +153,28 @@ export class LiveStore {
   /** The stream opened. Ask where the record stood, so that the replay's end is known: until the lines to that number are applied no
    *  partial frame is shown, and the turn running then (started before we were connected) is never shown streaming. */
   private async onOpen(o: Open) {
+    const gen = ++this.openGen;
     this.caught = false;
     this.tornTurn = null;
     this.joinSeq = null;
     this.newBlock = false;
     this.setDelta(null);
     if (!o.live) return; // a stopped host: its stream ends right after the replay
-    try {
-      const r = await this.fetchImpl(`${this.base}/v1/summary`);
-      if (!r.ok || this.stopped) return;
-      const host = redact(await r.json()) as HostSummary;
-      this.set({ host });
-      this.joinSeq = host.last_seq;
-      this.checkCaught();
-    } catch { /* without it no partial frame is shown: the record is still followed */ }
+    // Without the summary the page cannot say where the replay ends, so it would show no partial frame at all: ask again, with a growing
+    // wait, for as long as this stream is the open one. The record is followed meanwhile.
+    for (let wait = 250; !this.stopped && gen === this.openGen && this.joinSeq === null; wait = Math.min(wait * 2, 4000)) {
+      try {
+        const r = await this.fetchImpl(`${this.base}/v1/summary`);
+        if (r.ok && !this.stopped && gen === this.openGen) {
+          const host = redact(await r.json()) as HostSummary;
+          this.set({ host });
+          this.joinSeq = host.last_seq;
+          this.checkCaught();
+          return;
+        }
+      } catch { /* try again */ }
+      await new Promise((res) => setTimeout(res, wait));
+    }
   }
 
   private checkCaught() {
