@@ -340,7 +340,7 @@ fn result_weight(content: &str, images: &[ImageSource]) -> usize {
 /// has not yet seen them, so eliding them would answer an overflow by hiding
 /// the very result just asked for (and the model would ask again). They are
 /// never candidates; a result that alone exceeds the window is an error, not
-/// a cut ([`newest_result_alone_overflows`]).
+/// a cut (`newest_result_alone_overflows`).
 ///
 /// Oldest first, until at least half of the tool-result weight is gone. A
 /// result is a candidate when its note would be smaller than it (an elided
