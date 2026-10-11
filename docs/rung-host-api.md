@@ -500,11 +500,24 @@ by the read-only role is 403 `read_only`; any method but GET or HEAD on these
 doors is 405 `method_not_allowed` for the owner.
 
 **Every outgoing text is redacted** with the shared redactor (H4) before it is
-written: the gateway's own secrets (its read-only tokens and instance keys),
-the value of every variable the instance's config file names (`*_env` keys,
-`acp.tokens`), and every known key shape. This covers every field of every
-answer: an event body, a queue item, a config value. The record on disk stays
-verbatim. A replaced value is `[redacted]`; nothing is shortened otherwise.
+written, and that includes every error message, every name, id and path in an
+answer, and the `registry_error`: a key in a directory name, an entry's name, an
+invalid entry's file name or a query value never comes back. The secrets it
+removes: the gateway's own (its read-only tokens and instance keys); the value
+of every variable that **any** registered instance's config file names (`*_env`
+keys, `acp.tokens`), because a host can have been shown another's key, not only
+its own; and every known key shape. The record on disk stays verbatim. A
+replaced value is `[redacted]`; nothing is shortened otherwise.
+
+**The gateway must hold the variables.** A value is found by value only if the
+gateway process has the variable the config names, so run the gateway with the
+same environment source as the hosts. A name it cannot read is listed, never
+its value, in every summary and record answer as
+`redaction.env_unset` (a sorted list of names across the registry; `[]` when
+every named variable is held). For such a variable nothing can be matched by
+value: a copy of it in a record is removed only if it has a known key shape or
+sits under a secret-looking name, so treat a non-empty `env_unset` as a
+configuration fault to fix, not as a safe state.
 
 Errors are the gateway's `{"error": <code>, "message": <text>}`:
 
@@ -598,6 +611,7 @@ and `fold_hash` is the same hash over the whole record.
 | `governor` | the ladder rung in use, its model, failures, `blocked`, and the ladder with each rung's availability |
 | `config` | the config **as read** (nothing here writes it): `file` is the instance's config file parsed as YAML (`content`, null with `problem` when it cannot be read or parsed; all null for a `sim` host), `started_with` is the config the latest `host.start` line recorded |
 | `fold_hash` | `State::hash` of the fold |
+| `redaction` | `{"env_unset": [names]}`: the config-named variables the gateway does not hold (see above) |
 | `damaged`, `problem` | null for an intact record; see below |
 
 ### `GET /api/i/{id}/v1/record` — the recorded events, paged
@@ -620,7 +634,7 @@ A name not in the table, a repeated name, a value that is not a whole number,
 ```json
 {"lines": [{"seq": 11, "at": 1791208196000, "kind": "note.written", "…": "…"}],
  "offset": 10, "limit": 10, "total": 25, "next": 20, "cursor": 20,
- "order": "asc", "after": null, "damaged": null}
+ "order": "asc", "after": null, "damaged": null, "redaction": {"env_unset": []}}
 ```
 
 | field | meaning |
@@ -632,6 +646,23 @@ A name not in the table, a repeated name, a value that is not a whole number,
 | `cursor` | the `after` that continues from this page (the last line's number; the requested position for an empty page); `null` for `desc`. A poller keeps it and asks again |
 | `order`, `after` | as asked |
 | `damaged` | null, or where the record stops being intact (below) |
+| `redaction` | as in the summary |
+
+**The page is streamed.** There is no cap on `limit`, so a page can be the whole
+record; the answer is written a line at a time (each line redacted and sent
+before the next is read, to a client that reads at its own pace), so the
+gateway's working memory does not grow with the page: it holds a few chunks and
+the one line in hand, however large the page and however long the line. The
+object is one JSON document with `lines` first and the fields that need the
+whole read (`total`, `next`, `damaged`, …) after it, so a client that parses
+the whole answer sees no difference. All refusals (an unknown instance, a
+missing state directory, a bad query) are answered before the first byte; the
+status is 200 once the page starts. If the record becomes unreadable part-way,
+the body ends with an error and the connection is closed, so a client sees a
+truncated answer, never a complete-looking short one. A newest-first page
+first reads the record once, holding only its position, to find where it ends,
+then reads backwards from there; an oldest-first page starts at once and learns
+`total` as it goes.
 
 - **A cursor past the end** (`after` or `offset` beyond `total`) is an empty
   last page: 200, `lines: []`, `next: null`, the exact `total`.
@@ -658,14 +689,20 @@ repaired: reading never writes.
 
 ### Proof
 
-`rung-gateway/tests/native_doors.rs`, written first against the gateway as it
-was (19 tests, 17 red): every door's shape; the state words from the record
-and the lock; paging (page one, the cursor, the last page, an empty instance, a
-cursor past the end, a huge page size, newest first, a full walk); a stopped
-instance reading the same as a running one; a corrupt, gapped, torn or
-non-UTF-8 record, a dropped state directory, an unreadable entry; the fold of a
-recorded live run equal to its own `projection` at every turn end; a sentinel
-secret in an event body, a config value, a queue item, a tool result and the
-gateway's own keys absent from every door for both roles; both roles allowed,
-an unknown token refused, the Host check applied; and the state directory
-byte-identical (contents and times) after every door has answered.
+`rung-gateway/tests/native_doors.rs` (22 tests) and
+`rung-gateway/tests/native_doors_memory.rs` (1), written first against the
+gateway as it was and kept red until the code made them green: every door's
+shape; the state words from the record and the lock; paging (page one, the
+cursor, the last page, an empty instance, a cursor past the end, a huge page
+size, newest first across segments, long lines, blank lines, a torn tail and a
+damaged record, a full walk); a stopped instance reading the same as a running
+one; a corrupt, gapped, torn or non-UTF-8 record, a dropped state directory, an
+unreadable entry; the fold of a recorded live run equal to its own `projection`
+at every turn end; a sentinel secret in an event body, a config value, a queue
+item, a tool result, an entry's name, an invalid entry's file name, the registry
+and state paths and a query value absent from every door and every error body
+for both roles; a value named by another instance's config absent from every
+door, and the unset names reported; both roles allowed, an unknown token
+refused, the Host check applied; the state directory byte-identical (contents
+and times) after every door has answered; and a page of the whole record
+streamed with a counting allocator showing its peak a small fraction of the page.

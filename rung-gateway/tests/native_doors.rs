@@ -1128,3 +1128,282 @@ async fn reading_does_not_take_the_instances_lock() {
         other => panic!("the lock should still be held, got {other:?}"),
     }
 }
+
+// ─── errors and names carry no secret either (caretaker M1, S1) ─────────────
+
+/// A second sentinel in lower case, so it can sit in an id (a registry id is
+/// lower case) and still have a key shape.
+const LOWER: &str = "sk-sentinelh3lower0123456789abcdefgh";
+
+/// Every error body, and every name, path and id that reaches a door's
+/// output, goes through the redactor: a secret in the registry folder's path,
+/// a state directory's path, an entry's name, an invalid entry's file name or
+/// a query value never appears, in a success or in any error.
+#[tokio::test]
+async fn no_error_body_name_or_path_carries_a_secret() {
+    // the whole fleet lives under a path that holds a key
+    let f = Fleet::new(&format!("h3-err-{SHAPED}"));
+    // an entry whose name holds one
+    f.add("named", None);
+    let e = f.registry().join("named.json");
+    let mut v: Value = serde_json::from_str(&std::fs::read_to_string(&e).unwrap()).unwrap();
+    v["name"] = json!(format!("my {SHAPED} agent"));
+    std::fs::write(&e, v.to_string()).unwrap();
+    f.record("named", &many(2));
+    // a dropped state directory, an unreadable record, an invalid entry whose
+    // file name (so its id) and contents hold one
+    f.add("gone", None);
+    std::fs::remove_dir_all(f.state("gone")).unwrap();
+    f.add("odd", None);
+    std::fs::write(f.state("odd").join("record"), "x").unwrap();
+    let bad = format!("bad-{LOWER}");
+    std::fs::write(
+        f.registry().join(format!("{bad}.json")),
+        format!("{{ not json {SHAPED}"),
+    )
+    .unwrap();
+    let gw = f.serve().await;
+
+    let mut seen = Vec::new();
+    for d in [
+        "/api/instances".to_string(),
+        "/api/i/named/v1/summary".into(),
+        "/api/i/named/v1/record".into(),
+        "/api/i/gone/v1/summary".into(),
+        "/api/i/gone/v1/record".into(),
+        "/api/i/odd/v1/record".into(),
+        "/api/i/odd/v1/summary".into(),
+        format!("/api/i/{bad}/v1/summary"),
+        format!("/api/i/{bad}/v1/record"),
+        format!("/api/i/{LOWER}/v1/summary"),
+        format!("/api/i/named/v1/record?limit={SHAPED}"),
+        format!("/api/i/named/v1/record?{LOWER}=1"),
+        format!("/api/i/named/v1/record?order={SHAPED}"),
+        "/api/i/named/v1/summary?x=1".into(),
+    ] {
+        for (who, a) in [
+            ("owner", gw.get(&d).await),
+            ("reader", gw.get_as_reader(&d).await),
+        ] {
+            for (name, secret) in [("shaped key", SHAPED), ("lower-case key", LOWER)] {
+                assert!(
+                    !a.body.contains(secret),
+                    "{who} {} leaked the {name} (status {}, at byte {:?})",
+                    d.replace(SHAPED, "<k>").replace(LOWER, "<l>"),
+                    a.status,
+                    a.body.find(secret)
+                );
+            }
+            seen.push(a.status);
+        }
+    }
+    // the cases did produce the errors they were written for
+    for want in [400, 404, 500] {
+        assert!(seen.contains(&want), "no {want} among {seen:?}");
+    }
+
+    // a registry folder that cannot be listed: the reason is told, redacted
+    let dir = f.root.path().join("not-a-folder");
+    std::fs::write(&dir, "x").unwrap();
+    let mut s = f.settings();
+    s.registry_dir = Some(dir);
+    let gw = f.serve_with(s).await;
+    let a = gw.get("/api/instances").await;
+    assert_eq!(a.status, 200, "{}", a.body);
+    assert!(a.json()["registry_error"].is_string(), "{}", a.body);
+    assert!(!a.body.contains(SHAPED), "registry_error leaked the key");
+}
+
+// ─── values named by any instance's config are redacted everywhere (M2) ─────
+
+const BETA_VALUE: &str = "betaplainvalueh3-9876543210";
+const GAMMA_VALUE: &str = "gammaunsetvalueh3-5555555555";
+
+fn config_naming(dir: &Path, file: &str, env: &str) -> PathBuf {
+    let p = dir.join(file);
+    std::fs::write(
+        &p,
+        format!("name: x\nstate: /x\nengine: {{kind: agent, api_key_env: {env}}}\n"),
+    )
+    .unwrap();
+    p
+}
+
+/// A value held in a variable that one instance's config names is redacted
+/// from every instance's output, not only from that instance's own: a host can
+/// have been shown another's key. A variable the gateway does not hold cannot
+/// be redacted by its value, so the answer says which names it could not (never
+/// a value).
+#[tokio::test]
+async fn a_value_any_instances_config_names_is_redacted_from_every_door() {
+    // SAFETY: variables only this test reads, set before the gateway starts.
+    unsafe {
+        std::env::set_var("H3_BETA_KEY_ENV", BETA_VALUE);
+        std::env::remove_var("H3_GAMMA_KEY_ENV");
+    }
+    let f = Fleet::new("h3-fleet-env");
+    let root = f.root.path().to_path_buf();
+    f.add(
+        "alpha",
+        Some(&config_naming(&root, "alpha.yaml", "H3_ALPHA_KEY_ENV")),
+    );
+    f.add(
+        "beta",
+        Some(&config_naming(&root, "beta.yaml", "H3_BETA_KEY_ENV")),
+    );
+    f.add(
+        "gamma",
+        Some(&config_naming(&root, "gamma.yaml", "H3_GAMMA_KEY_ENV")),
+    );
+    // alpha's record holds beta's value, a tool having printed it
+    let mut v = many(3);
+    v.push(line(
+        4,
+        T0 + 4,
+        "tool.call",
+        json!({"turn": 1, "name": "shell", "ok": true, "result": format!("seen {BETA_VALUE} in the env")}),
+    ));
+    f.record("alpha", &v);
+    f.record("beta", &many(1));
+    // gamma's variable is not held by the gateway; its value is in its record
+    let mut g = many(1);
+    g.push(line(
+        2,
+        T0 + 2,
+        "note.written",
+        json!({"turn": 1, "text": format!("gamma key {SHAPED} and {GAMMA_VALUE}")}),
+    ));
+    f.record("gamma", &g);
+    let gw = f.serve().await;
+
+    for d in [
+        "/api/instances",
+        "/api/i/alpha/v1/record",
+        "/api/i/alpha/v1/record?order=desc",
+        "/api/i/alpha/v1/summary",
+        "/api/i/beta/v1/summary",
+        "/api/i/gamma/v1/record",
+        "/api/i/gamma/v1/summary",
+    ] {
+        for (who, a) in [
+            ("owner", gw.get(d).await),
+            ("reader", gw.get_as_reader(d).await),
+        ] {
+            assert_eq!(a.status, 200, "{who} {d}");
+            assert!(
+                !a.body.contains(BETA_VALUE),
+                "{who} {d} leaked beta's value"
+            );
+            assert!(
+                !a.body.contains(SHAPED),
+                "{who} {d} leaked a shaped key in gamma's record"
+            );
+        }
+    }
+    // the variables the gateway could not read are named, never their values
+    for d in ["/api/i/gamma/v1/record", "/api/i/gamma/v1/summary"] {
+        let j = gw.get(d).await.json();
+        assert_eq!(
+            j["redaction"]["env_unset"],
+            json!(["H3_ALPHA_KEY_ENV", "H3_GAMMA_KEY_ENV"]),
+            "{d}"
+        );
+    }
+    // and when every named variable is held there is nothing to report
+    unsafe {
+        std::env::set_var("H3_ALPHA_KEY_ENV", "alphaplainvalueh3-1234567890");
+        std::env::set_var("H3_GAMMA_KEY_ENV", GAMMA_VALUE);
+    }
+    let j = gw.get("/api/i/gamma/v1/record").await;
+    assert_eq!(j.json()["redaction"]["env_unset"], json!([]));
+    assert!(!j.body.contains(GAMMA_VALUE), "gamma's own value leaked");
+}
+
+// ─── newest first reads backwards from the end (M3) ─────────────────────────
+
+/// Segments, a line longer than the reader's chunk, blank lines and a torn
+/// tail: every newest-first page is the oldest-first record, reversed, however
+/// it is cut; and on a damaged record it starts at the end of the intact
+/// prefix.
+#[tokio::test]
+async fn newest_first_is_the_record_reversed_across_segments_and_long_lines() {
+    let f = Fleet::new("h3-desc");
+    f.add("alpha", None);
+    let dir = f.state("alpha").join("record");
+    std::fs::create_dir_all(&dir).unwrap();
+    let long = "x".repeat(200_000);
+    let all: Vec<Value> = (1..=30u64)
+        .map(|i| {
+            let t = if i == 13 || i == 21 {
+                long.clone()
+            } else {
+                format!("note {i}")
+            };
+            line(
+                i,
+                T0 + i as i64,
+                "note.written",
+                json!({"turn": i, "text": t}),
+            )
+        })
+        .collect();
+    for (n, chunk) in all.chunks(10).enumerate() {
+        let mut body = text(chunk);
+        if n == 1 {
+            body = format!("\n{body}\n"); // blank lines are not lines
+        }
+        if n == 2 {
+            body.push_str("{\"at\":1,\"kind\":\"torn"); // a write in flight
+        }
+        std::fs::write(dir.join(format!("seg-{:08}.ndjson", n + 1)), body).unwrap();
+    }
+    let gw = f.serve().await;
+    for (offset, limit) in [
+        (0u64, 30u64),
+        (0, 7),
+        (5, 11),
+        (13, 1),
+        (20, 100),
+        (29, 5),
+        (30, 5),
+        (45, 5),
+    ] {
+        let d = gw
+            .get(&format!(
+                "/api/i/alpha/v1/record?order=desc&offset={offset}&limit={limit}"
+            ))
+            .await;
+        assert_eq!(d.status, 200, "{offset},{limit}");
+        let d = d.json();
+        let want: Vec<u64> = (1..=30u64)
+            .rev()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect();
+        assert_eq!(ids(&d), want, "offset {offset} limit {limit}");
+        assert_eq!(d["total"], 30);
+        let shown = want.len() as u64;
+        let next = (offset + shown < 30).then_some(offset + shown);
+        assert_eq!(d["next"], json!(next), "offset {offset} limit {limit}");
+        // the long lines come whole
+        for l in d["lines"].as_array().unwrap() {
+            if l["seq"] == 13 || l["seq"] == 21 {
+                assert_eq!(l["text"].as_str().unwrap().len(), 200_000);
+            }
+        }
+    }
+
+    // damage in the second segment: the newest page is the last intact line
+    let seg2 = dir.join("seg-00000002.ndjson");
+    let t = std::fs::read_to_string(&seg2).unwrap();
+    let mut parts: Vec<&str> = t.lines().filter(|l| !l.is_empty()).collect();
+    parts.insert(4, "garbage"); // after lines 11 to 14
+    std::fs::write(&seg2, parts.join("\n") + "\n").unwrap();
+    let d = gw
+        .get("/api/i/alpha/v1/record?order=desc&limit=100")
+        .await
+        .json();
+    assert_eq!(ids(&d), (1..=14u64).rev().collect::<Vec<_>>());
+    assert_eq!(d["total"], 14);
+    assert_eq!(d["damaged"]["after_seq"], 14);
+}

@@ -398,6 +398,18 @@ pub fn list_in(dir: &Path) -> Result<Vec<Row>, String> {
     Ok(rows)
 }
 
+/// Every entry file in `dir` that parses, by id: no lock is probed and no
+/// record is read. An entry that cannot be read is skipped (its row is
+/// [`list_in`]'s business). An absent folder has none.
+pub fn entries_in(dir: &Path) -> Result<Vec<Entry>, String> {
+    let mut v: Vec<Entry> = entry_files(dir)?
+        .iter()
+        .filter_map(|p| read_entry(p).ok())
+        .collect();
+    v.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(v)
+}
+
 /// The one instance `id` in `dir`, or `None` when no entry file has that
 /// name. Only a registry id (what [`slug`] makes) names a file: anything
 /// else, a separator or `..` included, is `None` and touches nothing.

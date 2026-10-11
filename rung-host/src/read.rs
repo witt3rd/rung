@@ -20,7 +20,7 @@
 //! never a panic. Door shapes: `docs/rung-host-api.md` (H3).
 
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use serde_json::{Map, Value, json};
@@ -120,6 +120,21 @@ fn check_state_dir(state_dir: &Path) -> Door<()> {
     }
 }
 
+/// Where the intact prefix ends, for reading it backwards: the segment's index
+/// in the list and the byte offset just after the last good line.
+#[derive(Debug, Clone, Copy)]
+struct End {
+    segment: usize,
+    bytes: u64,
+}
+
+#[derive(Debug)]
+struct ScanOut {
+    scanned: Scanned,
+    segments: Vec<std::path::PathBuf>,
+    end: Option<End>,
+}
+
 /// Read the record in `state_dir` line by line, calling `each` on every
 /// line of its intact prefix, in order. Lines are numbered from 1 with no gap,
 /// as the host writes them; the first line that is not a record line, is not
@@ -127,12 +142,27 @@ fn check_state_dir(state_dir: &Path) -> Door<()> {
 /// last line of the newest segment is a write in flight, not damage. A record
 /// directory that is not there is an empty record. Memory is one line.
 pub fn scan(state_dir: &Path, mut each: impl FnMut(&Line)) -> Door<Scanned> {
+    scan_while(state_dir, |l| {
+        each(l);
+        true
+    })
+    .map(|o| o.scanned)
+}
+
+/// [`scan`], stopping early (the `total` is then only what was read) when
+/// `each` returns false.
+fn scan_while(state_dir: &Path, mut each: impl FnMut(&Line) -> bool) -> Door<ScanOut> {
     check_state_dir(state_dir)?;
     let dir = state_dir.join("record");
-    let segs = record::segments(&dir).map_err(|e| DoorError::unreadable(&dir, &e))?;
+    let segs: Vec<std::path::PathBuf> = record::segments(&dir)
+        .map_err(|e| DoorError::unreadable(&dir, &e))?
+        .into_iter()
+        .map(|(_, p)| p)
+        .collect();
     let mut index = 0u64;
+    let mut end = None;
     let mut buf = Vec::new();
-    for (si, (_, path)) in segs.iter().enumerate() {
+    for (si, path) in segs.iter().enumerate() {
         let newest = si + 1 == segs.len();
         let name = path
             .file_name()
@@ -140,6 +170,7 @@ pub fn scan(state_dir: &Path, mut each: impl FnMut(&Line)) -> Door<Scanned> {
             .unwrap_or_default();
         let mut r = BufReader::new(File::open(path).map_err(|e| DoorError::unreadable(path, &e))?);
         let mut lineno = 0u64;
+        let mut pos = 0u64;
         loop {
             buf.clear();
             let n = r
@@ -149,18 +180,23 @@ pub fn scan(state_dir: &Path, mut each: impl FnMut(&Line)) -> Door<Scanned> {
                 break;
             }
             lineno += 1;
+            pos += n as u64;
             let terminated = buf.last() == Some(&b'\n');
             if !terminated && newest {
                 break; // a write in flight, or torn by a crash
             }
-            let damage = |problem: String| Scanned {
-                total: index,
-                damaged: Some(Damaged {
-                    after_seq: index,
-                    segment: name.clone(),
-                    line: lineno,
-                    problem,
-                }),
+            let damage = |problem: String| ScanOut {
+                scanned: Scanned {
+                    total: index,
+                    damaged: Some(Damaged {
+                        after_seq: index,
+                        segment: name.clone(),
+                        line: lineno,
+                        problem,
+                    }),
+                },
+                segments: segs.clone(),
+                end,
             };
             let Ok(text) = std::str::from_utf8(&buf) else {
                 return Ok(damage("the line is not UTF-8".into()));
@@ -179,14 +215,82 @@ pub fn scan(state_dir: &Path, mut each: impl FnMut(&Line)) -> Door<Scanned> {
                     line.seq
                 )));
             }
-            each(&line);
             index += 1;
+            end = Some(End {
+                segment: si,
+                bytes: pos,
+            });
+            if !each(&line) {
+                return Ok(ScanOut {
+                    scanned: Scanned {
+                        total: index,
+                        damaged: None,
+                    },
+                    segments: segs,
+                    end,
+                });
+            }
         }
     }
-    Ok(Scanned {
-        total: index,
-        damaged: None,
+    Ok(ScanOut {
+        scanned: Scanned {
+            total: index,
+            damaged: None,
+        },
+        segments: segs,
+        end,
     })
+}
+
+/// The bytes of the intact prefix's non-blank lines, newest first, read from
+/// the end of the record backwards in chunks. `each` gets one line's bytes
+/// (no newline) and returns whether to go on. Memory is a chunk and one line.
+fn lines_backwards(
+    segments: &[std::path::PathBuf],
+    end: End,
+    mut each: impl FnMut(&[u8]) -> io::Result<bool>,
+) -> io::Result<()> {
+    const CHUNK: u64 = 64 * 1024;
+    for si in (0..=end.segment).rev() {
+        let mut f = File::open(&segments[si])?;
+        let limit = if si == end.segment {
+            end.bytes
+        } else {
+            f.metadata()?.len()
+        };
+        let mut pos = limit;
+        if pos > 0 {
+            let mut last = [0u8; 1];
+            f.seek(SeekFrom::Start(pos - 1))?;
+            f.read_exact(&mut last)?;
+            if last[0] == b'\n' {
+                pos -= 1;
+            }
+        }
+        let mut buf: Vec<u8> = Vec::new();
+        loop {
+            while let Some(i) = buf.iter().rposition(|b| *b == b'\n') {
+                if !each(&buf[i + 1..])? {
+                    return Ok(());
+                }
+                buf.truncate(i);
+            }
+            if pos == 0 {
+                break;
+            }
+            let start = pos.saturating_sub(CHUNK);
+            let mut chunk = vec![0u8; (pos - start) as usize];
+            f.seek(SeekFrom::Start(start))?;
+            f.read_exact(&mut chunk)?;
+            chunk.extend_from_slice(&buf);
+            buf = chunk;
+            pos = start;
+        }
+        if !each(&buf)? {
+            return Ok(());
+        }
+    }
+    Ok(())
 }
 
 // ─── the fold ────────────────────────────────────────────────────────────────
@@ -339,21 +443,42 @@ impl ConfigView {
         }
     }
 
-    /// `base` plus the value of every variable this config names.
-    fn redactor(&self, base: &Redactor) -> Redactor {
-        let mut r = base.clone();
-        let mut names = Vec::new();
-        if let Some(c) = &self.content {
-            env_names(c, &mut names);
-        }
-        for n in names {
-            r.add_env(&n);
-        }
-        r
-    }
-
     fn to_json(&self) -> Value {
         json!({"path": self.path, "content": self.content, "problem": self.problem})
+    }
+}
+
+/// The redactor for a read: `base` (the gateway's own secrets) plus the value
+/// of every variable that **any** registered instance's config names, since a
+/// host can have been shown another's key. Also the names, sorted, of those
+/// variables this process does not hold: their values cannot be found by value,
+/// only by shape, so the answers list the names (never a value).
+pub fn fleet_redactor(registry_dir: &Path, base: &Redactor) -> (Redactor, Vec<String>) {
+    let mut red = base.clone();
+    let mut names = Vec::new();
+    for entry in registry::entries_in(registry_dir).unwrap_or_default() {
+        if let Some(c) = ConfigView::read(&entry).content {
+            env_names(&c, &mut names);
+        }
+    }
+    names.sort();
+    names.dedup();
+    let mut unset = Vec::new();
+    for n in names {
+        match std::env::var(&n) {
+            Ok(v) if !v.trim().is_empty() => red.add_secret(&v),
+            _ => unset.push(n),
+        }
+    }
+    (red, unset)
+}
+
+impl DoorError {
+    /// The error with its message through `red`: a path, an id or a query value
+    /// in it can hold a key too.
+    fn redacted(mut self, red: &Redactor) -> Self {
+        self.message = red.redact(&self.message).into_owned();
+        self
     }
 }
 
@@ -516,7 +641,7 @@ fn governor_view(f: &Fold) -> Value {
 }
 
 /// The summary for one located instance, redacted.
-fn summary_value(row: &Row, entry: &Entry, base: &Redactor) -> Door {
+fn summary_value(row: &Row, entry: &Entry, red: &Redactor, env_unset: &[String]) -> Door {
     let f = fold(&entry.state_dir)?;
     let cfg = ConfigView::read(entry);
     let label = state_label(row, &f);
@@ -557,17 +682,20 @@ fn summary_value(row: &Row, entry: &Entry, base: &Redactor) -> Door {
         "desk": desk_view(&f, &cfg),
         "governor": governor_view(&f),
         "config": {"file": cfg.to_json(), "started_with": started_cfg},
+        "redaction": {"env_unset": env_unset},
         "fold_hash": st.hash(),
         "damaged": f.damaged.as_ref().map(Damaged::to_json),
         "problem": problem,
     });
-    Ok(cfg.redactor(base).redact_value(&v))
+    Ok(red.redact_value(&v))
 }
 
 /// `GET /v1/summary`: the fold of instance `id`, read from its own files.
 pub fn summary(registry_dir: &Path, id: &str, base: &Redactor) -> Door {
-    let (row, entry) = locate(registry_dir, id)?;
-    summary_value(&row, &entry, base)
+    let (red, unset) = fleet_redactor(registry_dir, base);
+    locate(registry_dir, id)
+        .and_then(|(row, entry)| summary_value(&row, &entry, &red, &unset))
+        .map_err(|e| e.redacted(&red))
 }
 
 // ─── the list ────────────────────────────────────────────────────────────────
@@ -577,13 +705,15 @@ pub fn summary(registry_dir: &Path, id: &str, base: &Redactor) -> Door {
 /// time of the last event, the command that starts it and its fold's summary
 /// (null, with `error`, when it cannot be read). No row is dropped.
 pub fn rows(registry_dir: &Path, base: &Redactor) -> Door<Vec<Value>> {
-    let rows = registry::list_in(registry_dir).map_err(|e| DoorError::new(500, "unreadable", e))?;
+    let (red, unset) = fleet_redactor(registry_dir, base);
+    let rows = registry::list_in(registry_dir)
+        .map_err(|e| DoorError::new(500, "unreadable", e).redacted(&red))?;
     Ok(rows
         .iter()
         .map(|row| {
             let mut v = row.to_json();
             let summary = match &row.entry {
-                Some(entry) => summary_value(row, entry, base),
+                Some(entry) => summary_value(row, entry, &red, &unset),
                 None => Err(DoorError::new(
                     500,
                     "unreadable",
@@ -609,11 +739,7 @@ pub fn rows(registry_dir: &Path, base: &Redactor) -> Door<Vec<Value>> {
             v["summary"] = summary;
             v["error"] = error;
             // the row as a whole is text going out: redact it too
-            let cfg = row.entry.as_ref().map(ConfigView::read);
-            match cfg {
-                Some(c) => c.redactor(base).redact_value(&v),
-                None => base.redact_value(&v),
-            }
+            red.redact_value(&v)
         })
         .collect())
 }
@@ -705,51 +831,157 @@ impl RecordQuery {
 /// after line number `after`); `total` is the number of intact lines; `next`
 /// is the next offset or null on the last page; `cursor` is the `after` that
 /// continues from this page. A cursor past the end is an empty last page.
+///
+/// This buffers the page. A door writes it with [`record_open`] and
+/// [`RecordPage::write_json`], which hold one line at a time however large the
+/// page is.
 pub fn record(registry_dir: &Path, id: &str, q: &RecordQuery, base: &Redactor) -> Door {
-    let (_, entry) = locate(registry_dir, id)?;
-    let cfg = ConfigView::read(&entry);
-    let dir = &entry.state_dir;
-    let offset = q.after.unwrap_or(q.offset);
-    let mut lines: Vec<Value> = Vec::new();
-    let (total, damaged) = if q.desc {
-        let counted = scan(dir, |_| {})?;
-        let hi = counted.total.saturating_sub(offset);
-        let lo = hi.saturating_sub(q.limit);
-        let mut at = 0u64;
-        // The window and the reported total come from the first scan alone: a
-        // line appended between the two scans is past `hi` and not read, so
-        // the page always agrees with its `total`.
-        scan(dir, |l| {
-            if at >= lo && at < hi {
-                lines.push(l.to_value());
-            }
-            at += 1;
-        })?;
-        lines.reverse();
-        (counted.total, counted.damaged)
-    } else {
-        let end = offset.saturating_add(q.limit);
-        let mut at = 0u64;
-        let s = scan(dir, |l| {
-            if at >= offset && at < end {
-                lines.push(l.to_value());
-            }
-            at += 1;
-        })?;
-        (s.total, s.damaged)
+    let page = record_open(registry_dir, id, q, base)?;
+    let red = page.red.clone();
+    let mut out = Vec::new();
+    page.write_json(&mut out)
+        .map_err(|e| DoorError::new(500, "unreadable", e.to_string()).redacted(&red))?;
+    serde_json::from_slice(&out)
+        .map_err(|e| DoorError::new(500, "internal", format!("the page is not JSON: {e}")))
+}
+
+/// A record page ready to be written: everything that can be refused has been
+/// (an unknown instance, a missing state directory, an unreadable record
+/// directory), so [`write_json`](RecordPage::write_json) can start an answer.
+#[derive(Debug)]
+pub struct RecordPage {
+    dir: std::path::PathBuf,
+    offset: u64,
+    q: RecordQuery,
+    red: Redactor,
+    env_unset: Vec<String>,
+    /// For a newest-first page, the first scan: the intact prefix, found before
+    /// the first byte is written.
+    prefix: Option<ScanOut>,
+}
+
+/// Open the page `q` asks of instance `id`. A newest-first page first reads
+/// the record once to find where it ends (nothing is held but its position);
+/// an oldest-first page reads nothing yet.
+pub fn record_open(
+    registry_dir: &Path,
+    id: &str,
+    q: &RecordQuery,
+    base: &Redactor,
+) -> Door<RecordPage> {
+    let (red, env_unset) = fleet_redactor(registry_dir, base);
+    let open = || -> Door<RecordPage> {
+        let (_, entry) = locate(registry_dir, id)?;
+        let dir = entry.state_dir.clone();
+        check_state_dir(&dir)?;
+        let record_dir = dir.join("record");
+        for (_, p) in
+            record::segments(&record_dir).map_err(|e| DoorError::unreadable(&record_dir, &e))?
+        {
+            File::open(&p).map_err(|e| DoorError::unreadable(&p, &e))?;
+        }
+        let offset = q.after.unwrap_or(q.offset);
+        let prefix = if q.desc {
+            Some(scan_while(&dir, |_| true)?)
+        } else {
+            None
+        };
+        Ok(RecordPage {
+            dir,
+            offset,
+            q: q.clone(),
+            red: red.clone(),
+            env_unset: env_unset.clone(),
+            prefix,
+        })
     };
-    let end = offset.saturating_add(lines.len() as u64);
-    let next = (end < total).then_some(end);
-    let v = json!({
-        "lines": lines,
-        "offset": offset,
-        "limit": q.limit,
-        "total": total,
-        "next": next,
-        "cursor": (!q.desc).then_some(end.max(offset)),
-        "order": if q.desc { "desc" } else { "asc" },
-        "after": q.after,
-        "damaged": damaged.as_ref().map(Damaged::to_json),
-    });
-    Ok(cfg.redactor(base).redact_value(&v))
+    open().map_err(|e| e.redacted(&red))
+}
+
+impl RecordPage {
+    /// Write the page as one JSON object, a line at a time: each line is
+    /// redacted and written before the next is read, so the memory held does
+    /// not grow with the page (one line, however long, plus a chunk). `lines`
+    /// comes first; the fields that need the whole read (`total`, `next`,
+    /// `damaged`) follow it.
+    pub fn write_json(self, out: &mut dyn Write) -> io::Result<()> {
+        out.write_all(b"{\"lines\":[")?;
+        let mut written = 0u64;
+        let mut failed: Option<io::Error> = None;
+        /// One line, redacted, after a comma unless it is the first.
+        fn put(out: &mut dyn Write, l: &Line, red: &Redactor, written: &mut u64) -> io::Result<()> {
+            if *written > 0 {
+                out.write_all(b",")?;
+            }
+            serde_json::to_writer(&mut *out, &red.redact_value(&l.to_value()))?;
+            *written += 1;
+            Ok(())
+        }
+        let (total, damaged) = match &self.prefix {
+            None => {
+                // oldest first: one pass; the lines of the window are written as
+                // they are read, the total is known at the end
+                let (lo, hi) = (self.offset, self.offset.saturating_add(self.q.limit));
+                let mut at = 0u64;
+                let s = scan_while(&self.dir, |l| {
+                    if at >= lo
+                        && at < hi
+                        && let Err(e) = put(&mut *out, l, &self.red, &mut written)
+                    {
+                        failed = Some(e);
+                        return false;
+                    }
+                    at += 1;
+                    true
+                })
+                .map_err(|e| io::Error::other(e.message))?;
+                (s.scanned.total, s.scanned.damaged)
+            }
+            Some(first) => {
+                // newest first: read backwards from where the first scan ended,
+                // skipping `offset` lines, writing `limit`
+                let mut skip = self.offset;
+                if let Some(end) = first.end {
+                    lines_backwards(&first.segments, end, |raw| {
+                        let Ok(text) = std::str::from_utf8(raw) else {
+                            return Ok(true);
+                        };
+                        let text = text.trim_end_matches('\r');
+                        if text.trim().is_empty() {
+                            return Ok(true);
+                        }
+                        if skip > 0 {
+                            skip -= 1;
+                            return Ok(true);
+                        }
+                        let Some(l) = Line::parse(text) else {
+                            return Ok(true);
+                        };
+                        put(&mut *out, &l, &self.red, &mut written)?;
+                        Ok(written < self.q.limit)
+                    })?;
+                }
+                (first.scanned.total, first.scanned.damaged.clone())
+            }
+        };
+        if let Some(e) = failed {
+            return Err(e);
+        }
+        let end = self.offset.saturating_add(written);
+        let trailer = json!({
+            "offset": self.offset,
+            "limit": self.q.limit,
+            "total": total,
+            "next": (end < total).then_some(end),
+            "cursor": (!self.q.desc).then_some(end),
+            "order": if self.q.desc { "desc" } else { "asc" },
+            "after": self.q.after,
+            "damaged": damaged.as_ref().map(Damaged::to_json),
+            "redaction": {"env_unset": self.env_unset},
+        });
+        let text = serde_json::to_string(&self.red.redact_value(&trailer))?;
+        out.write_all(b"],")?;
+        out.write_all(&text.as_bytes()[1..])?;
+        out.flush()
+    }
 }

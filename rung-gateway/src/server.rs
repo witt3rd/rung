@@ -584,6 +584,7 @@ fn query_pairs(query: Option<&str>) -> Option<Vec<(String, String)>> {
 }
 
 /// An H3 read door of a native instance, answered from its state directory.
+/// The summary is one small object; the record's page is streamed.
 async fn native_door(
     state: &State,
     dir: PathBuf,
@@ -601,7 +602,7 @@ async fn native_door(
     }
     let red = request_redactor(state);
     let id = id.to_string();
-    let answer = if door == "/v1/summary" {
+    if door == "/v1/summary" {
         if query.as_deref().is_some_and(|q| !q.is_empty()) {
             return error(
                 StatusCode::BAD_REQUEST,
@@ -609,37 +610,114 @@ async fn native_door(
                 "this door takes no parameters",
             );
         }
-        blocking(move || rung_host::read::summary(&dir, &id, &red)).await
-    } else {
-        let Some(pairs) = query_pairs(query.as_deref()) else {
-            return error(
-                StatusCode::BAD_REQUEST,
-                "bad_request",
-                "the query is not valid UTF-8",
-            );
+        let r = red.clone();
+        return match blocking(move || rung_host::read::summary(&dir, &id, &r)).await {
+            Some(Ok(v)) => json_reply(StatusCode::OK, v),
+            Some(Err(e)) => door_error(e, &red),
+            None => internal(),
         };
-        let q = match rung_host::read::RecordQuery::parse(&pairs) {
-            Ok(q) => q,
-            Err(e) => return door_error(e),
-        };
-        blocking(move || rung_host::read::record(&dir, &id, &q, &red)).await
+    }
+    let Some(pairs) = query_pairs(query.as_deref()) else {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "bad_request",
+            "the query is not valid UTF-8",
+        );
     };
-    match answer {
-        Some(Ok(v)) => json_reply(StatusCode::OK, v),
-        Some(Err(e)) => door_error(e),
-        None => error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "internal",
-            "the read failed",
-        ),
+    let q = match rung_host::read::RecordQuery::parse(&pairs) {
+        Ok(q) => q,
+        Err(e) => return door_error(e, &red),
+    };
+    let r = red.clone();
+    match blocking(move || rung_host::read::record_open(&dir, &id, &q, &r)).await {
+        Some(Ok(page)) => stream_page(page),
+        Some(Err(e)) => door_error(e, &red),
+        None => internal(),
     }
 }
 
-fn door_error(e: rung_host::read::DoorError) -> Response<Body> {
+fn internal() -> Response<Body> {
+    error(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "internal",
+        "the read failed",
+    )
+}
+
+/// Bytes written to the page are sent in chunks of about this size.
+const CHUNK: usize = 64 * 1024;
+/// Chunks waiting for the client: the writer blocks when it is this far ahead,
+/// so a slow client holds back the read instead of the read filling memory.
+const AHEAD: usize = 2;
+
+/// A writer that hands what it is given to a channel in chunks.
+struct ChannelWriter {
+    tx: tokio::sync::mpsc::Sender<Result<Bytes, BoxErr>>,
+    buf: Vec<u8>,
+}
+
+impl ChannelWriter {
+    fn send(&mut self) -> std::io::Result<()> {
+        if self.buf.is_empty() {
+            return Ok(());
+        }
+        let chunk = Bytes::from(std::mem::replace(&mut self.buf, Vec::with_capacity(CHUNK)));
+        self.tx
+            .blocking_send(Ok(chunk))
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::BrokenPipe, "client gone"))
+    }
+}
+
+impl std::io::Write for ChannelWriter {
+    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+        self.buf.extend_from_slice(data);
+        if self.buf.len() >= CHUNK {
+            self.send()?;
+        }
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.send()
+    }
+}
+
+/// Answer 200 and write the page as the reader produces it: one blocking task
+/// reads and redacts a line at a time into a channel of a few chunks, and the
+/// body is that channel. A failure part-way (the record became unreadable)
+/// ends the body with an error, which closes the connection: the client sees a
+/// truncated answer, never a complete-looking short one.
+fn stream_page(page: rung_host::read::RecordPage) -> Response<Body> {
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, BoxErr>>(AHEAD);
+    tokio::task::spawn_blocking(move || {
+        let mut w = ChannelWriter {
+            tx: tx.clone(),
+            buf: Vec::with_capacity(CHUNK),
+        };
+        if let Err(e) = page.write_json(&mut w)
+            && e.kind() != std::io::ErrorKind::BrokenPipe
+        {
+            let _ = tx.blocking_send(Err(Box::new(e)));
+        }
+    });
+    let stream = futures::stream::unfold(rx, |mut rx| async move {
+        rx.recv().await.map(|item| (item, rx))
+    });
+    let body = http_body_util::StreamBody::new(futures::StreamExt::map(stream, |item| {
+        item.map(hyper::body::Frame::data)
+    }))
+    .boxed();
+    let mut r = Response::new(body);
+    r.headers_mut()
+        .insert("content-type", HeaderValue::from_static("application/json"));
+    r
+}
+
+fn door_error(e: rung_host::read::DoorError, red: &Redactor) -> Response<Body> {
     error(
         StatusCode::from_u16(e.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
         e.code,
-        &e.message,
+        &red.redact(&e.message),
     )
 }
 
