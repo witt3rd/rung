@@ -80,7 +80,6 @@ mod judge {
             "model": MODEL,
             "stream": false,      // OmniRoute streams by default; we want one JSON object.
             "temperature": 0,
-            "max_tokens": 2000,   // best-fast may route to a thinking model; give it headroom.
             "messages": [
                 { "role": "system", "content":
                     "You are a research-question triage judge. Decide whether the question \

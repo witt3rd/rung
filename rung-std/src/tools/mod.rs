@@ -278,7 +278,7 @@ mod tests {
                 "limit": 2
             }))
             .unwrap();
-        assert_eq!(out, "2→beta\n3→gamma\n… 1 more lines");
+        assert_eq!(out, "2→beta\n3→gamma\n[1 more lines after line 3]");
     }
 
     #[test]
@@ -602,5 +602,205 @@ mod tests {
     fn roster_unknown_tool() {
         let roster = ToolRoster::new();
         assert!(roster.execute("nope", &serde_json::json!({})).is_err());
+    }
+
+    // No-caps: the file tools return whole text; nothing is cut or elided.
+    fn no_cut_marks(out: &str) {
+        assert!(!out.contains('…'), "ellipsis in output");
+        assert!(!out.contains("truncated at"), "truncation note in output");
+    }
+
+    #[test]
+    fn read_file_returns_a_100k_line_file_whole() {
+        let dir = tmp("nocap-lines");
+        let p = dir.join("big.txt");
+        let body: String = (1..=100_000).map(|i| format!("row{i}\n")).collect();
+        std::fs::write(&p, &body).unwrap();
+        let out = ReadFile
+            .execute(&serde_json::json!({"path": p.to_str().unwrap()}))
+            .unwrap();
+        assert_eq!(out.lines().count(), 100_000);
+        assert!(out.ends_with("100000→row100000"));
+        no_cut_marks(&out);
+    }
+
+    #[test]
+    fn a_1mib_single_line_round_trips_through_read_and_edit() {
+        let dir = tmp("nocap-line");
+        let p = dir.join("min.js");
+        let line = format!("{}END", "x".repeat(1 << 20));
+        std::fs::write(&p, format!("{line}\n")).unwrap();
+        let out = ReadFile
+            .execute(&serde_json::json!({"path": p.to_str().unwrap()}))
+            .unwrap();
+        assert_eq!(out, format!("1→{line}"));
+        let res = EditFile
+            .execute(&serde_json::json!({
+                "path": p.to_str().unwrap(),
+                "old_string": "xxxEND",
+                "new_string": "xxxDONE"
+            }))
+            .unwrap();
+        no_cut_marks(&res);
+        assert!(res.contains("xxxDONE"));
+        let after = std::fs::read_to_string(&p).unwrap();
+        assert_eq!(after.len(), line.len() + 2);
+    }
+
+    #[test]
+    fn glob_returns_a_5000_file_tree_whole() {
+        let dir = tmp("nocap-glob");
+        for i in 0..5_000 {
+            std::fs::write(dir.join(format!("f{i}.txt")), "").unwrap();
+        }
+        let out = Glob
+            .execute(&serde_json::json!({"pattern": "*.txt", "path": dir.to_str().unwrap()}))
+            .unwrap();
+        assert_eq!(out.lines().count(), 5_000);
+        no_cut_marks(&out);
+    }
+
+    #[test]
+    fn grep_returns_10000_hits_whole() {
+        let dir = tmp("nocap-grep");
+        let body: String = (0..10_000).map(|i| format!("hit {i}\n")).collect();
+        std::fs::write(dir.join("a.txt"), body).unwrap();
+        let out = Grep
+            .execute(&serde_json::json!({"pattern": "^hit", "path": dir.to_str().unwrap()}))
+            .unwrap();
+        assert_eq!(out.lines().count(), 10_000);
+        no_cut_marks(&out);
+    }
+
+    #[test]
+    fn walk_reaches_deep_files_and_survives_symlink_cycles() {
+        let dir = tmp("nocap-deep");
+        let mut d = dir.to_path_buf();
+        for i in 0..40 {
+            d = d.join(format!("d{i}"));
+        }
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("deep.txt"), "needle").unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&*dir, dir.join("d0").join("loop")).unwrap();
+        let out = Glob
+            .execute(&serde_json::json!({"pattern": "**/deep.txt", "path": dir.to_str().unwrap()}))
+            .unwrap();
+        assert!(out.contains("deep.txt"), "{out}");
+        assert_eq!(out.lines().count(), 1, "{out}");
+    }
+
+    #[test]
+    fn did_you_mean_and_edit_hints_list_every_candidate() {
+        let dir = tmp("nocap-hints");
+        for i in 0..9 {
+            std::fs::write(dir.join(format!("name{i}.txt")), "").unwrap();
+        }
+        let err = ReadFile
+            .execute(&serde_json::json!({"path": dir.join("name").to_str().unwrap()}))
+            .unwrap_err();
+        assert_eq!(err.matches("name").count() - 1, 9, "{err}");
+        let msg = super::edit::not_found_msg(&"alpha\n".repeat(12), "alpha\nzzz");
+        assert_eq!(msg.lines().filter(|l| l.contains('→')).count(), 12, "{msg}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_symlink_that_sorts_early_never_hides_a_real_directory() {
+        let dir = tmp("nocap-alias");
+        std::fs::create_dir(dir.join("real")).unwrap();
+        std::fs::write(dir.join("real/f.txt"), "needle").unwrap();
+        for n in ["a_link", "z_link"] {
+            std::os::unix::fs::symlink(dir.join("real"), dir.join(n)).unwrap();
+        }
+        let root = dir.to_str().unwrap();
+        let out = Glob
+            .execute(&serde_json::json!({"pattern": "real/*.txt", "path": root}))
+            .unwrap();
+        assert!(out.contains("real/f.txt"), "{out}");
+        let out = Grep
+            .execute(&serde_json::json!({"pattern": "needle", "path": root}))
+            .unwrap();
+        assert_eq!(out.lines().count(), 1, "{out}");
+        assert!(out.contains("real/f.txt"), "{out}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_web_of_sibling_symlinks_is_walked_in_linear_work() {
+        let dir = tmp("nocap-web");
+        let n = 12;
+        for i in 0..n {
+            std::fs::create_dir(dir.join(format!("d{i}"))).unwrap();
+            std::fs::write(dir.join(format!("d{i}/f{i}.txt")), "x").unwrap();
+        }
+        for i in 0..n {
+            for j in 0..n {
+                if i != j {
+                    std::os::unix::fs::symlink(
+                        dir.join(format!("d{j}")),
+                        dir.join(format!("d{i}/link{j}")),
+                    )
+                    .unwrap();
+                }
+            }
+        }
+        fsutil::IDENTITY_OPS.with(|c| c.set(0));
+        let files = fsutil::walk_files(&dir);
+        let ops = fsutil::IDENTITY_OPS.with(|c| c.get());
+        // 13 real dirs + 132 links: linear work, not a walk of every path.
+        assert!(ops <= 3 * (n + 1 + n * (n - 1)), "{ops} identity ops");
+        assert_eq!(files.len(), n, "{files:?}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_symlink_to_a_directory_outside_the_root_is_followed_once() {
+        let dir = tmp("nocap-out");
+        let outside = tmp("nocap-out-target");
+        std::fs::write(outside.join("o.txt"), "x").unwrap();
+        for n in ["l1", "l2"] {
+            std::os::unix::fs::symlink(&*outside, dir.join(n)).unwrap();
+        }
+        assert_eq!(fsutil::walk_files(&dir).len(), 1);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_true_symlink_loop_terminates() {
+        let dir = tmp("nocap-loop");
+        std::fs::create_dir_all(dir.join("a/b")).unwrap();
+        std::fs::write(dir.join("a/b/f.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(dir.join("a"), dir.join("a/b/up")).unwrap();
+        std::os::unix::fs::symlink(dir.join("a/b"), dir.join("a/self")).unwrap();
+        let out = Glob
+            .execute(&serde_json::json!({"pattern": "**/f.txt", "path": dir.to_str().unwrap()}))
+            .unwrap();
+        assert!(out.contains("a/b/f.txt"), "{out}");
+    }
+
+    /// Identity operations (metadata / canonicalize lstats) the walk makes on
+    /// a chain of `depth` directories. Counted, not timed: a clock is flaky.
+    fn walk_ops(depth: usize) -> usize {
+        let dir = tmp("nocap-cost");
+        let mut d = dir.to_path_buf();
+        for _ in 0..depth {
+            d = d.join("d");
+        }
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("f.txt"), "x").unwrap();
+        fsutil::IDENTITY_OPS.with(|c| c.set(0));
+        assert_eq!(fsutil::walk_files(&dir).len(), 1);
+        fsutil::IDENTITY_OPS.with(|c| c.get())
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn walk_identity_ops_are_linear_in_directories() {
+        let (a, b) = (walk_ops(400), walk_ops(1600));
+        // One identity call per directory (the chain plus the root).
+        assert!(a <= 3 * 401, "400 deep: {a} ops");
+        assert!(b <= 3 * 1601, "1600 deep: {b} ops");
+        assert!(b <= a * 5, "4x depth must be ~4x ops: {a} vs {b}");
     }
 }

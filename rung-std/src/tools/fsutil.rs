@@ -1,13 +1,10 @@
 //! Shared file helpers for the built-in tools.
 
+use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-pub const DEFAULT_READ_LIMIT: usize = 2_000;
-pub const MAX_LINE_CHARS: usize = 2_000;
-pub const GLOB_LIMIT: usize = 100;
-pub const GREP_LIMIT: usize = 200;
 pub const SKIP_DIR_NAMES: &[&str] = &[".git", "target", "node_modules", ".hg", ".svn"];
 
 pub fn req_str<'a>(input: &'a serde_json::Value, key: &str) -> Result<&'a str, String> {
@@ -80,7 +77,6 @@ pub fn did_you_mean(missing: &Path) -> Option<String> {
             let l = n.to_ascii_lowercase();
             l.contains(&want) || want.contains(&l)
         })
-        .take(5)
         .collect();
     if hits.is_empty() {
         return None;
@@ -148,44 +144,133 @@ pub fn write_atomic(path: &Path, text: &str, bom: bool) -> Result<(), String> {
     })
 }
 
+/// One numbered line, whole: a long line is never cut.
 pub fn format_line(n: usize, line: &str) -> String {
-    let shown = if line.chars().count() > MAX_LINE_CHARS {
-        let t: String = line.chars().take(MAX_LINE_CHARS).collect();
-        format!("{t}…")
-    } else {
-        line.to_string()
-    };
-    format!("{n}→{shown}")
+    format!("{n}→{line}")
 }
 
-pub fn walk_files(root: &Path, max_depth: usize) -> Vec<PathBuf> {
+/// Identity of a directory: `(device, inode)` from one `metadata()` call.
+#[cfg(unix)]
+type DirId = (u64, u64);
+#[cfg(not(unix))]
+type DirId = PathBuf;
+
+#[cfg(test)]
+thread_local! {
+    /// Filesystem identity operations this thread made: one per `metadata`,
+    /// one per path component resolved by `canonicalize` (an lstat each).
+    pub static IDENTITY_OPS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+fn count_ops(n: usize) {
+    IDENTITY_OPS.with(|c| c.set(c.get() + n));
+}
+
+/// `fs::metadata`, counted in tests.
+#[cfg(unix)]
+fn meta(path: &Path) -> std::io::Result<fs::Metadata> {
+    #[cfg(test)]
+    count_ops(1);
+    fs::metadata(path)
+}
+
+/// `fs::canonicalize`, counted in tests as one lstat per path component.
+#[cfg(not(unix))]
+fn canon(path: &Path) -> std::io::Result<PathBuf> {
+    #[cfg(test)]
+    count_ops(path.components().count());
+    fs::canonicalize(path)
+}
+
+/// `path.is_dir()` (a stat), counted in tests.
+fn stat_is_dir(path: &Path) -> bool {
+    #[cfg(test)]
+    count_ops(1);
+    path.is_dir()
+}
+
+/// `path.is_file()` (a stat), counted in tests.
+fn stat_is_file(path: &Path) -> bool {
+    #[cfg(test)]
+    count_ops(1);
+    path.is_file()
+}
+
+#[cfg(unix)]
+fn dir_id(path: &Path) -> Option<DirId> {
+    use std::os::unix::fs::MetadataExt;
+    meta(path).ok().map(|m| (m.dev(), m.ino()))
+}
+
+#[cfg(not(unix))]
+fn dir_id(path: &Path) -> Option<DirId> {
+    canon(path).ok()
+}
+
+/// Every file under `root`, with no depth or count limit.
+///
+/// Real directories are always walked, each once, by the tree itself, before
+/// any symlinked directory is looked at, so a symlink can never hide a real
+/// directory. A symlinked directory is then followed at most once per target
+/// (one global `(dev, ino)` set shared with the real walk): a target the walk
+/// already covers, an ancestor of the link and a symlink cycle are all
+/// skipped. Work is O(real directories + symlinks), however the links are
+/// wired.
+pub fn walk_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    collect(root, 0, max_depth, &mut out);
+    if stat_is_file(root) {
+        out.push(root.to_path_buf());
+        return out;
+    }
+    let mut seen = HashSet::new();
+    if let Some(id) = dir_id(root) {
+        seen.insert(id);
+    }
+    let mut links = std::collections::VecDeque::new();
+    walk_real(root, &mut seen, &mut links, &mut out);
+    while let Some(link) = links.pop_front() {
+        if let Some(id) = dir_id(&link)
+            && seen.insert(id)
+        {
+            walk_real(&link, &mut seen, &mut links, &mut out);
+        }
+    }
     out
 }
 
-fn collect(root: &Path, depth: usize, max_depth: usize, out: &mut Vec<PathBuf>) {
-    if depth > max_depth {
-        return;
-    }
-    if root.is_file() {
-        out.push(root.to_path_buf());
-        return;
-    }
-    let Ok(rd) = fs::read_dir(root) else {
+/// Walk `dir` (already in `seen`) and the real directories below it; queue
+/// symlinked directories.
+fn walk_real(
+    dir: &Path,
+    seen: &mut HashSet<DirId>,
+    links: &mut std::collections::VecDeque<PathBuf>,
+    out: &mut Vec<PathBuf>,
+) {
+    let Ok(rd) = fs::read_dir(dir) else {
         return;
     };
     for entry in rd.flatten() {
         let path = entry.path();
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        if path.is_dir() {
-            if skip_dir(&name) {
-                continue;
+        match entry.file_type() {
+            Ok(t) if t.is_dir() => {
+                if !skip_dir(&name) && dir_id(&path).is_none_or(|id| seen.insert(id)) {
+                    walk_real(&path, seen, links, out);
+                }
             }
-            collect(&path, depth + 1, max_depth, out);
-        } else if path.is_file() {
-            out.push(path);
+            Ok(t) if t.is_symlink() => {
+                if stat_is_dir(&path) {
+                    if !skip_dir(&name) {
+                        links.push_back(path);
+                    }
+                } else if stat_is_file(&path) {
+                    out.push(path);
+                }
+            }
+            Ok(t) if t.is_file() => out.push(path),
+            _ => {}
         }
     }
 }
@@ -252,6 +337,34 @@ fn glob_rec(pat: &[u8], path: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The walk's directory identity goes through `dir_id` (one counted
+    /// `meta` call). The counter in the cost test only sees counted wrappers,
+    /// so a direct `canonicalize`/`metadata` call in the walk would escape it:
+    /// this pins the walk's own code (a contract of this file, owned here) to
+    /// the wrappers.
+    #[test]
+    fn the_walk_reaches_the_filesystem_identity_only_through_counted_wrappers() {
+        let src = include_str!("fsutil.rs");
+        let from = src.find("pub fn walk_files").unwrap();
+        let to = src.find("/// Glob with").unwrap();
+        let walk = &src[from..to];
+        for banned in [
+            "canonicalize",
+            "metadata",
+            "symlink_metadata",
+            "fs::read_link",
+            // `Path` stat shortcuts; `FileType` methods (`t.is_dir()`) are free.
+            "path.is_",
+            "root.is_",
+            "dir.is_",
+            "link.is_",
+            ".exists(",
+        ] {
+            assert!(!walk.contains(banned), "the walk calls {banned} directly");
+        }
+        assert!(walk.contains("dir_id("), "the walk must use dir_id");
+    }
 
     #[test]
     fn glob_star_and_double() {

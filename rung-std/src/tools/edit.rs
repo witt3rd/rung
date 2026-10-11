@@ -204,16 +204,13 @@ fn disproportionate(search: &str, old: &str) -> bool {
             .max(old.trim().len().saturating_mul(4))
 }
 
-fn not_found_msg(content: &str, old: &str) -> String {
+pub(super) fn not_found_msg(content: &str, old: &str) -> String {
     let needle = old.lines().next().unwrap_or(old).trim();
     let mut hints = Vec::new();
     if !needle.is_empty() {
         for (i, line) in content.lines().enumerate() {
             if line.contains(needle) || needle.contains(line.trim()) {
                 hints.push(format!("{}→{line}", i + 1));
-                if hints.len() == 5 {
-                    break;
-                }
             }
         }
     }

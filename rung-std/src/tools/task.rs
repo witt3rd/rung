@@ -92,7 +92,7 @@ impl Tool for Task {
             "properties": {
                 "description": {
                     "type": "string",
-                    "description": "Short (3-5 words) label for the task"
+                    "description": "Label for the task"
                 },
                 "prompt": {
                     "type": "string",
@@ -161,7 +161,6 @@ impl Tool for Task {
 
 fn xml_esc(s: &str) -> String {
     s.chars()
-        .take(80)
         .map(|c| match c {
             '&' => "&amp;".into(),
             '<' => "&lt;".into(),
@@ -210,6 +209,14 @@ impl Toolset for WithoutTask {
 mod tests {
     use super::*;
     use crate::tools::{Tool, ToolCollection, ToolRoster, Toolset};
+
+    #[test]
+    fn a_long_task_label_is_kept_whole_and_escaped() {
+        let label = format!("{}<&>", "word ".repeat(200));
+        let out = xml_esc(&label);
+        assert!(out.starts_with(&"word ".repeat(200)));
+        assert!(out.ends_with("&lt;&amp;&gt;"));
+    }
 
     #[derive(Debug)]
     struct Fake;

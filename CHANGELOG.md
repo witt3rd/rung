@@ -22,6 +22,15 @@ git tags only.
   gone. The one limit is the decider context window, now the public
   `rung_std::decide::DECIDER_WINDOW_TOKENS` (32,000); above it the turn is
   Unchecked, never cut. `turn_check::STATE_TOKEN_LIMIT` (24,000) is removed.
+- `rung-std` file tools return whole text. `read_file` returns the whole file
+  by default and every line whole (a caller's own `offset`/`limit` window
+  stays, with a size note that is a view fold, not a cut). `glob` and `grep`
+  return every hit. The not-found suggestions and edit "nearby lines" hints
+  list every candidate. `glob`/`grep` walk without a depth or count limit: real
+  directories are always walked once, then a symlinked directory is followed at
+  most once per target, so a symlink never hides a real directory and a web of
+  symlinks costs linear work; and the `task` label
+  is kept whole. The `04_nondeterminism` example no longer sets `max_tokens`.
 
 ### Removed
 - `rung-host`: no content caps on the host record or its tools. `turn.ended`

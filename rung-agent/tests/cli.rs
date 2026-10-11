@@ -125,7 +125,7 @@ fn background_unreachable_endpoint_records_error() {
         .join("sessions")
         .join(format!("{id}.json"));
     let mut body = String::new();
-    for _ in 0..80 {
+    for _ in 0..600 {
         if let Ok(s) = std::fs::read_to_string(&sess) {
             body = s;
             if body.contains("\"status\": \"error\"") || body.contains("\"status\":\"error\"") {

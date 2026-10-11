@@ -1,9 +1,6 @@
 //! Read, write, list, glob, grep.
 
-use super::fsutil::{
-    self, DEFAULT_READ_LIMIT, GLOB_LIMIT, GREP_LIMIT, format_line, glob_match, read_text, resolve,
-    walk_files, write_atomic,
-};
+use super::fsutil::{self, format_line, glob_match, read_text, resolve, walk_files, write_atomic};
 use super::{TEXT_ONLY_CALLER, Tool, ToolOutput};
 use crate::llm::ImageSource;
 use crate::llm::image::{check_size, sniff};
@@ -21,7 +18,7 @@ impl Tool for ReadFile {
     }
     fn description(&self) -> &'static str {
         "Read a file or directory. Lines are `N→content` (1-indexed). \
-         Use offset/limit for large files (default 2000 lines). Do not include the `N→` prefix when editing. \
+         The whole file is returned; offset/limit select a window. Do not include the `N→` prefix when editing. \
          A PNG, JPEG, GIF or WebP image comes back as the image itself, so you can look at it."
     }
     fn input_schema(&self) -> Value {
@@ -30,7 +27,7 @@ impl Tool for ReadFile {
             "properties": {
                 "path": {"type": "string", "description": "File or directory"},
                 "offset": {"type": "integer", "description": "1-indexed start line (files only)"},
-                "limit": {"type": "integer", "description": "Max lines (default 2000)"}
+                "limit": {"type": "integer", "description": "Max lines (default: to the end of the file)"}
             },
             "required": ["path"]
         })
@@ -85,7 +82,7 @@ fn read_image(path: &Path, media_type: &str) -> Result<ToolOutput, String> {
 
 fn read_lines(path: &Path, input: &Value) -> Result<String, String> {
     let offset = fsutil::opt_usize(input, "offset").unwrap_or(1).max(1);
-    let limit = fsutil::opt_usize(input, "limit").unwrap_or(DEFAULT_READ_LIMIT);
+    let limit = fsutil::opt_usize(input, "limit").unwrap_or(usize::MAX);
     let (_bom, text) = read_text(path)?;
     let lines: Vec<&str> = text.split('\n').collect();
     // split('\n') yields a trailing empty on files that end with newline
@@ -102,13 +99,13 @@ fn read_lines(path: &Path, input: &Value) -> Result<String, String> {
         ));
     }
     let start = offset - 1;
-    let end = (start + limit).min(n);
+    let end = start.saturating_add(limit).min(n);
     let mut out = Vec::new();
     for (i, line) in lines.iter().enumerate().take(end).skip(start) {
         out.push(format_line(i + 1, line));
     }
     if end < n {
-        out.push(format!("… {} more lines", n - end));
+        out.push(format!("[{} more lines after line {end}]", n - end));
     }
     if out.is_empty() {
         Ok(format!("{}: empty", path.display()))
@@ -209,7 +206,7 @@ impl Tool for Glob {
         "glob"
     }
     fn description(&self) -> &'static str {
-        "Find files by glob (`*.rs`, `src/**/*.md`). Skips .git and target. Capped at 100."
+        "Find files by glob (`*.rs`, `src/**/*.md`). Skips .git and target."
     }
     fn input_schema(&self) -> Value {
         serde_json::json!({
@@ -231,7 +228,7 @@ impl Tool for Glob {
         if root.is_file() {
             return Err(format!("glob path must be a directory: {}", root.display()));
         }
-        let mut hits: Vec<String> = walk_files(&root, 20)
+        let mut hits: Vec<String> = walk_files(&root)
             .into_iter()
             .filter_map(|p| {
                 let rel = p.strip_prefix(&root).unwrap_or(&p);
@@ -244,15 +241,8 @@ impl Tool for Glob {
             })
             .collect();
         hits.sort();
-        let truncated = hits.len() > GLOB_LIMIT;
-        hits.truncate(GLOB_LIMIT);
         if hits.is_empty() {
             Ok("No files found".into())
-        } else if truncated {
-            Ok(format!(
-                "{}\n\n(truncated at {GLOB_LIMIT}; narrow the pattern)",
-                hits.join("\n")
-            ))
         } else {
             Ok(hits.join("\n"))
         }
@@ -268,7 +258,7 @@ impl Tool for Grep {
     }
     fn description(&self) -> &'static str {
         "Search file contents with a regex. Optional glob filter. Skips binaries and .git/target. \
-         Returns path:line: text. Capped at 200 hits."
+         Returns path:line: text."
     }
     fn input_schema(&self) -> Value {
         serde_json::json!({
@@ -297,7 +287,7 @@ impl Tool for Grep {
         let files = if root.is_file() {
             vec![root.clone()]
         } else {
-            walk_files(&root, 20)
+            walk_files(&root)
         };
         let mut results = Vec::new();
         for file in files {
@@ -319,10 +309,6 @@ impl Tool for Grep {
             for (i, line) in text.lines().enumerate() {
                 if re.is_match(line) {
                     results.push(format!("{}:{}: {line}", file.display(), i + 1));
-                    if results.len() >= GREP_LIMIT {
-                        results.push(format!("(truncated at {GREP_LIMIT} matches)"));
-                        return Ok(results.join("\n"));
-                    }
                 }
             }
         }
