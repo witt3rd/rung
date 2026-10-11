@@ -149,40 +149,64 @@ pub fn format_line(n: usize, line: &str) -> String {
     format!("{n}→{line}")
 }
 
-/// Every file under `root`. Each directory is entered once, by its canonical
-/// path, so a symlink cycle ends without a depth limit.
+/// Identity of a directory: `(device, inode)` from one `metadata()` call.
+#[cfg(unix)]
+type DirId = (u64, u64);
+#[cfg(not(unix))]
+type DirId = PathBuf;
+
+#[cfg(unix)]
+fn dir_id(path: &Path) -> Option<DirId> {
+    use std::os::unix::fs::MetadataExt;
+    fs::metadata(path).ok().map(|m| (m.dev(), m.ino()))
+}
+
+#[cfg(not(unix))]
+fn dir_id(path: &Path) -> Option<DirId> {
+    fs::canonicalize(path).ok()
+}
+
+/// Every file under `root`, with no depth limit. A directory that is its own
+/// ancestor (a symlink cycle) is not entered again; a real directory reached
+/// a second time by another path (a symlink to a sibling) is listed under
+/// both paths. The ancestor set is pushed on enter and popped on leave, so
+/// the cycle check is O(1) per directory.
 pub fn walk_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    let mut seen = HashSet::new();
-    collect(root, &mut seen, &mut out);
+    let mut ancestors = HashSet::new();
+    collect(root, &mut ancestors, &mut out);
     out
 }
 
-fn collect(root: &Path, seen: &mut HashSet<PathBuf>, out: &mut Vec<PathBuf>) {
+#[allow(clippy::clone_on_copy)] // `DirId` is a `PathBuf` off unix
+fn collect(root: &Path, ancestors: &mut HashSet<DirId>, out: &mut Vec<PathBuf>) {
     if root.is_file() {
         out.push(root.to_path_buf());
         return;
     }
-    if let Ok(real) = fs::canonicalize(root)
-        && !seen.insert(real)
+    let id = dir_id(root);
+    if let Some(id) = &id
+        && !ancestors.insert(id.clone())
     {
         return;
     }
-    let Ok(rd) = fs::read_dir(root) else {
-        return;
-    };
-    for entry in rd.flatten() {
-        let path = entry.path();
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if path.is_dir() {
-            if skip_dir(&name) {
-                continue;
+    if let Ok(rd) = fs::read_dir(root) {
+        for entry in rd.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if path.is_dir() {
+                if skip_dir(&name) {
+                    continue;
+                }
+                collect(&path, ancestors, out);
+            } else if path.is_file() {
+                out.push(path);
             }
-            collect(&path, seen, out);
-        } else if path.is_file() {
-            out.push(path);
         }
+    }
+    if let Some(id) = &id {
+        ancestors.remove(id);
     }
 }
 

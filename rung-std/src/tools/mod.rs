@@ -703,4 +703,64 @@ mod tests {
         let msg = super::edit::not_found_msg(&"alpha\n".repeat(12), "alpha\nzzz");
         assert_eq!(msg.lines().filter(|l| l.contains('→')).count(), 12, "{msg}");
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_symlink_to_a_real_directory_is_listed_beside_it() {
+        let dir = tmp("nocap-alias");
+        std::fs::create_dir(dir.join("real")).unwrap();
+        std::fs::write(dir.join("real/f.txt"), "needle").unwrap();
+        for n in ["a_link", "z_link"] {
+            std::os::unix::fs::symlink(dir.join("real"), dir.join(n)).unwrap();
+        }
+        let root = dir.to_str().unwrap();
+        let out = Glob
+            .execute(&serde_json::json!({"pattern": "real/*.txt", "path": root}))
+            .unwrap();
+        assert!(out.contains("real/f.txt"), "{out}");
+        let out = Glob
+            .execute(&serde_json::json!({"pattern": "**/f.txt", "path": root}))
+            .unwrap();
+        assert_eq!(out.lines().count(), 3, "{out}");
+        let out = Grep
+            .execute(&serde_json::json!({"pattern": "needle", "path": root}))
+            .unwrap();
+        assert_eq!(out.lines().count(), 3, "{out}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_true_symlink_loop_terminates() {
+        let dir = tmp("nocap-loop");
+        std::fs::create_dir_all(dir.join("a/b")).unwrap();
+        std::fs::write(dir.join("a/b/f.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(dir.join("a"), dir.join("a/b/up")).unwrap();
+        std::os::unix::fs::symlink(dir.join("a/b"), dir.join("a/self")).unwrap();
+        let out = Glob
+            .execute(&serde_json::json!({"pattern": "**/f.txt", "path": dir.to_str().unwrap()}))
+            .unwrap();
+        assert!(out.contains("a/b/f.txt"), "{out}");
+    }
+
+    #[test]
+    fn walk_cost_grows_linearly_with_depth() {
+        fn time(depth: usize) -> std::time::Duration {
+            let dir = tmp("nocap-cost");
+            let mut d = dir.to_path_buf();
+            for i in 0..depth {
+                d = d.join(format!("d{i}"));
+            }
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join("f.txt"), "x").unwrap();
+            let t = std::time::Instant::now();
+            let n = fsutil::walk_files(&dir).len();
+            assert_eq!(n, 1);
+            t.elapsed()
+        }
+        let _warm = time(20);
+        let small = time(60).max(std::time::Duration::from_micros(200));
+        let big = time(240);
+        // 4x depth: linear is ~4x, cubic is ~64x.
+        assert!(big < small * 24, "1x {small:?} vs 4x {big:?}");
+    }
 }

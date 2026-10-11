@@ -26,8 +26,9 @@ git tags only.
   by default and every line whole (a caller's own `offset`/`limit` window
   stays, with a size note that is a view fold, not a cut). `glob` and `grep`
   return every hit. The not-found suggestions and edit "nearby lines" hints
-  list every candidate. `glob`/`grep` walk without a depth limit, entering
-  each directory once (a symlink cycle ends the walk), and the `task` label
+  list every candidate. `glob`/`grep` walk without a depth limit; a directory
+  that is its own ancestor (a symlink cycle) is not entered again, while a
+  symlink to a real sibling directory is listed under both paths; and the `task` label
   is kept whole. The `04_nondeterminism` example no longer sets `max_tokens`.
 
 ### Removed
