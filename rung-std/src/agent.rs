@@ -401,12 +401,23 @@ pub fn elide_oldest_tool_results(thread: &Thread) -> Option<(Thread, usize)> {
 /// elision never touches (later messages may be plain text, such as a
 /// corrective note).
 fn newest_result_message(thread: &Thread) -> Option<usize> {
-    thread.messages.iter().rposition(|m| match &m.content {
+    let has_result = |m: &ChatMessage| match &m.content {
         MessageContent::Blocks(b) => b
             .iter()
             .any(|b| matches!(b, crate::llm::MessageContentBlock::ToolResult { .. })),
         MessageContent::Text(_) => false,
-    })
+    };
+    // Only the current turn's results are protected: the last user prompt
+    // (a user message with no tool result) bounds the turn.
+    let turn_start = thread
+        .messages
+        .iter()
+        .rposition(|m| m.role == "user" && !has_result(m))
+        .map_or(0, |i| i + 1);
+    thread.messages[turn_start..]
+        .iter()
+        .rposition(has_result)
+        .map(|i| i + turn_start)
 }
 
 /// Whether the newest tool-result message holds a result that elision would

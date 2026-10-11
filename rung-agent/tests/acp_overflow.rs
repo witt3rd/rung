@@ -375,7 +375,7 @@ fn an_overflow_turn_persists_nothing() {
         terminal["reason"]
             .as_str()
             .unwrap()
-            .contains("the newest tool result alone exceeds"),
+            .contains("the newest tool result is what fills"),
         "{}",
         first.response
     );
