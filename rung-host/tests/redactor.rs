@@ -359,6 +359,10 @@ fn hostile_text_is_redacted_in_time_linear_in_its_length() {
         ("zapier webhooks", "hooks.zapier.com/hooks/catch/"),
         ("backslash runs before quotes", "password=\"x\\\\\\\""),
         ("long backslash runs", "\\\\\\\\\\\\\\\\ token="),
+        ("escaped breaks before shapes", "\\nsk-"),
+        ("escaped unicode before shapes", "\\u000axai-"),
+        ("escaped breaks before names", "\\npassword="),
+        ("escaped breaks before headers", "\\nAuthorization: "),
         ("key block starts", "-----BEGIN "),
         ("private key starts", "-----BEGIN PRIVATE KEY-----\n"),
         ("private key stray starts", "-----BEGIN x\n"),
@@ -669,4 +673,151 @@ fn a_quote_is_escaped_by_the_parity_of_the_backslashes_before_it() {
     ] {
         assert_eq!(redact(text), want, "{text}");
     }
+}
+
+// ---- delta review: the escaped boundary and token trimming -------------------
+
+/// The shapes that start at a word boundary, by name.
+fn boundary_shapes() -> Vec<(&'static str, String)> {
+    sentinels()
+}
+
+#[test]
+fn a_credential_right_after_an_escape_is_redacted() {
+    // In JSON-escaped text a line break, tab, return or unicode escape is two
+    // or six characters ending in a letter or a digit, which is not a word
+    // boundary to a naive scan: the secret after it must still go.
+    let escapes = [
+        r"\n",
+        r"\t",
+        r"\r",
+        r"\b",
+        r"\f",
+        r#"\""#,
+        r"\\",
+        r"\\n", // an escaped backslash then n, inside a JSON-escaped string
+        r"\u000a",
+        r"\u0022",
+        r"\n\t",       // two escapes precede it
+        r"\r\n\u0020", // three
+    ];
+    for (name, s) in boundary_shapes() {
+        for esc in escapes {
+            let text = format!("x{esc}{s} tail");
+            assert_eq!(
+                redact(&text),
+                format!("x{esc}{MARK} tail"),
+                "{name} after {esc}"
+            );
+            // The escape is the last thing before the secret, at the start of the text.
+            let text = format!("{esc}{s}");
+            assert_eq!(
+                redact(&text),
+                format!("{esc}{MARK}"),
+                "{name} at start after {esc}"
+            );
+        }
+    }
+    // Webhook tokens, bearer tokens, headers and assignments after an escape.
+    for esc in escapes {
+        let hook = "https://hooks.slack.com/services/T00000000/B00000000/SENTINELwebhook0123456789";
+        assert_eq!(
+            redact(&format!("x{esc}{hook} tail")),
+            format!("x{esc}https://hooks.slack.com/services/{MARK} tail"),
+            "webhook after {esc}"
+        );
+        assert_eq!(
+            redact(&format!("x{esc}Bearer SENTINELtoken0123 tail")),
+            format!("x{esc}Bearer {MARK} tail"),
+            "bearer after {esc}"
+        );
+        let text = format!("x{esc}Authorization: Bearer SENTINELtoken0123");
+        let out = redact(&text);
+        assert!(!out.contains("SENTINEL"), "header after {esc}: {out}");
+        let text = format!("x{esc}password=SENTINELvalue0123 tail");
+        let out = redact(&text);
+        assert_eq!(
+            out,
+            format!("x{esc}password={MARK} tail"),
+            "assignment after {esc}"
+        );
+        let text = format!("x{esc}api_key: SENTINELvalue0123 tail");
+        let out = redact(&text);
+        assert_eq!(
+            out,
+            format!("x{esc}api_key: {MARK} tail"),
+            "assignment after {esc}"
+        );
+    }
+}
+
+#[test]
+fn a_word_that_merely_ends_in_an_escape_letter_is_not_a_boundary() {
+    // `task-…` and `tsk-…` are words, not keys; so is a name glued to a word.
+    let a = "SENTINEL0123456789abcdefSENTINEL";
+    for text in [format!("task-{a}"), format!("run-{a}"), format!("xsk-{a}")] {
+        assert_eq!(redact(&text), text);
+    }
+}
+
+#[test]
+fn trimming_trailing_punctuation_never_leaves_part_of_a_secret() {
+    // After every shape, every punctuation a sentence or a quoting adds, alone
+    // and in combination: the secret goes whole, the punctuation stays.
+    let suffixes = [
+        ".", ",", ";", ")", "]", "}", "'", "\"", "\\", ".)", ").", "\".", ".\"", "');", "\"),",
+        "\\n", "\\\"", ">", "</p>", " tail", "\n",
+    ];
+    for (name, s) in sentinels() {
+        for suf in suffixes {
+            assert_eq!(
+                redact(&format!("{s}{suf}")),
+                format!("{MARK}{suf}"),
+                "{name} then {suf:?}"
+            );
+            assert_eq!(
+                redact(&format!("({s}{suf}")),
+                format!("({MARK}{suf}"),
+                "{name} in parens then {suf:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_secret_that_ends_in_a_dash_or_an_underscore_is_removed_whole() {
+    // The characters a token may end in are part of it, never trimmed off
+    // and left visible.
+    for (name, s) in sentinels() {
+        // An AWS key id is exactly 20 characters: nothing after it is part of it.
+        if name == "aws" {
+            continue;
+        }
+        for end in ["-", "_", "--", "-_"] {
+            let secret = format!("{s}{end}");
+            assert_eq!(redact(&secret), MARK, "{name} ending {end:?}");
+            assert_eq!(
+                redact(&format!("{secret}.")),
+                format!("{MARK}."),
+                "{name} ending {end:?} then a full stop"
+            );
+            assert_eq!(
+                redact(&format!("a {secret} b")),
+                format!("a {MARK} b"),
+                "{name} ending {end:?} inside text"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_trailing_full_stop_is_sentence_punctuation_and_stays() {
+    // Real key formats do not end in a full stop, a sentence does: the stop is
+    // kept (a run of them too), the key before it goes.
+    let (_, s) = &sentinels()[1];
+    assert_eq!(redact(&format!("it was {s}.")), format!("it was {MARK}."));
+    assert_eq!(
+        redact(&format!("it was {s}...")),
+        format!("it was {MARK}...")
+    );
 }

@@ -316,6 +316,17 @@ fn value_end(b: &[u8], at: usize) -> usize {
     }
 }
 
+/// An escape sequence that ends exactly at `i`: `\n`, `\r`, `\t`, `\b`, `\f`
+/// (with an escaped backslash before it too, `\\n`) or `\uXXXX`. Its last
+/// character is a letter or a digit, so a naive word boundary misses it.
+fn escape_ends_at(b: &[u8], i: usize) -> bool {
+    (i >= 2 && b[i - 2] == b'\\' && matches!(b[i - 1], b'n' | b'r' | b't' | b'b' | b'f'))
+        || (i >= 6
+            && b[i - 6] == b'\\'
+            && b[i - 5] == b'u'
+            && b[i - 4..i].iter().all(|c| c.is_ascii_hexdigit()))
+}
+
 /// An escape that breaks a line or a value (`\n`, `\r`).
 fn escaped_break_at(b: &[u8], odd: &[bool], i: usize) -> bool {
     escape_at(b, odd, i) && matches!(b.get(i + 1), Some(b'n' | b'r'))
@@ -434,13 +445,16 @@ impl<'a, 'r> Scan<'a, 'r> {
                 continue;
             }
             let c = b[i];
-            if i == 0 || !b[i - 1].is_ascii_alphanumeric() || i == self.glue {
-                self.token_shape(i);
+            // An escape such as `\n` or `\u000a` ends in a letter or a digit,
+            // but in JSON-escaped text it is a break: a word starts after it.
+            let esc = escape_ends_at(b, i);
+            if i == 0 || !b[i - 1].is_ascii_alphanumeric() || i == self.glue || esc {
+                self.token_shape(i, esc);
             }
-            if (i == 0 || !is_word(b[i - 1])) && matches!(c, b'b' | b'B') {
+            if (i == 0 || !is_word(b[i - 1]) || esc) && matches!(c, b'b' | b'B') {
                 self.bearer(i);
             }
-            if (i == 0 || !is_header_char(b[i - 1])) && c.is_ascii_alphabetic() {
+            if (i == 0 || !is_header_char(b[i - 1]) || esc) && c.is_ascii_alphabetic() {
                 self.header(i);
             }
             if c == b'=' || c == b':' {
@@ -449,14 +463,16 @@ impl<'a, 'r> Scan<'a, 'r> {
         }
     }
 
-    /// The end of the `[A-Za-z0-9_\-.]` run from `at`, minus trailing `.`/`-`.
+    /// The end of the `[A-Za-z0-9_\-.]` run from `at`, minus trailing full
+    /// stops: a key never ends in one and a sentence does, while every other
+    /// character a token may end in is part of the token.
     fn tok_run(&mut self, at: usize) -> usize {
         let run_end = self.tok_end.find(self.b, at, |b, i| !is_tok(b[i]));
         // The last character that may end a token, before `run_end`: memoised
         // per run so a run of candidates does not each walk back over it.
         if self.tok_trim.0 != run_end {
             let mut e = run_end;
-            while e > 0 && matches!(self.b[e - 1], b'.' | b'-') {
+            while e > 0 && self.b[e - 1] == b'.' {
                 e -= 1;
             }
             self.tok_trim = (run_end, e);
@@ -571,7 +587,7 @@ impl<'a, 'r> Scan<'a, 'r> {
     }
 
     // Known token shapes.
-    fn token_shape(&mut self, i: usize) {
+    fn token_shape(&mut self, i: usize, esc: bool) {
         // (prefix, minimum characters after it, may follow `_`)
         const SHAPES: &[(&str, usize, bool)] = &[
             ("sk-", 16, false),
@@ -605,7 +621,7 @@ impl<'a, 'r> Scan<'a, 'r> {
         ];
         let b = self.b;
         let rest = &self.text[i..];
-        let after_word = i > 0 && i != self.glue && is_word(b[i - 1]);
+        let after_word = i > 0 && i != self.glue && !esc && is_word(b[i - 1]);
         for &(p, min, after_underscore) in SHAPES {
             if rest.starts_with(p) {
                 // A generic prefix needs a word boundary (`task-…` is not
@@ -820,6 +836,24 @@ impl<'a, 'r> Scan<'a, 'r> {
         let mut n_start = n_end;
         while n_start > 0 && is_name_char(b[n_start - 1]) {
             n_start -= 1;
+        }
+        // A name right after an escape (`\npassword=`) starts after it.
+        while n_start < n_end
+            && n_start > 0
+            && escape_ends_at(b, n_start + 1)
+            && b[n_start - 1] == b'\\'
+        {
+            n_start += 1;
+        }
+        while n_start + 5 <= n_end
+            && b[n_start] == b'u'
+            && n_start > 0
+            && b[n_start - 1] == b'\\'
+            && b[n_start + 1..n_start + 5]
+                .iter()
+                .all(|c| c.is_ascii_hexdigit())
+        {
+            n_start += 5;
         }
         if n_start == n_end || !is_secret_name(&text[n_start..n_end]) {
             return;
