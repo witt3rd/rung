@@ -4,6 +4,7 @@ import { detectMode, loadIndex, loadLiveIndex, loadRecord, type InstanceEntry } 
 import { foldDecisions, foldPack, foldSpend, foldTurns, summarize } from "../record/folds.ts";
 import { LiveStore, type LiveDelta, type LiveState } from "../live/store.ts";
 import type { Status } from "../live/client.ts";
+import { StoreRegistry } from "../live/registry.ts";
 
 /** Is the app beside a gateway (live) or beside recorded files (static)? Asked once. */
 export const useMode = () => useQuery({ queryKey: ["mode"], queryFn: detectMode });
@@ -18,18 +19,11 @@ export function useIndex() {
   });
 }
 
-// One store per followed instance, shared by everything that shows it, so a page and its tabs hold one connection.
-const stores = new Map<string, { store: LiveStore; refs: number }>();
-function acquire(id: string): LiveStore {
-  let e = stores.get(id);
-  if (!e) { e = { store: new LiveStore(`api/i/${encodeURIComponent(id)}`), refs: 0 }; stores.set(id, e); void e.store.start(); }
-  e.refs++;
-  return e.store;
-}
-function release(id: string): void {
-  const e = stores.get(id);
-  if (e && --e.refs <= 0) { e.store.stop(); stores.delete(id); }
-}
+// One store per followed instance, shared by everything that shows it, so a page and its tabs hold one connection; released
+// (after a short grace) when no page shows it.
+const registry = new StoreRegistry((id) => new LiveStore(`api/i/${encodeURIComponent(id)}`));
+const acquire = (id: string) => registry.acquire(id);
+const release = (id: string) => registry.release(id);
 const idle: LiveState = { loaded: false, error: null, status: "connecting", lines: [], host: null };
 const never = () => () => {};
 
@@ -46,11 +40,11 @@ export function useInstance(id: string) {
   const rec = useQuery({ queryKey: ["record", id], queryFn: () => loadRecord(entry!), enabled: !live && !!entry });
 
   const followed = live && !!entry;
-  const [store, setStore] = useState<LiveStore | null>(null);
+  const [store, setStore] = useState<LiveStore | null>(() => (followed ? registry.peek(id) ?? null : null));
   useEffect(() => {
     if (!followed) return;
     setStore(acquire(id));
-    return () => { release(id); setStore(null); };
+    return () => { release(id); };
   }, [followed, id]);
   const ls = useSyncExternalStore(store?.subscribe ?? never, store?.getState ?? (() => idle));
   const delta = useSyncExternalStore(store?.subscribeDelta ?? never, store?.getDelta ?? (() => null));
