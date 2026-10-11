@@ -319,7 +319,7 @@ mod tests {
     const MIB: usize = 1 << 20;
 
     fn body(n: usize) -> Vec<u8> {
-        // deterministic, non-repeating-ish ascii, lines so whitespace is kept
+        // deterministic, pseudo-random ascii, lines so whitespace is kept
         let mut v = Vec::with_capacity(n);
         let mut x: u64 = 0x9E3779B97F4A7C15;
         while v.len() < n {
