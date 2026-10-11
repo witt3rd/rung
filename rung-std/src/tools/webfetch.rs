@@ -15,7 +15,7 @@ impl Tool for WebFetch {
         "webfetch"
     }
     fn description(&self) -> &'static str {
-        "Fetch a http(s) URL and return text (HTML stripped to tags-as-space).. Returns the whole body."
+        "Fetch a http(s) URL and return text (HTML stripped to tags-as-space). Returns the whole body."
     }
     fn input_schema(&self) -> Value {
         serde_json::json!({
@@ -37,10 +37,7 @@ pub fn fetch_url(url: &str) -> Result<String, String> {
     fetch_unguarded(url)
 }
 
-/// [`fetch_url`] without the host check; exists so tests can reach a
-/// loopback server. Not part of the tool surface.
-#[doc(hidden)]
-pub fn fetch_unguarded(url: &str) -> Result<String, String> {
+fn fetch_unguarded(url: &str) -> Result<String, String> {
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(TIMEOUT_SECS))
         .redirect(reqwest::redirect::Policy::limited(5))
@@ -145,7 +142,7 @@ impl Sink {
             return;
         }
         for c in s.chars() {
-            if c == '<' && !self.in_tag {
+            if c == '<' {
                 self.in_tag = true;
                 self.tag.clear();
                 continue;
@@ -239,5 +236,178 @@ mod tests {
         s.feed("ipt>x()</script><p>Hi <b>the", &mut out);
         s.feed("re</b></p>", &mut out);
         assert_eq!(out, "Hi there");
+    }
+
+    use std::hash::{DefaultHasher, Hasher};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    // Reference: the pre-streaming implementation.
+    fn old_strip_html(s: &str) -> String {
+        let mut out = String::new();
+        let (mut in_tag, mut skip) = (false, false);
+        let mut tag = String::new();
+        for c in s.chars() {
+            if c == '<' {
+                in_tag = true;
+                tag.clear();
+                continue;
+            }
+            if in_tag {
+                if c == '>' {
+                    let t = tag.to_ascii_lowercase();
+                    if t.starts_with("script") {
+                        skip = true;
+                    }
+                    if t.starts_with("/script") {
+                        skip = false;
+                    }
+                    in_tag = false;
+                } else {
+                    tag.push(c);
+                }
+                continue;
+            }
+            if !skip {
+                out.push(c);
+            }
+        }
+        out.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    #[test]
+    fn html_sink_matches_old_strip_html() {
+        let cases = [
+            "<html><script>x()</script><p>Hi <b>there</b></p>",
+            "  \n\t<p> a  b\n\nc </p>  ",
+            "a<b>c</b> d <i> e </i>f",
+            "x < y <b>z</b>",
+            "<<b>q</b>>r",
+            "<SCRIPT type=x>no</ScRiPt>yes",
+            "<p>caf\u{e9}  \u{3000} \u{4e16}\u{754c}</p>",
+            "",
+            "   ",
+        ];
+        for c in cases {
+            let mut out = String::new();
+            let mut s = Sink::new(true);
+            s.feed(c, &mut out);
+            assert_eq!(out, old_strip_html(c), "{c:?}");
+            let mut out2 = String::new();
+            let mut s2 = Sink::new(true);
+            for ch in c.chars() {
+                s2.feed(&ch.to_string(), &mut out2);
+            }
+            assert_eq!(out2, out, "per-char {c:?}");
+        }
+    }
+
+    #[test]
+    fn decode_lossy_across_chunk_edges() {
+        let src = "a\u{e9}\u{4e16}\u{1f600}z".as_bytes();
+        let mut out = String::new();
+        let mut carry: Vec<u8> = Vec::new();
+        for b in src {
+            carry.push(*b);
+            let used = decode_lossy(&carry, false, |t| out.push_str(t));
+            carry.drain(..used);
+        }
+        decode_lossy(&carry, true, |t| out.push_str(t));
+        assert_eq!(out, "a\u{e9}\u{4e16}\u{1f600}z");
+    }
+
+    const MIB: usize = 1 << 20;
+
+    fn body(n: usize) -> Vec<u8> {
+        // deterministic, non-repeating-ish ascii, lines so whitespace is kept
+        let mut v = Vec::with_capacity(n);
+        let mut x: u64 = 0x9E3779B97F4A7C15;
+        while v.len() < n {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            v.extend_from_slice(format!("{x:016x}\n").as_bytes());
+        }
+        v.truncate(n);
+        v
+    }
+
+    fn hash(b: &[u8]) -> u64 {
+        let mut h = DefaultHasher::new();
+        h.write(b);
+        h.finish()
+    }
+
+    fn serve(n: usize) -> String {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = l.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (mut s, _) = l.accept().unwrap();
+            let mut req = [0u8; 4096];
+            let _ = s.read(&mut req);
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {n}\r\nConnection: close\r\n\r\n"
+            );
+            s.write_all(head.as_bytes()).unwrap();
+            let chunk = body(1 << 20);
+            let mut left = n;
+            // stream from a small reused buffer so the server adds no RSS growth
+            while left > 0 {
+                let k = left.min(chunk.len());
+                s.write_all(&chunk[..k]).unwrap();
+                left -= k;
+            }
+        });
+        format!("http://127.0.0.1:{port}/")
+    }
+
+    fn expected(n: usize) -> Vec<u8> {
+        let chunk = body(1 << 20);
+        let mut v = Vec::with_capacity(n);
+        while v.len() < n {
+            let k = (n - v.len()).min(chunk.len());
+            v.extend_from_slice(&chunk[..k]);
+        }
+        v
+    }
+
+    #[cfg(target_os = "linux")]
+    fn hwm_kib() -> usize {
+        let s = std::fs::read_to_string("/proc/self/status").unwrap();
+        let l = s.lines().find(|l| l.starts_with("VmHWM:")).unwrap();
+        l.split_whitespace().nth(1).unwrap().parse().unwrap()
+    }
+
+    fn check(n: usize) -> usize {
+        let want = expected(n);
+        let (want_len, want_hash) = (want.len(), hash(&want));
+        drop(want);
+        let url = serve(n);
+        let out = fetch_unguarded(&url).unwrap();
+        let text = out.split_once("\n\n").unwrap().1;
+        assert_eq!(text.len(), want_len, "whole body, no cut");
+        assert_eq!(hash(text.as_bytes()), want_hash);
+        assert!(!text.contains("[truncated]"));
+        n
+    }
+
+    #[test]
+    fn whole_body_not_truncated() {
+        check(5 * MIB);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn whole_body_flat_memory() {
+        let n = 50 * MIB;
+        let base = hwm_kib();
+        check(n);
+        let grown = hwm_kib().saturating_sub(base) * 1024;
+        assert!(
+            grown < 3 * n,
+            "peak RSS grew {} MiB for a {} MiB body",
+            grown / MIB,
+            n / MIB
+        );
     }
 }
