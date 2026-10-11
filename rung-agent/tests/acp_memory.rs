@@ -579,10 +579,11 @@ fn context_blocks_do_not_cue_recall_and_still_reach_the_model() {
 }
 
 #[test]
-fn without_marking_the_context_elides_the_ask_as_before() {
+fn without_marking_the_whole_prompt_cues_recall() {
+    // The cue is never cut, so a long unmarked prompt still carries the ask.
     let (second, _body, kept, _, _) = context_run(false, false);
     let m = &second["result"]["_meta"]["rung"]["memory"];
-    assert_eq!(m["recall"]["status"], "empty", "{second}");
+    assert_eq!(m["recall"]["status"], "found", "{second}");
     assert!(kept.lines().last().unwrap().contains("alpha"));
 }
 
@@ -590,7 +591,7 @@ fn without_marking_the_context_elides_the_ask_as_before() {
 fn when_every_block_is_marked_the_whole_text_is_the_ask() {
     let (second, body, kept, before, after) = context_run(true, true);
     let m = &second["result"]["_meta"]["rung"]["memory"];
-    assert_eq!(m["recall"]["status"], "empty", "{second}");
+    assert_eq!(m["recall"]["status"], "found", "{second}");
     let sent = last_user(&body);
     assert!(sent.contains(&before) && sent.contains(&after));
     assert!(kept.lines().last().unwrap().contains("alpha"));

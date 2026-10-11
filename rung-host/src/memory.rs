@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use rung_agent_core::memory::{CONTEXT_CHARS, CONTEXT_ITEMS, PROMPT_CHARS, bound};
+use rung_agent_core::memory::clean;
 use rung_memory::{
     Body, Cue, MemoryProvider, Observation, RecallReport, RetainReport, Scope, baseline::Baseline,
 };
@@ -62,13 +62,9 @@ impl MemoryHost {
         prompt: &str,
         context: Vec<String>,
     ) -> (RecallReport, Option<String>, bool) {
-        let skip = context.len().saturating_sub(CONTEXT_ITEMS);
         let cue = Cue {
-            prompt: bound(prompt, PROMPT_CHARS),
-            context: context[skip..]
-                .iter()
-                .map(|c| bound(c, CONTEXT_CHARS))
-                .collect(),
+            prompt: clean(prompt),
+            context: context.iter().map(|c| clean(c)).collect(),
         };
         // Held across the provider call so a concurrent `retain` cannot
         // be followed by a stale write of this recall.
@@ -175,20 +171,15 @@ mod tests {
     }
 
     #[test]
-    fn context_is_bounded() {
+    fn the_cue_carries_the_whole_prompt_and_every_earlier_answer() {
         let (p, m) = host();
         let ctx: Vec<String> = (0..9)
             .map(|i| format!("{i}{}", "z".repeat(5_000)))
             .collect();
-        m.recall("q", ctx);
+        let prompt = format!("{} prompt-tail", "p".repeat(100_000));
+        m.recall(&prompt, ctx.clone());
         let cue = p.cues.lock().unwrap()[0].clone();
-        assert_eq!(cue.context.len(), CONTEXT_ITEMS);
-        assert!(
-            cue.context
-                .iter()
-                .all(|c| c.chars().count() < CONTEXT_CHARS + 40)
-        );
-        // The newest entries survive.
-        assert!(cue.context.last().unwrap().starts_with('8'));
+        assert_eq!(cue.prompt, prompt);
+        assert_eq!(cue.context, ctx);
     }
 }

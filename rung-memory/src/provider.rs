@@ -35,7 +35,8 @@ pub struct Capability {
     pub tools: bool,
 }
 
-/// What a provider may spend and show.
+/// What a provider may spend and show. The default declares no limit on
+/// records or chars (`usize::MAX`): rung sets none of its own.
 ///
 /// - `max_records`, `max_chars`: a recall keeps whole records, best first,
 ///   while both hold. A record is never cut: clipping can drop a condition
@@ -54,8 +55,8 @@ pub struct Budget {
 impl Default for Budget {
     fn default() -> Self {
         Self {
-            max_records: 5,
-            max_chars: 4_000,
+            max_records: usize::MAX,
+            max_chars: usize::MAX,
             max_cost_usd: 0.0,
         }
     }

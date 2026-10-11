@@ -44,6 +44,17 @@ git tags only.
   break; pinned by the v0.1.13 surface suite until now). Nothing replaces
   them: the recalled quote is bounded by what the provider returns, a budget
   the provider declares (still honoured), and the model's context window.
+- `rung-agent-core`, `rung-host`, `rung-memory`: the rest of the memory path's
+  content caps, a deliberate API break like the one above. The public
+  constants `TURN_CHARS`, `PROMPT_CHARS`, `CONTEXT_CHARS`, `CONTEXT_ITEMS` and
+  the head-and-tail `bound()` are removed (replaced by `clean()`, which only
+  redacts): a retained turn, the recall prompt and every earlier answer
+  offered as context reach the provider whole. `Budget::default()` no longer
+  declares 5 records / 4,000 chars (it declares none), the baseline provider
+  no longer declines a record over the recall budget, and distillation's
+  `CONCLUSION_CHARS` is removed (every prose paragraph is kept). A budget a
+  provider declares is still honoured. The memory tests and docs that pinned
+  these caps changed with them.
 
 ### Changed
 - `rung-std`: `webfetch` returns the whole body; the 512 KiB cut and its

@@ -50,8 +50,8 @@ wins over the file. A provider over stdio, or `baseline`, ignores it.
 
 ## A turn with a provider
 
-1. **Recall**, before the agent loop. rung sends the prompt and up to three
-   earlier answers, all redacted and bounded. It shows what comes back as a
+1. **Recall**, before the agent loop. rung sends the whole prompt and every
+   earlier answer offered as context, all redacted and none cut. It shows what comes back as a
    block after the current user message:
 
    ```text
@@ -79,8 +79,8 @@ wins over the file. A provider over stdio, or `baseline`, ignores it.
    truncated, cancelled or failed turn is never retained. The type
    `Turnover` can be built only from a `Completion`.
    `RUNG_MEMORY_RETAIN=distill` (opt-in, default off) retains a trimmed turn:
-   code and tool chatter dropped, the assistant side cut to its conclusion
-   (600 chars), and no retain call for a turn with no durable content (the one
+   code and tool chatter dropped, the assistant side reduced to its prose,
+   every paragraph kept whole, and no retain call for a turn with no durable content (the one
    exception to the typed outcome below: `_meta.rung.memory.retain` is absent).
 
 A provider failure never fails a turn. Each hook ends in one typed outcome,
@@ -106,10 +106,12 @@ the provider reported, failed calls included. `latency_ms` is rung's measure.
 
 ## Limits rung enforces
 
-- **Content out.** The provider gets an opaque scope key and bounded,
-  redacted content. The prompt is at most 2000 chars, the context is at most
-  3 answers of 500 chars, and each side of a turn is at most 2000 chars. The
-  provider owns who may see what: tenancy, visibility, revocation.
+- **Content out.** The provider gets an opaque scope key and redacted
+  content, never cut: the whole prompt, every earlier answer offered as
+  context, and each side of a turn as it was. Redaction removes a secret; it
+  never shortens the rest. The provider owns who may see what: tenancy,
+  visibility, revocation. The baseline provider keeps a record of any size
+  whole and, with no budget declared, recalls every record that matches.
 - **The ask, not the context.** An ACP caller may mark a prompt content block
   as context by setting its standard `annotations.audience` to `["assistant"]`
   (only the assistant, non-empty). The prompt sent to recall and the `user` side
@@ -155,7 +157,7 @@ A provider is an MCP server that declares itself, and two reserved tools.
 {"capabilities": {"experimental": {"rung-memory/1": {
   "recall": true,
   "retain": true,
-  "budget": {"max_records": 5, "max_chars": 4000, "max_cost_usd": 0.01}
+  "budget": {"max_cost_usd": 0.01}
 }}}}
 ```
 
@@ -167,7 +169,7 @@ when it is both declared and listed.
 
 ```json
 {"scope": "<opaque key>", "prompt": "…", "context": ["…"],
- "budget": {"max_records": 5, "max_chars": 4000, "max_cost_usd": 0.01}}
+ "budget": {"max_cost_usd": 0.01}}
 ```
 
 `budget` carries what the provider declared in its marker. A limit the marker

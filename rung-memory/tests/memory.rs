@@ -485,25 +485,48 @@ fn baseline_is_a_graph_store_whose_neighbours_are_adjacent_records() {
 }
 
 #[test]
-fn baseline_declines_what_it_could_never_show_whole() {
-    let root = tmp("large");
-    let dir = root.join("store");
-    let b = Arc::new(Baseline::new(&dir).with_budget(Budget {
-        max_records: 5,
-        max_chars: 10,
-        max_cost_usd: 0.0,
-    }));
+fn baseline_keeps_and_recalls_a_huge_turn_whole() {
+    let dir = tmp("huge");
+    let b: Arc<dyn MemoryProvider> = Arc::new(Baseline::new(&dir));
+    let user = format!("deploy plan {}", "u".repeat(100_000));
+    let assistant = format!("{} sentinel-tail", "a".repeat(100_000));
     let o = Observation {
-        body: Body::Note {
-            text: "far more than ten characters".into(),
+        body: Body::Turn {
+            user: user.clone(),
+            assistant: assistant.clone(),
         },
         attrs: BTreeMap::new(),
     };
-    assert_eq!(
-        rung_memory::retain_now(b, Scope::new("k"), o).status,
-        "declined"
-    );
-    assert!(!dir.exists());
+    let r = rung_memory::retain_now(b.clone(), Scope::new("k"), o);
+    assert_eq!(r.status, "stored", "{r:?}");
+    let (report, evidence) =
+        rung_memory::recall_outcome(b, Scope::new("k"), Cue::new("deploy plan"));
+    assert_eq!(report.status, "found");
+    assert_eq!(report.left_out, 0);
+    let text = evidence.unwrap().render();
+    assert!(text.contains(&format!("> User: {user}\n> Assistant: {assistant}\n")));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn baseline_recalls_every_match_by_default() {
+    let dir = tmp("every");
+    let b: Arc<dyn MemoryProvider> = Arc::new(Baseline::new(&dir));
+    for i in 0..9 {
+        let o = Observation {
+            body: Body::Note {
+                text: format!("deploy fact number {i}"),
+            },
+            attrs: BTreeMap::new(),
+        };
+        assert_eq!(
+            rung_memory::retain_now(b.clone(), Scope::new("k"), o).status,
+            "stored"
+        );
+    }
+    let (report, _) = rung_memory::recall_outcome(b, Scope::new("k"), Cue::new("deploy fact"));
+    assert_eq!((report.records, report.left_out), (9, 0));
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]

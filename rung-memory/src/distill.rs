@@ -9,9 +9,6 @@
 
 use crate::provider::{Body, Observation};
 
-/// The assistant side keeps at most this many chars of its conclusion.
-pub const CONCLUSION_CHARS: usize = 600;
-
 /// Acknowledgements that carry nothing to recall.
 const ACKS: &[&str] = &[
     "ok",
@@ -107,8 +104,7 @@ fn strip_code(text: &str) -> String {
     out.join("\n")
 }
 
-/// The assistant's text without code or chatter, cut to its last paragraphs
-/// within [`CONCLUSION_CHARS`].
+/// The assistant's text without code or chatter, every paragraph whole.
 fn conclusion(text: &str) -> String {
     let cleaned: Vec<String> = strip_code(text)
         .lines()
@@ -123,25 +119,7 @@ fn conclusion(text: &str) -> String {
         .map(|p| p.join(" "))
         .filter(|p| !p.is_empty())
         .collect();
-    let mut out: Vec<&String> = Vec::new();
-    let mut n = 0;
-    for p in paras.iter().rev() {
-        let len = p.chars().count();
-        if n + len + out.len() > CONCLUSION_CHARS {
-            if out.is_empty() {
-                let cut: String = p.chars().take(CONCLUSION_CHARS).collect();
-                return cut;
-            }
-            break;
-        }
-        n += len;
-        out.push(p);
-    }
-    out.reverse();
-    out.iter()
-        .map(|s| s.as_str())
-        .collect::<Vec<_>>()
-        .join("\n")
+    paras.join("\n")
 }
 
 #[cfg(test)]
@@ -166,5 +144,15 @@ mod tests {
         };
         assert!(user.is_empty() && assistant.contains("freeze"));
         assert!(distill(&turn("thanks", "Okay, noted.")).is_none());
+    }
+
+    #[test]
+    fn a_long_conclusion_is_kept_whole() {
+        let long = format!("{} end-marker.", "The plan holds. ".repeat(2_000));
+        let kept = distill(&turn("what is the plan", &long)).unwrap();
+        let Body::Turn { assistant, .. } = kept.body else {
+            panic!()
+        };
+        assert_eq!(assistant, long.trim());
     }
 }
