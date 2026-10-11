@@ -34,8 +34,8 @@
 //!   ([`LoopState::elided`]) and only when there is something to elide;
 //!   otherwise the overflow is `ContentFiltered` with
 //!   [`FailureKind::Overflow`]. Tool results are never cut on the way in;
-//!   the newest result (the last tool-result message) is never elided, so one that
-//!   alone exceeds the window ends the turn with an overflow that says so.
+//!   the newest result (the last tool-result message) is never elided, so when
+//!   only it is left to elide the turn ends with an overflow that says so.
 //!
 //! - **G11 (terminal payloads).** `EndTurn(AgentResult)` carries the
 //!   structured result out through the verdict.
@@ -339,7 +339,7 @@ fn result_weight(content: &str, images: &[ImageSource]) -> usize {
 /// The tool results in the thread's last tool-result message are the newest: the model
 /// has not yet seen them, so eliding them would answer an overflow by hiding
 /// the very result just asked for (and the model would ask again). They are
-/// never candidates; a result that alone exceeds the window is an error, not
+/// never candidates; when only it remains the overflow is an error, not
 /// a cut (`newest_result_alone_overflows`).
 ///
 /// Oldest first, until at least half of the tool-result weight is gone. A
@@ -407,22 +407,12 @@ fn newest_result_message(thread: &Thread) -> Option<usize> {
             .any(|b| matches!(b, crate::llm::MessageContentBlock::ToolResult { .. })),
         MessageContent::Text(_) => false,
     };
-    // Only the current turn's results are protected: the last user prompt
-    // (a user message with no tool result) bounds the turn.
-    let turn_start = thread
-        .messages
-        .iter()
-        .rposition(|m| m.role == "user" && !has_result(m))
-        .map_or(0, |i| i + 1);
-    thread.messages[turn_start..]
-        .iter()
-        .rposition(has_result)
-        .map(|i| i + turn_start)
+    thread.messages.iter().rposition(has_result)
 }
 
 /// Whether the newest tool-result message holds a result that elision would
 /// have shrunk but never touches. Reached only when no older result is a
-/// candidate, so the newest is what fills the window.
+/// candidate, so the newest is the only result left.
 fn newest_result_alone_overflows(thread: &Thread) -> bool {
     use crate::llm::MessageContentBlock::ToolResult;
     newest_result_message(thread).is_some_and(|i| match &thread.messages[i].content {
@@ -987,7 +977,7 @@ ladder!(AgentLoop {
                         }
                         if state.elided == 0 && newest_result_alone_overflows(&thread) {
                             filtered.reason = format!(
-                                "{}; the newest tool result is what fills the model's context window. Nothing is cut or elided: ask the tool for less (a narrower query or range)",
+                                "{}; older results are already elided or small, and the newest tool result is never cut or elided: ask the tool for less (a narrower query or range)",
                                 filtered.reason
                             );
                         }
@@ -2006,6 +1996,8 @@ mod tests {
         // 4. Thread messages preserve valid sibling history/results and include corrective feedback
         let msgs = &next_calling.payload.messages;
         assert_eq!(msgs.len(), 4); // [initial user, assistant (valid tool), user (tool result), user (corrective)]
+        // The valid result is still the newest, though corrective text follows it.
+        assert_eq!(newest_result_message(&next_calling.payload), Some(2));
 
         // Assistant message has valid ToolUse
         match &msgs[1].content {
@@ -2890,16 +2882,15 @@ mod tests {
         }
     }
 
-    /// A corrective text message after the newest result does not make an
-    /// older result "newest": the newest result is the last result message.
+    /// A corrective text message after the newest result does not make it
+    /// elidable: with a tiny older result, nothing may be elided at all.
     #[test]
     fn the_newest_result_is_protected_though_text_follows_it() {
-        let mut thread = history(&[("a", 3000)]);
+        let mut thread = history(&[("a", 10)]);
         thread.messages.extend(tool_round("n", &"n".repeat(3000)));
         thread.messages.push(ChatMessage::user("corrective note"));
-        let (out, n) = elide_oldest_tool_results(&thread).unwrap();
-        assert_eq!(n, 1);
-        assert_eq!(results(&out), [ELIDED_TOOL_RESULT.into(), "n".repeat(3000)]);
+        assert!(elide_oldest_tool_results(&thread).is_none());
+        assert!(newest_result_alone_overflows(&thread));
     }
 
     #[test]
@@ -3100,7 +3091,8 @@ mod tests {
         let f = out.expect_err("over");
         assert_eq!(f.kind, FailureKind::Overflow);
         assert!(
-            f.reason.contains("the newest tool result is what fills"),
+            f.reason
+                .contains("the newest tool result is never cut or elided"),
             "{}",
             f.reason
         );
