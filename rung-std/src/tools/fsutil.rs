@@ -1,13 +1,10 @@
 //! Shared file helpers for the built-in tools.
 
+use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-pub const DEFAULT_READ_LIMIT: usize = 2_000;
-pub const MAX_LINE_CHARS: usize = 2_000;
-pub const GLOB_LIMIT: usize = 100;
-pub const GREP_LIMIT: usize = 200;
 pub const SKIP_DIR_NAMES: &[&str] = &[".git", "target", "node_modules", ".hg", ".svn"];
 
 pub fn req_str<'a>(input: &'a serde_json::Value, key: &str) -> Result<&'a str, String> {
@@ -80,7 +77,6 @@ pub fn did_you_mean(missing: &Path) -> Option<String> {
             let l = n.to_ascii_lowercase();
             l.contains(&want) || want.contains(&l)
         })
-        .take(5)
         .collect();
     if hits.is_empty() {
         return None;
@@ -148,28 +144,28 @@ pub fn write_atomic(path: &Path, text: &str, bom: bool) -> Result<(), String> {
     })
 }
 
+/// One numbered line, whole: a long line is never cut.
 pub fn format_line(n: usize, line: &str) -> String {
-    let shown = if line.chars().count() > MAX_LINE_CHARS {
-        let t: String = line.chars().take(MAX_LINE_CHARS).collect();
-        format!("{t}…")
-    } else {
-        line.to_string()
-    };
-    format!("{n}→{shown}")
+    format!("{n}→{line}")
 }
 
-pub fn walk_files(root: &Path, max_depth: usize) -> Vec<PathBuf> {
+/// Every file under `root`. Each directory is entered once, by its canonical
+/// path, so a symlink cycle ends without a depth limit.
+pub fn walk_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    collect(root, 0, max_depth, &mut out);
+    let mut seen = HashSet::new();
+    collect(root, &mut seen, &mut out);
     out
 }
 
-fn collect(root: &Path, depth: usize, max_depth: usize, out: &mut Vec<PathBuf>) {
-    if depth > max_depth {
-        return;
-    }
+fn collect(root: &Path, seen: &mut HashSet<PathBuf>, out: &mut Vec<PathBuf>) {
     if root.is_file() {
         out.push(root.to_path_buf());
+        return;
+    }
+    if let Ok(real) = fs::canonicalize(root)
+        && !seen.insert(real)
+    {
         return;
     }
     let Ok(rd) = fs::read_dir(root) else {
@@ -183,7 +179,7 @@ fn collect(root: &Path, depth: usize, max_depth: usize, out: &mut Vec<PathBuf>) 
             if skip_dir(&name) {
                 continue;
             }
-            collect(&path, depth + 1, max_depth, out);
+            collect(&path, seen, out);
         } else if path.is_file() {
             out.push(path);
         }
