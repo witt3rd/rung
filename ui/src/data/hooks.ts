@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { detectMode, loadIndex, loadLiveIndex, loadRecord, type InstanceEntry } from "./source.ts";
 import { foldDecisions, foldPack, foldSpend, foldTurns, summarize } from "../record/folds.ts";
@@ -19,11 +19,16 @@ export function useIndex() {
 }
 
 // One store per followed instance, shared by everything that shows it, so a page and its tabs hold one connection.
-const stores = new Map<string, LiveStore>();
-function storeFor(id: string): LiveStore {
-  let s = stores.get(id);
-  if (!s) { s = new LiveStore(`api/i/${encodeURIComponent(id)}`); stores.set(id, s); void s.start(); }
-  return s;
+const stores = new Map<string, { store: LiveStore; refs: number }>();
+function acquire(id: string): LiveStore {
+  let e = stores.get(id);
+  if (!e) { e = { store: new LiveStore(`api/i/${encodeURIComponent(id)}`), refs: 0 }; stores.set(id, e); void e.store.start(); }
+  e.refs++;
+  return e.store;
+}
+function release(id: string): void {
+  const e = stores.get(id);
+  if (e && --e.refs <= 0) { e.store.stop(); stores.delete(id); }
 }
 const idle: LiveState = { loaded: false, error: null, status: "connecting", lines: [], host: null };
 const never = () => () => {};
@@ -40,7 +45,13 @@ export function useInstance(id: string) {
 
   const rec = useQuery({ queryKey: ["record", id], queryFn: () => loadRecord(entry!), enabled: !live && !!entry });
 
-  const store = live && entry ? storeFor(id) : null;
+  const followed = live && !!entry;
+  const [store, setStore] = useState<LiveStore | null>(null);
+  useEffect(() => {
+    if (!followed) return;
+    setStore(acquire(id));
+    return () => { release(id); setStore(null); };
+  }, [followed, id]);
   const ls = useSyncExternalStore(store?.subscribe ?? never, store?.getState ?? (() => idle));
   const delta = useSyncExternalStore(store?.subscribeDelta ?? never, store?.getDelta ?? (() => null));
 
