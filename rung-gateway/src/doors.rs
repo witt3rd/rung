@@ -35,6 +35,7 @@ pub const DOORS: &[Door] = &[
     door("GET", "/v1/record", Access::Read),
     door("GET", "/v1/turns", Access::Read),
     door("GET", "/v1/turns/{}", Access::Read),
+    door("GET", "/v1/turns/{}/context", Access::Read),
     door("GET", "/v1/decisions", Access::Read),
     door("GET", "/v1/pack", Access::Read),
     door("GET", "/v1/spend", Access::Read),
