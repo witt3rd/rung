@@ -290,9 +290,6 @@ impl std::fmt::Debug for HostTools {
     }
 }
 
-/// The most a tool result carries, characters.
-pub const RESULT_CHARS: usize = 4_000;
-
 impl HostTools {
     pub(crate) fn new(
         core: Arc<Core>,
@@ -580,7 +577,7 @@ impl HostTools {
             "ws_read" => {
                 let p = self.path(&str_of("path")?)?;
                 let t = std::fs::read_to_string(&p).map_err(|e| format!("read: {e}"))?;
-                Ok(t.chars().take(RESULT_CHARS).collect())
+                Ok(t)
             }
             "ws_list" => {
                 let rel = input.get("path").and_then(Value::as_str).unwrap_or("");
@@ -600,9 +597,6 @@ impl HostTools {
             "ws_write" => {
                 let p = self.path(&str_of("path")?)?;
                 let text = str_of("text")?;
-                if text.len() > 64 * 1024 {
-                    return Err("over 64 KiB".into());
-                }
                 if let Some(dir) = p.parent() {
                     std::fs::create_dir_all(dir).map_err(|e| format!("mkdir: {e}"))?;
                 }
@@ -619,7 +613,7 @@ impl HostTools {
                 let web = self.web.clone();
                 self.timed(name, group, move || {
                     let (out, took) = web.fetch(&url);
-                    (out.map(|t| t.chars().take(RESULT_CHARS).collect()), took)
+                    (out, took)
                 })
             }
             _ => Err(format!("unknown tool `{name}`")),
@@ -779,6 +773,44 @@ mod tests {
         let (out, took) = slow_fetch(None);
         assert_eq!(out, Err(LONG_WORK_MESSAGE.to_string()));
         assert_eq!(took, 30 * SECOND);
+    }
+
+    struct HugeWeb(String);
+
+    impl WebReader for HugeWeb {
+        fn fetch(&self, _url: &str) -> (Result<String, String>, Millis) {
+            (Ok(self.0.clone()), 0)
+        }
+    }
+
+    /// The tools return and store whole text: a 1 MiB write reads back
+    /// whole, and a huge page comes back whole.
+    #[test]
+    fn huge_text_round_trips_whole() {
+        let guard = crate::sim::temp_dir_guard("whole-text");
+        let sc = crate::sim::Scenario::new(guard.path(), 1);
+        let (host, _, _) = crate::sim::build(sc);
+        let page = format!("{}PAGE-END", "p".repeat(1 << 20));
+        let tools = HostTools::new(
+            host.core.clone(),
+            1,
+            [WORKSPACE_WRITE.to_string(), WEB_READ.to_string()].into(),
+            0,
+            None,
+            Arc::new(HugeWeb(page.clone())),
+            guard.path().join("ws"),
+        );
+        let text = format!("{}FILE-END", "é".repeat(1 << 20));
+        let wrote = tools.run(
+            "ws_write",
+            WORKSPACE_WRITE,
+            &json!({"path": "big.txt", "text": text}),
+        );
+        assert_eq!(wrote, Ok("written".to_string()));
+        let read = tools.run("ws_read", WORKSPACE_WRITE, &json!({"path": "big.txt"}));
+        assert_eq!(read, Ok(text));
+        let got = tools.run("web_fetch", WEB_READ, &json!({"url": "x://huge"}));
+        assert_eq!(got, Ok(page));
     }
 
     #[test]
