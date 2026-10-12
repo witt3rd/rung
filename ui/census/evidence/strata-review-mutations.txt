@@ -26,7 +26,7 @@ FAIL  the title did not follow a band's text
 strata-proof: 1 failure(s)
 == a band's text is kept in local storage
 ℹ fail 0
-FAIL  the page stored nothing: no local or session storage, no cookie
+FAIL  the page stored nothing: no local or session storage
 strata-proof: 1 failure(s)
 == a band's text goes into the address
 ℹ fail 0

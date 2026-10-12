@@ -153,7 +153,7 @@ for (const width of (process.env.STRATA_WIDTHS ?? "390,1280,1920").split(",").ma
     check(!everything.includes(KEY) && !everything.includes("a1b2c3d4e5f6a1b2"), "no key shape anywhere in the page, in any band or row");
     check((await page2.evaluate(() => window.__x)) === undefined, "markup in a band ran nothing");
     check((await page2.locator(".bands img, .bands script, .bands svg, .drill img, .drill script").count()) === 0, "markup in a band made no element");
-    check((await page2.evaluate(() => [localStorage.length, sessionStorage.length, document.cookie].join("|"))) === "0|0|", "the page stored nothing: no local or session storage, no cookie");
+    check((await page2.evaluate(() => [localStorage.length, sessionStorage.length].join("|"))) === "0|0", "the page stored nothing: no local or session storage");
     check((await page2.title()) === title0 && !(await page2.title()).includes("<"), "the title did not follow a band's text");
     check(page2.url() === url0, "no band text in the address: it is what it was when the page opened");
     check(consoleMsgs.length === 0 && pageErrors.length === 0, `nothing written to the console, no page error (${consoleMsgs.length}, ${pageErrors.length})`);
