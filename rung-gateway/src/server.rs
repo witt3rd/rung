@@ -625,6 +625,34 @@ async fn pass_through(
         };
         return native_queue(state, call, target, req).await;
     }
+    if let Some(dir) = native
+        && let Some(control) = rung_host::acp::ControlTarget::of(rest)
+    {
+        if *req.method() != Method::POST {
+            return error(
+                StatusCode::METHOD_NOT_ALLOWED,
+                "method_not_allowed",
+                match control {
+                    rung_host::acp::ControlTarget::Stop => "this door stops the host (POST)",
+                    rung_host::acp::ControlTarget::Release => {
+                        "this door releases the current commitment (POST)"
+                    }
+                },
+            );
+        }
+        let call = QueueCall {
+            dir: dir.clone(),
+            id,
+            rest,
+            query,
+            configured,
+        };
+        let door = match control {
+            rung_host::acp::ControlTarget::Stop => WriteDoor::Stop,
+            rung_host::acp::ControlTarget::Release => WriteDoor::Release,
+        };
+        return queue_write(state, call, req, request_redactor(state), door).await;
+    }
     // a native instance has no listener the gateway knows: only the doors
     // read from its state directory exist for it until a later slice adds more
     let Some(inst) = configured else {
@@ -747,6 +775,10 @@ enum WriteDoor {
     Add,
     /// `DELETE /v1/queue/{id}`, `POST /v1/queue/{id}/move`.
     Item,
+    /// `POST /v1/stop`: the host is asked to stop; a repeat changes nothing.
+    Stop,
+    /// `POST /v1/release`: the current commitment is let go; nothing held is a no-op.
+    Release,
 }
 
 impl WriteDoor {
@@ -758,6 +790,12 @@ impl WriteDoor {
             }
             WriteDoor::Item => {
                 "the change may have been made; look at the queue, then ask again (a cancel of an item already withdrawn, and a move of an item to the place it is in, change nothing)"
+            }
+            WriteDoor::Stop => {
+                "the host may be stopping; look at the instance's state, then ask again (a stop of a host already stopping changes nothing)"
+            }
+            WriteDoor::Release => {
+                "the commitment may have been released; look at the instance before asking again: a release is not named to a commitment, so asking again releases whatever is held at that moment (nothing held changes nothing)"
             }
         }
     }
@@ -789,7 +827,17 @@ async fn queue_write(
         return error(
             StatusCode::CONFLICT,
             "not_running",
-            "this instance is not running, so it cannot take a message or change its queue: start it first (the gateway has no start door); nothing was sent",
+            match door {
+                WriteDoor::Add | WriteDoor::Item => {
+                    "this instance is not running, so it cannot take a message or change its queue: start it first (the gateway has no start door); nothing was sent"
+                }
+                WriteDoor::Stop => {
+                    "this instance is not running, so there is nothing to stop: it is already stopped (the gateway has no start door, the unit manager starts it); nothing was sent"
+                }
+                WriteDoor::Release => {
+                    "this instance is not running, so it holds nothing to release: start it first (the gateway has no start door); nothing was sent"
+                }
+            },
         );
     }
     // The key is the gateway's own: only the one its own config names for this
@@ -906,7 +954,7 @@ async fn queue_write(
                 red.redact(&chain(&e)),
                 match door {
                     WriteDoor::Add => "nothing was queued",
-                    WriteDoor::Item => "nothing was changed",
+                    WriteDoor::Item | WriteDoor::Stop | WriteDoor::Release => "nothing was changed",
                 }
             ),
         ),

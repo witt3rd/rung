@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 564 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 576 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1041,6 +1041,21 @@ look shorter than it is.
 - `the_layers_are_recorded_whole_and_once`
 - `the_record_grows_by_layers_not_by_calls`
 - `the_request_bytes_are_unchanged`
+
+**`rung-host/tests/control_door.rs`** — 12 unclaimed
+
+- `a_body_that_is_not_what_the_door_takes_is_refused_by_name`
+- `a_release_lets_go_of_the_held_commitment`
+- `a_release_to_a_stopping_host_is_refused_in_words`
+- `a_release_with_nothing_held_is_a_no_op_that_says_so_and_writes_nothing`
+- `a_restart_keeps_one_stop_line_and_a_new_stop_is_a_first_one`
+- `a_second_stop_is_a_repeat_and_writes_nothing`
+- `a_stop_with_a_body_is_refused_before_the_body_is_read`
+- `concurrent_releases_write_one_line_per_actual_release`
+- `only_the_owner_may_stop_or_release_and_a_refusal_writes_nothing`
+- `the_owner_stops_the_host_and_the_stop_is_in_the_record_before_the_answer`
+- `twenty_concurrent_releases_with_nothing_held_write_nothing`
+- `twenty_concurrent_stops_make_exactly_one_line_and_nineteen_repeats`
 
 **`rung-host/tests/events_adapter.rs`** — 3 unclaimed
 

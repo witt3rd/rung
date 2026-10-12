@@ -480,7 +480,7 @@ Later slices add rows as their doors land.
 | `POST /v1/config/validate`, `PUT /v1/config` | write | | H7 |
 | `GET /v1/console` | read | | H8 |
 | `GET /v1/console/stream` | read | yes | H8 |
-| `POST /v1/stop`, `POST /v1/release` | write | | exist over ACP |
+| `POST /v1/stop`, `POST /v1/release` | write | | S7 |
 
 Of the H3 rows, the first slice serves `summary` and `record` for native
 instances (the H3 section below); `status`, `report`, `turns`, `decisions`,
@@ -1558,7 +1558,7 @@ copy or touch its text (a 200,000-character item is the same before and after).
 
 ### Not here
 
-`intent` (S2), `stop` and `release` (S7). A move does not override the desk,
+`intent` (S2); stop and release are S7. A move does not override the desk,
 and a cancel does not cut a running turn (that is what the owner's cancel over
 ACP, or a steer, does).
 
@@ -1699,3 +1699,63 @@ forced every owner item to `now`, the run tests against a host with no intent, a
 every safeguard was mutated (the exception in the guard, the long-call watch, the
 wake, the gates, the ordering, the key's intent, the header mark, the header order)
 and killed by a test.
+
+## S7 — stop and release
+
+Two controls of the owner, on the host's listener beside the queue's. Code:
+`rung_host::acp::QueueDoor` (the doors, `ControlTarget`), `rung_gateway` (the
+write path). **There is no start door**: the unit manager starts a host; a
+stopped instance is answered in words.
+
+Both are `POST`, owner token only (no token or an unknown one 401, another role's
+token 403, another method 405), refused on the headers alone. The gateway's
+read-only token is 403 `read_only` and nothing is sent. Each is the same
+acceptance as ACP's `_rung/stop` and `_rung/release` from an owner channel: an
+owner control is a `stimulus.accepted` line (with `control`) and a
+`stimulus.disposed` line (`control`), fsynced before the door answers; it is
+never listed in the queue. A stop is then raised the way the stop file raises
+one, and a release goes through the kernel's own owner release.
+
+The check ("is the host already stopping", "is anything held") and the write are
+**one step** under one lock, `Host::owner_stop` and `Host::owner_release_control`,
+and ACP's `_rung/stop` and `_rung/release` go through the same two methods, so the
+two roads record and answer alike: any number of concurrent stops write exactly
+one stop line (the rest answer `repeat: true`), and a release writes its lines
+only when it releases a commitment (ACP answers `{"released", "repeat"}` too).
+
+### `POST /v1/stop`
+
+No body at all: a declared body (a `Content-Length` other than 0, or a
+chunked one) is refused 400 `bad_request` from the headers, before any of it is
+read. (Stop takes no content, so this bounds nothing the owner writes.)
+
+| status | when |
+|---|---|
+| 200 | `{"stopping": true, "repeat": false}`: the stop is in the record and raised; the host halts at its next check and exits |
+| 200 | `{"stopping": true, "repeat": true}`: the host is already stopping; **nothing is written** |
+
+### `POST /v1/release`
+
+Body optional: `{"reason": "..."}` (a string; any other field is 400). The
+reason is recorded whole, as written (no bound on its length). **A release is
+not named to a commitment: it lets go of whatever is held at the moment it
+arrives.** If an answer is lost and the agent has since committed to something
+else, asking again releases that. Look at the instance before asking again.
+
+| status | when |
+|---|---|
+| 200 | `{"released": true, "repeat": false}`: the commitment is released (the kernel's `kernel.release` line, `released_by` `owner`) |
+| 200 | `{"released": false, "repeat": true}`: nothing is held; **nothing is written** |
+| 409 | `not_running`: the host is stopping: "start it first" |
+
+### Through the gateway
+
+`POST /api/i/{id}/v1/stop` and `/v1/release` are forwarded to the running host
+by the queue's write path under its rules (the gateway's roles and Host/Origin
+checks first, its own key by name, a private address, the answer redacted). A
+stopped instance answers 409 `not_running` in words, with nothing sent: for a
+stop, that it is already stopped; for a release, "start it first". A failure
+says whether anything may have changed (unreachable: nothing; a broken
+connection or no answer: look at the instance, then ask again; a stop asked
+again changes nothing more, but a release asked again releases whatever is held
+then). Other methods are 405.

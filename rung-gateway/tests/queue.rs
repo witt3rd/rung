@@ -1474,3 +1474,132 @@ async fn the_list_shows_the_folded_order_and_a_200000_character_item_whole() {
     assert_eq!(v["items"][0]["state"], "withdrawn");
     assert!(v["items"][0]["text"].as_str().unwrap() == big, "whole");
 }
+
+// ─── S7: stop and release through the gateway ────────────────────────────────
+
+impl Gw {
+    async fn control(&self, id: &str, door: &str, body: Option<&str>) -> Answer {
+        let mut rb = client().post(self.url(id, door));
+        if let Some(b) = body {
+            rb = rb
+                .header("content-type", "application/json")
+                .body(b.to_string());
+        }
+        send(rb).await
+    }
+}
+
+#[tokio::test]
+async fn a_stop_and_a_release_are_forwarded_to_the_running_host_with_the_gateways_key() {
+    let mut f = Fleet::new("s7gw-forward");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    let s = gw.control("alpha", "stop", None).await;
+    assert_eq!(s.status, 200, "{}", s.body);
+    assert_eq!(s.json()["done"], "/v1/stop");
+    let r = gw
+        .control("alpha", "release", Some(r#"{"reason":"enough"}"#))
+        .await;
+    assert_eq!(r.status, 200, "{}", r.body);
+    assert_eq!(r.json()["done"], "/v1/release");
+    let seen: Vec<String> = fake
+        .seen
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|s| s.0.clone())
+        .collect();
+    assert_eq!(seen, ["POST /v1/stop", "POST /v1/release"]);
+    let bodies = fake.bodies.lock().unwrap().clone();
+    assert!(bodies[0].is_empty());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&bodies[1]).unwrap(),
+        json!({"reason": "enough"})
+    );
+    assert_eq!(fake.last_bearer.lock().unwrap().as_deref(), Some(OWNER_KEY));
+}
+
+#[tokio::test]
+async fn the_read_only_and_unknown_tokens_cannot_stop_or_release_and_nothing_goes_upstream() {
+    let mut f = Fleet::new("s7gw-ro");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    for door in ["stop", "release"] {
+        let a = send(client().post(gw.url("alpha", door)).bearer_auth(READ_TOKEN)).await;
+        assert_eq!(a.status, 403, "{}", a.body);
+        assert_eq!(a.json()["error"], "read_only");
+        let b = send(client().post(gw.url("alpha", door)).bearer_auth("nope")).await;
+        assert_eq!(b.status, 401, "{}", b.body);
+        // not a POST: refused in words, nothing sent
+        let c = send(client().get(gw.url("alpha", door))).await;
+        assert_eq!(c.status, 405, "{}", c.body);
+    }
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn a_stopped_instance_answers_stop_and_release_in_words_and_nothing_is_written() {
+    let f = Fleet::new("s7gw-stopped");
+    let cfg = f.config("alpha", Some("S7GW_OWNER_ALPHA"));
+    unsafe { std::env::set_var("S7GW_OWNER_ALPHA", OWNER_KEY) };
+    let fake = fake_host(f.state("alpha"), Mode::Normal).await;
+    f.add("alpha", Some(&cfg), Some(&fake.addr));
+    f.record(
+        "alpha",
+        vec![
+            ("host.start", json!({"config": {}})),
+            ("halted", json!({"why": "stop"})),
+        ],
+    );
+    let before = whole_record(&f, "alpha");
+    let gw = f.serve().await;
+    let s = gw.control("alpha", "stop", None).await;
+    assert_eq!(s.status, 409, "{}", s.body);
+    assert_eq!(s.json()["error"], "not_running");
+    assert!(
+        s.json()["message"]
+            .as_str()
+            .unwrap()
+            .contains("already stopped")
+    );
+    let r = gw.control("alpha", "release", Some("{}")).await;
+    assert_eq!(r.status, 409, "{}", r.body);
+    assert_eq!(r.json()["error"], "not_running");
+    assert!(
+        r.json()["message"]
+            .as_str()
+            .unwrap()
+            .contains("start it first")
+    );
+    assert_eq!(whole_record(&f, "alpha"), before);
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn an_instance_the_gateway_holds_no_key_for_gets_no_stop_or_release() {
+    let mut f = Fleet::new("s7gw-nokey");
+    unsafe { std::env::set_var("S7GW_HOSTCFG_BETA", PLANTED) };
+    let cfg = f.config("beta", Some("S7GW_HOSTCFG_BETA"));
+    let fake = fake_host(f.state("beta"), Mode::Normal).await;
+    f.add("beta", Some(&cfg), Some(&fake.addr));
+    f.hold("beta");
+    let gw = f.serve().await;
+    for door in ["stop", "release"] {
+        let a = gw.control("beta", door, None).await;
+        assert_eq!(a.status, 503, "{}", a.body);
+        assert_eq!(a.json()["error"], "no_owner_key");
+    }
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn an_unreachable_host_says_nothing_was_changed_for_stop_and_the_key_stays_out() {
+    let mut f = Fleet::new("s7gw-echo");
+    let _echo = running(&mut f, "beta", Mode::EchoKey).await;
+    let gw = f.serve().await;
+    for door in ["stop", "release"] {
+        let a = gw.control("beta", door, None).await;
+        assert_eq!(a.status, 500);
+        assert!(!a.body.contains(OWNER_KEY), "the key leaked");
+    }
+}

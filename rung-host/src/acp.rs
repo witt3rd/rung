@@ -754,17 +754,16 @@ impl Acp {
                 owner_only("_rung/stop")?;
                 let mut item = self.item(role, &channel, "stop");
                 item.control = Some("stop".into());
-                self.host.accept_external(&item);
-                Ok(json!({"stopping": true}))
+                let stopped = self.host.owner_stop(&item);
+                Ok(json!({"stopping": true, "repeat": !stopped}))
             }
             "_rung/release" => {
                 owner_only("_rung/release")?;
-                let committed = self.host.core.state().kernel.commitment().is_some();
                 let reason = params["reason"].as_str().unwrap_or("the owner released it");
                 let mut item = self.item(role, &channel, reason);
                 item.control = Some("release".into());
-                self.host.accept_external(&item);
-                Ok(json!({"released": committed}))
+                let released = self.host.owner_release_control(&item);
+                Ok(json!({"released": released, "repeat": !released}))
             }
             "_rung/calendar" => {
                 owner_only("_rung/calendar")?;
@@ -920,6 +919,30 @@ pub fn serve_http_with(
 pub const EVENTS_PATH: &str = "/v1/events";
 /// The path of the queue door (S1).
 pub const QUEUE_PATH: &str = "/v1/queue";
+/// The path of the stop door (S7).
+pub const STOP_PATH: &str = "/v1/stop";
+/// The path of the release door (S7).
+pub const RELEASE_PATH: &str = "/v1/release";
+
+/// The owner's two controls on the host's listener (S7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlTarget {
+    /// `/v1/stop`
+    Stop,
+    /// `/v1/release`
+    Release,
+}
+
+impl ControlTarget {
+    /// The control `path` names; `None` for any other path.
+    pub fn of(path: &str) -> Option<Self> {
+        match path {
+            STOP_PATH => Some(Self::Stop),
+            RELEASE_PATH => Some(Self::Release),
+            _ => None,
+        }
+    }
+}
 
 /// What a path under the queue door names (S3).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1232,7 +1255,7 @@ fn door_error(status: u16, code: &str, message: &str) -> Reply {
 impl QueueDoor {
     /// Is `path` this door's? The one place the door's path is checked.
     pub fn owns(path: &str) -> bool {
-        QueueTarget::of(path).is_some()
+        QueueTarget::of(path).is_some() || ControlTarget::of(path).is_some()
     }
 
     /// The route of `/v1/queue` and what is under it; `None` for any other path.
@@ -1320,6 +1343,39 @@ impl QueueDoor {
                 "send the body as application/json",
             )
         };
+        if let Some(c) = ControlTarget::of(path) {
+            return match (c, method) {
+                (_, "POST") => match c {
+                    // a stop is never refused for the host's stopping: a second
+                    // one is a repeat, answered as such
+                    // and it takes no body at all, so a declared one is refused
+                    // before any byte of it is read
+                    ControlTarget::Stop => {
+                        let sized = header("content-length").is_some_and(|n| n.trim() != "0");
+                        if sized || header("transfer-encoding").is_some() {
+                            Some(door_error(
+                                400,
+                                "bad_request",
+                                "this door takes no body: send POST /v1/stop with none",
+                            ))
+                        } else {
+                            None
+                        }
+                    }
+                    ControlTarget::Release => writes(),
+                },
+                (ControlTarget::Stop, _) => Some(door_error(
+                    405,
+                    "method_not_allowed",
+                    "this door stops the host (POST)",
+                )),
+                (ControlTarget::Release, _) => Some(door_error(
+                    405,
+                    "method_not_allowed",
+                    "this door releases the current commitment (POST)",
+                )),
+            };
+        }
         match (QueueTarget::of(path), method) {
             (None, _) => None,
             (Some(QueueTarget::Unknown), _) => Some(door_error(
@@ -1374,6 +1430,9 @@ impl QueueDoor {
         if let Some(refusal) = self.refuse(&req.method, &req.path, &req.headers) {
             return refusal;
         }
+        if let Some(c) = ControlTarget::of(&req.path) {
+            return self.control(c, &req).await;
+        }
         match QueueTarget::of(&req.path) {
             Some(QueueTarget::List) => match req.method.as_str() {
                 "GET" | "HEAD" => self.list(&req).await,
@@ -1383,6 +1442,64 @@ impl QueueDoor {
             Some(QueueTarget::Move(id)) => self.move_item(id, &req).await,
             _ => door_error(404, "not_found", "no such queue door"),
         }
+    }
+
+    /// `POST /v1/stop` and `POST /v1/release` (S7): the owner's two controls,
+    /// through the one acceptance ACP's `_rung/stop` and `_rung/release` use, so
+    /// the control is a line in the record (and fsynced) before the door answers.
+    /// There is no start door: the unit manager starts a host.
+    async fn control(
+        self: &Arc<Self>,
+        which: ControlTarget,
+        req: &rung_agent_core::acp_http::RouteRequest,
+    ) -> Reply {
+        let bad = |m: &str| door_error(400, "bad_request", m);
+        let fields: &[&str] = match which {
+            ControlTarget::Stop => &[],
+            ControlTarget::Release => &["reason"],
+        };
+        let mut reason = None;
+        if !req.body.iter().all(u8::is_ascii_whitespace) {
+            let Ok(Value::Object(body)) = serde_json::from_slice::<Value>(&req.body) else {
+                return bad("the body, if there is one, must be a JSON object");
+            };
+            if let Some(k) = body.keys().find(|k| !fields.contains(&k.as_str())) {
+                return bad(&if fields.is_empty() {
+                    format!("no such field `{k}`: this door takes no body")
+                } else {
+                    format!("no such field `{k}` (reason)")
+                });
+            }
+            match body.get("reason") {
+                None | Some(Value::Null) => {}
+                Some(Value::String(r)) => reason = Some(r.clone()),
+                Some(_) => return bad("reason must be a string"),
+            }
+        }
+        let door = self.clone();
+        let done = tokio::task::spawn_blocking(move || {
+            let host = &door.acp.host;
+            let owner = door.acp.owner_channel();
+            match which {
+                ControlTarget::Stop => {
+                    // already stopping: a repeat, nothing written
+                    let mut item = door.acp.item(Role::Owner, &owner, "stop");
+                    item.control = Some("stop".into());
+                    let stopped = host.owner_stop(&item);
+                    Ok::<_, crate::read::DoorError>(json!({"stopping": true, "repeat": !stopped}))
+                }
+                ControlTarget::Release => {
+                    let reason = reason.as_deref().unwrap_or("the owner released it");
+                    let mut item = door.acp.item(Role::Owner, &owner, reason);
+                    item.control = Some("release".into());
+                    let released = host.owner_release_control(&item);
+                    // nothing held is nothing to release: a repeat, nothing written
+                    Ok(json!({"released": released, "repeat": !released}))
+                }
+            }
+        })
+        .await;
+        self.finish(done, "the control could not be carried out")
     }
 
     /// `DELETE /v1/queue/{id}`: withdraw a waiting item (S3).
