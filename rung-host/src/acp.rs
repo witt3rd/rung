@@ -1459,8 +1459,8 @@ impl QueueDoor {
             ControlTarget::Release => &["reason"],
         };
         let mut reason = None;
-        if !req.body.iter().all(u8::is_ascii_whitespace) {
-            let Ok(Value::Object(body)) = serde_json::from_slice::<Value>(&req.body) else {
+        if !req.body.is_blank().unwrap_or(false) {
+            let Ok(Value::Object(body)) = req.body.json() else {
                 return bad("the body, if there is one, must be a JSON object");
             };
             if let Some(k) = body.keys().find(|k| !fields.contains(&k.as_str())) {
@@ -1530,7 +1530,7 @@ impl QueueDoor {
         req: &rung_agent_core::acp_http::RouteRequest,
     ) -> Reply {
         let bad = |m: &str| door_error(400, "bad_request", m);
-        let Ok(Value::Object(body)) = serde_json::from_slice::<Value>(&req.body) else {
+        let Ok(Value::Object(body)) = req.body.json() else {
             return bad(
                 "the body must be a JSON object: {\"before\": \"<id>\"} (or {\"before\": null} for the end of its group)",
             );
@@ -1624,7 +1624,7 @@ impl QueueDoor {
 
     async fn add(self: &Arc<Self>, req: &rung_agent_core::acp_http::RouteRequest) -> Reply {
         let bad = |m: &str| door_error(400, "bad_request", m);
-        let Ok(Value::Object(body)) = serde_json::from_slice::<Value>(&req.body) else {
+        let Ok(Value::Object(body)) = req.body.json() else {
             return bad("the body must be a JSON object: {\"text\": \"...\"}");
         };
         if let Some(k) = body

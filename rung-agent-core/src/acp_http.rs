@@ -123,8 +123,165 @@ pub struct RouteRequest {
     pub headers: Vec<(String, String)>,
     /// The request body, whole; empty for a GET or HEAD (the listener reads no
     /// body for those, nor for a request the gate did not admit). It is read only after the [`RouteGate`] let the
-    /// request on, as it arrives and with no limit on its size.
-    pub body: Vec<u8>,
+    /// request on, as it arrives and with no limit on its size; a large one is
+    /// spooled to an unlinked temporary file as it arrives (never held whole in
+    /// memory by the listener), and read back through [`Body`].
+    pub body: Body,
+}
+
+/// Bodies up to this size stay in memory; larger ones are spooled to disk.
+const SPOOL_THRESHOLD: usize = 1 << 20;
+
+/// A request body, whole and immutable: in memory if small, else in an
+/// unlinked temporary file (under `std::env::temp_dir()`). Cheap to clone; each
+/// [`Body::reader`] reads independently from the start.
+#[derive(Debug, Clone)]
+pub struct Body(Repr);
+
+#[derive(Debug, Clone)]
+enum Repr {
+    Mem(Arc<Vec<u8>>),
+    File(Arc<std::fs::File>, u64),
+}
+
+impl Default for Body {
+    fn default() -> Self {
+        Body::from(Vec::new())
+    }
+}
+
+impl From<Vec<u8>> for Body {
+    fn from(v: Vec<u8>) -> Self {
+        Body(Repr::Mem(Arc::new(v)))
+    }
+}
+
+impl Body {
+    /// The body's length in bytes.
+    pub fn len(&self) -> u64 {
+        match &self.0 {
+            Repr::Mem(v) => v.len() as u64,
+            Repr::File(_, n) => *n,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// The body from its first byte, as a reader (a file-backed body is read
+    /// in place, not loaded).
+    pub fn reader(&self) -> impl std::io::Read + Send + 'static {
+        BodyReader {
+            body: self.clone(),
+            pos: 0,
+        }
+    }
+
+    /// Is every byte ASCII whitespace (or is there none)? Reads in constant memory.
+    pub fn is_blank(&self) -> std::io::Result<bool> {
+        use std::io::Read;
+        let mut r = self.reader();
+        let mut buf = [0u8; 64 * 1024];
+        loop {
+            let n = r.read(&mut buf)?;
+            if n == 0 {
+                return Ok(true);
+            }
+            if !buf[..n].iter().all(u8::is_ascii_whitespace) {
+                return Ok(false);
+            }
+        }
+    }
+
+    /// The body parsed as JSON, read through a buffer (no second whole copy).
+    pub fn json(&self) -> Result<Value, serde_json::Error> {
+        serde_json::from_reader(std::io::BufReader::with_capacity(64 * 1024, self.reader()))
+    }
+
+    /// The whole body in memory (this is the copy the spool avoids; use
+    /// [`Body::reader`] where the body can be large).
+    pub fn to_vec(&self) -> std::io::Result<Vec<u8>> {
+        use std::io::Read;
+        let mut out = Vec::with_capacity(self.len() as usize);
+        self.reader().read_to_end(&mut out)?;
+        Ok(out)
+    }
+}
+
+struct BodyReader {
+    body: Body,
+    pos: u64,
+}
+
+impl std::io::Read for BodyReader {
+    fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+        let n = match &self.body.0 {
+            Repr::Mem(v) => {
+                let p = (self.pos as usize).min(v.len());
+                let n = out.len().min(v.len() - p);
+                out[..n].copy_from_slice(&v[p..p + n]);
+                n
+            }
+            Repr::File(f, len) => {
+                use std::os::unix::fs::FileExt;
+                let want = out.len().min((*len - self.pos.min(*len)) as usize);
+                f.read_at(&mut out[..want], self.pos)?
+            }
+        };
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
+/// Collects a request body as it arrives: in memory until it passes
+/// [`SPOOL_THRESHOLD`], then in an unlinked temporary file.
+struct Spool {
+    mem: Vec<u8>,
+    file: Option<std::fs::File>,
+    len: u64,
+}
+
+impl Spool {
+    fn new(hint: usize) -> Self {
+        Spool {
+            mem: Vec::with_capacity(hint.min(SPOOL_THRESHOLD)),
+            file: None,
+            len: 0,
+        }
+    }
+
+    fn push(&mut self, data: &[u8]) -> std::io::Result<()> {
+        use std::io::Write;
+        self.len += data.len() as u64;
+        if self.file.is_none() && self.mem.len() + data.len() <= SPOOL_THRESHOLD {
+            self.mem.extend_from_slice(data);
+            return Ok(());
+        }
+        if self.file.is_none() {
+            use std::os::unix::fs::OpenOptionsExt;
+            let path = std::env::temp_dir().join(format!("rung-body-{}", uuid::Uuid::new_v4()));
+            let mut f = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&path)?;
+            // unlinked at once: it lives only as long as the handle
+            std::fs::remove_file(&path)?;
+            f.write_all(&self.mem)?;
+            self.mem = Vec::new();
+            self.file = Some(f);
+        }
+        self.file.as_mut().expect("spool file").write_all(data)
+    }
+
+    fn finish(self) -> Body {
+        match self.file {
+            Some(f) => Body(Repr::File(Arc::new(f), self.len)),
+            None => Body::from(self.mem),
+        }
+    }
 }
 
 /// A body written in pieces, as the client can take them: the listener asks
@@ -443,29 +600,29 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
     // it arrives, into one buffer sized from the declared length (no limit: the
     // gate has already said who may send it)
     let body = if !admitted || matches!(parts.method, Method::GET | Method::HEAD) {
-        Vec::new()
+        Body::default()
     } else {
         let hint = parts
             .headers
             .get("content-length")
             .and_then(|v| v.to_str().ok())
             .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(0)
-            // only where the buffer starts; it grows to whatever is sent
-            .min(64 << 20);
-        let mut buf = Vec::with_capacity(hint);
+            .unwrap_or(0);
+        let mut spool = Spool::new(hint);
         let mut incoming = incoming;
         while let Some(frame) = incoming.frame().await {
             match frame {
                 Ok(f) => {
-                    if let Some(d) = f.data_ref() {
-                        buf.extend_from_slice(d);
+                    if let Some(d) = f.data_ref()
+                        && spool.push(d).is_err()
+                    {
+                        return text(StatusCode::INTERNAL_SERVER_ERROR, "Could not spool body");
                     }
                 }
                 Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid request body"),
             }
         }
-        buf
+        spool.finish()
     };
     let request = RouteRequest {
         method: head.method,
@@ -533,11 +690,13 @@ async fn post(
     let sess_hdr = header(&req, HEADER_SESSION_ID).map(str::to_string);
     let bearer_hdr = bearer(&req).map(str::to_string);
     let bound = |conn: &Conn| !state.serve.bind_bearer || conn.bearer == bearer_hdr;
+    // the message is parsed from the received chunks in place, not first
+    // joined into one more whole copy
     let collected = match req.collect().await {
-        Ok(c) => c.to_bytes(),
+        Ok(c) => c.aggregate(),
         Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid JSON"),
     };
-    let value: Value = match serde_json::from_slice(&collected) {
+    let value: Value = match serde_json::from_reader(bytes::Buf::reader(collected)) {
         Ok(v) => v,
         Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid JSON"),
     };
