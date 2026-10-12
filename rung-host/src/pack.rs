@@ -34,7 +34,9 @@ pub fn request_bytes(tools: &[ToolDefinition], system: &str, messages: &[ChatMes
     out
 }
 
-/// The text of a message, flattened (for outlines and kept segments).
+/// The text of a message, flattened (for outlines and kept segments). Not
+/// redacted: a segment's gist is redacted only when it is sent in an ask
+/// (`PackInput::split_for_window`), not over the whole epoch at every boundary.
 pub fn flat_text(m: &ChatMessage) -> String {
     match &m.content {
         MessageContent::Text(t) => t.clone(),
@@ -274,7 +276,7 @@ impl Pack {
                     first_turn: first,
                     last_turn: last,
                     tokens: canon::tokens(bytes),
-                    gist: rung_agent_core::mcp::redact(text.trim_end()),
+                    gist: text.trim_end().to_string(),
                     referenced_by_open_commitment: c,
                     referenced_by_open_expectation: e,
                 }
@@ -351,21 +353,12 @@ mod tests {
     }
 
     #[test]
-    fn a_segment_gist_is_the_whole_text_and_redacted() {
+    fn a_segment_gist_is_the_whole_text() {
         let mut p = pack();
         let long = format!("{} END", "word ".repeat(2_000));
         p.begin_turn(1, "free", "[turn 1]".into());
         p.end_turn(vec![ChatMessage::assistant(long.clone())]);
-        p.begin_turn(2, "free", "[turn 2]".into());
-        p.end_turn(vec![ChatMessage::assistant(format!(
-            "Authorization: Bearer {}",
-            "k".repeat(40)
-        ))]);
         let segs = p.segments(1, &|_, _| (false, false));
         assert!(segs[0].gist.contains(long.trim()), "the gist is cut");
-        assert!(
-            !segs[0].gist.contains(&"k".repeat(40)),
-            "a secret is in the gist"
-        );
     }
 }

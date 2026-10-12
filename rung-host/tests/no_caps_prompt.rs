@@ -214,6 +214,28 @@ fn a_pack_ask_carries_the_whole_segments_that_fit_and_loses_none() {
         p.unasked.iter().any(|s| s.id == "s2"),
         "a referenced segment is not asked"
     );
+    // Only the asked segments are redacted: the others are not sent, so the work of
+    // redaction is not done over the whole epoch at every boundary.
+    let mut r = pack_input(
+        (1..=4)
+            .map(|n| {
+                let mut g = segment(n, false);
+                g.gist = format!("{} Authorization: Bearer {}", g.gist, "k".repeat(40));
+                g
+            })
+            .collect(),
+    );
+    r.split_for_window(|x| x.segments.len() <= 1);
+    assert_eq!(r.segments.len(), 1);
+    assert!(
+        !r.segments[0].gist.contains(&"k".repeat(40)),
+        "an asked gist is not redacted"
+    );
+    assert!(r.segments[0].gist.contains("END"), "an asked gist is cut");
+    assert!(
+        r.unasked.iter().all(|s| s.gist.contains(&"k".repeat(40))),
+        "an unasked segment was redacted: the epoch is redacted at every boundary"
+    );
     // nothing fits: no segment is asked, none dropped
     let mut q = pack_input((1..=4).map(|n| segment(n, false)).collect());
     q.split_for_window(|_| false);

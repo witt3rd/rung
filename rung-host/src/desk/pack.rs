@@ -70,15 +70,30 @@ impl PackInput {
         let (mut askable, rest): (Vec<Segment>, Vec<Segment>) =
             all.into_iter().partition(|s| !referenced(s));
         askable.sort_by_key(|s| std::cmp::Reverse(s.last_turn));
-        let mut with = |n: usize, me: &mut PackInput| {
+        let set = |n: usize, me: &mut PackInput| {
             let mut asked: Vec<Segment> = askable[..n].to_vec();
             asked.sort_by_key(|s| s.first_turn);
             me.segments = asked;
-            fits(me)
         };
         // Zero is allowed here: the ask still carries the context action.
-        let lo = super::fit_at_most(askable.len(), |n| with(n, self));
-        with(lo, self);
+        let mut lo = super::fit_at_most(askable.len(), |n| {
+            set(n, self);
+            fits(self)
+        });
+        // Only what is sent is redacted (credentials), so the work is the asked
+        // segments' text, not the whole epoch's at every boundary. Redaction can
+        // lengthen a gist (a mark for a short secret): drop one more segment if
+        // that tips the ask over.
+        loop {
+            set(lo, self);
+            for g in &mut self.segments {
+                g.gist = rung_agent_core::mcp::redact(&g.gist);
+            }
+            if lo == 0 || fits(self) {
+                break;
+            }
+            lo -= 1;
+        }
         let kept: Vec<String> = self.segments.iter().map(|s| s.id.clone()).collect();
         let mut unasked: Vec<Segment> = askable
             .into_iter()
