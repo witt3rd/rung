@@ -24,6 +24,18 @@ git tags only.
   owner's item's text in the header is now whole (it was cut at 1,000 characters);
   another sender's is bounded as before.
   A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).
+
+- `rung-host`, `rung-gateway`: the stop and release doors (S7, host half).
+  `POST /v1/stop` asks the host to stop and `POST /v1/release` lets go of the
+  current commitment (optional `reason`), both the owner's only, through the one
+  acceptance ACP's `_rung/stop` and `_rung/release` use, so each is a record line
+  on disk before the answer. Both are idempotent (a stop of a host already
+  stopping, and a release with nothing held, are `repeat: true` and write
+  nothing), refuse other roles, other methods and unknown body fields in words,
+  and a host that is stopping refuses a release 409 `not_running`. There is no
+  start door: the unit manager starts a host. The gateway forwards them under
+  the queue doors' write path, and a stopped instance answers in words. The page
+  buttons are a separate change. Shapes in `docs/rung-host-api.md` (S7).
 - `rung-host`, `rung-gateway`: reorder and cancel (S3). A new record line,
   `queue.moved` (`id`, `before`, optional `key`), and the waiting order is now
   the fold of acceptance and these moves, in the host (the order a turn reads
