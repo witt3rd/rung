@@ -1155,7 +1155,7 @@ look shorter than it is.
 - `a_free_item_waits_while_the_agent_is_committed_and_is_read_when_it_is_free`
 - `a_long_steer_reaches_the_model_whole`
 - `a_next_item_is_not_marked_as_a_steer`
-- `a_peers_long_text_is_still_bounded_in_the_header`
+- `a_peers_huge_text_reaches_the_header_whole_and_redacted`
 - `a_steer_in_a_long_call_cuts_it_and_is_read_at_the_next_boundary`
 - `a_steer_is_read_at_the_first_boundary_after_it_arrives_and_is_marked`
 - `the_header_lists_owner_items_before_a_peers`
