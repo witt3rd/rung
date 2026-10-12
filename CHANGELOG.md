@@ -36,7 +36,12 @@ git tags only.
   owner's `free` and `next` is refused in words with nothing written, and the turn
   header lists items in the order the list shows (it ignored moves). An
   owner's item's text in the header is now whole (it was cut at 1,000 characters);
-  another sender's is bounded as before.
+  so is another sender's (the 1,000-character bound on a peer's text is removed;
+  the redactor still runs on it).
+  No caps on content in the model header: task, project title, question, done-when,
+  digest, next step and message text all reach the model whole.
+  The same holds for the owner's status report and the epoch's slow layer: the
+  no-caps rule is applied to the whole render path, not only the per-turn header.
   A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).
 
 - `rung-host`, `rung-gateway`: the stop and release doors (S7, host half).
