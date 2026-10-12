@@ -85,6 +85,34 @@ pub type Connect = Arc<
 /// Whether a request's bearer token (if any) may reach the agent.
 pub type Authorize = Arc<dyn Fn(Option<&str>) -> bool + Send + Sync>;
 
+/// A request to a path other than `/acp`, before its body: what a
+/// [`RouteGate`] sees.
+#[derive(Debug, Clone)]
+pub struct RouteHead {
+    pub method: String,
+    pub path: String,
+    /// The raw query string, without the `?`.
+    pub query: Option<String>,
+    /// Header names lower-cased.
+    pub headers: Vec<(String, String)>,
+}
+
+/// What a [`RouteGate`] says of a request, from its headers alone.
+pub enum GateVerdict {
+    /// Answered at once: the body is not read (a client sending one is cut
+    /// off), and the connection is closed.
+    Refuse(RouteReply),
+    /// Let on to its [`Routes`] handler, which gets the body whole.
+    Admit,
+    /// Not the gate's: the handler is run with no body read.
+    Leave,
+}
+
+/// Decides from the headers alone, before any body is read, what becomes of a
+/// request to a path other than `/acp`. Only an [`GateVerdict::Admit`]ted
+/// request has its body read.
+pub type RouteGate = Arc<dyn Fn(&RouteHead) -> GateVerdict + Send + Sync>;
+
 /// A request to a path other than `/acp`, as a [`Routes`] handler sees it.
 #[derive(Debug, Clone)]
 pub struct RouteRequest {
@@ -94,6 +122,10 @@ pub struct RouteRequest {
     pub query: Option<String>,
     /// Header names lower-cased.
     pub headers: Vec<(String, String)>,
+    /// The request body, whole; empty for a GET or HEAD (the listener reads no
+    /// body for those, nor for a request the gate did not admit). It is read only after the [`RouteGate`] let the
+    /// request on, as it arrives and with no limit on its size.
+    pub body: Vec<u8>,
 }
 
 /// A body written in pieces, as the client can take them: the listener asks
@@ -133,6 +165,9 @@ pub struct Serve {
     pub bind_bearer: bool,
     /// Paths other than `/acp`, if any (a host's own doors).
     pub routes: Option<Routes>,
+    /// Refuses a request to those paths from its headers, before its body is
+    /// read (authentication, method, media type). `None`: no early refusal.
+    pub route_gate: Option<RouteGate>,
 }
 
 pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
@@ -154,6 +189,7 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
         }),
         bind_bearer: false,
         routes: None,
+        route_gate: None,
     };
     listen_with(addr, serve).await
 }
@@ -363,7 +399,7 @@ async fn dispatch(
     req: Request<Incoming>,
 ) -> Response<BoxBody<Bytes, Infallible>> {
     if req.uri().path() != "/acp" {
-        return route(&state, &req).await;
+        return route(&state, req).await;
     }
     if !authorized(&state, &req) {
         return text(StatusCode::UNAUTHORIZED, "Unauthorized");
@@ -377,23 +413,83 @@ async fn dispatch(
 }
 
 /// A path other than `/acp`: the embedding's own route, or not found.
-async fn route(state: &HttpState, req: &Request<Incoming>) -> Response<BoxBody<Bytes, Infallible>> {
+async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<Bytes, Infallible>> {
     let Some(routes) = &state.serve.routes else {
         return text(StatusCode::NOT_FOUND, "Not Found");
     };
-    let request = RouteRequest {
-        method: req.method().as_str().to_string(),
-        path: req.uri().path().to_string(),
-        query: req.uri().query().map(String::from),
-        headers: req
-            .headers()
+    let (parts, incoming) = req.into_parts();
+    let head = RouteHead {
+        method: parts.method.as_str().to_string(),
+        path: parts.uri.path().to_string(),
+        query: parts.uri.query().map(String::from),
+        headers: parts
+            .headers
             .iter()
             .filter_map(|(k, v)| Some((k.as_str().to_string(), v.to_str().ok()?.to_string())))
             .collect(),
     };
-    let Some(reply) = routes(request).await else {
-        return text(StatusCode::NOT_FOUND, "Not Found");
+    // refused on its headers: answered at once, the body never read, the
+    // connection closed (a client still sending is cut off)
+    let admitted = match state.serve.route_gate.as_ref().map(|g| g(&head)) {
+        Some(GateVerdict::Refuse(reply)) => {
+            let mut r = reply_response(reply);
+            r.headers_mut()
+                .insert("connection", HeaderValue::from_static("close"));
+            return r;
+        }
+        Some(GateVerdict::Admit) => true,
+        Some(GateVerdict::Leave) | None => false,
     };
+    // a read has no body to wait for; any other method's body is read here, as
+    // it arrives, into one buffer sized from the declared length (no limit: the
+    // gate has already said who may send it)
+    let body = if !admitted || matches!(parts.method, Method::GET | Method::HEAD) {
+        Vec::new()
+    } else {
+        let hint = parts
+            .headers
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(0)
+            // only where the buffer starts; it grows to whatever is sent
+            .min(64 << 20);
+        let mut buf = Vec::with_capacity(hint);
+        let mut incoming = incoming;
+        while let Some(frame) = incoming.frame().await {
+            match frame {
+                Ok(f) => {
+                    if let Some(d) = f.data_ref() {
+                        buf.extend_from_slice(d);
+                    }
+                }
+                Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid request body"),
+            }
+        }
+        buf
+    };
+    let request = RouteRequest {
+        method: head.method,
+        path: head.path,
+        query: head.query,
+        headers: head.headers,
+        body,
+    };
+    let unread = !admitted && !matches!(parts.method, Method::GET | Method::HEAD);
+    let mut response = match routes(request).await {
+        Some(reply) => reply_response(reply),
+        None => text(StatusCode::NOT_FOUND, "Not Found"),
+    };
+    if unread {
+        response
+            .headers_mut()
+            .insert("connection", HeaderValue::from_static("close"));
+    }
+    response
+}
+
+/// A route's reply as the listener's response.
+fn reply_response(reply: RouteReply) -> Response<BoxBody<Bytes, Infallible>> {
     let mut b = Response::builder().status(reply.status);
     for (k, v) in &reply.headers {
         if let (Ok(k), Ok(v)) = (HeaderName::try_from(k.as_str()), HeaderValue::from_str(v)) {

@@ -7,6 +7,22 @@ git tags only.
 
 ## [Unreleased]
 
+### Added
+- `rung-host`, `rung-gateway`: the queue, list and add (S1). `GET /v1/queue`
+  lists what waits for the agent and the one thing being answered, computed
+  from the record (so a stopped instance lists too), every text whole and
+  redacted; `POST /v1/queue` adds a message through the same acceptance as ACP's
+  `_rung/stimulus` and answers only once it is on disk, a key given becoming the
+  item id so a repeat adds once. The host serves both on its HTTP listener
+  (owner token), refusing from the headers, before any body is read; the
+  gateway reads the list from a native instance's state directory and streams
+  the write to the running host with the key its own config names for that id
+  (`instances[].key_env`; never a variable an instance names), refusing a
+  stopped instance with "start it first". An `Authorization` header the gateway
+  cannot read is 401, not "no token" (`rung_host::queue`; shapes in
+  `docs/rung-host-api.md`). `rung-agent-core`'s HTTP listener gets a pre-body
+  `RouteGate` and hands an admitted route its whole request body, with no limit.
+
 ## [0.3.1] - 2026-10-11
 
 ### Added

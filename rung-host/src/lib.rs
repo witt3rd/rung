@@ -27,6 +27,7 @@ pub mod memory;
 pub mod notify;
 pub mod pack;
 pub mod presence;
+pub mod queue;
 pub mod read;
 pub mod record;
 pub mod redact;

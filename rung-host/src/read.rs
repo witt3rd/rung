@@ -511,6 +511,8 @@ pub fn is_registered(registry_dir: &Path, id: &str) -> bool {
 #[derive(Debug, Clone)]
 pub struct StreamTarget {
     pub state_dir: std::path::PathBuf,
+    /// The host's state lock is held: a host is running on it.
+    pub running: bool,
     /// Where the running host's own door is (`host:port`): only when its lock
     /// is held and its entry has an address.
     pub address: Option<String>,
@@ -546,6 +548,7 @@ pub fn stream_target(registry_dir: &Path, id: &str, base: &Redactor) -> Door<Str
         }
         Ok(StreamTarget {
             state_dir: entry.state_dir.clone(),
+            running: row.word == Word::Running,
             address: (row.word == Word::Running)
                 .then(|| entry.address.clone())
                 .flatten(),
@@ -553,6 +556,22 @@ pub fn stream_target(registry_dir: &Path, id: &str, base: &Redactor) -> Door<Str
             red: red.clone(),
             env_unset: env_unset.clone(),
         })
+    };
+    find().map_err(|e| e.redacted(&red))
+}
+
+// ─── the queue (S1) ──────────────────────────────────────────────────────────
+
+/// `GET /v1/queue` of native instance `id`: its waiting and answering items (and,
+/// when asked, those over), computed from its own record, so a stopped instance
+/// answers too. The shape and the paging are [`crate::queue::answer`]'s; every
+/// text goes through the registry-wide redactor.
+pub fn queue(registry_dir: &Path, id: &str, q: &crate::queue::Query, base: &Redactor) -> Door {
+    let (red, env_unset) = fleet_redactor(registry_dir, base);
+    let find = || -> Door {
+        let (_row, entry) = locate(registry_dir, id)?;
+        check_state_dir(&entry.state_dir)?;
+        crate::queue::answer(&entry.state_dir, q, &red, &env_unset)
     };
     find().map_err(|e| e.redacted(&red))
 }
