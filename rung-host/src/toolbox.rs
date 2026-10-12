@@ -27,6 +27,9 @@ use crate::gates::{LONG_WORK_MESSAGE, OWNER_CUT_MESSAGE};
 use crate::kernel;
 use crate::memory::MemoryHost;
 use crate::registers::Check;
+use crate::spill::{
+    BodySink, Cancel, CancelOnDrop, DEFAULT_SPILL_BYTES, Range, SPILL_DIR, Spiller, read_range,
+};
 
 pub const CORE: &str = "core";
 pub const MEMORY: &str = "memory";
@@ -183,8 +186,17 @@ fn group_tools(group: &str) -> Vec<ToolDefinition> {
         READ => vec![
             def(
                 "ws_read",
-                "Read a file in your workspace.",
-                obj(json!({"path": s("Relative path.")}), &["path"]),
+                "Read a file in your workspace: all of it, or part of it. Ask for lines (from_line, to_line) or for characters (from_char, to_char), counted from 1, ends included; a part comes with the file's totals. A fetched page too large to show is saved whole under .web/ and its notice names the file.",
+                obj(
+                    json!({
+                        "path": s("Relative path."),
+                        "from_line": {"type": "integer", "minimum": 1, "description": "First line to read."},
+                        "to_line": {"type": "integer", "minimum": 1, "description": "Last line to read."},
+                        "from_char": {"type": "integer", "minimum": 1, "description": "First character to read."},
+                        "to_char": {"type": "integer", "minimum": 1, "description": "Last character to read."}
+                    }),
+                    &["path"],
+                ),
             ),
             def(
                 "ws_list",
@@ -237,6 +249,30 @@ pub fn group_of(name: &str) -> Option<&'static str> {
 pub trait WebReader: Send + Sync {
     /// The page text, and how long fetching it takes (simulated, ms).
     fn fetch(&self, url: &str) -> (Result<String, String>, Millis);
+
+    /// The page in pieces: the header line, then the body. The default
+    /// fetches whole and splits at the first blank line (the header is one
+    /// line, so the first blank line ends it); a reader that can stream
+    /// overrides it and never holds the page.
+    fn fetch_into(&self, url: &str, sink: &mut dyn BodySink) -> (Result<(), String>, Millis) {
+        let (out, took) = self.fetch(url);
+        let r = out.and_then(|page| {
+            let body = match page.split_once("\n\n") {
+                Some((h, b)) => {
+                    sink.header(h);
+                    b
+                }
+                None => &page,
+            };
+            sink.body(body)
+        });
+        (r, took)
+    }
+
+    /// Bodies of at least this many bytes are saved to a workspace file.
+    fn spill_bytes(&self) -> usize {
+        DEFAULT_SPILL_BYTES
+    }
 }
 
 /// No web: every fetch is refused (no network in this build).
@@ -257,13 +293,42 @@ impl WebReader for NoWeb {
 /// The fetch spends real time, so it reports no simulated duration: the
 /// real clock would sleep a reported duration again, charging the call
 /// twice against its deadline.
-#[derive(Debug, Default)]
-pub struct LiveWeb;
+#[derive(Debug)]
+pub struct LiveWeb {
+    /// Bodies of at least this many bytes are saved whole to a workspace
+    /// file instead of being the tool result (default 32 KiB).
+    pub spill_bytes: usize,
+}
+
+impl Default for LiveWeb {
+    fn default() -> Self {
+        Self {
+            spill_bytes: DEFAULT_SPILL_BYTES,
+        }
+    }
+}
 
 impl WebReader for LiveWeb {
     fn fetch(&self, url: &str) -> (Result<String, String>, Millis) {
         use rung_std::tools::{Tool, WebFetch};
         (WebFetch.execute(&json!({"url": url})), 0)
+    }
+
+    /// Streamed: the page goes to the sink as it arrives.
+    fn fetch_into(&self, url: &str, sink: &mut dyn BodySink) -> (Result<(), String>, Millis) {
+        use rung_std::tools::{Piece, fetch_url_streaming};
+        let r = fetch_url_streaming(url, &mut |p| match p {
+            Piece::Header(h) => {
+                sink.header(h);
+                Ok(())
+            }
+            Piece::Body(t) => sink.body(t),
+        });
+        (r, 0)
+    }
+
+    fn spill_bytes(&self) -> usize {
+        self.spill_bytes
     }
 }
 
@@ -594,8 +659,10 @@ impl HostTools {
             }
             "ws_read" => {
                 let p = self.path(&str_of("path")?)?;
-                let t = std::fs::read_to_string(&p).map_err(|e| format!("read: {e}"))?;
-                Ok(t)
+                match Range::of(input)? {
+                    Range::Whole => std::fs::read_to_string(&p).map_err(|e| format!("read: {e}")),
+                    r => read_range(&p, r),
+                }
             }
             "ws_list" => {
                 let rel = input.get("path").and_then(Value::as_str).unwrap_or("");
@@ -629,10 +696,35 @@ impl HostTools {
             "web_fetch" => {
                 let url = str_of("url")?;
                 let web = self.web.clone();
-                self.timed(name, group, move || {
-                    let (out, took) = web.fetch(&url);
-                    (out, took)
-                })
+                let spill = self.enabled.contains(READ);
+                let (workspace, core2) = (self.workspace.clone(), self.core.clone());
+                let cancel = Cancel::default();
+                let _cut = CancelOnDrop(cancel.clone());
+                let gave_up = cancel.clone();
+                let result = self.timed(name, group, move || {
+                    let mut sp =
+                        Spiller::new(workspace, web.spill_bytes(), spill).with_cancel(cancel);
+                    let (r, took) = web.fetch_into(&url, &mut sp);
+                    if let Err(e) = r {
+                        sp.abort();
+                        return (Err(e), took);
+                    }
+                    match sp.finish() {
+                        Ok(done) => {
+                            if let Some(why) = &done.failure {
+                                core2.emit("web.spill_failed", json!({"turn": turn, "why": why}));
+                            }
+                            (Ok(done.text), took)
+                        }
+                        Err(e) => (Err(e), took),
+                    }
+                });
+                // A call that gave up (cut, overran) retires any file the
+                // fetch placed, atomically with its placement.
+                if result.is_err() {
+                    gave_up.cut();
+                }
+                result
             }
             _ => Err(format!("unknown tool `{name}`")),
         }
@@ -672,6 +764,18 @@ pub fn confine(root: &Path, rel: &str) -> Result<PathBuf, String> {
     Ok(joined)
 }
 
+/// The path a `read` call names when it is under the spill directory.
+fn spill_path(name: &str, input: &Value) -> Option<String> {
+    if name != "ws_read" && name != "ws_list" {
+        return None;
+    }
+    let p = input.get("path")?.as_str()?;
+    let first = Path::new(p)
+        .components()
+        .find(|c| !matches!(c, Component::CurDir))?;
+    (first.as_os_str() == SPILL_DIR).then(|| p.to_string())
+}
+
 impl Toolset for HostTools {
     fn definitions(&self) -> Vec<ToolDefinition> {
         self.defs.clone()
@@ -682,9 +786,17 @@ impl Toolset for HostTools {
             return Err(format!("unknown tool `{name}`"));
         };
         if !self.enabled.contains(group) {
-            let msg =
-                json!({"error": "not enabled this turn", "group": group, "ask": "want_tools"})
-                    .to_string();
+            let mut msg =
+                json!({"error": "not enabled this turn", "group": group, "ask": "want_tools"});
+            if group == READ
+                && let Some(p) = spill_path(name, input)
+            {
+                msg["path"] = json!(p);
+                msg["note"] = json!(format!(
+                    "{p} is a fetched page saved whole in your workspace; the `{READ}` group is needed to open it"
+                ));
+            }
+            let msg = msg.to_string();
             return Err(self.refuse(name, group, "disabled", msg));
         }
         let out = self.run(name, group, input);
@@ -797,7 +909,7 @@ mod tests {
         let url = serve_once(format!(
             "<html><body><h1>Paper</h1><p>{filler}END</p></body></html>"
         ));
-        let (out, _) = LiveWeb.fetch(&url);
+        let (out, _) = LiveWeb::default().fetch(&url);
         let out = out.unwrap();
         assert!(
             out.starts_with(&format!("url: {url} | status: 200")),
@@ -869,7 +981,7 @@ mod tests {
     #[test]
     fn a_20_second_fetch_is_charged_once() {
         let url = serve_slow(std::time::Duration::from_secs(20), false);
-        let (tools, _g) = real_clock_tools("fetch-once", Arc::new(LiveWeb));
+        let (tools, _g) = real_clock_tools("fetch-once", Arc::new(LiveWeb::default()));
         let t = std::time::Instant::now();
         let out = tools.run("web_fetch", WEB_READ, &json!({"url": url}));
         let out = out.expect("a 20 s fetch is within the 30 s deadline");
@@ -881,7 +993,7 @@ mod tests {
     #[test]
     fn an_endless_fetch_stops_at_the_deadline() {
         let url = serve_slow(std::time::Duration::ZERO, true);
-        let (tools, _g) = real_clock_tools("fetch-endless", Arc::new(LiveWeb));
+        let (tools, _g) = real_clock_tools("fetch-endless", Arc::new(LiveWeb::default()));
         let t = std::time::Instant::now();
         let out = tools.run("web_fetch", WEB_READ, &json!({"url": url}));
         assert!(out.is_err(), "an endless body must not succeed");
@@ -893,7 +1005,7 @@ mod tests {
     #[test]
     fn live_web_fetches_loopback() {
         let url = serve_once("<h1>Local</h1>".into());
-        let (out, _) = LiveWeb.fetch(&url);
+        let (out, _) = LiveWeb::default().fetch(&url);
         assert!(out.unwrap().ends_with("# Local"));
     }
 

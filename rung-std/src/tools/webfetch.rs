@@ -40,10 +40,49 @@ pub fn fetch_url(url: &str) -> Result<String, String> {
     fetch_with(url, std::time::Duration::from_secs(TIMEOUT_SECS))
 }
 
+/// One piece of a streamed fetch, in order: the header line once (final URL
+/// and status, without its trailing blank line), then the body in pieces.
+#[derive(Debug, Clone, Copy)]
+pub enum Piece<'a> {
+    Header(&'a str),
+    Body(&'a str),
+}
+
+/// The whole-page fetch (`webfetch`), but the page is handed to `sink` as it arrives instead of
+/// being gathered: memory stays the size of one piece, whatever the page.
+/// Joined (`header`, a blank line, the body pieces) the pieces are exactly
+/// what the whole-page fetch returns. A sink error stops the fetch and is returned.
+pub fn fetch_url_streaming(
+    url: &str,
+    sink: &mut dyn FnMut(Piece<'_>) -> Result<(), String>,
+) -> Result<(), String> {
+    check_url(url)?;
+    fetch_stream(url, std::time::Duration::from_secs(TIMEOUT_SECS), sink)
+}
+
 /// Fetch with a wall-clock bound `limit` on the request and on reading
 /// the whole body. A time bound, not a content cap: the body, however
 /// large, is returned whole if it arrives in time.
 fn fetch_with(url: &str, limit: std::time::Duration) -> Result<String, String> {
+    let mut out = String::new();
+    fetch_stream(url, limit, &mut |p| {
+        match p {
+            Piece::Header(h) => {
+                out.push_str(h);
+                out.push_str("\n\n");
+            }
+            Piece::Body(t) => out.push_str(t),
+        }
+        Ok(())
+    })?;
+    Ok(out)
+}
+
+fn fetch_stream(
+    url: &str,
+    limit: std::time::Duration,
+    emit: &mut dyn FnMut(Piece<'_>) -> Result<(), String>,
+) -> Result<(), String> {
     let deadline = std::time::Instant::now() + limit;
     let client = reqwest::blocking::Client::builder()
         .timeout(limit)
@@ -67,9 +106,16 @@ fn fetch_with(url: &str, limit: std::time::Duration) -> Result<String, String> {
         .to_ascii_lowercase();
     let html = ctype.contains("html");
     // Header: the URL actually reached (after redirects) and the status.
-    let mut out = format!("url: {} | status: {status}\n\n", resp.url());
-    // Stream: each chunk is decoded and appended straight to `out`; the
-    // body is never held a second time. A reader thread feeds the chunks
+    emit(Piece::Header(&format!(
+        "url: {} | status: {status}",
+        resp.url()
+    )))?;
+    // `out` is the working buffer of the sink: it is handed on and emptied
+    // after every chunk, except its last character (the markdown writer
+    // looks back one character), so memory is a chunk, never the page.
+    let mut out = String::new();
+    // Stream: each chunk is decoded and appended to `out`; the body is
+    // never held a second time. A reader thread feeds the chunks
     // so the whole-body deadline is enforced exactly, even while a single
     // read is blocked (a bare read can wait out its own timeout).
     let mut sink = Sink::new(html);
@@ -109,10 +155,30 @@ fn fetch_with(url: &str, limit: std::time::Duration) -> Result<String, String> {
         carry.extend_from_slice(&chunk);
         let used = decode_lossy(&carry, false, |t| sink.feed(t, &mut out));
         carry.drain(..used);
+        hand_on(&mut out, emit, false)?;
     }
     decode_lossy(&carry, true, |t| sink.feed(t, &mut out));
     sink.finish(&mut out);
-    Ok(out)
+    hand_on(&mut out, emit, true)
+}
+
+/// Pass `out` to `emit`, keeping its last character unless `all`.
+fn hand_on(
+    out: &mut String,
+    emit: &mut dyn FnMut(Piece<'_>) -> Result<(), String>,
+    all: bool,
+) -> Result<(), String> {
+    let keep = if all {
+        0
+    } else {
+        out.chars().next_back().map_or(0, char::len_utf8)
+    };
+    let n = out.len() - keep;
+    if n > 0 {
+        emit(Piece::Body(&out[..n]))?;
+        out.drain(..n);
+    }
+    Ok(())
 }
 
 /// Decode `bytes` as lossy UTF-8, calling `f` per piece. Returns bytes

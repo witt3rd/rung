@@ -35,6 +35,7 @@ pub mod registers;
 pub mod registry;
 pub mod render;
 pub mod sim;
+pub mod spill;
 pub mod startup;
 pub mod state;
 pub mod statelock;

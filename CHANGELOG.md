@@ -60,6 +60,20 @@ git tags only.
   start door: the unit manager starts a host. The gateway forwards them under
   the queue doors' write path, and a stopped instance answers in words. The page
   buttons are a separate change. Shapes in `docs/rung-host-api.md` (S7).
+- `rung-host`, `rung-std`: a huge `web_fetch` body is saved whole to a
+  workspace file (`docs/rung-host-web-fetch-spill.md`). A body of at least
+  `web_spill_bytes` (default 32768, in bytes) is streamed as it arrives to
+  `.web/NNNN-<hash>.md` and the tool result is the header line (final URL,
+  status) and a notice with the workspace-relative path and exact bytes and
+  lines; below the threshold the body stays inline. There is no cap: the file
+  holds the body whole, and a write failure (disk full, `.web` not a plain
+  directory, permission) returns the whole body with a note in words and a
+  `web.spill_failed` line. Spilling needs the `read` group; without it the body
+  is returned whole. `ws_read` takes `from_line`/`to_line` or
+  `from_char`/`to_char` and states the file's totals; `ws_read`/`ws_list` on
+  `.web/` with `read` off is refused naming the path. The host never removes
+  spilled files. `rung-std` gains `fetch_url_streaming`, which hands a page on
+  piece by piece so memory stays flat.
 - `rung-host`, `rung-gateway`: reorder and cancel (S3). A new record line,
   `queue.moved` (`id`, `before`, optional `key`), and the waiting order is now
   the fold of acceptance and these moves, in the host (the order a turn reads

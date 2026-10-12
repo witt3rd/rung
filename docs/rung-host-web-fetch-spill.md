@@ -1,6 +1,6 @@
 # Proposal: spill a huge `web_fetch` body to a file
 
-Status: proposal for review. Refs issue 313. No code accompanies it.
+Status: built (refs issue 313). Rulings on the open questions are at the end.
 
 ## Problem
 
@@ -73,7 +73,7 @@ only as long as nothing else wrote it.
 Because the counter comes from a scan, it can restart after the owner clears
 `.web/`, and an old transcript path could then name a different page. That is
 accepted: spill files are scratch (see trust), and the host never clears them
-itself. The host writes to a temporary name in the same directory and renames it into
+itself. The host writes to a temporary name in the same directory and hard-links it into
 place, so a reader never sees a half-written file.
 
 ### How the agent is told, and how it reads
@@ -142,8 +142,14 @@ old transcript paths dangling. The rule is therefore safe by construction:
 - Disk use grows with the pages fetched. The disk the workspace sits on is the
   only bound, and that is a physical limit, reported as a write failure when
   reached.
-- The record does not hold the page text, the notice, or the path as content.
-  It holds the tool call event only; the transcript holds the notice and path.
+- The record's `tool.call` event holds the name, group and ok flag only. The
+  notice and path sit in the transcript, so the record's `turn.log` messages
+  (as sent) hold them; they never hold a spilled body.
+- Redaction: the spilled file is workspace content and holds the page exactly
+  as it was fetched. Nothing is redacted on the way from a tool result to the
+  model: the tool result, the notice and a `ws_read` result reach it as the
+  tool returned them. The redactor is on the outgoing views: the record's
+  readers, the event stream and the doors.
 
 If a file is gone or was overwritten when an old transcript is replayed,
 `ws_read` returns its normal not-found error, or reads whatever now sits there
@@ -152,7 +158,7 @@ If a file is gone or was overwritten when an old transcript is replayed,
 ### Failure cases
 
 - Any spill failure (disk full, permission, `.web` is a file or symlink,
-  rename fails): the body is already in memory, so return the whole body with
+  the final link fails): the body is already in memory, so return the whole body with
   a one-line note of the failure, and remove any temporary file. The host also
   emits an event for each such failure, so a fallback does not hide disk
   problems. Never return a partial body.
@@ -203,17 +209,15 @@ The threshold decides placement only. `ws_read` without a range returns the
 file whole; a range is a view with the totals stated; the notice carries no
 preview.
 
-## Open questions
+## Open questions: rulings
 
-- Whether 32 KiB stays right for the models the host runs with; tune it from
-  real fetches.
-- Whether the owner wants an explicit, manual tool to clear `.web/` (never
-  automatic), and how disk use is shown to them.
-- Should spilled files be hidden from `ws_list`, or listed so the agent can
-  find them again after a long gap?
-- Should the host offer a search tool over a spilled file, or is a ranged read
-  enough?
-- The reserved directory name, and whether it should be configurable.
+- Threshold: 32 KiB stays; it is the `web_spill_bytes` setting, so it can be
+  tuned from real fetches.
+- A manual tool to clear `.web/`: not now. The owner removes files, the agent
+  uses `ws_remove`; the host never clears.
+- Listed in `ws_list`: yes, so the agent finds them after a long gap.
+- A search tool over a spilled file: no; the ranged read is enough.
+- The reserved directory name stays `.web`, fixed (not configurable).
 
 ## Tests the build would need
 

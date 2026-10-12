@@ -740,8 +740,8 @@ fn the_request_bytes_are_unchanged() {
     let (rolled, rolls) = digests("ctx-golden-roll", Some(6_000), 14);
     assert!(rolls >= 3, "the second run rolls over");
     let fold = |d: &[String]| rung_host::canon::hash(d.join(",").as_bytes());
-    assert_eq!(fold(&plain), "152d86d6f2f94c2f23a87809ea14009e");
-    assert_eq!(fold(&rolled), "6b6600497878c75dc08ea6a55c11c7b3");
+    assert_eq!(fold(&plain), "3487e55823d91d1b68207e18e3e4d897");
+    assert_eq!(fold(&rolled), "2d37f0ddab049c69eab9b9c77b39516a");
 }
 
 /// What the request record adds to a record, measured on a seeded busy run
