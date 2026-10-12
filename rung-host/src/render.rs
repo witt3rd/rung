@@ -58,21 +58,10 @@ pub fn system(cfg: &HostConfig) -> String {
     s
 }
 
-/// One line, whole: runs of white space become one space (so an item cannot add
-/// header lines of its own), and nothing is cut.
+/// `s` on one line: runs of whitespace become one space. Every character is
+/// kept; nothing is cut (no content cap).
 fn flat(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-fn clip(s: &str, n: usize) -> String {
-    let flat = flat(s);
-    if flat.chars().count() <= n {
-        flat
-    } else {
-        let mut t: String = flat.chars().take(n).collect();
-        t.push('…');
-        t
-    }
 }
 
 /// The agent's own material, in creation order. Scores the agent gave
@@ -86,8 +75,8 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
     if let Some((_, t)) = todo.first() {
         out.push_str(&format!(" (oldest {})", span(now - t.created_at)));
     }
-    for (id, t) in todo.iter().take(5) {
-        out.push_str(&format!("\n    {id}: {}", clip(&t.text, 80)));
+    for (id, t) in todo.iter() {
+        out.push_str(&format!("\n    {id}: {}", flat(&t.text)));
     }
     let mut projects: Vec<(&String, &crate::registers::Project)> = reg
         .projects
@@ -99,10 +88,10 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
     if projects.is_empty() {
         out.push_str(" none");
     }
-    for (id, p) in projects.iter().take(8) {
+    for (id, p) in projects.iter() {
         out.push_str(&format!(
             "\n    {id}: {} ({}, {} since last step)",
-            clip(&p.title, 60),
+            flat(&p.title),
             p.status,
             span(now - p.last_step_at)
         ));
@@ -111,8 +100,8 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
         reg.questions.iter().filter(|(_, q)| q.open).collect();
     qs.sort_by(|a, b| (a.1.created_at, a.0).cmp(&(b.1.created_at, b.0)));
     out.push_str(&format!("\n  research: {} open questions", qs.len()));
-    for (id, q) in qs.iter().take(3) {
-        out.push_str(&format!("\n    {id}: {}", clip(&q.text, 80)));
+    for (id, q) in qs.iter() {
+        out.push_str(&format!("\n    {id}: {}", flat(&q.text)));
     }
     let open: Vec<(&String, &crate::registers::Expectation)> = reg
         .expectations
@@ -129,7 +118,7 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
     if !kernel.recent.is_empty() {
         out.push_str("\n  recent traces and answers:");
         for (turn, t) in &kernel.recent {
-            out.push_str(&format!("\n    turn {turn}: \"{}\"", clip(t, 60)));
+            out.push_str(&format!("\n    turn {turn}: \"{}\"", flat(t)));
         }
     }
     out
@@ -198,24 +187,12 @@ pub fn header(h: &HeaderCtx) -> String {
                 i.channel,
                 i.id,
                 iso(i.at),
-                // the owner's own words reach the model whole; any other sender's
-                // text is still bounded here, as it was before (S2 widens nothing
-                // for a sender that is not the owner)
-                if i.role == crate::inbox::Role::Owner {
-                    flat(&i.text)
-                } else {
-                    clip(&i.text, 1_000)
-                }
+                flat(&i.text)
             ));
         }
     }
     for i in &h.digests {
-        out.push(format!(
-            "digest: [{}/{}] {}",
-            i.channel,
-            i.id,
-            clip(&i.text, 160)
-        ));
+        out.push(format!("digest: [{}/{}] {}", i.channel, i.id, i.text));
     }
     if let Some(c) = h.commitment {
         let resumed = if h.resumed && h.kind == TurnKind::Committed {
@@ -226,15 +203,15 @@ pub fn header(h: &HeaderCtx) -> String {
         out.push(format!(
             "commitment {}: {}{resumed} · since turn {} · done when: {}",
             c.project,
-            clip(&c.title, 80),
+            flat(&c.title),
             c.since_turn,
-            clip(&c.done_when, 120)
+            flat(&c.done_when)
         ));
         out.push(format!(
             "  next step: {} · {} turns since progress{}",
             c.next_step
                 .as_deref()
-                .map(|s| clip(s, 160))
+                .map(flat)
                 .unwrap_or_else(|| "(none yet)".into()),
             h.turns_since_progress,
             match c.until {
@@ -292,16 +269,14 @@ pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> Str
             s.push_str(&format!(
                 "Committed to {}: {} (done when: {}).\n",
                 c.project,
-                clip(&c.title, 80),
-                clip(&c.done_when, 80)
+                flat(&c.title),
+                flat(&c.done_when)
             ));
             let ago = st.kernel.turns_since_progress;
             s.push_str(&format!(
                 "Last progress: turn {} ({ago} turns ago); next step: {}.\n",
                 c.last_progress_turn,
-                c.next_step
-                    .as_deref()
-                    .map_or("not yet stated".into(), |n| clip(n, 80))
+                c.next_step.as_deref().map_or("not yet stated".into(), flat)
             ));
         }
         None => s.push_str("Free time: no commitment.\n"),
@@ -316,7 +291,7 @@ pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> Str
             };
             s.push_str(&format!(
                 "Next due: {} ({}, {when}).\n",
-                clip(&e.text, 80),
+                flat(&e.text),
                 crate::clock::iso(due)
             ));
         }
@@ -339,19 +314,14 @@ pub fn slow(
     s.push_str(note.unwrap_or("(none yet)"));
     s.push_str("\n## Registers\n");
     match kernel.commitment() {
-        Some(c) => s.push_str(&format!(
-            "commitment: {} ({})\n",
-            c.project,
-            clip(&c.title, 80)
-        )),
+        Some(c) => s.push_str(&format!("commitment: {} ({})\n", c.project, flat(&c.title))),
         None => s.push_str("commitment: none (free time)\n"),
     }
     let active: Vec<String> = reg
         .projects
         .iter()
         .filter(|(_, p)| p.status != "done" && p.status != "abandoned")
-        .map(|(id, p)| format!("{id} {}", clip(&p.title, 40)))
-        .take(8)
+        .map(|(id, p)| format!("{id} {}", flat(&p.title)))
         .collect();
     s.push_str(&format!(
         "projects: {}\n",

@@ -73,6 +73,40 @@ pub trait HostQuestion {
     fn guard(input: &Self::Input, c: Self::Choice, k: &Knobs, ctx: &Self::Ctx) -> Self::Choice;
 }
 
+/// How many of `total` waiting entries one decider ask can carry: the most,
+/// from the oldest, for which `fits(n)` holds. The decider's context window
+/// ([`rung_std::decide::DECIDER_WINDOW_TOKENS`], a physical limit of the
+/// provider) is the only bound. The entries not asked stay waiting and are
+/// asked at a later boundary: deferred, never dropped, never cut. When not
+/// even one fits the answer is 1 and the decider refuses the ask
+/// (`Undecided::TooLarge`); the rule decides then. `fits` is taken to be
+/// monotone: fewer entries never need more room.
+pub fn fit_count(total: usize, mut fits: impl FnMut(usize) -> bool) -> usize {
+    if total == 0 || fits(total) {
+        return total;
+    }
+    let (mut lo, mut hi) = (1, total);
+    while lo < hi {
+        let mid = lo + (hi - lo).div_ceil(2);
+        if fits(mid) {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    lo
+}
+
+/// Whether an ask of `state` and `questions` is within the decider's window.
+pub fn within_window(state: &Value, questions: &BTreeMap<String, Question>) -> bool {
+    Ask {
+        state: state.clone(),
+        questions: questions.clone(),
+    }
+    .estimated_tokens()
+        <= rung_std::decide::DECIDER_WINDOW_TOKENS
+}
+
 /// Why the rule decided.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Why {
@@ -203,9 +237,7 @@ pub struct Knobs {
     pub consolidate_every: u64,
     pub recall_every_free: u64,
     pub note_age_turns: u64,
-    pub max_items: usize,
     pub max_segments: usize,
-    pub max_candidates: usize,
 }
 
 impl Default for Knobs {
@@ -242,9 +274,7 @@ impl Default for Knobs {
             consolidate_every: 20,
             recall_every_free: 10,
             note_age_turns: 5,
-            max_items: 8,
             max_segments: 10,
-            max_candidates: 10,
         }
     }
 }
@@ -578,9 +608,6 @@ pub struct DeskState {
     pub cache_recent: VecDeque<(u64, u64)>,
 }
 
-/// Candidates kept waiting at most.
-const MAX_WAITING_CANDIDATES: usize = 50;
-
 impl DeskState {
     pub fn apply(&mut self, l: &Line) {
         let d = day(l.at);
@@ -597,11 +624,8 @@ impl DeskState {
                 kind: kind.into(),
                 turn,
                 gist: crate::inbox::gist(&text),
-                text: text.chars().take(1_000).collect(),
+                text,
             });
-            if self.candidates.len() > MAX_WAITING_CANDIDATES {
-                self.candidates.remove(0);
-            }
         };
         match l.kind.as_str() {
             // An ask that timed out or came back undecided may still have

@@ -1063,13 +1063,26 @@ impl Host {
             .unwrap_or_else(|| "off".into());
         let (ain, actx, iin, tin, tctx, spent, first_committed) = {
             let st = core.state();
-            let (ain, actx) = crate::desk::admit::build(&st, now, k);
-            let iin = crate::desk::inject::build(&st, now, &mem);
-            // The ask goes out before Admit is composed: the Tools state
-            // carries the kind the Admit rule would give.
-            let preview = Admit::guard(&ain, Admit::rule(&ain, k, &actx), k, &actx);
-            let pkind = st.kernel.next(!preview.now().is_empty());
-            let (tin, tctx) = crate::desk::tools::build(&st, &self.cfg().ceiling, pkind, k);
+            // One ask carries as many waiting items as the decider's window
+            // holds, oldest first; the rest wait for a later ask.
+            let build = |n: usize| {
+                let (ain, actx) = crate::desk::admit::build(&st, now, n);
+                let iin = crate::desk::inject::build(&st, now, &mem, n);
+                // The ask goes out before Admit is composed: the Tools state
+                // carries the kind the Admit rule would give.
+                let preview = Admit::guard(&ain, Admit::rule(&ain, k, &actx), k, &actx);
+                let pkind = st.kernel.next(!preview.now().is_empty());
+                let (tin, tctx) = crate::desk::tools::build(&st, &self.cfg().ceiling, pkind, k);
+                (ain, actx, iin, tin, tctx)
+            };
+            let n = crate::desk::fit_count(st.inbox.waiting().len(), |n| {
+                let (ain, _, iin, tin, _) = build(n);
+                let mut qs = Admit::questions(&ain);
+                qs.extend(Inject::questions(&iin));
+                qs.extend(Tools::questions(&tin));
+                crate::desk::within_window(&json!({"admit": ain, "inject": iin, "tools": tin}), &qs)
+            });
+            let (ain, actx, iin, tin, tctx) = build(n);
             let first = st
                 .kernel
                 .commitment()
@@ -1267,7 +1280,20 @@ impl Host {
         let imminent = pin.copy_flag || pin.fraction() >= k.pack_rule_break;
         let (cin, cands) = {
             let st = core.state();
-            crate::desk::consolidate::build(&st, k, imminent)
+            // As many waiting candidates as the decider's window holds with
+            // the pack ask beside them; the rest wait for the next round.
+            let n = crate::desk::fit_count(st.desk.candidates.len(), |n| {
+                let (cin, _) = crate::desk::consolidate::build(&st, n, imminent);
+                let mut qs = Consolidate::questions(&cin);
+                let state = if gate {
+                    qs.extend(PackFamily::questions(&pin));
+                    json!({"pack": pin, "consolidate": cin})
+                } else {
+                    json!({"consolidate": cin})
+                };
+                crate::desk::within_window(&state, &qs)
+            });
+            crate::desk::consolidate::build(&st, n, imminent)
         };
         let mut qs = Consolidate::questions(&cin);
         if gate {
@@ -1472,7 +1498,6 @@ impl Host {
                     .expectations
                     .iter()
                     .filter(|(_, e)| e.state == ExpState::Open && e.due <= now + crate::clock::HOUR)
-                    .take(5)
                     .map(|(id, e)| format!("{id} due {}", crate::clock::iso(e.due)))
                     .collect();
                 format!(
@@ -1493,7 +1518,6 @@ impl Host {
                         s.next_due
                             .is_some_and(|d| d >= now && d <= now + 2 * crate::clock::HOUR)
                     })
-                    .take(5)
                     .map(|s| {
                         format!(
                             "{} at {}",

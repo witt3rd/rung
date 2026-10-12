@@ -63,6 +63,20 @@ git tags only.
   print whole text (the demo `short()` could panic on a multi-byte boundary).
 - `rung-agent-core`: the experimental ACP HTTP listener no longer refuses a
   request body over 16 MiB (413); the body is read whole.
+- `rung-host`: no caps on prompt text. The agent's register lists (every open
+  todo, project and question), an admitted message, a digest, the commitment
+  lines and the previous epoch's outline are written whole: `render::clip`, the
+  `take(5/8/3/8)` list cuts, the outline's 24 lines of 140 characters, the
+  expectation and calendar digest's five-item cut, and the 200-character gist
+  are gone (a gist is now the whole text on one line, credentials still
+  redacted). A memory candidate keeps its whole text and none is dropped, and a
+  pack segment's gist is the segment's whole text. The decision desk's `max_items`
+  and `max_candidates` knobs are gone: one ask carries the oldest waiting items
+  (and candidates) that fit the decider's 32,000-token context window (a provider
+  limit, `DECIDER_WINDOW_TOKENS`), and the rest wait for a later ask (deferred,
+  never dropped or cut). An ask that cannot fit even one is refused whole
+  (`TooLarge`) and the rule decides. `max_segments` stays: it groups the epoch
+  into that many segments, every turn in one of them.
 
 ## [0.3.1] - 2026-10-11
 
