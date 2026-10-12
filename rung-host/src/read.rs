@@ -243,6 +243,213 @@ pub(crate) fn scan_while(state_dir: &Path, mut each: impl FnMut(&Line) -> bool) 
     })
 }
 
+// ─── the record index ────────────────────────────────────────────────────────
+
+/// How many intact lines lie between two seek marks. A unit of work (a page
+/// reads at most this many lines it does not return), not a bound on any text.
+const MARK_EVERY: u64 = 1024;
+
+/// A place in the record where line number `index` (counting from 0) begins:
+/// the segment's position in the list and the byte offset in it.
+#[derive(Debug, Clone, Copy)]
+struct Mark {
+    segment: usize,
+    bytes: u64,
+    index: u64,
+}
+
+/// What one pass over a record learned, kept so the next page reads only what
+/// was appended since: the intact prefix (its length, where it ends, the first
+/// damage) and a seek mark every [`MARK_EVERY`] lines. A page then costs the
+/// lines it returns plus at most one stride, not the whole record. The record
+/// is append-only, so a sealed segment's result never changes; a segment that
+/// shrank or vanished, or a segment list that is not an extension of the one
+/// scanned, drops the index and it is built again.
+#[derive(Debug, Default)]
+struct RecIdx {
+    segments: Vec<std::path::PathBuf>,
+    /// The size of each segment the scan has finished, by position.
+    done: Vec<u64>,
+    /// Where the next scan resumes: segment, bytes, and lines already read in it.
+    seg: usize,
+    pos: u64,
+    lineno: u64,
+    total: u64,
+    damaged: Option<Damaged>,
+    end: Option<End>,
+    marks: Vec<Mark>,
+}
+
+impl RecIdx {
+    /// Is what was scanned still the front of what is on disk?
+    fn still_valid(&self, now: &[std::path::PathBuf]) -> bool {
+        if now.len() < self.segments.len() || now[..self.segments.len()] != self.segments[..] {
+            return false;
+        }
+        for (i, len) in self.done.iter().enumerate() {
+            if std::fs::metadata(&self.segments[i]).map(|m| m.len()).ok() != Some(*len) {
+                return false;
+            }
+        }
+        if self.seg < self.segments.len() {
+            match std::fs::metadata(&self.segments[self.seg]) {
+                Ok(m) if m.len() >= self.pos => {}
+                _ => return false,
+            }
+        }
+        true
+    }
+
+    /// Read what was appended since the last pass.
+    fn advance(&mut self, now: Vec<std::path::PathBuf>) -> Door<()> {
+        if !self.still_valid(&now) {
+            *self = RecIdx::default();
+        }
+        if self.marks.is_empty() {
+            self.marks.push(Mark {
+                segment: 0,
+                bytes: 0,
+                index: 0,
+            });
+        }
+        self.segments = now;
+        if self.damaged.is_some() {
+            return Ok(());
+        }
+        let mut buf = Vec::new();
+        while self.seg < self.segments.len() {
+            let si = self.seg;
+            let path = self.segments[si].clone();
+            let newest = si + 1 == self.segments.len();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let mut f = File::open(&path).map_err(|e| DoorError::unreadable(&path, &e))?;
+            f.seek(SeekFrom::Start(self.pos))
+                .map_err(|e| DoorError::unreadable(&path, &e))?;
+            let mut r = BufReader::new(f);
+            loop {
+                buf.clear();
+                let n = r
+                    .read_until(b'\n', &mut buf)
+                    .map_err(|e| DoorError::unreadable(&path, &e))?;
+                if n == 0 {
+                    break;
+                }
+                let terminated = buf.last() == Some(&b'\n');
+                if !terminated && newest {
+                    return Ok(()); // a write in flight, or torn by a crash
+                }
+                let lineno = self.lineno + 1;
+                let mut damage = |problem: String| {
+                    self.damaged = Some(Damaged {
+                        after_seq: self.total,
+                        segment: name.clone(),
+                        line: lineno,
+                        problem,
+                    });
+                };
+                let Ok(text) = std::str::from_utf8(&buf) else {
+                    damage("the line is not UTF-8".into());
+                    return Ok(());
+                };
+                let text = text.trim_end_matches(['\n', '\r']);
+                if text.trim().is_empty() {
+                    self.pos += n as u64;
+                    self.lineno = lineno;
+                    continue;
+                }
+                let Some(line) = Line::parse(text) else {
+                    damage("the line is not a record line".into());
+                    return Ok(());
+                };
+                if line.seq != self.total + 1 {
+                    damage(format!(
+                        "expected line number {}, found {}",
+                        self.total + 1,
+                        line.seq
+                    ));
+                    return Ok(());
+                }
+                self.pos += n as u64;
+                self.lineno = lineno;
+                self.total += 1;
+                self.end = Some(End {
+                    segment: si,
+                    bytes: self.pos,
+                });
+                if self.total.is_multiple_of(MARK_EVERY) {
+                    self.marks.push(Mark {
+                        segment: si,
+                        bytes: self.pos,
+                        index: self.total,
+                    });
+                }
+            }
+            if newest {
+                return Ok(());
+            }
+            self.done.push(self.pos);
+            self.seg += 1;
+            self.pos = 0;
+            self.lineno = 0;
+        }
+        Ok(())
+    }
+
+    fn mark_for(&self, offset: u64) -> Mark {
+        let i = self.marks.partition_point(|m| m.index <= offset);
+        self.marks[i.saturating_sub(1)]
+    }
+}
+
+fn indexes() -> &'static std::sync::Mutex<
+    std::collections::HashMap<std::path::PathBuf, std::sync::Arc<std::sync::Mutex<RecIdx>>>,
+> {
+    static INDEXES: std::sync::OnceLock<
+        std::sync::Mutex<
+            std::collections::HashMap<std::path::PathBuf, std::sync::Arc<std::sync::Mutex<RecIdx>>>,
+        >,
+    > = std::sync::OnceLock::new();
+    INDEXES.get_or_init(Default::default)
+}
+
+/// Forget every index (a restart of the process, for a test).
+#[doc(hidden)]
+pub fn forget_record_indexes() {
+    indexes().lock().unwrap_or_else(|e| e.into_inner()).clear();
+}
+
+/// Bring the index of the record in `state_dir` up to date and return what a
+/// page needs: the scan result, and the mark to start reading line `offset` from.
+fn snapshot(state_dir: &Path, offset: u64) -> Door<(ScanOut, Mark)> {
+    check_state_dir(state_dir)?;
+    let dir = state_dir.join("record");
+    let now: Vec<std::path::PathBuf> = record::segments(&dir)
+        .map_err(|e| DoorError::unreadable(&dir, &e))?
+        .into_iter()
+        .map(|(_, p)| p)
+        .collect();
+    let slot = indexes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .entry(state_dir.to_path_buf())
+        .or_default()
+        .clone();
+    let mut idx = slot.lock().unwrap_or_else(|e| e.into_inner());
+    idx.advance(now)?;
+    let out = ScanOut {
+        scanned: Scanned {
+            total: idx.total,
+            damaged: idx.damaged.clone(),
+        },
+        segments: idx.segments.clone(),
+        end: idx.end,
+    };
+    Ok((out, idx.mark_for(offset)))
+}
+
 /// The bytes of the intact prefix's non-blank lines, newest first, read from
 /// the end of the record backwards in chunks. `each` gets one line's bytes
 /// (no newline) and returns whether to go on. Memory is a chunk and one line.
@@ -944,7 +1151,7 @@ pub fn record_open(
         }
         let offset = q.after.unwrap_or(q.offset);
         let prefix = if q.desc {
-            Some(scan_while(&dir, |_| true)?)
+            Some(snapshot(&dir, 0)?.0)
         } else {
             None
         };
@@ -969,7 +1176,6 @@ impl RecordPage {
     pub fn write_json(self, out: &mut dyn Write) -> io::Result<()> {
         out.write_all(b"{\"lines\":[")?;
         let mut written = 0u64;
-        let mut failed: Option<io::Error> = None;
         /// One line, redacted, after a comma unless it is the first.
         fn put(out: &mut dyn Write, l: &Line, red: &Redactor, written: &mut u64) -> io::Result<()> {
             if *written > 0 {
@@ -981,23 +1187,47 @@ impl RecordPage {
         }
         let (total, damaged) = match &self.prefix {
             None => {
-                // oldest first: one pass; the lines of the window are written as
-                // they are read, the total is known at the end
+                // oldest first: seek to the mark at or before `offset` and read
+                // forward, writing the window as it is read; the total is the
+                // index's, which read only what was appended since the last page
                 let (lo, hi) = (self.offset, self.offset.saturating_add(self.q.limit));
-                let mut at = 0u64;
-                let s = scan_while(&self.dir, |l| {
-                    if at >= lo
-                        && at < hi
-                        && let Err(e) = put(&mut *out, l, &self.red, &mut written)
-                    {
-                        failed = Some(e);
-                        return false;
+                let (s, mark) = snapshot(&self.dir, lo).map_err(|e| io::Error::other(e.message))?;
+                let total = s.scanned.total;
+                let mut at = mark.index;
+                let mut si = mark.segment;
+                let mut from = mark.bytes;
+                let mut buf = Vec::new();
+                'read: while lo < total && at < hi.min(total) && si < s.segments.len() {
+                    let mut f = File::open(&s.segments[si])?;
+                    f.seek(SeekFrom::Start(from))?;
+                    let mut r = BufReader::new(f);
+                    loop {
+                        buf.clear();
+                        if r.read_until(b'\n', &mut buf)? == 0 {
+                            break;
+                        }
+                        let Ok(text) = std::str::from_utf8(&buf) else {
+                            break 'read;
+                        };
+                        let text = text.trim_end_matches(['\n', '\r']);
+                        if text.trim().is_empty() {
+                            continue;
+                        }
+                        let Some(l) = Line::parse(text) else {
+                            break 'read;
+                        };
+                        if at >= lo {
+                            put(&mut *out, &l, &self.red, &mut written)?;
+                        }
+                        at += 1;
+                        if at >= hi.min(total) {
+                            break 'read;
+                        }
                     }
-                    at += 1;
-                    true
-                })
-                .map_err(|e| io::Error::other(e.message))?;
-                (s.scanned.total, s.scanned.damaged)
+                    si += 1;
+                    from = 0;
+                }
+                (total, s.scanned.damaged)
             }
             Some(first) => {
                 // newest first: read backwards from where the first scan ended,
@@ -1026,9 +1256,6 @@ impl RecordPage {
                 (first.scanned.total, first.scanned.damaged.clone())
             }
         };
-        if let Some(e) = failed {
-            return Err(e);
-        }
         let end = self.offset.saturating_add(written);
         let trailer = json!({
             "offset": self.offset,
