@@ -208,7 +208,7 @@ pub fn header(h: &HeaderCtx) -> String {
             "digest: [{}/{}] {}",
             i.channel,
             i.id,
-            clip(&i.text, 160)
+            flat(&i.text)
         ));
     }
     if let Some(c) = h.commitment {
@@ -228,7 +228,7 @@ pub fn header(h: &HeaderCtx) -> String {
             "  next step: {} · {} turns since progress{}",
             c.next_step
                 .as_deref()
-                .map(|s| clip(s, 160))
+                .map(flat)
                 .unwrap_or_else(|| "(none yet)".into()),
             h.turns_since_progress,
             match c.until {
@@ -400,6 +400,52 @@ mod tests {
             kind: kind.into(),
             body,
         }
+    }
+
+    /// A digest row and a commitment's next step carry their whole text (no cap).
+    #[test]
+    fn a_digest_and_a_next_step_are_whole() {
+        let words = "long words ".repeat(280_000);
+        let text = format!("{words}END");
+        let item = Item::message("d1", crate::inbox::Role::Peer, "peer:x", 0, &text);
+        let c = Commitment {
+            project: "p".into(),
+            title: "t".into(),
+            done_when: "d".into(),
+            until: None,
+            checkpoint_every: None,
+            since_turn: 1,
+            since_at: 0,
+            next_step: Some(text.clone()),
+            last_progress_turn: 1,
+        };
+        let h = header(&HeaderCtx {
+            turn: 2,
+            kind: TurnKind::Committed,
+            now: 0,
+            since_external: None,
+            quota: None,
+            model: "m",
+            rung: 0,
+            enabled: &[],
+            admitted: vec![],
+            digests: vec![&item],
+            commitment: Some(&c),
+            turns_since_progress: 0,
+            resumed: false,
+            material: None,
+            recall: None,
+            expectations: None,
+            calendar: None,
+            note_line: false,
+            notices: vec![],
+        });
+        let whole = flat(&text);
+        let digest = h.lines().find(|l| l.starts_with("digest:")).unwrap();
+        assert!(digest.ends_with(&whole), "digest whole");
+        let step = h.lines().find(|l| l.contains("next step:")).unwrap();
+        assert!(step.contains(&whole), "next step whole");
+        assert!(!h.contains('…'));
     }
 
     #[test]
