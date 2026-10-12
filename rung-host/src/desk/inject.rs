@@ -52,12 +52,12 @@ pub struct InjectChoice {
     pub calendar: bool,
 }
 
-pub fn build(st: &State, now: Millis, memory: &str) -> InjectInput {
+pub fn build(st: &State, now: Millis, memory: &str, limit: usize) -> InjectInput {
     let mut focus: Vec<String> = st
         .inbox
         .waiting()
         .iter()
-        .take(4)
+        .take(limit)
         .map(|p| p.item.gist())
         .collect();
     if let Some(c) = st.kernel.commitment() {

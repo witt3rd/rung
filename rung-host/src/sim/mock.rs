@@ -42,6 +42,12 @@ pub struct MockConfig {
     pub p_want: f64,
     pub p_disabled: f64,
     pub p_todo: f64,
+    /// Free turns: chance of finishing the oldest open todo the header lists
+    /// (0: never, so a run's bytes do not move).
+    pub p_todo_done: f64,
+    /// A released project is never left paused: it is done or abandoned (false:
+    /// as seeded, so a run's bytes do not move).
+    pub settles_projects: bool,
     pub p_note: f64,
     /// Committed turns: chance of long work.
     pub p_long_work: f64,
@@ -72,6 +78,8 @@ impl Default for MockConfig {
             p_want: 0.05,
             p_disabled: 0.05,
             p_todo: 0.08,
+            p_todo_done: 0.0,
+            settles_projects: false,
             p_note: 0.05,
             p_long_work: 0.03,
             p_long_work_responding: 0.0,
@@ -138,6 +146,7 @@ struct Read {
     channels: Vec<String>,
     note_line: bool,
     seed_project: Option<String>,
+    open_todo: Option<String>,
 }
 
 fn read_header(text: &str) -> Read {
@@ -160,6 +169,11 @@ fn read_header(text: &str) -> Read {
             }
         } else if line.starts_with("Context will roll over soon") {
             r.note_line = true;
+        } else if r.open_todo.is_none()
+            && line.starts_with("    t")
+            && line.as_bytes().get(5).is_some_and(u8::is_ascii_digit)
+        {
+            r.open_todo = line.trim_start().split(':').next().map(str::to_string);
         } else if line.trim_start().starts_with('p')
             && line.contains("(seed,")
             && r.seed_project.is_none()
@@ -282,8 +296,11 @@ impl MockEngine {
             "committed" => {
                 s.committed_turns += 1;
                 if s.committed_turns >= s.commit_len.max(1) {
-                    let outcome = ["done", "done", "paused", "abandoned"]
+                    let mut outcome = ["done", "done", "paused", "abandoned"]
                         [self.rng.lock().expect("rng").below(4) as usize];
+                    if self.cfg.settles_projects && outcome == "paused" {
+                        outcome = "done";
+                    }
                     rounds.push(vec![(
                         "release".into(),
                         json!({"outcome": outcome, "reason": self.words(4)}),
@@ -340,6 +357,12 @@ impl MockEngine {
                 }
                 if self.p(self.cfg.p_todo) {
                     calls.push(("todo_add".into(), json!({"text": self.words(5), "priority": self.rng.lock().expect("rng").f64()})));
+                }
+                if self.cfg.p_todo_done > 0.0
+                    && let Some(id) = &r.open_todo
+                    && self.p(self.cfg.p_todo_done)
+                {
+                    calls.push(("todo_done".into(), json!({"id": id})));
                 }
                 if self.p(self.cfg.p_note) {
                     calls.push((

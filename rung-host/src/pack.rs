@@ -34,7 +34,9 @@ pub fn request_bytes(tools: &[ToolDefinition], system: &str, messages: &[ChatMes
     out
 }
 
-/// The text of a message, flattened (for outlines and kept segments).
+/// The text of a message, flattened (for outlines and kept segments). Not
+/// redacted: a segment's gist is redacted only when it is sent in an ask
+/// (`PackInput::split_for_window`), not over the whole epoch at every boundary.
 pub fn flat_text(m: &ChatMessage) -> String {
     match &m.content {
         MessageContent::Text(t) => t.clone(),
@@ -263,12 +265,8 @@ impl Pack {
                 let first = ch[0].turn;
                 let last = ch[ch.len() - 1].turn;
                 let bytes: usize = ch.iter().map(|s| s.bytes).sum();
-                // A gist needs only the first 150 characters.
                 let mut text = String::new();
                 for m in ch.iter().flat_map(|s| self.log[s.start..s.end].iter()) {
-                    if text.chars().count() >= 150 {
-                        break;
-                    }
                     text.push_str(&flat_text(m));
                     text.push(' ');
                 }
@@ -278,7 +276,7 @@ impl Pack {
                     first_turn: first,
                     last_turn: last,
                     tokens: canon::tokens(bytes),
-                    gist: text.chars().take(150).collect(),
+                    gist: text.trim_end().to_string(),
                     referenced_by_open_commitment: c,
                     referenced_by_open_expectation: e,
                 }
@@ -352,5 +350,15 @@ mod tests {
         assert_eq!(segs.last().unwrap().last_turn, 25);
         let text = p.segment_text(10, &["s1".into()]);
         assert!(text.contains("[turn 1]") && !text.contains("[turn 25]"));
+    }
+
+    #[test]
+    fn a_segment_gist_is_the_whole_text() {
+        let mut p = pack();
+        let long = format!("{} END", "word ".repeat(2_000));
+        p.begin_turn(1, "free", "[turn 1]".into());
+        p.end_turn(vec![ChatMessage::assistant(long.clone())]);
+        let segs = p.segments(1, &|_, _| (false, false));
+        assert!(segs[0].gist.contains(long.trim()), "the gist is cut");
     }
 }

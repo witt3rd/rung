@@ -33,12 +33,77 @@ pub struct PackInput {
     pub mode: String,
     pub cache_read_ratio_last10: f64,
     pub copy_flag: bool,
+    /// The segments the decider is asked about, each with its whole text.
     pub segments: Vec<Segment>,
+    /// The segments this ask leaves out because the decider's window cannot
+    /// hold them (see [`PackInput::split_for_window`]); never sent. They are
+    /// decided as the rule decides them: kept when an open commitment or
+    /// expectation refers to them or they are the epoch's last turns.
+    #[serde(skip)]
+    pub unasked: Vec<Segment>,
     /// The epoch's last turn (the rule keeps the last two).
     pub last_turn: u64,
 }
 
 impl PackInput {
+    /// Every segment of the epoch, asked or not.
+    pub fn all_segments(&self) -> impl Iterator<Item = &Segment> {
+        self.segments.iter().chain(self.unasked.iter())
+    }
+
+    /// Whether the rule alone keeps `s`: an open commitment or expectation
+    /// refers to it, or it holds the epoch's last two turns.
+    fn rule_keeps(&self, s: &Segment) -> bool {
+        referenced(s) || s.last_turn >= self.last_turn.saturating_sub(1)
+    }
+
+    /// Ask about as many segments as `fits(asked)` allows, whole and never
+    /// clipped. Segments an open commitment or expectation refers to are kept
+    /// whatever the decider says, so they are not asked; of the rest the
+    /// newest are asked first. What does
+    /// not fit is left in [`PackInput::unasked`] and decided by the rule: the
+    /// pack still completes at any epoch size (the budget is far above the
+    /// decider's window). `fits` is called with the input holding the
+    /// candidate asked set.
+    pub fn split_for_window(&mut self, mut fits: impl FnMut(&PackInput) -> bool) {
+        let all: Vec<Segment> = std::mem::take(&mut self.segments);
+        let (mut askable, rest): (Vec<Segment>, Vec<Segment>) =
+            all.into_iter().partition(|s| !referenced(s));
+        askable.sort_by_key(|s| std::cmp::Reverse(s.last_turn));
+        let set = |n: usize, me: &mut PackInput| {
+            let mut asked: Vec<Segment> = askable[..n].to_vec();
+            asked.sort_by_key(|s| s.first_turn);
+            me.segments = asked;
+        };
+        // Zero is allowed here: the ask still carries the context action.
+        let mut lo = super::fit_at_most(askable.len(), |n| {
+            set(n, self);
+            fits(self)
+        });
+        // Only what is sent is redacted (credentials), so the work is the asked
+        // segments' text, not the whole epoch's at every boundary. Redaction can
+        // lengthen a gist (a mark for a short secret): drop one more segment if
+        // that tips the ask over.
+        loop {
+            set(lo, self);
+            for g in &mut self.segments {
+                g.gist = rung_agent_core::mcp::redact(&g.gist);
+            }
+            if lo == 0 || fits(self) {
+                break;
+            }
+            lo -= 1;
+        }
+        let kept: Vec<String> = self.segments.iter().map(|s| s.id.clone()).collect();
+        let mut unasked: Vec<Segment> = askable
+            .into_iter()
+            .filter(|s| !kept.contains(&s.id))
+            .chain(rest)
+            .collect();
+        unasked.sort_by_key(|s| s.first_turn);
+        self.unasked = unasked;
+    }
+
     /// The pack's share of the budget now.
     pub fn fraction(&self) -> f64 {
         self.epoch_tokens as f64 / self.budget.max(1) as f64
@@ -157,6 +222,9 @@ impl HostQuestion for Pack {
                 ranked.push((p, s));
             }
         }
+        for s in input.unasked.iter().filter(|s| input.rule_keeps(s)) {
+            ranked.push((1.0, s));
+        }
         Some(PackChoice {
             action,
             keep: keep_capped(input, ranked, k),
@@ -174,11 +242,9 @@ impl HostQuestion for Pack {
         } else {
             Action::Append
         };
-        let recent = input.last_turn.saturating_sub(1);
         let ranked = input
-            .segments
-            .iter()
-            .filter(|s| referenced(s) || s.last_turn >= recent)
+            .all_segments()
+            .filter(|s| input.rule_keeps(s))
             .map(|s| (1.0, s))
             .collect();
         PackChoice {
@@ -204,8 +270,7 @@ impl HostQuestion for Pack {
         }
         // Only real segments, within the keep budget.
         let ranked = input
-            .segments
-            .iter()
+            .all_segments()
             .filter(|s| c.keep.contains(&s.id))
             .map(|s| (1.0, s))
             .collect();

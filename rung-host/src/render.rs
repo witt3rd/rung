@@ -58,8 +58,8 @@ pub fn system(cfg: &HostConfig) -> String {
     s
 }
 
-/// One line, whole: runs of white space become one space (so an item cannot add
-/// header lines of its own), and nothing is cut.
+/// `s` on one line: runs of whitespace become one space. Every character is
+/// kept; nothing is cut (no content cap).
 fn flat(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
@@ -75,7 +75,7 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
     if let Some((_, t)) = todo.first() {
         out.push_str(&format!(" (oldest {})", span(now - t.created_at)));
     }
-    for (id, t) in todo.iter().take(5) {
+    for (id, t) in todo.iter() {
         out.push_str(&format!("\n    {id}: {}", flat(&t.text)));
     }
     let mut projects: Vec<(&String, &crate::registers::Project)> = reg
@@ -88,7 +88,7 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
     if projects.is_empty() {
         out.push_str(" none");
     }
-    for (id, p) in projects.iter().take(8) {
+    for (id, p) in projects.iter() {
         out.push_str(&format!(
             "\n    {id}: {} ({}, {} since last step)",
             flat(&p.title),
@@ -100,7 +100,7 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
         reg.questions.iter().filter(|(_, q)| q.open).collect();
     qs.sort_by(|a, b| (a.1.created_at, a.0).cmp(&(b.1.created_at, b.0)));
     out.push_str(&format!("\n  research: {} open questions", qs.len()));
-    for (id, q) in qs.iter().take(3) {
+    for (id, q) in qs.iter() {
         out.push_str(&format!("\n    {id}: {}", flat(&q.text)));
     }
     let open: Vec<(&String, &crate::registers::Expectation)> = reg
@@ -328,7 +328,6 @@ pub fn slow(
         .iter()
         .filter(|(_, p)| p.status != "done" && p.status != "abandoned")
         .map(|(id, p)| format!("{id} {}", flat(&p.title)))
-        .take(8)
         .collect();
     s.push_str(&format!(
         "projects: {}\n",

@@ -38,14 +38,12 @@ pub struct ConsolidateChoice {
     pub considered: Vec<String>,
 }
 
-pub fn build(st: &State, k: &Knobs, rollover_imminent: bool) -> (ConsolidateInput, Vec<Candidate>) {
-    let cands: Vec<Candidate> = st
-        .desk
-        .candidates
-        .iter()
-        .take(k.max_candidates)
-        .cloned()
-        .collect();
+pub fn build(
+    st: &State,
+    limit: usize,
+    rollover_imminent: bool,
+) -> (ConsolidateInput, Vec<Candidate>) {
+    let cands: Vec<Candidate> = st.desk.candidates.iter().take(limit).cloned().collect();
     let input = ConsolidateInput {
         note_age_turns: st
             .registers

@@ -73,6 +73,51 @@ pub trait HostQuestion {
     fn guard(input: &Self::Input, c: Self::Choice, k: &Knobs, ctx: &Self::Ctx) -> Self::Choice;
 }
 
+/// The most of `total` entries, from the first, for which `fits(n)` holds:
+/// 0 when not even one fits. `fits` is taken to be monotone: fewer entries
+/// never need more room. This is the one search every window-sized ask uses.
+pub fn fit_at_most(total: usize, mut fits: impl FnMut(usize) -> bool) -> usize {
+    if total == 0 || fits(total) {
+        return total;
+    }
+    let (mut lo, mut hi) = (0, total - 1);
+    while lo < hi {
+        let mid = lo + (hi - lo).div_ceil(2);
+        if fits(mid) {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    lo
+}
+
+/// How many of `total` waiting entries one decider ask can carry: the most,
+/// from the oldest, for which `fits(n)` holds ([`fit_at_most`]), and at least
+/// one. The decider's context window
+/// ([`rung_std::decide::DECIDER_WINDOW_TOKENS`], a physical limit of the
+/// provider) is the bound, and at the default the per-ask spend cap
+/// ([`DecisionDesk::fits`]). An entry not asked is not dropped or cut: a
+/// waiting item gets the rule's form at that boundary, and a memory candidate
+/// stays for a later round. When not even one fits the ask goes out with one
+/// and the decider refuses it (`Undecided::TooLarge`); the rule decides then.
+pub fn fit_count(total: usize, fits: impl FnMut(usize) -> bool) -> usize {
+    match fit_at_most(total, fits) {
+        0 if total > 0 => 1,
+        n => n,
+    }
+}
+
+/// Whether an ask of `state` and `questions` is within the decider's window.
+pub fn within_window(state: &Value, questions: &BTreeMap<String, Question>) -> bool {
+    Ask {
+        state: state.clone(),
+        questions: questions.clone(),
+    }
+    .estimated_tokens()
+        <= rung_std::decide::DECIDER_WINDOW_TOKENS
+}
+
 /// Why the rule decided.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Why {
@@ -203,9 +248,7 @@ pub struct Knobs {
     pub consolidate_every: u64,
     pub recall_every_free: u64,
     pub note_age_turns: u64,
-    pub max_items: usize,
     pub max_segments: usize,
-    pub max_candidates: usize,
 }
 
 impl Default for Knobs {
@@ -242,9 +285,7 @@ impl Default for Knobs {
             consolidate_every: 20,
             recall_every_free: 10,
             note_age_turns: 5,
-            max_items: 8,
             max_segments: 10,
-            max_candidates: 10,
         }
     }
 }
@@ -313,6 +354,20 @@ impl DecisionDesk {
 
     pub fn backend(&self) -> &str {
         &self.backend
+    }
+
+    /// Whether an ask of `state` and `questions` is one the desk can send: it
+    /// is within the decider's window ([`within_window`]) and its estimated
+    /// cost is within the per-ask spend cap, which at the default binds
+    /// before the window does. The host sizes every ask by this, so an ask
+    /// asks fewer items rather than being refused.
+    pub fn fits(&self, state: &Value, questions: &BTreeMap<String, Question>) -> bool {
+        let ask = Ask {
+            state: state.clone(),
+            questions: questions.clone(),
+        };
+        within_window(state, questions)
+            && ask.estimated_tokens() as f64 * JEV_USD_PER_INPUT_TOKEN <= self.cap.per_ask
     }
 
     /// Ask the decider once for every question in `questions`, within the
@@ -578,9 +633,6 @@ pub struct DeskState {
     pub cache_recent: VecDeque<(u64, u64)>,
 }
 
-/// Candidates kept waiting at most.
-const MAX_WAITING_CANDIDATES: usize = 50;
-
 impl DeskState {
     pub fn apply(&mut self, l: &Line) {
         let d = day(l.at);
@@ -597,11 +649,8 @@ impl DeskState {
                 kind: kind.into(),
                 turn,
                 gist: crate::inbox::gist(&text),
-                text: text.chars().take(1_000).collect(),
+                text,
             });
-            if self.candidates.len() > MAX_WAITING_CANDIDATES {
-                self.candidates.remove(0);
-            }
         };
         match l.kind.as_str() {
             // An ask that timed out or came back undecided may still have
