@@ -282,9 +282,7 @@ pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> Str
             s.push_str(&format!(
                 "Last progress: turn {} ({ago} turns ago); next step: {}.\n",
                 c.last_progress_turn,
-                c.next_step
-                    .as_deref()
-                    .map_or("not yet stated".into(), |n| flat(n))
+                c.next_step.as_deref().map_or("not yet stated".into(), flat)
             ));
         }
         None => s.push_str("Free time: no commitment.\n"),
