@@ -11,13 +11,17 @@
     "typecheck": "tsc -b --noEmit",
     "test": "node --experimental-strip-types --test --test-timeout=120000 'test/*.test.ts'",
     "test:contract": "node --experimental-strip-types --test --test-timeout=120000 test/contract.test.ts",
+    "test:contract:context": "node --experimental-strip-types --test --test-timeout=120000 test/context-contract.test.ts",
+    "test:contract:context:real": "RUNG_CONTRACT_TARGET=real node --experimental-strip-types --test --test-timeout=120000 test/context-contract.test.ts",
     "census": "node census/census.mjs",
     "census:selftest": "node census/selftest.mjs",
     "capture": "node census/capture.mjs",
     "test:contract:real": "RUNG_CONTRACT_TARGET=real node --experimental-strip-types --test --test-timeout=120000 test/contract.test.ts",
     "real-proof": "node --experimental-strip-types census/real-proof.ts",
     "live-proof": "node --experimental-strip-types census/live-proof.ts",
-    "mock": "node --experimental-strip-types mock/serve.ts"
+    "mock": "node --experimental-strip-types mock/serve.ts",
+    "strata-proof": "node census/strata-proof.mjs",
+    "strata-live-proof": "node --experimental-strip-types census/strata-live-proof.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.1",

@@ -1,0 +1,19 @@
+  code: 'ERR_MODULE_NOT_FOUND',
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/context/cache.ts' imported from ui/test/context-cache.test.ts
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/context/fold.ts' imported from ui/test/context-fold.test.ts
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/context/load.ts' imported from ui/test/context-load.test.ts
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/context/wire.ts' imported from ui/test/context-wire.test.ts
+✖ failing tests:
+ℹ cancelled 0
+ℹ duration_ms 71.450715
+ℹ fail 4
+ℹ pass 0
+ℹ skipped 0
+ℹ suites 0
+ℹ tests 4
+ℹ todo 0
+✖ test/context-cache.test.ts (50.406149ms)
+✖ test/context-fold.test.ts (63.58953ms)
+✖ test/context-load.test.ts (55.123562ms)
+✖ test/context-wire.test.ts (55.572644ms)
+    throw new ERR_MODULE_NOT_FOUND(

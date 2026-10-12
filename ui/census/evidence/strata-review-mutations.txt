@@ -1,0 +1,68 @@
+== the recall text is cut at 2000 characters
+✖ every kind of text comes through whole: the recall, the message, the epoch, a string message, a tool result, a tool definition, a history row
+✖ failing tests:
+ℹ fail 1
+strata-proof: all pass
+== a plain-string message is cut at 2000 characters
+✖ every kind of text comes through whole: the recall, the message, the epoch, a string message, a tool result, a tool definition, a history row
+✖ failing tests:
+ℹ fail 1
+strata-proof: all pass
+== the paging control is gone and rows past 50 are dropped
+ℹ fail 0
+locator.innerText: Timeout 30000ms exceeded.
+  name: 'TimeoutError'
+== the top line shows the cached count, not the provider count
+ℹ fail 0
+FAIL  the top line: the provider's count for the call
+strata-proof: 1 failure(s)
+== a band's text is written to the console
+ℹ fail 0
+FAIL  nothing written to the console, no page error (152, 0)
+strata-proof: 1 failure(s)
+== a band's text becomes the document title
+ℹ fail 0
+FAIL  the title did not follow a band's text
+strata-proof: 1 failure(s)
+== a band's text is kept in local storage
+ℹ fail 0
+FAIL  the page stored nothing: no local or session storage
+strata-proof: 1 failure(s)
+== a band's text goes into the address
+ℹ fail 0
+strata-proof: all pass
+(this one SURVIVED the first time: the check looked for markup in the address and the last band drawn held none; it now requires the address to be what it was at load: caught, see the second entry)
+== a band's text is put in as HTML
+ℹ fail 0
+FAIL  markup in a band made no element
+FAIL  markup in a band ran nothing
+FAIL  that band is whole (the 1 MB line to its last character), the markup is text, the key is gone
+strata-proof: 3 failure(s)
+== the door is asked by POST
+ℹ fail 0
+FAIL  every request was a GET (GET,POST)
+strata-proof: 1 failure(s)
+== a very long line wraps again
+✖ a text with a very long line is told apart from a long text of short lines
+✖ failing tests:
+ℹ fail 1
+  name: 'TimeoutError'
+page.click: Timeout 10000ms exceeded.
+== a band's text goes into the address
+ℹ cancelled 0
+ℹ fail 0
+FAIL  no band text in the address: it is what it was when the page opened
+strata-proof: 1 failure(s)
+== the query key moves with the record's length (a refetch and a redraw per line)
+✖ failing tests:
+ℹ cancelled 0
+ℹ fail 1
+✖ the query key of a past turn's context does not move with the record's length; it moves with the turn, the call and the turn's log
+FAIL  the opened bands stayed open through every line (12 polls found one closed)
+FAIL  the door was not asked again for a turn that did not change (13 asks in all)
+strata-live-proof: 2 failure(s)
+== the redactor rescans a run from every eyJ (no memo)
+✖ failing tests:
+ℹ cancelled 1
+ℹ fail 0
+✖ test/redact-linear.test.ts

@@ -1,0 +1,7 @@
+pass  two bands opened
+pass  the door was asked once for the past turn (1)
+pass  the host wrote 12 lines while the page was open
+pass  the opened bands stayed open through every line (0 polls found one closed)
+pass  the door was not asked again for a turn that did not change (1 asks in all)
+pass  every request was a GET (GET)
+strata-live-proof: all pass

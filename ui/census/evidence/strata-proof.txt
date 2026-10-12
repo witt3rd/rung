@@ -1,0 +1,175 @@
+-- 390
+pass  every turn has a Context link (14 of 14)
+pass  the link opens turn 4's context
+pass  no call named: the last call is shown
+pass  seven bands in wire order (the header's message, then its recalled memory)
+pass  boundary 1 after the system prompt, boundary 2 after the epoch summary
+pass  each boundary says where the host placed it
+pass  markers follow the cached count (cached, cached, cached, cached, cached, cached, partly cached)
+pass  the bottom line: Cached 3,424 of 3,498 provider tokens (98%).
+pass  the provider's count stands beside the host's estimates
+pass  an estimated size is marked ~
+pass  it says the strata are the host's door's answer
+pass  call 1: the history is partly cached, the message and the recall are new, nothing yet from this turn
+pass  the cache break before the first call is named
+pass  the first call: cached 0 of the provider's count
+pass  nothing cached: every band with something in it is new; the empty ones say so
+pass  clicking a band opens it
+pass  the system prompt is in the page whole, character for character
+pass  a long text is folded
+pass  the fold keeps it short (278 of 1181 px) without removing any of it
+pass  Show more opens the whole text
+pass  clicking again closes it
+pass  each tool definition is its own row (20)
+pass  a tool row opens to its whole definition
+pass  each earlier turn is its own row
+pass  a history row opens to the turn's header and its messages, whole
+pass  the recalled memory is shown whole
+pass  this turn so far: one row per message
+pass  the top line: the provider's count for the call
+pass  no field or form that could write
+pass  no sideways scrolling
+pass  a 1 MB line of mixed CJK and ASCII opens in 324 ms, not tens of seconds
+pass  that band is whole (the 1 MB line to its last character), the markup is text, the key is gone
+pass  a very long line scrolls sideways and the page says so
+pass  Show more keeps the same whole text
+pass  a tool definition that is one 1 MB line of CJK JSON opens at once too
+pass  no key shape anywhere in the page, in any band or row
+pass  markup in a band ran nothing
+pass  markup in a band made no element
+pass  the page stored nothing: no local or session storage
+pass  the title did not follow a band's text
+pass  no band text in the address: it is what it was when the page opened
+pass  nothing written to the console, no page error (0, 0)
+pass  every request was a GET (GET)
+pass  history of 59 turns: the first 50 rows, the rest one click away
+pass  Show all: every earlier turn is a row
+pass  old run: the host's note is on the page
+pass  old run: the four bands the host cannot show are marked not recorded
+pass  old run: no band is drawn cached or new on the host's marks, which were laid against fewer bands (unknown, unknown, unknown, unknown, unknown, unknown, unknown)
+pass  old run: the tools band says why it is missing
+pass  old run: the recall band says it may have had one
+pass  old run: the history it does have is there, one row per earlier turn
+pass  old run: the provider's cached count is still the bottom line
+pass  record only: says it is the record's strata, not the host's
+pass  record only: tools and system prompt are shown as not recorded
+pass  record only: the epoch band says only its title was recorded
+pass  record only: history is one row per earlier turn, 50 here
+pass  no such turn: said in words
+-- 1280
+pass  every turn has a Context link (14 of 14)
+pass  the link opens turn 4's context
+pass  no call named: the last call is shown
+pass  seven bands in wire order (the header's message, then its recalled memory)
+pass  boundary 1 after the system prompt, boundary 2 after the epoch summary
+pass  each boundary says where the host placed it
+pass  markers follow the cached count (cached, cached, cached, cached, cached, cached, partly cached)
+pass  the bottom line: Cached 3,424 of 3,498 provider tokens (98%).
+pass  the provider's count stands beside the host's estimates
+pass  an estimated size is marked ~
+pass  it says the strata are the host's door's answer
+pass  call 1: the history is partly cached, the message and the recall are new, nothing yet from this turn
+pass  the cache break before the first call is named
+pass  the first call: cached 0 of the provider's count
+pass  nothing cached: every band with something in it is new; the empty ones say so
+pass  clicking a band opens it
+pass  the system prompt is in the page whole, character for character
+pass  a long text is folded
+pass  the fold keeps it short (278 of 491 px) without removing any of it
+pass  Show more opens the whole text
+pass  clicking again closes it
+pass  each tool definition is its own row (20)
+pass  a tool row opens to its whole definition
+pass  each earlier turn is its own row
+pass  a history row opens to the turn's header and its messages, whole
+pass  the recalled memory is shown whole
+pass  this turn so far: one row per message
+pass  the top line: the provider's count for the call
+pass  no field or form that could write
+pass  no sideways scrolling
+pass  a 1 MB line of mixed CJK and ASCII opens in 352 ms, not tens of seconds
+pass  that band is whole (the 1 MB line to its last character), the markup is text, the key is gone
+pass  a very long line scrolls sideways and the page says so
+pass  Show more keeps the same whole text
+pass  a tool definition that is one 1 MB line of CJK JSON opens at once too
+pass  no key shape anywhere in the page, in any band or row
+pass  markup in a band ran nothing
+pass  markup in a band made no element
+pass  the page stored nothing: no local or session storage
+pass  the title did not follow a band's text
+pass  no band text in the address: it is what it was when the page opened
+pass  nothing written to the console, no page error (0, 0)
+pass  every request was a GET (GET)
+pass  history of 59 turns: the first 50 rows, the rest one click away
+pass  Show all: every earlier turn is a row
+pass  old run: the host's note is on the page
+pass  old run: the four bands the host cannot show are marked not recorded
+pass  old run: no band is drawn cached or new on the host's marks, which were laid against fewer bands (unknown, unknown, unknown, unknown, unknown, unknown, unknown)
+pass  old run: the tools band says why it is missing
+pass  old run: the recall band says it may have had one
+pass  old run: the history it does have is there, one row per earlier turn
+pass  old run: the provider's cached count is still the bottom line
+pass  record only: says it is the record's strata, not the host's
+pass  record only: tools and system prompt are shown as not recorded
+pass  record only: the epoch band says only its title was recorded
+pass  record only: history is one row per earlier turn, 50 here
+pass  no such turn: said in words
+-- 1920
+pass  every turn has a Context link (14 of 14)
+pass  the link opens turn 4's context
+pass  no call named: the last call is shown
+pass  seven bands in wire order (the header's message, then its recalled memory)
+pass  boundary 1 after the system prompt, boundary 2 after the epoch summary
+pass  each boundary says where the host placed it
+pass  markers follow the cached count (cached, cached, cached, cached, cached, cached, partly cached)
+pass  the bottom line: Cached 3,424 of 3,498 provider tokens (98%).
+pass  the provider's count stands beside the host's estimates
+pass  an estimated size is marked ~
+pass  it says the strata are the host's door's answer
+pass  call 1: the history is partly cached, the message and the recall are new, nothing yet from this turn
+pass  the cache break before the first call is named
+pass  the first call: cached 0 of the provider's count
+pass  nothing cached: every band with something in it is new; the empty ones say so
+pass  clicking a band opens it
+pass  the system prompt is in the page whole, character for character
+pass  a long text is folded
+pass  the fold keeps it short (278 of 450 px) without removing any of it
+pass  Show more opens the whole text
+pass  clicking again closes it
+pass  each tool definition is its own row (20)
+pass  a tool row opens to its whole definition
+pass  each earlier turn is its own row
+pass  a history row opens to the turn's header and its messages, whole
+pass  the recalled memory is shown whole
+pass  this turn so far: one row per message
+pass  the top line: the provider's count for the call
+pass  no field or form that could write
+pass  no sideways scrolling
+pass  a 1 MB line of mixed CJK and ASCII opens in 336 ms, not tens of seconds
+pass  that band is whole (the 1 MB line to its last character), the markup is text, the key is gone
+pass  a very long line scrolls sideways and the page says so
+pass  Show more keeps the same whole text
+pass  a tool definition that is one 1 MB line of CJK JSON opens at once too
+pass  no key shape anywhere in the page, in any band or row
+pass  markup in a band ran nothing
+pass  markup in a band made no element
+pass  the page stored nothing: no local or session storage
+pass  the title did not follow a band's text
+pass  no band text in the address: it is what it was when the page opened
+pass  nothing written to the console, no page error (0, 0)
+pass  every request was a GET (GET)
+pass  history of 59 turns: the first 50 rows, the rest one click away
+pass  Show all: every earlier turn is a row
+pass  old run: the host's note is on the page
+pass  old run: the four bands the host cannot show are marked not recorded
+pass  old run: no band is drawn cached or new on the host's marks, which were laid against fewer bands (unknown, unknown, unknown, unknown, unknown, unknown, unknown)
+pass  old run: the tools band says why it is missing
+pass  old run: the recall band says it may have had one
+pass  old run: the history it does have is there, one row per earlier turn
+pass  old run: the provider's cached count is still the bottom line
+pass  record only: says it is the record's strata, not the host's
+pass  record only: tools and system prompt are shown as not recorded
+pass  record only: the epoch band says only its title was recorded
+pass  record only: history is one row per earlier turn, 50 here
+pass  no such turn: said in words
+strata-proof: all pass

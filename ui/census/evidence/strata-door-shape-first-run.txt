@@ -1,0 +1,28 @@
+The reader of the proposed door shape (the first commit of this branch) against the real door's answers (the fixtures): 15 of 21 checks fail.
+✖ a body that is not a context answer is refused in plain words, never half-drawn
+    actual: Error: the context answer is contract undefined, and this page reads contract 1
+✖ a door that fails (500) or answers nonsense is not hidden: the record is shown with the reason
+✖ a history turn whose header lacks its recall says so, on the row and on the band
+✖ a key shape the host failed to redact is replaced here, in every band's text and every row
+✖ an answer for another turn or call than the one asked is refused, not drawn
+✖ a recall that does not match its recorded hash is shown as recorded, and said so
+✖ a recorded turn's call parses into seven bands in wire order, every text whole
+✖ a turn that predates context recording: the door's note and the bands it names as missing, each with the reason
+✖ a turn that was shown no recall has an empty recall band, not a gap
+✖ a very long band comes through whole (no cap anywhere)
+  'Error: the context answer is contract undefined, and this page reads contract 1'
+  Error: the context answer is contract undefined, and this page reads contract 1
+✖ failing tests:
+ℹ fail 15
+ℹ pass 6
+✔ no door (404 with no error body, as a gateway without it answers): the record's own strata, and the page is told why
+✔ no such turn: nothing to show
+✔ the door's address, live and recorded
+✔ the door's own refusals are said in its words: a turn not yet logged, a call it does not have
+✔ the fixtures are the real door's answers: one host's turns, and an old run's
+✖ the host's cache boundaries and its cache event come through; a call with no event says none
+✖ the host's door answers: its layers are shown, whole
+✖ the host's own cache marks are what the page shows when it has the whole request
+✖ the page's own derivation (provider cached count against the bands in wire order) agrees with the host's marks
+✔ the route: a turn's context page, with the call in the address
+✖ when bands are missing the host's marks are not trusted: they were laid against fewer bands than the request had

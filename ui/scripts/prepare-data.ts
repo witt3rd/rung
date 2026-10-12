@@ -95,5 +95,21 @@ if (existsSync(runs)) {
 }
 if (withSynthetic) for (const s of synthetic(now)) put(s.id, "synthetic", s.lockHeld, s.lines);
 
+// Recorded context-door answers (test/fixtures/context/<instance>/<turn>-<call>.json: what the real door answered over that
+// instance's record) stand beside the record they belong to, redacted like it, for the context page to read when no host is serving
+// the door. An instance that has only a `record.ndjson` there (a real host's record kept as a fixture) is listed too.
+const ctxFixtures = join(here, "../test/fixtures/context");
+if (existsSync(ctxFixtures)) {
+  for (const id of readdirSync(ctxFixtures).sort()) {
+    const dir = join(ctxFixtures, id);
+    if (!entries.some((e) => e.id === id) && existsSync(join(dir, "record.ndjson"))) put(id, "recorded", false, parseRecord(readFileSync(join(dir, "record.ndjson"), "utf8")));
+    if (!entries.some((e) => e.id === id)) continue;
+    mkdirSync(join(out, id, "context"), { recursive: true });
+    for (const f of readdirSync(dir).filter((x) => /^\d+-\d+\.json$/.test(x))) {
+      writeFileSync(join(out, id, "context", f), JSON.stringify(redact(JSON.parse(readFileSync(join(dir, f), "utf8")))) + "\n");
+    }
+  }
+}
+
 writeFileSync(join(out, "index.json"), JSON.stringify({ generatedAt: now, instances: entries }));
 console.log(`prepared ${entries.length} instances in ${out}`);

@@ -72,3 +72,23 @@ and `problem`, and `state` may also be `Unreadable`; `record` adds `cursor`, `or
 gateway every events check runs except the partial frames, which a gateway has only from a running host (it asks the host's own door): that
 check runs against the mock, whose frames are H5's. The mock is a stand-in for what the gateway cannot yet be shown to do here, not a
 source of shapes: where the two differ, the gateway and `docs/rung-host-api.md` win.
+
+## `GET /v1/turns/{n}/context?call=k` (the strata page)
+
+On master (host S4; the body and its errors are in `docs/rung-host-api.md`, "S4"). The page reads it in `src/context/wire.ts`, the one place
+that knows the body. What the page relies on: `turn`, `call`, `calls`, `epoch`, `model.{requested,served}`, `provider.{prompt_tokens,
+cached_tokens,cache_write_tokens}` (the provider's own count, the truth for the hit rate), `cache_event`, `rewritten`, `note`, `missing`
+(bands the host cannot show, with `note` the reason), `problems`, `boundaries`, and `bands` in wire order (tools, system, epoch, history, message,
+recall, this turn), each with `est_tokens` (the host's estimate) and `cache`. Text is whole; the page never shortens it. The recall band is absent
+from a turn that had no recall, and that is an empty band, not a gap. For an old record the door answers 200 with `recorded: false`, the note
+"this turn predates context recording", and the bands it does have.
+
+- **Fixtures are the door's own answers**: `test/fixtures/context/ctx-demo/` is a real host's record (the mock engine, a recall, an owner message,
+  five epochs) with the door's answer for six of its calls, taken through the built `rung-gateway`; `test/fixtures/context/2026-10-05-qwen-2h/` is
+  the door's answer over a recorded run that predates the door. `prepare-data` serves them beside the record.
+- **Where the page does not take the door's word**: the door lays the cached count against the bands it has; where it is missing bands
+  (an old record), those marks are not the request's, and the page derives its own (which says "unknown" rather than guess).
+- **When there is no answer** (no such door, a failure, a body that does not fit, a turn the host has not logged yet) the page draws what the
+  record itself holds (`src/context/fold.ts`) and says why. A test lays that fold beside the door's answers over the same records.
+- `test/context-contract.test.ts` (`npm run test:contract:context:real` against the built gateway, with the suite playing the host's part for
+  the record; `RUNG_CONTRACT_URL=… npm run test:contract:context` against any gateway). Every check is skipped, by name, on a gateway without the door.

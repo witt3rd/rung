@@ -63,7 +63,8 @@ class Rec {
     });
     if (o.text) messages.push({ role: "assistant", content: o.text });
     this.add("llm.call", { turn: n, call: 1, epoch: 1, rung: 0, model_requested: "model-a", model_served: "model-a", provider: "router.example",
-      prompt_tokens: 22000, cached_tokens: 20500, cache_write_tokens: 0, completion_tokens: 300, cost_usd: o.cost ?? 0, latency_ms: 2000 }, 3000);
+      prompt_tokens: 22000, cached_tokens: 20500, cache_write_tokens: 0, completion_tokens: 300,
+      prefix: { s_hash: "5ca1ab1e5ca1ab1e5ca1ab1e5ca1ab1", l_hash: "0ddba11" + "0".repeat(25), log_len_bytes: 0, expected_cached_tokens: 20000 }, cost_usd: o.cost ?? 0, latency_ms: 2000 }, 3000);
     this.add("turn.log", { turn: n, header: `[turn ${n}]`, messages, recall: false }, 1);
     this.add("turn.ended", { turn: n, turn_kind: kind, status: o.failed ? "failed" : "completed", calls: (o.calls ?? []).length, elapsed_ms: 9000, model: "model-a", rung: 0,
       failure: o.failed ? { class: o.failed, origin: "provider" } : undefined, final_text: o.text ?? "", cost: { cached: 20500, calls: 1, cost_usd: o.cost ?? 0, prompt: 22000 } }, 1);
