@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 576 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 580 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1230,6 +1230,13 @@ look shorter than it is.
 **`rung-host/tests/quickstart.rs`** — 1 unclaimed
 
 - `the_quickstart_example_runs`
+
+**`rung-host/tests/record_linear.rs`** — 4 unclaimed
+
+- `a_record_replaced_under_a_live_index_is_read_afresh`
+- `damage_is_reported_and_stays_where_it_was_found`
+- `following_next_reads_lines_in_proportion_to_the_record`
+- `pages_join_with_no_gap_and_no_repeat_across_segments_and_a_restart`
 
 **`rung-host/tests/redactor.rs`** — 31 unclaimed
 

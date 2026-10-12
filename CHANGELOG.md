@@ -7,6 +7,20 @@ git tags only.
 
 ## [Unreleased]
 
+### Fixed
+- `rung-host`: following the record door's `next` cursor is linear, not
+  quadratic. Each page used to scan the whole record from the start to learn
+  `total`; the host now keeps, per state directory, an index of the intact
+  prefix (its length, the first damage, and a seek mark every 1024 lines) and
+  reads only what was appended since, then seeks to the page. No cap on `limit`
+  or on any text; the index is checked against each segment's identity (inode,
+  length, modification time) and rebuilt if a segment was replaced, shrank or
+  vanished, so a record replaced in place under a live process is never served
+  stale. A page whose line numbers do not follow on is an error, not a short page.
+  The first page of a record after a start reads it once (the exact `total` needs
+  it); later pages cost about their size. An index unused for ten minutes is
+  dropped and built again by the next page.
+
 ### Added
 - `rung-host`, `rung-gateway`: intent on the queue item (S2). `POST
   /v1/queue` takes `intent` (`next`, the default; `steer`; `free`), refusing any
