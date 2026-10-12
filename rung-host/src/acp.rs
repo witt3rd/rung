@@ -870,6 +870,7 @@ pub fn serve_http_with(
             .filter(|(_, r)| *r != Role::Owner)
             .map(|(t, _)| t.clone())
             .collect(),
+        control_lock: std::sync::Mutex::new(()),
     });
     let door = Arc::new(EventsDoor {
         state_dir,
@@ -1236,6 +1237,9 @@ pub struct QueueDoor {
     owner_tokens: std::collections::HashSet<String>,
     /// The host's other roles' tokens: known, but not the owner's.
     other_tokens: std::collections::HashSet<String>,
+    /// Held across a control's repeat check and its write, so two requests
+    /// cannot both see "not yet" and both write.
+    control_lock: std::sync::Mutex<()>,
 }
 
 type Reply = rung_agent_core::acp_http::RouteReply;
@@ -1468,6 +1472,10 @@ impl QueueDoor {
         let done = tokio::task::spawn_blocking(move || {
             let host = &door.acp.host;
             let owner = door.acp.owner_channel();
+            let _one_at_a_time = door
+                .control_lock
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match which {
                 ControlTarget::Stop => {
                     // already stopping: a repeat, nothing written
