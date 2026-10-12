@@ -1,0 +1,11 @@
+# review round on PR 302: the new tests against the code as it was at the previous head
+  AssertionError [ERR_ASSERTION]: In progress: the turn has no text
+✖ a turn with nothing to show offers nothing to show: no dead Show whole button
+  Error: Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: undefined. You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.
+✖ failing tests:
+ℹ fail 5
+ℹ pass 4
+✖ the Turns page folds a long tool argument under its call's line, and keeps a short one on the line
+✖ the Turns page folds a long tool result and a long argument in the details of the turn
+✖ the Turns page folds a turn's reply
+✖ the Turns page folds the text of a message the turn was asked

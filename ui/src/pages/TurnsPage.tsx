@@ -49,7 +49,7 @@ function AskedRow({ id, a, now }: { id: string; a: Asked; now: number }) {
   );
 }
 
-function TurnCard({ id, t, now, open }: { id: string; t: Turn; now: number; open: boolean }) {
+export function TurnCard({ id, t, now, open }: { id: string; t: Turn; now: number; open: boolean }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (open) ref.current?.scrollIntoView({ block: "start" }); }, [open]);
   const byModel = t.decisions.filter((d) => d.who === "model").length;
