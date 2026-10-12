@@ -192,7 +192,12 @@ pub fn header(h: &HeaderCtx) -> String {
         }
     }
     for i in &h.digests {
-        out.push(format!("digest: [{}/{}] {}", i.channel, i.id, i.text));
+        out.push(format!(
+            "digest: [{}/{}] {}",
+            i.channel,
+            i.id,
+            flat(&i.text)
+        ));
     }
     if let Some(c) = h.commitment {
         let resumed = if h.resumed && h.kind == TurnKind::Committed {

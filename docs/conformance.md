@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 564 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 570 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1155,7 +1155,7 @@ look shorter than it is.
 - `a_free_item_waits_while_the_agent_is_committed_and_is_read_when_it_is_free`
 - `a_long_steer_reaches_the_model_whole`
 - `a_next_item_is_not_marked_as_a_steer`
-- `a_peers_long_text_is_still_bounded_in_the_header`
+- `a_peers_long_text_reaches_the_header_whole`
 - `a_steer_in_a_long_call_cuts_it_and_is_read_at_the_next_boundary`
 - `a_steer_is_read_at_the_first_boundary_after_it_arrives_and_is_marked`
 - `the_header_lists_owner_items_before_a_peers`
@@ -1164,6 +1164,15 @@ look shorter than it is.
 **`rung-host/tests/measure_admission.rs`** — 1 unclaimed
 
 - `admission_latency_by_long_work_share`
+
+**`rung-host/tests/no_caps_prompt.rs`** — 6 unclaimed
+
+- `a_20kb_admitted_message_is_whole_in_the_header`
+- `a_candidate_is_kept_whole_and_none_is_dropped`
+- `a_gist_is_not_cut`
+- `an_ask_carries_the_most_items_the_window_holds`
+- `every_open_todo_and_its_whole_text_reach_the_agent`
+- `the_outline_keeps_every_turn_whole`
 
 **`rung-host/tests/queue_door.rs`** — 15 unclaimed
 

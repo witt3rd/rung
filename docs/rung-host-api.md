@@ -1656,9 +1656,8 @@ owner's moves (S3) have changed it. **A move stays inside one of those groups** 
 group is the read rank, so a `free` item is never moved among the `next` ones, which
 it would not be read among: that move is refused in words, nothing written), and the
 turn header's admitted rows, the `stimulus.admitted` ids and the list are in that one
-order. An owner's item's text in the header is whole (white space runs become one space;
-nothing is cut or ended with an ellipsis); another sender's text is bounded there as
-before (1,000 characters).
+order. An item's text in the header is whole, an owner's and another sender's alike (white
+space runs become one space; nothing is cut or ended with an ellipsis).
 
 ### Held
 
