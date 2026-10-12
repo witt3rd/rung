@@ -198,14 +198,8 @@ pub fn header(h: &HeaderCtx) -> String {
                 i.channel,
                 i.id,
                 iso(i.at),
-                // the owner's own words reach the model whole; any other sender's
-                // text is still bounded here, as it was before (S2 widens nothing
-                // for a sender that is not the owner)
-                if i.role == crate::inbox::Role::Owner {
-                    flat(&i.text)
-                } else {
-                    clip(&i.text, 1_000)
-                }
+                // every sender's text reaches the model whole (no cap)
+                flat(&i.text)
             ));
         }
     }

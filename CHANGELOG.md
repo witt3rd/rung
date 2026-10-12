@@ -22,7 +22,8 @@ git tags only.
   owner's `free` and `next` is refused in words with nothing written, and the turn
   header lists items in the order the list shows (it ignored moves). An
   owner's item's text in the header is now whole (it was cut at 1,000 characters);
-  another sender's is bounded as before.
+  so is another sender's (the 1,000-character bound on a peer's text is removed;
+  the redactor still runs on it).
   A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).
 - `rung-host`, `rung-gateway`: reorder and cancel (S3). A new record line,
   `queue.moved` (`id`, `before`, optional `key`), and the waiting order is now

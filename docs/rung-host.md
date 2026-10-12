@@ -409,10 +409,10 @@ then `free` in the order sent (it is read later); inside each, as the owner's mo
 place): the turn header lists the admitted items in it (an owner's item is above a
 peer's whatever their ids sort like), the `stimulus.admitted` ids are in it, the queue
 door lists the waiting ones in it, and a move stays inside one group of it, so a
-`free` item is not moved among the `next` ones (`docs/rung-host-api.md`, S2 and S3). An
-owner's item's text in the header is whole: runs of white space become one space (an
-item cannot add header lines of its own), nothing is cut. Another sender's text is
-bounded there as it always was (1,000 characters); S2 widens nothing for it.
+`free` item is not moved among the `next` ones (`docs/rung-host-api.md`, S2 and S3). A
+message's text in the header, from any sender, is whole: runs of white space become one
+space (an item cannot add header lines of its own), nothing is cut; the shared redactor
+still runs on it.
 
 ## Stop and supervision
 

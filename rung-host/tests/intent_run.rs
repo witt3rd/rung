@@ -390,16 +390,23 @@ fn a_steer_in_a_long_call_cuts_it_and_is_read_at_the_next_boundary() {
     }
 }
 
-/// Only the owner's own words reach the model whole: another sender's text is bounded in the
-/// header as it always was (this slice widens nothing for a sender that is not the owner).
+/// No sender's text is cut in the header: a 3 MB peer message reaches the model whole
+/// (hash-equal in the header row and in the record), and the shared redactor still
+/// runs on it (a canary secret in it is redacted).
 #[test]
-fn a_peers_long_text_is_still_bounded_in_the_header() {
+fn a_peers_huge_text_reaches_the_header_whole_and_redacted() {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
     sim::test_timeout(120);
-    let mut sc = scenario("s2-run-peer-bounded", 3);
+    let canary = "peer-header-canary-8841";
+    let mut sc = scenario("s2-run-peer-whole", 3);
     sc.max_turns = Some(2);
     sc.mock.p_commit = 0.0;
+    sc.redactor = Some(rung_host::redact::Redactor::new().with_secret(canary));
     let mut src = MemorySource::default();
-    let text = format!("{} PEER-END", "peer words ".repeat(400));
+    let body = "peer words ".repeat(280_000);
+    let text = format!("{body} {canary} PEER-END");
+    assert!(text.len() > 3_000_000);
     src.push(Item::message(
         "pr-long",
         Role::Peer,
@@ -413,6 +420,24 @@ fn a_peers_long_text_is_still_bounded_in_the_header() {
     let log = seq_of(&out.lines, "turn.log", |l| l.u64("turn") == t).unwrap();
     let header = log.get("header").as_str().unwrap();
     let row = header.lines().find(|l| l.contains("pr-long")).unwrap();
-    assert!(row.ends_with('…'), "bounded with an ellipsis, as before");
-    assert!(!row.contains("PEER-END"));
+    assert!(row.ends_with("PEER-END"), "not cut");
+    assert!(!row.contains('…'));
+    assert!(!header.contains(canary), "the canary is redacted");
+    assert!(header.contains(rung_host::redact::MARK));
+    let want = text
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace(canary, rung_host::redact::MARK);
+    let got = row.split_once("] ").unwrap().1;
+    let h = |x: &str| {
+        let mut d = DefaultHasher::new();
+        x.hash(&mut d);
+        d.finish()
+    };
+    assert_eq!(
+        h(got),
+        h(&want),
+        "the header row is the whole text, hash-equal"
+    );
 }
