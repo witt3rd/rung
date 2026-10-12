@@ -45,13 +45,14 @@ impl Role {
     }
 }
 
-/// [`Role::group`] for a role as the record spells it.
+/// [`Role::group`] for a role as the record spells it (a word that is no role
+/// is the host's own: the last group).
 pub fn group_of(role: &str) -> u8 {
-    match role {
-        "owner" => 0,
-        "peer" => 1,
-        _ => 2,
-    }
+    use serde::Deserialize;
+    use serde::de::IntoDeserializer;
+    let de: serde::de::value::StrDeserializer<'_, serde::de::value::Error> =
+        role.into_deserializer();
+    Role::deserialize(de).map_or(2, Role::group)
 }
 
 /// What an item is.

@@ -616,7 +616,14 @@ async fn pass_through(
     if let Some(dir) = native
         && let Some(target) = rung_host::acp::QueueTarget::of(rest)
     {
-        return native_queue(state, dir.clone(), id, rest, target, req, query, configured).await;
+        let call = QueueCall {
+            dir: dir.clone(),
+            id,
+            rest,
+            query,
+            configured,
+        };
+        return native_queue(state, call, target, req).await;
     }
     // a native instance has no listener the gateway knows: only the doors
     // read from its state directory exist for it until a later slice adds more
@@ -664,21 +671,27 @@ async fn pass_through(
     }
 }
 
+/// What a request for a native instance's queue door is about: where its record
+/// is, which instance, the path under the instance (as the client wrote it), the
+/// query, and the gateway's own config for the instance (the write key).
+struct QueueCall<'a> {
+    dir: PathBuf,
+    id: &'a str,
+    rest: &'a str,
+    query: Option<String>,
+    configured: Option<Instance>,
+}
+
 /// The queue doors of a native instance (S1, S3). A read is computed from the
 /// instance's own record, running or not. A write (add, move, cancel) goes to the
 /// running host's own listener, with the owner key the gateway holds by name (see
 /// [`rung_host::read::StreamTarget`]); a stopped instance is refused first, and
 /// nothing is sent.
-#[allow(clippy::too_many_arguments)]
 async fn native_queue(
     state: &State,
-    dir: PathBuf,
-    id: &str,
-    rest: &str,
+    call: QueueCall<'_>,
     target: rung_host::acp::QueueTarget,
     req: Request<Incoming>,
-    query: Option<String>,
-    configured: Option<Instance>,
 ) -> Response<Body> {
     use rung_host::acp::QueueTarget;
     let base = request_redactor(state);
@@ -686,7 +699,7 @@ async fn native_queue(
         |words: &str| error(StatusCode::METHOD_NOT_ALLOWED, "method_not_allowed", words);
     match (target, req.method().clone()) {
         (QueueTarget::List, Method::GET | Method::HEAD) => {
-            let Some(pairs) = query_pairs(query.as_deref()) else {
+            let Some(pairs) = query_pairs(call.query.as_deref()) else {
                 return error(
                     StatusCode::BAD_REQUEST,
                     "bad_request",
@@ -697,7 +710,7 @@ async fn native_queue(
                 Ok(q) => q,
                 Err(e) => return door_error(e, &base),
             };
-            let (id, r) = (id.to_string(), base.clone());
+            let (dir, id, r) = (call.dir, call.id.to_string(), base.clone());
             match blocking(move || rung_host::read::queue(&dir, &id, &q, &r)).await {
                 Some(Ok(v)) => json_reply(StatusCode::OK, v),
                 Some(Err(e)) => door_error(e, &base),
@@ -705,50 +718,17 @@ async fn native_queue(
             }
         }
         (QueueTarget::List, Method::POST) => {
-            queue_write(
-                state,
-                dir,
-                id,
-                rest,
-                req,
-                query,
-                configured,
-                base,
-                WriteDoor::Add,
-            )
-            .await
+            queue_write(state, call, req, base, WriteDoor::Add).await
         }
         (QueueTarget::List, _) => method_not_allowed("this door lists (GET) and adds (POST)"),
         (QueueTarget::Item(_), Method::DELETE) => {
-            queue_write(
-                state,
-                dir,
-                id,
-                rest,
-                req,
-                query,
-                configured,
-                base,
-                WriteDoor::Item,
-            )
-            .await
+            queue_write(state, call, req, base, WriteDoor::Item).await
         }
         (QueueTarget::Item(_), _) => {
             method_not_allowed("this door cancels a waiting item (DELETE)")
         }
         (QueueTarget::Move(_), Method::POST) => {
-            queue_write(
-                state,
-                dir,
-                id,
-                rest,
-                req,
-                query,
-                configured,
-                base,
-                WriteDoor::Item,
-            )
-            .await
+            queue_write(state, call, req, base, WriteDoor::Item).await
         }
         (QueueTarget::Move(_), _) => method_not_allowed("this door moves a waiting item (POST)"),
         (QueueTarget::Unknown, _) => not_found(),
@@ -784,18 +764,20 @@ impl WriteDoor {
 }
 
 /// Forward one write to a running host and return its answer, redacted.
-#[allow(clippy::too_many_arguments)]
 async fn queue_write(
     state: &State,
-    dir: PathBuf,
-    id: &str,
-    rest: &str,
+    call: QueueCall<'_>,
     req: Request<Incoming>,
-    query: Option<String>,
-    configured: Option<Instance>,
     base: Redactor,
     door: WriteDoor,
 ) -> Response<Body> {
+    let QueueCall {
+        dir,
+        id,
+        rest,
+        query,
+        configured,
+    } = call;
     let (rdir, rid, rbase) = (dir, id.to_string(), base.clone());
     let target = match blocking(move || rung_host::read::stream_target(&rdir, &rid, &rbase)).await {
         Some(Ok(t)) => t,
