@@ -874,7 +874,7 @@ pub fn serve_http_with(
     let (events_routes, queue_routes) = (door.routes(), queue.routes());
     let routes: rung_agent_core::acp_http::Routes =
         Arc::new(move |req: rung_agent_core::acp_http::RouteRequest| {
-            if req.path == QUEUE_PATH {
+            if QueueDoor::owns(&req.path) {
                 queue_routes(req)
             } else {
                 events_routes(req)
@@ -927,6 +927,11 @@ pub struct EventsDoor {
 }
 
 impl EventsDoor {
+    /// Is `path` this door's? The one place the door's path is checked.
+    pub fn owns(path: &str) -> bool {
+        path == EVENTS_PATH
+    }
+
     /// `GET /v1/events`: the record from the client's cursor, then as it is
     /// written, with the running turn's partial frames. Any of the host's role
     /// tokens may read it (a token that names no role is refused 401); every
@@ -938,7 +943,7 @@ impl EventsDoor {
             let door = door.clone();
             Box::pin(async move {
                 let context = crate::context::turn_of_path(&req.path).map(str::to_string);
-                if req.path != EVENTS_PATH && context.is_none() {
+                if !Self::owns(&req.path) && context.is_none() {
                     return None;
                 }
                 let error = |status: u16, code: &str, message: &str| {
@@ -1171,6 +1176,11 @@ fn door_error(status: u16, code: &str, message: &str) -> Reply {
 }
 
 impl QueueDoor {
+    /// Is `path` this door's? The one place the door's path is checked.
+    pub fn owns(path: &str) -> bool {
+        path == QUEUE_PATH
+    }
+
     /// The route of `/v1/queue`; `None` for any other path.
     pub fn routes(self: &Arc<Self>) -> rung_agent_core::acp_http::Routes {
         use rung_agent_core::acp_http::RouteRequest;
@@ -1178,7 +1188,7 @@ impl QueueDoor {
         Arc::new(move |req: RouteRequest| {
             let door = door.clone();
             Box::pin(async move {
-                if req.path != QUEUE_PATH {
+                if !Self::owns(&req.path) {
                     return None;
                 }
                 Some(door.handle(req).await)
@@ -1194,7 +1204,7 @@ impl QueueDoor {
         let door = self.clone();
         Arc::new(move |head: &rung_agent_core::acp_http::RouteHead| {
             use rung_agent_core::acp_http::GateVerdict;
-            if head.path != QUEUE_PATH {
+            if !QueueDoor::owns(&head.path) {
                 return GateVerdict::Leave;
             }
             match door.refuse(&head.method, &head.headers) {
