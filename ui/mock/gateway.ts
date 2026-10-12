@@ -64,6 +64,8 @@ export interface MockOptions {
   live?: boolean;
   /** Also list a free-time instance and a stuck one beside the live one, for the overview. */
   extra?: boolean;
+  /** Also list an instance whose last turn is a reply of about this many bytes (a long text must be folded, never cut). */
+  longReply?: number;
 }
 
 export async function startMock(opts: MockOptions = {}): Promise<Target & { hosts: Map<string, SimHost>; url: string }> {
@@ -87,6 +89,16 @@ export async function startMock(opts: MockOptions = {}): Promise<Target & { host
       servers.push(hs);
       instances.push({ id, name: id, url: `http://127.0.0.1:${await listen(hs)}`, key: KEY });
     }
+  }
+  if (opts.longReply) {
+    const h = new SimHost("atlas");
+    hosts.set("longhand", h);
+    const lines = Math.ceil(opts.longReply / 30);
+    const text = Array.from({ length: lines }, (_, i) => `REPLY line ${i} of the long reply`).join("\n");
+    await h.runTurn({ pace: 0, text, tools: ["ws_list"] });
+    const hs = hostServer(h, KEY);
+    servers.push(hs);
+    instances.push({ id: "longhand", name: "longhand", url: `http://127.0.0.1:${await listen(hs)}`, key: KEY });
   }
   // An instance that is registered and does not answer.
   instances.push({ id: "gone", name: "gone", url: "http://127.0.0.1:9", key: KEY });

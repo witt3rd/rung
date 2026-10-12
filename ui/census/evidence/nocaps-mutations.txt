@@ -1,0 +1,10 @@
+# no-caps change: eight faults put into the new code one at a time, and what caught each (unit tests, or the real-browser proof where it is the only way to see it)
+caught    fold: a long text is never folded  <- a 1 MB text is whole in the page, folded for the eye, with a way to open it
+caught    fold: a summary line never offers the whole  <- a summary line offers the whole text when there is more, and nothing when the line is all of it
+caught    fold: a summary line offers a button when it is the whole text  <- a summary line offers the whole text when there is more, and nothing when the line is all of it
+caught    args: a long argument rides on the line  <- a long argument is not left out of its line: it folds, and the whole of it is kept
+caught    args: a long argument is dropped, not folded  <- a long argument is not left out of its line: it folds, and the whole of it is kept
+caught    record: one request with a limit to hope for  <- the record is read by following next, in pages: no request carries a limit big enough to hope for, and the record is the host's
+caught    record: only the first page is read  <- the record is read by following next, in pages: no request carries a limit big enough to hope for, and the record is the host's
+caught    pager: the Turns list has no Show less  <- (real-browser proof) "and a Show less is there" fails
+# 8 faults, 0 survived

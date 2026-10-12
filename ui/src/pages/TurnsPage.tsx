@@ -6,24 +6,12 @@ import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
 import { clock, useNow, when } from "./format.ts";
 import { href } from "../route.ts";
 import { overlayRunning } from "../live/overlay.ts";
+import { LongText } from "./LongText.tsx";
+import { argFold } from "./argFold.ts";
 import { describeStatus } from "../live/status.ts";
 
 const PAGE = 50;
 type Filter = "all" | "tools" | "failed" | "model";
-
-const oneLine = (v: unknown): string => {
-  if (v === undefined || v === null) return "";
-  if (typeof v === "string") return v;
-  const o = v as Record<string, unknown>;
-  for (const k of ["path", "query", "text", "cmd", "url", "note", "next_step"]) if (typeof o[k] === "string") return o[k] as string;
-  const first = Object.values(o).find((x) => typeof x === "string");
-  return typeof first === "string" ? first : JSON.stringify(v);
-};
-/** A short argument (a path or a query) rides on the call's line. A long one, such as a note, waits in the fold with the whole call. */
-const shortArg = (v: unknown): string => {
-  const s = oneLine(v);
-  return s && !s.includes("\n") && s.length <= 80 ? ` ${s}` : "";
-};
 
 function callStatus(c: ToolCall, running: boolean): string {
   if (running && c.ok === null && !c.refused) return "running";
@@ -49,7 +37,7 @@ function AskedRow({ id, a, now }: { id: string; a: Asked; now: number }) {
     <div className="call">
       {owner ? <span className="tag owner" data-content>Owner</span> : <span className="k" data-content>{a.from[0].toUpperCase() + a.from.slice(1)}</span>}
       <div>
-        <span className="content" data-content>{a.text}</span>
+        <LongText text={a.text} />
         {owner && (
           <p className="meta" style={{ margin: "4px 0 0" }} data-content>
             {kind}, sent {when(a.sentAt, now)}.
@@ -72,14 +60,20 @@ function TurnCard({ id, t, now, open }: { id: string; t: Turn; now: number; open
         <a className="quiet" href={href.context(id, t.n)}>Context</a>
       </div>
       {t.asked.map((a) => <AskedRow key={a.id} id={id} a={a} now={now} />)}
-      {t.text ? <p className="content" data-content style={{ marginTop: t.asked.length ? 10 : 0 }}>{t.text}</p>
+      {t.text ? <LongText text={t.text} style={{ marginTop: t.asked.length ? 10 : 0 }} />
         : <p className="meta" style={{ margin: 0 }} data-content>{t.status === "running" ? "In progress." : t.status === "interrupted" ? "Cut off before it finished." : `No reply${t.failure ? ` (${t.failure})` : ""}.`}</p>}
-      {t.calls.map((c, i) => (
-        <div className="call" key={i}>
-          <span className="k" data-content>Tool</span>
-          <span className="mono" data-content>{c.name}{shortArg(c.input)}{callStatus(c, t.status === "running") ? ` — ${callStatus(c, t.status === "running")}` : ""}</span>
-        </div>
-      ))}
+      {t.calls.map((c, i) => {
+        const arg = argFold(c.input);
+        return (
+          <div className="call" key={i}>
+            <span className="k" data-content>Tool</span>
+            <span className="callbody">
+              <span className="mono" data-content>{c.name}{arg.inline}{callStatus(c, t.status === "running") ? ` — ${callStatus(c, t.status === "running")}` : ""}</span>
+              {arg.whole !== null && <LongText text={arg.whole} mono />}
+            </span>
+          </div>
+        );
+      })}
       {t.decisions.length > 0 && (
         <details className="more" open={open}>
           <summary data-content>
@@ -105,7 +99,7 @@ function TurnCard({ id, t, now, open }: { id: string; t: Turn; now: number; open
           {t.calls.filter((c) => c.input !== undefined || c.result).map((c, i) => (
             <dl className="dl" key={i}>
               <dt data-content>{c.name}</dt>
-              <dd className="mono" data-content>{typeof c.input === "string" ? c.input : JSON.stringify(c.input, null, 2)}{c.result ? `\n→ ${c.result}` : ""}</dd>
+              <dd><LongText text={`${typeof c.input === "string" ? c.input : JSON.stringify(c.input, null, 2)}${c.result ? `\n→ ${c.result}` : ""}`} mono /></dd>
             </dl>
           ))}
         </details>
@@ -157,6 +151,7 @@ export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
           <p className="fold">
             Showing {num(Math.min(count, list.length))} of {num(list.length)}{filtered ? ` matching (of ${num(folds.turns.length)})` : ""}.
             {count < list.length && (<> <button className="quiet" onClick={() => setShown(count + PAGE)}>Show {num(Math.min(PAGE, list.length - count))} more</button> <button className="quiet" onClick={() => setShown(list.length)}>Show all {num(list.length)}</button></>)}
+            {count > PAGE && (<> <button className="quiet" onClick={() => setShown(PAGE)}>Show less</button></>)}
           </p>
         )}
       </Page>

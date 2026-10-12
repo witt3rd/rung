@@ -135,6 +135,7 @@ page against the mock in a real browser, and `npm run real-queue-proof` against 
 - `h5-summary-retry-first-run.txt`: the summary-retry test against the store before the retry.
 - `status-first-run.txt`: the shared-status tests, and a proof step where the host stops under two open pages with a stale summary, against the code before: the Now page did not say Not running.
 - `review-round5-first-run.txt`: the tests for the two inspector threads (a partials=only stream never ended; a reset left the old stream's cursor) against the code before.
+- `nocaps-first-run.txt`, `nocaps-mutations.txt`: the no-caps tests and the 1 MB reply proof against the app as it was on master (a long text printed whole and open: 810,473 px tall; the record read in one request with a limit of a hundred million; a long argument left out of its line), and eight faults put into the new code, none surviving.
 - `live-mutations.txt`: forty-one faults put into the live code one at a time; every one is caught by a test.
 - `live-proof.txt`: the live proof against the mock, as run.
 - `real-gateway-first-run.txt`: the tests for the real gateway's rows and a missing event stream, against the UI source as it was on master.
@@ -158,6 +159,14 @@ one tool line printed a whole note (now the line shows a short argument and the 
 paragraphs carried blank lines from the model's own padding; instance names wrapped in the list; "Decided" showed
 the day's empty decision, not the last one that meant something; a time in the future read as a date; "Show more"
 appeared with nothing more to show.
+
+## No caps
+
+Nothing the app shows is cut. A long text (a reply, a long argument, a tool result, the text of a message) is folded for the eye: every character is in the
+page, the fold keeps it to a screenful, "Show more" opens it and "Show less" folds it again (`src/pages/LongText.tsx`). A summary line (a turn in the Recent
+turns list, the line a stopped instance last said) is one line, with "Show whole" for the rest. A list is paged ("Show 50 more", "Show all", "Show less").
+A long argument is not on its call's line and is offered whole under it. The record is read a page at a time by following `next`; a page size is how much is
+asked for at once, not how much there may be.
 
 ## Rules this directory keeps
 

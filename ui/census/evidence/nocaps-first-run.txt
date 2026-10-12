@@ -1,0 +1,13 @@
+# the no-caps tests against the app as it was on master
+- record-paging.test.ts (one request with a limit of a hundred million):
+    ✖ failing tests:
+    ℹ fail 1
+    ℹ pass 1
+    ✖ the record is read by following next, in pages: no request carries a limit big enough to hope for, and the record is the host's
+- nocaps.test.ts (the fold, the argument):
+    Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/pages/LongText.tsx' imported from ui/test/nocaps.test.ts
+
+# the 1 MB reply proof (real browser, scripted mock host serving a reply of a megabyte) against the app as it was on master
+pass  a 1.16 MB reply is whole in the page at 390: its first line and its last are there, nothing added
+FAIL  it is folded to a screenful (810473 px) with a Show more button
+(the run then stopped: there was no Show more button to click)

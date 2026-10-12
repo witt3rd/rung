@@ -38,6 +38,9 @@ export interface LiveDelta {
   tool: string | null;
 }
 
+/** How many lines are asked for at once when the record is read. */
+export const RECORD_PAGE = 2000;
+
 export class LiveStore {
   private state: LiveState = { loaded: false, error: null, status: "connecting", lines: [], host: null, ended: null };
   /** The streamed text exactly as it came. It is redacted when read, over the whole text so far: a key split across pieces
@@ -115,11 +118,21 @@ export class LiveStore {
     if (this.summaryTimer) clearTimeout(this.summaryTimer);
   }
 
-  /** The whole record in one answer: the read door has no cap on `limit`. */
+  /** The whole record, read a page at a time by following `next` until it is null: a page size is how much is asked for at once, not how much
+   *  there may be. Lines written while the pages are read come through the stream, which resumes from the last line read. */
   private async loadRecord(): Promise<Line[]> {
-    const r = await this.fetchImpl(`${this.base}/v1/record?offset=0&limit=100000000`);
-    if (!r.ok) throw new Error(`the record could not be read (${r.status})`);
-    return parseRecordLines((await r.json()) as { lines: Line[] });
+    let lines: Line[] = [];
+    let offset = 0;
+    for (;;) {
+      const r = await this.fetchImpl(`${this.base}/v1/record?offset=${offset}&limit=${RECORD_PAGE}`);
+      if (!r.ok) throw new Error(`the record could not be read (${r.status})`);
+      const page = (await r.json()) as { lines: Line[]; next: number | null };
+      lines = lines.concat(page.lines);
+      if (page.next === null || page.next === undefined) break;
+      if (page.next <= offset) throw new Error("the record's next page does not move on");
+      offset = page.next;
+    }
+    return parseRecordLines({ lines });
   }
 
   private follow(after: number) {

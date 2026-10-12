@@ -139,3 +139,9 @@ h3 { font-size: var(--s-body); line-height: 1.3; margin: 20px 0 6px; font-weight
 .row-in > summary { list-style: none; }
 .row-in > summary::-webkit-details-marker { display: none; }
 .drill .text.nowrap { white-space: pre; overflow-x: auto; overflow-wrap: normal; }
+
+/* A long text is folded for the eye, never cut: every character is in the page, and the button opens the rest. */
+.folded { max-height: 20em; overflow: hidden; border-bottom: 1px dashed var(--rule); }
+.drill .text.folded { border-bottom-style: dashed; }
+.nowrap { white-space: pre; overflow-x: auto; overflow-wrap: normal; }
+.callbody { display: grid; gap: 4px; min-width: 0; }
