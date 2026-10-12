@@ -107,7 +107,7 @@ page against the mock in a real browser, and `npm run real-queue-proof` against 
   because the keys that wrote the recorded runs are not on this machine. A second check plants a phrase the real
   records contain as a secret and fails if it survives. `--out` is emptied, so it is refused unless it is strictly
   inside `ui/public`, `ui/dist` or `ui/.test-tmp` and either empty or marked by an earlier run.
-- **No cap**: turns are paged ("Show 50 more", "Show all"), long text wraps whole, a turn's decisions and
+- **No cap**: turns are paged ("Show 50 more", "Show all"), long text is whole and folded (see "No caps" below), a turn's decisions and
   calls fold under "Details".
 
 ## Evidence (`census/evidence/`)
