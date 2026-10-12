@@ -107,12 +107,21 @@ git tags only.
   are gone (a gist is now the whole text on one line, credentials still
   redacted). A memory candidate keeps its whole text and none is dropped, and a
   pack segment's gist is the segment's whole text. The decision desk's `max_items`
-  and `max_candidates` knobs are gone: one ask carries the oldest waiting items
-  (and candidates) that fit the decider's 32,000-token context window (a provider
-  limit, `DECIDER_WINDOW_TOKENS`), and the rest wait for a later ask (deferred,
-  never dropped or cut). An ask that cannot fit even one is refused whole
-  (`TooLarge`) and the rule decides. `max_segments` stays: it groups the epoch
-  into that many segments, every turn in one of them.
+  and `max_candidates` knobs are gone: every ask is sized to what the decider
+  can take, the 32,000-token context window (a provider limit,
+  `DECIDER_WINDOW_TOKENS`) and, at the default, the per-ask spend cap, which is
+  reached first. The admit and inject asks carry the oldest waiting items that
+  fit; an item left out of an ask is not dropped, but it is not asked of the
+  decider later either: the rule decides it at that boundary. The consolidate
+  ask carries the candidates that fit and the rest stay for a later round. The
+  pack (rollover) ask carries as many whole segments as fit, newest first,
+  leaving out those an open commitment or expectation refers to (kept anyway);
+  the others are decided by the rule's keep, so the pack decider is still asked
+  at the default epoch budget. An ask that cannot fit even its fixed part is
+  refused whole (`TooLarge`) and the rule decides. `max_segments` stays: it
+  groups the epoch into that many segments, every turn in one of them. With the
+  register lists shown whole, an agent that never closes its todos and projects
+  has a header that grows without bound, by design.
 
 ## [0.3.1] - 2026-10-11
 

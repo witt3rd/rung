@@ -1111,7 +1111,8 @@ impl Host {
                 let mut qs = Admit::questions(&ain);
                 qs.extend(Inject::questions(&iin));
                 qs.extend(Tools::questions(&tin));
-                crate::desk::within_window(&json!({"admit": ain, "inject": iin, "tools": tin}), &qs)
+                self.desk
+                    .fits(&json!({"admit": ain, "inject": iin, "tools": tin}), &qs)
             });
             let (ain, actx, iin, tin, tctx) = build(n);
             let first = st
@@ -1287,6 +1288,7 @@ impl Host {
             cache_read_ratio_last10: canon::fixed(st.desk.cache_ratio()),
             copy_flag: st.kernel.copy_streak >= COPY_LOOP_TURNS,
             segments: Vec::new(),
+            unasked: Vec::new(),
             last_turn: pack.spans().last().map(|s| s.turn).unwrap_or(0),
         };
         // Segments only matter when the gate opens.
@@ -1302,7 +1304,7 @@ impl Host {
         let core = &*self.core;
         let k = &self.desk.knobs;
         let at_break = core.state().kernel.at_break();
-        let pin = self.pack_input(at_break);
+        let mut pin = self.pack_input(at_break);
         let gate = pin.gate_open(k);
         let periodic = turn.is_multiple_of(k.consolidate_every);
         if !gate && !periodic {
@@ -1311,8 +1313,18 @@ impl Host {
         let imminent = pin.copy_flag || pin.fraction() >= k.pack_rule_break;
         let (cin, cands) = {
             let st = core.state();
-            // As many waiting candidates as the decider's window holds with
-            // the pack ask beside them; the rest wait for the next round.
+            // The pack ask carries as many segments as the decider's window
+            // holds (each whole; the others are decided by the rule), and the
+            // candidates ask takes the room that is left; the candidates
+            // that do not fit wait for the next round.
+            if gate {
+                pin.split_for_window(|p| {
+                    let (cin, _) = crate::desk::consolidate::build(&st, 0, imminent);
+                    let mut qs = Consolidate::questions(&cin);
+                    qs.extend(PackFamily::questions(p));
+                    self.desk.fits(&json!({"pack": p, "consolidate": cin}), &qs)
+                });
+            }
             let n = crate::desk::fit_count(st.desk.candidates.len(), |n| {
                 let (cin, _) = crate::desk::consolidate::build(&st, n, imminent);
                 let mut qs = Consolidate::questions(&cin);
@@ -1322,7 +1334,7 @@ impl Host {
                 } else {
                     json!({"consolidate": cin})
                 };
-                crate::desk::within_window(&state, &qs)
+                self.desk.fits(&state, &qs)
             });
             crate::desk::consolidate::build(&st, n, imminent)
         };

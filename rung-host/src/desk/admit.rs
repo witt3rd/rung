@@ -49,7 +49,8 @@ pub struct AdmitInput {
     pub now: Millis,
     pub mode: Value,
     /// The asked items: non-owner, oldest first, the first `limit` of them
-    /// (the rest stay waiting for a later ask).
+    /// (the rest are not in this ask; the rule's form applies to them at
+    /// this boundary).
     pub items: Vec<AdmitItem>,
     pub interrupts_last_hour: u32,
     pub since_external_s: i64,

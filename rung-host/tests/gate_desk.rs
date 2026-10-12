@@ -158,6 +158,7 @@ fn pack_case(fraction: f64, copy_flag: bool) -> PackInput {
         cache_read_ratio_last10: 0.9,
         copy_flag,
         segments: vec![seg(1, true), seg(2, false), seg(3, false), seg(4, false)],
+        unasked: vec![],
         last_turn: 14,
     }
 }
