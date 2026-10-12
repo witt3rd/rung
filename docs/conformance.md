@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 580 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 591 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1057,6 +1057,11 @@ look shorter than it is.
 - `twenty_concurrent_releases_with_nothing_held_write_nothing`
 - `twenty_concurrent_stops_make_exactly_one_line_and_nineteen_repeats`
 
+**`rung-host/tests/desk_window.rs`** — 2 unclaimed
+
+- `an_admit_ask_with_huge_items_is_sized_by_the_window`
+- `the_pack_ask_at_the_default_budget_is_answered`
+
 **`rung-host/tests/events_adapter.rs`** — 3 unclaimed
 
 - `streaming_changes_nothing_in_the_record`
@@ -1084,8 +1089,9 @@ look shorter than it is.
 
 - `acp_over_http_caps_each_connection_by_its_token`
 
-**`rung-host/tests/gate_cache_context.rs`** — 2 unclaimed
+**`rung-host/tests/gate_cache_context.rs`** — 3 unclaimed
 
+- `an_agent_that_never_closes_its_work_grows_the_header_not_past_the_budget`
 - `canonical_bytes_are_stable_across_two_processes`
 - `ten_thousand_turns_stay_bounded_and_cache_clean`
 
@@ -1179,6 +1185,17 @@ look shorter than it is.
 **`rung-host/tests/measure_admission.rs`** — 1 unclaimed
 
 - `admission_latency_by_long_work_share`
+
+**`rung-host/tests/no_caps_prompt.rs`** — 8 unclaimed
+
+- `a_20kb_admitted_message_is_whole_in_the_header`
+- `a_candidate_is_kept_whole_and_none_is_dropped`
+- `a_gist_is_not_cut`
+- `a_pack_ask_carries_the_whole_segments_that_fit_and_loses_none`
+- `an_ask_carries_the_most_items_the_window_holds`
+- `every_open_todo_and_its_whole_text_reach_the_agent`
+- `the_outline_keeps_every_turn_whole`
+- `the_slow_layer_lists_every_project_whole_and_every_outline_line`
 
 **`rung-host/tests/queue_door.rs`** — 15 unclaimed
 
