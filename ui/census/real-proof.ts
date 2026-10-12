@@ -50,7 +50,16 @@ try {
           check(/gorse/.test(text) && /fir/.test(text) && /alpha/.test(text) && /\bbad\b/.test(text), "the list holds every registered instance: a stopped one, a dead one, a live-looking one and an entry that cannot be read");
           check(/Unreadable/.test(text), "the entry that cannot be read is listed as Unreadable, never dropped");
         }
-        if (name === "real-now-stopped") check(/rung-host run --config/.test(text) && /does not start it/.test(text), "a stopped instance shows the command that starts it, and says the page does not");
+        if (name === "real-now-stopped") {
+          check(/rung-host run --config/.test(text) && /does not start it/.test(text), "a stopped instance shows the command that starts it, and says the page does not");
+          // A stopped instance's queue is read from its record, and an add is not offered: the page says what to do.
+          check(/Start the instance first\./.test(text) && (await page.locator(".qctl .btn.primary").isDisabled()), "a stopped instance says to start it first and offers no Send");
+        }
+        if (name === "real-now-running") {
+          // The gateway has the queue door for a native instance; the instance's own host is not running here, so no write key is named: nothing is sent.
+          await page.waitForFunction(() => (document.querySelector(".qrule")?.textContent ?? "").trim() !== "", null, { timeout: 15000 });
+          check(await page.locator("input[value=free]").isDisabled() && await page.locator("input[value=steer]").isDisabled(), "Steer and When free are shown disabled on a real instance");
+        }
         if (name === "real-turns") {
           const shown = await page.$$eval("article.turn h2", (hs) => hs.length);
           check(shown === 3 + written, `the record read through the real door is the record: ${shown} turns shown, ${3 + written} in the file`);

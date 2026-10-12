@@ -1,0 +1,5 @@
+# census/queue-proof.ts with the navigation-race checks added, run against the page before the fix (a send answered after the owner went to another instance wrote into that instance's box and status). 2 of the new checks failed (and the row count, which only counted the new item).
+FAIL  a refusal that arrives after the owner left leaves the other instance's box and status alone
+FAIL  a send that is answered after the owner left leaves the other instance's box and status alone
+FAIL  each row says what was asked and by whom
+queue proof: 3 failure(s)

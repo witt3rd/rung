@@ -1,0 +1,94 @@
+# Faults put into the S1 code one at a time; each was caught (the test or proof check named). Run on the tree as committed, before the fix was restored.
+CAUGHT: src/queue/send.ts :: if (p && p.text === text && p.intent === intent) {
+✖ a second press while the first is in flight is the same write, not a second one (0.687824ms)
+✖ a repeat after a lost answer carries the same key; edited text or a new intent is a new press (0.959881ms)
+CAUGHT: src/queue/send.ts :: if (r.ok || r.kind !== "unreachable") {
+✖ a repeat after a lost answer carries the same key; edited text or a new intent is a new press (0.962995ms)
+✖ a repeat after a lost answer carries the same key; edited text or a new intent is a new press (0.962995ms)
+CAUGHT: src/queue/send.ts :: r.status >= 500 ? "unreachable"
+✖ the other refusals read in plain words and keep the host's own reason when it gives one (1.616728ms)
+✖ the other refusals read in plain words and keep the host's own reason when it gives one (1.616728ms)
+CAUGHT: src/queue/send.ts :: redact(body.message) as string
+✖ a reason from the host that holds a key is redacted before it is shown (12.333514ms)
+✖ a reason from the host that holds a key is redacted before it is shown (12.333514ms)
+CAUGHT: src/queue/wire.ts :: const r = redact(raw);
+✖ text is read whole and a key in it is redacted (3.152216ms)
+✖ text is read whole and a key in it is redacted (3.152216ms)
+CAUGHT: src/queue/wire.ts :: return { head: text.slice(0, c), rest: text.slice(c) };
+✖ a long text folds in two parts that join to exactly the text; a short one does not fold (0.822956ms)
+✖ a text of lines folds at the end of a line (0.655343ms)
+CAUGHT: src/queue/wire.ts :: const owner = waiting.filter((i) => i.role === "owner");
+✖ owner items are their own group on top, numbered on in one run; peer items follow (0.9452ms)
+✖ owner items are their own group on top, numbered on in one run; peer items follow (0.9452ms)
+CAUGHT: src/record/folds.ts :: during: runningAt(a.seq, t.n)
+✖ an arrival while a turn was running names that turn; an arrival between turns names none (1.132231ms)
+✖ an arrival while the running turn has no end yet still names that turn (0.185637ms)
+CAUGHT: src/record/folds.ts :: seenAt: l.at
+✖ an owner item carries its role, its intent, when it was sent and when the agent saw it (1.403513ms)
+✖ an owner item carries its role, its intent, when it was sent and when the agent saw it (1.403513ms)
+CAUGHT: src/record/folds.ts :: it.intent === "steer" ? it.intent : null
+✖ an owner item carries its role, its intent, when it was sent and when the agent saw it (1.454606ms)
+✖ an owner item carries its role, its intent, when it was sent and when the agent saw it (1.454606ms)
+CAUGHT: mock/queue.ts :: return send(res, 200, { id: b.key, seq: have.seq, repeat: true });
+✖ the same key twice adds once; the second answer says it was a repeat (3.4765ms)
+✖ the same key twice adds once; the second answer says it was a repeat (3.4765ms)
+CAUGHT: mock/queue.ts :: if (have) {
+✖ the same key twice adds once; the second answer says it was a repeat (3.63419ms)
+✖ a key that already holds other text is refused, and the first text stands (3.569519ms)
+CAUGHT: mock/queue.ts :: if (host.isStopped) return
+✖ a stopped instance's queue can be read, and adding to it is refused: start it first (3.522343ms)
+✖ a stopped instance's queue can be read, and adding to it is refused: start it first (3.522343ms)
+CAUGHT: mock/queue.ts :: return send(res, 200, host.out({
+✖ a key typed into the text is redacted at the door (5.162564ms)
+✖ a key typed into the text is redacted at the door (5.162564ms)
+MISSED: mock/queue.ts :: waiting.sort((a, b) => Number(b.role === "owner") - Number(a.role === "owner"));
+## page-level faults, caught by census/queue-proof.ts
+CAUGHT: const r = await sender.send(text, intent);
+FAIL  the box keeps the text when no answer came
+page.waitForFunction: Timeout 30000ms exceeded.
+CAUGHT: disabled={busy || !running}
+FAIL  Send cannot be pressed twice while it waits
+CAUGHT: {it.held && <p className="meta qheld" data-content>{it.held}</p>}
+FAIL  the peer item shows why the desk holds it
+CAUGHT: {f.rest && <button
+locator.click: Timeout 30000ms exceeded.
+  name: 'TimeoutError'
+CAUGHT: <span className="tag owner" data-content>Owner</span>
+page.waitForSelector: Timeout 30000ms exceeded.
+  name: 'TimeoutError'
+CAUGHT: const stopped = !running && state !== null;
+page.waitForFunction: Timeout 8000ms exceeded.
+  name: 'TimeoutError'
+
+## faults against the doors-aligned code (this round)
+CAUGHT: src/queue/wire.ts :: \p{Cf}
+CAUGHT: src/queue/wire.ts :: if (wrote) return current === sent ? "" : current;
+CAUGHT: src/queue/wire.ts :: return current === "" ? sent : current;
+CAUGHT: src/queue/send.ts :: r.status === 409 && body.error === "not_running" ? "not_running"
+CAUGHT: src/queue/send.ts :: r.status === 409 && body.error === "key_reused" ? "key_reused"
+CAUGHT: src/queue/send.ts :: body.error !== "no_owner_key" && body.error !== "no_address"
+CAUGHT: src/queue/hooks.ts :: if (page.next === null) return all;
+CAUGHT: src/queue/wire.ts :: filter((i) => i.state === "answering")
+CAUGHT: mock/queue.ts :: return refuse(res, 409, "key_reused"
+CAUGHT: mock/queue.ts :: if (b.intent !== undefined && b.intent !== "next")
+CAUGHT: mock/queue.ts :: const asked = f.sorted.filter((i) => states.includes(i.state as State));
+CAUGHT: readOnly={busy}
+FAIL  the draft is still in the box, locked, while the host has not answered
+CAUGHT: disabled={!i.works}
+FAIL  Steer and When free are shown disabled; Do next is not
+CAUGHT: noDoor || isBlank(text)}>Send
+FAIL  a message of only invisible characters is empty: Send is disabled
+CAUGHT: setText((cur) => { const n = afterSend(cur, sent, r.ok); keepDraft(id, n); return n; });
+FAIL  a message of only invisible characters is empty: Send is disabled
+CAUGHT: <p className="meta qnote">Steer and When free come later.</p>
+locator.innerText: Timeout 30000ms exceeded.
+  name: 'TimeoutError'
+## faults against the review fixes (navigation race, per-instance state, draft)
+CAUGHT: src/queue/hooks.ts :: if (senders.get(id)?.idle) senders.delete(id);
+CAUGHT: src/queue/hooks.ts :: if (senders.get(id)?.idle) senders.delete(id);
+CAUGHT: src/queue/send.ts :: return this.press === null;
+CAUGHT: <QueuePanel key={id} id={id}
+FAIL  on another instance the box is empty and Send is not offered, whatever is in flight elsewhere
+FAIL  a refusal that arrives after the owner left leaves the other instance's box and status alone
+
+## one fault was MISSED and the code removed: the 'if (!alive.current) return' guard after a send; with the panel keyed by instance an update on a gone panel is a no-op, so the guard did nothing and was deleted.

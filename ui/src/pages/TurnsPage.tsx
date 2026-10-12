@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInstance } from "../data/hooks.ts";
 import { duration, num, usd } from "../record/words.ts";
-import type { ToolCall, Turn } from "../record/folds.ts";
+import type { Asked, ToolCall, Turn } from "../record/folds.ts";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
+import { clock, useNow, when } from "./format.ts";
 import { href } from "../route.ts";
-import { useNow, when } from "./format.ts";
 import { overlayRunning } from "../live/overlay.ts";
 import { describeStatus } from "../live/status.ts";
 
@@ -40,6 +40,27 @@ function matches(t: Turn, q: string, f: Filter): boolean {
   return hay.includes(q.toLowerCase());
 }
 
+/** What the owner sent, marked: a filled Owner tag, whether it was a steer or a task, when it was sent, and, when it came in while another
+ *  turn was running, the moment the agent saw it. Anything else keeps its plain label. */
+function AskedRow({ id, a, now }: { id: string; a: Asked; now: number }) {
+  const owner = a.role === "owner";
+  const kind = a.intent === "steer" ? "steer" : a.intent === "free" ? "task, when free" : "task";
+  return (
+    <div className="call">
+      {owner ? <span className="tag owner" data-content>Owner</span> : <span className="k" data-content>{a.from[0].toUpperCase() + a.from.slice(1)}</span>}
+      <div>
+        <span className="content" data-content>{a.text}</span>
+        {owner && (
+          <p className="meta" style={{ margin: "4px 0 0" }} data-content>
+            {kind}, sent {when(a.sentAt, now)}.
+            {a.during !== null && <> It came in while <a href={href.turns(id, a.during)}>turn {num(a.during)}</a> was running; the agent saw it at {clock(a.seenAt)}.</>}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TurnCard({ id, t, now, open }: { id: string; t: Turn; now: number; open: boolean }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (open) ref.current?.scrollIntoView({ block: "start" }); }, [open]);
@@ -50,9 +71,7 @@ function TurnCard({ id, t, now, open }: { id: string; t: Turn; now: number; open
         <h2>Turn {num(t.n)} <span className="meta" data-content>{when(t.endedAt ?? t.startedAt, now)}</span></h2>
         <a className="quiet" href={href.context(id, t.n)}>Context</a>
       </div>
-      {t.asked.map((a) => (
-        <div className="call" key={a.id}><span className="k" data-content>{a.from[0].toUpperCase() + a.from.slice(1)}</span><span className="content" data-content>{a.text}</span></div>
-      ))}
+      {t.asked.map((a) => <AskedRow key={a.id} id={id} a={a} now={now} />)}
       {t.text ? <p className="content" data-content style={{ marginTop: t.asked.length ? 10 : 0 }}>{t.text}</p>
         : <p className="meta" style={{ margin: 0 }} data-content>{t.status === "running" ? "In progress." : t.status === "interrupted" ? "Cut off before it finished." : `No reply${t.failure ? ` (${t.failure})` : ""}.`}</p>}
       {t.calls.map((c, i) => (

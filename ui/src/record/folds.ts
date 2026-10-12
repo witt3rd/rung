@@ -34,6 +34,20 @@ export interface ToolCall {
   result: string | null;
 }
 
+/** One item this turn was asked, with what the page marks it by. `role` is who sent it (owner, peer, host); `intent` is what the
+ *  sender asked for (a steer is not a task); `sentAt` is when it arrived and `seenAt` when the turn's boundary took it. `during` is
+ *  the turn that was running when it arrived, or null when it arrived between turns. */
+export interface Asked {
+  id: string;
+  from: string;
+  role: string;
+  intent: "next" | "free" | "steer" | null;
+  text: string;
+  sentAt: number;
+  seenAt: number;
+  during: number | null;
+}
+
 export interface Turn {
   n: number;
   kind: string;
@@ -46,7 +60,7 @@ export interface Turn {
   status: "running" | "completed" | "failed" | "bounded" | "interrupted";
   failure: string | null;
   text: string;
-  asked: { id: string; from: string; text: string }[];
+  asked: Asked[];
   calls: ToolCall[];
   decisions: Decision[];
   llmCalls: number;
@@ -83,8 +97,21 @@ export function foldDecisions(lines: readonly Line[]): Decision[] {
 
 /** `live`: a turn with no end line is running. For a record with no process it was cut off. */
 export function foldTurns(lines: readonly Line[], opts: { live: boolean } = { live: false }): Turn[] {
-  const accepted = new Map<string, Line>();
-  for (const l of lines) if (l.kind === "stimulus.accepted") accepted.set(l.item.id, l.item);
+  const accepted = new Map<string, { item: Line; at: number; seq: number }>();
+  // Where each turn ran, by line number: an item that arrived inside it came while that turn was running.
+  const span = new Map<number, { from: number; to: number }>();
+  for (const l of lines) {
+    if (l.kind === "stimulus.accepted") accepted.set(l.item.id, { item: l.item, at: l.at, seq: l.seq });
+    else if (l.kind === "turn.started" && typeof l.turn === "number") span.set(l.turn, { from: l.seq, to: Infinity });
+    else if (l.kind === "turn.ended" && typeof l.turn === "number") { const s = span.get(l.turn); if (s) s.to = l.seq; }
+  }
+  // A turn that never ended (a crash) stops where the next one starts.
+  const order = [...span.entries()].sort((a, b) => a[1].from - b[1].from);
+  order.forEach(([, s], i) => { if (s.to === Infinity && order[i + 1]) s.to = order[i + 1][1].from; });
+  const runningAt = (seq: number, except: number): number | null => {
+    for (const [n, s] of span) if (n !== except && seq > s.from && seq < s.to) return n;
+    return null;
+  };
   const decisions = foldDecisions(lines);
   const byTurn = new Map<number, Turn>();
   const get = (n: number, at: number, seq: number): Turn => {
@@ -112,8 +139,14 @@ export function foldTurns(lines: readonly Line[], opts: { live: boolean } = { li
         break;
       case "stimulus.admitted":
         for (const id of (l.ids ?? []) as string[]) {
-          const it = accepted.get(id);
-          if (it) t.asked.push({ id, from: it.role === "owner" ? "owner" : String(it.kind ?? it.role), text: String(it.text ?? "") });
+          const a = accepted.get(id);
+          if (!a) continue;
+          const it = a.item;
+          const intent = it.intent === "next" || it.intent === "free" || it.intent === "steer" ? it.intent : null;
+          t.asked.push({
+            id, from: it.role === "owner" ? "owner" : String(it.kind ?? it.role), role: String(it.role ?? ""), intent, text: String(it.text ?? ""),
+            sentAt: typeof it.at === "number" ? it.at : a.at, seenAt: l.at, during: runningAt(a.seq, t.n),
+          });
         }
         break;
       case "tool.call":

@@ -92,3 +92,39 @@ from a turn that had no recall, and that is an empty band, not a gap. For an old
   record itself holds (`src/context/fold.ts`) and says why. A test lays that fold beside the door's answers over the same records.
 - `test/context-contract.test.ts` (`npm run test:contract:context:real` against the built gateway, with the suite playing the host's part for
   the record; `RUNG_CONTRACT_URL=… npm run test:contract:context` against any gateway). Every check is skipped, by name, on a gateway without the door.
+
+## The queue doors (S1)
+
+`GET` and `POST /api/i/{id}/v1/queue`. The bodies are the host's own, written in `docs/rung-host-api.md` ("S1 — the queue"); this
+file only says what the page reads of them. `test/contract-queue.test.ts` is the executable statement. It runs against the mock (`mock/queue.ts`,
+which answers with the same bodies), and against a real host behind a real gateway (`mock/real-host.ts`: `cargo build -p rung-host -p
+rung-gateway`, then `RUNG_CONTRACT_TARGET=real-host npm run test:contract:queue`); against a gateway without the door (404) its checks skip, by name. The real run takes about four minutes: the host's calls are slowed so that a message waits long enough to be seen waiting, and two checks wait for a real boundary.
+
+**`GET /v1/queue`** is computed from the record, so a stopped instance lists too. It answers `items`, each with a `state` (`waiting`,
+`answering`, `answered`, `withdrawn`), the page (`total`, `offset`, `limit`, `next`), `counts` and `record_lines`. The page asks for
+`?state=open` (what is being answered and what waits) and follows `next` until it is null: the host pages the list, the page never cuts it.
+An item: `id`, `text` (whole, redacted), `role` (`owner`, `peer`, `host`), `name`, `channel`, `kind`, `intent` (`next`), `order`, `position`,
+`accepted_at` (the time sent), `state`, `turn`, `disposition`, `held` (the desk's reason in words, or null). The list is ordered answering,
+then waiting (owner items first, then every other sender's, each in order of acceptance), then settled.
+
+**`POST /v1/queue`** `{"text", "key"?, "intent"?}` answers only after the item is written and fsynced; the key becomes the item id, so a
+repeat adds once: `201 {"id", "repeat": false, "item"}`, then `200 {"id", "repeat": true, "item"}`. Only `intent: "next"` is served; `steer`
+and `free` are 400 until their slice, so the page shows them disabled. What the page does with the answers:
+
+| answer | the page says |
+|---|---|
+| 201 / 200 | "Sent." / "It was already there; it is added once." The box is emptied only now, and only if nothing was typed meanwhile |
+| 409 `not_running` | "Start the instance first." The draft stays |
+| 409 `key_reused` | "That press was already added. Nothing new was written." The draft stays; the next press has a new key |
+| 400, 403 `read_only`, 503 `no_owner_key` / `no_address` | the host's own words (or "This view can only read, so it cannot send."); the draft stays |
+| 502, 503 `instance_not_answering`, a lost answer | the host's words ("... send it again with the same key"); the press keeps its key, so a second press adds once |
+| 404 | "This instance cannot take messages from the page yet." (a gateway without the door); Send is disabled |
+
+A message of nothing but white space or characters that draw nothing (a zero-width space, direction marks, a byte-order mark, the blank
+fillers) is empty: Send is disabled, and `Sender` does not send it. The host refuses only an all-white-space text, so it would take a
+zero-width space as a message; that is the page's rule on top of the host's.
+
+**The owner mark** needs nothing new: a turn's asked items come from the record (`stimulus.accepted` carries `role` and `at`, and an `intent`
+once the host writes one; `stimulus.admitted` is the moment the agent took them). An item that arrived while another turn was running is
+shown with that turn and the moment of admission. The record has no line for the start of a tool call, so the page says "while turn N was
+running", not "during a tool call".

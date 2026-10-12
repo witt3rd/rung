@@ -6,6 +6,7 @@ import { requestsLine } from "./InstancesPage.tsx";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
 import { useNow, when } from "./format.ts";
 import type { LiveInfo } from "../data/hooks.ts";
+import { QueuePanel } from "./QueuePanel.tsx";
 import { visibleDelta } from "../live/overlay.ts";
 import { describeStatus } from "../live/status.ts";
 import { duration } from "../record/words.ts";
@@ -45,6 +46,7 @@ export function NowPage({ id }: { id: string }) {
                 ) : <p className="none">&nbsp;</p>}
               </div>
             </section>
+            <QueuePanel key={id} id={id} running={live} state={s?.state ?? null} now={now} lastSeq={folds && folds.lines.length ? folds.lines[folds.lines.length - 1].seq : null} />
             <section className="sec">
               <h2>Recent turns</h2>
               {recent.map((t) => (
