@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 591 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 594 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1186,14 +1186,17 @@ look shorter than it is.
 
 - `admission_latency_by_long_work_share`
 
-**`rung-host/tests/no_caps_prompt.rs`** — 8 unclaimed
+**`rung-host/tests/no_caps_prompt.rs`** — 11 unclaimed
 
 - `a_20kb_admitted_message_is_whole_in_the_header`
 - `a_candidate_is_kept_whole_and_none_is_dropped`
 - `a_gist_is_not_cut`
 - `a_pack_ask_carries_the_whole_segments_that_fit_and_loses_none`
 - `an_ask_carries_the_most_items_the_window_holds`
+- `every_open_project_and_question_reaches_the_agent_whole`
 - `every_open_todo_and_its_whole_text_reach_the_agent`
+- `the_desk_refuses_to_size_an_ask_past_the_window_whatever_the_cap`
+- `the_largest_count_that_fits_is_found_for_any_threshold`
 - `the_outline_keeps_every_turn_whole`
 - `the_slow_layer_lists_every_project_whole_and_every_outline_line`
 
