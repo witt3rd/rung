@@ -686,6 +686,64 @@ mod tests {
         assert_eq!(order, ["n1", "s1", "n2", "f1", "f2", "p1"]);
     }
 
+    /// S2 with S3: the list folds the same moves by the same rule: an owner's `free` item is
+    /// its own group (a move across it and a `next` is read as no move), and the list is
+    /// the order the host's own fold gives (`InboxState::waiting`).
+    #[test]
+    fn the_list_agrees_with_the_hosts_own_order_after_moves() {
+        let mut f = Fold::default();
+        let mut st = crate::inbox::InboxState::default();
+        let mut seq = 0;
+        let mut both = |f: &mut Fold, l: Line| {
+            f.apply(&l);
+            st.apply(&l);
+        };
+        for (id, role, intent) in [
+            ("f1", "owner", Some("free")),
+            ("p1", "peer", None),
+            ("n1", "owner", None),
+            ("s1", "owner", Some("steer")),
+            ("f2", "owner", Some("free")),
+        ] {
+            seq += 1;
+            let channel = if role == "owner" { "owner" } else { "peer:x" };
+            let mut item = json!({"id": id, "kind": "peer", "role": role, "channel": channel,
+                                  "at": 1000 + seq, "firm": false, "text": format!("text of {id}")});
+            if let Some(i) = intent {
+                item["intent"] = json!(i);
+            }
+            both(
+                &mut f,
+                line(seq, "stimulus.accepted", json!({"item": item})),
+            );
+        }
+        for (id, before) in [
+            ("f1", Some("n1")),
+            ("n1", Some("f2")),
+            ("s1", Some("n1")),
+            ("f2", Some("f1")),
+            ("n1", None),
+        ] {
+            seq += 1;
+            both(
+                &mut f,
+                line(seq, "queue.moved", json!({"id": id, "before": before})),
+            );
+        }
+        let listed: Vec<String> = f
+            .sorted()
+            .iter()
+            .filter(|(e, _)| e.state == State::Waiting)
+            .map(|(e, _)| e.id.clone())
+            .collect();
+        let hosts: Vec<String> = st.waiting().iter().map(|p| p.item.id.clone()).collect();
+        assert_eq!(listed, ["s1", "n1", "f2", "f1", "p1"]);
+        assert_eq!(
+            listed, hosts,
+            "the page's list and the host's order are one"
+        );
+    }
+
     /// S2: the words that say why a free item waits, once the desk has held it; not before
     /// (it may be read at the very next boundary), and not once it is read.
     #[test]

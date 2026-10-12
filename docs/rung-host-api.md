@@ -1419,24 +1419,29 @@ the host (what a turn reads) and in every reader of the record (the list):
 2. A `queue.moved` line takes `id` out and puts it in front of `before`
    (after the last waiting item of its group, when `before` is null).
 3. A line is applied only when `id` waits, `before` (if any) waits, they are not
-   the same item, and both are in **one group**: the owner's items, a peer's, or
-   the host's own (calendar, expectations). A line that does not meet that is read
-   as no move. (The doors never write one; this keeps a record that has one
+   the same item, and both are in **one group**: the owner's `next` and `steer`
+   items, the owner's `free` items (S2), a peer's, or the host's own (calendar,
+   expectations). The group is `inbox::read_rank(role, intent)`, the same key the
+   turn reads by, so an item is never moved to where it would not be read. A line
+   that does not meet that is read as no move. (The doors never write one; this keeps a record that has one
    deterministic.)
 4. **The later line wins**: two moves are two lines in the order the host took
    its lock, and the fold applies them in that order.
-5. The list and the order a turn reads are the groups in the order owner,
-   peers, host, and inside a group that order. So an **owner item stays above a
-   peer's**: a peer's item can never be put above one, and an owner's item can
-   never be put below a peer's.
+5. The list and the order a turn reads are the groups in the order owner `next`
+   and `steer`, owner `free`, peers, host, and inside a group that order. So an
+   **owner item stays above a peer's** (a peer's item can never be put above one,
+   nor an owner's put below a peer's), and a `free` item stays below the owner's
+   `next` and `steer` items and above a peer's.
 
 **A move changes order only.** When an item is shown is still the desk's: its
 interruption limits, a firm item's deadline, "at the agent's next break", a
 digest line. A moved item that the desk holds is still held, with the same reason
 in words in the list (`held`). What a move does change for real is the order a
 turn reads the items it admits, and the order the desk's decider is asked about
-the non-owner ones: both follow the folded order (the turn header's `admitted`
-list used to be in id order; it is now in waiting order). The record keeps each
+the non-owner ones: both follow the folded order. **One order, one path:** the
+`stimulus.admitted` ids and the rows of the turn header are in the order the list
+shows (the fold above, grouped by `read_rank`), so what the owner moved is what the
+agent reads (the header was once sorted by acceptance, which undid a move). The record keeps each
 item's own `order` (its acceptance) unchanged in the list.
 
 ### `POST /v1/queue/{id}/move`
@@ -1461,14 +1466,14 @@ The door answers **only after the line is in the record and fsynced**. Answers
 | status | `error` | when |
 |---|---|---|
 | 200 | | moved: `{"id", "moved": true, "repeat": false, "item"}`; the item's `position` is where it is now |
-| 200 | | **already in that place** (it is already in front of `before`, or already last): `moved: false`, **nothing written** |
+| 200 | | **already in that place** (it is already in front of `before`, or already last): `moved: false`, a `message` saying so in words, **nothing written**; never `moved: true` |
 | 200 | | the key already named this same move: `{"moved": false, "repeat": true, "item"}`, nothing written |
 | 400 | `bad_request` | the body or a field is not as above (the message says which) |
 | 401, 403 | `unauthorized`, `forbidden` | no token or an unknown one; a token of the host that is not the owner's |
 | 404 | `not_found` | `id` or `before` names no item (or an owner control: stop and release are no items) |
 | 405 | `method_not_allowed` | not POST on this path |
 | 409 | `not_waiting` | `id` or `before` is **being answered right now** (it says the turn), or **was answered or withdrawn**: said in words |
-| 409 | `group` | `id` and `before` are in different groups: "a peer's item cannot be put above the owner's items: they stay on top", or "the owner's item cannot be put below a peer's" (and the like for the host's own) |
+| 409 | `group` | `id` and `before` are in different groups (the owner's `next` and `steer`, the owner's `free`, a peer's, the host's own): "a peer's item cannot be put above the owner's items: they stay on top", "the owner's free item cannot be put above a next item" (and the like). A move across them used to be impossible to tell from a move; it is refused, nothing written |
 | 409 | `boundary` | the move would jump over an item that waits for a different boundary (below) |
 | 409 | `key_reused` | the key already names a **different** move |
 | 409 | `not_running` | the host is stopping, or (gateway) no host is running: **"start it first"** |
@@ -1483,8 +1488,8 @@ or a digest line). A move puts an item in front of another, so it jumps over
 every waiting item of its group between where it is and where it goes; each of
 those must wait for the same boundary as the item moved, else 409 `boundary`
 naming both. (The page's up and down buttons move one place, so a row beside one
-with another boundary just has no button.) `intent` (S2) will join the boundary
-when it lands.
+with another boundary just has no button.) An owner's `free` item is a group of its
+own (S2), so it is never jumped over by, nor jumps, a `next` item.
 
 **Idempotent.** A key names a line: the same key with the same move again is
 `repeat: true` and one line; the key is in the line, so it is remembered across a
@@ -1646,10 +1651,14 @@ an owner's, and a `free` owner item is above a peer's). Within the owner's: `nex
 `steer` together, in the order sent (they are read at the same boundary: that boundary
 reads them together, in that order); then `free`, in the order sent (it is read later).
 The queue list's `position` and order follow it: owner `next`/`steer`, owner `free`,
-peers, then the host's own items, each in acceptance order. The turn header's admitted
-rows are in the same order, and an owner's item's text there is whole (white space
-runs become one space; nothing is cut or ended with an ellipsis); another sender's text is
-bounded there as before (1,000 characters).
+peers, then the host's own items, each in the order they wait in: acceptance, as the
+owner's moves (S3) have changed it. **A move stays inside one of those groups** (the
+group is the read rank, so a `free` item is never moved among the `next` ones, which
+it would not be read among: that move is refused in words, nothing written), and the
+turn header's admitted rows, the `stimulus.admitted` ids and the list are in that one
+order. An owner's item's text in the header is whole (white space runs become one space;
+nothing is cut or ended with an ellipsis); another sender's text is bounded there as
+before (1,000 characters).
 
 ### Held
 
@@ -1674,7 +1683,7 @@ Moving and cancelling an item (S3), stop and release (S7), a `intent` on ACP's
 ### Proof
 
 `rung-host/tests/intent_desk.rs` (8, the desk's guard: each intent, a firm deadline,
-the longest wait, the interrupt limit), `rung-host/tests/intent_run.rs` (9, whole
+the longest wait, the interrupt limit), `rung-host/tests/queue_move.rs` (the S2 and S3 block, 3: the header in the order the owner moved items to, a move across `free` and `next` refused with no line, `steer`, `next` and `free` after moves and a restart), `rung-host/tests/intent_run.rs` (9, whole
 simulated runs on a simulated clock: a steer read at the first boundary after it arrives
 and marked, a long steer whole, a free item held through committed turns and read once
 the agent is free, the header order, a paced wait a free item does not end, a steer that

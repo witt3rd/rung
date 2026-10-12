@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 560 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 563 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1188,12 +1188,13 @@ look shorter than it is.
 - `a_request_refused_on_its_headers_is_refused_without_reading_its_body`
 - `an_item_past_the_old_request_limit_is_recorded_whole`
 
-**`rung-host/tests/queue_move.rs`** — 17 unclaimed
+**`rung-host/tests/queue_move.rs`** — 20 unclaimed
 
 - `a_200000_character_item_survives_a_move_and_a_cancel_whole`
 - `a_bad_move_is_refused_in_words_and_writes_nothing`
 - `a_cancelled_item_is_withdrawn_once_and_never_reaches_the_agent`
 - `a_host_that_is_stopping_refuses_a_move_and_a_cancel_with_start_it_first`
+- `a_move_between_an_owner_free_item_and_a_next_item_is_refused_and_writes_nothing`
 - `a_move_of_an_item_that_is_not_waiting_is_refused_in_words_and_writes_nothing`
 - `a_move_to_its_own_place_is_a_no_op_that_writes_nothing`
 - `a_peer_item_never_passes_an_owner_item_in_either_direction`
@@ -1203,8 +1204,10 @@ look shorter than it is.
 - `an_owner_item_moves_up_and_down_and_the_line_is_in_the_record_before_the_answer`
 - `every_error_is_redacted_even_one_that_names_the_id_it_was_given`
 - `only_the_owner_token_may_move_or_cancel`
+- `steer_next_and_free_are_read_in_the_listed_order_after_moves_and_a_restart`
 - `the_item_being_answered_cannot_be_cancelled`
 - `the_order_survives_a_restart_and_is_the_order_the_agent_reads`
+- `the_turn_header_lists_items_in_the_order_the_owner_moved_them_to`
 - `twenty_concurrent_equal_moves_make_one_line`
 - `twenty_concurrent_opposing_moves_end_as_the_later_line_says_and_every_line_is_whole`
 

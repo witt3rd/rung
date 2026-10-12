@@ -17,7 +17,10 @@ git tags only.
   exception to "owner items are read at the next boundary, always": it is held while
   the agent is committed and read in free time or at a natural break, never cuts a
   call, and the desk's limits and firm deadlines still win over it. Owner items stay
-  above every other sender's, `free` after the ones read at the next boundary. An
+  above every other sender's, `free` after the ones read at the next boundary; the
+  group a move stays in is the read rank (role and intent), so a move across an
+  owner's `free` and `next` is refused in words with nothing written, and the turn
+  header lists items in the order the list shows (it ignored moves). An
   owner's item's text in the header is now whole (it was cut at 1,000 characters);
   another sender's is bounded as before.
   A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).

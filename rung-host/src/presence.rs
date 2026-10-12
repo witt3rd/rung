@@ -1440,20 +1440,11 @@ impl Host {
             let recall = self.recall(turn, &inject, &now_ids);
             let st = core.state();
             let item = |id: &String| st.inbox.in_flight.get(id).map(|(_, p)| p.item.clone());
-            // The owner's items come first (`next` and `steer`, then `free`), then
-            // every other sender's, each in the order they were accepted: a peer's
-            // item is never read above an owner's.
-            let mut admitted: Vec<(u64, Item)> = now_ids
-                .iter()
-                .filter_map(|id| {
-                    st.inbox
-                        .in_flight
-                        .get(id)
-                        .map(|(_, p)| (p.order, p.item.clone()))
-                })
-                .collect();
-            admitted.sort_by_key(|(order, i)| (crate::inbox::read_rank(i.role, i.intent), *order));
-            let admitted: Vec<Item> = admitted.into_iter().map(|(_, i)| i).collect();
+            // `now_ids` is already in the order the items wait in (`admit` took it from
+            // `InboxState::waiting`: the owner's `next` and `steer`, the owner's `free`,
+            // a peer's, the host's own; the owner's moves applied), so the header lists
+            // them as the list shows them. There is no second sort here.
+            let admitted: Vec<Item> = now_ids.iter().filter_map(item).collect();
             let digests: Vec<Item> = digest_ids.iter().filter_map(item).collect();
             let quota = cfg
                 .governor

@@ -915,6 +915,54 @@ mod tests {
         assert_eq!(order(&s), ["o1", "p1", "h1"]);
     }
 
+    fn accept_intent(s: &mut InboxState, seq: u64, id: &str, role: Role, intent: Intent) {
+        let channel = if role == Role::Owner {
+            "owner"
+        } else {
+            "peer:x"
+        };
+        let mut item = Item::message(id, role, channel, seq as i64, "x");
+        item.intent = intent;
+        s.apply(&line(seq, "stimulus.accepted", accepted_body(&item)));
+    }
+
+    /// S2 with S3: the group a move stays in is the rank an item is read at, so an owner's
+    /// `free` item is its own group: the fold reads a move across it as no move, the door
+    /// refuses one in words, and `next` and `steer` move past each other.
+    #[test]
+    fn an_owner_free_item_is_its_own_group_for_order_and_moves() {
+        let mut s = InboxState::default();
+        accept_intent(&mut s, 1, "f1", Role::Owner, Intent::Free);
+        accept_intent(&mut s, 2, "p1", Role::Peer, Intent::Next);
+        accept_intent(&mut s, 3, "n1", Role::Owner, Intent::Next);
+        accept_intent(&mut s, 4, "s1", Role::Owner, Intent::Steer);
+        accept_intent(&mut s, 5, "f2", Role::Owner, Intent::Free);
+        assert_eq!(order(&s), ["n1", "s1", "f1", "f2", "p1"]);
+        // across next and free, either way: no move
+        moved(&mut s, 6, "f1", Some("n1"));
+        moved(&mut s, 7, "n1", Some("f1"));
+        moved(&mut s, 8, "s1", Some("f2"));
+        assert_eq!(order(&s), ["n1", "s1", "f1", "f2", "p1"]);
+        // inside a group, and the end of a group (never into the next one)
+        moved(&mut s, 9, "s1", Some("n1"));
+        moved(&mut s, 10, "f2", Some("f1"));
+        moved(&mut s, 11, "s1", None);
+        assert_eq!(order(&s), ["n1", "s1", "f2", "f1", "p1"]);
+        // the door's judgement says the same, in words, and a no-op is not a move
+        for (id, b) in [("f1", "n1"), ("n1", "f1"), ("s1", "f2"), ("f2", "s1")] {
+            let e = s.plan_move(id, Some(b)).unwrap_err();
+            assert_eq!((e.status, e.code), (409, "group"), "{id} before {b}");
+            assert!(e.message.contains("free"), "{}", e.message);
+            assert!(e.message.contains("nothing was written"), "{}", e.message);
+        }
+        assert_eq!(s.plan_move("n1", Some("s1")).unwrap(), MovePlan::Nothing);
+        assert_eq!(s.plan_move("s1", Some("n1")).unwrap(), MovePlan::Move);
+        assert_eq!(s.plan_move("f2", Some("f1")).unwrap(), MovePlan::Nothing);
+        assert_eq!(s.plan_move("f1", Some("f2")).unwrap(), MovePlan::Move);
+        let e = s.plan_move("p1", Some("f1")).unwrap_err();
+        assert_eq!(e.code, "group");
+    }
+
     #[test]
     fn a_move_judged_before_it_is_written() {
         let mut s = InboxState::default();

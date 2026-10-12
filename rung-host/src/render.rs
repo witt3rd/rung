@@ -187,11 +187,12 @@ pub fn header(h: &HeaderCtx) -> String {
                 _ => String::new(),
             };
             // an owner's steer is about what the agent is doing now: say so
-            let mark = if i.intent == crate::inbox::Intent::Steer {
-                " · steer"
-            } else {
-                ""
-            };
+            let mark =
+                if i.role == crate::inbox::Role::Owner && i.intent == crate::inbox::Intent::Steer {
+                    " · steer"
+                } else {
+                    ""
+                };
             out.push(format!(
                 "  [{}/{} @{}{mark}{late}] {}",
                 i.channel,

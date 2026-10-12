@@ -404,9 +404,12 @@ boundary".
 
 **Order.** Owner items are read first, then every other sender's; within the owner's:
 `next` and `steer` together in the order sent (they are read at the same boundary),
-then `free` in the order sent (it is read later). The turn header lists the admitted
-items in that order (an owner's item is above a peer's whatever their ids sort like),
-and the queue door lists the waiting ones in it (`docs/rung-host-api.md`, S2). An
+then `free` in the order sent (it is read later); inside each, as the owner's moves
+(S3) have changed it. This is **one order** (`inbox::read_rank`, then the folded
+place): the turn header lists the admitted items in it (an owner's item is above a
+peer's whatever their ids sort like), the `stimulus.admitted` ids are in it, the queue
+door lists the waiting ones in it, and a move stays inside one group of it, so a
+`free` item is not moved among the `next` ones (`docs/rung-host-api.md`, S2 and S3). An
 owner's item's text in the header is whole: runs of white space become one space (an
 item cannot add header lines of its own), nothing is cut. Another sender's text is
 bounded there as it always was (1,000 characters); S2 widens nothing for it.

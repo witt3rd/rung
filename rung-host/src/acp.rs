@@ -1452,12 +1452,19 @@ impl QueueDoor {
             let item = fold.item(&id).ok_or_else(|| {
                 crate::read::DoorError::new(500, "internal", "the item is not in the record")
             })?;
-            Ok::<_, crate::read::DoorError>(json!({
+            let mut answer = json!({
                 "id": id,
                 "moved": outcome == crate::presence::Moved::Done,
                 "repeat": outcome == crate::presence::Moved::Repeat,
                 "item": item,
-            }))
+            });
+            if outcome == crate::presence::Moved::NoOp {
+                // said in words: a client never reads a no-op as a move
+                answer["message"] = json!(format!(
+                    "{id} is already in that place: nothing was moved and nothing was written"
+                ));
+            }
+            Ok::<_, crate::read::DoorError>(answer)
         })
         .await;
         self.finish(done, "the item could not be moved")
