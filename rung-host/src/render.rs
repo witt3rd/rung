@@ -266,7 +266,7 @@ pub fn recovered_line(from: Millis, to: Millis, last_turn: u64, requeued: usize)
 }
 
 /// The owner's "what are you doing" report, from state alone (no model
-/// call): the current commitment, its last progress, and the next calendar
+/// call; titles, done-when and next step are given whole, no cap on content): the current commitment, its last progress, and the next calendar
 /// item due.
 pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> String {
     let mut s = String::new();
@@ -306,7 +306,7 @@ pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> Str
     s
 }
 
-/// The slow layer of a new epoch.
+/// The slow layer of a new epoch. Content in it is whole, no cap, as in the header.
 pub fn slow(
     l1: &str,
     note: Option<&str>,
