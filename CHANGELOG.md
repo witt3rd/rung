@@ -26,6 +26,8 @@ git tags only.
   the redactor still runs on it).
   No caps on content in the model header: task, project title, question, done-when,
   digest, next step and message text all reach the model whole.
+  The same holds for the owner's status report and the epoch's slow layer: the
+  no-caps rule is applied to the whole render path, not only the per-turn header.
   A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).
 - `rung-host`, `rung-gateway`: reorder and cancel (S3). A new record line,
   `queue.moved` (`id`, `before`, optional `key`), and the waiting order is now
