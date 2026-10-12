@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 539 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 560 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1137,11 +1137,34 @@ look shorter than it is.
 - `owner_stimuli_under_load_are_admitted_at_the_next_boundary`
 - `thirty_quiet_minutes_have_no_rest`
 
+**`rung-host/tests/intent_desk.rs`** — 8 unclaimed
+
+- `a_firm_deadline_on_a_free_item_still_wins`
+- `a_free_item_does_not_wait_behind_next_items_when_it_is_read`
+- `a_free_item_is_not_read_while_the_agent_is_committed`
+- `a_free_item_is_read_in_free_time_and_at_a_natural_break`
+- `a_free_item_read_by_the_desks_limit_does_not_lift_the_interrupt_limit_for_others`
+- `a_peer_is_never_above_an_owner_item_and_a_free_owner_item_is_above_a_peers`
+- `next_and_steer_are_now_at_every_boundary_as_before`
+- `the_desks_longest_wait_still_wins_over_a_free_item`
+
+**`rung-host/tests/intent_run.rs`** — 9 unclaimed
+
+- `a_free_item_does_not_end_a_paced_wait`
+- `a_free_item_waits_while_the_agent_is_committed_and_is_read_when_it_is_free`
+- `a_long_steer_reaches_the_model_whole`
+- `a_next_item_is_not_marked_as_a_steer`
+- `a_peers_long_text_is_still_bounded_in_the_header`
+- `a_steer_in_a_long_call_cuts_it_and_is_read_at_the_next_boundary`
+- `a_steer_is_read_at_the_first_boundary_after_it_arrives_and_is_marked`
+- `the_header_lists_owner_items_before_a_peers`
+- `the_intent_survives_a_restart`
+
 **`rung-host/tests/measure_admission.rs`** — 1 unclaimed
 
 - `admission_latency_by_long_work_share`
 
-**`rung-host/tests/queue_door.rs`** — 11 unclaimed
+**`rung-host/tests/queue_door.rs`** — 15 unclaimed
 
 - `a_200000_character_task_is_queued_and_listed_whole`
 - `a_bad_request_is_refused_in_words_and_writes_nothing`
@@ -1149,8 +1172,12 @@ look shorter than it is.
 - `a_message_is_in_the_record_before_the_door_answers`
 - `a_message_without_a_key_gets_its_own_id_each_time`
 - `a_retry_after_the_host_restarts_is_still_one_item`
+- `an_unknown_intent_is_refused_in_words_with_nothing_written`
+- `each_intent_is_accepted_recorded_and_shown`
 - `every_outgoing_text_is_redacted_and_the_record_keeps_the_original`
+- `idempotency_holds_with_an_intent`
 - `only_the_owner_token_may_use_the_queue`
+- `the_intent_survives_a_restart`
 - `the_list_has_the_shape_a_page_needs`
 - `the_same_key_twice_is_one_item`
 - `twenty_concurrent_posts_with_one_key_make_exactly_one_item`

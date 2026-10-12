@@ -917,6 +917,65 @@ mod tests {
         assert_eq!(took, 30 * SECOND);
     }
 
+    /// The real [`crate::presence::OwnerWatch`] over a host whose source holds one owner
+    /// item that arrives `t` after the call starts, with `intent`. Returns the call's
+    /// outcome and how long it ran (a simulated clock: nothing sleeps).
+    fn slow_fetch_for(intent: crate::inbox::Intent, t: Millis) -> (Result<String, String>, Millis) {
+        use crate::inbox::{Item, MemorySource, Role};
+        let guard = crate::sim::temp_dir_guard(&format!("owner-intent-cut-{}-{t}", intent.word()));
+        let mut sc = crate::sim::Scenario::new(guard.path(), 1);
+        let mut src = MemorySource::default();
+        let mut item = Item::message("o1", Role::Owner, "owner", sc.start + t, "about the page");
+        item.intent = intent;
+        src.push(item);
+        sc.sources.push(Box::new(src));
+        let (host, _, _) = crate::sim::build(sc);
+        let core = host.core.clone();
+        let start = core.clock.now();
+        let tools = HostTools::new(
+            core.clone(),
+            1,
+            [WEB_READ.to_string()].into(),
+            start + 120 * SECOND,
+            None,
+            Arc::new(crate::sim::FakeWeb),
+            guard.path().join("ws"),
+        )
+        .with_interrupt(Arc::new(crate::presence::OwnerWatch(Arc::downgrade(&host))));
+        let out = tools.run("web_fetch", WEB_READ, &json!({"url": "slow://archive"}));
+        (out, core.clock.now() - start)
+    }
+
+    /// S2: a steer that arrives during a long tool call cuts it, as any owner item does:
+    /// the host's own watch is reused, and the call ends the moment the steer arrives.
+    #[test]
+    fn a_steer_cuts_a_long_tool_call_when_it_arrives() {
+        use crate::inbox::Intent;
+        let (out, took) = slow_fetch_for(Intent::Steer, 5 * SECOND);
+        assert_eq!(out, Err(OWNER_CUT_MESSAGE.to_string()));
+        assert_eq!(took, 5 * SECOND);
+        let (out, took) = slow_fetch_for(Intent::Next, 5 * SECOND);
+        assert_eq!(
+            out,
+            Err(OWNER_CUT_MESSAGE.to_string()),
+            "a task cuts it too, as before"
+        );
+        assert_eq!(took, 5 * SECOND);
+    }
+
+    /// S2: an item the owner asked to wait for free time never cuts a call.
+    #[test]
+    fn a_free_item_does_not_cut_a_long_tool_call() {
+        use crate::inbox::Intent;
+        let (out, took) = slow_fetch_for(Intent::Free, 5 * SECOND);
+        assert_eq!(
+            out,
+            Err(LONG_WORK_MESSAGE.to_string()),
+            "the call ran to its deadline"
+        );
+        assert_eq!(took, 30 * SECOND);
+    }
+
     struct HugeWeb(String);
 
     impl WebReader for HugeWeb {

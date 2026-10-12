@@ -3,7 +3,13 @@
 //! Each waiting item is shown now (displacing the planned continuation),
 //! held until the agent's next break, or shown as one digest line in the
 //! next turn header (no displacement). Owner items never reach the
-//! decider: they are `now` at the next boundary, always.
+//! decider: they are `now` at the next boundary, always, with one explicit
+//! exception: an owner item whose intent is `free` (S2) is the owner asking it
+//! to wait. It is held while the agent is committed and read in free time or at
+//! a natural break; it never interrupts committed work. Everything else still
+//! binds it: a firm item that is due and the longest wait for its kind (the
+//! guard below) read it whatever the intent, and it never lifts the hourly
+//! interrupt limit for another item (only an owner's `next` or `steer` does).
 
 use std::collections::BTreeMap;
 
@@ -13,7 +19,7 @@ use serde_json::{Value, json};
 
 use super::{HostQuestion, Knobs, choice, noul, qid};
 use crate::clock::Millis;
-use crate::inbox::{ItemKind, Role};
+use crate::inbox::{Intent, ItemKind, Role};
 use crate::state::State;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -57,6 +63,8 @@ pub struct Waiting {
     pub at: Millis,
     pub due: Option<Millis>,
     pub firm: bool,
+    /// What the owner asked of this item (always `next` for anyone else).
+    pub intent: Intent,
 }
 
 #[derive(Debug, Clone)]
@@ -115,6 +123,7 @@ pub fn build(st: &State, now: Millis, k: &Knobs) -> (AdmitInput, AdmitCtx) {
             at: p.item.at,
             due: p.item.due,
             firm: p.item.firm,
+            intent: p.item.intent,
         })
         .collect();
     let items = st
@@ -163,8 +172,15 @@ pub fn build(st: &State, now: Millis, k: &Knobs) -> (AdmitInput, AdmitCtx) {
 
 pub struct Admit;
 
+/// An owner item the desk reads at the next boundary whatever it says: every
+/// owner item but one the owner asked to wait (`free`).
+fn owner_pushes(w: &Waiting) -> bool {
+    crate::inbox::pushes(w.role, w.intent)
+}
+
 fn rule_form(w: &Waiting, now: Millis) -> Form {
     match (w.role, w.kind) {
+        (Role::Owner, _) if w.intent == Intent::Free => Form::AtBreak,
         (Role::Owner, _) => Form::Now,
         (_, ItemKind::Calendar) if w.due.is_none_or(|d| d <= now) => Form::Now,
         (_, ItemKind::Expectation) => Form::Digest,
@@ -252,14 +268,19 @@ impl HostQuestion for Admit {
                 .get(kind_key(w.kind))
                 .copied()
                 .unwrap_or(Millis::MAX);
-            let must = w.role == Role::Owner
+            let must = owner_pushes(w)
                 || (w.firm && w.due.is_none_or(|d| d <= ctx.now))
                 || ctx.now - w.at >= max;
             let f = c.forms.entry(w.id.clone()).or_insert(Form::AtBreak);
             if must {
                 *f = Form::Now;
                 forced.push(w.id.clone());
-            } else if *f == Form::AtBreak && ctx.at_break {
+            } else if *f == Form::AtBreak
+                && (ctx.at_break
+                    || (w.role == Role::Owner && w.intent == Intent::Free && !ctx.committed))
+            {
+                // a natural break; or, for an item the owner asked to wait
+                // until the agent is free, any free-time boundary
                 *f = Form::Now;
             }
         }
@@ -269,7 +290,7 @@ impl HostQuestion for Admit {
         let owner_now = ctx
             .waiting
             .iter()
-            .any(|w| w.role == Role::Owner && c.forms.get(&w.id) == Some(&Form::Now));
+            .any(|w| owner_pushes(w) && c.forms.get(&w.id) == Some(&Form::Now));
         if ctx.committed && !owner_now && input.interrupts_last_hour >= k.max_interrupts_per_hour {
             for (id, f) in c.forms.iter_mut() {
                 if *f == Form::Now && !forced.contains(id) {

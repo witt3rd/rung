@@ -22,6 +22,7 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 
+use crate::inbox::Intent;
 use crate::read::{self, Door, DoorError};
 use crate::record::Line;
 use crate::redact::Redactor;
@@ -82,9 +83,26 @@ impl Entry {
         self.item["role"].as_str().unwrap_or("")
     }
 
-    /// Owner first, then peers, then any other source (the host's own).
+    /// What the owner asked (S2). A record from before the field, an intent that is
+    /// not one of the three words, and anyone's but an owner's all read as `next`.
+    fn intent(&self) -> Intent {
+        if self.role() != "owner" {
+            return Intent::Next;
+        }
+        self.item["intent"]
+            .as_str()
+            .and_then(Intent::parse)
+            .unwrap_or(Intent::Next)
+    }
+
+    /// Where it sorts (`inbox::read_rank`: the owner's `next` and `steer` items, then
+    /// the owner's `free` items, then peers, then any other source). Within a rank,
+    /// the order the items were accepted.
     fn rank(&self) -> u8 {
-        crate::inbox::group_of(self.role())
+        crate::inbox::read_rank(
+            crate::inbox::Role::from_word(self.role()).unwrap_or(crate::inbox::Role::Host),
+            self.intent(),
+        )
     }
 
     fn channel(&self) -> &str {
@@ -258,6 +276,11 @@ impl Fold {
             return None;
         }
         match self.forms.get(&e.id).map(String::as_str) {
+            Some("at_break") if e.intent() == Intent::Free => {
+                return Some(
+                    "you asked it to wait: it is read when the agent is in free time or at a natural break, not while the agent is committed to a project",
+                );
+            }
             Some("at_break") => {
                 return Some("held by the decision desk until the agent's next break");
             }
@@ -282,7 +305,7 @@ impl Fold {
             "name": e.name(),
             "channel": e.channel(),
             "kind": item["kind"],
-            "intent": item.get("intent").filter(|v| v.is_string()).cloned().unwrap_or_else(|| json!("next")),
+            "intent": e.intent().word(),
             "order": e.order,
             "position": position,
             "accepted_at": item.get("at").filter(|v| v.is_i64() || v.is_u64()).cloned().unwrap_or(Value::Null),
@@ -302,9 +325,9 @@ impl Fold {
     }
 
     /// The text of one item as the record holds it (not redacted).
-    pub fn raw(&self, id: &str) -> Option<(&str, &str)> {
+    pub fn raw(&self, id: &str) -> Option<(&str, &str, Intent)> {
         let e = self.entries.get(id)?;
-        Some((e.item["text"].as_str().unwrap_or(""), e.role()))
+        Some((e.item["text"].as_str().unwrap_or(""), e.role(), e.intent()))
     }
 
     fn counts(&self) -> Value {
@@ -606,6 +629,107 @@ mod tests {
             json!({"turn": 2, "ids": ["p"]}),
         ));
         assert!(f.item("p").unwrap()["held"].is_null());
+    }
+
+    fn accept_with(
+        f: &mut Fold,
+        seq: u64,
+        id: &str,
+        role: &str,
+        channel: &str,
+        intent: Option<&str>,
+    ) {
+        let mut item = json!({"id": id, "kind": "peer", "role": role, "channel": channel,
+                              "at": 1000 + seq, "text": format!("text of {id}")});
+        if let Some(i) = intent {
+            item["intent"] = json!(i);
+        }
+        f.apply(&line(seq, "stimulus.accepted", json!({"item": item})));
+    }
+
+    /// S2: an item recorded before the field existed, or with an intent that is not one of
+    /// the three words, reads as `next`; the three words read as themselves.
+    #[test]
+    fn an_old_records_item_reads_as_next() {
+        let mut f = Fold::default();
+        accept(&mut f, 1, "old", "owner", "owner");
+        accept_with(&mut f, 2, "fr", "owner", "owner", Some("free"));
+        accept_with(&mut f, 3, "st", "owner", "owner", Some("steer"));
+        accept_with(&mut f, 4, "nx", "owner", "owner", Some("next"));
+        accept_with(&mut f, 5, "odd", "owner", "owner", Some("whenever"));
+        let intent = |id: &str| f.item(id).unwrap()["intent"].clone();
+        assert_eq!(intent("old"), "next");
+        assert_eq!(intent("fr"), "free");
+        assert_eq!(intent("st"), "steer");
+        assert_eq!(intent("nx"), "next");
+        assert_eq!(intent("odd"), "next");
+    }
+
+    /// S2: the owner's group is `next` and `steer` items, in the order they were sent (they
+    /// are read together at the next boundary), then `free` items in the order sent (they
+    /// are read later); every peer's item comes after the whole owner group.
+    #[test]
+    fn free_items_follow_the_ones_read_at_the_next_boundary_and_peers_follow_all() {
+        let mut f = Fold::default();
+        accept_with(&mut f, 1, "f1", "owner", "owner", Some("free"));
+        accept_with(&mut f, 2, "p1", "peer", "peer:atlas", None);
+        accept_with(&mut f, 3, "n1", "owner", "owner", None);
+        accept_with(&mut f, 4, "f2", "owner", "owner", Some("free"));
+        accept_with(&mut f, 5, "s1", "owner", "owner", Some("steer"));
+        accept_with(&mut f, 6, "n2", "owner", "owner", Some("next"));
+        let pos = |id: &str| f.item(id).unwrap()["position"].as_u64().unwrap();
+        let order: Vec<&str> = {
+            let mut v = vec!["f1", "p1", "n1", "f2", "s1", "n2"];
+            v.sort_by_key(|id| pos(id));
+            v
+        };
+        assert_eq!(order, ["n1", "s1", "n2", "f1", "f2", "p1"]);
+    }
+
+    /// S2: the words that say why a free item waits, once the desk has held it; not before
+    /// (it may be read at the very next boundary), and not once it is read.
+    #[test]
+    fn a_free_item_the_desk_holds_says_it_waits_for_free_time() {
+        let mut f = Fold::default();
+        accept_with(&mut f, 1, "fr", "owner", "owner", Some("free"));
+        assert!(
+            f.item("fr").unwrap()["held"].is_null(),
+            "no boundary has looked at it yet"
+        );
+        f.apply(&line(
+            2,
+            "decision.admit",
+            json!({"choice": {"forms": {"fr": "at_break"}}}),
+        ));
+        let held = f.item("fr").unwrap()["held"].as_str().unwrap().to_string();
+        assert!(held.contains("free time"), "{held}");
+        assert!(
+            held.contains("asked"),
+            "it says the owner asked for it: {held}"
+        );
+        f.apply(&line(
+            3,
+            "stimulus.admitted",
+            json!({"turn": 2, "ids": ["fr"]}),
+        ));
+        assert!(f.item("fr").unwrap()["held"].is_null());
+    }
+
+    /// S2: a key names one message, intent included: the fold answers what a repeat is
+    /// compared with.
+    #[test]
+    fn raw_carries_the_intent() {
+        let mut f = Fold::default();
+        accept_with(&mut f, 1, "a", "owner", "owner", Some("steer"));
+        accept(&mut f, 2, "b", "owner", "owner");
+        assert_eq!(
+            f.raw("a"),
+            Some(("text of a", "owner", crate::inbox::Intent::Steer))
+        );
+        assert_eq!(
+            f.raw("b"),
+            Some(("text of b", "owner", crate::inbox::Intent::Next))
+        );
     }
 
     fn state_with(n: u64) -> rung_testkit::TempDir {

@@ -474,7 +474,7 @@ Later slices add rows as their doors land.
 | `GET /v1/events?after=N` | read | yes | H5 |
 | `GET /v1/turns/{n}/context?call=k` | read | yes | S4 |
 | `GET /v1/queue` | read | | S1 |
-| `POST /v1/queue` | write | | S1 |
+| `POST /v1/queue` (with `intent`) | write | | S1, S2 |
 | `DELETE /v1/queue/{id}`, `POST /v1/queue/{id}/move` | write | | H6 |
 | `GET /v1/config` | read | | H7 |
 | `POST /v1/config/validate`, `PUT /v1/config` | write | | H7 |
@@ -1170,8 +1170,8 @@ A message to the agent is a **stimulus**. The queue door lists the stimuli that
 wait and the one being answered; the same door adds one. Code: `rung_host::queue`
 (the fold, no HTTP), `rung_host::acp::QueueDoor` (the host's door),
 `rung_gateway` (the write path to a native instance). The slices after this one
-add `intent` `steer` and `free` and the stop and release doors; move and cancel
-are S3, below. This section is only what S1 serves.
+add `intent` `steer` and `free` (S2, below) and the stop and release doors; move and
+cancel are S3, below. This section is S1 as it was, with S2's changes marked.
 
 ### The item
 
@@ -1193,7 +1193,7 @@ desk's latest `decision.admit`:
 | `text` | the message, **whole**, through the shared redactor (the record keeps the original) |
 | `role`, `name`, `channel` | who sent it. `role` is `owner`, `peer` or `host` (calendar, expectations and other host sources); `name` is the peer's name, the host source's name, or null for the owner; `channel` is the channel as recorded |
 | `kind` | the item kind as recorded (`peer` for a message from a channel) |
-| `intent` | `next` today. Read from the item's own `intent` when a later slice writes one, else `next` |
+| `intent` | `next`, `free` or `steer` (S2). The item's own `intent`; a record without one reads `next` |
 | `order` | the number of the item's `stimulus.accepted` line: its place by acceptance. Stable |
 | `position` | the 1-based place among the items that wait, in list order (owner items first); null for any other state |
 | `accepted_at` | when the host accepted it, ms since the epoch (the time sent) |
@@ -1246,9 +1246,8 @@ refused on its headers alone, **before any of its body is read** (see "The
 host's own door"). `key` is optional: when
 given it **becomes the item id**, so a repeat adds once. A key is 1 to 200 bytes
 of letters, digits, `.`, `_`, `:` and `-`, starting with a letter or digit (it is
-an id in a path and a record, not content). `intent` is optional and only `next`
-is served: `steer` and `free` are refused in words (400) until their slice, and
-any other value is refused as not an intent. Any other field is refused by name.
+an id in a path and a record, not content). `intent` is optional: `next` (the default), `free` or `steer` (S2: below); any other value
+is refused in words (400), with nothing written. Any other field is refused by name.
 
 The door answers **only after the item is written to the record and fsynced**
 (the same acceptance as the ACP `_rung/stimulus` from an owner channel: one code
@@ -1359,9 +1358,9 @@ cost to watch as records grow; nothing else is read or kept.
 
 ### Not here
 
-`intent` `steer` and `free`, `stop` and `release` doors, and the page. (Moving
-and cancelling an item is S3.) Peers' items are listed and ordered here but only
-the owner adds through this door.
+`stop` and `release` doors, and the page. (Moving and cancelling an item is S3; `intent`
+is S2.) Peers' items are listed and ordered here but only the owner adds through this
+door.
 
 ### Proof
 
@@ -1576,3 +1575,118 @@ and the order the later line's; a key twice is one line and a reused key is
 refused; the read-only and peer tokens never write; a stopping host and a
 stopped instance say "start it first"; a 200,000-character item is the same
 after a move and a cancel; an error that names the id it was given is redacted.
+
+## S2 — intent on the queue item: `next`, `steer`, `free`
+
+An owner's message says what it is for. `POST /v1/queue` takes `intent`; the item
+carries it; the host's desk reads it. Code: `rung_host::inbox::Intent` (the type and
+the one question "is this read at the next boundary": `Item::pushes`,
+`InboxState::owner_pushes`), `rung_host::desk::admit` (the guard), `rung_host::queue`
+(the list), `rung_host::acp::QueueDoor` (the door). The rules the desk keeps are in
+`docs/rung-host.md` ("Owner intent").
+
+| `intent` | meaning | cuts a long tool call |
+|---|---|---|
+| `next` | a task. Read at the next turn boundary, ahead of anything the owner has not yet sent. **The default** | yes |
+| `steer` | a message about what the agent is doing now. Read at the next boundary like `next`, and shown as a steer, not a task | yes: the host's own `OwnerWatch`, as for any owner item |
+| `free` | wait until the agent is in free time or at a natural break; **never interrupts committed work** | no |
+
+### The door
+
+```json
+{"text": "use the other table", "key": "q-78", "intent": "steer"}
+```
+
+`intent` is a string, one of the three words, any other value (a different word,
+another case, an empty string, a number, a list) is **400 `bad_request`** in words that
+name the three, with 0 lines written. A missing or null `intent` is `next`. Everything
+else is S1's: the answer comes only after the item is on disk, a key is the item id,
+and the answers are S1's table. **A key names one message, and the intent is part of
+it:** the same key with the same text and the same intent is a repeat (200, nothing
+written); the same key and text under another intent (an omitted one is `next`) is 409
+`key_reused`, nothing written, since the page would otherwise show the first intent
+for a message the owner meant otherwise. The gateway adds no rule of its own: it
+forwards the body as it came, so the intents go through its write path as through the
+host's own door, and a host's refusal is passed back with its status.
+
+### The record
+
+`stimulus.accepted`'s `item` carries `"intent": "free"` or `"intent": "steer"`. A
+`next` is not written (absent is `next`): every record from before S2 reads as `next`
+and its bytes are unchanged. The list and the answer of an add show the intent as one
+of the three words; an item whose recorded intent is not one of them reads `next`, and
+only an owner's item is ever anything else. The inbox is a fold of the record, so the
+intent survives a restart.
+
+### What the host does with it
+
+- **`next`**, as before: `now` at the next boundary, always.
+- **`steer`**: read at the next boundary, always, like `next`. The turn header marks
+  its row `[owner/id @time · steer]`. It cuts a long tool call exactly as an owner item
+  does (a call past one second is cut as soon as it waits; the call's result says the
+  owner is waiting): the same `OwnerWatch`, with no second mechanism, and the steer is
+  then read at the very next boundary.
+- **`free`** (plainly: it waits for free time, but a limit wins over the owner's flag, so it
+  is read after 30 minutes at the longest, committed or not): the desk's rule for it is
+  `at_break`, not `now`. The guard reads it when
+  the agent is not committed (free time, mid-session or at a break) and holds it while the
+  agent is committed. It never cuts a long tool call and never wakes a wait the owner
+  may cut (a paced wait), so it costs a committed agent nothing. **The desk's limits
+  and firm deadlines still win**: a firm item that is due is read (an owner item can be
+  firm), and so is any item that has waited its kind's longest (30 minutes for a message
+  from a channel), which means a `free` item sent to an agent that stays committed for
+  longer than that **is read after 30 minutes**; when it is read for that reason it
+  does not lift the hourly limit on interrupting a commitment for any other item. The
+  gates G-b and G-m do not count a `free` item as an owner item left past a boundary.
+
+### Order
+
+The owner's items are above every other sender's, always (a peer's item is never above
+an owner's, and a `free` owner item is above a peer's). Within the owner's: `next` and
+`steer` together, in the order sent (they are read at the same boundary: that boundary
+reads them together, in that order); then `free`, in the order sent (it is read later).
+The queue list's `position` and order follow it: owner `next`/`steer`, owner `free`,
+peers, then the host's own items, each in acceptance order. The turn header's admitted
+rows are in the same order, and an owner's item's text there is whole (white space
+runs become one space; nothing is cut or ended with an ellipsis); another sender's text is
+bounded there as before (1,000 characters).
+
+### Held
+
+A `free` item the desk's latest decision holds (`at_break`) says so in `held`: "you
+asked it to wait: it is read when the agent is in free time or at a natural break, not
+while the agent is committed to a project". It is not said before a boundary has looked at
+it, and not once it is read.
+
+### The turn view
+
+The record carries what the page's turn view needs: the item's `intent` and `at` (the
+time it was sent) on `stimulus.accepted`, and the turn that read it (`stimulus.admitted`,
+and `turn` on the item in the list). A steer that cut a long call shows the moment the
+agent saw it in the turn's `tool.refused` line (`why: owner_waiting`). The page's own
+fold of these is the page's (`ui/src/record/folds.ts`).
+
+### Not here
+
+Moving and cancelling an item (S3), stop and release (S7), a `intent` on ACP's
+`_rung/stimulus` and on a directory source's files (an owner's `*.msg` is `next`).
+
+### Proof
+
+`rung-host/tests/intent_desk.rs` (8, the desk's guard: each intent, a firm deadline,
+the longest wait, the interrupt limit), `rung-host/tests/intent_run.rs` (9, whole
+simulated runs on a simulated clock: a steer read at the first boundary after it arrives
+and marked, a long steer whole, a free item held through committed turns and read once
+the agent is free, the header order, a paced wait a free item does not end, a steer that
+cuts a long call and is read next boundary while a free one cuts nothing, the intent
+across a restart), `toolbox::tests` (the real `OwnerWatch` on a simulated clock: a
+steer cuts a call at the moment it arrives, a free item does not), `queue::tests` (an old
+record reads `next`, the order, the words for a held free item), `inbox::tests`,
+`gates::tests`, `rung-host/tests/queue_door.rs` (each intent accepted, recorded and
+listed; an unknown one refused in words with 0 lines; idempotency with an intent; a
+restart), `rung-gateway/tests/queue.rs` (the intents through the gateway's write path)
+and the page's contract test of the door (`ui/test/contract-queue.test.ts`, an intent the host does not know). Written first: the desk tests were red against a desk that
+forced every owner item to `now`, the run tests against a host with no intent, and
+every safeguard was mutated (the exception in the guard, the long-call watch, the
+wake, the gates, the ordering, the key's intent, the header mark, the header order)
+and killed by a test.

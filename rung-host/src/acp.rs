@@ -57,7 +57,7 @@ use serde_json::{Map, Value, json};
 use crate::calendar::{Entry, Missed, Origin, When};
 use crate::clock::SECOND;
 use crate::core::lock;
-use crate::inbox::{Item, Role};
+use crate::inbox::{Intent, Item, Role};
 use crate::presence::Host;
 use crate::record::{Line, Record};
 use crate::redact::Redactor;
@@ -458,12 +458,19 @@ impl Acp {
         text: &str,
         urgency: Option<String>,
         id: Option<&str>,
+        intent: Intent,
     ) -> Accepted {
         let mut item = match id {
             Some(id) => Item::message(id, role, channel, self.host.core.now(), text),
             None => self.item(role, channel, text),
         };
         item.urgency = urgency;
+        // only an owner's message is ever anything but a task
+        item.intent = if role == Role::Owner {
+            intent
+        } else {
+            Intent::Next
+        };
         let new = self.host.accept_external(&item);
         Accepted { id: item.id, new }
     }
@@ -740,7 +747,7 @@ impl Acp {
                     .as_str()
                     .ok_or_else(|| bad("text is required"))?;
                 let urgency = params["urgency"].as_str().map(str::to_string);
-                let accepted = self.stimulus(role, &channel, text, urgency, None);
+                let accepted = self.stimulus(role, &channel, text, urgency, None, Intent::Next);
                 Ok(json!({"id": accepted.id}))
             }
             "_rung/stop" => {
@@ -1164,6 +1171,13 @@ impl EventsDoor {
 /// The longest idempotency key (an item id, not content).
 const KEY_BYTES: usize = 200;
 
+/// The words that refuse an intent the door does not know (or that is not a string).
+fn intent_refusal(got: &str) -> String {
+    format!(
+        "intent {got} is not one this door knows: it is `next` (read at the next boundary; the default), `free` (wait until the agent is in free time or at a natural break) or `steer` (a message about what the agent is doing now); nothing was written"
+    )
+}
+
 /// A key the door accepts as an item id: letters, digits, `.`, `_`, `:` and
 /// `-`, starting with a letter or digit, so it is safe in a path and a record.
 fn valid_key(k: &str) -> Result<(), String> {
@@ -1509,28 +1523,25 @@ impl QueueDoor {
             },
             Some(_) => return bad("key must be a string"),
         };
-        match body.get("intent") {
-            None | Some(Value::Null) => {}
-            Some(Value::String(i)) if i == "next" => {}
-            Some(Value::String(i)) if i == "steer" || i == "free" => {
-                return bad(&format!(
-                    "intent `{i}` is not available yet: this door takes `next` (read at the next boundary)"
-                ));
-            }
-            Some(_) => {
-                return bad("intent must be `next` (`steer` and `free` are not available yet)");
-            }
-        }
+        let intent = match body.get("intent") {
+            None | Some(Value::Null) => Intent::Next,
+            Some(Value::String(i)) => match Intent::parse(i) {
+                Some(i) => i,
+                None => return bad(&self.red.redact(&intent_refusal(&format!("`{i}`")))),
+            },
+            Some(other) => return bad(&self.red.redact(&intent_refusal(&format!("{other}")))),
+        };
         let door = self.clone();
         let text = text.to_string();
         let done = tokio::task::spawn_blocking(move || {
             let owner = door.acp.owner_channel();
             let acc = door
                 .acp
-                .stimulus(Role::Owner, &owner, &text, None, key.as_deref());
+                .stimulus(Role::Owner, &owner, &text, None, key.as_deref(), intent);
             let (fold, _) = crate::queue::replay(&door.state_dir)?;
-            // a repeat must be the same message: a key names one message only
-            if !acc.new && fold.raw(&acc.id) != Some((text.as_str(), "owner")) {
+            // a repeat must be the same message (its words and its intent): a key
+            // names one message only
+            if !acc.new && fold.raw(&acc.id) != Some((text.as_str(), "owner", intent)) {
                 return Ok(Err(()));
             }
             let item = fold.item(&acc.id).ok_or_else(|| {
