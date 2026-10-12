@@ -7,23 +7,13 @@ import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
 import { contextQueryKey, loadContext } from "../context/load.ts";
 import { cachedLine, marksFor, type Mark } from "../context/cache.ts";
 import { BOUNDARY_AFTER, type Band, type BandItem, type ContextView } from "../context/types.ts";
-import { BOUNDARY, MARK_WORD, TITLE, WHAT, fact, hasLongLine, isEmpty, isLong, sayEvent, tilde } from "../context/words.ts";
+import { BOUNDARY, MARK_WORD, TITLE, WHAT, fact, isEmpty, sayEvent, tilde } from "../context/words.ts";
+import { LongText } from "./LongText.tsx";
+import { pageControls } from "./paging.ts";
 
 const ROWS = 50;
 
-/** A text, whole. A long one is kept short on the page by a fold; every character is in the page, and "Show more" opens the rest. */
-function Text({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
-  const long = isLong(text);
-  const wide = useMemo(() => hasLongLine(text), [text]);
-  return (
-    <div>
-      {wide && <p className="meta" data-content>This text has a very long line, so it scrolls sideways instead of wrapping. It is whole.</p>}
-      <pre className={`content mono text${long && !open ? " folded" : ""}${wide ? " nowrap" : ""}`} data-content>{text}</pre>
-      {long && <button className="quiet" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Show less" : "Show more"}</button>}
-    </div>
-  );
-}
+const Text = ({ text }: { text: string }) => <LongText text={text} boxed />;
 
 function Row({ it }: { it: BandItem }) {
   return (
@@ -45,9 +35,15 @@ function Drill({ b }: { b: Band }) {
       {b.recorded && isEmpty(b) && <p className="meta" data-content>Nothing was sent in this band.</p>}
       {b.text !== null && b.text !== "" && <Text text={b.text} />}
       {b.items.slice(0, shown).map((it, i) => <Row key={i} it={it} />)}
-      {b.items.length > shown && (
-        <p className="fold">Showing {num(shown)} of {num(b.items.length)}. <button className="quiet" onClick={() => setShown(shown + ROWS)}>Show {num(Math.min(ROWS, b.items.length - shown))} more</button> <button className="quiet" onClick={() => setShown(b.items.length)}>Show all {num(b.items.length)}</button></p>
-      )}
+      {b.items.length > ROWS && (() => {
+        const pc = pageControls({ shown, need: 0, total: b.items.length, page: ROWS });
+        return (
+          <p className="fold">Showing {num(pc.count)} of {num(b.items.length)}.
+            {pc.all && <> <button className="quiet" onClick={() => setShown(shown + ROWS)}>Show {num(pc.more)} more</button> <button className="quiet" onClick={() => setShown(b.items.length)}>Show all {num(b.items.length)}</button></>}
+            {pc.less && <> <button className="quiet" onClick={() => setShown(ROWS)}>Show less</button></>}
+          </p>
+        );
+      })()}
     </div>
   );
 }

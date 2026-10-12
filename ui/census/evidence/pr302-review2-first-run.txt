@@ -1,0 +1,6 @@
+# review round 2 on PR 302: the pager and styles tests against the code before
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/pages/paging.ts' imported from ui/test/paging.test.ts
+✖ failing tests:
+ℹ fail 1
+ℹ pass 0
+✖ test/paging.test.ts (51.985568ms)

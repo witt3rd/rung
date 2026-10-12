@@ -11,7 +11,7 @@ import { mkdirSync } from "node:fs";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const shots = join(here, "shots");
 mkdirSync(shots, { recursive: true });
-const m = await startMock({ appDir: join(here, "../dist"), extra: true });
+const m = await startMock({ appDir: join(here, "../dist"), extra: true, longReply: 1024 * 1024 });
 const host = m.hosts.get("alpha")!;
 let browser!: import("playwright").Browser;
 const out: string[] = [];
@@ -137,6 +137,71 @@ try {
     check(/Not running/.test(turnsText), "after the host stopped, the Turns page says Not running");
     check(/Not running/.test(nowText), "after the host stopped, the Now page says Not running (with a stale summary)");
     check(!/Live: (Writing|Running|Between)/.test(nowText) && !/Working\./.test(nowText + turnsText), "neither page still says the instance is working");
+    await ctx.close();
+  }
+
+  // 5 ---------------------------------------------------------------------------------------------------------------
+  // A reply of a megabyte: whole in the page, folded for the eye, opened and folded again by the owner; never cut, never given an ellipsis.
+  for (const [vn, vp] of Object.entries({ w390: VIEWS.w390, w1920: VIEWS.w1920 })) {
+    const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor });
+    const page = await ctx.newPage();
+    await ready(page, "#/i/longhand/turns");
+    const probe = () => page.evaluate(() => {
+      const el = document.querySelector("article.turn p.content, article.turn .content") as HTMLElement | null;
+      const btn = [...document.querySelectorAll("article.turn button")].find((b) => /Show (more|less)$/.test(b.textContent ?? "")) as HTMLElement | undefined;
+      const t = el?.textContent ?? "";
+      return { len: t.length, height: el?.getBoundingClientRect().height ?? 0, folded: !!el?.classList.contains("folded"), btn: btn?.textContent ?? null, expanded: btn?.getAttribute("aria-expanded") ?? null,
+        first: t.startsWith("REPLY line 0 of"), last: t.trimEnd().endsWith("of the long reply"), ellipsis: /\u2026|\.\.\.$/.test(t) };
+    });
+    const a = await probe();
+    check(a.len >= 1_000_000 && a.first && a.last && !a.ellipsis, `a ${(a.len / 1048576).toFixed(2)} MB reply is whole in the page at ${vn.slice(1)}: its first line and its last are there, nothing added`);
+    check(a.folded && a.height < vp.height && a.btn === "Show more" && a.expanded === "false", `it is folded to a screenful (${Math.round(a.height)} px) with a Show more button`);
+    await page.screenshot({ path: join(shots, `long-turns-${vn.slice(1)}.png`), clip: { x: 0, y: 0, width: vp.width, height: Math.min(vp.height, 1400) } });
+    check(judge(await measure(page, vp)).length === 0, `census, the long reply's page at ${vn.slice(1)}: within every budget`);
+    await page.click('article.turn button:has-text("Show more")');
+    const b = await probe();
+    check(!b.folded && b.height > a.height * 5 && b.btn === "Show less" && b.expanded === "true" && b.len === a.len, "Show more opens the whole text (the same characters), and the button says Show less");
+    await page.click('article.turn button:has-text("Show less")');
+    const c = await probe();
+    check(c.folded && c.height === a.height && c.len === a.len, "Show less folds it again");
+    await ready(page, "#/i/longhand");
+    const row = await page.evaluate(() => ({ line: document.querySelector(".row.tr span")?.textContent ?? "", more: !![...document.querySelectorAll("button")].find((x) => /Show whole/.test(x.textContent ?? "")) }));
+    check(/REPLY line 0 of the long reply/.test(row.line) && !/REPLY line 1 of/.test(row.line) && row.more, "the Now page's turn row is one line, with a button for the whole reply");
+    await page.click('button:has-text("Show whole")');
+    const whole = await page.evaluate(() => ([...document.querySelectorAll(".content")].map((e) => e.textContent?.length ?? 0).sort((x, y) => y - x))[0]);
+    check(whole >= 1_000_000, "the row expands to the whole reply");
+    await page.screenshot({ path: join(shots, `long-now-${vn.slice(1)}.png`), clip: { x: 0, y: 0, width: vp.width, height: Math.min(vp.height, 1400) } });
+    await ctx.close();
+  }
+
+  // 6 ---------------------------------------------------------------------------------------------------------------
+  // A list is paged, never capped: Show more adds a page, Show all adds the rest, Show less goes back to the first page.
+  {
+    const b = m.hosts.get("bramble")!;
+    for (let i = 0; i < 60; i++) await b.runTurn({ pace: 0, text: `Page test turn ${i}.` });
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await ctx.newPage();
+    await ready(page, "#/i/bramble/turns");
+    const shown = () => page.$$eval("article.turn h2", (h) => h.length);
+    const total = (await page.evaluate(() => /of ([\d,]+)\./.exec(document.body.innerText)?.[1] ?? "0")).replace(/,/g, "");
+    check((await shown()) === 50 && Number(total) > 50, `the list opens at one page: 50 of ${total} turns`);
+    await page.click('button:has-text("Show all")');
+    check((await shown()) === Number(total), `Show all adds the rest: all ${total}`);
+    check(await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less")), "and a Show less is there");
+    await page.click('button:has-text("Show less")');
+    check((await shown()) === 50, "Show less goes back to one page");
+    // A link into the list holds it open as far as the linked turn; a Show less that would change nothing is not offered.
+    await ready(page, "#/i/bramble/turns?turn=3");
+    check((await shown()) > 50 && !(await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less"))), `a link to an early turn opens the list to it (${await shown()} shown) and offers no dead Show less`);
+    // Once the reader opens more of the list the button is real, and pressing it works: it goes back to what the link requires, and is gone.
+    const heldAt = await shown();
+    await page.click('button:has-text("Show all")').catch(() => {});
+    const lessNow = await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less"));
+    check(lessNow, "after the reader opens more, Show less is offered");
+    if (lessNow) {
+      await page.click('button:has-text("Show less")');
+      check((await shown()) === heldAt && !(await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less"))), `and it works: the list goes back to what the link requires (${heldAt}) and the button is gone`);
+    }
     await ctx.close();
   }
 } finally {

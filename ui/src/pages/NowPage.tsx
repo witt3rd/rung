@@ -5,6 +5,7 @@ import { turnLine } from "../record/folds.ts";
 import { requestsLine } from "./InstancesPage.tsx";
 import { InstanceHead, Page, Tabs, Top } from "./Shell.tsx";
 import { useNow, when } from "./format.ts";
+import { LongText, WholeToggle } from "./LongText.tsx";
 import type { LiveInfo } from "../data/hooks.ts";
 import { QueuePanel } from "./QueuePanel.tsx";
 import { visibleDelta } from "../live/overlay.ts";
@@ -40,7 +41,10 @@ export function NowPage({ id }: { id: string }) {
                     )}
                     {li && (live || li.status === "ended") && <LiveLine li={li} turn={lastTurn} now={now} />}
                     {!s.project && lastTurn && !live && (
-                      <p className="meta" style={{ margin: "6px 0 0" }} data-content>It said: {turnLine(lastTurn)}</p>
+                      <>
+                        <p className="meta" style={{ margin: "6px 0 0" }} data-content>It said: {turnLine(lastTurn)}</p>
+                        <WholeToggle line={turnLine(lastTurn)} whole={lastTurn.text} />
+                      </>
                     )}
                   </>
                 ) : <p className="none">&nbsp;</p>}
@@ -50,10 +54,13 @@ export function NowPage({ id }: { id: string }) {
             <section className="sec">
               <h2>Recent turns</h2>
               {recent.map((t) => (
-                <a key={t.n} className="row tr" href={href.turns(id, t.n)} style={{ textDecoration: "none", color: "inherit" }}>
-                  <span data-content>{num(t.n)} · {turnLine(t)}</span>
-                  <span className="meta" data-content>{when(t.endedAt ?? t.startedAt, now)}</span>
-                </a>
+                <div key={t.n}>
+                  <a className="row tr" href={href.turns(id, t.n)} style={{ textDecoration: "none", color: "inherit" }}>
+                    <span data-content>{num(t.n)} · {turnLine(t)}</span>
+                    <span className="meta" data-content>{when(t.endedAt ?? t.startedAt, now)}</span>
+                  </a>
+                  <WholeToggle line={turnLine(t)} whole={t.text} />
+                </div>
               ))}
               {folds && <p className="fold" style={{ marginTop: 12 }}>Showing {recent.length} of {num(folds.turns.length)}.{folds.turns.length > recent.length && <> <a href={href.turns(id)}>Show more</a></>}</p>}
             </section>
@@ -95,7 +102,7 @@ function LiveLine({ li, turn, now }: { li: LiveInfo; turn: { n: number; status: 
   const d = describeStatus(li.status, { turnRunning: running, tool: delta?.tool, elapsed: running ? duration(Math.max(0, now - turn!.startedAt)) : undefined });
   return (
     <>
-      {delta?.text ? <p className="content" style={{ margin: "12px 0 0" }} data-content>{delta.text}</p> : null}
+      {delta?.text ? <LongText text={delta.text} style={{ margin: "12px 0 0" }} /> : null}
       <p className="meta" style={{ margin: "12px 0 0" }} data-content>{d.running === "no" ? d.nowWords : <><span className="mark live" />Live: {d.nowWords}</>}</p>
     </>
   );

@@ -4,18 +4,39 @@ pass  after the cut the page lists turns 1 to 19: 19 turns, each once, in order 
 pass  the turns written while it was away are there
 pass  the host's record is 213 lines; the page followed to the end
 pass  census, live-instances at 390: chrome 11 words, within every budget
-pass  census, live-now at 390: chrome 24 words, within every budget
-pass  census, live-turns at 390: chrome 16 words, within every budget
+pass  census, live-now at 390: chrome 28 words, within every budget
+pass  census, live-turns at 390: chrome 18 words, within every budget
 pass  census, live-instances at 1280: chrome 11 words, within every budget
-pass  census, live-now at 1280: chrome 27 words, within every budget
-pass  census, live-turns at 1280: chrome 18 words, within every budget
+pass  census, live-now at 1280: chrome 33 words, within every budget
+pass  census, live-turns at 1280: chrome 21 words, within every budget
 pass  census, live-instances at 1920: chrome 11 words, within every budget
-pass  census, live-now at 1920: chrome 27 words, within every budget
-pass  census, live-turns at 1920: chrome 20 words, within every budget
+pass  census, live-now at 1920: chrome 39 words, within every budget
+pass  census, live-turns at 1920: chrome 24 words, within every budget
 pass  census, live-instances at 2878: chrome 11 words, within every budget
-pass  census, live-now at 2878: chrome 27 words, within every budget
-pass  census, live-turns at 2878: chrome 24 words, within every budget
+pass  census, live-now at 2878: chrome 48 words, within every budget
+pass  census, live-turns at 2878: chrome 30 words, within every budget
 pass  after the host stopped, the Turns page says Not running
 pass  after the host stopped, the Now page says Not running (with a stale summary)
 pass  neither page still says the instance is working
+pass  a 1.16 MB reply is whole in the page at 390: its first line and its last are there, nothing added
+pass  it is folded to a screenful (320 px) with a Show more button
+pass  census, the long reply's page at 390: within every budget
+pass  Show more opens the whole text (the same characters), and the button says Show less
+pass  Show less folds it again
+pass  the Now page's turn row is one line, with a button for the whole reply
+pass  the row expands to the whole reply
+pass  a 1.16 MB reply is whole in the page at 1920: its first line and its last are there, nothing added
+pass  it is folded to a screenful (320 px) with a Show more button
+pass  census, the long reply's page at 1920: within every budget
+pass  Show more opens the whole text (the same characters), and the button says Show less
+pass  Show less folds it again
+pass  the Now page's turn row is one line, with a button for the whole reply
+pass  the row expands to the whole reply
+pass  the list opens at one page: 50 of 64 turns
+pass  Show all adds the rest: all 64
+pass  and a Show less is there
+pass  Show less goes back to one page
+pass  a link to an early turn opens the list to it (62 shown) and offers no dead Show less
+pass  after the reader opens more, Show less is offered
+pass  and it works: the list goes back to what the link requires (62) and the button is gone
 live proof: all pass
