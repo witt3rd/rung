@@ -459,11 +459,12 @@ decides only where the text goes. Design and rulings:
   of dead processes at the next start). They are
   listed by `ws_list`; the agent (`ws_remove`, with `workspace_write`) or the
   owner clears them. The file is untrusted scratch: the agent can overwrite it.
-- Redaction: the file is workspace content, the page text as the fetch returned
-  it, not redacted. Everything that leaves the host is: the tool result and
-  `ws_read` results pass the host's redactor as any request text, and the
-  record (`turn.log` messages, `tool.call`) and every door and stream are
-  redacted. The record never holds a spilled body, only the notice and path.
+- Redaction: the spilled file is workspace content and holds the page exactly
+  as it was fetched. Nothing is redacted on the way from a tool result to the
+  model (the tool result, the notice and a `ws_read` result reach it as the
+  tool returned them). The redactor is on the outgoing views: the record's
+  readers, the event stream and the doors. The record holds the notice and path
+  (in the `turn.log` messages, as sent), never a spilled body.
 
 ## The record
 

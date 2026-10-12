@@ -144,11 +144,12 @@ old transcript paths dangling. The rule is therefore safe by construction:
   reached.
 - The record's `tool.call` event holds the name, group and ok flag only. The
   notice and path sit in the transcript, so the record's `turn.log` messages
-  (redacted) hold them; they never hold a spilled body.
-- Redaction: the spilled file is workspace content as the agent saw it, the
-  text as the fetch returned it, and is not redacted. Every outgoing view is:
-  the tool result and `ws_read` results pass the host's redactor as request
-  text, and the record, doors and streams are redacted as before.
+  (as sent) hold them; they never hold a spilled body.
+- Redaction: the spilled file is workspace content and holds the page exactly
+  as it was fetched. Nothing is redacted on the way from a tool result to the
+  model: the tool result, the notice and a `ws_read` result reach it as the
+  tool returned them. The redactor is on the outgoing views: the record's
+  readers, the event stream and the doors.
 
 If a file is gone or was overwritten when an old transcript is replayed,
 `ws_read` returns its normal not-found error, or reads whatever now sits there

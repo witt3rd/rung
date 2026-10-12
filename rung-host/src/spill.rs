@@ -48,9 +48,11 @@ pub fn thousands(n: u64) -> String {
     out
 }
 
+/// The next temp-name counter of this process.
+static NEXT: AtomicU64 = AtomicU64::new(0);
+
 /// The temporary name, in the spill directory, of the file being written.
 fn temp_name() -> String {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
     format!(
         ".partial-{}-{}",
         std::process::id(),
@@ -999,5 +1001,101 @@ mod tests {
         );
         assert!(grew < 30_000, "peak grew {grew} kB for a 100 MB page");
         println!("rss-ok grew {grew} kB");
+    }
+
+    /// Twenty overlapping spills into one workspace, some cut part way:
+    /// none overwrites another, every placed file is whole, no temp is left.
+    #[test]
+    fn overlapping_and_cut_spills_never_overwrite_each_other() {
+        let g = crate::sim::temp_dir_guard("spill-overlap");
+        let ws = g.path().join("ws");
+        let hs: Vec<_> = (0..20u64)
+            .map(|k| {
+                let ws = ws.clone();
+                std::thread::spawn(move || {
+                    let cancel = Cancel::default();
+                    let mut sp = Spiller::new(ws, 1000, true).with_cancel(cancel.clone());
+                    let mut all = String::new();
+                    for i in 0..3000u64 {
+                        if k % 3 == 0 && i == 1500 {
+                            cancel.cancel();
+                        }
+                        let l = format!("{k}:{}", line(i));
+                        all.push_str(&l);
+                        if sp.body(&l).is_err() {
+                            sp.abort();
+                            return None;
+                        }
+                    }
+                    let done = sp.finish().unwrap();
+                    Some((spilled_path(&done.text), all))
+                })
+            })
+            .collect();
+        let done: Vec<_> = hs.into_iter().filter_map(|h| h.join().unwrap()).collect();
+        assert_eq!(done.len(), 13, "the 7 cut ones stop");
+        let paths: std::collections::BTreeSet<_> = done.iter().map(|d| d.0.clone()).collect();
+        assert_eq!(paths.len(), done.len(), "no two spills share a file");
+        for (rel, all) in &done {
+            assert_eq!(&std::fs::read_to_string(ws.join(rel)).unwrap(), all);
+        }
+        let n = std::fs::read_dir(ws.join(".web")).unwrap().count();
+        assert_eq!(n, done.len(), "no temp and no stray file is left");
+    }
+
+    /// A temp of a live process that is not this one is never swept.
+    #[test]
+    fn a_live_foreign_process_temp_is_never_swept() {
+        let g = crate::sim::temp_dir_guard("spill-foreign");
+        let ws = g.path().join("ws");
+        let d = ws.join(".web");
+        std::fs::create_dir_all(&d).unwrap();
+        let mut other = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let theirs = d.join(format!(".partial-{}-0", other.id()));
+        std::fs::write(&theirs, "theirs").unwrap();
+        let mut sp = Spiller::new(ws, 10, true);
+        sp.body(&"z".repeat(20)).unwrap();
+        sp.abort();
+        let kept = theirs.exists();
+        let _ = other.kill();
+        let _ = other.wait();
+        assert!(kept, "a live process's temp was swept");
+    }
+
+    /// The temp is created exclusively: a planted file or symlink at a temp
+    /// name is never written through, and a failed start leaves no temp.
+    #[test]
+    fn the_temp_is_created_exclusively_and_a_failure_leaves_none() {
+        let g = crate::sim::temp_dir_guard("spill-excl");
+        let ws = g.path().join("ws");
+        let d = ws.join(".web");
+        std::fs::create_dir_all(&d).unwrap();
+        let victim = g.path().join("victim");
+        std::fs::write(&victim, "keep").unwrap();
+        let from = NEXT.load(Ordering::Relaxed);
+        for n in from..from + 500 {
+            let l = d.join(format!(".partial-{}-{n}", std::process::id()));
+            std::os::unix::fs::symlink(&victim, l).unwrap();
+        }
+        let mut sp = Spiller::new(ws.clone(), 10, true);
+        let body = "y".repeat(50);
+        sp.body(&body).unwrap();
+        let done = sp.finish().unwrap();
+        assert_eq!(std::fs::read_to_string(&victim).unwrap(), "keep");
+        assert!(done.text.ends_with(&body), "the body came back whole");
+        assert!(done.failure.is_some_and(|f| f.contains("create")));
+        // a failed write leaves no temp either
+        let mut sp = Spiller::new(ws, 10, true).fault_after(5);
+        sp.body(&body).unwrap();
+        sp.finish().unwrap();
+        let temps = std::fs::read_dir(&d)
+            .unwrap()
+            .flatten()
+            .filter(|e| !e.path().is_symlink())
+            .count();
+        assert_eq!(temps, 0);
     }
 }
