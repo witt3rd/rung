@@ -577,6 +577,26 @@ impl Host {
                "system": self.redactor.redact(pack.system())})
     }
 
+    /// The `turn.layers` body: the layers of the context that belong to the
+    /// turn itself (its header, and the recall block on its own), with the
+    /// hashes of the stable and epoch layers the request starts with. Whole,
+    /// and redacted before the line is written. The recall is written here and
+    /// nowhere else (`turn.log` does not repeat it).
+    fn turn_layers_body(
+        &self,
+        turn: u64,
+        hashes: &(String, String),
+        header: &str,
+        recall: Option<&str>,
+    ) -> Value {
+        // the recall is redacted once, here, and its hash is of the text as stored
+        let recall_text = recall.map(|r| self.redactor.redact(r).into_owned());
+        let recall_hash = recall_text.as_ref().map(|r| canon::hash(r.as_bytes()));
+        json!({"turn": turn, "s_hash": hashes.0, "l_hash": hashes.1,
+               "header": self.redactor.redact(header), "recall": recall.is_some(),
+               "recall_text": recall_text, "recall_hash": recall_hash})
+    }
+
     /// The now set: what `_rung/status` reports.
     pub fn status(&self) -> Value {
         let st = self.core.state();
@@ -1608,7 +1628,7 @@ impl Host {
             (admitted, digests, (base, full), recall)
         };
         let (header_logged, header_full) = header;
-        let (rung, model, epoch, pack_tokens_before, thread, header_tokens) = {
+        let (rung, model, epoch, pack_tokens_before, thread, header_tokens, hashes) = {
             let st = core.state();
             let mut pack = lock(&self.pack);
             let before = pack.tokens();
@@ -1621,6 +1641,7 @@ impl Host {
                 before,
                 pack.thread(),
                 ht,
+                (pack.s_hash().to_string(), pack.l_hash().to_string()),
             )
         };
         let deadline = now + cfg.turn_bound_ms;
@@ -1645,13 +1666,21 @@ impl Host {
             )
         };
         let pack_tokens = pack_tokens_before + header_tokens;
-        core.emit(
-            "turn.started",
-            json!({"turn": turn, "boundary": n, "turn_kind": kind.as_str(), "mode": mode, "project": project,
-                   "model": model, "rung": rung, "epoch": epoch, "pack_tokens": pack_tokens,
-                   "header_tokens": header_tokens, "enabled": enabled,
-                   "wall_boundary_us": started.elapsed().as_micros() as u64}),
-        );
+        // The turn's own layers of the context, whole and redacted, in the
+        // same write as `turn.started`: they are what the first request of the
+        // turn is made of, so a reader (the context door, the event stream)
+        // has them while the turn runs. `turn.log` repeats only the header.
+        let layers = self.turn_layers_body(turn, &hashes, &header_logged, recall_block.as_deref());
+        core.emit_many(vec![
+            (
+                "turn.started",
+                json!({"turn": turn, "boundary": n, "turn_kind": kind.as_str(), "mode": mode, "project": project,
+                       "model": model, "rung": rung, "epoch": epoch, "pack_tokens": pack_tokens,
+                       "header_tokens": header_tokens, "enabled": enabled,
+                       "wall_boundary_us": started.elapsed().as_micros() as u64}),
+            ),
+            ("turn.layers", layers),
+        ]);
         let cancel = Arc::new(AtomicBool::new(false));
         *lock(&self.turn_cancel) = Some(cancel.clone());
         let watcher =
@@ -1828,16 +1857,13 @@ impl Host {
         }
         let deferred = std::mem::take(&mut *lock(&self.deferred_retain));
         self.retain(turn, deferred);
-        // The turn's messages, verbatim, before the pack moves on.
-        // The recall block is written once, redacted, with the hash of what is
-        // stored; the header as the model saw it is `header`, a line break and
-        // the recall (the door rebuilds both views from these two fields).
-        let recall_text = recall.as_deref().map(|r| self.redactor.redact(r));
-        let recall_hash = recall_text.as_ref().map(|r| canon::hash(r.as_bytes()));
+        // The turn's messages, verbatim, before the pack moves on. The recall
+        // block is not repeated here: it was written once, redacted, in the
+        // turn's `turn.layers` at its start (the header as the model saw it is
+        // `header`, a line break and that recall; the door rebuilds both views).
         core.emit(
             "turn.log",
             json!({"turn": turn, "header": self.redactor.redact(&header), "recall": recall.is_some(),
-                   "recall_text": recall_text, "recall_hash": recall_hash,
                    "messages": serde_json::to_value(&out.messages).unwrap_or(Value::Null)}),
         );
         lock(&self.pack).end_turn(out.messages.clone());

@@ -107,8 +107,18 @@ fn the_layers_are_recorded_whole_and_once() {
             sent,
             "no recall this turn: the header is what was sent"
         );
-        assert!(t.body.contains_key("recall_text") && t.get("recall_text").is_null());
-        assert!(t.get("recall_hash").is_null());
+        assert!(
+            !t.body.contains_key("recall_text"),
+            "the recall is written once, in turn.layers"
+        );
+        let l = out
+            .lines
+            .iter()
+            .find(|l| l.kind == "turn.layers" && l.u64("turn") == t.u64("turn"))
+            .expect("a turn.layers line for the turn");
+        assert_eq!(l.str("header"), sent);
+        assert!(l.body.contains_key("recall_text") && l.get("recall_text").is_null());
+        assert!(l.get("recall_hash").is_null());
         assert!(
             !t.body.contains_key("header_sent"),
             "the header is not written twice"
@@ -346,6 +356,12 @@ fn big_layers_round_trip_whole() {
         .find(|l| l.kind == "turn.log" && l.get("recall") == &json!(true))
         .expect("a turn with a recall");
     let turn = with_recall.u64("turn");
+    // the recall is in the turn's layers line, written at its start
+    let layers = out
+        .lines
+        .iter()
+        .find(|l| l.kind == "turn.layers" && l.u64("turn") == turn)
+        .expect("the turn's layers");
     let s = seen.iter().find(|s| s.turn == turn).unwrap();
     let red = Redactor::new();
     let v = door(guard.path(), turn, Some(2), &red).unwrap();
@@ -379,13 +395,14 @@ fn big_layers_round_trip_whole() {
             .iter()
             .any(|l| l.kind == "epoch.rollover" && l.str("slow") == epoch)
     );
-    assert_eq!(with_recall.str("recall_text"), rtext);
+    assert_eq!(layers.str("recall_text"), rtext);
+    assert!(!with_recall.body.contains_key("recall_text"));
     // the recall is written once: its unique marker is in one place in the
     // record file, once per turn that was shown a recall
     let shown = out
         .lines
         .iter()
-        .filter(|l| l.kind == "turn.log" && l.get("recall") == &json!(true))
+        .filter(|l| l.kind == "turn.layers" && l.get("recall") == &json!(true))
         .count();
     assert_eq!(shown, 1);
     let file = record_bytes(guard.path());
@@ -397,11 +414,11 @@ fn big_layers_round_trip_whole() {
     assert!(!with_recall.body.contains_key("header_sent"));
     // and the header as sent is rebuilt from the one copy: what the engine got
     assert_eq!(
-        with_recall.str("header").len() + 1 + with_recall.str("recall_text").len(),
+        with_recall.str("header").len() + 1 + layers.str("recall_text").len(),
         s.messages.last().unwrap().content.as_text().unwrap().len()
     );
     assert_eq!(
-        with_recall.get("recall_hash"),
+        layers.get("recall_hash"),
         &json!(canon::hash(rtext.as_bytes()))
     );
 }
@@ -441,7 +458,7 @@ fn a_recall_that_does_not_resolve_is_answered_in_words() {
             .lines()
             .map(|l| {
                 let mut v: Value = serde_json::from_str(l).unwrap();
-                if v["kind"] == "turn.log" && v["turn"] == turn {
+                if v["kind"] == "turn.layers" && v["turn"] == turn {
                     f(v.as_object_mut().unwrap());
                 }
                 format!("{}\n", canon::string(&v))
@@ -787,10 +804,10 @@ fn the_record_grows_by_layers_not_by_calls() {
                 hdr_lines += now.len();
                 hdr_same += now.intersection(&prev).count();
                 prev = now;
-                // the recall text and its hash: the only new fields of the line
-                recall += canon::string(l.get("recall_text")).len()
-                    + canon::string(l.get("recall_hash")).len()
-                    + 30;
+            }
+            "turn.layers" => {
+                // the line of its own: the header again, the recall text and its hash
+                recall += l.text().len();
                 recalled += usize::from(l.get("recall") == &json!(true));
             }
             _ => {}
@@ -799,7 +816,7 @@ fn the_record_grows_by_layers_not_by_calls() {
     let added = layers + slow + recall;
     eprintln!(
         "GROWTH record {total} B; before {} B; added {added} B ({:.1}%): pack.layers {layers} B x{starts}, \
-         epoch layers {slow} B x{rolls}, recall_text {recall} B ({recalled} recalled); {calls} calls, {logs} turns; \
+         epoch layers {slow} B x{rolls}, turn.layers {recall} B ({recalled} recalled); {calls} calls, {logs} turns; \
          the header (already recorded, not new) is {header} B, {:.0}% of its lines the same as the turn before",
         total - added,
         100.0 * added as f64 / (total - added) as f64,
