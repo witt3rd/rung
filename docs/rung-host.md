@@ -85,7 +85,7 @@ bounds, a rule fallback and a logged provenance:
 
 | family | decides | guard that always wins |
 |---|---|---|
-| Admit | interrupt now, wait for a break, or show as a digest line | owner items are `now` without asking; firm due calendar items are `now`; every kind has a maximum deferral; at most 6 interruptions of a commitment per hour |
+| Admit | interrupt now, wait for a break, or show as a digest line | owner items are `now` without asking, unless the owner sent one as `free` (S2: below); firm due calendar items are `now`; every kind has a maximum deferral; at most 6 interruptions of a commitment per hour |
 | Inject | recall block and cue; expectation and calendar digests | one recall block per turn; everything goes in the newest header |
 | Tools | which groups are callable | `core` is always on; never outside the operator ceiling; hysteresis |
 | Pack | append, roll over now, or at the next break; which segments stay verbatim | roll over at 85% of the epoch budget; never below 40% (25% at a natural break) except on a copy loop; kept text ≤ 15% of the budget |
@@ -377,6 +377,39 @@ drift mid-session. The evidence is in `docs/rung-host-live-v4-hostkey.md`.
 - **Spend cap**: for paid providers only; reaching it halts
   (`Halted(SpendCap)`).
 
+## Owner intent: `next`, `steer`, `free` (S2)
+
+An owner's message carries an `intent`, written on the item in `stimulus.accepted`
+(absent means `next`; every record from before it reads as `next`). Only an owner's
+message is ever anything but `next`.
+
+| intent | read | cuts a long tool call |
+|---|---|---|
+| `next` | at the next boundary, always, as every owner item was | yes (`OwnerWatch`) |
+| `steer` | at the next boundary, like `next`; the turn header marks it `· steer` | yes: the same `OwnerWatch`, no second mechanism |
+| `free` | only in free time or at a natural break; **never while the agent is committed** | no |
+
+`free` is an explicit exception to "owner items are `now`, always", made by the owner
+for one item, and the only one. In the desk's guard (`desk/admit.rs`) a `free` item is
+`at_break` instead of `now`; the guard reads it when the agent is not committed (free
+time, in a session or at a break). What still binds it, because the desk's limits and
+firm deadlines win over any intent: a firm item that is due is read; the longest wait
+for its kind (a message from a channel waits at most 30 minutes) reads it whatever
+the agent is doing; and when the guard reads it by one of those it does not lift the
+hourly interruption limit for other items (an owner's `next` or `steer` does).
+A `free` item never wakes a wait the owner may cut (pacing): only
+`InboxState::owner_pushes` does, and it is the one question the long-call watch and the
+wait both ask. The gates G-b and G-m do not hold a `free` item to "read at the first
+boundary".
+
+**Order.** Owner items are read first, then every other sender's; within the owner's:
+`next` and `steer` together in the order sent (they are read at the same boundary),
+then `free` in the order sent (it is read later). The turn header lists the admitted
+items in that order (an owner's item is above a peer's whatever their ids sort like),
+and the queue door lists the waiting ones in it (`docs/rung-host-api.md`, S2). An
+admitted item's text in the header is whole: runs of white space become one space (an
+item cannot add header lines of its own), nothing is cut.
+
 ## Stop and supervision
 
 `StopAuthority` takes SIGTERM/SIGINT, a stop file, or an explicit stop. It
@@ -408,7 +441,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `host.start` | `pid`, `config` (`engine`, `turn_bound_ms`, `epoch_budget_tokens`, `ladder`, `ceiling`, …) |
 | `recovered` | `gap_ms`, `last_at`, `torn_bytes`, `requeued`, `mode` |
 | `boundary` | `n`, `mode`, `pending` |
-| `stimulus.accepted` | `item {id, kind, role, channel, at, due?, urgency?, firm, text, fact?}` |
+| `stimulus.accepted` | `item {id, kind, role, channel, at, due?, urgency?, firm, text, fact?, intent?}` (`intent` is `free` or `steer`; absent means `next`) |
 | `stimulus.admitted` | `turn`, `boundary`, `ids` (shown now), `digests` (one header line each) |
 | `stimulus.requeued` | `ids`, `why` |
 | `stimulus.disposed` | `id`, `disposition` (`answered`, `digested`, `withdrawn`, `control`), `turn` |

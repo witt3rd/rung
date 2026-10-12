@@ -296,15 +296,35 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
                             return reply(401, json!({"error": "unauthorized", "message": "no"}));
                         }
                         let v: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+                        // the host's own rule (S2): an intent is one of three words, and a
+                        // `next` is the default and is not written
+                        let intent = match v.get("intent") {
+                            None | Some(Value::Null) => "next",
+                            Some(Value::String(i))
+                                if ["next", "free", "steer"].contains(&i.as_str()) =>
+                            {
+                                i.as_str()
+                            }
+                            Some(other) => {
+                                return reply(
+                                    400,
+                                    json!({"error": "bad_request",
+                                           "message": format!("intent {other} is not one this door knows: it is `next`, `free` or `steer`; nothing was written")}),
+                                );
+                            }
+                        };
                         let lines = record_lines(&state);
                         let n = lines.len();
                         let id = v["key"]
                             .as_str()
                             .map(str::to_string)
                             .unwrap_or_else(|| format!("gen-{n}"));
-                        let item = json!({"id": id, "kind": "peer", "role": "owner",
+                        let mut item = json!({"id": id, "kind": "peer", "role": "owner",
                                           "channel": "owner", "at": T0 + n as i64,
                                           "firm": false, "text": v["text"]});
+                        if intent != "next" {
+                            item["intent"] = json!(intent);
+                        }
                         let known = lines
                             .iter()
                             .any(|l| l["kind"] == "stimulus.accepted" && l["item"]["id"] == id);
@@ -319,9 +339,11 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
                             writeln!(f, "{line}").unwrap();
                             f.sync_all().unwrap();
                         }
+                        let mut shown = item.clone();
+                        shown["intent"] = json!(intent);
                         reply(
                             if known { 200 } else { 201 },
-                            json!({"id": id, "repeat": known, "item": item}),
+                            json!({"id": id, "repeat": known, "item": shown}),
                         )
                     }
                 });
@@ -364,6 +386,88 @@ fn whole_record(f: &Fleet, id: &str) -> String {
 }
 
 // ─── add through the gateway ─────────────────────────────────────────────────
+
+/// S2: every intent goes through the gateway's write path to the host (the body is
+/// forwarded as it came), is in the record the host wrote, and the gateway's own list
+/// of the record shows it, the owner's `free` items after the ones read at the next
+/// boundary. An intent the host does not know is its 400, passed through, with nothing
+/// written; a repeat of a message is a repeat, and the gateway adds no rule of its own.
+#[tokio::test]
+async fn the_intents_go_through_the_write_path_and_show_in_the_list() {
+    let mut f = Fleet::new("s2gw-intents");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    for (key, intent) in [("g-free", "free"), ("g-next", "next"), ("g-steer", "steer")] {
+        let a = gw
+            .post("alpha", &json!({"text": key, "key": key, "intent": intent}))
+            .await;
+        assert_eq!(a.status, 201, "{key}: {}", a.body);
+        assert_eq!(a.json()["item"]["intent"], intent, "{key}");
+    }
+    let a = gw
+        .post("alpha", &json!({"text": "plain", "key": "g-plain"}))
+        .await;
+    assert_eq!(a.status, 201, "{}", a.body);
+    let lines = record_lines(&f.state("alpha"));
+    let item = |k: &str| {
+        lines
+            .iter()
+            .find(|l| l["kind"] == "stimulus.accepted" && l["item"]["id"] == k)
+            .unwrap()["item"]
+            .clone()
+    };
+    assert_eq!(item("g-free")["intent"], "free");
+    assert_eq!(item("g-steer")["intent"], "steer");
+    // the list is the gateway's own reading of the record: next and steer in the order
+    // sent, then free
+    let v = gw.get("alpha", "queue").await.json();
+    let ids: Vec<&str> = v["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["g-next", "g-steer", "g-plain", "g-free"]);
+    let intents: Vec<&str> = v["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["intent"].as_str().unwrap())
+        .collect();
+    assert_eq!(intents, ["next", "steer", "next", "free"]);
+    // an unknown intent is the host's refusal in words, written nowhere
+    let before = lines.len();
+    let bad = gw
+        .post(
+            "alpha",
+            &json!({"text": "x", "key": "g-bad", "intent": "urgent"}),
+        )
+        .await;
+    assert_eq!(bad.status, 400, "{}", bad.body);
+    assert!(bad.json()["message"].as_str().unwrap().contains("urgent"));
+    assert_eq!(
+        record_lines(&f.state("alpha")).len(),
+        before,
+        "0 lines written"
+    );
+    // a retry is still one item
+    let again = gw
+        .post(
+            "alpha",
+            &json!({"text": "g-steer", "key": "g-steer", "intent": "steer"}),
+        )
+        .await;
+    assert_eq!(
+        (again.status, again.json()["repeat"].as_bool()),
+        (200, Some(true))
+    );
+    assert_eq!(record_lines(&f.state("alpha")).len(), before);
+    assert_eq!(
+        fake.hits.load(Ordering::SeqCst),
+        6,
+        "every post reached the host"
+    );
+}
 
 #[tokio::test]
 async fn an_added_item_is_in_the_record_by_the_time_the_gateway_answers() {
