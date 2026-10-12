@@ -16,6 +16,10 @@ fn ten_thousand_turns_stay_bounded_and_cache_clean() {
     sc.world = busy_world(41, 2 * DAY);
     sc.faults = cache_and_ladder_faults();
     sc.config.epoch_budget_tokens = 24_000;
+    // The agent finishes its todos and projects (as a real one does): with the register lists
+    // shown whole, one that only ever added would outgrow any budget.
+    sc.mock.p_todo_done = 0.2;
+    sc.mock.settles_projects = true;
     sc.mock.copy_every = 40;
     sc.mock.copy_run = 4;
     // The baseline provider re-reads its whole store on every call, which

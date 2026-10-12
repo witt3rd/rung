@@ -393,7 +393,7 @@ fn a_steer_in_a_long_call_cuts_it_and_is_read_at_the_next_boundary() {
 /// Only the owner's own words reach the model whole: another sender's text is bounded in the
 /// header as it always was (this slice widens nothing for a sender that is not the owner).
 #[test]
-fn a_peers_long_text_is_still_bounded_in_the_header() {
+fn a_peers_long_text_reaches_the_header_whole() {
     sim::test_timeout(120);
     let mut sc = scenario("s2-run-peer-bounded", 3);
     sc.max_turns = Some(2);
@@ -413,6 +413,6 @@ fn a_peers_long_text_is_still_bounded_in_the_header() {
     let log = seq_of(&out.lines, "turn.log", |l| l.u64("turn") == t).unwrap();
     let header = log.get("header").as_str().unwrap();
     let row = header.lines().find(|l| l.contains("pr-long")).unwrap();
-    assert!(row.ends_with('…'), "bounded with an ellipsis, as before");
-    assert!(!row.contains("PEER-END"));
+    assert!(row.ends_with("PEER-END"), "no cap on prompt text");
+    assert!(!row.contains('…'));
 }

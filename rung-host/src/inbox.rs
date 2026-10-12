@@ -173,9 +173,6 @@ pub struct Item {
     pub intent: Intent,
 }
 
-/// At most this many characters of an item reach a decider.
-pub const GIST_CHARS: usize = 200;
-
 impl Item {
     /// A message from a channel.
     pub fn message(id: &str, role: Role, channel: &str, at: Millis, text: &str) -> Self {
@@ -208,17 +205,18 @@ impl Item {
         read_rank(self.role, self.intent)
     }
 
-    /// The first [`GIST_CHARS`] characters, credentials redacted.
+    /// The item's whole text on one line, credentials redacted.
     pub fn gist(&self) -> String {
         gist(&self.text)
     }
 }
 
-/// A short, redacted form of `text` for a decider's state.
+/// `text` on one line with credentials redacted, for a decider's state. Never
+/// cut: a decider ask too large for the decider's window is refused whole,
+/// and the host asks fewer items (see `desk::fit_count`).
 pub fn gist(text: &str) -> String {
     let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let red = rung_agent_core::mcp::redact(&flat);
-    red.chars().take(GIST_CHARS).collect()
+    rung_agent_core::mcp::redact(&flat)
 }
 
 /// An item waiting in the inbox.
@@ -1118,13 +1116,13 @@ mod tests {
     }
 
     #[test]
-    fn a_gist_is_short_and_redacted() {
+    fn a_gist_is_whole_and_redacted() {
         let g = gist(&format!(
-            "Authorization: Bearer {} {}",
+            "{}\nAuthorization: Bearer {}",
+            "x ".repeat(3000),
             "a".repeat(40),
-            "x ".repeat(300)
         ));
-        assert!(g.chars().count() <= GIST_CHARS);
+        assert_eq!(g.matches('x').count(), 3000, "the gist is never cut");
         assert!(!g.contains(&"a".repeat(40)), "{g}");
     }
 
