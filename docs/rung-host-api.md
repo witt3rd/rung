@@ -682,10 +682,15 @@ ends in an error, so the client sees the same truncated answer as above. The
 deadline is on a stall, not on the page: a client that keeps taking chunks is
 never cut off, however large the page or long the read. Without it, a few
 hundred clients that connect and read nothing would hold every slot of the
-blocking pool and starve every other request. A newest-first page
-first reads the record once, holding only its position, to find where it ends,
-then reads backwards from there; an oldest-first page starts at once and learns
-`total` as it goes.
+blocking pool and starve every other request. `total` is exact, and
+exactness needs the whole intact prefix, so the first page asked of a record
+after the process starts reads the record once (a cold first page costs the
+record, not the page). The host keeps what that read learned (the length, the
+first damage, and a seek mark every 1024 lines) and a later page reads only what
+was appended since, then seeks to its place: it costs about its own size. An
+index unused for ten minutes is dropped (the next page builds it again), and
+one is rebuilt when a segment is replaced or shrinks. A newest-first page reads
+backwards from where the record ends, using the same index.
 
 - **A cursor past the end** (`after` or `offset` beyond `total`) is an empty
   last page: 200, `lines: []`, `next: null`, the exact `total`.

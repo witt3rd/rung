@@ -461,15 +461,32 @@ impl RecIdx {
     }
 }
 
-fn indexes() -> &'static std::sync::Mutex<
-    std::collections::HashMap<std::path::PathBuf, std::sync::Arc<std::sync::Mutex<RecIdx>>>,
-> {
+/// How long an index may go unused before it is dropped. A time bound on a
+/// cache entry, not a limit on any record or text: a dropped index is built
+/// again by the next page.
+const INDEX_IDLE: std::time::Duration = std::time::Duration::from_secs(600);
+
+type Slot = (std::sync::Arc<std::sync::Mutex<RecIdx>>, std::time::Instant);
+
+fn indexes() -> &'static std::sync::Mutex<std::collections::HashMap<std::path::PathBuf, Slot>> {
     static INDEXES: std::sync::OnceLock<
-        std::sync::Mutex<
-            std::collections::HashMap<std::path::PathBuf, std::sync::Arc<std::sync::Mutex<RecIdx>>>,
-        >,
+        std::sync::Mutex<std::collections::HashMap<std::path::PathBuf, Slot>>,
     > = std::sync::OnceLock::new();
     INDEXES.get_or_init(Default::default)
+}
+
+/// Drop every index not used since `idle` before `now`, except one a page is
+/// holding. Returns how many were dropped.
+fn evict_idle(
+    map: &mut std::collections::HashMap<std::path::PathBuf, Slot>,
+    now: std::time::Instant,
+    idle: std::time::Duration,
+) -> usize {
+    let before = map.len();
+    map.retain(|_, (slot, used)| {
+        std::sync::Arc::strong_count(slot) > 1 || now.saturating_duration_since(*used) < idle
+    });
+    before - map.len()
 }
 
 /// Forget the index of one state directory (a restart of the process, for a test).
@@ -491,12 +508,16 @@ fn snapshot(state_dir: &Path, offset: u64) -> Door<(ScanOut, Mark)> {
         .into_iter()
         .map(|(_, p)| p)
         .collect();
-    let slot = indexes()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .entry(state_dir.to_path_buf())
-        .or_default()
-        .clone();
+    let slot = {
+        let mut map = indexes().lock().unwrap_or_else(|e| e.into_inner());
+        let now = std::time::Instant::now();
+        evict_idle(&mut map, now, INDEX_IDLE);
+        let e = map
+            .entry(state_dir.to_path_buf())
+            .or_insert_with(|| (Default::default(), now));
+        e.1 = now;
+        e.0.clone()
+    };
     let mut idx = slot.lock().unwrap_or_else(|e| e.into_inner());
     idx.advance(now)?;
     let out = ScanOut {
@@ -1340,5 +1361,33 @@ impl RecordPage {
         out.write_all(b"],")?;
         out.write_all(&text.as_bytes()[1..])?;
         out.flush()
+    }
+}
+
+#[cfg(test)]
+mod index_tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn an_index_idle_too_long_is_dropped_and_one_in_use_or_fresh_is_kept() {
+        let t0 = Instant::now();
+        let mut m = std::collections::HashMap::new();
+        let fresh: Slot = (Default::default(), t0 + Duration::from_secs(95));
+        let idle: Slot = (Default::default(), t0);
+        let held: Slot = (Default::default(), t0);
+        let _page = held.0.clone(); // a page is reading it
+        m.insert("fresh".into(), fresh);
+        m.insert("idle".into(), idle);
+        m.insert("held".into(), held);
+        let n = evict_idle(
+            &mut m,
+            t0 + Duration::from_secs(100),
+            Duration::from_secs(10),
+        );
+        assert_eq!(n, 1);
+        assert!(m.contains_key(std::path::Path::new("fresh")));
+        assert!(m.contains_key(std::path::Path::new("held")));
+        assert!(!m.contains_key(std::path::Path::new("idle")));
     }
 }

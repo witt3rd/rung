@@ -17,6 +17,9 @@ git tags only.
   length, modification time) and rebuilt if a segment was replaced, shrank or
   vanished, so a record replaced in place under a live process is never served
   stale. A page whose line numbers do not follow on is an error, not a short page.
+  The first page of a record after a start reads it once (the exact `total` needs
+  it); later pages cost about their size. An index unused for ten minutes is
+  dropped and built again by the next page.
 
 ### Added
 - `rung-host`, `rung-gateway`: intent on the queue item (S2). `POST
