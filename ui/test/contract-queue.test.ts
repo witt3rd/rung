@@ -133,14 +133,14 @@ test("the text is kept whole, however long, with its line breaks", async (ctx) =
   assert.equal((await list()).items.find((i) => i.id === key)!.text, text);
 });
 
-test("a bad request is refused in words and writes nothing: blank text, a bad key, a field it does not know, an intent not served yet", async (ctx) => {
+test("a bad request is refused in words and writes nothing: blank text, a bad key, a field it does not know, an intent it does not know", async (ctx) => {
   if (!door) return ctx.skip(NO_DOOR);
   const before = (await record()).length;
   const bad: [unknown, number, string][] = [
     [{ text: "" }, 400, "bad_request"], [{ text: "   " }, 400, "bad_request"], [{ key: randomUUID() }, 400, "bad_request"],
     [{ key: "-starts-with-a-dash", text: "x" }, 400, "bad_request"], [{ key: "has a space", text: "x" }, 400, "bad_request"],
     [{ text: "x", colour: "red" }, 400, "bad_request"],
-    [{ text: "x", intent: "steer" }, 400, "bad_request"], [{ text: "x", intent: "free" }, 400, "bad_request"], [{ text: "x", intent: "later" }, 400, "bad_request"],
+    [{ text: "x", intent: "later" }, 400, "bad_request"], [{ text: "x", intent: "STEER" }, 400, "bad_request"], [{ text: "x", intent: 7 }, 400, "bad_request"],
   ];
   for (const [body, status, error] of bad) {
     const r = await post(body);

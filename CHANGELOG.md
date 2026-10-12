@@ -8,6 +8,22 @@ git tags only.
 ## [Unreleased]
 
 ### Added
+- `rung-host`, `rung-gateway`: intent on the queue item (S2). `POST
+  /v1/queue` takes `intent` (`next`, the default; `steer`; `free`), refusing any
+  other value in words with nothing written; the item carries it in the record
+  (absent reads `next`) and the list shows it. A `steer` is read at
+  the next boundary like `next`, is marked in the header the model reads, and cuts a
+  long tool call through the same `OwnerWatch`. `free` is the owner's explicit
+  exception to "owner items are read at the next boundary, always": it is held while
+  the agent is committed and read in free time or at a natural break, never cuts a
+  call, and the desk's limits and firm deadlines still win over it. Owner items stay
+  above every other sender's, `free` after the ones read at the next boundary; the
+  group a move stays in is the read rank (role and intent), so a move across an
+  owner's `free` and `next` is refused in words with nothing written, and the turn
+  header lists items in the order the list shows (it ignored moves). An
+  owner's item's text in the header is now whole (it was cut at 1,000 characters);
+  another sender's is bounded as before.
+  A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).
 - `rung-host`, `rung-gateway`: reorder and cancel (S3). A new record line,
   `queue.moved` (`id`, `before`, optional `key`), and the waiting order is now
   the fold of acceptance and these moves, in the host (the order a turn reads

@@ -944,3 +944,184 @@ fn every_error_is_redacted_even_one_that_names_the_id_it_was_given() {
     assert!(!wire.contains(OWNER_TOKEN), "a token reached the wire");
     assert!(wire.contains("[redacted]"));
 }
+
+// ─── S2 and S3 together: one order, in the list and in the turn header ───────
+
+/// An owner item added with an `intent`.
+fn add_intent(s: &Server, key: &str, intent: &str) -> Answer {
+    answer(
+        client()
+            .post(format!("{}/v1/queue", s.base))
+            .bearer_auth(OWNER_TOKEN)
+            .header("content-type", "application/json")
+            .body(
+                json!({"text": format!("text of {key}"), "key": key, "intent": intent}).to_string(),
+            ),
+    )
+}
+
+/// The ids among `of` in the order the agent's turn headers list them: each `turn.log`'s
+/// header, row by row (`  [channel/id @time ...] text`), turns in order.
+fn read_in_headers(state: &Path, of: &[&str]) -> Vec<String> {
+    let mut out = Vec::new();
+    for l in of_kind(state, "turn.log") {
+        for row in l.get("header").as_str().unwrap_or("").lines() {
+            let Some(rest) = row.strip_prefix("  [") else {
+                continue;
+            };
+            let Some((_, tail)) = rest.split_once('/') else {
+                continue;
+            };
+            let id = tail.split_whitespace().next().unwrap_or("");
+            if of.contains(&id) {
+                out.push(id.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// What the owner moved is what the agent reads: the order of the rows in the turn header is
+/// the order the list showed, not the order the items were accepted in, and the move
+/// survives a restart.
+#[test]
+fn the_turn_header_lists_items_in_the_order_the_owner_moved_them_to() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s23-header-moves");
+    let (state, inbox) = (guard.path().join("state"), guard.path().join("inbox"));
+    let ids = ["h1", "h2", "h3", "h4"];
+    let shown;
+    {
+        let s = quota(&state, &inbox);
+        for k in ids {
+            assert_eq!(add(&s, k, &format!("text of {k}")).status, 201);
+        }
+        assert_eq!(mv(&s, "h4", Some("h1")).status, 200);
+        assert_eq!(mv(&s, "h2", None).status, 200);
+        shown = waiting(&s, &ids);
+        assert_eq!(shown, ["h4", "h1", "h3", "h2"]);
+        // killed with no goodbye
+    }
+    let s = spawn(Kind::Plain, &state, &inbox, &[]);
+    until(30, "all four to be answered", || {
+        ids.iter().all(|k| item(&s, k)["state"] == "answered")
+    });
+    assert_eq!(
+        read_in_headers(&state, &ids),
+        shown,
+        "the header follows the list"
+    );
+}
+
+/// An owner's `free` item is its own group: a move across `free` and `next` is refused in
+/// words with nothing written (it used to answer `moved: true` and change nothing), while a
+/// `next` and a `steer` are one group and move past each other.
+#[test]
+fn a_move_between_an_owner_free_item_and_a_next_item_is_refused_and_writes_nothing() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s23-free-group");
+    let (state, inbox) = (guard.path().join("state"), guard.path().join("inbox"));
+    let s = quota(&state, &inbox);
+    let ids = ["g-n1", "g-s1", "g-f1", "g-f2", "g-n2"];
+    for (k, intent) in [
+        ("g-n1", "next"),
+        ("g-s1", "steer"),
+        ("g-f1", "free"),
+        ("g-f2", "free"),
+        ("g-n2", "next"),
+    ] {
+        assert_eq!(add_intent(&s, k, intent).status, 201);
+    }
+    // read order: next and steer as sent, then free as sent
+    assert_eq!(waiting(&s, &ids), ["g-n1", "g-s1", "g-n2", "g-f1", "g-f2"]);
+    let n = writes(&state);
+    for (id, before) in [
+        ("g-f1", Some("g-n1")),
+        ("g-f2", Some("g-s1")),
+        ("g-n2", Some("g-f1")),
+        ("g-n1", Some("g-f2")),
+        ("g-s1", Some("g-f1")),
+    ] {
+        let a = mv(&s, id, before);
+        assert_eq!(a.status, 409, "{id} before {before:?}: {}", a.body);
+        assert_eq!(a.json()["error"], "group");
+        let m = a.json()["message"].as_str().unwrap().to_string();
+        assert!(m.contains("nothing was written"), "{m}");
+        assert!(m.contains("free"), "the refusal says why: {m}");
+    }
+    // the end of a group stays in the group: a `next` sent to the end is below the `next`
+    // items and above the `free` ones
+    let a = mv(&s, "g-n1", None);
+    assert_eq!(a.status, 200, "{}", a.body);
+    assert_eq!(a.json()["moved"], true);
+    assert_eq!(writes(&state), n + 1, "only the legal move wrote a line");
+    assert_eq!(waiting(&s, &ids), ["g-s1", "g-n2", "g-n1", "g-f1", "g-f2"]);
+    // a free item moves among the free ones; a steer among the next ones
+    assert_eq!(mv(&s, "g-f2", Some("g-f1")).status, 200);
+    assert_eq!(mv(&s, "g-n1", Some("g-s1")).status, 200);
+    assert_eq!(waiting(&s, &ids), ["g-n1", "g-s1", "g-n2", "g-f2", "g-f1"]);
+    // a move that cannot change anything says so in words, and is never `moved: true`
+    let n = writes(&state);
+    let a = mv(&s, "g-n1", Some("g-s1"));
+    assert_eq!(a.status, 200, "{}", a.body);
+    assert_eq!(a.json()["moved"], false);
+    assert!(
+        a.json()["message"]
+            .as_str()
+            .unwrap()
+            .contains("nothing was written")
+    );
+    assert_eq!(writes(&state), n);
+}
+
+/// `steer`, `next` and `free` after moves: the list, the header the agent reads, and the
+/// order after a restart all agree. A free item is read in free time (this host is not
+/// committed), after the items read at the same boundary.
+#[test]
+fn steer_next_and_free_are_read_in_the_listed_order_after_moves_and_a_restart() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s23-intents-moves");
+    let (state, inbox) = (guard.path().join("state"), guard.path().join("inbox"));
+    let ids = ["m-n1", "m-f1", "m-s1", "m-n2", "m-f2"];
+    let shown;
+    {
+        let s = quota(&state, &inbox);
+        for (k, intent) in [
+            ("m-n1", "next"),
+            ("m-f1", "free"),
+            ("m-s1", "steer"),
+            ("m-n2", "next"),
+            ("m-f2", "free"),
+        ] {
+            assert_eq!(add_intent(&s, k, intent).status, 201);
+        }
+        assert_eq!(waiting(&s, &ids), ["m-n1", "m-s1", "m-n2", "m-f1", "m-f2"]);
+        assert_eq!(mv(&s, "m-s1", Some("m-n1")).status, 200);
+        assert_eq!(mv(&s, "m-f2", Some("m-f1")).status, 200);
+        assert_eq!(mv(&s, "m-n1", None).status, 200);
+        shown = waiting(&s, &ids);
+        assert_eq!(shown, ["m-s1", "m-n2", "m-n1", "m-f2", "m-f1"]);
+    }
+    {
+        let s = quota(&state, &inbox);
+        assert_eq!(waiting(&s, &ids), shown, "the order survives a restart");
+    }
+    let s = spawn(Kind::Plain, &state, &inbox, &[]);
+    until(30, "all five to be answered", || {
+        ids.iter().all(|k| item(&s, k)["state"] == "answered")
+    });
+    assert_eq!(read_in_headers(&state, &ids), shown);
+    let read: Vec<String> = of_kind(&state, "stimulus.admitted")
+        .iter()
+        .flat_map(|l| {
+            l.get("ids")
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+        })
+        .filter(|id| ids.contains(&id.as_str()))
+        .collect();
+    assert_eq!(read, shown, "what the record says was admitted");
+}

@@ -34,25 +34,45 @@ pub enum Role {
 }
 
 impl Role {
-    /// The group an item waits in: the owner's items (0) stay on top, then
-    /// peers' (1), then every other source's (2). A move stays in one group.
-    pub fn group(self) -> u8 {
+    /// The word the record and the doors use.
+    pub fn word(self) -> &'static str {
         match self {
-            Role::Owner => 0,
-            Role::Peer => 1,
-            Role::Observer | Role::Host => 2,
+            Role::Owner => "owner",
+            Role::Peer => "peer",
+            Role::Observer => "observer",
+            Role::Host => "host",
         }
+    }
+
+    /// The role a word names (the record's own `role`).
+    pub fn from_word(word: &str) -> Option<Role> {
+        [Role::Owner, Role::Peer, Role::Observer, Role::Host]
+            .into_iter()
+            .find(|r| r.word() == word)
     }
 }
 
-/// [`Role::group`] for a role as the record spells it (a word that is no role
-/// is the host's own: the last group).
-pub fn group_of(role: &str) -> u8 {
-    use serde::Deserialize;
-    use serde::de::IntoDeserializer;
-    let de: serde::de::value::StrDeserializer<'_, serde::de::value::Error> =
-        role.into_deserializer();
-    Role::deserialize(de).map_or(2, Role::group)
+/// An owner item that is read at the next boundary and cuts what can be cut to be
+/// read: every owner item except one the owner asked to wait for free time (S2).
+/// The one definition: [`Item::pushes`] and the desk's guard both ask this.
+pub fn pushes(role: Role, intent: Intent) -> bool {
+    role == Role::Owner && intent != Intent::Free
+}
+
+/// The group an item waits in, which is also the rank it is read at (lower is
+/// read first): the owner's `next` and `steer` items (0), the owner's `free`
+/// items (1), a peer's (2), any other sender's (3). Inside a group, the order
+/// the items wait in: acceptance as the owner's moves have changed it. **The one
+/// definition of order**: the queue's list, the turn header, what a turn reads
+/// and the doors that move an item all use it, so the order the page shows is
+/// the order the agent reads, and a move stays inside one group.
+pub fn read_rank(role: Role, intent: Intent) -> u8 {
+    match (role, intent) {
+        (Role::Owner, Intent::Free) => 1,
+        (Role::Owner, _) => 0,
+        (Role::Peer, _) => 2,
+        _ => 3,
+    }
 }
 
 /// What an item is.
@@ -69,6 +89,52 @@ pub enum ItemKind {
     Memory,
     /// An external completion (the delegation extension's entry point).
     Completion,
+}
+
+/// What an owner asks of the agent with a message (S2). Only an owner's
+/// message can be anything but [`Intent::Next`]: every other item is read as
+/// `next`, and a record line without an intent (every line written before
+/// this field) reads as `next` too.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Intent {
+    /// Wait until the agent is in free time or at a natural break; never
+    /// interrupts committed work. The desk's limits and firm deadlines still
+    /// win over it.
+    Free,
+    /// A message about what the agent is doing now: read at the next boundary
+    /// like `next`, shown as a steer, and (as any owner item does) it cuts a
+    /// long tool call.
+    Steer,
+    /// A task: read at the next turn boundary, as every owner item always was.
+    /// (A word in a record that is none of the three reads as this.)
+    #[default]
+    #[serde(other)]
+    Next,
+}
+
+impl Intent {
+    pub const ALL: [Intent; 3] = [Intent::Next, Intent::Free, Intent::Steer];
+
+    /// The word the doors and the record use.
+    pub fn word(self) -> &'static str {
+        match self {
+            Intent::Next => "next",
+            Intent::Free => "free",
+            Intent::Steer => "steer",
+        }
+    }
+
+    /// The intent a word names; `None` for anything else.
+    pub fn parse(word: &str) -> Option<Intent> {
+        Intent::ALL.into_iter().find(|i| i.word() == word)
+    }
+
+    pub fn is_next(&self) -> bool {
+        *self == Intent::Next
+    }
 }
 
 /// A fact the world asserts, by key.
@@ -101,6 +167,10 @@ pub struct Item {
     /// An owner control (`stop`, `release`): acted on at once, never shown.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub control: Option<String>,
+    /// What the owner asked (S2). Absent in the record means `next`; only an
+    /// owner's message is ever anything else.
+    #[serde(default, skip_serializing_if = "Intent::is_next")]
+    pub intent: Intent,
 }
 
 /// At most this many characters of an item reach a decider.
@@ -121,7 +191,21 @@ impl Item {
             text: text.into(),
             fact: None,
             control: None,
+            intent: Intent::Next,
         }
+    }
+
+    /// An owner item that is read at the next boundary and cuts what can be cut to be
+    /// read: every owner item except one the owner asked to wait for free time
+    /// (`free`, S2). The host's long-call watch and its waits' wake-up ask this and
+    /// nothing else, so there is one rule.
+    pub fn pushes(&self) -> bool {
+        pushes(self.role, self.intent)
+    }
+
+    /// The group it waits in and the rank it is read at ([`read_rank`]).
+    pub fn group(&self) -> u8 {
+        read_rank(self.role, self.intent)
     }
 
     /// The first [`GIST_CHARS`] characters, credentials redacted.
@@ -318,7 +402,7 @@ impl InboxState {
                     pending
                         .get(x)
                         .filter(|p| p.item.control.is_none())
-                        .map(|p| p.item.role.group())
+                        .map(|p| p.item.group())
                 });
                 if let Some(k) = l.get("key").as_str() {
                     self.move_keys
@@ -333,15 +417,23 @@ impl InboxState {
         }
     }
 
-    /// Waiting items in the order they wait in: the owner's first, then peers',
-    /// then any other source's; within a group, the order of acceptance as the
-    /// moves have changed it.
+    /// An owner item waits that is read at the next boundary and is worth waking for
+    /// (see [`Item::pushes`]): what cuts a long tool call and what ends a wait the
+    /// owner may cut. An item the owner asked to wait for free time does neither.
+    pub fn owner_pushes(&self) -> bool {
+        self.pending.values().any(|p| p.item.pushes())
+    }
+
+    /// Waiting items in the order they wait in: by group ([`read_rank`]: the
+    /// owner's `next` and `steer`, the owner's `free`, a peer's, any other
+    /// source's), and within a group the order of acceptance as the moves have
+    /// changed it. The order a turn reads and the list shows.
     pub fn waiting(&self) -> Vec<&Pending> {
         let places = self.order.places();
         let mut v: Vec<&Pending> = self.pending.values().collect();
         v.sort_by_key(|p| {
             (
-                p.item.role.group(),
+                p.item.group(),
                 places
                     .get(p.item.id.as_str())
                     .copied()
@@ -395,9 +487,10 @@ impl InboxState {
     /// Nothing here writes; the host asks and writes under one lock.
     ///
     /// The rules (`docs/rung-host-api.md`, S3): `id` and `before` must wait; they
-    /// must be in one group (the owner's items stay above every other sender's,
-    /// so a peer's item is never put above an owner's nor an owner's below a
-    /// peer's); and every item the move jumps over must wait for the same
+    /// must be in one group ([`read_rank`]: the owner's `next` and `steer` items,
+    /// the owner's `free` items, a peer's, the host's own; so a peer's item is
+    /// never put above an owner's, nor a `free` item above a `next`, nor the
+    /// reverse); and every item the move jumps over must wait for the same
     /// boundary as `id`. `before` null is the end of `id`'s group.
     pub fn plan_move(&self, id: &str, before: Option<&str>) -> Result<MovePlan, DoorError> {
         let waits = |x: &str, role: &str| -> Result<(), DoorError> {
@@ -423,26 +516,26 @@ impl InboxState {
             waits(b, "nothing can be put in front of it")?;
         }
         let me = &self.pending[id];
-        let group = me.item.role.group();
+        let group = me.item.group();
         if let Some(b) = before {
             let other = &self.pending[b];
-            let og = other.item.role.group();
+            let og = other.item.group();
             if og != group {
                 let (mine, theirs) = (group_name(group), group_name(og));
                 let why = if group > og {
                     format!(
-                        "{theirs} items stay above {mine} ones, so {id} cannot be put above one"
+                        "{theirs} items are read first and stay above {mine} ones, so {id} cannot be put above one"
                     )
                 } else {
                     format!(
-                        "{mine} items stay above {theirs} ones, so {id} cannot be put below one"
+                        "{mine} items are read first and stay above {theirs} ones, so {id} cannot be put below one"
                     )
                 };
                 return Err(DoorError::new(
                     409,
                     "group",
                     format!(
-                        "{id} is {mine} item and {b} is {theirs} item: {why}; nothing was written"
+                        "{id} is one of {mine} items and {b} one of {theirs} items: {why}; nothing was written"
                     ),
                 ));
             }
@@ -450,7 +543,7 @@ impl InboxState {
         let line: Vec<&Pending> = self
             .waiting()
             .into_iter()
-            .filter(|p| p.item.role.group() == group)
+            .filter(|p| p.item.group() == group)
             .collect();
         let i = line.iter().position(|p| p.item.id == id).unwrap_or(0);
         let jumped: &[&Pending] = match before {
@@ -526,10 +619,12 @@ pub enum MovePlan {
     Move,
 }
 
+/// What a group is called in a refusal (the groups are [`read_rank`]'s).
 fn group_name(group: u8) -> &'static str {
     match group {
-        0 => "the owner's",
-        1 => "a peer's",
+        0 => "the owner's next and steer",
+        1 => "the owner's free",
+        2 => "a peer's",
         _ => "the host's own",
     }
 }
@@ -820,6 +915,54 @@ mod tests {
         assert_eq!(order(&s), ["o1", "p1", "h1"]);
     }
 
+    fn accept_intent(s: &mut InboxState, seq: u64, id: &str, role: Role, intent: Intent) {
+        let channel = if role == Role::Owner {
+            "owner"
+        } else {
+            "peer:x"
+        };
+        let mut item = Item::message(id, role, channel, seq as i64, "x");
+        item.intent = intent;
+        s.apply(&line(seq, "stimulus.accepted", accepted_body(&item)));
+    }
+
+    /// S2 with S3: the group a move stays in is the rank an item is read at, so an owner's
+    /// `free` item is its own group: the fold reads a move across it as no move, the door
+    /// refuses one in words, and `next` and `steer` move past each other.
+    #[test]
+    fn an_owner_free_item_is_its_own_group_for_order_and_moves() {
+        let mut s = InboxState::default();
+        accept_intent(&mut s, 1, "f1", Role::Owner, Intent::Free);
+        accept_intent(&mut s, 2, "p1", Role::Peer, Intent::Next);
+        accept_intent(&mut s, 3, "n1", Role::Owner, Intent::Next);
+        accept_intent(&mut s, 4, "s1", Role::Owner, Intent::Steer);
+        accept_intent(&mut s, 5, "f2", Role::Owner, Intent::Free);
+        assert_eq!(order(&s), ["n1", "s1", "f1", "f2", "p1"]);
+        // across next and free, either way: no move
+        moved(&mut s, 6, "f1", Some("n1"));
+        moved(&mut s, 7, "n1", Some("f1"));
+        moved(&mut s, 8, "s1", Some("f2"));
+        assert_eq!(order(&s), ["n1", "s1", "f1", "f2", "p1"]);
+        // inside a group, and the end of a group (never into the next one)
+        moved(&mut s, 9, "s1", Some("n1"));
+        moved(&mut s, 10, "f2", Some("f1"));
+        moved(&mut s, 11, "s1", None);
+        assert_eq!(order(&s), ["n1", "s1", "f2", "f1", "p1"]);
+        // the door's judgement says the same, in words, and a no-op is not a move
+        for (id, b) in [("f1", "n1"), ("n1", "f1"), ("s1", "f2"), ("f2", "s1")] {
+            let e = s.plan_move(id, Some(b)).unwrap_err();
+            assert_eq!((e.status, e.code), (409, "group"), "{id} before {b}");
+            assert!(e.message.contains("free"), "{}", e.message);
+            assert!(e.message.contains("nothing was written"), "{}", e.message);
+        }
+        assert_eq!(s.plan_move("n1", Some("s1")).unwrap(), MovePlan::Nothing);
+        assert_eq!(s.plan_move("s1", Some("n1")).unwrap(), MovePlan::Move);
+        assert_eq!(s.plan_move("f2", Some("f1")).unwrap(), MovePlan::Nothing);
+        assert_eq!(s.plan_move("f1", Some("f2")).unwrap(), MovePlan::Move);
+        let e = s.plan_move("p1", Some("f1")).unwrap_err();
+        assert_eq!(e.code, "group");
+    }
+
     #[test]
     fn a_move_judged_before_it_is_written() {
         let mut s = InboxState::default();
@@ -889,6 +1032,62 @@ mod tests {
         s.apply(&line(1, "stimulus.accepted", accepted_body(&it)));
         assert_eq!(s.standing("stop-1"), Standing::Unknown);
         assert_eq!(s.plan_move("stop-1", None).unwrap_err().status, 404);
+    }
+
+    #[test]
+    fn only_an_item_read_at_the_next_boundary_wakes_the_host() {
+        let item = |id: &str, role, intent| {
+            let mut i = Item::message(id, role, "c", 1, "x");
+            i.intent = intent;
+            i
+        };
+        let accept = |s: &mut InboxState, seq: u64, i: &Item| {
+            s.apply(&line(seq, "stimulus.accepted", accepted_body(i)));
+        };
+        let mut s = InboxState::default();
+        assert!(!s.owner_pushes());
+        accept(&mut s, 1, &item("free", Role::Owner, Intent::Free));
+        accept(&mut s, 2, &item("peer", Role::Peer, Intent::Next));
+        assert!(!s.owner_pushes(), "a free item and a peer's item do not");
+        accept(&mut s, 3, &item("steer", Role::Owner, Intent::Steer));
+        assert!(s.owner_pushes());
+        let mut s = InboxState::default();
+        accept(&mut s, 1, &item("next", Role::Owner, Intent::Next));
+        assert!(s.owner_pushes());
+    }
+
+    #[test]
+    fn one_definition_of_who_pushes_and_who_reads_first() {
+        for r in [Role::Owner, Role::Peer, Role::Observer, Role::Host] {
+            assert_eq!(Role::from_word(r.word()), Some(r));
+            for i in Intent::ALL {
+                assert_eq!(pushes(r, i), r == Role::Owner && i != Intent::Free);
+            }
+        }
+        assert_eq!(Role::from_word("nobody"), None);
+        let rank = |r, i| read_rank(r, i);
+        assert!(rank(Role::Owner, Intent::Steer) == rank(Role::Owner, Intent::Next));
+        assert!(rank(Role::Owner, Intent::Next) < rank(Role::Owner, Intent::Free));
+        assert!(rank(Role::Owner, Intent::Free) < rank(Role::Peer, Intent::Next));
+        assert!(rank(Role::Peer, Intent::Next) < rank(Role::Host, Intent::Next));
+    }
+
+    #[test]
+    fn an_old_line_without_an_intent_reads_as_next_and_next_is_not_written() {
+        let old = json!({"id": "a", "kind": "peer", "role": "owner", "channel": "owner",
+                         "at": 1, "firm": false, "text": "hi"});
+        let item: Item = serde_json::from_value(old).unwrap();
+        assert_eq!(item.intent, Intent::Next);
+        assert!(serde_json::to_value(&item).unwrap().get("intent").is_none());
+        let mut steer = item.clone();
+        steer.intent = Intent::Steer;
+        let v = serde_json::to_value(&steer).unwrap();
+        assert_eq!(v["intent"], "steer");
+        assert_eq!(
+            serde_json::from_value::<Item>(v).unwrap().intent,
+            Intent::Steer
+        );
+        assert!(Intent::parse("later").is_none());
     }
 
     #[test]

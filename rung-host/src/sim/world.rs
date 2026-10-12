@@ -8,7 +8,7 @@ use serde_json::json;
 
 use super::Rng;
 use crate::clock::{Millis, SECOND};
-use crate::inbox::{Fact, Item, ItemKind, Role, Source};
+use crate::inbox::{Fact, Intent, Item, ItemKind, Role, Source};
 use crate::toolbox::WebReader;
 
 #[derive(Debug, Clone)]
@@ -148,6 +148,7 @@ impl FakeWorld {
                         value: json!(value),
                     }),
                     control: None,
+                    intent: Intent::Next,
                 });
             }
         }

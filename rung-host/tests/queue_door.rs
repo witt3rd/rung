@@ -361,8 +361,10 @@ fn a_bad_request_is_refused_in_words_and_writes_nothing() {
         (json!({"text": "x", "key": "../up"}), "key"),
         (json!({"text": "x", "colour": "red"}), "colour"),
         (json!({"text": "x", "intent": "later"}), "intent"),
-        (json!({"text": "x", "intent": "steer"}), "intent"),
-        (json!({"text": "x", "intent": "free"}), "intent"),
+        (json!({"text": "x", "intent": "STEER"}), "intent"),
+        (json!({"text": "x", "intent": ""}), "intent"),
+        (json!({"text": "x", "intent": 7}), "intent"),
+        (json!({"text": "x", "intent": ["free"]}), "intent"),
     ];
     for (body, word) in cases {
         let a = post(&s, &body, Some(OWNER_TOKEN));
@@ -517,4 +519,156 @@ fn a_retry_after_the_host_restarts_is_still_one_item() {
     assert_eq!(again.status, 200, "{}", again.body);
     assert_eq!(again.json()["repeat"], true);
     assert_eq!(accepted(&lines(guard.path()), "k-restart").len(), 1);
+}
+
+/// The `stimulus.accepted` item of `id`, from the record on disk.
+fn accepted_item(state: &Path, id: &str) -> Value {
+    let l = lines(state);
+    let got = accepted(&l, id);
+    assert_eq!(got.len(), 1, "one line for {id}");
+    got[0].get("item").clone()
+}
+
+/// S2: each intent is accepted, written to the record with the item (a `next` is the
+/// default and is not written), and shown in the answer and in the list.
+#[test]
+fn each_intent_is_accepted_recorded_and_shown() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s2-queue-intents");
+    let s = spawn(guard.path());
+    for (key, body, shown) in [
+        ("i-default", json!({"text": "no intent given"}), "next"),
+        (
+            "i-null",
+            json!({"text": "a null intent", "intent": null}),
+            "next",
+        ),
+        (
+            "i-next",
+            json!({"text": "a task", "intent": "next"}),
+            "next",
+        ),
+        (
+            "i-free",
+            json!({"text": "when you can", "intent": "free"}),
+            "free",
+        ),
+        (
+            "i-steer",
+            json!({"text": "use the other table", "intent": "steer"}),
+            "steer",
+        ),
+    ] {
+        let mut body = body;
+        body["key"] = json!(key);
+        let a = post(&s, &body, Some(OWNER_TOKEN));
+        assert_eq!(a.status, 201, "{key}: {}", a.body);
+        assert_eq!(a.json()["item"]["intent"], shown, "{key}");
+        let item = accepted_item(guard.path(), key);
+        match shown {
+            "next" => assert!(
+                item.get("intent").is_none_or(|i| i == "next"),
+                "{key}: a task is the default"
+            ),
+            other => assert_eq!(item["intent"], other, "{key}: the record line carries it"),
+        }
+    }
+    let list = get(&s, "/v1/queue?state=all", Some(OWNER_TOKEN)).json();
+    for (key, shown) in [
+        ("i-default", "next"),
+        ("i-next", "next"),
+        ("i-free", "free"),
+        ("i-steer", "steer"),
+    ] {
+        assert_eq!(item_of(&list, key)["intent"], shown, "{key} in the list");
+    }
+}
+
+#[test]
+fn an_unknown_intent_is_refused_in_words_with_nothing_written() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s2-queue-bad-intent");
+    let s = spawn(guard.path());
+    let a = post(
+        &s,
+        &json!({"text": "x", "key": "i-bad", "intent": "urgent"}),
+        Some(OWNER_TOKEN),
+    );
+    assert_eq!(a.status, 400, "{}", a.body);
+    assert_eq!(a.json()["error"], "bad_request");
+    let m = a.json()["message"].as_str().unwrap().to_string();
+    for word in ["urgent", "next", "free", "steer"] {
+        assert!(m.contains(word), "the refusal names {word}: {m}");
+    }
+    assert!(
+        accepted(&lines(guard.path()), "i-bad").is_empty(),
+        "0 lines written"
+    );
+    assert!(
+        !lines(guard.path())
+            .iter()
+            .any(|l| l.kind == "stimulus.accepted" && l.get("item")["channel"] == "owner"),
+        "no owner line at all"
+    );
+}
+
+/// A key names one message, and the intent is part of the message: a retry (the same
+/// text and intent) is a repeat and writes nothing; the same words under another
+/// intent are a different message and are refused.
+#[test]
+fn idempotency_holds_with_an_intent() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s2-queue-idem");
+    let s = spawn(guard.path());
+    let body = json!({"text": "once", "key": "i-once", "intent": "steer"});
+    assert_eq!(post(&s, &body, Some(OWNER_TOKEN)).status, 201);
+    let again = post(&s, &body, Some(OWNER_TOKEN));
+    assert_eq!(again.status, 200, "{}", again.body);
+    assert_eq!(again.json()["repeat"], true);
+    assert_eq!(again.json()["item"]["intent"], "steer");
+    let other = post(
+        &s,
+        &json!({"text": "once", "key": "i-once", "intent": "free"}),
+        Some(OWNER_TOKEN),
+    );
+    assert_eq!(other.status, 409, "{}", other.body);
+    assert_eq!(other.json()["error"], "key_reused");
+    let none = post(
+        &s,
+        &json!({"text": "once", "key": "i-once"}),
+        Some(OWNER_TOKEN),
+    );
+    assert_eq!(none.status, 409, "{}", none.body);
+    assert_eq!(accepted(&lines(guard.path()), "i-once").len(), 1);
+    assert_eq!(accepted_item(guard.path(), "i-once")["intent"], "steer");
+}
+
+/// The intent is in the record, so a host that was killed and started again lists it.
+#[test]
+fn the_intent_survives_a_restart() {
+    sim::test_timeout(120);
+    let guard = sim::temp_dir_guard("s2-queue-restart-intent");
+    {
+        let s = spawn(guard.path());
+        for (key, intent) in [("r-free", "free"), ("r-steer", "steer")] {
+            let a = post(
+                &s,
+                &json!({"text": key, "key": key, "intent": intent}),
+                Some(OWNER_TOKEN),
+            );
+            assert_eq!(a.status, 201, "{}", a.body);
+        }
+    }
+    let s = spawn(guard.path());
+    let list = get(&s, "/v1/queue?state=all", Some(OWNER_TOKEN)).json();
+    assert_eq!(item_of(&list, "r-free")["intent"], "free");
+    assert_eq!(item_of(&list, "r-steer")["intent"], "steer");
+    // and a retry of the steer, by the same key and intent, is still one item
+    let again = post(
+        &s,
+        &json!({"text": "r-steer", "key": "r-steer", "intent": "steer"}),
+        Some(OWNER_TOKEN),
+    );
+    assert_eq!(again.status, 200, "{}", again.body);
+    assert_eq!(accepted(&lines(guard.path()), "r-steer").len(), 1);
 }

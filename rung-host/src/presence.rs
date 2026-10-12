@@ -32,7 +32,7 @@ use crate::desk::tools::Tools;
 use crate::desk::{By, DecisionDesk, HostQuestion};
 use crate::engine::{Ended, EngineTurn, TurnEngine, TurnRequest};
 use crate::governor::{self, Wait};
-use crate::inbox::{Item, ItemKind, Role, Source};
+use crate::inbox::{Intent, Item, ItemKind, Role, Source};
 use crate::kernel::{self, COPY_LOOP_TURNS, COPY_SIMILARITY, TurnKind};
 use crate::memory::MemoryHost;
 use crate::notify::Notifier;
@@ -803,6 +803,7 @@ impl Host {
                 text: f.text,
                 fact: None,
                 control: None,
+                intent: Intent::Next,
             };
             self.accept(&item);
         }
@@ -837,6 +838,7 @@ impl Host {
                     ),
                     fact: None,
                     control: None,
+                    intent: Intent::Next,
                 };
                 self.accept(&item);
             }
@@ -1143,13 +1145,7 @@ impl Host {
             if ack {
                 self.ack_owners(&w);
             }
-            w.owner_wakes
-                && core
-                    .state()
-                    .inbox
-                    .pending
-                    .values()
-                    .any(|p| p.item.role == Role::Owner)
+            w.owner_wakes && core.state().inbox.pending.values().any(|p| p.item.pushes())
         };
         // A run limit ends the wait too: the next boundary halts on it.
         let until = match self.limits.until {
@@ -1444,6 +1440,10 @@ impl Host {
             let recall = self.recall(turn, &inject, &now_ids);
             let st = core.state();
             let item = |id: &String| st.inbox.in_flight.get(id).map(|(_, p)| p.item.clone());
+            // `now_ids` is already in the order the items wait in (`admit` took it from
+            // `InboxState::waiting`: the owner's `next` and `steer`, the owner's `free`,
+            // a peer's, the host's own; the owner's moves applied), so the header lists
+            // them as the list shows them. There is no second sort here.
             let admitted: Vec<Item> = now_ids.iter().filter_map(item).collect();
             let digests: Vec<Item> = digest_ids.iter().filter_map(item).collect();
             let quota = cfg
@@ -1942,8 +1942,10 @@ pub enum Moved {
 
 /// Cuts a long tool call when an owner stimulus waits (#159): mid-call it
 /// takes in what the sources hold, as a boundary would (an outward channel's
-/// stimuli are accepted as they come), and looks for a pending owner item.
-struct OwnerWatch(std::sync::Weak<Host>);
+/// stimuli are accepted as they come), and looks for a pending owner item
+/// that is read at the next boundary (a `next` or a `steer`: an item the owner
+/// asked to wait for free time, `free`, never cuts a call).
+pub(crate) struct OwnerWatch(pub(crate) std::sync::Weak<Host>);
 
 impl toolbox::Interrupt for OwnerWatch {
     fn owner_waiting(&self) -> bool {
@@ -1951,12 +1953,7 @@ impl toolbox::Interrupt for OwnerWatch {
             return false;
         };
         h.poll_sources();
-        h.core
-            .state()
-            .inbox
-            .pending
-            .values()
-            .any(|p| p.item.role == Role::Owner)
+        h.core.state().inbox.owner_pushes()
     }
 
     fn next_arrival(&self) -> Option<Millis> {
