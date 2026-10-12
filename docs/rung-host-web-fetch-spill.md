@@ -26,21 +26,28 @@ A body is spilled when its size passes a spill threshold. The threshold
 decides placement only. Below it, behaviour is unchanged (the body is the
 tool result). At or above it, the body is written whole to a file and the tool
 result is a short notice. The threshold is a host setting, next to `web: true`
-in the host config, with a documented default. It is a context-budget
+in the host config, in bytes, with a default of 32 KiB (32768 bytes), about
+8k tokens: an ordinary article stays inline and only a large page costs a read
+round trip. Bytes are what the host already has and what disk and `ws_read`
+totals report; lines or tokens would need a tokenizer or a fixed ratio. It is
+a setting so it can be tuned from real fetches. It is a context-budget
 setting, not a limit on what can be fetched: a spilled body is stored whole.
 
 `webfetch` returns a `String`: HTML is already converted to Markdown, and
 non-UTF-8 bytes already went through lossy decoding. The host never sees the
-page bytes. So the spill file is exactly the text `web_fetch` would have
-returned, nothing more faithful than that. Spilling is decided on that text. The header line is always
+page bytes. So the spill file holds the body only: the text after the header
+line and its blank line, exactly as `webfetch` returned it, nothing more
+faithful than that. The header line is not written to the file; it is always
 kept in the tool result, so the final URL and status are visible without
-reading the file.
+reading the file. The threshold is compared with the size in bytes of the
+body alone.
 
 ### Where the file lives
 
 In the agent's workspace, in a reserved subdirectory (for example
-`.web/`), one file per spilled fetch, named by a monotonic counter plus a
-short content hash (`0007-3fa91c.md`). Reasons:
+`.web/`), one file per spilled fetch, named by a counter plus a short
+hash of the stored body (`0007-3fa91c.md`). The counter is the next unused
+number found by scanning the directory. Reasons:
 
 - The workspace is already the one place the agent's file tools reach, and
   `confine` already refuses paths that leave it.
@@ -59,13 +66,14 @@ claim it is.
 
 Trust: with `workspace_write` the agent can overwrite or remove any file under
 `.web/` (`ws_write`, `ws_remove`). Spill files are therefore untrusted scratch,
-not evidence of what the page said. The hash in the notice is not verified at
-read time, and the notice does not promise it is. A file is the fetched text
+not evidence of what the page said. The hash is only part of the name, to tell files apart: nothing
+verifies it at read time, and the notice does not promise it matches. A file is the fetched text
 only as long as nothing else wrote it.
 
-The name is the content hash plus the turn id and a time component, not a
-directory-scan counter, because a scan resets after any clearing and an old
-path could then name a different page. The host writes to a temporary name in the same directory and renames it into
+Because the counter comes from a scan, it can restart after the owner clears
+`.web/`, and an old transcript path could then name a different page. That is
+accepted: spill files are scratch (see trust), and the host never clears them
+itself. The host writes to a temporary name in the same directory and renames it into
 place, so a reader never sees a half-written file.
 
 ### How the agent is told, and how it reads
@@ -83,7 +91,10 @@ The page was large and is saved whole at .web/0007-3fa91c.md
 Reading needs a way to take part of a file. Today `ws_read` returns the whole
 file, which would bring the whole body back into context. So the design adds
 optional ranges to `ws_read`: a line range (`from_line`, `to_line`) and a
-character range (`from_char`, `to_char`). The character range is part of the
+character range (`from_char`, `to_char`). Character ranges count Unicode
+characters (scalar values), not bytes, so a range can never split a code point;
+this needs a scan of the file, which is acceptable for a read the agent asks
+for. The character range is part of the
 design, not an open question, because minified text is one line and a line
 range would give nothing or everything. With no range `ws_read` is unchanged
 and returns the file whole. A range is a view the agent asks for, not a cut the
@@ -104,10 +115,16 @@ transcript names a spilled path. Which turn sees what: a turn with `read`
 that fetches a large page sees the notice; a turn without `read` that fetches
 sees the whole body; a later turn without `read` sees the old notice in its
 transcript but cannot open the file. For that case the design decides: if a
-later turn lacks `read` and the agent tries a file tool on a `.web/` path
-through any other group, or calls `ws_read` while `read` is off, the refusal
-is a clear message that names the saved path and says the `read` group is
-needed to open it. The refusal is never silent and never a bare not-found.
+later turn calls `ws_read` or `ws_list` (the tools in group `read`) on a
+`.web/` path while `read` is off, the refusal is a clear message that names the
+saved path and says the `read` group is needed to open it. This needs a change
+to the execute gate: today `execute` refuses a disabled group generically
+(`not enabled this turn`, ask `want_tools`) before the tool runs, and knows
+nothing of paths, so the gate must learn to name the path for these two tools.
+Only the `read` group is affected. `ws_write` and `ws_remove` in group
+`workspace_write` on `.web/` keep working when that group is on, and are refused
+generically when it is off. The refusal is never silent and never a bare
+not-found.
 
 ### Cleanup and lifetime
 
@@ -130,7 +147,7 @@ old transcript paths dangling. The rule is therefore safe by construction:
 
 If a file is gone or was overwritten when an old transcript is replayed,
 `ws_read` returns its normal not-found error, or reads whatever now sits there
-(see trust above); the notice's hash lets a reader check the file by hand.
+(see trust above).
 
 ### Failure cases
 
@@ -142,8 +159,8 @@ If a file is gone or was overwritten when an old transcript is replayed,
 - Workspace missing: created as `confine` already does.
 - Fetch itself fails or times out (30 s whole-body deadline): unchanged; the
   error is returned whole and nothing is written.
-- Name clash: the counter plus hash makes it practically impossible;
-  if it happens the existing file is kept and a new counter is taken.
+- Name clash: the file is created exclusively, so an existing file is never
+  overwritten; on a clash the host takes the next counter and tries again.
 - File removed by the agent before it is read: `ws_read` returns its normal
   not-found error; the agent can fetch again.
 - Non-text bodies: `webfetch` returns text only, so what is stored is its
@@ -173,8 +190,10 @@ If a file is gone or was overwritten when an old transcript is replayed,
 ## Hook point
 
 `WebReader::fetch` returns one joined `String` (header, blank line, body).
-The design splits it on the first blank line inside `HostTools::run`, leaving
-`WebReader` unchanged, so `NoWeb`, `LiveWeb` and the simulated reader are
+The design splits it on the first blank line inside `HostTools::run`. The split
+is safe because the header is always a single line with no blank line in it, so
+the first blank line ends the header; blank lines in the body come later and
+stay in the body. `WebReader` is left unchanged, so `NoWeb`, `LiveWeb` and the simulated reader are
 tested through the same seam. The write time is outside the 30 s fetch
 deadline, which covers the fetch only.
 
@@ -186,9 +205,8 @@ preview.
 
 ## Open questions
 
-- Default threshold: what size is right for the models the host runs with?
-  It should be measured from real fetches rather than guessed.
-- Should the threshold be in bytes, lines, or estimated tokens?
+- Whether 32 KiB stays right for the models the host runs with; tune it from
+  real fetches.
 - Whether the owner wants an explicit, manual tool to clear `.web/` (never
   automatic), and how disk use is shown to them.
 - Should spilled files be hidden from `ws_list`, or listed so the agent can
@@ -200,9 +218,9 @@ preview.
 ## Tests the build would need
 
 A body below the threshold is returned whole and unchanged; one above is
-stored as exactly the text `web_fetch` would return and the result names path
-and size; a failed write (including `.web` as a file or symlink) returns the
+stored as its body only (without the header line), the result keeps the header
+and names path and size, and the threshold is read from the setting; a failed write (including `.web` as a file or symlink) returns the
 whole body with a note and an event; a missing `read` group returns the whole
-body; a later turn without `read` gets the refusal naming the path; a line
-range and a character range return exactly the requested view and the totals;
+body; a later turn without `read` gets the refusal naming the path from `ws_read` and `ws_list`, and `ws_write` is unaffected; a line
+range, and a character range over multi-byte text, return exactly the requested view and the totals;
 a one-line body is readable by character range; a restart removes nothing.
