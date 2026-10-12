@@ -13,7 +13,10 @@ git tags only.
   `total`; the host now keeps, per state directory, an index of the intact
   prefix (its length, the first damage, and a seek mark every 1024 lines) and
   reads only what was appended since, then seeks to the page. No cap on `limit`
-  or on any text; the index is rebuilt if a segment shrinks or vanishes.
+  or on any text; the index is checked against each segment's identity (inode,
+  length, modification time) and rebuilt if a segment was replaced, shrank or
+  vanished, so a record replaced in place under a live process is never served
+  stale. A page whose line numbers do not follow on is an error, not a short page.
 
 ### Added
 - `rung-host`, `rung-gateway`: intent on the queue item (S2). `POST

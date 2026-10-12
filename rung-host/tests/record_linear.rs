@@ -3,9 +3,8 @@
 //! repeat, across segment boundaries and across a restart of the process.
 
 use std::path::Path;
-use std::time::Instant;
 
-use rung_host::read::{RecordQuery, forget_record_indexes, record_open};
+use rung_host::read::{RecordQuery, forget_record_index, record_lines_read, record_open};
 use rung_host::redact::Redactor;
 use rung_testkit::TempDir;
 use serde_json::{Value, json};
@@ -84,31 +83,41 @@ fn follow(reg: &Path, limit: u64, mut on_page: impl FnMut(u64)) -> Vec<u64> {
     }
 }
 
-fn timed(tag: &str, n: u64) -> f64 {
-    let (_t, reg) = world(tag, n, 3000);
-    forget_record_indexes();
-    let t0 = Instant::now();
-    let got = follow(&reg, 50, |_| {});
-    let secs = t0.elapsed().as_secs_f64();
-    assert_eq!(got.len() as u64, n);
-    secs
-}
-
 #[test]
-fn following_next_costs_work_in_proportion_to_the_record() {
-    // Linear: 4x the record is about 4x the time. The old door scanned the whole
-    // record for every page, so 4x the record was about 16x the time.
-    let best = |n| {
-        (0..3)
-            .map(|i| timed(&format!("lin-{n}-{i}"), n))
-            .fold(f64::MAX, f64::min)
-    };
-    let (small, big) = (best(5_000), best(20_000));
-    let ratio = big / small;
-    assert!(
-        ratio < 8.0,
-        "4x the record took {ratio:.1}x the time ({small:.3}s -> {big:.3}s); linear is about 4x"
-    );
+fn following_next_reads_lines_in_proportion_to_the_record() {
+    // Work is lines read. The first page reads the record once; every later page
+    // reads what it returns plus at most one seek stride, whatever the record's size.
+    let (n, limit, stride) = (20_000u64, 50u64, 1024u64);
+    let (t, reg) = world("work", n, 3000);
+    forget_record_index(&t.path().join("state"));
+    let mut pages = 0u64;
+    let mut worst = 0u64;
+    let mut offset = 0;
+    let start = record_lines_read();
+    let mut last = start;
+    loop {
+        let p = page(
+            &reg,
+            &RecordQuery {
+                offset,
+                limit,
+                ..RecordQuery::default()
+            },
+        );
+        let now = record_lines_read();
+        if pages > 0 {
+            worst = worst.max(now - last);
+        }
+        last = now;
+        pages += 1;
+        match p["next"].as_u64() {
+            Some(n) => offset = n,
+            None => break,
+        }
+    }
+    assert_eq!(pages, n / limit);
+    assert!(worst <= limit + stride, "a page read {worst} lines");
+    assert!(last - start <= n + pages * (limit + stride));
 }
 
 #[test]
@@ -120,7 +129,7 @@ fn pages_join_with_no_gap_and_no_repeat_across_segments_and_a_restart() {
     let got = follow(&reg, 333, |read| {
         if read >= 1_500 && !restarted {
             restarted = true;
-            forget_record_indexes(); // the process restarts mid-read
+            forget_record_index(&state); // the process restarts mid-read
         }
     });
     assert!(restarted);
@@ -202,4 +211,55 @@ fn damage_is_reported_and_stays_where_it_was_found() {
     let p = page(&reg, &q);
     assert_eq!(p["total"], 2_100);
     assert_eq!(p["damaged"]["after_seq"], 2_100);
+}
+
+#[test]
+fn a_record_replaced_under_a_live_index_is_read_afresh() {
+    let (t, reg) = world("replace", 2_000, 5_000);
+    let state = t.path().join("state");
+    let q = RecordQuery {
+        offset: 1_900,
+        limit: 10,
+        ..RecordQuery::default()
+    };
+    assert_eq!(page(&reg, &q)["total"], 2_000);
+
+    let seg = state.join("record/seg-00000000.ndjson");
+    let tmp = state.join("record/replacement");
+    {
+        use std::io::Write;
+        let mut f = std::fs::File::create(&tmp).unwrap();
+        for seq in 1..=1_500u64 {
+            let l = json!({"seq": seq, "at": seq, "kind": "note", "text": format!("replaced {seq} {}", "x".repeat(60))});
+            writeln!(f, "{l}").unwrap();
+        }
+    }
+    std::fs::rename(&tmp, &seg).unwrap();
+
+    let p = page(&reg, &q);
+    assert_eq!(p["total"], 1_500);
+    assert!(p["damaged"].is_null(), "{}", p["damaged"]);
+    let seqs: Vec<u64> = p["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l["seq"].as_u64().unwrap())
+        .collect();
+    assert!(seqs.is_empty());
+
+    let q = RecordQuery {
+        offset: 1_400,
+        limit: 10,
+        ..RecordQuery::default()
+    };
+    let p = page(&reg, &q);
+    assert_eq!(p["total"], 1_500);
+    assert!(p["damaged"].is_null());
+    assert!(
+        p["lines"][0]["text"]
+            .as_str()
+            .unwrap()
+            .starts_with("replaced 1401")
+    );
+    assert_eq!(p["next"], 1_410);
 }

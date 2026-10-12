@@ -265,11 +265,46 @@ struct Mark {
 /// is append-only, so a sealed segment's result never changes; a segment that
 /// shrank or vanished, or a segment list that is not an extension of the one
 /// scanned, drops the index and it is built again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Ident {
+    ino: u64,
+    len: u64,
+    mtime: (i64, i64),
+}
+
+impl Ident {
+    fn of(path: &Path) -> Option<Ident> {
+        use std::os::unix::fs::MetadataExt;
+        let m = std::fs::metadata(path).ok()?;
+        Some(Ident {
+            ino: m.ino(),
+            len: m.len(),
+            mtime: (m.mtime(), m.mtime_nsec()),
+        })
+    }
+}
+
+thread_local! {
+    static LINES_READ: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+fn count_line() {
+    LINES_READ.with(|c| c.set(c.get() + 1));
+}
+
+/// Lines the record door has read on this thread (a measure of work, for a test).
+#[doc(hidden)]
+pub fn record_lines_read() -> u64 {
+    LINES_READ.with(|c| c.get())
+}
+
 #[derive(Debug, Default)]
 struct RecIdx {
     segments: Vec<std::path::PathBuf>,
-    /// The size of each segment the scan has finished, by position.
-    done: Vec<u64>,
+    /// The identity of each segment the scan has finished, by position.
+    done: Vec<Ident>,
+    /// The inode of the segment being scanned.
+    cur_ino: Option<u64>,
     /// Where the next scan resumes: segment, bytes, and lines already read in it.
     seg: usize,
     pos: u64,
@@ -286,14 +321,14 @@ impl RecIdx {
         if now.len() < self.segments.len() || now[..self.segments.len()] != self.segments[..] {
             return false;
         }
-        for (i, len) in self.done.iter().enumerate() {
-            if std::fs::metadata(&self.segments[i]).map(|m| m.len()).ok() != Some(*len) {
+        for (i, id) in self.done.iter().enumerate() {
+            if Ident::of(&self.segments[i]) != Some(*id) {
                 return false;
             }
         }
         if self.seg < self.segments.len() {
-            match std::fs::metadata(&self.segments[self.seg]) {
-                Ok(m) if m.len() >= self.pos => {}
+            match Ident::of(&self.segments[self.seg]) {
+                Some(id) if id.len >= self.pos && self.cur_ino.is_none_or(|i| i == id.ino) => {}
                 _ => return false,
             }
         }
@@ -326,6 +361,20 @@ impl RecIdx {
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
             let mut f = File::open(&path).map_err(|e| DoorError::unreadable(&path, &e))?;
+            {
+                use std::os::unix::fs::MetadataExt;
+                let ino = f
+                    .metadata()
+                    .map_err(|e| DoorError::unreadable(&path, &e))?
+                    .ino();
+                if self.cur_ino.is_some_and(|i| i != ino) {
+                    return Err(DoorError::unreadable(
+                        &path,
+                        &io::Error::other("the segment was replaced while it was read"),
+                    ));
+                }
+                self.cur_ino = Some(ino);
+            }
             f.seek(SeekFrom::Start(self.pos))
                 .map_err(|e| DoorError::unreadable(&path, &e))?;
             let mut r = BufReader::new(f);
@@ -337,6 +386,7 @@ impl RecIdx {
                 if n == 0 {
                     break;
                 }
+                count_line();
                 let terminated = buf.last() == Some(&b'\n');
                 if !terminated && newest {
                     return Ok(()); // a write in flight, or torn by a crash
@@ -390,7 +440,14 @@ impl RecIdx {
             if newest {
                 return Ok(());
             }
-            self.done.push(self.pos);
+            let Some(id) = Ident::of(&path) else {
+                return Err(DoorError::unreadable(
+                    &path,
+                    &io::Error::other("the segment vanished while it was read"),
+                ));
+            };
+            self.done.push(id);
+            self.cur_ino = None;
             self.seg += 1;
             self.pos = 0;
             self.lineno = 0;
@@ -415,10 +472,13 @@ fn indexes() -> &'static std::sync::Mutex<
     INDEXES.get_or_init(Default::default)
 }
 
-/// Forget every index (a restart of the process, for a test).
+/// Forget the index of one state directory (a restart of the process, for a test).
 #[doc(hidden)]
-pub fn forget_record_indexes() {
-    indexes().lock().unwrap_or_else(|e| e.into_inner()).clear();
+pub fn forget_record_index(state_dir: &Path) {
+    indexes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .remove(state_dir);
 }
 
 /// Bring the index of the record in `state_dir` up to date and return what a
@@ -1206,6 +1266,7 @@ impl RecordPage {
                         if r.read_until(b'\n', &mut buf)? == 0 {
                             break;
                         }
+                        count_line();
                         let Ok(text) = std::str::from_utf8(&buf) else {
                             break 'read;
                         };
@@ -1216,6 +1277,13 @@ impl RecordPage {
                         let Some(l) = Line::parse(text) else {
                             break 'read;
                         };
+                        if l.seq != at + 1 {
+                            return Err(io::Error::other(format!(
+                                "the record changed under the page: expected line number {}, found {}",
+                                at + 1,
+                                l.seq
+                            )));
+                        }
                         if at >= lo {
                             put(&mut *out, &l, &self.red, &mut written)?;
                         }
