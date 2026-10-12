@@ -345,6 +345,20 @@ impl DecisionDesk {
         &self.backend
     }
 
+    /// Whether an ask of `state` and `questions` is one the desk can send: it
+    /// is within the decider's window ([`within_window`]) and its estimated
+    /// cost is within the per-ask spend cap, which at the default binds
+    /// before the window does. The host sizes every ask by this, so an ask
+    /// asks fewer items rather than being refused.
+    pub fn fits(&self, state: &Value, questions: &BTreeMap<String, Question>) -> bool {
+        let ask = Ask {
+            state: state.clone(),
+            questions: questions.clone(),
+        };
+        within_window(state, questions)
+            && ask.estimated_tokens() as f64 * JEV_USD_PER_INPUT_TOKEN <= self.cap.per_ask
+    }
+
     /// Ask the decider once for every question in `questions`, within the
     /// desk's timeout.
     pub fn ask(
