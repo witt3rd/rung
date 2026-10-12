@@ -454,7 +454,9 @@ decides only where the text goes. Design and rulings:
 - A spill failure (disk full, `.web` a file or symlink, permission) returns the
   whole body with a one-line note and records `web.spill_failed`. A physical
   disk limit is that failure; there is no other limit.
-- The host never removes spilled files, on start or any other time. They are
+- The host never removes spilled files, on start or any other time (it only
+  removes its own unfinished `.partial-*` temp files: a cut fetch's, and those
+  of dead processes at the next start). They are
   listed by `ws_list`; the agent (`ws_remove`, with `workspace_write`) or the
   owner clears them. The file is untrusted scratch: the agent can overwrite it.
 - Redaction: the file is workspace content, the page text as the fetch returned
