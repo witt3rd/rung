@@ -138,6 +138,16 @@ fn memory_check(setting: Option<&String>) -> ExitCode {
     }
 }
 
+/// One `memory ls` line: id, time, the record's text whole (newlines and tabs
+/// become spaces so it stays one tab-separated line).
+fn ls_line(id: &str, observed_at: Option<&str>, text: &str) -> String {
+    format!(
+        "{id}\t{}\t{}",
+        observed_at.unwrap_or("-"),
+        text.replace(['\n', '\t'], " ")
+    )
+}
+
 /// `--memory-scope ls|rm ID|drop`: inspect the baseline store for the scope in
 /// `RUNG_MEMORY_SCOPE` under `RUNG_MEMORY_DIR`. `ls` prints count, newest,
 /// bytes, then one line per record; `rm ID` deletes a record; `drop` the scope.
@@ -164,12 +174,9 @@ fn memory_scope(rest: &[String]) -> ExitCode {
                     newest.unwrap_or("-")
                 );
                 for r in &rs {
-                    let t: String = r.text.chars().take(60).collect();
                     println!(
-                        "{}\t{}\t{}",
-                        r.id.as_str(),
-                        r.observed_at.as_deref().unwrap_or("-"),
-                        t.replace(['\n', '\t'], " ")
+                        "{}",
+                        ls_line(r.id.as_str(), r.observed_at.as_deref(), &r.text)
                     );
                 }
                 ExitCode::SUCCESS
@@ -222,5 +229,17 @@ fn memory_score(argv: &[String]) -> ExitCode {
             eprintln!("rung-agent: {e}");
             ExitCode::from(2)
         }
+    }
+}
+
+#[cfg(test)]
+mod ls_tests {
+    #[test]
+    fn a_long_record_is_listed_whole() {
+        let text = format!("é\tline\n{}", "é".repeat(10_000));
+        let l = super::ls_line("id1", None, &text);
+        let (head, body) = l.rsplit_once('\t').unwrap();
+        assert_eq!(head, "id1\t-");
+        assert_eq!(body, text.replace(['\n', '\t'], " "));
     }
 }

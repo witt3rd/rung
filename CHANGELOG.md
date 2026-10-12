@@ -52,6 +52,18 @@ git tags only.
   `docs/rung-host-api.md`). `rung-agent-core`'s HTTP listener gets a pre-body
   `RouteGate` and hands an admitted route its whole request body, with no limit.
 
+### Changed
+- No caps on errors, logs and tool output. A provider error body is kept whole
+  in `HttpContext.body` and in `HttpFailure.body` (`HttpContext.body_truncated`
+  and the 16 KiB cut are gone); the `raw` of an unparsable provider answer and
+  the decider's HTTP error text are the whole text; event-log lines for a
+  turn's end and a tool result carry the whole text; a record parse error names
+  the whole offending line; `rung-agent --memory-scope ls` prints a record
+  whole; the demo binaries, the live-run scripts and the harbor failure log
+  print whole text (the demo `short()` could panic on a multi-byte boundary).
+- `rung-agent-core`: the experimental ACP HTTP listener no longer refuses a
+  request body over 16 MiB (413); the body is read whole.
+
 ## [0.3.1] - 2026-10-11
 
 ### Added

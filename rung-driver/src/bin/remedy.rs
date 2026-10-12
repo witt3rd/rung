@@ -86,7 +86,7 @@ fn main() {
                     .expect("enact applies");
                 let q = world.questions.iter().find(|q| q.id == id).unwrap();
                 println!(
-                    "  enacted: filing={:?}, answerable=`{:.40}…`, ill_posed={:?}",
+                    "  enacted: filing={:?}, answerable=`{}`, ill_posed={:?}",
                     q.filing,
                     q.answerable.as_deref().unwrap_or(""),
                     q.ill_posed

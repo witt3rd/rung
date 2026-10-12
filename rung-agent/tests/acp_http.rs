@@ -208,6 +208,33 @@ fn tempfile() -> rung_testkit::TempDir {
     rung_testkit::TempDir::new("agent-acp-http")
 }
 
+/// No cap on a request body: a 20 MiB `initialize` (a big extension field
+/// riding in `params`) is read whole and answered, not refused with 413.
+#[test]
+fn a_huge_request_body_is_accepted_whole() {
+    let server = spawn_http();
+    let pad = "x".repeat(20 * 1024 * 1024);
+    let mut stream = TcpStream::connect((server.host.as_str(), server.port)).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(60)))
+        .unwrap();
+    let body = serde_json::to_vec(&json!({
+        "jsonrpc":"2.0","id":1,"method":"initialize",
+        "params":{"protocolVersion":1,"_meta":{"pad":pad}}
+    }))
+    .unwrap();
+    let head = format!(
+        "POST /acp HTTP/1.1\r\nHost: {}:{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        server.host,
+        server.port,
+        body.len()
+    );
+    stream.write_all(head.as_bytes()).unwrap();
+    stream.write_all(&body).unwrap();
+    let resp = read_http(stream);
+    assert_eq!(resp.status, 200, "{}", String::from_utf8_lossy(&resp.body));
+}
+
 #[test]
 fn initialize_session_new_prompt_delete() {
     let server = spawn_http();

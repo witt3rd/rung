@@ -627,6 +627,21 @@ pub struct AgentResult {
     pub elided: usize,
 }
 
+/// The event-log line for a turn that ended: the text, whole.
+fn end_turn_line(call_id: &str, text: &str) -> String {
+    format!("[rung-std] {call_id}: end_turn — {text}")
+}
+
+/// The event-log line for a tool result: the content whole, then how many
+/// images came with it.
+fn tool_result_line(call_id: &str, content: &str, images: usize) -> String {
+    if images == 0 {
+        format!("[rung-std] {call_id}:   -> {content}")
+    } else {
+        format!("[rung-std] {call_id}:   -> {content} (+{images} image(s))")
+    }
+}
+
 fn closed(thread: &Thread, text: &str) -> Vec<ChatMessage> {
     let mut m = thread.messages.clone();
     m.push(ChatMessage::assistant(text));
@@ -1029,7 +1044,7 @@ ladder!(AgentLoop {
                 if let Some(py) = python.as_ref() {
                     let turn = inline_turn(py, &text);
                     if let Some(done) = turn.done {
-                        crate::events::emit("rung-std", "turn.end", &format!("[rung-std] {call_id}: end_turn — {done:.120}"));
+                        crate::events::emit("rung-std", "turn.end", &end_turn_line(&call_id, &done));
                         return Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
                             transcript: closed(&thread, &done),
                             final_response: done,
@@ -1070,7 +1085,7 @@ ladder!(AgentLoop {
                         )))
                     };
                 }
-                crate::events::emit("rung-std", "turn.end", &format!("[rung-std] {call_id}: end_turn — {text:.120}"));
+                crate::events::emit("rung-std", "turn.end", &end_turn_line(&call_id, &text));
                 Ok(StepOutcome::EndTurn(EndTurn::new(AgentResult {
                     transcript: closed(&thread, &text),
                     final_response: text,
@@ -1177,14 +1192,8 @@ ladder!(AgentLoop {
                             };
                             if is_error {
                                 crate::events::emit("rung-std", "tool.result", &format!("[rung-std] {call_id}:   -> {content}"));
-                            } else if images.is_empty() {
-                                crate::events::emit("rung-std", "tool.result", &format!("[rung-std] {call_id}:   -> {:.120}", content));
                             } else {
-                                crate::events::emit("rung-std", "tool.result", &format!(
-                                    "[rung-std] {call_id}:   -> {:.120} (+{} image(s))",
-                                    content,
-                                    images.len()
-                                ));
+                                crate::events::emit("rung-std", "tool.result", &tool_result_line(&call_id, &content, images.len()));
                             }
                             tool_result_blocks.push(
                                 crate::llm::MessageContentBlock::ToolResult {
@@ -1445,6 +1454,15 @@ impl Spawn for NestedLoop {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn event_log_lines_carry_a_huge_text_whole() {
+        let big = "é".repeat(100_000);
+        assert!(super::end_turn_line("c", &big).ends_with(&big));
+        assert!(super::tool_result_line("c", &big, 0).ends_with(&big));
+        let l = super::tool_result_line("c", &big, 2);
+        assert!(l.contains(&big) && l.ends_with("(+2 image(s))"));
+    }
+
     use super::*;
     use crate::llm::{CachePolicy, LlmConfig, MessageContent, Protocol};
     use crate::python::{Jail, SandboxConfig};

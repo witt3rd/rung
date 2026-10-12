@@ -6,7 +6,6 @@
 
 use std::fmt;
 
-const BODY_LIMIT: usize = 16_384;
 pub const BASE_DELAY_MS: u64 = 500;
 pub const MAX_DELAY_MS: u64 = 10_000;
 /// Parse-level cap on `Retry-After` seconds (misbehaving upstream).
@@ -37,7 +36,6 @@ pub struct HttpContext {
     /// `x-should-retry`. Only `false` is a veto; `true` is ignored.
     pub should_retry: Option<bool>,
     pub body: Option<String>,
-    pub body_truncated: bool,
 }
 
 impl HttpContext {
@@ -49,7 +47,7 @@ impl HttpContext {
         body: &str,
         secret: &str,
     ) -> Self {
-        let (body, body_truncated) = redact_and_truncate(body, secret);
+        let body = redact(body, secret);
         Self {
             method: method.into(),
             url: redact_url(url, secret),
@@ -58,7 +56,6 @@ impl HttpContext {
             retry_after_ms: retry_after_ms(headers),
             should_retry: should_retry_header(headers),
             body,
-            body_truncated,
         }
     }
 }
@@ -375,8 +372,8 @@ pub fn classify_http(
 }
 
 /// What a [`super::StreamListener`] is shown of a non-2xx answer: the
-/// status, the rate-limit headers, and the body redacted and truncated as an
-/// error's context holds it.
+/// status, the rate-limit headers, and the body redacted as an
+/// error's context holds it, whole.
 pub(crate) fn http_failure(
     status: u16,
     headers: &[(String, String)],
@@ -388,7 +385,7 @@ pub(crate) fn http_failure(
         .filter(|(k, _)| k.starts_with("retry-after") || k.starts_with("x-ratelimit-"))
         .cloned()
         .collect();
-    let (body, _) = redact_and_truncate(body, secret);
+    let body = redact(body, secret);
     super::types::HttpFailure {
         status,
         headers,
@@ -600,7 +597,7 @@ pub fn parse_sse_error(data: &str) -> Option<RawCallError> {
         } else {
             format!("{err_type}: {message}")
         },
-        raw: Some(data.chars().take(512).collect()),
+        raw: Some(data.to_string()),
     })
 }
 
@@ -617,19 +614,15 @@ fn redact_url(url: &str, secret: &str) -> String {
     }
 }
 
-fn redact_and_truncate(body: &str, secret: &str) -> (Option<String>, bool) {
+/// The body with the secret replaced; never cut.
+fn redact(body: &str, secret: &str) -> Option<String> {
     if body.is_empty() {
-        return (None, false);
+        return None;
     }
-    let mut text = body.to_string();
     if secret.len() >= 4 {
-        text = text.replace(secret, "<redacted>");
-    }
-    if text.len() <= BODY_LIMIT {
-        (Some(text), false)
+        Some(body.replace(secret, "<redacted>"))
     } else {
-        text.truncate(BODY_LIMIT);
-        (Some(text), true)
+        Some(body.to_string())
     }
 }
 
@@ -789,6 +782,36 @@ mod tests {
             }
             .is_retryable()
         );
+    }
+
+    #[test]
+    fn a_huge_provider_error_body_is_kept_whole() {
+        let big = format!("{{\"error\":\"{}\"}}", "é".repeat(200_000));
+        let e = classify_http("POST", "https://api.example/v1", 401, &[], &big, "");
+        match e {
+            RawCallError::Auth {
+                context: Some(ctx), ..
+            } => {
+                assert_eq!(ctx.body.as_deref(), Some(big.as_str()));
+            }
+            other => panic!("{other:?}"),
+        }
+        let f = http_failure(500, &[], &big, "");
+        assert_eq!(f.body, big);
+    }
+
+    #[test]
+    fn a_huge_unparsable_sse_error_keeps_its_raw_text() {
+        let big = format!(
+            "{{\"error\":{{\"type\":\"api_error\",\"message\":\"{}\"}}}}",
+            "x".repeat(50_000)
+        );
+        match parse_sse_error(&big) {
+            Some(RawCallError::InvalidProviderOutput { raw, .. }) => {
+                assert_eq!(raw.as_deref(), Some(big.as_str()));
+            }
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]

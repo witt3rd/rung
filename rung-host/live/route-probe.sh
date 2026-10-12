@@ -19,7 +19,7 @@ for m in "${models[@]}"; do
   echo "$m $code $(echo "$out" | head -n -1 | python3 -c 'import json,sys,re
 try:
   d=json.load(sys.stdin)
-  if "error" in d: print("ERR", d["error"].get("message","")[:160].replace("\n"," "), re.sub(r"workspaces/[^/\"]+/", "workspaces/<workspace>/", json.dumps(d["error"].get("metadata",{}).get("ineligibility_reasons",""))))
-  else: print("OK served", d.get("model"), d.get("provider"), (d["choices"][0]["message"].get("content") or "")[:40].replace("\n"," "))
+  if "error" in d: print("ERR", d["error"].get("message","").replace("\n"," "), re.sub(r"workspaces/[^/\"]+/", "workspaces/<workspace>/", json.dumps(d["error"].get("metadata",{}).get("ineligibility_reasons",""))))
+  else: print("OK served", d.get("model"), d.get("provider"), (d["choices"][0]["message"].get("content") or "").replace("\n"," "))
 except Exception as e: print("unparsed", e)')"
 done

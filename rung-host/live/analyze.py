@@ -319,7 +319,7 @@ def main():
         v = res[k]
         verdict = {True: "PASS", False: "FAIL", None: "NOT EXERCISED"}[v["pass"]]
         brief = {kk: vv for kk, vv in v.items() if kk not in ("pass", "rows", "switches", "listing")}
-        print(f"{k} {verdict} {json.dumps(brief)[:400]}")
+        print(f"{k} {verdict} {json.dumps(brief)}")
     if "--json" in sys.argv:
         Path(sys.argv[sys.argv.index("--json") + 1]).write_text(json.dumps(res, indent=1, sort_keys=True))
 

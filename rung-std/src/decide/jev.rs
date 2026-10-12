@@ -90,7 +90,6 @@ impl JevDecider {
             };
             let status = resp.status().as_u16();
             let text = resp.text().unwrap_or_default();
-            let snippet: String = text.chars().take(300).collect();
             match status {
                 200..=299 => {
                     return serde_json::from_str(&text)
@@ -99,13 +98,13 @@ impl JevDecider {
                 429 => last = Undecided::RateLimited,
                 529 => last = Undecided::Overloaded,
                 500 | 502 | 503 | 524 => {
-                    last = Undecided::Unreachable(format!("HTTP {status}: {snippet}"))
+                    last = Undecided::Unreachable(format!("HTTP {status}: {text}"))
                 }
-                400 => return Err(Undecided::Invalid(snippet)),
+                400 => return Err(Undecided::Invalid(text)),
                 413 => return Err(Undecided::TooLarge),
                 401 | 403 => return Err(Undecided::Unauthorized(format!("HTTP {status}"))),
                 402 => return Err(Undecided::NoCredit),
-                _ => return Err(Undecided::Unreachable(format!("HTTP {status}: {snippet}"))),
+                _ => return Err(Undecided::Unreachable(format!("HTTP {status}: {text}"))),
             }
         }
         Err(last)
@@ -126,6 +125,47 @@ impl Decider for JevDecider {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    /// One-shot HTTP server answering every request with `status` and `body`.
+    fn serve(status: u16, body: String) -> String {
+        use std::io::{Read, Write};
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for s in l.incoming() {
+                let Ok(mut s) = s else { break };
+                let mut buf = [0u8; 65536];
+                let mut got = Vec::new();
+                loop {
+                    let n = s.read(&mut buf).unwrap_or(0);
+                    got.extend_from_slice(&buf[..n]);
+                    if n == 0 || got.windows(4).any(|w| w == b"\r\n\r\n") {
+                        break;
+                    }
+                }
+                let head = format!(
+                    "HTTP/1.1 {status} X\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                let _ = s.write_all(head.as_bytes());
+                let _ = s.write_all(body.as_bytes());
+            }
+        });
+        format!("http://{addr}")
+    }
+
+    #[test]
+    fn a_huge_error_body_is_carried_whole() {
+        let big = "é".repeat(100_000);
+        let d = JevDecider::new(&serve(400, big.clone()), "k", "m", Duration::from_secs(5));
+        let r = d.post(&serde_json::json!({}));
+        assert_eq!(r, Err(Undecided::Invalid(big.clone())));
+        let d = JevDecider::new(&serve(418, big.clone()), "k", "m", Duration::from_secs(5));
+        assert_eq!(
+            d.post(&serde_json::json!({})),
+            Err(Undecided::Unreachable(format!("HTTP 418: {big}")))
+        );
+    }
 
     #[test]
     fn debug_never_prints_the_key() {

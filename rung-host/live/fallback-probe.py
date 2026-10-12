@@ -50,7 +50,7 @@ def ask(key, body):
     ms = int((time.time() - t) * 1000)
     if "error" in d:
         meta = d["error"].get("metadata") or {}
-        return {"status": code, "error": (d["error"].get("message") or "")[:160],
+        return {"status": code, "error": (d["error"].get("message") or ""),
                 "provider": meta.get("provider_name"), "latency_ms": ms}
     u = d.get("usage") or {}
     ch = (d.get("choices") or [{}])[0]
@@ -67,7 +67,7 @@ def ask(key, body):
             "finish": ch.get("finish_reason") or ch.get("native_finish_reason"),
             "tool_call": bool(tcs), "tool_parsed": parsed, "latency_ms": ms,
             # A served-but-errored choice (upstream error inside a 200)
-            "error": (ch.get("error") or {}).get("message", "")[:160] or None}
+            "error": (ch.get("error") or {}).get("message", "") or None}
 
 
 def main():
