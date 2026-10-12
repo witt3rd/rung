@@ -193,6 +193,15 @@ try {
     // A link into the list holds it open as far as the linked turn; a Show less that would change nothing is not offered.
     await ready(page, "#/i/bramble/turns?turn=3");
     check((await shown()) > 50 && !(await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less"))), `a link to an early turn opens the list to it (${await shown()} shown) and offers no dead Show less`);
+    // Once the reader opens more of the list the button is real, and pressing it works: it goes back to what the link requires, and is gone.
+    const heldAt = await shown();
+    await page.click('button:has-text("Show all")').catch(() => {});
+    const lessNow = await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less"));
+    check(lessNow, "after the reader opens more, Show less is offered");
+    if (lessNow) {
+      await page.click('button:has-text("Show less")');
+      check((await shown()) === heldAt && !(await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less"))), `and it works: the list goes back to what the link requires (${heldAt}) and the button is gone`);
+    }
     await ctx.close();
   }
 } finally {
