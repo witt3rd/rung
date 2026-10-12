@@ -64,17 +64,6 @@ fn flat(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn clip(s: &str, n: usize) -> String {
-    let flat = flat(s);
-    if flat.chars().count() <= n {
-        flat
-    } else {
-        let mut t: String = flat.chars().take(n).collect();
-        t.push('…');
-        t
-    }
-}
-
 /// The agent's own material, in creation order. Scores the agent gave
 /// (priorities) are never used to order it.
 pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
@@ -87,7 +76,7 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
         out.push_str(&format!(" (oldest {})", span(now - t.created_at)));
     }
     for (id, t) in todo.iter().take(5) {
-        out.push_str(&format!("\n    {id}: {}", clip(&t.text, 80)));
+        out.push_str(&format!("\n    {id}: {}", flat(&t.text)));
     }
     let mut projects: Vec<(&String, &crate::registers::Project)> = reg
         .projects
@@ -102,7 +91,7 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
     for (id, p) in projects.iter().take(8) {
         out.push_str(&format!(
             "\n    {id}: {} ({}, {} since last step)",
-            clip(&p.title, 60),
+            flat(&p.title),
             p.status,
             span(now - p.last_step_at)
         ));
@@ -112,7 +101,7 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
     qs.sort_by(|a, b| (a.1.created_at, a.0).cmp(&(b.1.created_at, b.0)));
     out.push_str(&format!("\n  research: {} open questions", qs.len()));
     for (id, q) in qs.iter().take(3) {
-        out.push_str(&format!("\n    {id}: {}", clip(&q.text, 80)));
+        out.push_str(&format!("\n    {id}: {}", flat(&q.text)));
     }
     let open: Vec<(&String, &crate::registers::Expectation)> = reg
         .expectations
@@ -129,7 +118,7 @@ pub fn material(reg: &Registers, kernel: &KernelState, now: Millis) -> String {
     if !kernel.recent.is_empty() {
         out.push_str("\n  recent traces and answers:");
         for (turn, t) in &kernel.recent {
-            out.push_str(&format!("\n    turn {turn}: \"{}\"", clip(t, 60)));
+            out.push_str(&format!("\n    turn {turn}: \"{}\"", flat(t)));
         }
     }
     out
@@ -220,9 +209,9 @@ pub fn header(h: &HeaderCtx) -> String {
         out.push(format!(
             "commitment {}: {}{resumed} · since turn {} · done when: {}",
             c.project,
-            clip(&c.title, 80),
+            flat(&c.title),
             c.since_turn,
-            clip(&c.done_when, 120)
+            flat(&c.done_when)
         ));
         out.push(format!(
             "  next step: {} · {} turns since progress{}",
@@ -286,8 +275,8 @@ pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> Str
             s.push_str(&format!(
                 "Committed to {}: {} (done when: {}).\n",
                 c.project,
-                clip(&c.title, 80),
-                clip(&c.done_when, 80)
+                flat(&c.title),
+                flat(&c.done_when)
             ));
             let ago = st.kernel.turns_since_progress;
             s.push_str(&format!(
@@ -295,7 +284,7 @@ pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> Str
                 c.last_progress_turn,
                 c.next_step
                     .as_deref()
-                    .map_or("not yet stated".into(), |n| clip(n, 80))
+                    .map_or("not yet stated".into(), |n| flat(n))
             ));
         }
         None => s.push_str("Free time: no commitment.\n"),
@@ -310,7 +299,7 @@ pub fn status_report(st: &crate::state::State, now: crate::clock::Millis) -> Str
             };
             s.push_str(&format!(
                 "Next due: {} ({}, {when}).\n",
-                clip(&e.text, 80),
+                flat(&e.text),
                 crate::clock::iso(due)
             ));
         }
@@ -333,18 +322,14 @@ pub fn slow(
     s.push_str(note.unwrap_or("(none yet)"));
     s.push_str("\n## Registers\n");
     match kernel.commitment() {
-        Some(c) => s.push_str(&format!(
-            "commitment: {} ({})\n",
-            c.project,
-            clip(&c.title, 80)
-        )),
+        Some(c) => s.push_str(&format!("commitment: {} ({})\n", c.project, flat(&c.title))),
         None => s.push_str("commitment: none (free time)\n"),
     }
     let active: Vec<String> = reg
         .projects
         .iter()
         .filter(|(_, p)| p.status != "done" && p.status != "abandoned")
-        .map(|(id, p)| format!("{id} {}", clip(&p.title, 40)))
+        .map(|(id, p)| format!("{id} {}", flat(&p.title)))
         .take(8)
         .collect();
     s.push_str(&format!(
@@ -402,21 +387,74 @@ mod tests {
         }
     }
 
-    /// A digest row and a commitment's next step carry their whole text (no cap).
+    fn huge(tag: &str) -> String {
+        format!("{}{tag}", "long words ".repeat(280_000))
+    }
+
+    /// No content in the header is cut: each kind of 3 MB text arrives whole.
     #[test]
-    fn a_digest_and_a_next_step_are_whole() {
-        let words = "long words ".repeat(280_000);
-        let text = format!("{words}END");
-        let item = Item::message("d1", crate::inbox::Role::Peer, "peer:x", 0, &text);
+    fn every_kind_of_text_is_whole() {
+        use crate::registers::{Project, Question, Todo};
+        let mut reg = Registers::default();
+        reg.todo.insert(
+            "t1".into(),
+            Todo {
+                text: huge("TODO-END"),
+                created_at: 0,
+                done: false,
+                priority: None,
+            },
+        );
+        reg.projects.insert(
+            "p1".into(),
+            Project {
+                title: huge("PROJECT-END"),
+                why: String::new(),
+                status: "active".into(),
+                created_at: 0,
+                last_step_at: 0,
+                priority: None,
+            },
+        );
+        reg.questions.insert(
+            "q1".into(),
+            Question {
+                text: huge("QUESTION-END"),
+                created_at: 0,
+                open: true,
+                priority: None,
+            },
+        );
+        let m = material(&reg, &KernelState::default(), 0);
+        for (tag, line) in [
+            ("TODO-END", "t1:"),
+            ("PROJECT-END", "p1:"),
+            ("QUESTION-END", "q1:"),
+        ] {
+            let l = m
+                .lines()
+                .find(|l| l.trim_start().starts_with(line))
+                .unwrap();
+            assert!(l.contains(tag) && l.len() > 3_000_000, "{tag}");
+        }
+        assert!(!m.contains('…'));
+
+        let item = Item::message(
+            "d1",
+            crate::inbox::Role::Peer,
+            "peer:x",
+            0,
+            &huge("DIGEST-END"),
+        );
         let c = Commitment {
             project: "p".into(),
-            title: "t".into(),
-            done_when: "d".into(),
+            title: huge("TITLE-END"),
+            done_when: huge("DONE-END"),
             until: None,
             checkpoint_every: None,
             since_turn: 1,
             since_at: 0,
-            next_step: Some(text.clone()),
+            next_step: Some(huge("STEP-END")),
             last_progress_turn: 1,
         };
         let h = header(&HeaderCtx {
@@ -440,11 +478,12 @@ mod tests {
             note_line: false,
             notices: vec![],
         });
-        let whole = flat(&text);
         let digest = h.lines().find(|l| l.starts_with("digest:")).unwrap();
-        assert!(digest.ends_with(&whole), "digest whole");
+        assert!(digest.ends_with("DIGEST-END"), "digest whole");
+        let line = h.lines().find(|l| l.starts_with("commitment p:")).unwrap();
+        assert!(line.contains("TITLE-END") && line.ends_with("DONE-END"));
         let step = h.lines().find(|l| l.contains("next step:")).unwrap();
-        assert!(step.contains(&whole), "next step whole");
+        assert!(step.contains("STEP-END"), "next step whole");
         assert!(!h.contains('…'));
     }
 

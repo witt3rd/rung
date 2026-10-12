@@ -412,7 +412,7 @@ door lists the waiting ones in it, and a move stays inside one group of it, so a
 `free` item is not moved among the `next` ones (`docs/rung-host-api.md`, S2 and S3). A
 message's text in the header, from any sender, is whole: runs of white space become one
 space (an item cannot add header lines of its own), nothing is cut; the shared redactor
-still runs on it.
+still runs on it. No caps on content in the model header: task, title, done-when, digest and next-step text are whole too.
 
 ## Stop and supervision
 

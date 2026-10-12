@@ -24,9 +24,8 @@ git tags only.
   owner's item's text in the header is now whole (it was cut at 1,000 characters);
   so is another sender's (the 1,000-character bound on a peer's text is removed;
   the redactor still runs on it).
-  The 160-character cuts on a digest row's text and on a commitment's next
-  step in the header are removed too (content, not a physical limit): both
-  reach the model whole.
+  No caps on content in the model header: task, project title, question, done-when,
+  digest, next step and message text all reach the model whole.
   A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).
 - `rung-host`, `rung-gateway`: reorder and cancel (S3). A new record line,
   `queue.moved` (`id`, `before`, optional `key`), and the waiting order is now
