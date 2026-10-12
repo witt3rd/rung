@@ -5,6 +5,7 @@ import { createServer, request, type IncomingMessage, type Server, type ServerRe
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { SimHost } from "./host.ts";
+import { handleQueue } from "./queue.ts";
 import type { Target } from "../test/contract-target.ts";
 
 const json = (res: ServerResponse, status: number, body: unknown) => {
@@ -25,6 +26,7 @@ function hostServer(host: SimHost, key: string): Server {
       if (v === null) return dflt;
       return /^\d+$/.test(v) && Number(v) >= min ? Number(v) : null;
     };
+    if (url.pathname === "/v1/queue") return void (await handleQueue(host, req, res));
     if (req.method !== "GET") return err(res, 404, "not_found", "no such door on this mock");
     if (url.pathname === "/v1/summary") return json(res, 200, host.summary());
     if (url.pathname === "/v1/record") {

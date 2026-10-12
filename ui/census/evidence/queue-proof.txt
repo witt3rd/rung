@@ -1,0 +1,39 @@
+pass  while the host has not written it down, the record has nothing new
+pass  and the list does not show it
+pass  the draft is still in the box, locked, while the host has not answered
+pass  Send cannot be pressed twice while it waits
+pass  after the answer the record holds it once
+pass  the one request carried the text whole and the intent
+pass  the box is emptied only after the host answered
+pass  Steer and When free are shown disabled; Do next is not
+pass  one plain sentence says why
+pass  the host wrote it although the answer was lost
+pass  the box keeps the text when no answer came
+pass  the second press carried the same key
+pass  and the record still holds it once
+pass  a refusal keeps the draft, and the page says why in plain words
+pass  a message of only invisible characters is empty: Send is disabled
+pass  a long text is shown folded, with no ellipsis
+pass  Show more gives the whole text, character for character
+pass  owner items are a group on top; the peer item is below it
+pass  one line says peer items can never be moved above the owner's
+pass  the peer item shows why the desk holds it
+pass  each row says what was asked and by whom
+pass  census, queue-now at 390: chrome 45 words, within every budget
+pass  census, queue-now at 1280: chrome 49 words, within every budget
+pass  census, queue-now at 1920: chrome 51 words, within every budget
+pass  census, queue-now at 2878: chrome 57 words, within every budget
+pass  the turn view marks each item: a filled Owner tag, steer or task, the time sent
+pass  a steer that came in mid-turn shows the moment the agent saw it
+pass  the Owner tag is filled
+pass  census, queue-turn at 390: chrome 2 words, within every budget
+pass  census, queue-turn at 1280: chrome 2 words, within every budget
+pass  census, queue-turn at 1920: chrome 4 words, within every budget
+pass  census, queue-turn at 2878: chrome 6 words, within every budget
+pass  on a stopped instance Send is not offered
+pass  and the door refuses it with 409 not_running
+pass  census, queue-stopped at 390: chrome 35 words, within every budget
+pass  census, queue-stopped at 1280: chrome 40 words, within every budget
+pass  census, queue-stopped at 1920: chrome 49 words, within every budget
+pass  census, queue-stopped at 2878: chrome 49 words, within every budget
+queue proof: all pass

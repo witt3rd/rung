@@ -24,3 +24,6 @@ export function useNow(on: boolean, fixed: number): number {
   }, [on]);
   return on ? now : fixed;
 }
+
+/** A time of day to the second, for a moment that matters ("the agent saw it at 14:03:41 UTC"). */
+export const clock = (at: number): string => `${new Date(at).toISOString().slice(11, 19)} UTC`;

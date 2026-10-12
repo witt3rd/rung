@@ -1,0 +1,62 @@
+# The S1 tests before any queue code existed (master 7adf14c). Every one failed, or the module was missing.
+## test/owner-mark.test.ts
+✖ an owner item carries its role, its intent, when it was sent and when the agent saw it (3.169362ms)
+✖ an arrival while a turn was running names that turn; an arrival between turns names none (0.59593ms)
+✖ an item with no intent (an older record) has none, and a peer item is not marked as the owner's (0.458099ms)
+✖ an arrival while the running turn has no end yet still names that turn (0.419832ms)
+✔ the text of an item is whole, however long (0.402894ms)
+ℹ tests 5
+ℹ pass 1
+ℹ fail 4
+✖ failing tests:
+✖ an owner item carries its role, its intent, when it was sent and when the agent saw it (3.169362ms)
+✖ an arrival while a turn was running names that turn; an arrival between turns names none (0.59593ms)
+✖ an item with no intent (an older record) has none, and a peer item is not marked as the owner's (0.458099ms)
+✖ an arrival while the running turn has no end yet still names that turn (0.419832ms)
+## test/queue-wire.test.ts
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/queue/wire.ts' imported from ui/test/queue-wire.test.ts
+✖ test/queue-wire.test.ts (58.635602ms)
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+✖ failing tests:
+✖ test/queue-wire.test.ts (58.635602ms)
+## test/queue-send.test.ts
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'ui/src/queue/send.ts' imported from ui/test/queue-send.test.ts
+✖ test/queue-send.test.ts (56.685658ms)
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+✖ failing tests:
+✖ test/queue-send.test.ts (56.685658ms)
+## test/contract-queue.test.ts
+✖ the queue answer has the documented fields (22.002356ms)
+✖ an added item is on the record before the answer, and in the list after it (0.409898ms)
+✖ the same key twice adds once; the second answer says it was a repeat (0.089ms)
+✖ a key that already holds other text is refused, and the first text stands (0.030229ms)
+✖ the text is kept whole, however long, with its line breaks (0.037805ms)
+✖ a bad body is 400 bad_request and writes nothing (0.042109ms)
+✖ the list's order is owner first, then the others, each in order of arrival (0.031913ms)
+✖ a peer item the desk holds says why, in words (0.028027ms)
+✖ an item admitted into a running turn is in `now`, with its turn, and gone from waiting (0.0489ms)
+✖ a key typed into the text is redacted at the door (0.050096ms)
+✖ the read-only token may read the queue and may not add to it (0.024444ms)
+✖ a stopped instance's queue can be read, and adding to it is refused: start it first (0.030888ms)
+✖ no key in any answer or header (0.041219ms)
+ℹ tests 13
+ℹ pass 0
+ℹ fail 13
+✖ failing tests:
+✖ the queue answer has the documented fields (22.002356ms)
+✖ an added item is on the record before the answer, and in the list after it (0.409898ms)
+✖ the same key twice adds once; the second answer says it was a repeat (0.089ms)
+✖ a key that already holds other text is refused, and the first text stands (0.030229ms)
+✖ the text is kept whole, however long, with its line breaks (0.037805ms)
+✖ a bad body is 400 bad_request and writes nothing (0.042109ms)
+✖ the list's order is owner first, then the others, each in order of arrival (0.031913ms)
+✖ a peer item the desk holds says why, in words (0.028027ms)
+✖ an item admitted into a running turn is in `now`, with its turn, and gone from waiting (0.0489ms)
+✖ a key typed into the text is redacted at the door (0.050096ms)
+✖ the read-only token may read the queue and may not add to it (0.024444ms)
+✖ a stopped instance's queue can be read, and adding to it is refused: start it first (0.030888ms)
+✖ no key in any answer or header (0.041219ms)

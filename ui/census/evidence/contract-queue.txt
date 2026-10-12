@@ -1,0 +1,46 @@
+## against the mock (same file, same bodies as the host's)
+✔ the list has the documented fields: items with a state, the page, the counts (28.585604ms)
+✔ an added item is on the record before the answer, and in the list after it (9.42962ms)
+✔ an item with no intent is read as next, and the key is optional (2.297106ms)
+✔ the same key twice adds once; the second answer says it was a repeat (8.518559ms)
+✔ a key that already names another message is 409 key_reused, and the first text stands (4.255736ms)
+✔ the text is kept whole, however long, with its line breaks (5.728552ms)
+✔ a bad request is refused in words and writes nothing: blank text, a bad key, a field it does not know, an intent not served yet (15.350251ms)
+✔ the list is ordered for a page: the owner's items above a peer's, each in order of arrival (3.449366ms)
+✔ a peer's item names its sender, and the desk's hold is said in words (1.774157ms)
+✔ an item taken into a running turn is answering, with its turn; settled, it leaves the default list and keeps its disposition (2951.741317ms)
+✔ the list pages: limit and offset, an exact total, next; a query it does not know is 400 (8.96801ms)
+✔ a key typed into the text is redacted at the door (3.376369ms)
+✔ the read-only token may read the queue and may not add to it (2.87333ms)
+✔ an instance that is not running lists, and adding to it is 409 not_running: start it first (8.243998ms)
+✔ no key in any answer or header (0.384428ms)
+✔ health, and the instance is listed with its summary (30.448456ms)
+✔ record: paging with exact totals, no gaps, either order, no cap on limit (14.920112ms)
+✔ the read-only token may read and may not write; a wrong token is 401 (4.172723ms)
+✔ a key a tool prints is on no door and no frame: the host redacts first (510.102415ms)
+✔ no key in any answer, stream line or header (1.526763ms)
+ℹ tests 30
+ℹ pass 30
+ℹ fail 0
+ℹ skipped 0
+
+## against a real rung-host behind a real rung-gateway (rung PR 297, head 102d9ea): RUNG_CONTRACT_TARGET=real-host npm run test:contract:queue
+✔ the list has the documented fields: items with a state, the page, the counts (62.895189ms)
+✔ an added item is on the record before the answer, and in the list after it (56.743014ms)
+✔ an item with no intent is read as next, and the key is optional (11.043857ms)
+✔ the same key twice adds once; the second answer says it was a repeat (64.562161ms)
+✔ a key that already names another message is 409 key_reused, and the first text stands (61.534945ms)
+✔ the text is kept whole, however long, with its line breaks (52.967265ms)
+✔ a bad request is refused in words and writes nothing: blank text, a bad key, a field it does not know, an intent not served yet (57.525841ms)
+✔ the list is ordered for a page: the owner's items above a peer's, each in order of arrival (15.70836ms)
+﹣ a peer's item names its sender, and the desk's hold is said in words (0.279902ms) # no control hook on this target
+﹣ an item taken into a running turn is answering, with its turn; settled, it leaves the default list and keeps its disposition (0.169789ms) # no control hook on this target
+✔ the list pages: limit and offset, an exact total, next; a query it does not know is 400 (60.779751ms)
+✔ a key typed into the text is redacted at the door (26.360888ms)
+✔ the read-only token may read the queue and may not add to it (15.451032ms)
+✔ an instance that is not running lists, and adding to it is 409 not_running: start it first (3705.130502ms)
+✔ no key in any answer or header (0.493743ms)
+ℹ tests 15
+ℹ pass 13
+ℹ fail 0
+ℹ skipped 2

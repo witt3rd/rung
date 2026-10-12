@@ -4,7 +4,7 @@ The page for watching, queueing for and configuring continuous rung hosts. Not p
 Design: `docs/reports/rung-ui-design-v1/` (the acceptance scenario, the host pieces, the five slices).
 
 **Slice 0: a read-only observer over a recorded event log.** Instances overview, then one
-instance: Now and Turns. Nothing here can change a host. A running host's doors do not exist yet, so the app
+instance: Now and Turns. Slice 0 alone changes nothing on a host (the queue box of S1, below, is the one control). A running host's doors do not exist yet, so the app
 reads recorded files; that one module (`src/data/source.ts`) is the seam a host's read doors replace.
 
     npm ci
@@ -69,6 +69,22 @@ cached N of M provider tokens. A small selector picks the call when a turn made 
   freezes; nothing is written to the console, storage, the title or the address; every request is a GET).
 - The plain-words line of each band (what it holds) is at the top of its opened drill-in, not on its row: the first screen stays inside the census's word budget.
 
+## Slice S1: the queue box and list, and the owner mark
+
+On an instance's Now page, under "Doing now": one text box, the switch *Do next / When free / Steer* and one **Send**. Only Do next is served by
+the host today: the other two are shown disabled, with one sentence saying they come later. The page answers only after the host has written
+the item down (it shows "Sending.", locks the box and keeps the text until the host answers); the box is emptied only on success, and a refusal
+keeps the text and says why in plain words (`contract/README.md` has the table). An item shows in the list only when the host's `GET /v1/queue`
+has it. One press is one write: a second press while it is in flight is the same request, and a press repeated after a lost answer carries the
+same key, so the host adds it once (`src/queue/send.ts`). A message of nothing visible (a zero-width space) is empty. The list shows what is being
+answered and what waits (position, text whole with "Show more" for a long one, what was asked, who sent it, its age); the owner's items are a
+group on top with one line saying peer items can never be moved above them, and a peer item the desk holds says why. A stopped instance shows
+"Start the instance first." and Send is not offered. In the turn view an item the owner sent wears a filled Owner tag, whether it was a steer or a
+task and when it was sent, and one that came in while another turn was running shows the moment the agent saw it. Everything else on the page still
+only reads. The doors are the host's (`docs/rung-host-api.md`, "S1 — the queue"); the mock (`mock/queue.ts`) answers with the same bodies, and
+`test/contract-queue.test.ts` runs against the mock and against a real host behind a real gateway (`mock/real-host.ts`). `npm run queue-proof` runs the
+page against the mock in a real browser, and `npm run real-queue-proof` against the real host and gateway, with captures at 390, 1280, 1920 and 2878.
+
 ## Where the data comes from
 
 `scripts/prepare-data.ts` copies every recorded run's record from `rung-host/live/runs/*/state/record/` into
@@ -123,6 +139,11 @@ cached N of M provider tokens. A small selector picks the call when a turn made 
 - `live-proof.txt`: the live proof against the mock, as run.
 - `real-gateway-first-run.txt`: the tests for the real gateway's rows and a missing event stream, against the UI source as it was on master.
 - `real-proof.txt`: the proof against the real gateway binary, as run; `contract-real.txt`: the contract tests against it, as run.
+- `queue-first-run.txt`: the S1 tests (owner mark, queue wire and send, queue contract) before any queue code existed. All failed.
+- `queue-real-first-run.txt`: the same tests rewritten for the host's real doors (items with a state, `not_running`, `key_reused`, an invisible-only message, the draft kept), run before the code and the mock changed. 41 failed.
+- `real-queue-proof.txt` and, in `contract-queue.txt`, the queue contract tests against the mock and a real `rung-host` behind a real `rung-gateway` (rung PR 297, head 102d9ea); the browser proof against the same.
+- `queue-mutations.txt`: faults put into the S1 code one at a time (the sender, the reader, the fold, the mock's doors, the panel); the test or proof check that caught each.
+- `queue-proof.txt`: the queue proof against the mock, as run; `contract-queue.txt`: the queue contract tests against the mock and against the real gateway (skipped by name where the door is not there).
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged
   by looking at the captures; what looking changed is listed below.

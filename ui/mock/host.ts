@@ -54,6 +54,11 @@ export class SimHost {
     if (seed) {
       const from = synthetic(Date.now()).find((i) => i.id === seed)!;
       for (const l of from.lines) this.lines.push({ ...l });
+      // A host disposes every item it admitted when the turn ends; the made-up record leaves them open, which a queue would list as answering forever.
+      const taken = new Map<string, Line>();
+      for (const l of from.lines) if (l.kind === "stimulus.admitted") for (const id of l.ids as string[]) taken.set(id, l);
+      for (const l of from.lines) if (l.kind === "stimulus.disposed") taken.delete(l.id);
+      for (const [id, l] of taken) this.lines.push({ at: l.at + 1, kind: "stimulus.disposed", seq: this.lines.length + 1, id, turn: l.turn, disposition: "answered" });
       this.turn = Math.max(0, ...this.lines.map((l) => (typeof l.turn === "number" ? l.turn : 0)));
     } else this.start();
   }
@@ -63,6 +68,16 @@ export class SimHost {
   }
 
   get lastSeq(): number { return this.lines.length; }
+  get isStopped(): boolean { return this.stopped; }
+
+  /** A message from a peer arrives; a test may have the desk hold it back, with its reason. */
+  addPeer(text: string, name: string, form?: "at_break" | "digest"): string {
+    const id = `peer-${this.lines.length + 1}`;
+    this.append("stimulus.accepted", { item: { id, kind: "peer", role: "peer", channel: `peer:${name}`, firm: false, at: Date.now(), text } });
+    // The desk's latest admit decision is where the host reads why an item waits.
+    if (form) this.append("decision.admit", { boundary: this.turn + 1, turn: this.turn + 1, by: { rule: "shadow" }, choice: { forms: { [id]: form }, interrupts: 0 }, answers: {}, wall_us: 2000 });
+    return id;
+  }
 
   append(kind: string, fields: Record<string, unknown> = {}): Line {
     const line: Line = { at: Date.now(), kind, seq: this.lines.length + 1, ...fields };
@@ -151,17 +166,17 @@ export class SimHost {
 
   /** One whole turn, as a live host writes it: the deltas stream while the model writes and a tool runs; the record gets
    *  the finished turn at its end. `pace` is the pause between pieces (0 for none). */
-  async runTurn(opts: { pace?: number; kind?: "free" | "committed" | "responding"; asked?: string; tools?: string[]; text?: string } = {}) {
+  async runTurn(opts: { pace?: number; kind?: "free" | "committed" | "responding"; asked?: string; tools?: string[]; text?: string; take?: string[] } = {}) {
     const pace = opts.pace ?? 150;
     const n = ++this.turn;
     const kind = opts.kind ?? "committed";
     const boundary = n + 1;
-    this.append("boundary", { n: boundary, mode: kind === "free" ? "free" : "committed", pending: opts.asked ? 1 : 0 });
-    let ids: string[] = [];
+    this.append("boundary", { n: boundary, mode: kind === "free" ? "free" : "committed", pending: opts.asked || opts.take?.length ? 1 : 0 });
+    let ids: string[] = [...(opts.take ?? [])];
     if (opts.asked) {
       const id = `m${n}`;
       this.append("stimulus.accepted", { item: { id, role: "owner", kind: "peer", channel: "owner", firm: false, at: Date.now(), text: opts.asked } });
-      ids = [id];
+      ids.push(id);
     }
     const by = { rule: ids.length ? "shadow" : "nothing_to_ask" };
     this.append("decision.admit", { boundary, turn: n, by, choice: { forms: Object.fromEntries(ids.map((i) => [i, "now"])), interrupts: 0 }, answers: {}, wall_us: 2000 });
@@ -206,6 +221,7 @@ export class SimHost {
     this.append("llm.call", { turn: n, call: 1, epoch: 1, rung: 0, model_requested: "model-a", model_served: "model-a", provider: "router.example", prompt_tokens: 22000, cached_tokens: 20500, cache_write_tokens: 0, completion_tokens: 300, cost_usd: 0, latency_ms: Date.now() - started });
     this.append("turn.log", { turn: n, header: `[turn ${n}]`, messages, recall: false });
     this.append("turn.ended", { turn: n, turn_kind: kind, status: "completed", calls: tools.length, elapsed_ms: Date.now() - started, model: "model-a", rung: 0, final_text: text, cost: { cached: 20500, calls: 1, cost_usd: 0, prompt: 22000 } });
+    for (const id of ids) this.append("stimulus.disposed", { id, turn: n, disposition: "answered" });
     return n;
   }
 
