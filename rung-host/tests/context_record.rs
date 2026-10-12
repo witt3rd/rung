@@ -733,7 +733,9 @@ fn digests(tag: &str, budget: Option<usize>, turns: u64) -> (Vec<String>, usize)
 /// The request bytes the provider is handed do not change: one digest per
 /// turn of a seeded busy run, folded to one, pinned from the host at 3bd9f2b, before the
 /// request record existed (a run with no rollover after the first, and one
-/// with several).
+/// with several). Re-pinned when prompt text stopped being cut (the register
+/// lists, the admitted text and the outline are whole); the record's own
+/// lines did not change.
 #[test]
 fn the_request_bytes_are_unchanged() {
     let (plain, _) = digests("ctx-golden", None, 14);

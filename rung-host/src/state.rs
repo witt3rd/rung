@@ -23,7 +23,7 @@ pub struct PackMeta {
     pub epoch: u64,
     pub epoch_started_at: Millis,
     pub epoch_first_turn: u64,
-    /// The epoch's mechanical outline so far, newest last (bounded).
+    /// The epoch's mechanical outline so far, newest last. It restarts at each epoch rollover.
     pub outline: Vec<String>,
     /// The previous epoch's outline.
     pub prev_outline: Vec<String>,
@@ -31,15 +31,9 @@ pub struct PackMeta {
     pub swaps: u64,
 }
 
-/// Outline lines kept per epoch.
-pub const OUTLINE_LINES: usize = 24;
-
 impl PackMeta {
     fn note(&mut self, s: String) {
-        self.outline.push(s.chars().take(140).collect());
-        if self.outline.len() > OUTLINE_LINES {
-            self.outline.remove(0);
-        }
+        self.outline.push(s);
     }
 
     pub fn apply(&mut self, l: &Line) {

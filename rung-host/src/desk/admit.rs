@@ -48,7 +48,8 @@ pub struct AdmitItem {
 pub struct AdmitInput {
     pub now: Millis,
     pub mode: Value,
-    /// The asked items: non-owner, oldest first, at most `max_items`.
+    /// The asked items: non-owner, oldest first, the first `limit` of them
+    /// (the rest stay waiting for a later ask).
     pub items: Vec<AdmitItem>,
     pub interrupts_last_hour: u32,
     pub since_external_s: i64,
@@ -111,7 +112,7 @@ fn kind_key(k: ItemKind) -> &'static str {
 }
 
 /// The input and context from the host's state at `now`.
-pub fn build(st: &State, now: Millis, k: &Knobs) -> (AdmitInput, AdmitCtx) {
+pub fn build(st: &State, now: Millis, limit: usize) -> (AdmitInput, AdmitCtx) {
     let waiting: Vec<Waiting> = st
         .inbox
         .waiting()
@@ -131,7 +132,7 @@ pub fn build(st: &State, now: Millis, k: &Knobs) -> (AdmitInput, AdmitCtx) {
         .waiting()
         .into_iter()
         .filter(|p| p.item.role != Role::Owner)
-        .take(k.max_items)
+        .take(limit)
         .map(|p| AdmitItem {
             id: p.item.id.clone(),
             kind: p.item.kind,

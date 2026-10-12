@@ -263,12 +263,8 @@ impl Pack {
                 let first = ch[0].turn;
                 let last = ch[ch.len() - 1].turn;
                 let bytes: usize = ch.iter().map(|s| s.bytes).sum();
-                // A gist needs only the first 150 characters.
                 let mut text = String::new();
                 for m in ch.iter().flat_map(|s| self.log[s.start..s.end].iter()) {
-                    if text.chars().count() >= 150 {
-                        break;
-                    }
                     text.push_str(&flat_text(m));
                     text.push(' ');
                 }
@@ -278,7 +274,7 @@ impl Pack {
                     first_turn: first,
                     last_turn: last,
                     tokens: canon::tokens(bytes),
-                    gist: text.chars().take(150).collect(),
+                    gist: text.trim_end().to_string(),
                     referenced_by_open_commitment: c,
                     referenced_by_open_expectation: e,
                 }
