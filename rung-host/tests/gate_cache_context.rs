@@ -31,6 +31,48 @@ fn ten_thousand_turns_stay_bounded_and_cache_clean() {
     assert_gate(&gates::g_k(&out.lines));
 }
 
+/// The case the tuned run above leaves out: an agent that never closes a todo or a project.
+/// Its registers are shown whole, so its header grows with its content, by design: no cap
+/// stops that. What stays true is the pack's own bound: no prompt passes the epoch budget
+/// (the host rolls the epoch over as the header grows), and the only gate checks that give
+/// way are the two that assume a header of bounded size (the 85% ceiling at turn start and
+/// the record's linear growth).
+#[test]
+fn an_agent_that_never_closes_its_work_grows_the_header_not_past_the_budget() {
+    sim::test_timeout(1800);
+    let mut sc = scenario("gate-j-open", 41);
+    sc.max_turns = Some(gates::G_J_TURNS);
+    sc.world = busy_world(41, 2 * DAY);
+    sc.faults = cache_and_ladder_faults();
+    sc.config.epoch_budget_tokens = 24_000;
+    sc.mock.copy_every = 40;
+    sc.mock.copy_run = 4;
+    sc.memory = false;
+    let out = sim::run(sc);
+    let g = gates::g_j(&out.lines);
+    eprintln!("GATE {}", g.summary());
+    let content_driven = [
+        "a turn started above 85% of the budget",
+        "the record does not grow linearly",
+    ];
+    let other: Vec<_> = g
+        .failures
+        .iter()
+        .filter(|f| !content_driven.contains(&f.as_str()))
+        .collect();
+    assert!(other.is_empty(), "{other:?}\n{}", g.summary());
+    // and the growth is real: the header outgrows what a closing agent's stays at
+    let rollovers = out
+        .lines
+        .iter()
+        .filter(|l| l.kind == "epoch.rollover")
+        .count();
+    assert!(
+        rollovers > 458,
+        "the header did not grow: {rollovers} rollovers"
+    );
+}
+
 #[test]
 fn canonical_bytes_are_stable_across_two_processes() {
     sim::test_timeout(300);
