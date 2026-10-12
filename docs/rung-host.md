@@ -210,6 +210,7 @@ probe: true                          # with each listing, one keyed probe per st
 quota: { rpd: 1000, rpm: 20 }        # optional
 memory: true                         # baseline memory under the state dir
 web: true                            # wire the live whole-page web_fetch (group web_read); default false: every fetch is refused. It fetches any address it is given; it is not a security boundary
+web_spill_bytes: 32768               # a fetched page of at least this many bytes is saved whole to .web/ in the workspace and the agent told where (default 32768); a context-budget setting, not a limit on what can be fetched
 acp: { http: "127.0.0.1:7878", tokens: { owner: RUNG_HOST_OWNER_TOKEN } }   # or { stdio: owner }
 ```
 
@@ -434,6 +435,34 @@ gap: *not running from T1 to T2*. Each `turn.ended` line carries the hash of
 the projection as it stood before that line, so a replay can prove the
 rebuilt state equals the state the live process had.
 
+## Fetched pages and the workspace
+
+`web_fetch` (group `web_read`, off unless `web: true`) returns the page whole.
+A body of at least `web_spill_bytes` bytes (default 32768) is instead streamed
+as it arrives to a file in the workspace, `.web/NNNN-<hash>.md`, and the tool
+result is the header line (final URL and status), a blank line and a notice
+with the workspace-relative path and the exact size in bytes and lines. The
+agent reads it with `ws_read`, all of it or a range (`from_line`/`to_line`, or
+`from_char`/`to_char` counted in Unicode characters; a range states the file's
+totals). The page is never cut and never held whole in memory: the threshold
+decides only where the text goes. Design and rulings:
+`docs/rung-host-web-fetch-spill.md`.
+
+- Spilling needs the `read` group on the turn; without it the whole body is
+  the result. A later turn without `read` that calls `ws_read` or `ws_list` on
+  a `.web/` path is refused with a message naming the path.
+- A spill failure (disk full, `.web` a file or symlink, permission) returns the
+  whole body with a one-line note and records `web.spill_failed`. A physical
+  disk limit is that failure; there is no other limit.
+- The host never removes spilled files, on start or any other time. They are
+  listed by `ws_list`; the agent (`ws_remove`, with `workspace_write`) or the
+  owner clears them. The file is untrusted scratch: the agent can overwrite it.
+- Redaction: the file is workspace content, the page text as the fetch returned
+  it, not redacted. Everything that leaves the host is: the tool result and
+  `ws_read` results pass the host's redactor as any request text, and the
+  record (`turn.log` messages, `tool.call`) and every door and stream are
+  redacted. The record never holds a spilled body, only the notice and path.
+
 ## The record
 
 One NDJSON line per event, canonical JSON (sorted keys), `{seq, at, kind,
@@ -454,6 +483,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `calendar.added` / `.fired` / `.skipped` / `.removed` | an entry; a fire has `id`, `due`, `late_by_ms`, `missed`, `firm`, `item_id` |
 | `decision.<family>` | `boundary`, `turn`, `input_hash`, `questions_hash`, `answers`, `choice`, `by` (`{"jev": {backend, model, cost_usd}}` or `{"rule": why}`), `rule_choice` and `agree` in shadow mode, `wall_us` |
 | `turn.started` | `turn`, `turn_kind`, `mode`, `project`, `model`, `rung`, `epoch`, `pack_tokens`, `header_tokens`, `enabled`, `wall_boundary_us` |
+| `web.spill_failed` | `turn`, `why` — a fetched page could not be saved to `.web/`; the whole body was returned in the result instead |
 | `tool.call` / `tool.refused` | `turn`, `name`, `group`, `ok`; a refusal has `why` (`disabled`, `overran`, `owner_waiting`) and `message` |
 | `llm.call` | `turn`, `call`, `epoch`, `rung`, `model_requested`, `model_served`, `provider`, `prompt_tokens`, `cached_tokens`, `cache_write_tokens`, `completion_tokens`, `reasoning_tokens`, `cost_usd`, `latency_ms`, `prefix {s_hash, l_hash, log_len_bytes, expected_cached_tokens}` |
 | `cache.break` / `cache.cold` | `turn`, `call`, `cause` |

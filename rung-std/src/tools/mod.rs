@@ -24,7 +24,7 @@ pub use shell::Shell;
 pub use skill::Skill;
 pub use task::{MAX_DEPTH, Spawn, TASK_COMPLETED, Task, TaskRequest, TaskResult, WithoutTask};
 pub use todo::Todo;
-pub use webfetch::WebFetch;
+pub use webfetch::{Piece, WebFetch, fetch_url_streaming};
 
 // ─── Tool output ───────────────────────────────────────────────────────────────
 

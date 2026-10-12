@@ -43,6 +43,7 @@ use crate::memory::MemoryHost;
 use crate::notify::Notifier;
 use crate::presence::{Host, HostBuilder, Limits, Recovered as Woken};
 use crate::registry::{Instance, Registration};
+use crate::spill::DEFAULT_SPILL_BYTES;
 use crate::stop::{StopAuthority, Why};
 use crate::toolbox::{LiveWeb, NoWeb, WebReader};
 
@@ -179,6 +180,11 @@ struct FileConfig {
     /// agent (default off: every fetch is refused).
     #[serde(default)]
     web: Option<bool>,
+    /// A fetched page of at least this many bytes is saved whole to a
+    /// workspace file and the agent is told where (default 32768). A
+    /// context-budget setting, not a limit on what can be fetched.
+    #[serde(default)]
+    web_spill_bytes: Option<usize>,
     #[serde(default)]
     seed_projects: Vec<SeedProject>,
     #[serde(default)]
@@ -359,6 +365,9 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
             reserve: q.reserve.unwrap_or(0.25),
         });
     }
+    if f.web_spill_bytes == Some(0) {
+        return Err(refuse("web_spill_bytes: must be at least 1"));
+    }
     if let Some(b) = f.epoch_budget_tokens {
         config.epoch_budget_tokens = b;
     }
@@ -495,7 +504,9 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
         listing: None,
         memory: f.memory.unwrap_or(true),
         web: if f.web.unwrap_or(false) {
-            Arc::new(LiveWeb)
+            Arc::new(LiveWeb {
+                spill_bytes: f.web_spill_bytes.unwrap_or(DEFAULT_SPILL_BYTES),
+            })
         } else {
             Arc::new(NoWeb)
         },
@@ -852,6 +863,27 @@ mod tests {
         let (out, _) = plan_web("web-true", "web: true\n").fetch(&url);
         assert!(out.unwrap().ends_with("ok"));
         assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn the_spill_threshold_is_a_config_setting() {
+        assert_eq!(
+            plan_web("spill-default", "web: true\n").spill_bytes(),
+            32768
+        );
+        let w = plan_web("spill-set", "web: true\nweb_spill_bytes: 1000\n");
+        assert_eq!(w.spill_bytes(), 1000);
+        let d = crate::sim::temp_dir_guard("spill-zero");
+        let cfg = d.path().join("c.yaml");
+        std::fs::write(
+            &cfg,
+            format!(
+                "state: {}\nweb: true\nweb_spill_bytes: 0\nengine: {{kind: mock}}\n",
+                d.path().join("s").display()
+            ),
+        )
+        .unwrap();
+        assert!(configure(&cfg, Some(1)).is_err());
     }
 
     #[test]
