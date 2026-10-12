@@ -73,7 +73,7 @@ only as long as nothing else wrote it.
 Because the counter comes from a scan, it can restart after the owner clears
 `.web/`, and an old transcript path could then name a different page. That is
 accepted: spill files are scratch (see trust), and the host never clears them
-itself. The host writes to a temporary name in the same directory and renames it into
+itself. The host writes to a temporary name in the same directory and hard-links it into
 place, so a reader never sees a half-written file.
 
 ### How the agent is told, and how it reads
@@ -158,7 +158,7 @@ If a file is gone or was overwritten when an old transcript is replayed,
 ### Failure cases
 
 - Any spill failure (disk full, permission, `.web` is a file or symlink,
-  rename fails): the body is already in memory, so return the whole body with
+  the final link fails): the body is already in memory, so return the whole body with
   a one-line note of the failure, and remove any temporary file. The host also
   emits an event for each such failure, so a fallback does not hide disk
   problems. Never return a partial body.
