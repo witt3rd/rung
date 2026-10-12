@@ -11,8 +11,9 @@
 //!
 //! The list the doors give ([`answer`]) is ordered for a page: the item being
 //! answered, then what waits (the owner's items first, then every other sender's;
-//! within each, in the order they were accepted), then what is over (the most
-//! recently settled first). A page of it is cut by the caller (`offset`,
+//! within each, in the order they were accepted as `queue.moved` lines have
+//! changed it: [`crate::inbox::Order`]), then what is over (the most recently
+//! settled first). A page of it is cut by the caller (`offset`,
 //! `limit`), never by the host; every text is whole, and the whole answer goes
 //! through the shared redactor. Door shapes: `docs/rung-host-api.md` (S1).
 
@@ -83,11 +84,7 @@ impl Entry {
 
     /// Owner first, then peers, then any other source (the host's own).
     fn rank(&self) -> u8 {
-        match self.role() {
-            "owner" => 0,
-            "peer" => 1,
-            _ => 2,
-        }
+        crate::inbox::group_of(self.role())
     }
 
     fn channel(&self) -> &str {
@@ -117,6 +114,8 @@ pub struct Fold {
     /// The forms of the latest `decision.admit`: id → `now` | `at_break` |
     /// `digest`.
     forms: BTreeMap<String, String>,
+    /// The order the unsettled items wait in: acceptance, then `queue.moved`.
+    order: crate::inbox::Order,
     /// The seq of the last line applied.
     pub seq: u64,
 }
@@ -133,6 +132,9 @@ impl Fold {
                 // an owner control (stop, release) is acted on and never shown
                 if item.get("control").is_some_and(|c| !c.is_null()) {
                     return;
+                }
+                if !self.entries.contains_key(id) {
+                    self.order.push(id);
                 }
                 self.entries.entry(id.to_string()).or_insert_with(|| Entry {
                     id: id.to_string(),
@@ -180,7 +182,19 @@ impl Fold {
                     e.disposition = Some(d.to_string());
                     e.turn = l.get("turn").as_u64().or(e.turn);
                     e.settled = l.seq;
+                    let id = e.id.clone();
+                    self.order.remove(&id);
                 }
+            }
+            "queue.moved" => {
+                let entries = &self.entries;
+                self.order
+                    .apply_move(l.str("id"), l.get("before").as_str(), |x| {
+                        entries
+                            .get(x)
+                            .filter(|e| e.state == State::Waiting)
+                            .map(Entry::rank)
+                    });
             }
             "decision.admit" => {
                 self.forms = l.get("choice")["forms"]
@@ -205,8 +219,15 @@ impl Fold {
     fn sorted(&self) -> Vec<(&Entry, Option<usize>)> {
         let mut answering: Vec<&Entry> = self.in_state(State::Answering);
         answering.sort_by_key(|e| e.order);
+        let places = self.order.places();
         let mut waiting: Vec<&Entry> = self.in_state(State::Waiting);
-        waiting.sort_by_key(|e| (e.rank(), e.order));
+        waiting.sort_by_key(|e| {
+            (
+                e.rank(),
+                places.get(e.id.as_str()).copied().unwrap_or(usize::MAX),
+                e.order,
+            )
+        });
         let mut over: Vec<&Entry> = self
             .entries
             .values()
@@ -384,6 +405,24 @@ impl Query {
     }
 }
 
+/// A path segment, percent-decoded; `None` when it is not UTF-8 or is empty.
+pub fn decode_segment(seg: &str) -> Option<String> {
+    let b = seg.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            let hex = std::str::from_utf8(b.get(i + 1..i + 3)?).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok().filter(|s| !s.is_empty())
+}
+
 /// Replay the record in `state_dir`. A damaged record is read as far as it is
 /// intact; the damage is returned.
 pub fn replay(state_dir: &Path) -> Door<(Fold, Option<read::Damaged>)> {
@@ -485,6 +524,55 @@ mod tests {
         assert_eq!(a["state"], "waiting");
         assert_eq!(a["position"], 1);
         assert_eq!(f.item("b").unwrap()["position"], 2);
+    }
+
+    fn moved(f: &mut Fold, seq: u64, id: &str, before: Option<&str>) {
+        f.apply(&line(
+            seq,
+            "queue.moved",
+            json!({"id": id, "before": before}),
+        ));
+    }
+
+    fn waiting(f: &Fold) -> Vec<String> {
+        f.sorted()
+            .into_iter()
+            .filter(|(_, p)| p.is_some())
+            .map(|(e, _)| e.id.clone())
+            .collect()
+    }
+
+    #[test]
+    fn the_list_follows_the_moves_and_keeps_the_owner_on_top() {
+        let mut f = Fold::default();
+        accept(&mut f, 1, "p1", "peer", "peer:atlas");
+        accept(&mut f, 2, "o1", "owner", "owner");
+        accept(&mut f, 3, "o2", "owner", "owner");
+        accept(&mut f, 4, "p2", "peer", "peer:bolt");
+        assert_eq!(waiting(&f), ["o1", "o2", "p1", "p2"]);
+        moved(&mut f, 5, "o2", Some("o1"));
+        moved(&mut f, 6, "p2", Some("p1"));
+        assert_eq!(waiting(&f), ["o2", "o1", "p2", "p1"]);
+        // never across groups, whatever a line says
+        moved(&mut f, 7, "p2", Some("o1"));
+        moved(&mut f, 8, "o2", Some("p2"));
+        assert_eq!(waiting(&f), ["o2", "o1", "p2", "p1"]);
+        assert_eq!(f.item("o2").unwrap()["position"], 1);
+        assert_eq!(f.item("p1").unwrap()["position"], 4);
+        // a move changes order, not the item's `order` (its acceptance)
+        assert_eq!(f.item("o2").unwrap()["order"], 3);
+        // the end of the group
+        moved(&mut f, 9, "o2", None);
+        assert_eq!(waiting(&f), ["o1", "o2", "p2", "p1"]);
+        // a withdrawn item is out of the order; a move of it is no move
+        f.apply(&line(
+            10,
+            "stimulus.disposed",
+            json!({"id": "o1", "disposition": "withdrawn", "turn": 1}),
+        ));
+        moved(&mut f, 11, "o1", Some("o2"));
+        assert_eq!(waiting(&f), ["o2", "p2", "p1"]);
+        assert_eq!(f.item("o1").unwrap()["state"], "withdrawn");
     }
 
     #[test]

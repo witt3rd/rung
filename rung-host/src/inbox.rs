@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::clock::Millis;
+use crate::read::DoorError;
 use crate::record::Line;
 
 /// Who sent an item.
@@ -30,6 +31,27 @@ pub enum Role {
     Observer,
     /// The host itself (calendar, expectations, world checks).
     Host,
+}
+
+impl Role {
+    /// The group an item waits in: the owner's items (0) stay on top, then
+    /// peers' (1), then every other source's (2). A move stays in one group.
+    pub fn group(self) -> u8 {
+        match self {
+            Role::Owner => 0,
+            Role::Peer => 1,
+            Role::Observer | Role::Host => 2,
+        }
+    }
+}
+
+/// [`Role::group`] for a role as the record spells it.
+pub fn group_of(role: &str) -> u8 {
+    match role {
+        "owner" => 0,
+        "peer" => 1,
+        _ => 2,
+    }
 }
 
 /// What an item is.
@@ -125,6 +147,81 @@ pub struct Pending {
     pub requeued_at: Option<Millis>,
 }
 
+/// The order items wait in: the fold of acceptance order and the moves
+/// (`queue.moved`). It holds every item that is not yet disposed (an item
+/// being answered keeps its place, so one requeued waits where it did).
+///
+/// The fold rules, which the host's door and every reader of the record share:
+/// an item takes the end of the order when it is accepted; a `queue.moved`
+/// line `{id, before}` takes `id` out and puts it in front of `before` (the
+/// end of its group when `before` is null), but only when `id` waits, `before`
+/// (if any) waits, and both are in one group; a line that does not meet that
+/// is read as no move. The later line wins. A move changes order only: when
+/// the desk shows an item is the desk's.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Order {
+    ids: Vec<String>,
+}
+
+impl Order {
+    /// A newly accepted item goes to the end.
+    pub fn push(&mut self, id: &str) {
+        if !self.ids.iter().any(|x| x == id) {
+            self.ids.push(id.to_string());
+        }
+    }
+
+    /// An item that is disposed has no place.
+    pub fn remove(&mut self, id: &str) {
+        if let Some(i) = self.ids.iter().position(|x| x == id) {
+            self.ids.remove(i);
+        }
+    }
+
+    /// Each id's place, for sorting.
+    pub fn places(&self) -> BTreeMap<&str, usize> {
+        self.ids
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (id.as_str(), i))
+            .collect()
+    }
+
+    /// Fold one `queue.moved` line. `group` says the group of an item that
+    /// waits, and `None` for any that does not (unknown, being answered, over).
+    /// True when the order changed.
+    pub fn apply_move(
+        &mut self,
+        id: &str,
+        before: Option<&str>,
+        group: impl Fn(&str) -> Option<u8>,
+    ) -> bool {
+        let Some(g) = group(id) else {
+            return false;
+        };
+        if let Some(b) = before
+            && (b == id || group(b) != Some(g) || !self.ids.iter().any(|x| x == b))
+        {
+            return false;
+        }
+        let Some(from) = self.ids.iter().position(|x| x == id) else {
+            return false;
+        };
+        self.ids.remove(from);
+        let at = match before {
+            Some(b) => self.ids.iter().position(|x| x == b).unwrap_or(from),
+            None => self
+                .ids
+                .iter()
+                .rposition(|x| group(x) == Some(g))
+                .map_or(from, |i| i + 1),
+        };
+        let at = at.min(self.ids.len());
+        self.ids.insert(at, id.to_string());
+        from != at
+    }
+}
+
 /// The inbox as the record leaves it.
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct InboxState {
@@ -140,6 +237,19 @@ pub struct InboxState {
     /// `host:ack`), until they are disposed.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub acked: BTreeSet<String>,
+    /// The order the unsettled items wait in (acceptance, then moves).
+    #[serde(skip)]
+    pub order: Order,
+    /// The forms of the desk's latest `decision.admit`: id → `now` |
+    /// `at_break` | `digest`.
+    #[serde(skip)]
+    pub forms: BTreeMap<String, String>,
+    /// Items withdrawn before any turn read them.
+    #[serde(skip)]
+    pub withdrawn: BTreeSet<String>,
+    /// The key of each `queue.moved` line that has one: key → (id, before).
+    #[serde(skip)]
+    pub move_keys: BTreeMap<String, (String, Option<String>)>,
 }
 
 impl InboxState {
@@ -152,7 +262,9 @@ impl InboxState {
                 if item.role != Role::Host {
                     self.last_external_at = Some(item.at.max(self.last_external_at.unwrap_or(0)));
                 }
-                self.seen.insert(item.id.clone());
+                if self.seen.insert(item.id.clone()) {
+                    self.order.push(&item.id);
+                }
                 self.pending.insert(
                     item.id.clone(),
                     Pending {
@@ -183,6 +295,35 @@ impl InboxState {
                 self.in_flight.remove(id);
                 self.pending.remove(id);
                 self.acked.remove(id);
+                self.order.remove(id);
+                if l.str("disposition") == "withdrawn" {
+                    self.withdrawn.insert(id.to_string());
+                }
+            }
+            "decision.admit" => {
+                self.forms = l.get("choice")["forms"]
+                    .as_object()
+                    .map(|m| {
+                        m.iter()
+                            .filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string())))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+            }
+            "queue.moved" => {
+                let (id, before) = (l.str("id"), l.get("before").as_str());
+                let pending = &self.pending;
+                self.order.apply_move(id, before, |x| {
+                    pending
+                        .get(x)
+                        .filter(|p| p.item.control.is_none())
+                        .map(|p| p.item.role.group())
+                });
+                if let Some(k) = l.get("key").as_str() {
+                    self.move_keys
+                        .entry(k.to_string())
+                        .or_insert_with(|| (id.to_string(), before.map(str::to_string)));
+                }
             }
             "outbox.queued" if l.str("source") == ACK_SOURCE => {
                 self.acked.insert(l.str("item").to_string());
@@ -191,16 +332,212 @@ impl InboxState {
         }
     }
 
-    /// Waiting items, oldest first.
+    /// Waiting items in the order they wait in: the owner's first, then peers',
+    /// then any other source's; within a group, the order of acceptance as the
+    /// moves have changed it.
     pub fn waiting(&self) -> Vec<&Pending> {
+        let places = self.order.places();
         let mut v: Vec<&Pending> = self.pending.values().collect();
-        v.sort_by_key(|p| p.order);
+        v.sort_by_key(|p| {
+            (
+                p.item.role.group(),
+                places
+                    .get(p.item.id.as_str())
+                    .copied()
+                    .unwrap_or(usize::MAX),
+                p.order,
+            )
+        });
         v
+    }
+
+    /// Where an item stands, for the doors that move or cancel it. An owner
+    /// control (`stop`, `release`) is acted on and never listed: to a door it is
+    /// no item.
+    pub fn standing(&self, id: &str) -> Standing {
+        if let Some(p) = self.pending.get(id) {
+            return if p.item.control.is_some() {
+                Standing::Unknown
+            } else {
+                Standing::Waiting
+            };
+        }
+        if let Some((turn, _)) = self.in_flight.get(id) {
+            return Standing::Answering(*turn);
+        }
+        if self.withdrawn.contains(id) {
+            Standing::Withdrawn
+        } else if self.seen.contains(id) {
+            Standing::Answered
+        } else {
+            Standing::Unknown
+        }
+    }
+
+    /// What a waiting item waits for: the boundary the desk last gave it. The
+    /// owner's items are always shown at the next boundary; any other item is
+    /// shown then, at the agent's next break, or as a digest line, as the
+    /// desk's latest `decision.admit` said.
+    fn boundary(&self, p: &Pending) -> &'static str {
+        if p.item.role == Role::Owner {
+            return "next";
+        }
+        match self.forms.get(&p.item.id).map(String::as_str) {
+            Some("at_break") => "break",
+            Some("digest") => "digest",
+            _ => "next",
+        }
+    }
+
+    /// Judge a move before it is written: refused in words (the status and code
+    /// the door answers), a move to the item's own place a no-op, else a move.
+    /// Nothing here writes; the host asks and writes under one lock.
+    ///
+    /// The rules (`docs/rung-host-api.md`, S3): `id` and `before` must wait; they
+    /// must be in one group (the owner's items stay above every other sender's,
+    /// so a peer's item is never put above an owner's nor an owner's below a
+    /// peer's); and every item the move jumps over must wait for the same
+    /// boundary as `id`. `before` null is the end of `id`'s group.
+    pub fn plan_move(&self, id: &str, before: Option<&str>) -> Result<MovePlan, DoorError> {
+        let waits = |x: &str, role: &str| -> Result<(), DoorError> {
+            match self.standing(x) {
+                Standing::Waiting => Ok(()),
+                Standing::Unknown => Err(DoorError::new(
+                    404,
+                    "not_found",
+                    format!("no item has the id {x}: nothing was written"),
+                )),
+                other => Err(DoorError::new(
+                    409,
+                    "not_waiting",
+                    format!("{x} {}, so {role}: nothing was written", other.words()),
+                )),
+            }
+        };
+        waits(id, "it cannot be moved")?;
+        if let Some(b) = before {
+            if b == id {
+                return Ok(MovePlan::Nothing);
+            }
+            waits(b, "nothing can be put in front of it")?;
+        }
+        let me = &self.pending[id];
+        let group = me.item.role.group();
+        if let Some(b) = before {
+            let other = &self.pending[b];
+            let og = other.item.role.group();
+            if og != group {
+                let (mine, theirs) = (group_name(group), group_name(og));
+                let why = if group > og {
+                    format!(
+                        "{theirs} items stay above {mine} ones, so {id} cannot be put above one"
+                    )
+                } else {
+                    format!(
+                        "{mine} items stay above {theirs} ones, so {id} cannot be put below one"
+                    )
+                };
+                return Err(DoorError::new(
+                    409,
+                    "group",
+                    format!(
+                        "{id} is {mine} item and {b} is {theirs} item: {why}; nothing was written"
+                    ),
+                ));
+            }
+        }
+        let line: Vec<&Pending> = self
+            .waiting()
+            .into_iter()
+            .filter(|p| p.item.role.group() == group)
+            .collect();
+        let i = line.iter().position(|p| p.item.id == id).unwrap_or(0);
+        let jumped: &[&Pending] = match before {
+            None => &line[(i + 1).min(line.len())..],
+            Some(b) => {
+                let j = line.iter().position(|p| p.item.id == b).unwrap_or(i);
+                if j < i {
+                    &line[j..i]
+                } else if j > i + 1 {
+                    &line[i + 1..j]
+                } else {
+                    &[]
+                }
+            }
+        };
+        if jumped.is_empty() {
+            return Ok(MovePlan::Nothing);
+        }
+        let mine = self.boundary(me);
+        if let Some(p) = jumped.iter().find(|p| self.boundary(p) != mine) {
+            return Err(DoorError::new(
+                409,
+                "boundary",
+                format!(
+                    "{id} waits for {} and {} for {}: a move only reorders items that wait for the same boundary, and the desk decides when each is shown; nothing was written",
+                    boundary_words(mine),
+                    p.item.id,
+                    boundary_words(self.boundary(p)),
+                ),
+            ));
+        }
+        Ok(MovePlan::Move)
     }
 
     /// In-flight ids (a turn that never ended leaves some).
     pub fn in_flight_ids(&self) -> Vec<String> {
         self.in_flight.keys().cloned().collect()
+    }
+}
+
+/// Where an item stands (see [`InboxState::standing`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Standing {
+    Waiting,
+    /// In the turn that is answering it.
+    Answering(u64),
+    Withdrawn,
+    /// Disposed by a turn.
+    Answered,
+    Unknown,
+}
+
+impl Standing {
+    /// What the doors say of an item that is not waiting.
+    pub fn words(self) -> String {
+        match self {
+            Standing::Waiting => "is waiting".into(),
+            Standing::Answering(turn) => {
+                format!("is being answered right now (turn {turn})")
+            }
+            Standing::Withdrawn => "was withdrawn".into(),
+            Standing::Answered => "was answered".into(),
+            Standing::Unknown => "is not known".into(),
+        }
+    }
+}
+
+/// What judging a move found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MovePlan {
+    /// The item is already where the move puts it.
+    Nothing,
+    Move,
+}
+
+fn group_name(group: u8) -> &'static str {
+    match group {
+        0 => "the owner's",
+        1 => "a peer's",
+        _ => "the host's own",
+    }
+}
+
+fn boundary_words(b: &str) -> &'static str {
+    match b {
+        "break" => "the agent's next break",
+        "digest" => "a digest line in a later turn header",
+        _ => "the next boundary",
     }
 }
 
@@ -395,6 +732,162 @@ mod tests {
         s.apply(&line(5, "stimulus.disposed", json!({"id": "b"})));
         assert_eq!(s.in_flight.len(), 0);
         assert_eq!(s.seen.len(), 2);
+    }
+
+    fn accept(s: &mut InboxState, seq: u64, id: &str, role: Role, channel: &str) {
+        let it = Item::message(id, role, channel, seq as i64, "text");
+        s.apply(&line(seq, "stimulus.accepted", accepted_body(&it)));
+    }
+
+    fn moved(s: &mut InboxState, seq: u64, id: &str, before: Option<&str>) {
+        s.apply(&line(
+            seq,
+            "queue.moved",
+            json!({"id": id, "before": before}),
+        ));
+    }
+
+    fn order(s: &InboxState) -> Vec<&str> {
+        s.waiting().iter().map(|p| p.item.id.as_str()).collect()
+    }
+
+    #[test]
+    fn a_move_is_folded_in_front_of_the_item_or_at_the_end_of_its_group() {
+        let mut s = InboxState::default();
+        for (i, id) in ["a", "b", "c", "d"].iter().enumerate() {
+            accept(&mut s, i as u64 + 1, id, Role::Owner, "owner");
+        }
+        assert_eq!(order(&s), ["a", "b", "c", "d"]);
+        moved(&mut s, 5, "d", Some("a"));
+        assert_eq!(order(&s), ["d", "a", "b", "c"]);
+        moved(&mut s, 6, "d", None);
+        assert_eq!(order(&s), ["a", "b", "c", "d"]);
+        moved(&mut s, 7, "b", Some("d"));
+        assert_eq!(order(&s), ["a", "c", "b", "d"]);
+        // the later line wins
+        moved(&mut s, 8, "a", Some("b"));
+        moved(&mut s, 9, "b", Some("a"));
+        assert_eq!(order(&s), ["c", "b", "a", "d"]);
+    }
+
+    #[test]
+    fn a_line_that_does_not_meet_the_rules_is_read_as_no_move() {
+        let mut s = InboxState::default();
+        accept(&mut s, 1, "o1", Role::Owner, "owner");
+        accept(&mut s, 2, "p1", Role::Peer, "peer:p1");
+        accept(&mut s, 3, "p2", Role::Peer, "peer:p2");
+        accept(&mut s, 4, "o2", Role::Owner, "owner");
+        assert_eq!(order(&s), ["o1", "o2", "p1", "p2"]);
+        // across groups, either way; an unknown item; itself; an item in front
+        // of an unknown one
+        moved(&mut s, 5, "p2", Some("o1"));
+        moved(&mut s, 6, "o1", Some("p2"));
+        moved(&mut s, 7, "ghost", Some("o1"));
+        moved(&mut s, 8, "p1", Some("p1"));
+        moved(&mut s, 9, "p1", Some("ghost"));
+        assert_eq!(order(&s), ["o1", "o2", "p1", "p2"]);
+        // an item that is being answered, or is over, takes no move
+        s.apply(&line(
+            10,
+            "stimulus.admitted",
+            json!({"turn": 1, "ids": ["p2"]}),
+        ));
+        moved(&mut s, 11, "p2", Some("p1"));
+        moved(&mut s, 12, "p1", Some("p2"));
+        assert_eq!(order(&s), ["o1", "o2", "p1"]);
+        // a requeued item waits again in its own place
+        s.apply(&line(13, "stimulus.requeued", json!({"ids": ["p2"]})));
+        assert_eq!(order(&s), ["o1", "o2", "p1", "p2"]);
+        s.apply(&line(
+            14,
+            "stimulus.disposed",
+            json!({"id": "p1", "disposition": "withdrawn", "turn": 1}),
+        ));
+        moved(&mut s, 15, "o1", Some("p1"));
+        assert_eq!(order(&s), ["o1", "o2", "p2"]);
+        assert_eq!(s.standing("p1"), Standing::Withdrawn);
+    }
+
+    #[test]
+    fn a_move_never_changes_which_group_an_item_is_in() {
+        let mut s = InboxState::default();
+        accept(&mut s, 1, "p1", Role::Peer, "peer:p1");
+        accept(&mut s, 2, "o1", Role::Owner, "owner");
+        accept(&mut s, 3, "h1", Role::Host, "calendar");
+        moved(&mut s, 4, "o1", None);
+        moved(&mut s, 5, "p1", None);
+        assert_eq!(order(&s), ["o1", "p1", "h1"]);
+    }
+
+    #[test]
+    fn a_move_judged_before_it_is_written() {
+        let mut s = InboxState::default();
+        accept(&mut s, 1, "o1", Role::Owner, "owner");
+        accept(&mut s, 2, "o2", Role::Owner, "owner");
+        accept(&mut s, 3, "p1", Role::Peer, "peer:p1");
+        accept(&mut s, 4, "p2", Role::Peer, "peer:p2");
+        accept(&mut s, 5, "p3", Role::Peer, "peer:p3");
+        let plan = |s: &InboxState, id: &str, b: Option<&str>| s.plan_move(id, b);
+        assert_eq!(plan(&s, "o2", Some("o1")).unwrap(), MovePlan::Move);
+        assert_eq!(plan(&s, "o1", Some("o2")).unwrap(), MovePlan::Nothing);
+        assert_eq!(plan(&s, "o2", None).unwrap(), MovePlan::Nothing);
+        assert_eq!(plan(&s, "o1", None).unwrap(), MovePlan::Move);
+        assert_eq!(plan(&s, "o1", Some("o1")).unwrap(), MovePlan::Nothing);
+        let e = plan(&s, "p1", Some("o1")).unwrap_err();
+        assert_eq!((e.status, e.code), (409, "group"));
+        let e = plan(&s, "o2", Some("p1")).unwrap_err();
+        assert_eq!((e.status, e.code), (409, "group"));
+        assert_eq!(plan(&s, "ghost", None).unwrap_err().status, 404);
+        assert_eq!(plan(&s, "o1", Some("ghost")).unwrap_err().status, 404);
+        // the desk gave p1 a break and p2 and p3 the next boundary: a move that
+        // jumps over an item waiting for another boundary is refused, one that
+        // jumps over none is not
+        s.apply(&line(
+            6,
+            "decision.admit",
+            json!({"choice": {"forms": {"p1": "at_break", "p2": "now", "p3": "now"}}}),
+        ));
+        assert_eq!(plan(&s, "p3", Some("p2")).unwrap(), MovePlan::Move);
+        let e = plan(&s, "p3", Some("p1")).unwrap_err();
+        assert_eq!((e.status, e.code), (409, "boundary"));
+        assert!(e.message.contains("break"), "{}", e.message);
+        let e = plan(&s, "p1", None).unwrap_err();
+        assert_eq!(e.code, "boundary");
+        // the end of the group, jumping nothing: no move
+        assert_eq!(plan(&s, "p3", None).unwrap(), MovePlan::Nothing);
+        // owner items never wait for the desk's boundary, whatever it said
+        s.apply(&line(
+            7,
+            "decision.admit",
+            json!({"choice": {"forms": {"o1": "at_break", "p1": "at_break"}}}),
+        ));
+        assert_eq!(plan(&s, "o2", Some("o1")).unwrap(), MovePlan::Move);
+    }
+
+    #[test]
+    fn a_key_is_remembered_from_the_line() {
+        let mut s = InboxState::default();
+        accept(&mut s, 1, "a", Role::Owner, "owner");
+        accept(&mut s, 2, "b", Role::Owner, "owner");
+        s.apply(&line(
+            3,
+            "queue.moved",
+            json!({"id": "b", "before": "a", "key": "mv-1"}),
+        ));
+        assert_eq!(
+            s.move_keys.get("mv-1"),
+            Some(&("b".to_string(), Some("a".to_string())))
+        );
+    }
+
+    #[test]
+    fn an_owner_control_is_no_item_to_a_door() {
+        let mut s = InboxState::default();
+        let mut it = Item::message("stop-1", Role::Owner, "owner", 1, "stop");
+        it.control = Some("stop".into());
+        s.apply(&line(1, "stimulus.accepted", accepted_body(&it)));
+        assert_eq!(s.standing("stop-1"), Standing::Unknown);
+        assert_eq!(s.plan_move("stop-1", None).unwrap_err().status, 404);
     }
 
     #[test]

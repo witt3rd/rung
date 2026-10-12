@@ -914,6 +914,46 @@ pub const EVENTS_PATH: &str = "/v1/events";
 /// The path of the queue door (S1).
 pub const QUEUE_PATH: &str = "/v1/queue";
 
+/// What a path under the queue door names (S3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QueueTarget {
+    /// `/v1/queue`
+    List,
+    /// `/v1/queue/{id}`
+    Item(String),
+    /// `/v1/queue/{id}/move`
+    Move(String),
+    /// A path under `/v1/queue/` that is none of these.
+    Unknown,
+    /// An id that is not percent-encoded UTF-8.
+    Undecodable,
+}
+
+impl QueueTarget {
+    /// The target of `path`; `None` when the path is not under the queue door.
+    pub fn of(path: &str) -> Option<Self> {
+        let rest = path.strip_prefix(QUEUE_PATH)?;
+        if rest.is_empty() {
+            return Some(QueueTarget::List);
+        }
+        let rest = rest.strip_prefix('/')?;
+        let (seg, tail) = match rest.split_once('/') {
+            Some((seg, tail)) => (seg, Some(tail)),
+            None => (rest, None),
+        };
+        if seg.is_empty() || !matches!(tail, None | Some("move")) {
+            return Some(QueueTarget::Unknown);
+        }
+        let Some(id) = crate::queue::decode_segment(seg) else {
+            return Some(QueueTarget::Undecodable);
+        };
+        Some(match tail {
+            None => QueueTarget::Item(id),
+            _ => QueueTarget::Move(id),
+        })
+    }
+}
+
 /// The host's own doors on its listener (H5).
 pub struct EventsDoor {
     /// The state directory whose record the door follows.
@@ -1178,10 +1218,10 @@ fn door_error(status: u16, code: &str, message: &str) -> Reply {
 impl QueueDoor {
     /// Is `path` this door's? The one place the door's path is checked.
     pub fn owns(path: &str) -> bool {
-        path == QUEUE_PATH
+        QueueTarget::of(path).is_some()
     }
 
-    /// The route of `/v1/queue`; `None` for any other path.
+    /// The route of `/v1/queue` and what is under it; `None` for any other path.
     pub fn routes(self: &Arc<Self>) -> rung_agent_core::acp_http::Routes {
         use rung_agent_core::acp_http::RouteRequest;
         let door = self.clone();
@@ -1207,14 +1247,14 @@ impl QueueDoor {
             if !QueueDoor::owns(&head.path) {
                 return GateVerdict::Leave;
             }
-            match door.refuse(&head.method, &head.headers) {
+            match door.refuse(&head.method, &head.path, &head.headers) {
                 Some(reply) => GateVerdict::Refuse(reply),
                 None => GateVerdict::Admit,
             }
         })
     }
 
-    fn refuse(&self, method: &str, headers: &[(String, String)]) -> Option<Reply> {
+    fn refuse(&self, method: &str, path: &str, headers: &[(String, String)]) -> Option<Reply> {
         let header = |n: &str| {
             headers
                 .iter()
@@ -1239,37 +1279,77 @@ impl QueueDoor {
                 ));
             }
         }
-        match method {
-            "GET" | "HEAD" => None,
-            "POST" => {
-                let json_body = header("content-type").is_some_and(|c| {
-                    c.split(';')
-                        .next()
-                        .unwrap_or("")
-                        .trim()
-                        .eq_ignore_ascii_case("application/json")
-                });
-                if !json_body {
+        let writes = || -> Option<Reply> {
+            // a host that has been told to stop takes nothing more
+            if self.acp.host.core.stop.raised() {
+                return Some(door_error(
+                    409,
+                    "not_running",
+                    "this host is stopping and takes no more messages: start it first",
+                ));
+            }
+            None
+        };
+        let json_body = || {
+            header("content-type").is_some_and(|c| {
+                c.split(';')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .eq_ignore_ascii_case("application/json")
+            })
+        };
+        let not_json = || {
+            door_error(
+                415,
+                "unsupported_media_type",
+                "send the body as application/json",
+            )
+        };
+        match (QueueTarget::of(path), method) {
+            (None, _) => None,
+            (Some(QueueTarget::Unknown), _) => Some(door_error(
+                404,
+                "not_found",
+                "no such queue door: /v1/queue, /v1/queue/{id} (DELETE) or /v1/queue/{id}/move (POST)",
+            )),
+            (Some(QueueTarget::Undecodable), _) => Some(door_error(
+                400,
+                "bad_request",
+                "the id in the path is not percent-encoded UTF-8",
+            )),
+            (Some(QueueTarget::List), "GET" | "HEAD") => None,
+            (Some(QueueTarget::List), "POST") => {
+                if !json_body() {
                     return Some(door_error(
                         415,
                         "unsupported_media_type",
                         "send the message as application/json",
                     ));
                 }
-                // a host that has been told to stop takes nothing more
-                if self.acp.host.core.stop.raised() {
-                    return Some(door_error(
-                        409,
-                        "not_running",
-                        "this host is stopping and takes no more messages: start it first",
-                    ));
-                }
-                None
+                writes()
             }
-            _ => Some(door_error(
+            (Some(QueueTarget::List), _) => Some(door_error(
                 405,
                 "method_not_allowed",
                 "this door lists (GET) and adds (POST)",
+            )),
+            (Some(QueueTarget::Item(_)), "DELETE") => writes(),
+            (Some(QueueTarget::Item(_)), _) => Some(door_error(
+                405,
+                "method_not_allowed",
+                "this door cancels a waiting item (DELETE)",
+            )),
+            (Some(QueueTarget::Move(_)), "POST") => {
+                if !json_body() {
+                    return Some(not_json());
+                }
+                writes()
+            }
+            (Some(QueueTarget::Move(_)), _) => Some(door_error(
+                405,
+                "method_not_allowed",
+                "this door moves a waiting item (POST)",
             )),
         }
     }
@@ -1277,12 +1357,108 @@ impl QueueDoor {
     async fn handle(self: Arc<Self>, req: rung_agent_core::acp_http::RouteRequest) -> Reply {
         // the listener's gate has already refused what these checks refuse; they
         // stay so the route is safe wherever it is mounted
-        if let Some(refusal) = self.refuse(&req.method, &req.headers) {
+        if let Some(refusal) = self.refuse(&req.method, &req.path, &req.headers) {
             return refusal;
         }
-        match req.method.as_str() {
-            "GET" | "HEAD" => self.list(&req).await,
-            _ => self.add(&req).await,
+        match QueueTarget::of(&req.path) {
+            Some(QueueTarget::List) => match req.method.as_str() {
+                "GET" | "HEAD" => self.list(&req).await,
+                _ => self.add(&req).await,
+            },
+            Some(QueueTarget::Item(id)) => self.cancel(id).await,
+            Some(QueueTarget::Move(id)) => self.move_item(id, &req).await,
+            _ => door_error(404, "not_found", "no such queue door"),
+        }
+    }
+
+    /// `DELETE /v1/queue/{id}`: withdraw a waiting item (S3).
+    async fn cancel(self: &Arc<Self>, id: String) -> Reply {
+        let door = self.clone();
+        let done = tokio::task::spawn_blocking(move || {
+            let outcome = door.acp.host.cancel(&id)?;
+            let (fold, _) = crate::queue::replay(&door.state_dir)?;
+            let item = fold.item(&id).ok_or_else(|| {
+                crate::read::DoorError::new(500, "internal", "the item is not in the record")
+            })?;
+            Ok::<_, crate::read::DoorError>(json!({
+                "id": id,
+                "withdrawn": true,
+                "repeat": outcome == crate::presence::Cancelled::Repeat,
+                "item": item,
+            }))
+        })
+        .await;
+        self.finish(done, "the item could not be cancelled")
+    }
+
+    /// `POST /v1/queue/{id}/move`: put a waiting item in front of another, or at
+    /// the end of its group (S3).
+    async fn move_item(
+        self: &Arc<Self>,
+        id: String,
+        req: &rung_agent_core::acp_http::RouteRequest,
+    ) -> Reply {
+        let bad = |m: &str| door_error(400, "bad_request", m);
+        let Ok(Value::Object(body)) = serde_json::from_slice::<Value>(&req.body) else {
+            return bad(
+                "the body must be a JSON object: {\"before\": \"<id>\"} (or {\"before\": null} for the end of its group)",
+            );
+        };
+        if let Some(k) = body
+            .keys()
+            .find(|k| !matches!(k.as_str(), "before" | "key"))
+        {
+            return bad(&format!("no such field `{k}` (before, key)"));
+        }
+        let before = match body.get("before") {
+            None => {
+                return bad(
+                    "before is required: the id to put this item in front of, or null for the end of its group",
+                );
+            }
+            Some(Value::Null) => None,
+            Some(Value::String(b)) if !b.is_empty() => Some(b.clone()),
+            Some(_) => return bad("before must be an item id (a non-empty string) or null"),
+        };
+        let key = match body.get("key") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(k)) => match valid_key(k) {
+                Ok(()) => Some(k.clone()),
+                Err(m) => return bad(&m),
+            },
+            Some(_) => return bad("key must be a string"),
+        };
+        let door = self.clone();
+        let done = tokio::task::spawn_blocking(move || {
+            let outcome = door
+                .acp
+                .host
+                .move_item(&id, before.as_deref(), key.as_deref())?;
+            let (fold, _) = crate::queue::replay(&door.state_dir)?;
+            let item = fold.item(&id).ok_or_else(|| {
+                crate::read::DoorError::new(500, "internal", "the item is not in the record")
+            })?;
+            Ok::<_, crate::read::DoorError>(json!({
+                "id": id,
+                "moved": outcome == crate::presence::Moved::Done,
+                "repeat": outcome == crate::presence::Moved::Repeat,
+                "item": item,
+            }))
+        })
+        .await;
+        self.finish(done, "the item could not be moved")
+    }
+
+    /// The answer of a write: the body redacted, or the refusal in words.
+    fn finish(
+        &self,
+        done: Result<Result<Value, crate::read::DoorError>, tokio::task::JoinError>,
+        internal: &str,
+    ) -> Reply {
+        match done {
+            Ok(Ok(v)) => json_reply(200, &self.red.redact_value(&v)),
+            Ok(Err(e)) => door_error(e.status, e.code, &self.red.redact(&e.message)),
+            Err(_) => door_error(500, "internal", internal),
         }
     }
 
