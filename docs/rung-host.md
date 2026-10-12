@@ -407,8 +407,9 @@ boundary".
 then `free` in the order sent (it is read later). The turn header lists the admitted
 items in that order (an owner's item is above a peer's whatever their ids sort like),
 and the queue door lists the waiting ones in it (`docs/rung-host-api.md`, S2). An
-admitted item's text in the header is whole: runs of white space become one space (an
-item cannot add header lines of its own), nothing is cut.
+owner's item's text in the header is whole: runs of white space become one space (an
+item cannot add header lines of its own), nothing is cut. Another sender's text is
+bounded there as it always was (1,000 characters); S2 widens nothing for it.
 
 ## Stop and supervision
 

@@ -175,7 +175,7 @@ pub struct Admit;
 /// An owner item the desk reads at the next boundary whatever it says: every
 /// owner item but one the owner asked to wait (`free`).
 fn owner_pushes(w: &Waiting) -> bool {
-    w.role == Role::Owner && w.intent != Intent::Free
+    crate::inbox::pushes(w.role, w.intent)
 }
 
 fn rule_form(w: &Waiting, now: Millis) -> Form {

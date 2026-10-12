@@ -1344,15 +1344,7 @@ impl Host {
                         .map(|(_, p)| (p.order, p.item.clone()))
                 })
                 .collect();
-            admitted.sort_by_key(|(order, i)| {
-                let rank = match (i.role, i.intent) {
-                    (Role::Owner, Intent::Free) => 1,
-                    (Role::Owner, _) => 0,
-                    (Role::Peer, _) => 2,
-                    _ => 3,
-                };
-                (rank, *order)
-            });
+            admitted.sort_by_key(|(order, i)| (crate::inbox::read_rank(i.role, i.intent), *order));
             let admitted: Vec<Item> = admitted.into_iter().map(|(_, i)| i).collect();
             let digests: Vec<Item> = digest_ids.iter().filter_map(item).collect();
             let quota = cfg

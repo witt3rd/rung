@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 542 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 543 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1148,12 +1148,13 @@ look shorter than it is.
 - `next_and_steer_are_now_at_every_boundary_as_before`
 - `the_desks_longest_wait_still_wins_over_a_free_item`
 
-**`rung-host/tests/intent_run.rs`** — 8 unclaimed
+**`rung-host/tests/intent_run.rs`** — 9 unclaimed
 
 - `a_free_item_does_not_end_a_paced_wait`
 - `a_free_item_waits_while_the_agent_is_committed_and_is_read_when_it_is_free`
 - `a_long_steer_reaches_the_model_whole`
 - `a_next_item_is_not_marked_as_a_steer`
+- `a_peers_long_text_is_still_bounded_in_the_header`
 - `a_steer_in_a_long_call_cuts_it_and_is_read_at_the_next_boundary`
 - `a_steer_is_read_at_the_first_boundary_after_it_arrives_and_is_marked`
 - `the_header_lists_owner_items_before_a_peers`

@@ -389,3 +389,30 @@ fn a_steer_in_a_long_call_cuts_it_and_is_read_at_the_next_boundary() {
         }
     }
 }
+
+/// Only the owner's own words reach the model whole: another sender's text is bounded in the
+/// header as it always was (this slice widens nothing for a sender that is not the owner).
+#[test]
+fn a_peers_long_text_is_still_bounded_in_the_header() {
+    sim::test_timeout(120);
+    let mut sc = scenario("s2-run-peer-bounded", 3);
+    sc.max_turns = Some(2);
+    sc.mock.p_commit = 0.0;
+    let mut src = MemorySource::default();
+    let text = format!("{} PEER-END", "peer words ".repeat(400));
+    src.push(Item::message(
+        "pr-long",
+        Role::Peer,
+        "peer:atlas",
+        SIM_START,
+        &text,
+    ));
+    sc.sources.push(Box::new(src));
+    let out = sim::run(sc);
+    let t = admitted_in(&out.lines, "pr-long").expect("read");
+    let log = seq_of(&out.lines, "turn.log", |l| l.u64("turn") == t).unwrap();
+    let header = log.get("header").as_str().unwrap();
+    let row = header.lines().find(|l| l.contains("pr-long")).unwrap();
+    assert!(row.ends_with('…'), "bounded with an ellipsis, as before");
+    assert!(!row.contains("PEER-END"));
+}

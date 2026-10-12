@@ -18,7 +18,8 @@ git tags only.
   the agent is committed and read in free time or at a natural break, never cuts a
   call, and the desk's limits and firm deadlines still win over it. Owner items stay
   above every other sender's, `free` after the ones read at the next boundary. An
-  admitted item's text in the header is now whole (it was cut at 1,000 characters).
+  owner's item's text in the header is now whole (it was cut at 1,000 characters);
+  another sender's is bounded as before.
   A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).
 - `rung-host`, `rung-gateway`: the queue, list and add (S1). `GET /v1/queue`
   lists what waits for the agent and the one thing being answered, computed

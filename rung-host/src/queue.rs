@@ -94,16 +94,14 @@ impl Entry {
             .unwrap_or(Intent::Next)
     }
 
-    /// The owner's items first (`next` and `steer`, which are read together at the next
-    /// boundary, then `free`, which is read later), then peers, then any other source
-    /// (the host's own). Within a rank, the order the items were accepted.
+    /// Where it sorts (`inbox::read_rank`: the owner's `next` and `steer` items, then
+    /// the owner's `free` items, then peers, then any other source). Within a rank,
+    /// the order the items were accepted.
     fn rank(&self) -> u8 {
-        match (self.role(), self.intent()) {
-            ("owner", Intent::Free) => 1,
-            ("owner", _) => 0,
-            ("peer", _) => 2,
-            _ => 3,
-        }
+        crate::inbox::read_rank(
+            crate::inbox::Role::from_word(self.role()).unwrap_or(crate::inbox::Role::Host),
+            self.intent(),
+        )
     }
 
     fn channel(&self) -> &str {

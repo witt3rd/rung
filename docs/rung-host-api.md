@@ -1461,8 +1461,9 @@ an owner's, and a `free` owner item is above a peer's). Within the owner's: `nex
 reads them together, in that order); then `free`, in the order sent (it is read later).
 The queue list's `position` and order follow it: owner `next`/`steer`, owner `free`,
 peers, then the host's own items, each in acceptance order. The turn header's admitted
-rows are in the same order, and an admitted item's text there is whole (white space
-runs become one space; nothing is cut or ended with an ellipsis).
+rows are in the same order, and an owner's item's text there is whole (white space
+runs become one space; nothing is cut or ended with an ellipsis); another sender's text is
+bounded there as before (1,000 characters).
 
 ### Held
 
@@ -1487,7 +1488,7 @@ Moving and cancelling an item (S3), stop and release (S7), a `intent` on ACP's
 ### Proof
 
 `rung-host/tests/intent_desk.rs` (8, the desk's guard: each intent, a firm deadline,
-the longest wait, the interrupt limit), `rung-host/tests/intent_run.rs` (8, whole
+the longest wait, the interrupt limit), `rung-host/tests/intent_run.rs` (9, whole
 simulated runs on a simulated clock: a steer read at the first boundary after it arrives
 and marked, a long steer whole, a free item held through committed turns and read once
 the agent is free, the header order, a paced wait a free item does not end, a steer that

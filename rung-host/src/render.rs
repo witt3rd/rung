@@ -65,7 +65,7 @@ fn flat(s: &str) -> String {
 }
 
 fn clip(s: &str, n: usize) -> String {
-    let flat = s.split_whitespace().collect::<Vec<_>>().join(" ");
+    let flat = flat(s);
     if flat.chars().count() <= n {
         flat
     } else {
@@ -197,7 +197,14 @@ pub fn header(h: &HeaderCtx) -> String {
                 i.channel,
                 i.id,
                 iso(i.at),
-                flat(&i.text)
+                // the owner's own words reach the model whole; any other sender's
+                // text is still bounded here, as it was before (S2 widens nothing
+                // for a sender that is not the owner)
+                if i.role == crate::inbox::Role::Owner {
+                    flat(&i.text)
+                } else {
+                    clip(&i.text, 1_000)
+                }
             ));
         }
     }

@@ -32,6 +32,45 @@ pub enum Role {
     Host,
 }
 
+impl Role {
+    /// The word the record and the doors use.
+    pub fn word(self) -> &'static str {
+        match self {
+            Role::Owner => "owner",
+            Role::Peer => "peer",
+            Role::Observer => "observer",
+            Role::Host => "host",
+        }
+    }
+
+    /// The role a word names (the record's own `role`).
+    pub fn from_word(word: &str) -> Option<Role> {
+        [Role::Owner, Role::Peer, Role::Observer, Role::Host]
+            .into_iter()
+            .find(|r| r.word() == word)
+    }
+}
+
+/// An owner item that is read at the next boundary and cuts what can be cut to be
+/// read: every owner item except one the owner asked to wait for free time (S2).
+/// The one definition: [`Item::pushes`] and the desk's guard both ask this.
+pub fn pushes(role: Role, intent: Intent) -> bool {
+    role == Role::Owner && intent != Intent::Free
+}
+
+/// The place of an item among those read together (lower is read first): the
+/// owner's `next` and `steer` items, then the owner's `free` items, then a
+/// peer's, then any other sender's. Within a rank, the order accepted. The one
+/// definition: the queue's list and the turn header both order by it.
+pub fn read_rank(role: Role, intent: Intent) -> u8 {
+    match (role, intent) {
+        (Role::Owner, Intent::Free) => 1,
+        (Role::Owner, _) => 0,
+        (Role::Peer, _) => 2,
+        _ => 3,
+    }
+}
+
 /// What an item is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -155,7 +194,7 @@ impl Item {
     /// (`free`, S2). The host's long-call watch and its waits' wake-up ask this and
     /// nothing else, so there is one rule.
     pub fn pushes(&self) -> bool {
-        self.role == Role::Owner && self.intent != Intent::Free
+        pushes(self.role, self.intent)
     }
 
     /// The first [`GIST_CHARS`] characters, credentials redacted.
@@ -481,6 +520,22 @@ mod tests {
         let mut s = InboxState::default();
         accept(&mut s, 1, &item("next", Role::Owner, Intent::Next));
         assert!(s.owner_pushes());
+    }
+
+    #[test]
+    fn one_definition_of_who_pushes_and_who_reads_first() {
+        for r in [Role::Owner, Role::Peer, Role::Observer, Role::Host] {
+            assert_eq!(Role::from_word(r.word()), Some(r));
+            for i in Intent::ALL {
+                assert_eq!(pushes(r, i), r == Role::Owner && i != Intent::Free);
+            }
+        }
+        assert_eq!(Role::from_word("nobody"), None);
+        let rank = |r, i| read_rank(r, i);
+        assert!(rank(Role::Owner, Intent::Steer) == rank(Role::Owner, Intent::Next));
+        assert!(rank(Role::Owner, Intent::Next) < rank(Role::Owner, Intent::Free));
+        assert!(rank(Role::Owner, Intent::Free) < rank(Role::Peer, Intent::Next));
+        assert!(rank(Role::Peer, Intent::Next) < rank(Role::Host, Intent::Next));
     }
 
     #[test]
