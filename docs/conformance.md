@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 522 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 539 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1160,6 +1160,26 @@ look shorter than it is.
 - `a_body_to_a_path_the_queue_door_does_not_serve_is_not_read`
 - `a_request_refused_on_its_headers_is_refused_without_reading_its_body`
 - `an_item_past_the_old_request_limit_is_recorded_whole`
+
+**`rung-host/tests/queue_move.rs`** — 17 unclaimed
+
+- `a_200000_character_item_survives_a_move_and_a_cancel_whole`
+- `a_bad_move_is_refused_in_words_and_writes_nothing`
+- `a_cancelled_item_is_withdrawn_once_and_never_reaches_the_agent`
+- `a_host_that_is_stopping_refuses_a_move_and_a_cancel_with_start_it_first`
+- `a_move_of_an_item_that_is_not_waiting_is_refused_in_words_and_writes_nothing`
+- `a_move_to_its_own_place_is_a_no_op_that_writes_nothing`
+- `a_peer_item_never_passes_an_owner_item_in_either_direction`
+- `a_repeat_with_the_same_key_is_one_line_and_a_reused_key_is_refused`
+- `an_answered_item_cannot_be_moved_or_cancelled`
+- `an_id_in_the_path_may_be_percent_encoded`
+- `an_owner_item_moves_up_and_down_and_the_line_is_in_the_record_before_the_answer`
+- `every_error_is_redacted_even_one_that_names_the_id_it_was_given`
+- `only_the_owner_token_may_move_or_cancel`
+- `the_item_being_answered_cannot_be_cancelled`
+- `the_order_survives_a_restart_and_is_the_order_the_agent_reads`
+- `twenty_concurrent_equal_moves_make_one_line`
+- `twenty_concurrent_opposing_moves_end_as_the_later_line_says_and_every_line_is_whole`
 
 **`rung-host/tests/quickstart.rs`** — 1 unclaimed
 

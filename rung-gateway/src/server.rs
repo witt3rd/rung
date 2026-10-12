@@ -614,9 +614,16 @@ async fn pass_through(
         return native_door(state, dir.clone(), id, rest, &req, query).await;
     }
     if let Some(dir) = native
-        && rest == "/v1/queue"
+        && let Some(target) = rung_host::acp::QueueTarget::of(rest)
     {
-        return native_queue(state, dir.clone(), id, req, query, configured).await;
+        let call = QueueCall {
+            dir: dir.clone(),
+            id,
+            rest,
+            query,
+            configured,
+        };
+        return native_queue(state, call, target, req).await;
     }
     // a native instance has no listener the gateway knows: only the doors
     // read from its state directory exist for it until a later slice adds more
@@ -664,23 +671,35 @@ async fn pass_through(
     }
 }
 
-/// The queue door of a native instance (S1). A read is computed from the
-/// instance's own record, running or not. A write goes to the running host's own
-/// listener, with the owner key the gateway holds by name (see
+/// What a request for a native instance's queue door is about: where its record
+/// is, which instance, the path under the instance (as the client wrote it), the
+/// query, and the gateway's own config for the instance (the write key).
+struct QueueCall<'a> {
+    dir: PathBuf,
+    id: &'a str,
+    rest: &'a str,
+    query: Option<String>,
+    configured: Option<Instance>,
+}
+
+/// The queue doors of a native instance (S1, S3). A read is computed from the
+/// instance's own record, running or not. A write (add, move, cancel) goes to the
+/// running host's own listener, with the owner key the gateway holds by name (see
 /// [`rung_host::read::StreamTarget`]); a stopped instance is refused first, and
 /// nothing is sent.
 async fn native_queue(
     state: &State,
-    dir: PathBuf,
-    id: &str,
+    call: QueueCall<'_>,
+    target: rung_host::acp::QueueTarget,
     req: Request<Incoming>,
-    query: Option<String>,
-    configured: Option<Instance>,
 ) -> Response<Body> {
+    use rung_host::acp::QueueTarget;
     let base = request_redactor(state);
-    match *req.method() {
-        Method::GET | Method::HEAD => {
-            let Some(pairs) = query_pairs(query.as_deref()) else {
+    let method_not_allowed =
+        |words: &str| error(StatusCode::METHOD_NOT_ALLOWED, "method_not_allowed", words);
+    match (target, req.method().clone()) {
+        (QueueTarget::List, Method::GET | Method::HEAD) => {
+            let Some(pairs) = query_pairs(call.query.as_deref()) else {
                 return error(
                     StatusCode::BAD_REQUEST,
                     "bad_request",
@@ -691,32 +710,74 @@ async fn native_queue(
                 Ok(q) => q,
                 Err(e) => return door_error(e, &base),
             };
-            let (id, r) = (id.to_string(), base.clone());
+            let (dir, id, r) = (call.dir, call.id.to_string(), base.clone());
             match blocking(move || rung_host::read::queue(&dir, &id, &q, &r)).await {
                 Some(Ok(v)) => json_reply(StatusCode::OK, v),
                 Some(Err(e)) => door_error(e, &base),
                 None => internal(),
             }
         }
-        Method::POST => queue_write(state, dir, id, req, query, configured, base).await,
-        _ => error(
-            StatusCode::METHOD_NOT_ALLOWED,
-            "method_not_allowed",
-            "this door lists (GET) and adds (POST)",
+        (QueueTarget::List, Method::POST) => {
+            queue_write(state, call, req, base, WriteDoor::Add).await
+        }
+        (QueueTarget::List, _) => method_not_allowed("this door lists (GET) and adds (POST)"),
+        (QueueTarget::Item(_), Method::DELETE) => {
+            queue_write(state, call, req, base, WriteDoor::Item).await
+        }
+        (QueueTarget::Item(_), _) => {
+            method_not_allowed("this door cancels a waiting item (DELETE)")
+        }
+        (QueueTarget::Move(_), Method::POST) => {
+            queue_write(state, call, req, base, WriteDoor::Item).await
+        }
+        (QueueTarget::Move(_), _) => method_not_allowed("this door moves a waiting item (POST)"),
+        (QueueTarget::Unknown, _) => not_found(),
+        (QueueTarget::Undecodable, _) => error(
+            StatusCode::BAD_REQUEST,
+            "bad_request",
+            "the id in the path is not percent-encoded UTF-8",
         ),
+    }
+}
+
+/// Which write a forward is: it decides the words of a failure.
+#[derive(Clone, Copy, PartialEq)]
+enum WriteDoor {
+    /// `POST /v1/queue`: a message, which a repeat with its key adds once.
+    Add,
+    /// `DELETE /v1/queue/{id}`, `POST /v1/queue/{id}/move`.
+    Item,
+}
+
+impl WriteDoor {
+    /// What to say when the host may or may not have done what was asked.
+    fn unknown_outcome(self) -> &'static str {
+        match self {
+            WriteDoor::Add => {
+                "the message may be queued; look at the queue, or send it again with the same key (a repeat adds once)"
+            }
+            WriteDoor::Item => {
+                "the change may have been made; look at the queue, then ask again (a cancel of an item already withdrawn, and a move of an item to the place it is in, change nothing)"
+            }
+        }
     }
 }
 
 /// Forward one write to a running host and return its answer, redacted.
 async fn queue_write(
     state: &State,
-    dir: PathBuf,
-    id: &str,
+    call: QueueCall<'_>,
     req: Request<Incoming>,
-    query: Option<String>,
-    configured: Option<Instance>,
     base: Redactor,
+    door: WriteDoor,
 ) -> Response<Body> {
+    let QueueCall {
+        dir,
+        id,
+        rest,
+        query,
+        configured,
+    } = call;
     let (rdir, rid, rbase) = (dir, id.to_string(), base.clone());
     let target = match blocking(move || rung_host::read::stream_target(&rdir, &rid, &rbase)).await {
         Some(Ok(t)) => t,
@@ -728,7 +789,7 @@ async fn queue_write(
         return error(
             StatusCode::CONFLICT,
             "not_running",
-            "this instance is not running, so it cannot take a message: start it first (the gateway has no start door); nothing was sent",
+            "this instance is not running, so it cannot take a message or change its queue: start it first (the gateway has no start door); nothing was sent",
         );
     }
     // The key is the gateway's own: only the one its own config names for this
@@ -766,9 +827,11 @@ async fn queue_write(
     for t in &target.tokens {
         red.add_secret(t);
     }
+    // the path is the one asked for, as the client wrote it: the host decodes an
+    // item's id itself
     let target_uri = match &query {
-        Some(q) => format!("{url}/v1/queue?{q}"),
-        None => format!("{url}/v1/queue"),
+        Some(q) => format!("{url}{rest}?{q}"),
+        None => format!("{url}{rest}"),
     };
     let (parts, body) = req.into_parts();
     // the wait counts from the last byte moved either way, not from the first:
@@ -839,32 +902,39 @@ async fn queue_write(
             StatusCode::BAD_GATEWAY,
             "instance_unreachable",
             &format!(
-                "the instance could not be reached ({}): nothing was queued",
-                red.redact(&chain(&e))
+                "the instance could not be reached ({}): {}",
+                red.redact(&chain(&e)),
+                match door {
+                    WriteDoor::Add => "nothing was queued",
+                    WriteDoor::Item => "nothing was changed",
+                }
             ),
         ),
         Some(Err(Err(e))) => error(
             StatusCode::BAD_GATEWAY,
             "instance_unreachable",
             &format!(
-                "the connection to the instance broke ({}): the message may be queued; look at the queue, or send it again with the same key (a repeat adds once)",
-                red.redact(&chain(&e))
+                "the connection to the instance broke ({}): {}",
+                red.redact(&chain(&e)),
+                door.unknown_outcome()
             ),
         ),
         Some(Err(Ok(e))) => error(
             StatusCode::BAD_GATEWAY,
             "instance_unreachable",
             &format!(
-                "the instance's answer broke off ({}): the message may be queued; look at the queue, or send it again with the same key (a repeat adds once)",
-                red.redact(&e)
+                "the instance's answer broke off ({}): {}",
+                red.redact(&e),
+                door.unknown_outcome()
             ),
         ),
         None => error(
             StatusCode::SERVICE_UNAVAILABLE,
             "instance_not_answering",
             &format!(
-                "the instance did not answer, and nothing moved, for {} seconds: the message may or may not be queued; look at the queue, or send it again with the same key (a repeat adds once)",
-                wait.as_secs_f64()
+                "the instance did not answer, and nothing moved, for {} seconds: {}",
+                wait.as_secs_f64(),
+                door.unknown_outcome()
             ),
         ),
     }

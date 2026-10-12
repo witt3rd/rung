@@ -8,6 +8,19 @@ git tags only.
 ## [Unreleased]
 
 ### Added
+- `rung-host`, `rung-gateway`: reorder and cancel (S3). A new record line,
+  `queue.moved` (`id`, `before`, optional `key`), and the waiting order is now
+  the fold of acceptance and these moves, in the host (the order a turn reads
+  what it admits, which was id order, and the order the decision desk is asked
+  about) and in every reader of the record (the list): the owner's items stay on
+  top, a move stays inside one group and one boundary, and it changes order only
+  (the desk still decides when an item is shown). `POST /v1/queue/{id}/move`
+  (`before`: an item id, or null for the end of its group; optional `key`) and
+  `DELETE /v1/queue/{id}` (withdraws a waiting item through the one `withdraw`
+  path; refused on the item being answered) answer only once the line is on
+  disk, are idempotent, refuse in words with no line written, and are forwarded
+  by the gateway's write path under S1's rules. Shapes in
+  `docs/rung-host-api.md` (S3).
 - `rung-host`, `rung-gateway`: the queue, list and add (S1). `GET /v1/queue`
   lists what waits for the agent and the one thing being answered, computed
   from the record (so a stopped instance lists too), every text whole and

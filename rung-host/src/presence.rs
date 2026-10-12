@@ -393,6 +393,100 @@ impl Host {
         done.is_some()
     }
 
+    /// Cancel a waiting item: the owner's door by id. One path with
+    /// [`Self::withdraw`] (its one disposition is `withdrawn`); refused on the
+    /// item a turn is answering right now (that would cut the turn) and on any
+    /// that is over. A repeat on an item already withdrawn is no new line.
+    /// Durable before this returns.
+    pub fn cancel(&self, id: &str) -> Result<Cancelled, crate::read::DoorError> {
+        use crate::inbox::Standing;
+        use crate::read::DoorError;
+        // a second look when the item was admitted between the look and the
+        // withdrawal (the withdrawal itself is atomic with its check)
+        for _ in 0..2 {
+            let standing = self.core.state().inbox.standing(id);
+            match standing {
+                Standing::Waiting => {
+                    if self.withdraw(id) {
+                        return Ok(Cancelled::Withdrawn);
+                    }
+                }
+                Standing::Withdrawn => return Ok(Cancelled::Repeat),
+                Standing::Unknown => {
+                    return Err(DoorError::new(
+                        404,
+                        "not_found",
+                        format!("no item has the id {id}: nothing was written"),
+                    ));
+                }
+                other => {
+                    return Err(DoorError::new(
+                        409,
+                        "not_waiting",
+                        format!(
+                            "{id} {}, so it cannot be cancelled: nothing was written",
+                            other.words()
+                        ),
+                    ));
+                }
+            }
+        }
+        Err(DoorError::new(
+            409,
+            "not_waiting",
+            format!("{id} was taken by a turn as it was being cancelled: nothing was written"),
+        ))
+    }
+
+    /// Move a waiting item in front of another (the end of its group when
+    /// `before` is none): the owner's door. Judged and written under one lock
+    /// ([`InboxState::plan_move`](crate::inbox::InboxState::plan_move)), so
+    /// two moves are two lines in the order the lock took them and the later
+    /// wins. `key`, when given, names the line: the same key with the same move
+    /// again is no new line, with another move is refused. Durable before this
+    /// returns.
+    pub fn move_item(
+        &self,
+        id: &str,
+        before: Option<&str>,
+        key: Option<&str>,
+    ) -> Result<Moved, crate::read::DoorError> {
+        use crate::inbox::MovePlan;
+        use crate::read::DoorError;
+        let (lines, outcome) = self.core.transact(|st| {
+            if let Some(k) = key
+                && let Some((i, b)) = st.inbox.move_keys.get(k)
+            {
+                return if i == id && b.as_deref() == before {
+                    Ok((Vec::new(), Moved::Repeat))
+                } else {
+                    Err(DoorError::new(
+                        409,
+                        "key_reused",
+                        "that key already names a different move: nothing was written; use a new key for a new move",
+                    ))
+                };
+            }
+            match st.inbox.plan_move(id, before)? {
+                MovePlan::Nothing => Ok((Vec::new(), Moved::NoOp)),
+                MovePlan::Move => {
+                    let mut body = json!({"id": id, "before": before});
+                    if let Some(k) = key {
+                        body["key"] = json!(k);
+                    }
+                    Ok((
+                        vec![crate::record::BatchLine::plain("queue.moved", body)],
+                        Moved::Done,
+                    ))
+                }
+            }
+        })?;
+        if !lines.is_empty() {
+            self.core.sync();
+        }
+        Ok(outcome)
+    }
+
     /// Raise the running turn's cancel flag (the owner cuts a shared turn).
     /// False when no turn is running.
     pub fn cut_turn(&self) -> bool {
@@ -1097,7 +1191,21 @@ impl Host {
 
     /// Admit the batch: consumes the boundary's edge.
     fn admit(&self, edge: Edge, a: &AdmitChoice, turn: u64) -> (Vec<String>, Vec<String>) {
-        let (now, digests) = (a.now(), a.digests());
+        let (mut now, mut digests) = (a.now(), a.digests());
+        // the turn reads them in the order they wait in (the owner's first, the
+        // moves applied), not in the order of their ids
+        let place: BTreeMap<String, usize> = self
+            .core
+            .state()
+            .inbox
+            .waiting()
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (p.item.id.clone(), i))
+            .collect();
+        for ids in [&mut now, &mut digests] {
+            ids.sort_by_key(|id| place.get(id).copied().unwrap_or(usize::MAX));
+        }
         if !now.is_empty() || !digests.is_empty() {
             self.core.emit(
                 "stimulus.admitted",
@@ -1810,6 +1918,26 @@ impl Host {
         }
         core.sync();
     }
+}
+
+/// What [`Host::cancel`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Cancelled {
+    /// It was waiting; one `stimulus.disposed` line, `withdrawn`, was written.
+    Withdrawn,
+    /// It had been withdrawn already: nothing written.
+    Repeat,
+}
+
+/// What [`Host::move_item`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Moved {
+    /// One `queue.moved` line was written.
+    Done,
+    /// The item was already where the move puts it: nothing written.
+    NoOp,
+    /// The key had named this same move: nothing written.
+    Repeat,
 }
 
 /// Cuts a long tool call when an owner stimulus waits (#159): mid-call it

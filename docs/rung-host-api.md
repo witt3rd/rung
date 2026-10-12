@@ -1170,8 +1170,8 @@ A message to the agent is a **stimulus**. The queue door lists the stimuli that
 wait and the one being answered; the same door adds one. Code: `rung_host::queue`
 (the fold, no HTTP), `rung_host::acp::QueueDoor` (the host's door),
 `rung_gateway` (the write path to a native instance). The slices after this one
-add `intent` `steer` and `free`, move and cancel, and the stop and release doors;
-this section is only what S1 serves.
+add `intent` `steer` and `free` and the stop and release doors; move and cancel
+are S3, below. This section is only what S1 serves.
 
 ### The item
 
@@ -1208,7 +1208,8 @@ Computed from the record, so a stopped instance answers the same as a running
 one (the gateway reads the state directory; the host's own door reads its own).
 The list is ordered for a page: the item being answered; then what waits, **the
 owner's items first, then every other sender's, each group in the order the
-items were accepted** (a peer's item is never listed above an owner's); then what
+items were accepted, as S3's moves have changed it** (a peer's item is never
+listed above an owner's); then what
 is over, the most recently settled first.
 
 Query (all optional; a name it does not know, a repeated name, or a value that is
@@ -1358,9 +1359,9 @@ cost to watch as records grow; nothing else is read or kept.
 
 ### Not here
 
-`intent` `steer` and `free`, moving and cancelling an item, `stop` and `release`
-doors, and the page. Peers' items are listed and ordered here but only the owner
-adds through this door.
+`intent` `steer` and `free`, `stop` and `release` doors, and the page. (Moving
+and cancelling an item is S3.) Peers' items are listed and ordered here but only
+the owner adds through this door.
 
 ### Proof
 
@@ -1390,3 +1391,188 @@ or sent (the old read: red); a registered public address never sent a key; a
 256 MiB body streamed through the gateway with its peak memory unchanged, and
 refused ones not read (the gateway collecting the body: red); an upload slower
 than the wait not cut.
+
+## S3 — the queue: reorder and cancel
+
+The owner can change what waits: put an item in front of another, or take it
+back. Two doors on the host's listener beside S1's, and one new record line.
+Code: `rung_host::inbox` (`Order`, the fold; `InboxState::plan_move`, the
+judgement), `rung_host::presence::Host` (`move_item`, `cancel`),
+`rung_host::acp::QueueDoor` (the doors), `rung_gateway` (the write path).
+
+### The record line `queue.moved`
+
+```json
+{"seq": 1571, "kind": "queue.moved", "id": "q-80", "before": "q-77", "key": "mv-1"}
+```
+
+`id` is the item moved; `before` is the id it was put in front of, or **null for
+the end of its group**; `key` is present when the sender gave one. One line is
+written for a move that changes the order, durable (fsynced) before the door
+answers. Nothing else about an item is changed by it.
+
+**The waiting order is a fold of acceptance and these lines**, the same fold in
+the host (what a turn reads) and in every reader of the record (the list):
+
+1. An item takes the end of the order when it is accepted. An item being
+   answered keeps its place, so one requeued after a failed or interrupted turn
+   waits where it did; an item that is disposed has no place.
+2. A `queue.moved` line takes `id` out and puts it in front of `before`
+   (after the last waiting item of its group, when `before` is null).
+3. A line is applied only when `id` waits, `before` (if any) waits, they are not
+   the same item, and both are in **one group**: the owner's items, a peer's, or
+   the host's own (calendar, expectations). A line that does not meet that is read
+   as no move. (The doors never write one; this keeps a record that has one
+   deterministic.)
+4. **The later line wins**: two moves are two lines in the order the host took
+   its lock, and the fold applies them in that order.
+5. The list and the order a turn reads are the groups in the order owner,
+   peers, host, and inside a group that order. So an **owner item stays above a
+   peer's**: a peer's item can never be put above one, and an owner's item can
+   never be put below a peer's.
+
+**A move changes order only.** When an item is shown is still the desk's: its
+interruption limits, a firm item's deadline, "at the agent's next break", a
+digest line. A moved item that the desk holds is still held, with the same reason
+in words in the list (`held`). What a move does change for real is the order a
+turn reads the items it admits, and the order the desk's decider is asked about
+the non-owner ones: both follow the folded order (the turn header's `admitted`
+list used to be in id order; it is now in waiting order). The record keeps each
+item's own `order` (its acceptance) unchanged in the list.
+
+### `POST /v1/queue/{id}/move`
+
+```json
+{"before": "q-77", "key": "mv-1"}
+```
+
+`before` is **required**: the id of the item to put this one in front of, or
+`null` for the end of its group (a page's "down" on the last-but-one row, or
+"move to the bottom"). It is an id, not a position: a position goes stale as the
+list changes under it, an id names what the owner was looking at. `key` is
+optional (the S1 key rule: 1 to 200 bytes of letters, digits, `.`, `_`, `:`, `-`,
+starting with a letter or digit). Any other field is refused by name.
+`Content-Type: application/json` (415 otherwise). `{id}` is percent-decoded (an
+id from a peer's file name may hold a space). Refused on the headers alone, before
+any body is read, as S1's.
+
+The door answers **only after the line is in the record and fsynced**. Answers
+(`item` is the item in S1's shape, after the move):
+
+| status | `error` | when |
+|---|---|---|
+| 200 | | moved: `{"id", "moved": true, "repeat": false, "item"}`; the item's `position` is where it is now |
+| 200 | | **already in that place** (it is already in front of `before`, or already last): `moved: false`, **nothing written** |
+| 200 | | the key already named this same move: `{"moved": false, "repeat": true, "item"}`, nothing written |
+| 400 | `bad_request` | the body or a field is not as above (the message says which) |
+| 401, 403 | `unauthorized`, `forbidden` | no token or an unknown one; a token of the host that is not the owner's |
+| 404 | `not_found` | `id` or `before` names no item (or an owner control: stop and release are no items) |
+| 405 | `method_not_allowed` | not POST on this path |
+| 409 | `not_waiting` | `id` or `before` is **being answered right now** (it says the turn), or **was answered or withdrawn**: said in words |
+| 409 | `group` | `id` and `before` are in different groups: "a peer's item cannot be put above the owner's items: they stay on top", or "the owner's item cannot be put below a peer's" (and the like for the host's own) |
+| 409 | `boundary` | the move would jump over an item that waits for a different boundary (below) |
+| 409 | `key_reused` | the key already names a **different** move |
+| 409 | `not_running` | the host is stopping, or (gateway) no host is running: **"start it first"** |
+| 415 | `unsupported_media_type` | not JSON |
+
+Every refusal writes **no line**; the message says "nothing was written".
+
+**The same boundary.** Each waiting item waits for one boundary: the owner's
+items are always shown at the next boundary; any other item waits for the one the
+desk's latest `decision.admit` gave it (the next boundary, the agent's next break,
+or a digest line). A move puts an item in front of another, so it jumps over
+every waiting item of its group between where it is and where it goes; each of
+those must wait for the same boundary as the item moved, else 409 `boundary`
+naming both. (The page's up and down buttons move one place, so a row beside one
+with another boundary just has no button.) `intent` (S2) will join the boundary
+when it lands.
+
+**Idempotent.** A key names a line: the same key with the same move again is
+`repeat: true` and one line; the key is in the line, so it is remembered across a
+restart. A move that changes nothing writes nothing and so remembers no key: a
+retry of it later moves the item then, if it is still where the retry puts it
+the answer is `moved: false`. A client that may retry sends a key.
+
+**Concurrent moves.** The check and the write are one step under the host's lock.
+Twenty moves of the same pair at once are one line and nineteen 200s with
+`moved: false`; twenty opposing moves are as many lines as changed the order, and
+the later line wins.
+
+### `DELETE /v1/queue/{id}`
+
+Cancel: **withdraw a waiting item**. It is the path ACP's `session/cancel` of a
+prompt uses (`Host::withdraw`, one `stimulus.disposed` line, disposition
+`withdrawn`), so an item's end is the same line however it was cancelled, the item
+never reaches the agent, and a client holding it open over ACP is answered
+`cancelled`. No body; no key (it is idempotent by itself). Any item the list shows
+as waiting may be cancelled, whoever sent it.
+
+| status | `error` | when |
+|---|---|---|
+| 200 | | withdrawn: `{"id", "withdrawn": true, "repeat": false, "item"}` (state `withdrawn`) |
+| 200 | | **already withdrawn**: `repeat: true`, nothing written (a cancel is a no-op the second time, not a refusal: a retry is safe) |
+| 401, 403, 405, 409 `not_running` | | as the move's |
+| 404 | `not_found` | no such item |
+| 409 | `not_waiting` | the item is **being answered right now** (it would cut a running turn; the message says the turn) or was **answered** |
+
+An item a turn took between the look and the withdrawal is the same 409: the
+withdrawal itself is checked and written under the lock.
+
+### Roles, a stopped instance, the gateway
+
+Owner token only on the host's door (another role's token 403, none or unknown
+401). A stopping host refuses 409 `not_running` ("start it first") from the
+moment the stop is raised.
+
+Through the gateway: `POST /api/i/{id}/v1/queue/{item}/move` and
+`DELETE /api/i/{id}/v1/queue/{item}` are forwarded to the running host's own
+listener by S1's write path and under S1's rules, unchanged: the gateway's roles
+and Host/Origin checks first (the read-only token is 403 `read_only`; it never
+writes); a stopped instance 409 `not_running` "start it first" with nothing sent;
+the gateway's own key, by name, to a private address; the body streamed; the
+host's answer redacted again. The item id is sent as the client wrote it
+(percent-encoded). A failure says whether anything may have changed: an
+unreachable host, "nothing was changed"; a connection that broke or a host that
+did not answer, "the change may have been made; look at the queue, then ask again"
+(a cancel of an item already withdrawn, and a move to the place the item is in,
+change nothing). `GET` of these paths and other methods are 405; a path with more
+segments 404. `GET /api/i/{id}/v1/queue` shows the folded order for a stopped
+instance too, from its record.
+
+### The order survives a restart
+
+The order is the fold of the record, so a host that is killed and comes back,
+and a stopped instance's list, show the order the moves left. A move is on disk
+before it is answered.
+
+### Redaction and size
+
+Every text in an answer, and every error (which may name the id it was given),
+goes through the redactor. An item is stored and listed whole whatever its size:
+a move or a cancel writes a small line that names the item by id and does not
+copy or touch its text (a 200,000-character item is the same before and after).
+
+### Not here
+
+`intent` (S2), `stop` and `release` (S7). A move does not override the desk,
+and a cancel does not cut a running turn (that is what the owner's cancel over
+ACP, or a steer, does).
+
+### Proof
+
+`rung-host/tests/queue_move.rs` (17) over real HTTP against the `rung-host`
+binary, and `rung-gateway/tests/queue.rs` (the S3 block, 9), and the fold's own
+tests in `rung-host/src/inbox.rs` and `queue.rs`, each written first and shown
+red against code with no door: an owner item moved up, down and to the end with
+the line whole in the record before the answer; a move to its own place writes
+nothing; a peer item never passes an owner item and an owner item is never put
+below a peer (both ways, all refused in words with no line); an item being
+answered, answered, withdrawn or unknown is refused (409 / 404, no line); a
+cancelled item is withdrawn once, a repeat is a no-op, it never reaches the
+agent after the host comes back with a model; the item being answered cannot be
+cancelled; the order after a kill and a restart, and the order a turn reads;
+20 equal moves at once make one line, 20 opposing moves leave every line whole
+and the order the later line's; a key twice is one line and a reused key is
+refused; the read-only and peer tokens never write; a stopping host and a
+stopped instance say "start it first"; a 200,000-character item is the same
+after a move and a cancel; an error that names the id it was given is redacted.

@@ -234,6 +234,8 @@ struct FakeHost {
     seen: Arc<std::sync::Mutex<Vec<(String, String)>>>,
     /// The bearer of the last request, without `Bearer `.
     last_bearer: Arc<std::sync::Mutex<Option<String>>>,
+    /// The body of each request, in the order they came.
+    bodies: Arc<std::sync::Mutex<Vec<Vec<u8>>>>,
 }
 
 fn record_lines(state: &Path) -> Vec<Value> {
@@ -250,15 +252,32 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
     let hits = Arc::new(AtomicUsize::new(0));
     let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
     let last_bearer = Arc::new(std::sync::Mutex::new(None));
-    let (h2, s2, b2) = (hits.clone(), seen.clone(), last_bearer.clone());
+    let bodies = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (h2, s2, b2, bo2) = (
+        hits.clone(),
+        seen.clone(),
+        last_bearer.clone(),
+        bodies.clone(),
+    );
     tokio::spawn(async move {
         loop {
             let (sock, _) = l.accept().await.unwrap();
-            let (state, hits, seen, lb) = (state.clone(), h2.clone(), s2.clone(), b2.clone());
+            let (state, hits, seen, lb, bo) = (
+                state.clone(),
+                h2.clone(),
+                s2.clone(),
+                b2.clone(),
+                bo2.clone(),
+            );
             tokio::spawn(async move {
                 let svc = hyper::service::service_fn(move |req: Request<hyper::body::Incoming>| {
-                    let (state, hits, seen, lb) =
-                        (state.clone(), hits.clone(), seen.clone(), lb.clone());
+                    let (state, hits, seen, lb, bo) = (
+                        state.clone(),
+                        hits.clone(),
+                        seen.clone(),
+                        lb.clone(),
+                        bo.clone(),
+                    );
                     async move {
                         hits.fetch_add(1, Ordering::SeqCst);
                         let bearer = req
@@ -282,7 +301,9 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
                                     .unwrap(),
                             )
                         };
+                        let path = req.uri().path().to_string();
                         let body = req.into_body().collect().await.unwrap().to_bytes();
+                        bo.lock().unwrap().push(body.to_vec());
                         if mode == Mode::Silent {
                             std::future::pending::<()>().await;
                         }
@@ -294,6 +315,10 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
                         }
                         if bearer != format!("Bearer {OWNER_KEY}") {
                             return reply(401, json!({"error": "unauthorized", "message": "no"}));
+                        }
+                        // a move or a cancel: the fake answers as a host that did it
+                        if path != "/v1/queue" {
+                            return reply(200, json!({"done": path}));
                         }
                         let v: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
                         let lines = record_lines(&state);
@@ -336,6 +361,7 @@ async fn fake_host(state: PathBuf, mode: Mode) -> FakeHost {
         hits,
         seen,
         last_bearer,
+        bodies,
     }
 }
 
@@ -1029,4 +1055,318 @@ async fn an_upload_slower_than_the_wait_is_not_cut_while_it_keeps_moving() {
         "{}",
         &out[..out.len().min(200)]
     );
+}
+
+// ─── S3: move and cancel through the gateway ─────────────────────────────────
+
+impl Gw {
+    async fn mv(&self, id: &str, item: &str, body: &Value) -> Answer {
+        send(
+            client()
+                .post(self.url(id, &format!("queue/{item}/move")))
+                .header("content-type", "application/json")
+                .body(body.to_string()),
+        )
+        .await
+    }
+
+    async fn cancel(&self, id: &str, item: &str) -> Answer {
+        send(client().delete(self.url(id, &format!("queue/{item}")))).await
+    }
+}
+
+#[tokio::test]
+async fn a_move_and_a_cancel_are_forwarded_to_the_running_host_with_the_gateways_key() {
+    let mut f = Fleet::new("s3gw-forward");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    let body = json!({"before": "k-2", "key": "mv-1"});
+    let a = gw.mv("alpha", "k-1", &body).await;
+    assert_eq!(a.status, 200, "{}", a.body);
+    assert_eq!(a.json()["done"], "/v1/queue/k-1/move");
+    let c = gw.cancel("alpha", "k-2").await;
+    assert_eq!(c.status, 200, "{}", c.body);
+    assert_eq!(c.json()["done"], "/v1/queue/k-2");
+    // an id as the client wrote it, percent-encoded, goes on as it came
+    let c = gw.cancel("alpha", "a%20file").await;
+    assert_eq!(c.status, 200, "{}", c.body);
+    assert_eq!(c.json()["done"], "/v1/queue/a%20file");
+    let seen: Vec<String> = fake
+        .seen
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|s| s.0.clone())
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            "POST /v1/queue/k-1/move",
+            "DELETE /v1/queue/k-2",
+            "DELETE /v1/queue/a%20file"
+        ]
+    );
+    // the move's body went on whole, and the host was given the gateway's key
+    let bodies = fake.bodies.lock().unwrap().clone();
+    assert_eq!(serde_json::from_slice::<Value>(&bodies[0]).unwrap(), body);
+    assert!(bodies[1].is_empty());
+    assert_eq!(fake.last_bearer.lock().unwrap().as_deref(), Some(OWNER_KEY));
+    assert!(
+        fake.seen
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|(_, h)| !h.contains(READ_TOKEN))
+    );
+}
+
+#[tokio::test]
+async fn the_read_only_token_cannot_move_or_cancel_and_nothing_goes_upstream() {
+    let mut f = Fleet::new("s3gw-ro");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    let m = send(
+        client()
+            .post(gw.url("alpha", "queue/k-1/move"))
+            .bearer_auth(READ_TOKEN)
+            .header("content-type", "application/json")
+            .body(json!({"before": null}).to_string()),
+    )
+    .await;
+    assert_eq!(m.status, 403, "{}", m.body);
+    assert_eq!(m.json()["error"], "read_only");
+    let c = send(
+        client()
+            .delete(gw.url("alpha", "queue/k-1"))
+            .bearer_auth(READ_TOKEN),
+    )
+    .await;
+    assert_eq!(c.status, 403, "{}", c.body);
+    assert_eq!(c.json()["error"], "read_only");
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+    // a token nobody holds is 401 on both
+    let c = send(
+        client()
+            .delete(gw.url("alpha", "queue/k-1"))
+            .bearer_auth("nope"),
+    )
+    .await;
+    assert_eq!(c.status, 401);
+    let m = send(
+        client()
+            .post(gw.url("alpha", "queue/k-1/move"))
+            .bearer_auth("nope")
+            .header("content-type", "application/json")
+            .body("{}"),
+    )
+    .await;
+    assert_eq!(m.status, 401);
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn a_stopped_instance_refuses_a_move_and_a_cancel_with_start_it_first() {
+    let f = Fleet::new("s3gw-stopped");
+    let cfg = f.config("alpha", Some("S3GW_OWNER_ALPHA"));
+    unsafe { std::env::set_var("S3GW_OWNER_ALPHA", OWNER_KEY) };
+    let fake = fake_host(f.state("alpha"), Mode::Normal).await;
+    f.add("alpha", Some(&cfg), Some(&fake.addr));
+    f.record(
+        "alpha",
+        vec![
+            ("host.start", json!({"config": {}})),
+            accepted_line("k-1", "owner", "owner", T0, "one"),
+            ("halted", json!({"why": "stop"})),
+        ],
+    );
+    let before = whole_record(&f, "alpha");
+    let gw = f.serve().await;
+    for a in [
+        gw.mv("alpha", "k-1", &json!({"before": null})).await,
+        gw.cancel("alpha", "k-1").await,
+    ] {
+        assert_eq!(a.status, 409, "{}", a.body);
+        assert_eq!(a.json()["error"], "not_running");
+        assert!(
+            a.json()["message"]
+                .as_str()
+                .unwrap()
+                .contains("start it first")
+        );
+    }
+    assert_eq!(whole_record(&f, "alpha"), before, "nothing was written");
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0, "nothing went upstream");
+}
+
+#[tokio::test]
+async fn an_instance_the_gateway_holds_no_key_for_gets_no_move_or_cancel() {
+    let mut f = Fleet::new("s3gw-nokey");
+    unsafe { std::env::set_var("S3GW_HOSTCFG_BETA", PLANTED) };
+    let cfg = f.config("beta", Some("S3GW_HOSTCFG_BETA"));
+    let fake = fake_host(f.state("beta"), Mode::Normal).await;
+    f.add("beta", Some(&cfg), Some(&fake.addr));
+    f.hold("beta");
+    let gw = f.serve().await;
+    for a in [
+        gw.mv("beta", "k-1", &json!({"before": null})).await,
+        gw.cancel("beta", "k-1").await,
+    ] {
+        assert_eq!(a.status, 503, "{}", a.body);
+        assert_eq!(a.json()["error"], "no_owner_key");
+    }
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn the_gateways_key_is_in_no_answer_to_a_move_or_a_cancel() {
+    let mut f = Fleet::new("s3gw-echo");
+    let _echo = running(&mut f, "beta", Mode::EchoKey).await;
+    let gw = f.serve().await;
+    let mut wire = String::new();
+    for a in [
+        gw.mv("beta", "k-1", &json!({"before": null})).await,
+        gw.cancel("beta", "k-1").await,
+    ] {
+        assert_eq!(a.status, 500);
+        wire.push_str(&a.body);
+    }
+    assert!(!wire.contains(OWNER_KEY), "the key reached an answer");
+    assert!(wire.contains("[redacted]"));
+}
+
+#[tokio::test]
+async fn a_bad_host_or_origin_is_refused_before_the_host_on_a_move_and_a_cancel() {
+    let mut f = Fleet::new("s3gw-guard");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    for rb in [
+        client()
+            .post(gw.url("alpha", "queue/k-1/move"))
+            .header("origin", "http://evil.example")
+            .header("content-type", "application/json")
+            .body("{}"),
+        client()
+            .delete(gw.url("alpha", "queue/k-1"))
+            .header("origin", "http://evil.example"),
+        client()
+            .delete(gw.url("alpha", "queue/k-1"))
+            .header("host", "evil.example"),
+    ] {
+        let r = send(rb).await;
+        assert_eq!(r.status, 403, "{}", r.body);
+    }
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn the_other_methods_and_paths_under_the_queue_are_refused_by_the_gateway() {
+    let mut f = Fleet::new("s3gw-methods");
+    let fake = running(&mut f, "alpha", Mode::Normal).await;
+    let gw = f.serve().await;
+    let st = |rb: reqwest::RequestBuilder| async { send(rb).await.status };
+    assert_eq!(st(client().get(gw.url("alpha", "queue/k-1"))).await, 405);
+    assert_eq!(st(client().put(gw.url("alpha", "queue/k-1"))).await, 405);
+    assert_eq!(st(client().post(gw.url("alpha", "queue/k-1"))).await, 405);
+    assert_eq!(
+        st(client().get(gw.url("alpha", "queue/k-1/move"))).await,
+        405
+    );
+    assert_eq!(
+        st(client().delete(gw.url("alpha", "queue/k-1/move"))).await,
+        405
+    );
+    assert_eq!(st(client().delete(gw.url("alpha", "queue"))).await, 405);
+    assert_eq!(
+        st(client().delete(gw.url("alpha", "queue/a/b/c"))).await,
+        404
+    );
+    assert_eq!(st(client().delete(gw.url("alpha", "queue/%ff"))).await, 404);
+    assert_eq!(fake.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn an_unreachable_or_silent_host_is_a_plain_failure_for_a_move_and_a_cancel() {
+    let mut f = Fleet::new("s3gw-dead");
+    let cfg = f.config("alpha", Some("S3GW_OWNER_DEAD"));
+    unsafe { std::env::set_var("S3GW_OWNER_DEAD", OWNER_KEY) };
+    let dead = {
+        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        l.local_addr().unwrap().to_string()
+    };
+    f.add("alpha", Some(&cfg), Some(&dead));
+    f.twin("alpha", &dead, OWNER_KEY);
+    f.hold("alpha");
+    let _silent = running(&mut f, "beta", Mode::Silent).await;
+    let gw = f
+        .serve_tuned(Tuning {
+            upstream_wait: Duration::from_millis(300),
+            ..Tuning::default()
+        })
+        .await;
+    let a = gw.cancel("alpha", "k-1").await;
+    assert_eq!(a.status, 502, "{}", a.body);
+    let m = a.json()["message"].as_str().unwrap().to_string();
+    assert!(m.contains("nothing was changed"), "{m}");
+    let b = gw.mv("beta", "k-1", &json!({"before": null})).await;
+    assert_eq!(b.status, 503, "{}", b.body);
+    assert_eq!(b.json()["error"], "instance_not_answering");
+    assert!(
+        b.json()["message"]
+            .as_str()
+            .unwrap()
+            .contains("the change may have been made")
+    );
+}
+
+#[tokio::test]
+async fn the_list_shows_the_folded_order_and_a_200000_character_item_whole() {
+    let f = Fleet::new("s3gw-order");
+    f.add("alpha", None, None);
+    let big: String = (0..200_000)
+        .map(|i| char::from(b'a' + (i % 26) as u8))
+        .collect();
+    f.record(
+        "alpha",
+        vec![
+            ("host.start", json!({"config": {}})),
+            accepted_line("o-1", "owner", "owner", T0, "one"),
+            accepted_line("o-2", "owner", "owner", T0, &big),
+            accepted_line("o-3", "owner", "owner", T0, "three"),
+            accepted_line("p-1", "peer", "peer:atlas", T0, "from a peer"),
+            ("queue.moved", json!({"id": "o-2", "before": "o-1"})),
+            (
+                "queue.moved",
+                json!({"id": "o-3", "before": "o-2", "key": "mv-1"}),
+            ),
+            // a peer's item cannot be put above an owner's, whatever a line says
+            ("queue.moved", json!({"id": "p-1", "before": "o-3"})),
+            ("queue.moved", json!({"id": "o-1", "before": "p-1"})),
+        ],
+    );
+    let gw = f.serve().await;
+    let v = gw.get("alpha", "queue").await.json();
+    let ids: Vec<&str> = v["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["o-3", "o-2", "o-1", "p-1"]);
+    assert_eq!(v["items"][1]["position"], 2);
+    assert!(v["items"][1]["text"].as_str().unwrap() == big, "whole");
+    // cancelled, it is listed whole among what is over
+    f.record(
+        "alpha",
+        vec![
+            ("host.start", json!({"config": {}})),
+            accepted_line("o-2", "owner", "owner", T0, &big),
+            (
+                "stimulus.disposed",
+                json!({"id": "o-2", "disposition": "withdrawn", "turn": 0}),
+            ),
+        ],
+    );
+    let v = gw.get("alpha", "queue?state=withdrawn").await.json();
+    assert_eq!(v["items"][0]["state"], "withdrawn");
+    assert!(v["items"][0]["text"].as_str().unwrap() == big, "whole");
 }
