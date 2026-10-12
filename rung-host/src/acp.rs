@@ -754,17 +754,16 @@ impl Acp {
                 owner_only("_rung/stop")?;
                 let mut item = self.item(role, &channel, "stop");
                 item.control = Some("stop".into());
-                self.host.accept_external(&item);
-                Ok(json!({"stopping": true}))
+                let stopped = self.host.owner_stop(&item);
+                Ok(json!({"stopping": true, "repeat": !stopped}))
             }
             "_rung/release" => {
                 owner_only("_rung/release")?;
-                let committed = self.host.core.state().kernel.commitment().is_some();
                 let reason = params["reason"].as_str().unwrap_or("the owner released it");
                 let mut item = self.item(role, &channel, reason);
                 item.control = Some("release".into());
-                self.host.accept_external(&item);
-                Ok(json!({"released": committed}))
+                let released = self.host.owner_release_control(&item);
+                Ok(json!({"released": released, "repeat": !released}))
             }
             "_rung/calendar" => {
                 owner_only("_rung/calendar")?;
@@ -870,7 +869,6 @@ pub fn serve_http_with(
             .filter(|(_, r)| *r != Role::Owner)
             .map(|(t, _)| t.clone())
             .collect(),
-        control_lock: std::sync::Mutex::new(()),
     });
     let door = Arc::new(EventsDoor {
         state_dir,
@@ -1237,9 +1235,6 @@ pub struct QueueDoor {
     owner_tokens: std::collections::HashSet<String>,
     /// The host's other roles' tokens: known, but not the owner's.
     other_tokens: std::collections::HashSet<String>,
-    /// Held across a control's repeat check and its write, so two requests
-    /// cannot both see "not yet" and both write.
-    control_lock: std::sync::Mutex<()>,
 }
 
 type Reply = rung_agent_core::acp_http::RouteReply;
@@ -1353,7 +1348,20 @@ impl QueueDoor {
                 (_, "POST") => match c {
                     // a stop is never refused for the host's stopping: a second
                     // one is a repeat, answered as such
-                    ControlTarget::Stop => None,
+                    // and it takes no body at all, so a declared one is refused
+                    // before any byte of it is read
+                    ControlTarget::Stop => {
+                        let sized = header("content-length").is_some_and(|n| n.trim() != "0");
+                        if sized || header("transfer-encoding").is_some() {
+                            Some(door_error(
+                                400,
+                                "bad_request",
+                                "this door takes no body: send POST /v1/stop with none",
+                            ))
+                        } else {
+                            None
+                        }
+                    }
                     ControlTarget::Release => writes(),
                 },
                 (ControlTarget::Stop, _) => Some(door_error(
@@ -1472,31 +1480,21 @@ impl QueueDoor {
         let done = tokio::task::spawn_blocking(move || {
             let host = &door.acp.host;
             let owner = door.acp.owner_channel();
-            let _one_at_a_time = door
-                .control_lock
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match which {
                 ControlTarget::Stop => {
                     // already stopping: a repeat, nothing written
-                    let repeat = host.core.stop.raised();
-                    if !repeat {
-                        let mut item = door.acp.item(Role::Owner, &owner, "stop");
-                        item.control = Some("stop".into());
-                        host.accept_external(&item);
-                    }
-                    Ok::<_, crate::read::DoorError>(json!({"stopping": true, "repeat": repeat}))
+                    let mut item = door.acp.item(Role::Owner, &owner, "stop");
+                    item.control = Some("stop".into());
+                    let stopped = host.owner_stop(&item);
+                    Ok::<_, crate::read::DoorError>(json!({"stopping": true, "repeat": !stopped}))
                 }
                 ControlTarget::Release => {
-                    let committed = host.core.state().kernel.commitment().is_some();
-                    if committed {
-                        let reason = reason.as_deref().unwrap_or("the owner released it");
-                        let mut item = door.acp.item(Role::Owner, &owner, reason);
-                        item.control = Some("release".into());
-                        host.accept_external(&item);
-                    }
+                    let reason = reason.as_deref().unwrap_or("the owner released it");
+                    let mut item = door.acp.item(Role::Owner, &owner, reason);
+                    item.control = Some("release".into());
+                    let released = host.owner_release_control(&item);
                     // nothing held is nothing to release: a repeat, nothing written
-                    Ok(json!({"released": committed, "repeat": !committed}))
+                    Ok(json!({"released": released, "repeat": !released}))
                 }
             }
         })

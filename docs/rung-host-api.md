@@ -1716,9 +1716,18 @@ owner control is a `stimulus.accepted` line (with `control`) and a
 never listed in the queue. A stop is then raised the way the stop file raises
 one, and a release goes through the kernel's own owner release.
 
+The check ("is the host already stopping", "is anything held") and the write are
+**one step** under one lock, `Host::owner_stop` and `Host::owner_release_control`,
+and ACP's `_rung/stop` and `_rung/release` go through the same two methods, so the
+two roads record and answer alike: any number of concurrent stops write exactly
+one stop line (the rest answer `repeat: true`), and a release writes its lines
+only when it releases a commitment (ACP answers `{"released", "repeat"}` too).
+
 ### `POST /v1/stop`
 
-No body (an empty body, or none). Any field is 400 `bad_request`, named.
+No body at all: a declared body (a `Content-Length` other than 0, or a
+chunked one) is refused 400 `bad_request` from the headers, before any of it is
+read. (Stop takes no content, so this bounds nothing the owner writes.)
 
 | status | when |
 |---|---|
@@ -1728,7 +1737,10 @@ No body (an empty body, or none). Any field is 400 `bad_request`, named.
 ### `POST /v1/release`
 
 Body optional: `{"reason": "..."}` (a string; any other field is 400). The
-reason is recorded whole, as written.
+reason is recorded whole, as written (no bound on its length). **A release is
+not named to a commitment: it lets go of whatever is held at the moment it
+arrives.** If an answer is lost and the agent has since committed to something
+else, asking again releases that. Look at the instance before asking again.
 
 | status | when |
 |---|---|
@@ -1744,5 +1756,6 @@ checks first, its own key by name, a private address, the answer redacted). A
 stopped instance answers 409 `not_running` in words, with nothing sent: for a
 stop, that it is already stopped; for a release, "start it first". A failure
 says whether anything may have changed (unreachable: nothing; a broken
-connection or no answer: look at the instance, then ask again, since both
-controls are idempotent). Other methods are 405.
+connection or no answer: look at the instance, then ask again; a stop asked
+again changes nothing more, but a release asked again releases whatever is held
+then). Other methods are 405.

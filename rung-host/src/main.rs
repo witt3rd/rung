@@ -8,7 +8,7 @@
 //! rung-host sim --state DIR [--seed N] [--turns N] [--clock real|sim]
 //!               [--call-ms A,B] [--wedge-at TURN] [--inbox DIR] [--stop-file PATH]
 //!               [--fault outage|none] [--backoff-ms MS] [--quota RPD,RPM]
-//!               [--owner-per-hour X] [--no-memory] [--no-commit]
+//!               [--owner-per-hour X] [--no-memory] [--no-commit] [--p-commit P]
 //!               [--acp [--acp-role owner|peer|observer]] [--send-owner-only]
 //!               [--acp-http ADDR --acp-token-env ROLE=ENV_VAR ...]
 //! rung-host canon --state DIR [--seed N]   # print the hash of a seeded run's request bytes
@@ -46,6 +46,8 @@ struct Opts {
     owner_per_hour: f64,
     memory: bool,
     no_commit: bool,
+    /// The mock's chance to commit on a free turn (sim only).
+    p_commit: Option<f64>,
     acp: bool,
     send_owner_only: bool,
     acp_role: rung_host::inbox::Role,
@@ -118,6 +120,7 @@ fn parse() -> Result<Opts, String> {
         owner_per_hour: 0.0,
         memory: true,
         no_commit: false,
+        p_commit: None,
         acp: false,
         send_owner_only: false,
         acp_role: rung_host::inbox::Role::Owner,
@@ -163,6 +166,7 @@ fn parse() -> Result<Opts, String> {
             }
             "--no-memory" => o.memory = false,
             "--no-commit" => o.no_commit = true,
+            "--p-commit" => o.p_commit = Some(v()?.parse().map_err(|e| format!("{f}: {e}"))?),
             "--acp" => o.acp = true,
             "--send-owner-only" => o.send_owner_only = true,
             "--acp-role" => o.acp_role = role(&v()?)?,
@@ -192,6 +196,9 @@ fn scenario(o: &Opts, state: &std::path::Path) -> Result<Scenario, String> {
     }
     sc.mock.wedge_at_turn = o.wedge_at;
     sc.mock.send_owner_only = o.send_owner_only;
+    if let Some(p) = o.p_commit {
+        sc.mock.p_commit = p;
+    }
     if o.no_commit {
         sc.mock.p_commit = 0.0;
     }

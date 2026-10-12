@@ -795,7 +795,7 @@ impl WriteDoor {
                 "the host may be stopping; look at the instance's state, then ask again (a stop of a host already stopping changes nothing)"
             }
             WriteDoor::Release => {
-                "the commitment may have been released; look at the instance, then ask again (a release with nothing held changes nothing)"
+                "the commitment may have been released; look at the instance before asking again: a release is not named to a commitment, so asking again releases whatever is held at that moment (nothing held changes nothing)"
             }
         }
     }

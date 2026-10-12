@@ -167,6 +167,9 @@ pub struct Host {
     initial_listing: Mutex<Option<Value>>,
     /// Set on waking after a gap: when the host stopped running.
     down_since: Mutex<Option<Millis>>,
+    /// Held across an owner control's repeat check and its write (S7), so two
+    /// callers cannot both see "not yet" and both write.
+    control_lock: Mutex<()>,
     /// The next model call follows a host-made change: (cause, what stayed valid).
     reset: Mutex<Option<(String, Validity)>>,
     /// A model switch waits for the next boundary's rollover.
@@ -306,6 +309,7 @@ impl Host {
             prober: b.prober,
             initial_listing: Mutex::new(b.initial_listing),
             down_since: Mutex::new(None),
+            control_lock: Mutex::new(()),
             reset: Mutex::new(None),
             switch_pending: Mutex::new(None),
             last_call: Mutex::new(None),
@@ -376,6 +380,33 @@ impl Host {
             self.core.sync();
         }
         recorded
+    }
+
+    /// The owner's stop: the one path for ACP's `_rung/stop` and the HTTP stop
+    /// door. `item` must be an owner item with `control` `stop`. The check (is the
+    /// host already stopping) and the write are one step, so any number of
+    /// concurrent stops write exactly one line; the rest are repeats. True when
+    /// this call stopped the host, false when it was already stopping (nothing
+    /// is written then).
+    pub fn owner_stop(&self, item: &Item) -> bool {
+        let _one = lock(&self.control_lock);
+        if self.core.stop.raised() {
+            return false;
+        }
+        self.accept_external(item)
+    }
+
+    /// The owner's release: the one path for ACP's `_rung/release` and the HTTP
+    /// release door. The check (is anything held) and the write are one step.
+    /// True when a commitment was held and is now released; false when nothing
+    /// was held (nothing is written then).
+    pub fn owner_release_control(&self, item: &Item) -> bool {
+        let _one = lock(&self.control_lock);
+        if self.core.state().kernel.commitment().is_none() {
+            return false;
+        }
+        self.accept_external(item);
+        true
     }
 
     /// Withdraw a stimulus that no boundary has admitted yet: its one

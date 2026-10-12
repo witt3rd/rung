@@ -44,7 +44,6 @@ fn spawn(kind: Kind, state: &Path, inbox: &Path, extra: &[&str]) -> Server {
         "real",
         "--call-ms",
         "20,40",
-        "--no-commit",
         "--acp-http",
         "127.0.0.1:0",
         "--acp-token-env",
@@ -56,6 +55,9 @@ fn spawn(kind: Kind, state: &Path, inbox: &Path, extra: &[&str]) -> Server {
         "--inbox",
         inbox.to_str().unwrap(),
     ];
+    if !extra.contains(&"--p-commit") {
+        args.push("--no-commit");
+    }
     match kind {
         Kind::Wedge => args.extend(["--wedge-at", "1"]),
         Kind::Plain => {}
@@ -329,4 +331,180 @@ fn a_release_to_a_stopping_host_is_refused_in_words() {
     assert_eq!(a.json()["error"], "not_running");
     assert!(a.message().contains("start it first"), "{}", a.message());
     assert_eq!(controls(&state, "release"), 0);
+}
+
+/// Twenty owners press stop at once: one line in the record, nineteen repeats.
+#[test]
+fn twenty_concurrent_stops_make_exactly_one_line_and_nineteen_repeats() {
+    sim::test_timeout(120);
+    let d = sim::temp_dir_guard("s7-stop-race");
+    let (state, inbox) = (d.path().join("state"), d.path().join("inbox"));
+    let s = wedged(&state, &inbox);
+    let answers: Vec<Answer> = std::thread::scope(|t| {
+        let hs: Vec<_> = (0..20)
+            .map(|_| t.spawn(|| post(&s, Some(OWNER_TOKEN), "/v1/stop", None)))
+            .collect();
+        hs.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+    assert!(answers.iter().all(|a| a.status == 200));
+    let repeats = answers
+        .iter()
+        .filter(|a| a.json()["repeat"] == true)
+        .count();
+    assert_eq!(repeats, 19);
+    assert_eq!(controls(&state, "stop"), 1);
+    let disposed = of_kind(&state, "stimulus.disposed")
+        .iter()
+        .filter(|l| l.str("disposition") == "control")
+        .count();
+    assert_eq!(disposed, 1);
+}
+
+/// Twenty releases at once with nothing held: no line, twenty repeats.
+#[test]
+fn twenty_concurrent_releases_with_nothing_held_write_nothing() {
+    sim::test_timeout(120);
+    let d = sim::temp_dir_guard("s7-release-race");
+    let (state, inbox) = (d.path().join("state"), d.path().join("inbox"));
+    let s = spawn(Kind::Plain, &state, &inbox, &["--no-commit"]);
+    let answers: Vec<Answer> = std::thread::scope(|t| {
+        let hs: Vec<_> = (0..20)
+            .map(|_| t.spawn(|| post(&s, Some(OWNER_TOKEN), "/v1/release", Some("{}"))))
+            .collect();
+        hs.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+    assert!(
+        answers
+            .iter()
+            .all(|a| a.status == 200 && a.json()["repeat"] == true)
+    );
+    assert_eq!(controls(&state, "release"), 0);
+}
+
+/// A restarted host on the same state is running again (the stop does not
+/// outlive the process that took it) and takes a new stop as a first one.
+#[test]
+fn a_restart_keeps_one_stop_line_and_a_new_stop_is_a_first_one() {
+    sim::test_timeout(120);
+    let d = sim::temp_dir_guard("s7-stop-restart");
+    let (state, inbox) = (d.path().join("state"), d.path().join("inbox"));
+    let mut s = spawn(Kind::Plain, &state, &inbox, &[]);
+    assert_eq!(post(&s, Some(OWNER_TOKEN), "/v1/stop", None).status, 200);
+    until(20, "the host to exit", || {
+        s.child.try_wait().unwrap().is_some()
+    });
+    assert_eq!(controls(&state, "stop"), 1);
+    drop(s);
+    let s2 = spawn(Kind::Plain, &state, &inbox, &[]);
+    assert_eq!(get(&s2, "/v1/queue").status, 200);
+    assert_eq!(controls(&state, "stop"), 1);
+    let a = post(&s2, Some(OWNER_TOKEN), "/v1/stop", None);
+    assert_eq!(a.json()["repeat"], false, "{}", a.body);
+    assert_eq!(controls(&state, "stop"), 2);
+}
+
+/// The owner kernel releases in the record.
+fn owner_releases(state: &Path) -> usize {
+    of_kind(state, "kernel.release")
+        .iter()
+        .filter(|l| l.str("released_by") == "owner")
+        .count()
+}
+
+/// A host that commits to a project on its first free turn (and again after a
+/// release; the mock decides on every uncommitted free turn).
+fn committing(state: &Path, inbox: &Path) -> Server {
+    let s = spawn(Kind::Plain, state, inbox, &["--p-commit", "1.0"]);
+    until(20, "the host to commit", || {
+        !of_kind(state, "kernel.commit").is_empty()
+    });
+    s
+}
+
+/// The thing the release door is for: a held commitment is let go. The effect
+/// is in the record (`kernel.release`, by the owner, with the reason, once), not
+/// only in the answer.
+#[test]
+fn a_release_lets_go_of_the_held_commitment() {
+    sim::test_timeout(120);
+    let d = sim::temp_dir_guard("s7-release-effect");
+    let (state, inbox) = (d.path().join("state"), d.path().join("inbox"));
+    let s = committing(&state, &inbox);
+    // the mock also ends a project by itself, so press until a press finds one
+    // held; a door that never releases never gets there
+    let mut released = false;
+    for _ in 0..200 {
+        let a = post(
+            &s,
+            Some(OWNER_TOKEN),
+            "/v1/release",
+            Some(&json!({"reason": "enough for now"}).to_string()),
+        );
+        assert_eq!(a.status, 200, "{}", a.body);
+        if a.json()["released"] == true {
+            assert_eq!(a.json()["repeat"], false);
+            released = true;
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(released, "no press ever released a held commitment");
+    let l = of_kind(&state, "kernel.release")
+        .into_iter()
+        .find(|l| l.str("released_by") == "owner")
+        .expect("the owner's release is in the record");
+    assert_eq!(l.str("reason"), "enough for now");
+    assert_eq!(l.str("via"), "owner:_rung/release");
+    assert_eq!(owner_releases(&state), controls(&state, "release"));
+}
+
+/// Twenty releases at once: every line the doors wrote is one that released
+/// (the answers, the control lines and the owner's `kernel.release` lines agree),
+/// never a line without a release.
+#[test]
+fn concurrent_releases_write_one_line_per_actual_release() {
+    sim::test_timeout(120);
+    let d = sim::temp_dir_guard("s7-release-concurrent");
+    let (state, inbox) = (d.path().join("state"), d.path().join("inbox"));
+    let s = committing(&state, &inbox);
+    let answers: Vec<Answer> = std::thread::scope(|t| {
+        let hs: Vec<_> = (0..20)
+            .map(|_| t.spawn(|| post(&s, Some(OWNER_TOKEN), "/v1/release", Some("{}"))))
+            .collect();
+        hs.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+    assert!(answers.iter().all(|a| a.status == 200));
+    let yes = answers
+        .iter()
+        .filter(|a| a.json()["released"] == true)
+        .count();
+    assert!(yes >= 1, "a held commitment was released");
+    assert_eq!(controls(&state, "release"), yes);
+    assert_eq!(owner_releases(&state), yes);
+}
+
+/// Stop takes no body: a declared one is refused from the headers, before it is
+/// read, and nothing is written.
+#[test]
+fn a_stop_with_a_body_is_refused_before_the_body_is_read() {
+    sim::test_timeout(120);
+    let d = sim::temp_dir_guard("s7-stop-body");
+    let (state, inbox) = (d.path().join("state"), d.path().join("inbox"));
+    let s = spawn(Kind::Plain, &state, &inbox, &["--no-commit"]);
+    // refused from the headers: the answer is 400, or the host has closed the
+    // connection on the sender before the whole body went (also "not read")
+    let big = "x".repeat(8 * 1024 * 1024);
+    let sent = client()
+        .post(format!("{}/v1/stop", s.base))
+        .bearer_auth(OWNER_TOKEN)
+        .header("content-type", "application/json")
+        .body(big)
+        .send();
+    if let Ok(r) = sent {
+        assert_eq!(r.status().as_u16(), 400);
+    }
+    let a = post(&s, Some(OWNER_TOKEN), "/v1/stop", Some("{}"));
+    assert_eq!(a.status, 400, "{}", a.message());
+    assert_eq!(controls(&state, "stop"), 0);
+    assert_eq!(post(&s, Some(OWNER_TOKEN), "/v1/stop", None).status, 200);
 }
