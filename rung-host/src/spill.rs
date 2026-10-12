@@ -16,6 +16,8 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use sha2::{Digest, Sha256};
 
@@ -48,7 +50,55 @@ pub fn thousands(n: u64) -> String {
 
 /// The temporary name, in the spill directory, of the file being written.
 fn temp_name() -> String {
-    format!(".partial-{}", std::process::id())
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    format!(
+        ".partial-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    )
+}
+
+/// Remove temp files left by processes that no longer exist.
+fn sweep_stale(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let name = e.file_name();
+        let name = name.to_string_lossy();
+        let Some(rest) = name.strip_prefix(".partial-") else {
+            continue;
+        };
+        let Some(pid) = rest.split('-').next().and_then(|p| p.parse::<u32>().ok()) else {
+            continue;
+        };
+        if pid != std::process::id() && !Path::new(&format!("/proc/{pid}")).exists() {
+            let _ = std::fs::remove_file(e.path());
+        }
+    }
+}
+
+/// Set when the caller stops waiting for a fetch; the fetch then stops
+/// writing and removes its own temp file.
+#[derive(Clone, Default)]
+pub struct Cancel(Arc<AtomicBool>);
+
+impl Cancel {
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+    fn is_set(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}
+
+/// Cancels on drop.
+pub struct CancelOnDrop(pub Cancel);
+
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        self.0.cancel();
+    }
 }
 
 struct Open {
@@ -73,6 +123,7 @@ pub struct Spiller {
     open: Option<Open>,
     /// Why spilling failed, once it has; the body is then kept in memory.
     failed: Option<String>,
+    cancel: Cancel,
     #[cfg(test)]
     fault_after: Option<u64>,
 }
@@ -97,9 +148,15 @@ impl Spiller {
             buf: String::new(),
             open: None,
             failed: None,
+            cancel: Cancel::default(),
             #[cfg(test)]
             fault_after: None,
         }
+    }
+
+    pub fn with_cancel(mut self, cancel: Cancel) -> Self {
+        self.cancel = cancel;
+        self
     }
 
     #[cfg(test)]
@@ -128,9 +185,9 @@ impl Spiller {
     }
 
     fn start(&mut self) -> Result<(), String> {
-        let path = self.dir()?.join(temp_name());
-        // A leftover of a crashed fetch of this process id; ours to replace.
-        let _ = std::fs::remove_file(&path);
+        let dir = self.dir()?;
+        sweep_stale(&dir);
+        let path = dir.join(temp_name());
         let file = OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -215,6 +272,10 @@ impl Spiller {
         let tidy = |o: &Open| {
             let _ = std::fs::remove_file(&o.path);
         };
+        if self.cancel.is_set() {
+            tidy(&o);
+            return Err("the fetch was cut".into());
+        }
         let placed = o
             .file
             .flush()
@@ -302,6 +363,12 @@ impl BodySink for Spiller {
     }
 
     fn body(&mut self, text: &str) -> Result<(), String> {
+        if self.cancel.is_set() {
+            if let Some(o) = self.open.take() {
+                let _ = std::fs::remove_file(&o.path);
+            }
+            return Err("the fetch was cut".into());
+        }
         if let Some(mut o) = self.open.take() {
             match self.write(&mut o, text.as_bytes()) {
                 Ok(()) => self.open = Some(o),
@@ -785,6 +852,55 @@ mod tests {
         assert!(done.text.contains("could not be saved to a file"));
         let left: Vec<_> = std::fs::read_dir(ws.join(".web")).unwrap().collect();
         assert!(left.is_empty(), "no partial file is left");
+    }
+
+    #[test]
+    fn a_cut_fetch_stops_and_leaves_no_temp_and_a_second_is_whole() {
+        let g = crate::sim::temp_dir_guard("spill-cut");
+        let ws = g.path().join("ws");
+        let cancel = Cancel::default();
+        let mut a = Spiller::new(ws.clone(), 1000, true).with_cancel(cancel.clone());
+        let mut b = Spiller::new(ws.clone(), 1000, true);
+        let mut all = String::new();
+        for i in 0..100 {
+            let l = line(i);
+            all.push_str(&l);
+            a.body(&l).unwrap();
+            b.body(&l).unwrap();
+        }
+        cancel.cancel();
+        assert!(a.body(&line(100)).is_err());
+        for i in 100..200 {
+            let l = line(i);
+            all.push_str(&l);
+            b.body(&l).unwrap();
+        }
+        let done = b.finish().unwrap();
+        let rel = spilled_path(&done.text);
+        assert_eq!(std::fs::read_to_string(ws.join(rel)).unwrap(), all);
+        let names: Vec<_> = std::fs::read_dir(ws.join(".web"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(names.len(), 1, "{names:?}");
+        assert!(!names[0].starts_with(".partial"));
+    }
+
+    #[test]
+    fn a_dead_process_temp_is_swept_and_a_live_one_kept() {
+        let g = crate::sim::temp_dir_guard("spill-stale");
+        let ws = g.path().join("ws");
+        let d = ws.join(".web");
+        std::fs::create_dir_all(&d).unwrap();
+        let dead = d.join(".partial-4294967294-0");
+        let live = d.join(format!(".partial-{}-999999", std::process::id()));
+        std::fs::write(&dead, "x").unwrap();
+        std::fs::write(&live, "y").unwrap();
+        let mut sp = Spiller::new(ws, 10, true);
+        sp.body(&"z".repeat(20)).unwrap();
+        assert!(!dead.exists());
+        assert!(live.exists());
+        sp.abort();
     }
 
     #[test]

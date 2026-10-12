@@ -27,7 +27,9 @@ use crate::gates::{LONG_WORK_MESSAGE, OWNER_CUT_MESSAGE};
 use crate::kernel;
 use crate::memory::MemoryHost;
 use crate::registers::Check;
-use crate::spill::{BodySink, DEFAULT_SPILL_BYTES, Range, SPILL_DIR, Spiller, read_range};
+use crate::spill::{
+    BodySink, Cancel, CancelOnDrop, DEFAULT_SPILL_BYTES, Range, SPILL_DIR, Spiller, read_range,
+};
 
 pub const CORE: &str = "core";
 pub const MEMORY: &str = "memory";
@@ -696,8 +698,11 @@ impl HostTools {
                 let web = self.web.clone();
                 let spill = self.enabled.contains(READ);
                 let (workspace, core2) = (self.workspace.clone(), self.core.clone());
+                let cancel = Cancel::default();
+                let _cut = CancelOnDrop(cancel.clone());
                 self.timed(name, group, move || {
-                    let mut sp = Spiller::new(workspace, web.spill_bytes(), spill);
+                    let mut sp =
+                        Spiller::new(workspace, web.spill_bytes(), spill).with_cancel(cancel);
                     let (r, took) = web.fetch_into(&url, &mut sp);
                     if let Err(e) = r {
                         sp.abort();
