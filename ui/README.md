@@ -138,12 +138,13 @@ page against the mock in a real browser, and `npm run real-queue-proof` against 
 - `live-mutations.txt`: forty-one faults put into the live code one at a time; every one is caught by a test.
 - `live-proof.txt`: the live proof against the mock, as run.
 - `real-gateway-first-run.txt`: the tests for the real gateway's rows and a missing event stream, against the UI source as it was on master.
-- `real-proof.txt`: the proof against the real gateway binary, as run; `contract-real.txt`: the contract tests against it, as run.
-- `queue-first-run.txt`: the S1 tests (owner mark, queue wire and send, queue contract) before any queue code existed. All failed.
-- `queue-real-first-run.txt`: the same tests rewritten for the host's real doors (items with a state, `not_running`, `key_reused`, an invisible-only message, the draft kept), run before the code and the mock changed. 41 failed.
-- `real-queue-proof.txt` and, in `contract-queue.txt`, the queue contract tests against the mock and a real `rung-host` behind a real `rung-gateway` (rung PR 297, head 102d9ea); the browser proof against the same.
-- `queue-mutations.txt`: faults put into the S1 code one at a time (the sender, the reader, the fold, the mock's doors, the panel); the test or proof check that caught each.
-- `queue-proof.txt`: the queue proof against the mock, as run; `contract-queue.txt`: the queue contract tests against the mock and against the real gateway (skipped by name where the door is not there).
+- `real-proof.txt`: the proof against the real gateway binary (the list, a stopped instance, the record), as run before the queue page; `contract-real.txt`: the contract tests against it, as run. `real-proof-queue.txt` is the same proof run again with the queue page's checks added, against a gateway built from master; it supersedes `real-proof.txt`.
+- `queue-first-run.txt`: the first S1 tests (owner mark, queue wire and send, queue contract) before any queue code existed. 19 of the 20 listed tests failed (the three suites for the new modules could not load); the one that passed is the owner-mark check that a text is kept whole, which the fold already did.
+- `queue-real-first-run.txt`: the same tests rewritten for the host's real doors (items with a state, `not_running`, `key_reused`, an invisible-only message, the draft kept), run before the code and the mock changed. 19 of 28 listed tests failed and 9 passed (the checks that the old and the real doors share).
+- `queue-review-first-run.txt`: the browser proof with the navigation-race checks added, run against the page before the fix: the two new checks failed (and the row count, which only counted the added item).
+- `ocr-check.txt`: the OCR of every capture the queue slice added or changed, searched for paths, names and addresses: no match.
+- `queue-mutations.txt`: faults put into the S1 code one at a time (the sender, the reader, the fold, the mock's doors, the panel, the per-instance state); the test or proof check that caught each.
+- `queue-proof.txt`: the queue proof against the mock, as run. `contract-queue.txt`: the queue contract tests against the mock and against a real `rung-host` behind a real `rung-gateway` built from master (all 15 run, none skipped); `real-queue-proof.txt`: the browser proof against the same real pair.
 - `census-selftest.txt`: thirteen pages built to break one budget each; the census named every one.
 - `census-first-run.txt`: the census on the first draft of the pages. It passed, so the first draft was judged
   by looking at the captures; what looking changed is listed below.

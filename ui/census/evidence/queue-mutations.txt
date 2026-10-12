@@ -83,4 +83,12 @@ FAIL  a message of only invisible characters is empty: Send is disabled
 CAUGHT: <p className="meta qnote">Steer and When free come later.</p>
 locator.innerText: Timeout 30000ms exceeded.
   name: 'TimeoutError'
-## the gateway-less 'real' contract target (files only) still passes: 13 pass, 2 skipped; the queue file is run against the real host, not against it
+## faults against the review fixes (navigation race, per-instance state, draft)
+CAUGHT: src/queue/hooks.ts :: if (senders.get(id)?.idle) senders.delete(id);
+CAUGHT: src/queue/hooks.ts :: if (senders.get(id)?.idle) senders.delete(id);
+CAUGHT: src/queue/send.ts :: return this.press === null;
+CAUGHT: <QueuePanel key={id} id={id}
+FAIL  on another instance the box is empty and Send is not offered, whatever is in flight elsewhere
+FAIL  a refusal that arrives after the owner left leaves the other instance's box and status alone
+
+## one fault was MISSED and the code removed: the 'if (!alive.current) return' guard after a send; with the panel keyed by instance an update on a gone panel is a no-op, so the guard did nothing and was deleted.

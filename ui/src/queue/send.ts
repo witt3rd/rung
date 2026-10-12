@@ -34,6 +34,9 @@ export class Sender {
   private o: SenderOptions;
   constructor(o: SenderOptions) { this.o = o; }
 
+  /** No press waits for an answer or may still be repeated: nothing here needs to outlive the page. */
+  get idle(): boolean { return this.press === null; }
+
   send(text: string, intent: Intent): Promise<SendResult> {
     if (isBlank(text)) return Promise.resolve({ ok: false, kind: "empty", message: refusalWords("empty", "") });
     let p = this.press;

@@ -25,6 +25,8 @@ export interface Target {
   /** Whether the target can stream short-lived partial frames while a turn runs (a host writing a turn; not the files alone). */
   deltas?: boolean;
   control: Control | null;
+  /** A peer sends a message (a target with a real host: a file in its inbox). Resolves with the item's id once written, not once accepted. */
+  addPeer?(text: string, name: string): Promise<string>;
   stop(): Promise<void>;
 }
 

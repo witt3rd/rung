@@ -18,3 +18,26 @@ test("every page of the open queue is read, in order, until the host says there 
 test("a gateway with no queue door is a named unavailability, not an empty queue", async () => {
   await assert.rejects(loadQueue("x", (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch), (e: unknown) => e instanceof QueueUnavailable && e.status === 404);
 });
+
+import { senderFor, releaseSender, draftFor, keepDraft } from "../src/queue/hooks.ts";
+
+test("what the page keeps per instance is only what must outlive a page: a press whose answer may be lost, and an unsent draft", () => {
+  const a = senderFor("inst-a");
+  assert.equal(senderFor("inst-a"), a, "one sender per instance while it is kept");
+  assert.equal(a.idle, true, "a sender with no press pending holds nothing");
+  releaseSender("inst-a");
+  assert.notEqual(senderFor("inst-a"), a, "an idle sender is let go");
+  keepDraft("inst-a", "typed, not sent");
+  assert.equal(draftFor("inst-a"), "typed, not sent");
+  keepDraft("inst-a", "");
+  assert.equal(draftFor("inst-a"), "", "an empty draft is not kept");
+});
+
+test("a sender with a press whose answer was lost is kept, so the repeat carries the same key", async () => {
+  const s = senderFor("inst-b");
+  (s as unknown as { o: { fetchImpl: typeof fetch } }).o.fetchImpl = (async () => { throw new Error("network"); }) as unknown as typeof fetch;
+  await s.send("hello", "next");
+  assert.equal(s.idle, false);
+  releaseSender("inst-b");
+  assert.equal(senderFor("inst-b"), s, "kept while a press may still be repeated");
+});

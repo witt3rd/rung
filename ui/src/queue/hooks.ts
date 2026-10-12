@@ -34,8 +34,9 @@ export function useQueue(id: string, enabled: boolean, lastSeq: number | null) {
   return q;
 }
 
-// One sender and one draft per instance, kept across the page's tabs: the press whose answer may have been lost keeps its key, and a
-// message typed and not yet sent is still there when the owner comes back from another tab.
+// What the page keeps per instance beyond a mounted panel, and only that: a press whose answer may have been lost (it keeps its key, so a
+// repeat adds once) and a message typed and not yet sent (the owner's text is never dropped on a timer). Each is bounded by the number of
+// instances and let go as soon as it holds nothing: a sender when it has no press pending, a draft when it is empty.
 const senders = new Map<string, Sender>();
 const drafts = new Map<string, string>();
 export function senderFor(id: string): Sender {
@@ -43,5 +44,6 @@ export function senderFor(id: string): Sender {
   if (!s) senders.set(id, (s = new Sender({ url: queueUrl(id) })));
   return s;
 }
+export function releaseSender(id: string): void { if (senders.get(id)?.idle) senders.delete(id); }
 export const draftFor = (id: string): string => drafts.get(id) ?? "";
 export const keepDraft = (id: string, text: string): void => { if (text === "") drafts.delete(id); else drafts.set(id, text); };

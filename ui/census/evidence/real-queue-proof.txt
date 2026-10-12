@@ -1,4 +1,4 @@
-# census/real-queue-proof.ts: the page in a real browser against a real rung-host (sim: scripted model, fake world) behind a real rung-gateway, built from rung PR 297 (head 102d9ea), as run.
+# census/real-queue-proof.ts: the page in a real browser against a real rung-host (sim: scripted model, fake world) behind a real rung-gateway, both built from master bec3302, as run.
 pass  with nothing typed Send is not offered
 pass  the real host wrote the message, once, as the owner's
 pass  the box was emptied after the real host answered
@@ -15,4 +15,6 @@ pass  census, real-queue-now at 2878: chrome 58 words, within every budget
 pass  a stopped real instance offers no Send, and says: start the instance first
 pass  and the real gateway refuses an add with 409 not_running
 pass  the stopped instance's queue still lists, from its record
+pass  census, real-queue-stopped at 390: chrome 35 words, within every budget
+pass  census, real-queue-stopped at 1920: chrome 52 words, within every budget
 real queue proof: all pass

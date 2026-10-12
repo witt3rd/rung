@@ -3,16 +3,13 @@
 // What it shows: the page answers only after the host wrote the item down; a lost answer and a second press add once; the owner's items
 // are a group on top and a peer item says why the desk holds it; a long text is whole under "Show more"; a stopped instance says
 // "Start the instance first."; the turn view marks what the owner sent. Captures at 390, 1280, 1920 and 2878, judged by the census budgets.
-import { chromium, here } from "./lib.mjs";
-import { measure, judge } from "./measure.mjs";
+import { chromium } from "./lib.mjs";
+import { shootViews } from "./shoot.mjs";
 import { startMock } from "../mock/gateway.ts";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { here } from "./lib.mjs";
 
-const WIDTHS = { 390: { width: 390, height: 844, dpr: 2 }, 1280: { width: 1280, height: 800, dpr: 1 }, 1920: { width: 1920, height: 1080, dpr: 1 }, 2878: { width: 2878, height: 1400, dpr: 1 } } as const;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const shots = join(here, "shots");
-mkdirSync(shots, { recursive: true });
 const m = await startMock({ appDir: join(here, "../dist"), extra: true });
 const host = m.hosts.get("alpha")!;
 const out: string[] = [];
@@ -26,14 +23,6 @@ async function ready(page: import("playwright").Page, hash: string) {
   await page.waitForSelector('.page[data-ready="true"]', { timeout: 20000 });
   await page.evaluate(() => document.fonts.ready);
 }
-async function shoot(page: import("playwright").Page, name: string, w: keyof typeof WIDTHS) {
-  const vp = WIDTHS[w];
-  await page.screenshot({ path: join(shots, `${name}-${w}.png`), fullPage: true });
-  const r = await measure(page, { width: vp.width, height: vp.height });
-  const bad = judge(r);
-  check(bad.length === 0, `census, ${name} at ${w}: chrome ${r.words} words, ${bad.length ? bad.join("; ") : "within every budget"}`);
-}
-
 let browser!: import("playwright").Browser;
 try {
   browser = await chromium.launch();
@@ -111,6 +100,44 @@ try {
   check(await page.locator(".qctl .btn.primary").isDisabled(), "a message of only invisible characters is empty: Send is disabled");
   await page.fill("textarea", "");
 
+  // 2c. A send that ends after the owner went to another instance must touch nothing there; what was typed for the first stays with it.
+  async function hold(refuse: boolean) {
+    let open!: () => void;
+    const gate = new Promise<void>((r) => { open = r; });
+    await page.route("**/api/i/alpha/v1/queue", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      await gate;
+      if (refuse) return route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ error: "not_running", message: "the instance is not running: start it first" }) });
+      return route.fallback();
+    });
+    return () => open();
+  }
+  const goto = async (id: string) => { await page.evaluate((i) => { location.hash = `#/i/${i}`; }, id); await page.waitForFunction((i) => document.querySelector("h1")?.textContent === i && (document.querySelector(".qrule")?.textContent ?? "").trim() !== "", id, { timeout: 10000 }); };
+  const T4 = "Typed for alpha, refused after the owner left.";
+  const openRefuse = await hold(true);
+  await page.fill("textarea", T4);
+  await page.click(".qctl .btn.primary");
+  await page.waitForFunction(() => document.body.innerText.includes("Sending."));
+  await goto("cedar");
+  check((await page.inputValue("textarea")) === "" && (await page.locator(".qctl .btn.primary").isDisabled()), "on another instance the box is empty and Send is not offered, whatever is in flight elsewhere");
+  openRefuse(); await sleep(600);
+  check((await page.inputValue("textarea")) === "" && !(await page.locator(".qstatus").innerText()).includes("Start the instance first."), "a refusal that arrives after the owner left leaves the other instance's box and status alone");
+  await page.unroute("**/api/i/alpha/v1/queue");
+  await goto("alpha");
+  check((await page.inputValue("textarea")) === T4, "back on the first instance, the refused text is still there");
+  const T5 = "Typed for alpha, written after the owner left.";
+  const openOk = await hold(false);
+  await page.fill("textarea", T5);
+  await page.click(".qctl .btn.primary");
+  await page.waitForFunction(() => document.body.innerText.includes("Sending."));
+  await goto("cedar");
+  openOk(); await sleep(600);
+  check((await page.inputValue("textarea")) === "" && !(await page.locator(".qstatus").innerText()).includes("Sent."), "a send that is answered after the owner left leaves the other instance's box and status alone");
+  await page.unroute("**/api/i/alpha/v1/queue");
+  await goto("alpha");
+  check((await page.inputValue("textarea")) === "" && accepted().some((l) => l.item.text === T5), "back on the first instance the box was emptied, and the host holds the text");
+  await page.fill("textarea", "");
+
   // 3. A second item, and a long text that folds.
   await page.fill("textarea", "Stop checking the old folder; the numbers moved.");
   await page.click(".qctl .btn.primary");
@@ -135,13 +162,9 @@ try {
   check(iOwner >= 0 && iOthers > iOwner && iPeer > iOthers, "owner items are a group on top; the peer item is below it");
   check(joined.includes("Peer items can never be moved above the owner's."), "one line says peer items can never be moved above the owner's");
   check(joined.includes("held by the decision desk until the agent's next break"), "the peer item shows why the desk holds it");
-  check((joined.match(/Do next · Owner/g) ?? []).length === 4, "each row says what was asked and by whom");
+  check((joined.match(/Do next · Owner/g) ?? []).length === 5, "each row says what was asked and by whom");
   await page.fill("textarea", "");
-  for (const w of [390, 1280, 1920, 2878] as const) {
-    await page.setViewportSize({ width: WIDTHS[w].width, height: WIDTHS[w].height });
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await shoot(page, "queue-now", w);
-  }
+  await shootViews(browser, `${m.url}/#/i/alpha`, "queue-now", { ready: (p) => p.waitForFunction(() => document.querySelector(".row.q") !== null), report: check });
   await ctx.close();
 
   // 5. A turn that takes the items; the turn view marks what the owner sent, and a steer that came in mid-turn shows the moment.
@@ -161,11 +184,7 @@ try {
   check(/came in while turn \d+ was running; the agent saw it at \d\d:\d\d:\d\d UTC/.test(card), "a steer that came in mid-turn shows the moment the agent saw it");
   const bg = await p2.locator(`#turn-${turn} .tag.owner`).first().evaluate((e) => getComputedStyle(e).backgroundColor);
   check(bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent", "the Owner tag is filled");
-  for (const w of [390, 1280, 1920, 2878] as const) {
-    await p2.setViewportSize({ width: WIDTHS[w].width, height: WIDTHS[w].height });
-    await p2.evaluate((n) => document.querySelector(`#turn-${n}`)!.scrollIntoView({ block: "start" }), turn);
-    await shoot(p2, "queue-turn", w);
-  }
+  await shootViews(browser, `${m.url}/#/i/alpha/turns?turn=${turn}`, "queue-turn", { ready: (p) => p.waitForSelector(`#turn-${turn} .tag.owner`), scroll: { fn: (n: number) => document.querySelector(`#turn-${n}`)!.scrollIntoView({ block: "start" }), arg: turn }, report: check });
   await ctx2.close();
 
   // 6. A stopped instance: the list can be read, Send cannot be pressed, and the sentence is "Start the instance first."
@@ -178,11 +197,7 @@ try {
   check(await p3.locator(".qctl .btn.primary").isDisabled(), "on a stopped instance Send is not offered");
   const direct = await fetch(`${m.url}/api/i/bramble/v1/queue`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: "k", text: "x", intent: "next" }) });
   check(direct.status === 409 && (await direct.json()).error === "not_running", "and the door refuses it with 409 not_running");
-  for (const w of [390, 1280, 1920, 2878] as const) {
-    await p3.setViewportSize({ width: WIDTHS[w].width, height: WIDTHS[w].height });
-    await p3.evaluate(() => window.scrollTo(0, 0));
-    await shoot(p3, "queue-stopped", w);
-  }
+  await shootViews(browser, `${m.url}/#/i/bramble`, "queue-stopped", { ready: (p) => p.waitForFunction(() => document.body.innerText.includes("Start the instance first."), null, { timeout: 8000 }), report: check });
   await ctx3.close();
 } finally {
   await browser?.close();

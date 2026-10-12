@@ -21,6 +21,8 @@ export async function startRealHost(opts: { appDir?: string; port?: number } = {
   const root = mkdtempSync(join(scratch, "realhost-"));
   const home = join(root, "home");
   mkdirSync(home);
+  const inbox = join(root, "inbox");
+  mkdirSync(inbox);
   const ownerKey = `owner-${randomBytes(12).toString("hex")}`;
   const viewKey = `view-${randomBytes(12).toString("hex")}`;
   const children: ChildProcess[] = [];
@@ -36,7 +38,7 @@ export async function startRealHost(opts: { appDir?: string; port?: number } = {
   });
 
   try {
-    const host = spawn(hostBin, ["sim", "--state", join(root, "state"), "--seed", "1", "--turns", "100000", "--clock", "real", "--call-ms", "20000,30000", "--name", "alpha",
+    const host = spawn(hostBin, ["sim", "--state", join(root, "state"), "--seed", "1", "--turns", "100000", "--clock", "real", "--call-ms", "20000,30000", "--name", "alpha", "--inbox", inbox,
       "--acp-http", "127.0.0.1:0", "--acp-token-env", "owner=RUNG_CONTRACT_OWNER_KEY"], { env, stdio: ["ignore", "pipe", "pipe"] });
     children.push(host);
     const hostUrl = await waitFor(host, /ACP HTTP at (http:\/\/\S+?)\/acp/, "the host");
@@ -58,6 +60,8 @@ export async function startRealHost(opts: { appDir?: string; port?: number } = {
         // The host ends: its lock is released and the gateway reads the instance as not running.
         halt: async () => { host.kill("SIGKILL"); await new Promise((r) => host.once("exit", r)); await new Promise((r) => setTimeout(r, 300)); },
       },
+      // A peer's message: a file in the host's inbox directory, which the host takes at its next boundary (the file's name is the peer's name).
+      addPeer: async (text, name) => { writeFileSync(join(inbox, `${name}.msg`), JSON.stringify({ text, role: "peer" })); return name; },
       stop: async () => { retire(); },
     };
   } catch (e) {

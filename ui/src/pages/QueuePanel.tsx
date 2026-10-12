@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { href } from "../route.ts";
 import { num } from "../record/words.ts";
 import { useMode } from "../data/hooks.ts";
-import { QueueUnavailable, draftFor, keepDraft, senderFor, useQueue } from "../queue/hooks.ts";
+import { QueueUnavailable, draftFor, keepDraft, releaseSender, senderFor, useQueue } from "../queue/hooks.ts";
 import { afterSend, foldText, groupWaiting, intentWord, isBlank, roleWord, type Intent, type QueueItem, type Row } from "../queue/wire.ts";
 import { refusalWords } from "../queue/send.ts";
 import { when } from "./format.ts";
@@ -53,7 +53,8 @@ export function QueuePanel({ id, running, state, now, lastSeq }: { id: string; r
   const intent: Intent = "next";
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ words: string; bad: boolean } | null>(null);
-  useEffect(() => { setStatus(null); setText(draftFor(id)); }, [id]);
+  // The panel is keyed by instance (NowPage), so it is a new one on every instance: nothing typed or pending here is another's. A send that ends
+  // after the owner left changes only the draft kept for its own instance (the old panel's state is gone with it).
 
   if (mode === undefined) return <section className="sec"><h2>Queue</h2><p className="none meta">&nbsp;</p></section>;
   if (!live) {
@@ -73,12 +74,15 @@ export function QueuePanel({ id, running, state, now, lastSeq }: { id: string; r
     setBusy(true);
     setStatus({ words: "Sending.", bad: false });
     const r = await sender.send(sent, intent);
+    // The draft kept for this instance is the truth: cleared only when the host wrote it down and nothing was typed meanwhile; on any refusal it stays.
+    const kept = afterSend(draftFor(id), sent, r.ok);
+    keepDraft(id, kept);
+    releaseSender(id);
+    if (r.ok) await qc.invalidateQueries({ queryKey: ["queue", id] });
     setBusy(false);
-    // The box is cleared only when the host wrote it down, and then only if nothing was typed meanwhile; on any refusal the text stays.
-    setText((cur) => { const n = afterSend(cur, sent, r.ok); keepDraft(id, n); return n; });
+    setText(kept);
     if (r.ok) {
-      // The host has written it down; its list is asked again, and the item shows when the host's list has it.
-      await qc.invalidateQueries({ queryKey: ["queue", id] });
+      // The host has written it down; its list was asked again, and the item shows when the host's list has it.
       setStatus({ words: r.repeat ? "It was already there; it is added once." : "Sent. The host has written it down.", bad: false });
     } else setStatus({ words: r.message, bad: r.kind !== "empty" && r.kind !== "key_reused" });
   }

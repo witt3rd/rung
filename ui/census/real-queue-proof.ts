@@ -2,15 +2,12 @@
 //   RUNG_HOST_BIN=… RUNG_GATEWAY_BIN=… node --experimental-strip-types census/real-queue-proof.ts      (needs a built dist/)
 // What it shows: a message sent from the box is written by the real host, shows in the real list, a repeat adds once, the text is whole, the
 // switch offers only Do next, an invisible-only message cannot be sent, and a host that has stopped is refused with the plain sentence.
-import { chromium, here } from "./lib.mjs";
-import { measure, judge } from "./measure.mjs";
+import { chromium } from "./lib.mjs";
+import { shootViews } from "./shoot.mjs";
 import { startRealHost } from "../mock/real-host.ts";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { here } from "./lib.mjs";
 
-const WIDTHS = { 390: { width: 390, height: 844 }, 1280: { width: 1280, height: 800 }, 1920: { width: 1920, height: 1080 }, 2878: { width: 2878, height: 1400 } } as const;
-const shots = join(here, "shots");
-mkdirSync(shots, { recursive: true });
 const real = await startRealHost({ appDir: join(here, "../dist") });
 const out: string[] = [];
 const say = (s: string) => { console.log(s); out.push(s); };
@@ -61,14 +58,7 @@ try {
   check(await page.locator(".qctl .btn.primary").isDisabled(), "a message of only a zero-width space cannot be sent");
   await page.fill("textarea", "");
 
-  for (const w of [390, 1280, 1920, 2878] as const) {
-    await page.setViewportSize(WIDTHS[w]);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: join(shots, `real-queue-now-${w}.png`), fullPage: true });
-    const r = await measure(page, WIDTHS[w]);
-    const bad = judge(r);
-    check(bad.length === 0, `census, real-queue-now at ${w}: chrome ${r.words} words, ${bad.length ? bad.join("; ") : "within every budget"}`);
-  }
+  await shootViews(browser, `${real.url}/#/i/alpha`, "real-queue-now", { ready: (p) => p.waitForSelector(".row.q"), report: check });
 
   // The host stops: the page offers no Send and says what to do.
   await real.control!.halt();
@@ -79,11 +69,7 @@ try {
   const refused = await fetch(api("/v1/queue"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: "after-stop", text: "x" }) });
   check(refused.status === 409 && (await refused.json()).error === "not_running", "and the real gateway refuses an add with 409 not_running");
   check((await queue()).some((i) => i.text === T1), "the stopped instance's queue still lists, from its record");
-  for (const w of [390, 1920] as const) {
-    await page.setViewportSize(WIDTHS[w]);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: join(shots, `real-queue-stopped-${w}.png`), fullPage: true });
-  }
+  await shootViews(browser, `${real.url}/#/i/alpha`, "real-queue-stopped", { sizes: [390, 1920], ready: (p) => p.waitForFunction(() => document.body.innerText.includes("Start the instance first."), null, { timeout: 15000 }), report: check });
   await ctx.close();
 } finally {
   await browser?.close();

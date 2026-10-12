@@ -46,7 +46,7 @@ export function NowPage({ id }: { id: string }) {
                 ) : <p className="none">&nbsp;</p>}
               </div>
             </section>
-            <QueuePanel id={id} running={live} state={s?.state ?? null} now={now} lastSeq={folds && folds.lines.length ? folds.lines[folds.lines.length - 1].seq : null} />
+            <QueuePanel key={id} id={id} running={live} state={s?.state ?? null} now={now} lastSeq={folds && folds.lines.length ? folds.lines[folds.lines.length - 1].seq : null} />
             <section className="sec">
               <h2>Recent turns</h2>
               {recent.map((t) => (

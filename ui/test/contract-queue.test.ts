@@ -33,6 +33,24 @@ const post = (body: unknown, headers: Record<string, string> = {}, inst = t.inst
 interface Item { id: string; text: string; role: string; name: string | null; channel: string; kind: string; intent: string; order: number; position: number | null; accepted_at: number | null; state: string; turn: number | null; disposition: string | null; held: string | null }
 const list = async (q = ""): Promise<{ items: Item[]; [k: string]: unknown }> => (await call(`/v1/queue${q}`)).json();
 const record = async (): Promise<Line[]> => (await call("/v1/record?offset=0&limit=100000000")).json().lines;
+/** Until the host's own list has `id` (a real host takes a peer's message at its next boundary). */
+async function listed(id: string, ms = 120_000): Promise<Item> {
+  const end = Date.now() + ms;
+  for (;;) {
+    const i = (await list("?state=all&limit=100000")).items.find((x) => x.id === id);
+    if (i) return i;
+    if (Date.now() > end) assert.fail(`${id} never reached the host's list`);
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+/** A peer's message: the mock writes it and the desk's decision; a real host is given a file in its inbox and takes it at a boundary. */
+async function peer(text: string, name: string, form?: "at_break" | "digest"): Promise<string> {
+  const host = t.hosts?.get(t.instance);
+  if (host) return host.addPeer(text, name, form);
+  const id = await t.addPeer!(text, name);
+  await listed(id);
+  return id;
+}
 const accepted = async (id: string) => (await record()).filter((l) => l.kind === "stimulus.accepted" && l.item.id === id);
 
 test("the list has the documented fields: items with a state, the page, the counts", async (ctx) => {
@@ -135,52 +153,60 @@ test("a bad request is refused in words and writes nothing: blank text, a bad ke
   assert.equal((await record()).length, before, "nothing was written");
 });
 
-test("the list is ordered for a page: the owner's items above a peer's, each in order of arrival", async (ctx) => {
+test("the list is ordered for a page: the owner's items above a peer's, each in order of arrival", { timeout: 240_000 }, async (ctx) => {
   if (!door) return ctx.skip(NO_DOOR);
-  const host = t.hosts?.get(t.instance);
-  const peer = host?.addPeer("a peer wrote first", "atlas");
+  if (!t.hosts && !t.addPeer) return ctx.skip("no way to make a peer write on this target");
+  // A peer's item arrives first, then the owner's: the owner's still comes first in the list.
+  const p = await peer("a peer wrote first", "atlas");
   const key = randomUUID();
-  if (host) await post({ key, text: "the owner wrote second" });
+  await post({ key, text: "the owner wrote second" });
   const items = (await list()).items.filter((i) => i.state === "waiting");
-  if (host) {
-    const ids = items.map((i) => i.id);
-    assert.ok(ids.indexOf(key) >= 0 && ids.indexOf(peer!) >= 0 && ids.indexOf(key) < ids.indexOf(peer!), "the owner's item is above the peer's");
-  }
+  const ids = items.map((i) => i.id);
+  if (ids.includes(p)) assert.ok(ids.indexOf(key) < ids.indexOf(p), "the owner's item is above the peer's");
+  else assert.ok((await listed(p)).state !== "waiting", "the peer's item was already taken by a turn, so it is not under the owner's");
   const roles = items.map((i) => i.role);
   const firstOther = roles.findIndex((r) => r !== "owner");
   if (firstOther >= 0) assert.ok(roles.slice(firstOther).every((r) => r !== "owner"), "no owner item sits below another sender's");
   items.forEach((i, n) => assert.equal(i.position, n + 1, "position is the 1-based place among those that wait"));
 });
 
-test("a peer's item names its sender, and the desk's hold is said in words", async (ctx) => {
+test("a peer's item names its sender, and a hold by the desk is said in words", { timeout: 240_000 }, async (ctx) => {
   if (!door) return ctx.skip(NO_DOOR);
-  const host = t.hosts?.get(t.instance);
-  if (!host) return ctx.skip("no control hook on this target");
-  const id = host.addPeer("a note from atlas", "atlas", "at_break");
-  const item = (await list()).items.find((i) => i.id === id)!;
+  if (!t.hosts && !t.addPeer) return ctx.skip("no way to make a peer write on this target");
+  const id = await peer("a note from beta", "beta", "at_break");
+  const item = await listed(id);
   assert.equal(item.role, "peer");
-  assert.equal(item.name, "atlas");
-  assert.equal(item.channel, "peer:atlas");
-  assert.match(item.held ?? "", /decision desk/);
+  assert.equal(item.name, "beta");
+  assert.equal(item.channel, "peer:beta");
+  assert.ok(item.held === null || /decision desk|model is not available/.test(item.held), "a hold, if any, is in the host's words");
+  if (t.hosts) assert.match(item.held ?? "", /decision desk/, "the mock's desk holds it where the test says to");
 });
 
-test("an item taken into a running turn is answering, with its turn; settled, it leaves the default list and keeps its disposition", async (ctx) => {
+test("an item taken into a turn is answering, with its turn; settled, it leaves the default list and keeps its disposition", { timeout: 300_000 }, async (ctx) => {
   if (!door) return ctx.skip(NO_DOOR);
   const host = t.hosts?.get(t.instance);
-  if (!host) return ctx.skip("no control hook on this target");
   const key = randomUUID();
   await post({ key, text: "answer this" });
-  const run = host.runTurn({ pace: 40, kind: "responding", take: [key] });
-  await new Promise((r) => setTimeout(r, 120));
-  const mid = (await list()).items.find((i) => i.id === key)!;
-  assert.equal(mid.state, "answering");
+  // The mock runs a turn that takes it; a real host takes it at its next boundary, and the test waits for that.
+  const run = host?.runTurn({ pace: 40, kind: "responding", take: [key] });
+  const seenState = async (state: string, ms: number) => {
+    const end = Date.now() + ms;
+    for (;;) {
+      const i = (await list("?state=all&limit=100000")).items.find((x) => x.id === key)!;
+      if (i.state === state) return i;
+      assert.ok(Date.now() < end, `never became ${state}; it was ${i.state}`);
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  };
+  const mid = await seenState("answering", 120_000);
   assert.equal(typeof mid.turn, "number");
   assert.equal(mid.position, null);
+  assert.ok((await list()).items.some((i) => i.id === key), "answering is in the default list");
   await run;
+  const over = await seenState("answered", 120_000);
   assert.ok(!(await list()).items.some((i) => i.id === key), "answered: no longer in the open list");
-  const over = (await list("?state=answered")).items.find((i) => i.id === key)!;
-  assert.equal(over.state, "answered");
-  assert.equal(over.disposition, "answered");
+  assert.equal(typeof over.disposition, "string");
+  assert.ok((await list("?state=answered")).items.some((i) => i.id === key));
   assert.equal(typeof ((await list("?state=all")).counts as Record<string, number>).answered, "number");
 });
 

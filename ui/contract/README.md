@@ -95,10 +95,10 @@ from a turn that had no recall, and that is an empty band, not a gap. For an old
 
 ## The queue doors (S1)
 
-`GET` and `POST /api/i/{id}/v1/queue`. The bodies are the host's own, written in `docs/rung-host-api.md` ("S1 — the queue", rung PR 297); this
+`GET` and `POST /api/i/{id}/v1/queue`. The bodies are the host's own, written in `docs/rung-host-api.md` ("S1 — the queue"); this
 file only says what the page reads of them. `test/contract-queue.test.ts` is the executable statement. It runs against the mock (`mock/queue.ts`,
 which answers with the same bodies), and against a real host behind a real gateway (`mock/real-host.ts`: `cargo build -p rung-host -p
-rung-gateway`, then `RUNG_CONTRACT_TARGET=real-host npm run test:contract:queue`); against a gateway without the door (404) its checks skip, by name.
+rung-gateway`, then `RUNG_CONTRACT_TARGET=real-host npm run test:contract:queue`); against a gateway without the door (404) its checks skip, by name. The real run takes about four minutes: the host's calls are slowed so that a message waits long enough to be seen waiting, and two checks wait for a real boundary.
 
 **`GET /v1/queue`** is computed from the record, so a stopped instance lists too. It answers `items`, each with a `state` (`waiting`,
 `answering`, `answered`, `withdrawn`), the page (`total`, `offset`, `limit`, `next`), `counts` and `record_lines`. The page asks for
