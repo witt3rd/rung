@@ -1095,7 +1095,7 @@ impl Host {
         let (ain, actx, iin, tin, tctx, spent, first_committed) = {
             let st = core.state();
             // One ask carries as many waiting items as the decider's window
-            // holds, oldest first; the rest wait for a later ask.
+            // holds, oldest first; the rest get the rule's form at this boundary.
             let build = |n: usize| {
                 let (ain, actx) = crate::desk::admit::build(&st, now, n);
                 let iin = crate::desk::inject::build(&st, now, &mem, n);

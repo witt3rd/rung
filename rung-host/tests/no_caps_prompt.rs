@@ -10,7 +10,7 @@ use rung_host::desk::pack::{PackInput, Segment};
 use rung_host::inbox::{Item, Role, gist};
 use rung_host::kernel::KernelState;
 use rung_host::record::Line;
-use rung_host::registers::{Project, Registers, Todo};
+use rung_host::registers::{Project, Question, Registers, Todo};
 use rung_host::render::{HeaderCtx, header, material, slow};
 use rung_host::state::PackMeta;
 
@@ -219,4 +219,72 @@ fn a_pack_ask_carries_the_whole_segments_that_fit_and_loses_none() {
     q.split_for_window(|_| false);
     assert!(q.segments.is_empty());
     assert_eq!(q.all_segments().count(), 4);
+}
+
+#[test]
+fn every_open_project_and_question_reaches_the_agent_whole() {
+    let mut reg = Registers::default();
+    for i in 0..60 {
+        reg.projects.insert(
+            format!("p{i:03}"),
+            Project {
+                title: format!("project {i} {} END{i}", "t".repeat(200)),
+                why: "w".into(),
+                status: "active".into(),
+                created_at: NOW + i,
+                last_step_at: NOW + i,
+                priority: None,
+            },
+        );
+        reg.questions.insert(
+            format!("q{i:03}"),
+            Question {
+                text: format!("question {i} {} END{i}", "q".repeat(200)),
+                created_at: NOW + i,
+                open: true,
+                priority: None,
+            },
+        );
+    }
+    let m = material(&reg, &KernelState::default(), NOW + 1000);
+    for i in 0..60 {
+        assert!(
+            m.contains(&format!("project {i} {} END{i} (", "t".repeat(200))),
+            "project {i} is missing or cut"
+        );
+        assert!(
+            m.contains(&format!("question {i} {} END{i}", "q".repeat(200))),
+            "question {i} is missing or cut"
+        );
+    }
+}
+
+/// The window bounds an ask even when the per-ask spend cap does not bind first.
+#[test]
+fn the_desk_refuses_to_size_an_ask_past_the_window_whatever_the_cap() {
+    use rung_host::desk::{DecisionDesk, DeskMode};
+    let mut desk = DecisionDesk::new(None, "none", DeskMode::RuleOnly);
+    desk.cap.per_ask = 1e9;
+    let q = std::collections::BTreeMap::new();
+    // the estimate is one token per three bytes of the body: 32,000 tokens
+    let within = serde_json::json!({"x": "a".repeat(80_000)});
+    let over = serde_json::json!({"x": "a".repeat(100_000)});
+    assert!(desk.fits(&within, &q));
+    assert!(!desk.fits(&over, &q));
+    // and the spend cap bounds it when it is the lower one
+    desk.cap.per_ask = 0.0;
+    assert!(!desk.fits(&within, &q));
+}
+
+#[test]
+fn the_largest_count_that_fits_is_found_for_any_threshold() {
+    use rung_host::desk::{fit_at_most, fit_count};
+    for total in 0..20usize {
+        for room in 0..25usize {
+            let want = room.min(total);
+            assert_eq!(fit_at_most(total, |n| n <= room), want, "{total}/{room}");
+            let want1 = if total == 0 { 0 } else { want.max(1) };
+            assert_eq!(fit_count(total, |n| n <= room), want1, "{total}/{room}");
+        }
+    }
 }

@@ -274,7 +274,7 @@ impl Pack {
                     first_turn: first,
                     last_turn: last,
                     tokens: canon::tokens(bytes),
-                    gist: text.trim_end().to_string(),
+                    gist: rung_agent_core::mcp::redact(text.trim_end()),
                     referenced_by_open_commitment: c,
                     referenced_by_open_expectation: e,
                 }
@@ -348,5 +348,24 @@ mod tests {
         assert_eq!(segs.last().unwrap().last_turn, 25);
         let text = p.segment_text(10, &["s1".into()]);
         assert!(text.contains("[turn 1]") && !text.contains("[turn 25]"));
+    }
+
+    #[test]
+    fn a_segment_gist_is_the_whole_text_and_redacted() {
+        let mut p = pack();
+        let long = format!("{} END", "word ".repeat(2_000));
+        p.begin_turn(1, "free", "[turn 1]".into());
+        p.end_turn(vec![ChatMessage::assistant(long.clone())]);
+        p.begin_turn(2, "free", "[turn 2]".into());
+        p.end_turn(vec![ChatMessage::assistant(format!(
+            "Authorization: Bearer {}",
+            "k".repeat(40)
+        ))]);
+        let segs = p.segments(1, &|_, _| (false, false));
+        assert!(segs[0].gist.contains(long.trim()), "the gist is cut");
+        assert!(
+            !segs[0].gist.contains(&"k".repeat(40)),
+            "a secret is in the gist"
+        );
     }
 }

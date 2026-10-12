@@ -77,15 +77,7 @@ impl PackInput {
             fits(me)
         };
         // Zero is allowed here: the ask still carries the context action.
-        let (mut lo, mut hi) = (0, askable.len());
-        while lo < hi {
-            let mid = lo + (hi - lo).div_ceil(2);
-            if with(mid, self) {
-                lo = mid;
-            } else {
-                hi = mid - 1;
-            }
-        }
+        let lo = super::fit_at_most(askable.len(), |n| with(n, self));
         with(lo, self);
         let kept: Vec<String> = self.segments.iter().map(|s| s.id.clone()).collect();
         let mut unasked: Vec<Segment> = askable

@@ -104,7 +104,7 @@ fn the_pack_ask_at_the_default_budget_is_answered() {
         seen.iter()
             .any(|a| a.state["pack"]["segments"].as_array().is_some_and(|s| s
                 .iter()
-                .any(|g| g["gist"].as_str().unwrap_or("").len() > 150))),
+                .any(|g| g["gist"].as_str().unwrap_or("").chars().count() > 150))),
         "no asked segment carried more than 150 characters of its text"
     );
 }

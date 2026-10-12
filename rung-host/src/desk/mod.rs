@@ -73,19 +73,14 @@ pub trait HostQuestion {
     fn guard(input: &Self::Input, c: Self::Choice, k: &Knobs, ctx: &Self::Ctx) -> Self::Choice;
 }
 
-/// How many of `total` waiting entries one decider ask can carry: the most,
-/// from the oldest, for which `fits(n)` holds. The decider's context window
-/// ([`rung_std::decide::DECIDER_WINDOW_TOKENS`], a physical limit of the
-/// provider) is the only bound. The entries not asked stay waiting and are
-/// asked at a later boundary: deferred, never dropped, never cut. When not
-/// even one fits the answer is 1 and the decider refuses the ask
-/// (`Undecided::TooLarge`); the rule decides then. `fits` is taken to be
-/// monotone: fewer entries never need more room.
-pub fn fit_count(total: usize, mut fits: impl FnMut(usize) -> bool) -> usize {
+/// The most of `total` entries, from the first, for which `fits(n)` holds:
+/// 0 when not even one fits. `fits` is taken to be monotone: fewer entries
+/// never need more room. This is the one search every window-sized ask uses.
+pub fn fit_at_most(total: usize, mut fits: impl FnMut(usize) -> bool) -> usize {
     if total == 0 || fits(total) {
         return total;
     }
-    let (mut lo, mut hi) = (1, total);
+    let (mut lo, mut hi) = (0, total - 1);
     while lo < hi {
         let mid = lo + (hi - lo).div_ceil(2);
         if fits(mid) {
@@ -95,6 +90,22 @@ pub fn fit_count(total: usize, mut fits: impl FnMut(usize) -> bool) -> usize {
         }
     }
     lo
+}
+
+/// How many of `total` waiting entries one decider ask can carry: the most,
+/// from the oldest, for which `fits(n)` holds ([`fit_at_most`]), and at least
+/// one. The decider's context window
+/// ([`rung_std::decide::DECIDER_WINDOW_TOKENS`], a physical limit of the
+/// provider) is the bound, and at the default the per-ask spend cap
+/// ([`DecisionDesk::fits`]). An entry not asked is not dropped or cut: a
+/// waiting item gets the rule's form at that boundary, and a memory candidate
+/// stays for a later round. When not even one fits the ask goes out with one
+/// and the decider refuses it (`Undecided::TooLarge`); the rule decides then.
+pub fn fit_count(total: usize, fits: impl FnMut(usize) -> bool) -> usize {
+    match fit_at_most(total, fits) {
+        0 if total > 0 => 1,
+        n => n,
+    }
 }
 
 /// Whether an ask of `state` and `questions` is within the decider's window.
