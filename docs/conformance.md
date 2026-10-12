@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 563 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 564 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -678,8 +678,9 @@ look shorter than it is.
 - `stdio_requests_answered_mid_turn`
 - `stdio_turns_stay_serialized`
 
-**`rung-agent/tests/acp_http.rs`** — 3 unclaimed
+**`rung-agent/tests/acp_http.rs`** — 4 unclaimed
 
+- `a_huge_request_body_is_accepted_whole`
 - `http_refusals_match_acp_server`
 - `initialize_session_new_prompt_delete`
 - `token_rejects_without_bearer`
