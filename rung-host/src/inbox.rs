@@ -48,6 +48,50 @@ pub enum ItemKind {
     Completion,
 }
 
+/// What an owner asks of the agent with a message (S2). Only an owner's
+/// message can be anything but [`Intent::Next`]: every other item is read as
+/// `next`, and a record line without an intent (every line written before
+/// this field) reads as `next` too.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Intent {
+    /// A task: read at the next turn boundary, as every owner item always was.
+    #[default]
+    Next,
+    /// Wait until the agent is in free time or at a natural break; never
+    /// interrupts committed work. The desk's limits and firm deadlines still
+    /// win over it.
+    Free,
+    /// A message about what the agent is doing now: read at the next boundary
+    /// like `next`, shown as a steer, and (as any owner item does) it cuts a
+    /// long tool call.
+    Steer,
+}
+
+impl Intent {
+    pub const ALL: [Intent; 3] = [Intent::Next, Intent::Free, Intent::Steer];
+
+    /// The word the doors and the record use.
+    pub fn word(self) -> &'static str {
+        match self {
+            Intent::Next => "next",
+            Intent::Free => "free",
+            Intent::Steer => "steer",
+        }
+    }
+
+    /// The intent a word names; `None` for anything else.
+    pub fn parse(word: &str) -> Option<Intent> {
+        Intent::ALL.into_iter().find(|i| i.word() == word)
+    }
+
+    pub fn is_next(&self) -> bool {
+        *self == Intent::Next
+    }
+}
+
 /// A fact the world asserts, by key.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Fact {
@@ -78,6 +122,10 @@ pub struct Item {
     /// An owner control (`stop`, `release`): acted on at once, never shown.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub control: Option<String>,
+    /// What the owner asked (S2). Absent in the record means `next`; only an
+    /// owner's message is ever anything else.
+    #[serde(default, skip_serializing_if = "Intent::is_next")]
+    pub intent: Intent,
 }
 
 /// At most this many characters of an item reach a decider.
@@ -98,7 +146,16 @@ impl Item {
             text: text.into(),
             fact: None,
             control: None,
+            intent: Intent::Next,
         }
+    }
+
+    /// An owner item that is read at the next boundary and cuts what can be cut to be
+    /// read: every owner item except one the owner asked to wait for free time
+    /// (`free`, S2). The host's long-call watch and its waits' wake-up ask this and
+    /// nothing else, so there is one rule.
+    pub fn pushes(&self) -> bool {
+        self.role == Role::Owner && self.intent != Intent::Free
     }
 
     /// The first [`GIST_CHARS`] characters, credentials redacted.
@@ -189,6 +246,13 @@ impl InboxState {
             }
             _ => {}
         }
+    }
+
+    /// An owner item waits that is read at the next boundary and is worth waking for
+    /// (see [`Item::pushes`]): what cuts a long tool call and what ends a wait the
+    /// owner may cut. An item the owner asked to wait for free time does neither.
+    pub fn owner_pushes(&self) -> bool {
+        self.pending.values().any(|p| p.item.pushes())
     }
 
     /// Waiting items, oldest first.
@@ -395,6 +459,46 @@ mod tests {
         s.apply(&line(5, "stimulus.disposed", json!({"id": "b"})));
         assert_eq!(s.in_flight.len(), 0);
         assert_eq!(s.seen.len(), 2);
+    }
+
+    #[test]
+    fn only_an_item_read_at_the_next_boundary_wakes_the_host() {
+        let item = |id: &str, role, intent| {
+            let mut i = Item::message(id, role, "c", 1, "x");
+            i.intent = intent;
+            i
+        };
+        let accept = |s: &mut InboxState, seq: u64, i: &Item| {
+            s.apply(&line(seq, "stimulus.accepted", accepted_body(i)));
+        };
+        let mut s = InboxState::default();
+        assert!(!s.owner_pushes());
+        accept(&mut s, 1, &item("free", Role::Owner, Intent::Free));
+        accept(&mut s, 2, &item("peer", Role::Peer, Intent::Next));
+        assert!(!s.owner_pushes(), "a free item and a peer's item do not");
+        accept(&mut s, 3, &item("steer", Role::Owner, Intent::Steer));
+        assert!(s.owner_pushes());
+        let mut s = InboxState::default();
+        accept(&mut s, 1, &item("next", Role::Owner, Intent::Next));
+        assert!(s.owner_pushes());
+    }
+
+    #[test]
+    fn an_old_line_without_an_intent_reads_as_next_and_next_is_not_written() {
+        let old = json!({"id": "a", "kind": "peer", "role": "owner", "channel": "owner",
+                         "at": 1, "firm": false, "text": "hi"});
+        let item: Item = serde_json::from_value(old).unwrap();
+        assert_eq!(item.intent, Intent::Next);
+        assert!(serde_json::to_value(&item).unwrap().get("intent").is_none());
+        let mut steer = item.clone();
+        steer.intent = Intent::Steer;
+        let v = serde_json::to_value(&steer).unwrap();
+        assert_eq!(v["intent"], "steer");
+        assert_eq!(
+            serde_json::from_value::<Item>(v).unwrap().intent,
+            Intent::Steer
+        );
+        assert!(Intent::parse("later").is_none());
     }
 
     #[test]

@@ -8,6 +8,18 @@ git tags only.
 ## [Unreleased]
 
 ### Added
+- `rung-host`, `rung-gateway`: intent on the queue item (S2). `POST
+  /v1/queue` takes `intent` (`next`, the default; `steer`; `free`), refusing any
+  other value in words with nothing written; the item carries it in the record
+  (absent reads `next`) and the list shows it. A `steer` is read at
+  the next boundary like `next`, is marked in the header the model reads, and cuts a
+  long tool call through the same `OwnerWatch`. `free` is the owner's explicit
+  exception to "owner items are read at the next boundary, always": it is held while
+  the agent is committed and read in free time or at a natural break, never cuts a
+  call, and the desk's limits and firm deadlines still win over it. Owner items stay
+  above every other sender's, `free` after the ones read at the next boundary. An
+  admitted item's text in the header is now whole (it was cut at 1,000 characters).
+  A key's repeat must carry the same intent (`docs/rung-host-api.md`, S2).
 - `rung-host`, `rung-gateway`: the queue, list and add (S1). `GET /v1/queue`
   lists what waits for the agent and the one thing being answered, computed
   from the record (so a stopped instance lists too), every text whole and

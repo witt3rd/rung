@@ -35,6 +35,7 @@ fn admit_case(committed: bool) -> (AdmitInput, AdmitCtx) {
         at,
         due,
         firm,
+        intent: rung_host::inbox::Intent::Next,
     };
     let waiting = vec![
         w("o1", ItemKind::Peer, Role::Owner, NOW - 5_000, None, false),

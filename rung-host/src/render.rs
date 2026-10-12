@@ -58,6 +58,12 @@ pub fn system(cfg: &HostConfig) -> String {
     s
 }
 
+/// One line, whole: runs of white space become one space (so an item cannot add
+/// header lines of its own), and nothing is cut.
+fn flat(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 fn clip(s: &str, n: usize) -> String {
     let flat = s.split_whitespace().collect::<Vec<_>>().join(" ");
     if flat.chars().count() <= n {
@@ -180,12 +186,18 @@ pub fn header(h: &HeaderCtx) -> String {
                 Some(d) if h.now > d => format!(", due {}, late by {}", iso(d), span(h.now - d)),
                 _ => String::new(),
             };
+            // an owner's steer is about what the agent is doing now: say so
+            let mark = if i.intent == crate::inbox::Intent::Steer {
+                " · steer"
+            } else {
+                ""
+            };
             out.push(format!(
-                "  [{}/{} @{}{late}] {}",
+                "  [{}/{} @{}{mark}{late}] {}",
                 i.channel,
                 i.id,
                 iso(i.at),
-                clip(&i.text, 1_000)
+                flat(&i.text)
             ));
         }
     }

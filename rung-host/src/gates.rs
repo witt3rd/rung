@@ -266,7 +266,7 @@ pub fn g_b(lines: &[Line]) -> GateResult {
     let mut arrived: BTreeMap<String, i64> = BTreeMap::new();
     for l in of(lines, "stimulus.accepted") {
         let item = l.get("item");
-        if item["role"] == "owner" {
+        if item["role"] == "owner" && item["intent"] != "free" {
             arrived.insert(
                 item["id"].as_str().unwrap_or("").into(),
                 item["at"].as_i64().unwrap_or(l.at),
@@ -371,7 +371,7 @@ pub fn admission_bias(lines: &[Line]) -> AdmissionBias {
     let mut arrived: BTreeMap<String, i64> = BTreeMap::new();
     for l in of(lines, "stimulus.accepted") {
         let item = l.get("item");
-        if item["role"] == "owner" {
+        if item["role"] == "owner" && item["intent"] != "free" {
             arrived.insert(
                 item["id"].as_str().unwrap_or("").into(),
                 item["at"].as_i64().unwrap_or(l.at),
@@ -1360,7 +1360,10 @@ pub fn g_m(lines: &[Line], ceiling: &[&str]) -> GateResult {
             }
         }
         match l.kind.as_str() {
-            "stimulus.accepted" if l.get("item")["role"] == "owner" => {
+            // an item the owner asked to wait for free time is not owed the next boundary
+            "stimulus.accepted"
+                if l.get("item")["role"] == "owner" && l.get("item")["intent"] != "free" =>
+            {
                 let id = l.get("item")["id"].as_str().unwrap_or("").to_string();
                 owner_ids.insert(id.clone());
                 owner.insert(id, l.seq);
@@ -2865,6 +2868,36 @@ mod tests {
         assert!((b.long_time_share - 40_000.0 / 43_000.0).abs() < 1e-9);
         assert_eq!(b.owner_in_long_cycles, 1);
         assert_eq!(b.after_next_boundary, 1);
+    }
+
+    /// An item the owner asked to wait for free time is not owed the next boundary: it is
+    /// no "late" owner item, and G-m's "an owner item was deferred" does not name it.
+    #[test]
+    fn a_free_owner_item_is_not_owed_the_next_boundary() {
+        let item = |id: &str, intent: &str, at: i64| json!({"item": {"id": id, "role": "owner", "at": at, "intent": intent}});
+        let lines = vec![
+            line(
+                1,
+                0,
+                "host.start",
+                json!({"config": {"tool_deadline_ms": 30_000}}),
+            ),
+            line(2, 0, "boundary", json!({})),
+            line(3, 500, "stimulus.accepted", item("f", "free", 500)),
+            line(4, 1_000, "boundary", json!({})),
+            line(5, 1_000, "turn.started", json!({"turn": 1})),
+            line(6, 2_000, "boundary", json!({})),
+            line(7, 3_000, "boundary", json!({})),
+            line(8, 3_000, "stimulus.admitted", json!({"ids": ["f"]})),
+        ];
+        assert_eq!(admission_bias(&lines).after_next_boundary, 0);
+        let g = g_m(&lines, &[]);
+        assert_eq!(g.measured["owner_deferred"], 0);
+        // the same item sent as a task, left past that boundary, is named
+        let mut task = lines.clone();
+        task[2] = line(3, 500, "stimulus.accepted", item("f", "next", 500));
+        assert_eq!(admission_bias(&task).after_next_boundary, 1);
+        assert_eq!(g_m(&task, &[]).measured["owner_deferred"], 1);
     }
 
     #[test]
