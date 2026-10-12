@@ -190,6 +190,9 @@ try {
     check(await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less")), "and a Show less is there");
     await page.click('button:has-text("Show less")');
     check((await shown()) === 50, "Show less goes back to one page");
+    // A link into the list holds it open as far as the linked turn; a Show less that would change nothing is not offered.
+    await ready(page, "#/i/bramble/turns?turn=3");
+    check((await shown()) > 50 && !(await page.evaluate(() => [...document.querySelectorAll("button")].some((x) => x.textContent === "Show less"))), `a link to an early turn opens the list to it (${await shown()} shown) and offers no dead Show less`);
     await ctx.close();
   }
 } finally {

@@ -9,6 +9,7 @@ import { cachedLine, marksFor, type Mark } from "../context/cache.ts";
 import { BOUNDARY_AFTER, type Band, type BandItem, type ContextView } from "../context/types.ts";
 import { BOUNDARY, MARK_WORD, TITLE, WHAT, fact, isEmpty, sayEvent, tilde } from "../context/words.ts";
 import { LongText } from "./LongText.tsx";
+import { pageControls } from "./paging.ts";
 
 const ROWS = 50;
 
@@ -34,12 +35,15 @@ function Drill({ b }: { b: Band }) {
       {b.recorded && isEmpty(b) && <p className="meta" data-content>Nothing was sent in this band.</p>}
       {b.text !== null && b.text !== "" && <Text text={b.text} />}
       {b.items.slice(0, shown).map((it, i) => <Row key={i} it={it} />)}
-      {b.items.length > ROWS && (
-        <p className="fold">Showing {num(Math.min(shown, b.items.length))} of {num(b.items.length)}.
-          {b.items.length > shown && <> <button className="quiet" onClick={() => setShown(shown + ROWS)}>Show {num(Math.min(ROWS, b.items.length - shown))} more</button> <button className="quiet" onClick={() => setShown(b.items.length)}>Show all {num(b.items.length)}</button></>}
-          {shown > ROWS && <> <button className="quiet" onClick={() => setShown(ROWS)}>Show less</button></>}
-        </p>
-      )}
+      {b.items.length > ROWS && (() => {
+        const pc = pageControls({ shown, need: 0, total: b.items.length, page: ROWS });
+        return (
+          <p className="fold">Showing {num(pc.count)} of {num(b.items.length)}.
+            {pc.all && <> <button className="quiet" onClick={() => setShown(shown + ROWS)}>Show {num(pc.more)} more</button> <button className="quiet" onClick={() => setShown(b.items.length)}>Show all {num(b.items.length)}</button></>}
+            {pc.less && <> <button className="quiet" onClick={() => setShown(ROWS)}>Show less</button></>}
+          </p>
+        );
+      })()}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { clock, useNow, when } from "./format.ts";
 import { href } from "../route.ts";
 import { overlayRunning } from "../live/overlay.ts";
 import { LongText } from "./LongText.tsx";
+import { pageControls } from "./paging.ts";
 import { argFold } from "./argFold.ts";
 import { describeStatus } from "../live/status.ts";
 
@@ -120,7 +121,8 @@ export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
   const now = useNow(!!li, folds?.now ?? 0);
   // A link to one turn opens the list far enough to hold it.
   const need = turn ? list.findIndex((t) => t.n === turn) + 1 : 0;
-  const count = Math.max(shown, need);
+  const pc = pageControls({ shown, need, total: list.length, page: PAGE });
+  const count = pc.count;
   const s = folds?.summary;
   const lastTurn = folds && folds.turns.length ? folds.turns[folds.turns.length - 1] : null;
   const live = folds ? folds.lockHeld : !!entry?.lockHeld;
@@ -150,8 +152,8 @@ export function TurnsPage({ id, turn }: { id: string; turn: number | null }) {
         {folds && list.length > 0 && (
           <p className="fold">
             Showing {num(Math.min(count, list.length))} of {num(list.length)}{filtered ? ` matching (of ${num(folds.turns.length)})` : ""}.
-            {count < list.length && (<> <button className="quiet" onClick={() => setShown(count + PAGE)}>Show {num(Math.min(PAGE, list.length - count))} more</button> <button className="quiet" onClick={() => setShown(list.length)}>Show all {num(list.length)}</button></>)}
-            {count > PAGE && (<> <button className="quiet" onClick={() => setShown(PAGE)}>Show less</button></>)}
+            {pc.all && (<> <button className="quiet" onClick={() => setShown(count + PAGE)}>Show {num(pc.more)} more</button> <button className="quiet" onClick={() => setShown(list.length)}>Show all {num(list.length)}</button></>)}
+            {pc.less && (<> <button className="quiet" onClick={() => setShown(PAGE)}>Show less</button></>)}
           </p>
         )}
       </Page>

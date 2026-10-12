@@ -1,4 +1,4 @@
-# no-caps change: thirteen faults put into the new code one at a time, and what caught each (unit tests, or the real-browser proof where it is the only way to see it)
+# no-caps change: seventeen faults put into the new code one at a time, and what caught each (unit tests, or the real-browser proof where it is the only way to see it)
 caught    fold: a long text is never folded  <- a 1 MB text is whole in the page, folded for the eye, with a way to open it
 caught    fold: a summary line never offers the whole  <- a summary line offers the whole text when there is more, and nothing when the line is all of it
 caught    fold: a summary line offers a button when it is the whole text  <- a summary line offers the whole text when there is more, and nothing when the line is all of it
@@ -13,4 +13,9 @@ caught    turns: an asked message is not folded  <- the Turns page folds the tex
 caught    turns: a long argument is not folded  <- the Turns page folds a long tool argument under its call's line, and keeps a short one on the line
 caught    turns: a result in the details is not folded  <- the Turns page folds a long tool argument under its call's line, and keeps a short one on the line (and the details test)
 caught    fold: an empty turn offers a dead Show whole  <- a turn with nothing to show offers nothing to show: no dead Show whole button
-# 13 faults, 0 survived
+# review round 2 on PR 302 (the two threads): four more.
+caught    pager: Show less offered when it would do nothing  <- a deep link keeps the list open as far as the linked turn: Show less is not offered when it would do nothing
+caught    pager: Show less never offered  <- a page of fifty: more, all and less, each offered only when it does something
+caught    pager: a deep link does not hold the list open  <- a deep link keeps the list open as far as the linked turn: Show less is not offered when it would do nothing
+caught    styles: the fold is written twice again  <- the fold's styles are written once: no second copy scoped to the strata page
+# 17 faults, 0 survived

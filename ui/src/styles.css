@@ -125,7 +125,6 @@ h3 { font-size: var(--s-body); line-height: 1.3; margin: 20px 0 6px; font-weight
 .mk.empty, .mk.unknown { color: var(--muted); }
 .drill { padding: 4px 0 16px; }
 .drill .text { margin: 6px 0; padding: 12px 14px; background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; font-size: var(--s-meta); }
-.drill .text.folded { max-height: 20em; overflow: hidden; border-bottom-style: dashed; }
 .row-in { margin: 0; }
 .row-in > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 .total { padding: 16px 0 0; }
@@ -138,10 +137,8 @@ h3 { font-size: var(--s-body); line-height: 1.3; margin: 20px 0 6px; font-weight
 .bh[aria-expanded="true"] .bt::before, .row-in[open] > summary::before { content: "▾"; }
 .row-in > summary { list-style: none; }
 .row-in > summary::-webkit-details-marker { display: none; }
-.drill .text.nowrap { white-space: pre; overflow-x: auto; overflow-wrap: normal; }
 
 /* A long text is folded for the eye, never cut: every character is in the page, and the button opens the rest. */
-.folded { max-height: 20em; overflow: hidden; border-bottom: 1px dashed var(--rule); }
-.drill .text.folded { border-bottom-style: dashed; }
+.content.folded { max-height: 20em; overflow: hidden; border-bottom: 1px dashed var(--rule); }
 .nowrap { white-space: pre; overflow-x: auto; overflow-wrap: normal; }
 .callbody { display: grid; gap: 4px; min-width: 0; }

@@ -1,4 +1,4 @@
-record to screen, 12 finished turns, a real browser on a real clock: median 22 ms, worst 23 ms
+record to screen, 12 finished turns, a real browser on a real clock: median 22 ms, worst 24 ms
 pass  every finished turn's text is on the screen within a second of its record line
 pass  after the cut the page lists turns 1 to 19: 19 turns, each once, in order (before: 15)
 pass  the turns written while it was away are there
@@ -36,4 +36,5 @@ pass  the list opens at one page: 50 of 64 turns
 pass  Show all adds the rest: all 64
 pass  and a Show less is there
 pass  Show less goes back to one page
+pass  a link to an early turn opens the list to it (62 shown) and offers no dead Show less
 live proof: all pass
