@@ -9,15 +9,15 @@
 //! in words (the body is then returned whole in the result).
 //!
 //! The file is workspace content: it holds the text exactly as the fetch
-//! returned it. The record never holds it, and every outgoing view of the
-//! tool results (the request text, the doors, the streams) passes through
-//! the host's redactor, as for any other tool result.
+//! returned it, and nothing is redacted on the way from a tool result to the
+//! model. The record never holds it; the redactor is on the outgoing views
+//! (the record's readers, the event stream, the doors).
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 use sha2::{Digest, Sha256};
 
@@ -80,17 +80,40 @@ fn sweep_stale(dir: &Path) {
     }
 }
 
+/// What the caller and the fetch's thread share about a cut.
+#[derive(Default)]
+struct CutState {
+    cut: bool,
+    /// The file the fetch placed, kept so a later cut can retire it.
+    placed: Option<PathBuf>,
+}
+
 /// Set when the caller stops waiting for a fetch; the fetch then stops
-/// writing and removes its own temp file.
+/// writing and removes its own temp file. The cut and the placement of the
+/// finished file share one lock, so a cut either comes before the placement
+/// (nothing is placed) or after it (the cut removes the placed file): a call
+/// that gave up never leaves a file behind.
 #[derive(Clone, Default)]
-pub struct Cancel(Arc<AtomicBool>);
+pub struct Cancel(Arc<Mutex<CutState>>);
 
 impl Cancel {
+    fn state(&self) -> std::sync::MutexGuard<'_, CutState> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+    /// Stop the fetch writing.
     pub fn cancel(&self) {
-        self.0.store(true, Ordering::SeqCst);
+        self.state().cut = true;
+    }
+    /// The caller gave up: stop the fetch and retire a file it already placed.
+    pub fn cut(&self) {
+        let mut g = self.state();
+        g.cut = true;
+        if let Some(p) = g.placed.take() {
+            let _ = std::fs::remove_file(p);
+        }
     }
     fn is_set(&self) -> bool {
-        self.0.load(Ordering::SeqCst)
+        self.state().cut
     }
 }
 
@@ -179,7 +202,19 @@ impl Spiller {
                 "`{SPILL_DIR}` in your workspace is not a plain directory"
             )),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                std::fs::create_dir(&dir).map_err(|e| format!("mkdir {SPILL_DIR}: {e}"))?;
+                match std::fs::create_dir(&dir) {
+                    Ok(()) => {}
+                    // Another fetch made it first: it must be a plain directory.
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                        let plain = dir.symlink_metadata().is_ok_and(|m| m.file_type().is_dir());
+                        if !plain {
+                            return Err(format!(
+                                "`{SPILL_DIR}` in your workspace is not a plain directory"
+                            ));
+                        }
+                    }
+                    Err(e) => return Err(format!("mkdir {SPILL_DIR}: {e}")),
+                }
                 Ok(dir)
             }
             Err(e) => Err(format!("{SPILL_DIR}: {e}")),
@@ -297,6 +332,10 @@ impl Spiller {
                     path: Some(rel),
                 })
             }
+            Err(_) if self.cancel.is_set() => {
+                tidy(&o);
+                Err("the fetch was cut".into())
+            }
             Err(why) => {
                 // The whole body is in the temp file: read it back.
                 let back = read_prefix(&o.path, o.written);
@@ -323,6 +362,11 @@ impl Spiller {
         let hash = format!("{:x}", o.hash.clone().finalize());
         let short = &hash[..6];
         let lines = o.lines + u64::from(o.last != b'\n');
+        // Held across the link: a cut cannot fall between check and placement.
+        let mut cut = self.cancel.state();
+        if cut.cut {
+            return Err("the fetch was cut".into());
+        }
         for _ in 0..1000 {
             let mut next = 1u64;
             for e in std::fs::read_dir(&dir).map_err(|e| format!("list: {e}"))? {
@@ -334,7 +378,10 @@ impl Spiller {
             }
             let name = format!("{next:04}-{short}.md");
             match std::fs::hard_link(&o.path, dir.join(&name)) {
-                Ok(()) => return Ok((format!("{SPILL_DIR}/{name}"), o.written, lines)),
+                Ok(()) => {
+                    cut.placed = Some(dir.join(&name));
+                    return Ok((format!("{SPILL_DIR}/{name}"), o.written, lines));
+                }
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
                 Err(e) => return Err(format!("rename: {e}")),
             }
@@ -1097,5 +1144,35 @@ mod tests {
             .filter(|e| !e.path().is_symlink())
             .count();
         assert_eq!(temps, 0);
+    }
+
+    /// A cut that comes after the placement retires the placed file; one that
+    /// comes before leaves nothing to place. Raced against the finish, a call
+    /// that gave up never leaves a placed file or a temp.
+    #[test]
+    fn a_cut_at_the_moment_of_placement_leaves_no_file() {
+        let g = crate::sim::temp_dir_guard("spill-cut-race");
+        let ws = g.path().join("ws");
+        for round in 0..200u64 {
+            let cancel = Cancel::default();
+            let mut sp = Spiller::new(ws.clone(), 10, true).with_cancel(cancel.clone());
+            sp.body(&format!("{round} {}", "x".repeat(40))).unwrap();
+            let c = cancel.clone();
+            let t = std::thread::spawn(move || {
+                for _ in 0..(round % 50) * 20 {
+                    std::hint::spin_loop();
+                }
+                c.cut();
+            });
+            let _ = sp.finish();
+            t.join().unwrap();
+            cancel.cut();
+            let left: Vec<_> = std::fs::read_dir(ws.join(".web"))
+                .unwrap()
+                .flatten()
+                .map(|e| e.file_name())
+                .collect();
+            assert!(left.is_empty(), "round {round}: {left:?}");
+        }
     }
 }

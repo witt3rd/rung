@@ -700,7 +700,8 @@ impl HostTools {
                 let (workspace, core2) = (self.workspace.clone(), self.core.clone());
                 let cancel = Cancel::default();
                 let _cut = CancelOnDrop(cancel.clone());
-                self.timed(name, group, move || {
+                let gave_up = cancel.clone();
+                let result = self.timed(name, group, move || {
                     let mut sp =
                         Spiller::new(workspace, web.spill_bytes(), spill).with_cancel(cancel);
                     let (r, took) = web.fetch_into(&url, &mut sp);
@@ -717,7 +718,13 @@ impl HostTools {
                         }
                         Err(e) => (Err(e), took),
                     }
-                })
+                });
+                // A call that gave up (cut, overran) retires any file the
+                // fetch placed, atomically with its placement.
+                if result.is_err() {
+                    gave_up.cut();
+                }
+                result
             }
             _ => Err(format!("unknown tool `{name}`")),
         }

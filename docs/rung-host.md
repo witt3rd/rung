@@ -456,7 +456,8 @@ decides only where the text goes. Design and rulings:
   disk limit is that failure; there is no other limit.
 - The host never removes spilled files, on start or any other time (it only
   removes its own unfinished `.partial-*` temp files: a cut fetch's, and those
-  of dead processes at the next start). They are
+  of dead processes at the next start, judged by the process id: a recycled id
+  keeps a dead temp until that id is free again, a known limit). They are
   listed by `ws_list`; the agent (`ws_remove`, with `workspace_write`) or the
   owner clears them. The file is untrusted scratch: the agent can overwrite it.
 - Redaction: the spilled file is workspace content and holds the page exactly
