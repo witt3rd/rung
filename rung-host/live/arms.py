@@ -135,7 +135,7 @@ def sample(lines, served_by_turn, n, seed):
         out.append(f"- served: {', '.join(dict.fromkeys(m or '?' for m in ms))}")
         out.append(f"- tools: {', '.join(tools) or 'none'}")
         text = (d.get("final_text") or "").strip().replace("\n", " ")
-        out.append(f"- final: {text[:600]}")
+        out.append(f"- final: {text}")
         out.append("- verdict: \n- note: \n")
     return "\n".join(out) + "\n"
 

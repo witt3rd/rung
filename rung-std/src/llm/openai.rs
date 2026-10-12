@@ -597,7 +597,7 @@ pub(crate) fn parse_json(text: &str) -> Result<LlmResponse, RawCallError> {
     let parsed: OpenAiResponse =
         serde_json::from_str(text).map_err(|e| RawCallError::InvalidProviderOutput {
             message: format!("JSON parse error: {e}"),
-            raw: Some(text.chars().take(512).collect()),
+            raw: Some(text.to_string()),
         })?;
 
     let choice = parsed.choices.into_iter().next();
@@ -973,6 +973,17 @@ pub(crate) fn parse_sse(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_huge_unparsable_body_keeps_its_raw_text() {
+        let big = format!("not json {}", "é".repeat(100_000));
+        match parse_json(&big) {
+            Err(RawCallError::InvalidProviderOutput { raw, .. }) => {
+                assert_eq!(raw.as_deref(), Some(big.as_str()));
+            }
+            other => panic!("{:?}", other.map(|_| ())),
+        }
+    }
 
     fn tool_use(id: &str, name: &str, input: serde_json::Value) -> MessageContentBlock {
         MessageContentBlock::ToolUse {

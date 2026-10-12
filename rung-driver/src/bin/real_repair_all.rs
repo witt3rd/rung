@@ -144,10 +144,5 @@ fn main() {
     );
 }
 fn short(s: &str) -> String {
-    let s = s.trim();
-    if s.len() > 60 {
-        s[..60].to_string() + "…"
-    } else {
-        s.to_string()
-    }
+    s.trim().to_string()
 }

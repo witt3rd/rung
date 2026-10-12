@@ -37,7 +37,6 @@ const HEADER_CONNECTION_ID: &str = "acp-connection-id";
 const HEADER_SESSION_ID: &str = "acp-session-id";
 const JSON_MIME: &str = "application/json";
 const EVENT_STREAM: &str = "text/event-stream";
-const MAX_BODY: usize = 16 * 1024 * 1024;
 
 const SESSION_SCOPED: &[&str] = &[
     "session/cancel",
@@ -538,9 +537,6 @@ async fn post(
         Ok(c) => c.to_bytes(),
         Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid JSON"),
     };
-    if collected.len() > MAX_BODY {
-        return text(StatusCode::PAYLOAD_TOO_LARGE, "Request body too large");
-    }
     let value: Value = match serde_json::from_slice(&collected) {
         Ok(v) => v,
         Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid JSON"),

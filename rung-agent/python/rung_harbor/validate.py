@@ -240,7 +240,7 @@ def cmd_show(ns: argparse.Namespace) -> int:
         log = Path(str(last.get("dir") or "")) / "rung-agent.txt"
     if log.is_file():
         print()
-        print(log.read_text()[-4000:])
+        print(log.read_text())
     return 0
 
 

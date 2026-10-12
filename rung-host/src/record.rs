@@ -219,10 +219,7 @@ fn parse_all(text: &str, into: &mut Vec<Line>) -> io::Result<()> {
             continue;
         }
         let line = Line::parse(l).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("line {}: {l:.80}", i + 1),
-            )
+            io::Error::new(io::ErrorKind::InvalidData, format!("line {}: {l}", i + 1))
         })?;
         into.push(line);
     }
@@ -489,6 +486,14 @@ mod tests {
         let guard = crate::sim::temp_dir_guard(&format!("record-{name}"));
         let d = guard.path().join("rec");
         (guard, d)
+    }
+
+    #[test]
+    fn a_bad_line_is_named_whole_in_the_error() {
+        let bad = format!("not json {}", "é".repeat(5_000));
+        let mut v = Vec::new();
+        let e = parse_all(&format!("{bad}\n"), &mut v).unwrap_err();
+        assert_eq!(e.to_string(), format!("line 1: {bad}"));
     }
 
     #[test]
