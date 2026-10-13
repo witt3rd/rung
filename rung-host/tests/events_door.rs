@@ -49,6 +49,7 @@ impl Host {
             bind_bearer: false,
             routes: Some(door.routes()),
             route_gate: None,
+            spool_dir: None,
         };
         let (tx, rx) = tokio::sync::oneshot::channel();
         tokio::spawn(async move {

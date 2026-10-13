@@ -10,6 +10,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
@@ -124,8 +125,8 @@ pub struct RouteRequest {
     /// The request body, whole; empty for a GET or HEAD (the listener reads no
     /// body for those, nor for a request the gate did not admit). It is read only after the [`RouteGate`] let the
     /// request on, as it arrives and with no limit on its size; a large one is
-    /// spooled to an unlinked temporary file as it arrives (never held whole in
-    /// memory by the listener), and read back through [`Body`].
+    /// spooled to an unlinked temporary file in [`Serve::spool_dir`] as it arrives
+    /// (never held whole in memory by the listener), and read back through [`Body`].
     pub body: Body,
 }
 
@@ -133,7 +134,8 @@ pub struct RouteRequest {
 const SPOOL_THRESHOLD: usize = 1 << 20;
 
 /// A request body, whole and immutable: in memory if small, else in an
-/// unlinked temporary file (under `std::env::temp_dir()`). Cheap to clone; each
+/// unlinked temporary file in [`Serve::spool_dir`] (`std::env::temp_dir()` if
+/// unset; a RAM-backed directory there defeats flat memory). Cheap to clone; each
 /// [`Body::reader`] reads independently from the start.
 #[derive(Debug, Clone)]
 pub struct Body(Repr);
@@ -178,8 +180,26 @@ impl Body {
         }
     }
 
-    /// Is every byte ASCII whitespace (or is there none)? Reads in constant memory.
-    pub fn is_blank(&self) -> std::io::Result<bool> {
+    /// Is every byte ASCII whitespace (or is there none)? Reads in constant
+    /// memory, off the async runtime when the body is on disk.
+    pub async fn is_blank(&self) -> std::io::Result<bool> {
+        let b = self.clone();
+        b.off_runtime(Body::is_blank_sync).await
+    }
+
+    async fn off_runtime<T: Send + 'static>(
+        self,
+        f: impl FnOnce(&Body) -> T + Send + 'static,
+    ) -> T {
+        match self.0 {
+            Repr::Mem(_) => f(&self),
+            Repr::File(..) => tokio::task::spawn_blocking(move || f(&self))
+                .await
+                .expect("body read task"),
+        }
+    }
+
+    fn is_blank_sync(&self) -> std::io::Result<bool> {
         use std::io::Read;
         let mut r = self.reader();
         let mut buf = [0u8; 64 * 1024];
@@ -194,9 +214,15 @@ impl Body {
         }
     }
 
-    /// The body parsed as JSON, read through a buffer (no second whole copy).
-    pub fn json(&self) -> Result<Value, serde_json::Error> {
-        serde_json::from_reader(std::io::BufReader::with_capacity(64 * 1024, self.reader()))
+    /// The body parsed as JSON, read through a buffer (no second whole copy),
+    /// off the async runtime when the body is on disk. A failed read of the
+    /// spool is [`serde_json::Error::is_io`]; anything else is bad JSON.
+    pub async fn json(&self) -> Result<Value, serde_json::Error> {
+        self.clone()
+            .off_runtime(|b| {
+                serde_json::from_reader(std::io::BufReader::with_capacity(64 * 1024, b.reader()))
+            })
+            .await
     }
 
     /// The whole body in memory (this is the copy the spool avoids; use
@@ -237,14 +263,16 @@ impl std::io::Read for BodyReader {
 /// Collects a request body as it arrives: in memory until it passes
 /// [`SPOOL_THRESHOLD`], then in an unlinked temporary file.
 struct Spool {
+    dir: PathBuf,
     mem: Vec<u8>,
     file: Option<std::fs::File>,
     len: u64,
 }
 
 impl Spool {
-    fn new(hint: usize) -> Self {
+    fn new(hint: usize, dir: PathBuf) -> Self {
         Spool {
+            dir,
             mem: Vec::with_capacity(hint.min(SPOOL_THRESHOLD)),
             file: None,
             len: 0,
@@ -260,7 +288,7 @@ impl Spool {
         }
         if self.file.is_none() {
             use std::os::unix::fs::OpenOptionsExt;
-            let path = std::env::temp_dir().join(format!("rung-body-{}", uuid::Uuid::new_v4()));
+            let path = self.dir.join(format!("rung-body-{}", uuid::Uuid::new_v4()));
             let mut f = std::fs::OpenOptions::new()
                 .read(true)
                 .write(true)
@@ -324,6 +352,11 @@ pub struct Serve {
     /// Refuses a request to those paths from its headers, before its body is
     /// read (authentication, method, media type). `None`: no early refusal.
     pub route_gate: Option<RouteGate>,
+    /// Where a large request body is spooled as it arrives (an unlinked
+    /// temporary file). Put it on a disk, next to the host's state: a
+    /// RAM-backed directory (tmpfs) holds the body in RAM and defeats flat
+    /// memory. `None`: `std::env::temp_dir()`.
+    pub spool_dir: Option<PathBuf>,
 }
 
 pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
@@ -346,6 +379,7 @@ pub(crate) async fn listen(process: Args, addr: String) -> Result<(), String> {
         bind_bearer: false,
         routes: None,
         route_gate: None,
+        spool_dir: None,
     };
     listen_with(addr, serve).await
 }
@@ -597,7 +631,7 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
         Some(GateVerdict::Leave) | None => false,
     };
     // a read has no body to wait for; any other method's body is read here, as
-    // it arrives, into one buffer sized from the declared length (no limit: the
+    // it arrives, into a spool (no limit: the
     // gate has already said who may send it)
     let body = if !admitted || matches!(parts.method, Method::GET | Method::HEAD) {
         Body::default()
@@ -608,15 +642,32 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
             .and_then(|v| v.to_str().ok())
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(0);
-        let mut spool = Spool::new(hint);
+        let mut spool = Spool::new(
+            hint,
+            state
+                .serve
+                .spool_dir
+                .clone()
+                .unwrap_or_else(std::env::temp_dir),
+        );
         let mut incoming = incoming;
         while let Some(frame) = incoming.frame().await {
             match frame {
                 Ok(f) => {
-                    if let Some(d) = f.data_ref()
-                        && spool.push(d).is_err()
-                    {
-                        return text(StatusCode::INTERNAL_SERVER_ERROR, "Could not spool body");
+                    if let Some(d) = f.data_ref() {
+                        let d = d.clone();
+                        let pushed =
+                            tokio::task::spawn_blocking(move || spool.push(&d).map(|()| spool))
+                                .await;
+                        match pushed {
+                            Ok(Ok(s)) => spool = s,
+                            _ => {
+                                return text(
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                    "Could not spool body",
+                                );
+                            }
+                        }
                     }
                 }
                 Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid request body"),

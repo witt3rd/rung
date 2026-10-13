@@ -66,6 +66,7 @@ async fn served(tag: &str) -> Served {
         connect: Arc::new(|_, _| Box::pin(async {})),
         bind_bearer: false,
         route_gate: None,
+        spool_dir: None,
         routes: Some(door.routes()),
     };
     let (tx, rx) = tokio::sync::oneshot::channel();

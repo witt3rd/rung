@@ -854,6 +854,9 @@ pub fn serve_http_with(
         .parent()
         .map(Path::to_path_buf)
         .unwrap_or_default();
+    let spool_dir = state_dir.join("spool");
+    std::fs::create_dir_all(&spool_dir)
+        .map_err(|e| format!("cannot create the body spool {}: {e}", spool_dir.display()))?;
     let queue = Arc::new(QueueDoor {
         acp: acp.clone(),
         state_dir: state_dir.clone(),
@@ -903,6 +906,7 @@ pub fn serve_http_with(
         bind_bearer: true,
         routes: Some(routes),
         route_gate: Some(queue.gate()),
+        spool_dir: Some(spool_dir),
     };
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -1459,9 +1463,19 @@ impl QueueDoor {
             ControlTarget::Release => &["reason"],
         };
         let mut reason = None;
-        if !req.body.is_blank().unwrap_or(false) {
-            let Ok(Value::Object(body)) = req.body.json() else {
-                return bad("the body, if there is one, must be a JSON object");
+        let blank = match req.body.is_blank().await {
+            Ok(b) => b,
+            Err(e) => return door_error(500, "internal", &format!("could not read the body: {e}")),
+        };
+        if !blank {
+            let body = match req.body.json().await {
+                Ok(Value::Object(b)) => b,
+                Err(e) if e.is_io() => {
+                    return door_error(500, "internal", &format!("could not read the body: {e}"));
+                }
+                _ => {
+                    return bad("the body, if there is one, must be a JSON object");
+                }
             };
             if let Some(k) = body.keys().find(|k| !fields.contains(&k.as_str())) {
                 return bad(&if fields.is_empty() {
@@ -1530,10 +1544,16 @@ impl QueueDoor {
         req: &rung_agent_core::acp_http::RouteRequest,
     ) -> Reply {
         let bad = |m: &str| door_error(400, "bad_request", m);
-        let Ok(Value::Object(body)) = req.body.json() else {
-            return bad(
-                "the body must be a JSON object: {\"before\": \"<id>\"} (or {\"before\": null} for the end of its group)",
-            );
+        let body = match req.body.json().await {
+            Ok(Value::Object(b)) => b,
+            Err(e) if e.is_io() => {
+                return door_error(500, "internal", &format!("could not read the body: {e}"));
+            }
+            _ => {
+                return bad(
+                    "the body must be a JSON object: {\"before\": \"<id>\"} (or {\"before\": null} for the end of its group)",
+                );
+            }
         };
         if let Some(k) = body
             .keys()
@@ -1624,8 +1644,12 @@ impl QueueDoor {
 
     async fn add(self: &Arc<Self>, req: &rung_agent_core::acp_http::RouteRequest) -> Reply {
         let bad = |m: &str| door_error(400, "bad_request", m);
-        let Ok(Value::Object(body)) = req.body.json() else {
-            return bad("the body must be a JSON object: {\"text\": \"...\"}");
+        let body = match req.body.json().await {
+            Ok(Value::Object(b)) => b,
+            Err(e) if e.is_io() => {
+                return door_error(500, "internal", &format!("could not read the body: {e}"));
+            }
+            _ => return bad("the body must be a JSON object: {\"text\": \"...\"}"),
         };
         if let Some(k) = body
             .keys()

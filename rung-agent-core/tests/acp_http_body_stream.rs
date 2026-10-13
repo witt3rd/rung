@@ -5,6 +5,7 @@
 
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use rung_agent_core::acp_http::{
@@ -33,8 +34,10 @@ fn reply(status: u16, body: String) -> RouteReply {
     }
 }
 
-async fn serve() -> SocketAddr {
-    let routes: Routes = Arc::new(|req| {
+async fn serve(spool: PathBuf) -> SocketAddr {
+    let dir = spool.clone();
+    let routes: Routes = Arc::new(move |req| {
+        let dir = dir.clone();
         Box::pin(async move {
             // hash what arrived, streaming it back off the spool
             let mut r = req.body.reader();
@@ -47,7 +50,14 @@ async fn serve() -> SocketAddr {
                 }
                 h.update(&buf[..n]);
             }
-            Some(reply(200, format!("{} {:x}", req.body.len(), h.finalize())))
+            let in_dir = std::fs::read_dir("/proc/self/fd")
+                .unwrap()
+                .filter_map(|e| std::fs::read_link(e.ok()?.path()).ok())
+                .any(|l| l.starts_with(&dir) && l.to_string_lossy().contains("rung-body-"));
+            Some(reply(
+                200,
+                format!("{} {:x} {in_dir}", req.body.len(), h.finalize()),
+            ))
         })
     });
     let gate: RouteGate = Arc::new(|head| {
@@ -68,6 +78,7 @@ async fn serve() -> SocketAddr {
         bind_bearer: false,
         routes: Some(routes),
         route_gate: Some(gate),
+        spool_dir: Some(spool),
     };
     let (tx, rx) = tokio::sync::oneshot::channel();
     tokio::spawn(async move {
@@ -103,7 +114,9 @@ fn status_and_body(mut s: TcpStream) -> (u16, String) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_256_mib_body_arrives_whole_with_flat_memory() {
-    let addr = serve().await;
+    let spool = std::env::temp_dir().join(format!("rung-spool-test-{}", std::process::id()));
+    std::fs::create_dir_all(&spool).unwrap();
+    let addr = serve(spool.clone()).await;
 
     // no credential: refused before the body is read (none is ever sent)
     let refused = tokio::task::spawn_blocking(move || {
@@ -140,8 +153,8 @@ async fn a_256_mib_body_arrives_whole_with_flat_memory() {
     .unwrap();
     assert_eq!(
         answer,
-        format!("{BODY} {sent_hash}"),
-        "arrived whole, byte-identical"
+        format!("{BODY} {sent_hash} true"),
+        "arrived whole, byte-identical, spooled in the configured dir"
     );
 
     let grown_mib = (hwm_kib() - before) / 1024;
