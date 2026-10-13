@@ -29,6 +29,10 @@ git tags only.
   unpublished, so nothing is kept for them).
 
 ### Fixed
+- ACP HTTP listener: the authenticated request body is streamed to a spool file
+  (`<state dir>/spool/` in `rung-host`) instead of held in memory about five
+  times over; memory stays flat for a very large body. No cap, no truncation.
+  A RAM-backed spool dir defeats flat memory.
 - `rung-host`: following the record door's `next` cursor is linear, not
   quadratic. Each page used to scan the whole record from the start to learn
   `total`; the host now keeps, per state directory, an index of the intact
