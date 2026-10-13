@@ -114,8 +114,8 @@ fn status_and_body(mut s: TcpStream) -> (u16, String) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_256_mib_body_arrives_whole_with_flat_memory() {
-    let spool = std::env::temp_dir().join(format!("rung-spool-test-{}", std::process::id()));
-    std::fs::create_dir_all(&spool).unwrap();
+    let tmp = rung_testkit::TempDir::new("spool-test");
+    let spool = tmp.path().to_path_buf();
     let addr = serve(spool.clone()).await;
 
     // no credential: refused before the body is read (none is ever sent)
@@ -169,9 +169,8 @@ async fn a_256_mib_body_arrives_whole_with_flat_memory() {
 /// `temp_dir()` itself: the handler sees the open spool file under that dir.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_spool_lands_in_the_configured_dir() {
-    let spool = std::env::temp_dir()
-        .join(format!("rung-state-test-{}", std::process::id()))
-        .join("spool");
+    let tmp = rung_testkit::TempDir::new("state-test");
+    let spool = tmp.path().join("spool");
     std::fs::create_dir_all(&spool).unwrap();
     let addr = serve(spool.clone()).await;
     let len: usize = 3 << 20;
