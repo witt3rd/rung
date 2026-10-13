@@ -987,40 +987,44 @@ itself. Nothing is cut or shortened; a layer is one whole string in one line.
 |---|---|---|
 | `pack.layers` | `cause` (`start`, `swap`), `s_hash`, `tools` (the tool definitions, whole, as the provider is sent them), `system` (the system text, whole) | at every start, in the same write as `host.start`; and at every swap of the stable layer (`Host::swap_stable`, with its `pack.swap`, in one write) |
 | `epoch.rollover` | `l_hash`, `slow` (the epoch layer: the one message the epoch's requests start with, whole) | at every rollover (and at a start or wake, which roll over) |
-| `turn.log` | `recall_text` (the recall block, whole, **once**; null when the turn had none), `recall_hash` (the hash of the text as stored; null with it) | when the turn ends, as `turn.log` always was |
+| `turn.layers` (S6) | `turn`, `s_hash`, `l_hash`, `header` (the header without recall), `recall`, `recall_text` (the recall block, whole, **once**; null when the turn had none), `recall_hash` (the hash of the text as stored) | at the start of every turn, in the same write as `turn.started`, so the layers are readable while the turn runs; the event stream carries it like every line |
+| `turn.log` | (S4 added `recall_text` and `recall_hash` here; from S6 they are in `turn.layers` and `turn.log` does not repeat them) | when the turn ends, as `turn.log` always was |
 | `host.start` | `config` now passes the redactor too (a secret in the identity or the pinned lines is also in the system text) | at every start |
 
 `s_hash` and `l_hash` are the hashes the pack already computes of the
 **unredacted** layers (the ones each `llm.call` carries in `prefix`), so a layer
 is joined to its calls whether or not something in it was replaced.
-`turn.log.header` (the header without recall; redacted at write) and `messages` (verbatim) keep
+`turn.log.header` (the header without recall; redacted at write), `recall` and `messages` (verbatim) keep
 their shape. The request bytes sent to the provider, the cache breakpoints and
 the pack are unchanged: only what is written changes.
 
-**The recall is written once.** `turn.log.header` (the header without recall,
-as it always was) and `recall_text` are the whole of what the model was shown at
-the turn's start: the header as sent is `header`, a line break and `recall_text`
+**The recall is written once**, in the turn's `turn.layers` (S6; S4 wrote it in
+`turn.log`, and the door still reads a record written that way). `header` (the
+header without recall, as it always was) and `recall_text` are the whole of what
+the model was shown at the turn's start: the header as sent is `header`, a line break and `recall_text`
 (the pack builds it the same way), so the door rebuilds **both** views, the
 header as sent and the recall text, from the one copy of each, byte for byte.
 The redaction is decided once, on the single copy of the recall: a secret inside
 it reads `[redacted]` in both views by construction. `recall_hash` is the hash
 of the text as stored; the door checks it and says in words if the text was
-damaged (below). A turn recorded before S4 has no `recall_text` key at all.
+damaged (below). A turn recorded before S4 has no `recall_text` key at all (on neither line).
 
 **What it costs.** Measured on a seeded busy run of the mock engine with the
 baseline memory (`rung-host/tests/context_record.rs`,
 `the_record_grows_by_layers_not_by_calls`: 200 turns, about 500 model calls,
-16 epochs, 20 recalls; the run varies a little from one execution to the next):
-the record was 1.19 MB without the new fields and 1.60 MB with them (+34%).
-`pack.layers` was 8 KB for the run; the 16 epoch layers 87 KB (5.4 KB each);
-`recall_text` 316 KB (20 recalls of about 16 KB). Keeping the recall twice (once in a whole copy of the header as sent, once
-alone) would have added about 880 KB (+74%) on this run: the single copy more
-than halves the growth. The fixture's turns are short, so the
-ratio is not a live run's; what carries over is the shape: the cost is per
-epoch and per recalled turn, not per call. A live run that recalls large
-blocks grows by about the size of its recalls, once.
+16 epochs, 22 recalls; the run varies a little from one execution to the next):
+the record was 1.21 MB without the new lines and 1.87 MB with them (+54%).
+`pack.layers` was 9 KB for the run; the 16 epoch layers 97 KB (6 KB each);
+the 200 `turn.layers` lines 551 KB: 22 recalls of about 16 KB each (once, not
+repeated in `turn.log`) and the header of every turn again (about 180 KB; S4
+alone, with the recall in `turn.log`, grew the same run by +34%). Keeping the
+recall twice (once in a whole copy of the header as sent, once alone) would have
+added far more: the single copy of the recall is the point. The fixture's turns
+are short, so the ratio is not a live run's; what carries over is the shape: the
+cost is per epoch, per turn (the header) and per recalled turn, not per call. A
+live run that recalls large blocks grows by about the size of its recalls, once.
 
-**What stays repeated.** The header (`turn.log.header`, 156 KB over these 200
+**What stays repeated.** From S6 `turn.layers` also holds the header (the same text `turn.log.header` holds; the recall is not repeated). The header (`turn.log.header`, 156 KB over these 200
 turns, already in the record before S4 and not new here) is mostly the same text
 turn after turn: 65% of its lines are the same as the previous turn's (the
 registers, quota and mode lines). It could be shared (a header written as the
@@ -1054,7 +1058,7 @@ An unknown name, a repeated name, or a value that is not a whole number is 400
 |---|---|---|
 | 404 | `no_such_turn` | the record has no such turn |
 | 404 | `no_such_call` | the turn has no such call (`call=0` too); the message says how many it has |
-| 409 | `turn_not_logged` | the turn started and has not ended: its messages are written when it does (the live view is a later slice) |
+| 409 | `turn_not_logged` | the turn has not ended and the record holds no `turn.layers` for it yet (or never will: it began before they were recorded), or `call` is above 1 for a turn that has not ended: its later requests are written when it ends. A client that is watching a turn retries |
 | 404, 500 | `no_such_instance`, `state_dir_missing`, `unreadable` | as the H3 doors |
 
 Every refusal is answered before the first byte.
@@ -1080,6 +1084,7 @@ Every refusal is answered before the first byte.
 | `provider` | the provider's own counts for this call (`llm.call`): the truth for hit rate. `expected_cached_tokens` is the host's expectation |
 | `cache_event` | a `cache.break` or `cache.cold` the host recorded for this call: `{kind, cause}`, else null |
 | `rewritten` | the engine rewrote what it was given inside the turn (a context overflow's elision): the bands are then what the host gave it, not what the last calls saw |
+| `live` | true while the turn has not ended (S6). The record then holds the turn's layers (`turn.layers`) and no model call or message: the answer is call 1 as assembled, with `calls` 0, a null `provider`, every `cache` mark `unknown` and `this_turn` empty. When the turn ends the same bands settle at the final record: the same text, plus the provider's counts and cache marks. A turn whose host went away before it ended is answered the same way with `live` false and a `problems` entry |
 | `recorded` | true when every layer of this call is in the record and nothing in `problems` |
 | `problems` | in words, what the record cannot give back whole for this turn: a recall the turn was shown but whose text is not in the record, or a stored recall that does not match its hash (it is then still shown, as recorded, with `intact: false`). Empty normally. Never an error: the answer is 200 |
 | `note`, `missing` | for a turn that **predates context recording**: `note` is `this turn predates context recording` and `missing` names the bands that cannot be shown, from `tools`, `system`, `epoch`, `recall` (a turn recorded before S4 has no `recall` band, though it may have had one). The answer is still 200 and holds every band that exists; it is never an error |

@@ -7,6 +7,27 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (live strata, host half)
+- `rung-host`: the layers of a turn's context are recorded at its start. A new
+  `turn.layers` line (the header and the recall block, whole and redacted, with
+  the hashes of the stable and epoch layers) is written in the same write as
+  `turn.started`, so the record holds them while the turn runs. The context door
+  `GET /v1/turns/{n}/context` answers for a running turn with its first request
+  as assembled (`live: true`, `calls: 0`, cache marks `unknown`) instead of 409;
+  when the turn ends the same bands settle at the final record (the same text,
+  with the provider's counts and cache marks added). A later call of a turn that
+  has not ended is still 409 `turn_not_logged`; a turn whose host went away
+  before it ended answers 200 with the same bands, `live: false` and a
+  `problems` entry saying it did not end. The
+  event stream already carries every record line, so `turn.layers` is the
+  "layers ready" event; no new door, no new write path, no cap on any text.
+  The recall block is written once, in `turn.layers`; `turn.log` no longer
+  carries `recall_text` and `recall_hash` (it keeps `header`, `recall` and the
+  messages), and the door reads the recall from `turn.log` for a record written
+  before this change and from `turn.layers` after it.
+  Readers older than this change lose the recall band on new records (rung is
+  unpublished, so nothing is kept for them).
+
 ### Fixed
 - `rung-host`: following the record door's `next` cursor is linear, not
   quadratic. Each page used to scan the whole record from the start to learn

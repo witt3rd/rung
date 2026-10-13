@@ -11,7 +11,10 @@
 //! Each band has its whole text, the host's own size estimate and a cache mark;
 //! the provider's counts for the call ride along.
 //!
-//! It reads the files, so a stopped instance answers like a running one. A
+//! It reads the files, so a stopped instance answers like a running one. A turn
+//! that has not ended answers too (S6): its layers are in the record from its
+//! start (`turn.layers`), so the answer is its first request as assembled, with
+//! `live: true`, and the same bands settle at the final record when it ends. A
 //! record from before the layers were recorded answers with what it has and says
 //! so; it is never an error. The answer is **streamed**: a first pass reads the
 //! record keeping only sizes and line numbers (a few numbers per turn of the
@@ -130,18 +133,40 @@ struct RollSeen {
     slow_bytes: usize,
 }
 
-/// A past turn of the epoch: where its `turn.log` is, how big.
+/// A past turn of the epoch: where its `turn.log` is, how big, and where its
+/// recall text is.
 struct HistSeen {
     seq: u64,
+    /// The line the turn's recall text is read from (its own `seq` for a turn
+    /// recorded before S6, else its `turn.layers`).
+    recall_seq: u64,
     bytes: usize,
+}
+
+/// What a line says of its turn's recall block: the `turn.layers` line (S6), or
+/// the `turn.log` of a turn recorded before the layers were written at the
+/// start. Only sizes and facts: the text is read in the second pass.
+struct RecallSeen {
+    /// The line the recall text is read from.
+    seq: u64,
+    /// The line has a `recall_text` field (null or text).
+    sent: bool,
+    has_text: bool,
+    /// Bytes of the text as JSON carries them, without the quotes.
+    bytes: usize,
+    /// The stored text matches its recorded hash.
+    intact: bool,
+    problems: Vec<String>,
 }
 
 /// This turn's `turn.log`.
 struct LogSeen {
     seq: u64,
-    /// The line is from after the request was recorded (it has `recall_text`,
-    /// null when the turn had no recall).
+    /// The request was recorded (the turn has a `recall_text` field, null when
+    /// it had no recall).
     sent: bool,
+    /// The line the recall text is read from (this one, or `turn.layers`).
+    recall_seq: u64,
     message_bytes: usize,
     recall_bytes: usize,
     has_recall: bool,
@@ -164,9 +189,12 @@ struct Plan {
     started: Option<Map<String, Value>>,
     cache_event: Option<Value>,
     rewritten: bool,
+    /// The turn has not ended: the record holds its layers, not its messages.
+    live: bool,
     layers: Option<u64>,
     roll: Option<u64>,
-    hist: Vec<u64>,
+    /// Each earlier turn of the epoch: its `turn.log` and its recall's line.
+    hist: Vec<(u64, u64)>,
     log: LogSeen,
     /// How many of the turn's messages the request held at this call.
     split: usize,
@@ -233,6 +261,12 @@ fn plan(
     let mut rolls: Vec<RollSeen> = Vec::new();
     let mut hist: Vec<HistSeen> = Vec::new();
     let mut log: Option<LogSeen> = None;
+    // the turn's layers as written at its start (`turn.layers`), and whether a
+    // host started after them (a turn that never ended)
+    let mut early: Option<(LogSeen, String, String)> = None;
+    // the recall of the latest `turn.layers` seen, with its turn
+    let mut recall_of: Option<(u64, RecallSeen)> = None;
+    let mut restarted = false;
     let mut started: Option<Map<String, Value>> = None;
     let mut calls: Vec<(u64, Map<String, Value>)> = Vec::new();
     let mut events: Vec<(u64, String, String)> = Vec::new();
@@ -269,11 +303,29 @@ fn plan(
             "cache.break" | "cache.cold" if l.u64("turn") == turn => {
                 events.push((l.u64("call"), l.kind.clone(), l.str("cause").to_string()));
             }
-            "turn.log" if l.u64("turn") < turn => hist.push(HistSeen {
-                seq: l.seq,
-                bytes: history_bytes(l),
-            }),
-            "turn.log" if l.u64("turn") == turn => log = Some(log_seen(l)),
+            "turn.log" if l.u64("turn") < turn => {
+                let r = recall_for(l, &mut recall_of);
+                hist.push(HistSeen {
+                    seq: l.seq,
+                    recall_seq: r.seq,
+                    bytes: history_bytes(l, &r),
+                });
+            }
+            "turn.log" if l.u64("turn") == turn => {
+                let r = recall_for(l, &mut recall_of);
+                log = Some(log_seen(l, r));
+            }
+            "turn.layers" => {
+                if l.u64("turn") == turn {
+                    early = Some((
+                        log_seen(l, recall_seen(l)),
+                        l.str("s_hash").to_string(),
+                        l.str("l_hash").to_string(),
+                    ));
+                }
+                recall_of = Some((l.u64("turn"), recall_seen(l)));
+            }
+            "host.start" if early.is_some() => restarted = true,
             "turn.ended" if l.u64("turn") == turn => {
                 rewritten = l.get("rewritten") == &Value::Bool(true);
                 return false;
@@ -287,36 +339,94 @@ fn plan(
         .as_ref()
         .map(|d| format!(" (the record is damaged after line {})", d.after_seq))
         .unwrap_or_default();
-    if started.is_none() && log.is_none() && calls.is_empty() {
+    if started.is_none() && log.is_none() && early.is_none() && calls.is_empty() {
         return Err(DoorError::new(
             404,
             "no_such_turn",
             format!("the record has no turn {turn}{hint}"),
         ));
     }
-    let Some(log) = log else {
-        return Err(DoorError::new(
-            409,
-            "turn_not_logged",
-            format!("turn {turn} has not ended: its messages are written when it does"),
-        ));
+    // A turn that has not ended has its layers (`turn.layers`, written at its
+    // start) and no model call or message in the record yet: the answer is its
+    // first request, as assembled. A turn whose host went away before it ended
+    // is answered the same way and says so.
+    let mut early_hashes = (String::new(), String::new());
+    let (log, live) = match (log, early) {
+        (Some(log), _) => (log, false),
+        (None, Some((mut log, s_hash, l_hash))) => {
+            early_hashes = (s_hash, l_hash);
+            if restarted {
+                log.problems.push(format!(
+                    "turn {turn} did not end: its messages were never recorded; what is shown is its context as it started"
+                ));
+            }
+            (log, true)
+        }
+        (None, None) => {
+            return Err(DoorError::new(
+                409,
+                "turn_not_logged",
+                format!(
+                    "turn {turn} has not ended and the record holds no layers for it (yet, or it began before they were recorded)"
+                ),
+            ));
+        }
     };
     let call = q.call.unwrap_or(1);
-    let Some((_, line)) = calls.iter().find(|(c, _)| *c == call) else {
-        let n = calls.len();
-        return Err(DoorError::new(
-            404,
-            "no_such_call",
-            if n == 0 {
-                format!("turn {turn} made no recorded model call")
-            } else {
-                format!("turn {turn} has {n} recorded call(s); call {call} is not one of them")
-            },
-        ));
+    let call_line: Map<String, Value> = if live {
+        if call == 0 {
+            return Err(DoorError::new(
+                404,
+                "no_such_call",
+                format!("turn {turn} has no call 0; calls count from 1"),
+            ));
+        }
+        if call > 1 {
+            return Err(DoorError::new(
+                409,
+                "turn_not_logged",
+                format!(
+                    "turn {turn} has not ended: only its first request is recorded until it does"
+                ),
+            ));
+        }
+        let (s_hash, l_hash) = &early_hashes;
+        let st = started.as_ref();
+        let mut m = Map::new();
+        m.insert("turn".into(), turn.into());
+        m.insert("call".into(), 1.into());
+        for k in ["epoch", "turn_kind"] {
+            m.insert(
+                k.into(),
+                st.and_then(|s| s.get(k)).cloned().unwrap_or(Value::Null),
+            );
+        }
+        m.insert(
+            "model_requested".into(),
+            st.and_then(|s| s.get("model"))
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        m.insert(
+            "prefix".into(),
+            json!({"s_hash": s_hash, "l_hash": l_hash, "expected_cached_tokens": null}),
+        );
+        m
+    } else {
+        let Some((_, line)) = calls.iter().find(|(c, _)| *c == call) else {
+            let n = calls.len();
+            return Err(DoorError::new(
+                404,
+                "no_such_call",
+                if n == 0 {
+                    format!("turn {turn} made no recorded model call")
+                } else {
+                    format!("turn {turn} has {n} recorded call(s); call {call} is not one of them")
+                },
+            ));
+        };
+        line.clone()
     };
-    let call_line = line.clone();
-    // the layers the call carried, by their hashes (the latest of each: the
-    // same hash is the same text)
     let prefix = &call_line["prefix"];
     let s_hash = prefix["s_hash"].as_str().unwrap_or("");
     let l_hash = prefix["l_hash"].as_str().unwrap_or("");
@@ -356,8 +466,14 @@ fn plan(
     let est: Vec<(&'static str, usize)> =
         sizes.iter().map(|(b, n)| (*b, canon::tokens(*n))).collect();
     let estimate: usize = est.iter().map(|(_, t)| *t).sum();
-    let prompt = call_line["prompt_tokens"].as_u64().unwrap_or(0);
-    let cached = call_line["cached_tokens"].as_u64().unwrap_or(0);
+    let prompt = call_line
+        .get("prompt_tokens")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let cached = call_line
+        .get("cached_tokens")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
     let scale = (prompt > 0 && estimate > 0).then(|| prompt as f64 / estimate as f64);
     // the marks: the provider's cached count against the bands in wire order,
     // the estimates scaled to sum to the provider's own count
@@ -423,9 +539,10 @@ fn plan(
         started,
         cache_event,
         rewritten,
+        live: live && !restarted,
         layers: layer.map(|x| x.seq),
         roll: roll.map(|x| x.seq),
-        hist: hist.iter().map(|h| h.seq).collect(),
+        hist: hist.iter().map(|h| (h.seq, h.recall_seq)).collect(),
         problems: log.problems.clone(),
         log,
         split,
@@ -441,12 +558,13 @@ fn plan(
 }
 
 /// The header as the model saw it, rebuilt from the one copy of the recall:
-/// the header, a line break and the recall block, when the turn had one. And
-/// whether that is the whole of it (a turn that was shown a recall the record
-/// holds no text for is not).
-fn header_as_sent(l: &Line) -> (String, bool) {
+/// the header, a line break and the recall block, when the turn had one. The
+/// recall is the line's own `recall_text`, else `pending`, the one read from
+/// the turn's `turn.layers`. And whether that is the whole of it (a turn that
+/// was shown a recall the record holds no text for is not).
+fn header_as_sent(l: &Line, pending: Option<&str>) -> (String, bool) {
     let header = l.str("header");
-    match l.get("recall_text").as_str() {
+    match l.get("recall_text").as_str().or(pending) {
         Some(r) => (format!("{header}\n{r}"), true),
         None => (header.to_string(), l.get("recall") != &Value::Bool(true)),
     }
@@ -454,8 +572,9 @@ fn header_as_sent(l: &Line) -> (String, bool) {
 
 /// A past turn's size in the history: its header as the model saw it and its
 /// messages.
-fn history_bytes(l: &Line) -> usize {
-    user_bytes(&header_as_sent(l).0)
+fn history_bytes(l: &Line, r: &RecallSeen) -> usize {
+    user_bytes(l.str("header"))
+        + if r.has_text { 2 + r.bytes } else { 0 }
         + messages_of(l)
             .iter()
             .map(|m| canon::bytes(m).len() + 1)
@@ -469,11 +588,24 @@ fn messages_of(l: &Line) -> &[Value] {
         .unwrap_or(&[])
 }
 
-fn log_seen(l: &Line) -> LogSeen {
-    let messages = messages_of(l);
+/// What the recall of `l`'s turn is: its own, when the `turn.log` holds the
+/// text (a turn recorded before S6), else the one the turn's `turn.layers`
+/// wrote at its start, else nothing recorded.
+fn recall_for(l: &Line, layers: &mut Option<(u64, RecallSeen)>) -> RecallSeen {
+    if l.body.contains_key("recall_text") {
+        return recall_seen(l);
+    }
+    match layers.take() {
+        Some((t, r)) if t == l.u64("turn") => r,
+        _ => recall_seen(l),
+    }
+}
+
+/// The facts of the recall a line holds (a `turn.layers` or a `turn.log`).
+fn recall_seen(l: &Line) -> RecallSeen {
     let recall = l.get("recall_text").as_str();
     let mut problems = Vec::new();
-    let mut recall_intact = true;
+    let mut intact = true;
     let turn = l.u64("turn");
     match (recall, l.get("recall") == &Value::Bool(true)) {
         (None, true) if l.body.contains_key("recall_text") => problems.push(format!(
@@ -483,7 +615,7 @@ fn log_seen(l: &Line) -> LogSeen {
             if let Some(h) = l.get("recall_hash").as_str()
                 && h != canon::hash(r.as_bytes())
             {
-                recall_intact = false;
+                intact = false;
                 problems.push(format!(
                     "the recall text of turn {turn} does not match its recorded hash; it is shown as recorded"
                 ));
@@ -491,19 +623,30 @@ fn log_seen(l: &Line) -> LogSeen {
         }
         _ => {}
     }
-    let (full, _) = header_as_sent(l);
-    // the header is one message; its recall is the tail, after a line break
-    // (the text's bytes as JSON carries them, without the quotes)
-    let recall_bytes = recall.map_or(0, |r| canon::of(r).len().saturating_sub(2));
-    let message_bytes = user_bytes(&full).saturating_sub(recall_bytes);
-    LogSeen {
+    RecallSeen {
         seq: l.seq,
         sent: l.body.contains_key("recall_text"),
-        message_bytes,
-        recall_bytes,
-        has_recall: recall.is_some(),
-        recall_intact,
+        has_text: recall.is_some(),
+        // the text's bytes as JSON carries them, without the quotes
+        bytes: recall.map_or(0, |r| canon::of(r).len().saturating_sub(2)),
+        intact,
         problems,
+    }
+}
+
+fn log_seen(l: &Line, r: RecallSeen) -> LogSeen {
+    let messages = messages_of(l);
+    // the header is one message; its recall is the tail, after a line break
+    let message_bytes = user_bytes(l.str("header")) + if r.has_text { 2 } else { 0 };
+    LogSeen {
+        seq: l.seq,
+        sent: r.sent,
+        recall_seq: r.seq,
+        message_bytes,
+        recall_bytes: r.bytes,
+        has_recall: r.has_text,
+        recall_intact: r.intact,
+        problems: r.problems,
         sizes: messages.iter().map(|m| canon::bytes(m).len() + 1).collect(),
         assistant: messages
             .iter()
@@ -518,6 +661,8 @@ fn log_seen(l: &Line) -> LogSeen {
 
 /// A record line the answer is made of.
 enum Need {
+    /// The `turn.layers` of the turn that follows, for its recall text.
+    Recall,
     Layers,
     Roll,
     Hist,
@@ -546,6 +691,7 @@ impl ContextPage {
                          "expected_cached_tokens": c["prefix"].get("expected_cached_tokens")},
             "cache_event": p.cache_event,
             "rewritten": p.rewritten,
+            "live": p.live,
             "recorded": p.missing.is_empty() && p.problems.is_empty(),
             "note": if p.missing.is_empty() { Value::Null } else { PREDATES.into() },
             "missing": p.missing,
@@ -565,6 +711,7 @@ impl ContextPage {
             rows: 0,
             hist_open: false,
             hist_done: false,
+            pending: None,
         };
         // the lines read, in the order of the bands
         let mut need: Vec<(u64, Need)> = Vec::new();
@@ -574,7 +721,15 @@ impl ContextPage {
         if let Some(s) = p.roll {
             need.push((s, Need::Roll));
         }
-        need.extend(p.hist.iter().map(|s| (*s, Need::Hist)));
+        for (seq, recall) in &p.hist {
+            if recall != seq {
+                need.push((*recall, Need::Recall));
+            }
+            need.push((*seq, Need::Hist));
+        }
+        if p.log.recall_seq != p.log.seq {
+            need.push((p.log.recall_seq, Need::Recall));
+        }
         need.push((p.log.seq, Need::Log));
         // normally one pass reads them all; a layer written after the epoch
         // layer (a swap in the middle of an epoch) is behind the read, and the
@@ -627,6 +782,9 @@ struct Writer<'a> {
     rows: usize,
     hist_open: bool,
     hist_done: bool,
+    /// The recall text of the turn whose line is read next, read from its
+    /// `turn.layers` (one text at a time).
+    pending: Option<String>,
 }
 
 impl Writer<'_> {
@@ -706,9 +864,14 @@ impl Writer<'_> {
                 m.insert("text".into(), l.get("slow").clone());
                 self.band("epoch", m)
             }
+            Need::Recall => {
+                self.pending = l.get("recall_text").as_str().map(str::to_string);
+                Ok(())
+            }
             Need::Hist => {
                 self.history_open()?;
-                let (header, complete) = header_as_sent(l);
+                let pending = self.pending.take();
+                let (header, complete) = header_as_sent(l, pending.as_deref());
                 let row = self.plan.red.redact_value(&json!({
                     "turn": l.u64("turn"),
                     "header": header,
@@ -724,10 +887,11 @@ impl Writer<'_> {
             }
             Need::Log => {
                 self.history_close()?;
+                let pending = self.pending.take();
                 let mut m = Map::new();
                 m.insert("text".into(), l.get("header").clone());
                 self.band("message", m)?;
-                if let Some(r) = l.get("recall_text").as_str() {
+                if let Some(r) = l.get("recall_text").as_str().or(pending.as_deref()) {
                     let mut m = Map::new();
                     m.insert("text".into(), r.into());
                     m.insert("intact".into(), self.plan.log.recall_intact.into());
