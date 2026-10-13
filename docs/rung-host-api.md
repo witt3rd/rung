@@ -1012,7 +1012,7 @@ damaged (below). A turn recorded before S4 has no `recall_text` key at all (on n
 **What it costs.** Measured on a seeded busy run of the mock engine with the
 baseline memory (`rung-host/tests/context_record.rs`,
 `the_record_grows_by_layers_not_by_calls`: 200 turns, about 500 model calls,
-16 epochs, 20 recalls; the run varies a little from one execution to the next):
+16 epochs, 22 recalls; the run varies a little from one execution to the next):
 the record was 1.21 MB without the new lines and 1.87 MB with them (+54%).
 `pack.layers` was 9 KB for the run; the 16 epoch layers 97 KB (6 KB each);
 the 200 `turn.layers` lines 551 KB: 22 recalls of about 16 KB each (once, not

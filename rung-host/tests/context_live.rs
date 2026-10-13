@@ -420,3 +420,38 @@ fn a_reader_mid_turn_never_sees_a_half_written_line() {
     assert!(looks > 0 && whole > 0, "the reader never saw the layers");
     let _ = h.finish();
 }
+
+/// A turn whose host went away before it ended (a later `host.start` follows
+/// its layers and no `turn.log` does) is answered with the layers it began
+/// with, whole, not as a running turn, and says in words that it did not end.
+#[test]
+fn a_turn_that_never_ended_is_answered_and_says_so() {
+    let h = Held::start("live-gone", 2, 2, |_| {});
+    h.wait_inside();
+    // what a crash would have left: the record as it is now, copied away
+    let gone = sim::temp_dir_guard("live-gone-copy");
+    let to = gone.path().join("record");
+    std::fs::create_dir_all(&to).unwrap();
+    for e in std::fs::read_dir(h.dir().join("record")).unwrap() {
+        let e = e.unwrap();
+        std::fs::copy(e.path(), to.join(e.file_name())).unwrap();
+    }
+    let turn = h.turns;
+    let red = Redactor::new();
+    let live = door(h.dir(), turn, None, &red).unwrap();
+    let _ = h.finish();
+    // a host starts again over that record
+    append_line(gone.path(), "host.start", json!({"pid": 1}));
+    let v = door(gone.path(), turn, None, &red).expect("answered, not refused");
+    assert_eq!(v["live"], false, "nothing is running it");
+    assert_eq!(v["recorded"], false);
+    assert!(
+        v["problems"][0].as_str().unwrap().contains("did not end"),
+        "said in words"
+    );
+    assert_eq!(
+        bands_without_marks(&v),
+        bands_without_marks(&live),
+        "the layers it began with, whole"
+    );
+}

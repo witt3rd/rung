@@ -17,7 +17,8 @@ git tags only.
   when the turn ends the same bands settle at the final record (the same text,
   with the provider's counts and cache marks added). A later call of a turn that
   has not ended is still 409 `turn_not_logged`; a turn whose host went away
-  before it ended answers the same way with a `problems` entry saying so. The
+  before it ended answers 200 with the same bands, `live: false` and a
+  `problems` entry saying it did not end. The
   event stream already carries every record line, so `turn.layers` is the
   "layers ready" event; no new door, no new write path, no cap on any text.
   The recall block is written once, in `turn.layers`; `turn.log` no longer

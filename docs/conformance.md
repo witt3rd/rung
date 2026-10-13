@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 599 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 600 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1027,12 +1027,13 @@ look shorter than it is.
 - `the_pass_is_indifferent_to_which_vocabulary_it_carries`
 - `wont_fix_closes_an_issue_that_remains_non_conforming`
 
-**`rung-host/tests/context_live.rs`** — 5 unclaimed
+**`rung-host/tests/context_live.rs`** — 6 unclaimed
 
 - `a_20mb_layer_arrives_whole_mid_turn`
 - `a_reader_mid_turn_never_sees_a_half_written_line`
 - `a_running_turn_shows_its_layers_through_the_door_whole`
 - `a_secret_in_a_layer_is_redacted_mid_turn`
+- `a_turn_that_never_ended_is_answered_and_says_so`
 - `the_final_record_is_what_was_shown_plus_the_outcome`
 
 **`rung-host/tests/context_record.rs`** — 12 unclaimed
