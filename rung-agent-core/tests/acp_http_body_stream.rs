@@ -187,5 +187,9 @@ async fn the_spool_lands_in_the_configured_dir() {
     .unwrap();
     let mut parts = answer.split(' ');
     assert_eq!(parts.next(), Some(len.to_string().as_str()));
-    assert_eq!(parts.nth(1), Some("true"), "spool file open in the configured dir");
+    assert_eq!(
+        parts.nth(1),
+        Some("true"),
+        "spool file open in the configured dir"
+    );
 }
