@@ -25,6 +25,8 @@ git tags only.
   carries `recall_text` and `recall_hash` (it keeps `header`, `recall` and the
   messages), and the door reads the recall from `turn.log` for a record written
   before this change and from `turn.layers` after it.
+  Readers older than this change lose the recall band on new records (rung is
+  unpublished, so nothing is kept for them).
 
 ### Fixed
 - `rung-host`: following the record door's `next` cursor is linear, not
