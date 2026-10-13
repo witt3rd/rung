@@ -171,6 +171,12 @@ it initialized with, and a later request on it with another token is
 refused (403). Without at least one token the HTTP surface does not
 start.
 
+A request body is streamed to a spool file in `<state dir>/spool/` as it
+arrives (no cap, no truncation) and parsed from there, so memory stays flat
+for a very large body. Keep the state dir on a disk, not tmpfs: a RAM-backed
+spool defeats flat memory. Without a state dir the listener spools to the
+system temp dir.
+
 ## The startup-handoff ladder
 
 `rung-host run --config rung-host.yaml` starts a host through a ladder:
