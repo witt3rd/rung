@@ -164,3 +164,28 @@ async fn a_256_mib_body_arrives_whole_with_flat_memory() {
         BODY >> 20
     );
 }
+
+/// A body past the in-memory threshold is spooled in the configured dir, not
+/// `temp_dir()` itself: the handler sees the open spool file under that dir.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_spool_lands_in_the_configured_dir() {
+    let spool = std::env::temp_dir()
+        .join(format!("rung-state-test-{}", std::process::id()))
+        .join("spool");
+    std::fs::create_dir_all(&spool).unwrap();
+    let addr = serve(spool.clone()).await;
+    let len: usize = 3 << 20;
+    let answer = tokio::task::spawn_blocking(move || {
+        let mut s = TcpStream::connect(addr).unwrap();
+        s.write_all(head(len as u64, true).as_bytes()).unwrap();
+        s.write_all(&vec![7u8; len]).unwrap();
+        let (st, body) = status_and_body(s);
+        assert_eq!(st, 200);
+        body
+    })
+    .await
+    .unwrap();
+    let mut parts = answer.split(' ');
+    assert_eq!(parts.next(), Some(len.to_string().as_str()));
+    assert_eq!(parts.nth(1), Some("true"), "spool file open in the configured dir");
+}
