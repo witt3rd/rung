@@ -758,7 +758,10 @@ async fn post(
         Ok(c) => c.aggregate(),
         Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid JSON"),
     };
-    let value: Value = match serde_json::from_reader(bytes::Buf::reader(collected)) {
+    let value: Value = match serde_json::from_reader(std::io::BufReader::with_capacity(
+        64 * 1024,
+        bytes::Buf::reader(collected),
+    )) {
         Ok(v) => v,
         Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid JSON"),
     };

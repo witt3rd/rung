@@ -17,6 +17,11 @@ const TOKEN: &str = "s3cret";
 const BODY: u64 = 256 << 20;
 const CHUNK: usize = 1 << 20;
 
+/// The two 256 MiB tests never overlap: peak RSS is the process's, so the
+/// `/acp` test (which holds its body whole) must not run inside the flat-memory
+/// test's window.
+static BIG: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 fn hwm_kib() -> u64 {
     std::fs::read_to_string("/proc/self/status")
         .unwrap()
@@ -91,8 +96,12 @@ async fn serve(spool: PathBuf) -> SocketAddr {
 }
 
 fn head(len: u64, auth: bool) -> String {
+    head_with(len, auth, "Connection: close\r\n")
+}
+
+fn head_with(len: u64, auth: bool, extra: &str) -> String {
     format!(
-        "POST /big HTTP/1.1\r\nHost: x\r\nContent-Length: {len}\r\nConnection: close\r\n{}\r\n",
+        "POST /big HTTP/1.1\r\nHost: x\r\nContent-Length: {len}\r\n{extra}{}\r\n",
         if auth {
             format!("Authorization: Bearer {TOKEN}\r\n")
         } else {
@@ -114,6 +123,7 @@ fn status_and_body(mut s: TcpStream) -> (u16, String) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_256_mib_body_arrives_whole_with_flat_memory() {
+    let _big = BIG.lock().await;
     let tmp = rung_testkit::TempDir::new("spool-test");
     let spool = tmp.path().to_path_buf();
     let addr = serve(spool.clone()).await;
@@ -202,7 +212,9 @@ async fn a_spool_write_failure_answers_500_and_closes() {
     let len: usize = 3 << 20;
     let raw = tokio::task::spawn_blocking(move || {
         let mut s = TcpStream::connect(addr).unwrap();
-        s.write_all(head(len as u64, true).as_bytes()).unwrap();
+        // keep-alive: only the server's own `connection: close` can end it
+        s.write_all(head_with(len as u64, true, "").as_bytes())
+            .unwrap();
         // the server may cut the upload off once it has answered
         let _ = s.write_all(&vec![7u8; len]);
         let mut out = Vec::new();
@@ -213,4 +225,41 @@ async fn a_spool_write_failure_answers_500_and_closes() {
     .unwrap();
     assert!(raw.starts_with("http/1.1 500"), "{raw}");
     assert!(raw.contains("connection: close"), "{raw}");
+}
+
+/// A 256 MiB JSON-RPC body on `/acp` is parsed in time near linear in its size
+/// (the parse reads through a buffer, not call by call over the chunk list). It
+/// is answered 400 (no connection id) only once parsed whole; unbuffered it
+/// took minutes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_256_mib_acp_body_parses_in_near_linear_time() {
+    let _big = BIG.lock().await;
+    let tmp = rung_testkit::TempDir::new("acp-parse-test");
+    let addr = serve(tmp.path().to_path_buf()).await;
+    let started = std::time::Instant::now();
+    let (st, _) = tokio::task::spawn_blocking(move || {
+        let (pre, post) = (
+            br#"{"jsonrpc":"2.0","id":1,"method":"session/prompt","params":{"pad":""#.as_slice(),
+            br#""}}"#.as_slice(),
+        );
+        let len = pre.len() as u64 + BODY + post.len() as u64;
+        let mut s = TcpStream::connect(addr).unwrap();
+        let h = format!(
+            "POST /acp HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n"
+        );
+        s.write_all(h.as_bytes()).unwrap();
+        s.write_all(pre).unwrap();
+        let chunk = vec![b'x'; CHUNK];
+        for _ in 0..(BODY as usize / CHUNK) {
+            s.write_all(&chunk).unwrap();
+        }
+        s.write_all(post).unwrap();
+        status_and_body(s)
+    })
+    .await
+    .unwrap();
+    assert_eq!(st, 400);
+    let took = started.elapsed().as_secs();
+    // linear is a few seconds even unoptimized; the unbuffered parse took ~90 s
+    assert!(took < 40, "a 256 MiB /acp body took {took} s");
 }
