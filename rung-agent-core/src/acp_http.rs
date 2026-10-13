@@ -662,15 +662,19 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
                         match pushed {
                             Ok(Ok(s)) => spool = s,
                             _ => {
-                                return text(
+                                // the rest of the body is unread: close, so it is
+                                // not taken for the next request
+                                return closing(text(
                                     StatusCode::INTERNAL_SERVER_ERROR,
                                     "Could not spool body",
-                                );
+                                ));
                             }
                         }
                     }
                 }
-                Err(_) => return text(StatusCode::BAD_REQUEST, "Invalid request body"),
+                Err(_) => {
+                    return closing(text(StatusCode::BAD_REQUEST, "Invalid request body"));
+                }
             }
         }
         spool.finish()
@@ -693,6 +697,13 @@ async fn route(state: &HttpState, req: Request<Incoming>) -> Response<BoxBody<By
             .insert("connection", HeaderValue::from_static("close"));
     }
     response
+}
+
+/// Marks a response to close the connection (its request body was left unread).
+fn closing(mut r: Response<BoxBody<Bytes, Infallible>>) -> Response<BoxBody<Bytes, Infallible>> {
+    r.headers_mut()
+        .insert("connection", HeaderValue::from_static("close"));
+    r
 }
 
 /// A route's reply as the listener's response.

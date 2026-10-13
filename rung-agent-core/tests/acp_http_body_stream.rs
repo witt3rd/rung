@@ -192,3 +192,25 @@ async fn the_spool_lands_in_the_configured_dir() {
         "spool file open in the configured dir"
     );
 }
+
+/// A spool that cannot be written fails the request with a 500 that closes the
+/// connection, so the unread rest of the body is not taken for the next request.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_spool_write_failure_answers_500_and_closes() {
+    let tmp = rung_testkit::TempDir::new("spool-fail-test");
+    let addr = serve(tmp.path().join("missing")).await;
+    let len: usize = 3 << 20;
+    let raw = tokio::task::spawn_blocking(move || {
+        let mut s = TcpStream::connect(addr).unwrap();
+        s.write_all(head(len as u64, true).as_bytes()).unwrap();
+        // the server may cut the upload off once it has answered
+        let _ = s.write_all(&vec![7u8; len]);
+        let mut out = Vec::new();
+        let _ = s.read_to_end(&mut out);
+        String::from_utf8_lossy(&out).to_lowercase()
+    })
+    .await
+    .unwrap();
+    assert!(raw.starts_with("http/1.1 500"), "{raw}");
+    assert!(raw.contains("connection: close"), "{raw}");
+}
