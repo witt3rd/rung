@@ -535,7 +535,9 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
 /// it names; `rule_only` needs no decider.
 /// The decision model: `desk.model`, else the one default
 /// ([`rung_std::decide::DEFAULT_MODEL`]). The previous model is
-/// `rung_std::decide::LEGACY_MODEL`, one `desk.model:` line away.
+/// `rung_std::decide::PREVIOUS_MODEL` (`microsoft/microsoft-decision-1`), one
+/// `desk.model:` line away; `rung_std::decide::LEGACY_MODEL` (jev-1.13) is the
+/// one before.
 fn desk_model(configured: Option<&str>) -> String {
     configured
         .map(str::trim)

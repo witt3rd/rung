@@ -114,6 +114,9 @@ was `microsoft/microsoft-decision-1`; since 2026-10-15
 no `desk.model` asks the default model; read "Jev" above as "the decision
 model" and `typesafe/jev-1.13` as the model of the first run only. The old
 model is `desk.model: typesafe/jev-1.13`. The
-pass criteria are unchanged; the L7/L9 spend limits hold (the replay in
-`docs/rung-decision-model-replay.md` found the same per-token price). The
+pass criteria are unchanged. The replay in
+`docs/rung-decision-model-replay.md` found the same per-token price for
+jev-1.13 and `microsoft/microsoft-decision-1` only; it did not price
+`typesafe/jev-1.14`, whose price is not measured here, so the L7/L9 spend
+limits are not backed for the new default by that replay. The
 first-run record is not rewritten.

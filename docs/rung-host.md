@@ -254,8 +254,10 @@ desk:                                # rule-only when absent
 ```
 
 **The decision model is one setting.** `desk.model` names it; when absent the
-desk uses `rung_std::decide::DEFAULT_MODEL` (`typesafe/jev-1.14`, 2026-10-15;
-proven on the decisions endpoint, `/api/v1/systemone`, only). The previous
+desk uses `rung_std::decide::DEFAULT_MODEL` (`typesafe/jev-1.14`, 2026-10-15).
+It is reached through the decisions endpoint (`/api/v1/systemone`); the venue
+side reported that it answers there. No recorded run of it exists in this repo
+yet (its fixtures are not recorded). The previous
 default, `microsoft/microsoft-decision-1` (`rung_std::decide::PREVIOUS_MODEL`),
 is one line away: `desk.model: microsoft/microsoft-decision-1`; `typesafe/jev-1.13`
 is `rung_std::decide::LEGACY_MODEL`. The same default and override
