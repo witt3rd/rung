@@ -15,9 +15,13 @@ pub const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 /// carry to the next. This constant is the single default; every consumer
 /// (host desk, turn check, `Recorded`) falls back to it, and each has a
 /// config or env override that names a model explicitly.
-pub const DEFAULT_MODEL: &str = "microsoft/microsoft-decision-1";
-/// The previous decision model, one setting away: set `model:` (host
-/// `desk.model`, agent `turn_check.model`) or `RUNG_DECIDE_MODEL` to this.
+pub const DEFAULT_MODEL: &str = "typesafe/jev-1.14";
+/// The decision model before jev-1.14 (the default 2026-10-09 to 2026-10-12),
+/// one setting away: set `model:` (host `desk.model`, agent
+/// `turn_check.model`) or `RUNG_DECIDE_MODEL` to this.
+pub const PREVIOUS_MODEL: &str = "microsoft/microsoft-decision-1";
+/// The older model that pins the recorded jev-1.13 fixtures; also one
+/// setting away.
 pub const LEGACY_MODEL: &str = "typesafe/jev-1.13";
 
 /// The decision model's context window, in tokens: 32,000, the context length

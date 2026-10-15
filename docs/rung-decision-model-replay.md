@@ -63,5 +63,8 @@ The old fixtures stay as recorded from `typesafe/jev-1.13`.
 
 ## Switching back
 
+*2026-10-15: the default is now `typesafe/jev-1.14`; the microsoft id above is
+`rung_std::decide::PREVIOUS_MODEL`, set the same ways.*
+
 `desk.model: typesafe/jev-1.13` (host), `turn_check.model:` (agent), or
 `RUNG_DECIDE_MODEL` (recorder); see `docs/rung-host.md`.

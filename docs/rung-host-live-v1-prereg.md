@@ -108,7 +108,7 @@ attempt is under `rung-host/live/runs/2026-10-04/`.
 
 The sections above name `typesafe/jev-1.13` as the shadow decider. Since
 [#259](https://github.com/witt3rd/rung/issues/259) the default decision model
-is `microsoft/microsoft-decision-1` (`rung_std::decide::DEFAULT_MODEL`). A run
+was `microsoft/microsoft-decision-1`; since 2026-10-15 `rung_std::decide::DEFAULT_MODEL` is `typesafe/jev-1.14` (the microsoft id is `PREVIOUS_MODEL`, set via `desk.model`). A run
 configured from now on that sets no `desk.model` asks the new model; read
 "Jev" above as "the decision model" and `typesafe/jev-1.13` as the model of
 the first run only. The old model is `desk.model: typesafe/jev-1.13`. The

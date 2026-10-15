@@ -576,7 +576,7 @@ llm:
     fn turn_check_model_defaults_to_the_decision_model_and_the_old_one_is_a_setting() {
         let none = |_: &str| None;
         let t = resolve_turn_check(None, none).unwrap();
-        assert_eq!(t.model, "microsoft/microsoft-decision-1");
+        assert_eq!(t.model, "typesafe/jev-1.14");
         let file: FileConfig =
             serde_yaml::from_str("turn_check:\n  model: typesafe/jev-1.13\n").unwrap();
         let t = resolve_turn_check(file.turn_check.as_ref(), none).unwrap();

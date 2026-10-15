@@ -800,8 +800,12 @@ mod desk_model_tests {
 
     #[test]
     fn the_desk_defaults_to_the_decision_model_and_the_old_one_is_a_setting() {
-        assert_eq!(desk_model(None), "microsoft/microsoft-decision-1");
-        assert_eq!(desk_model(Some("  ")), "microsoft/microsoft-decision-1");
+        assert_eq!(desk_model(None), "typesafe/jev-1.14");
+        assert_eq!(desk_model(Some("  ")), "typesafe/jev-1.14");
+        assert_eq!(
+            desk_model(Some(rung_std::decide::PREVIOUS_MODEL)),
+            "microsoft/microsoft-decision-1"
+        );
         assert_eq!(
             desk_model(Some(rung_std::decide::LEGACY_MODEL)),
             "typesafe/jev-1.13"
