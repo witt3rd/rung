@@ -247,16 +247,20 @@ calendar:                            # owner entries, seeded on the first start 
 desk:                                # rule-only when absent
   mode: shadow                       # decide | shadow | rule_only
   decider: jev                       # System One at base_url (default OpenRouter)
-  # model: typesafe/jev-1.13         # optional; default microsoft/microsoft-decision-1
+  # model: microsoft/microsoft-decision-1  # optional; default typesafe/jev-1.14
   api_key_env: OPENROUTER_API_KEY    # the env var's name, never the key
   cap_usd_day: 0.25                  # default 0.25; per ask 0.001 (cap_usd_ask)
   kill_file: /run/rung-host/DESK_OFF # while it exists the decider is not asked
 ```
 
 **The decision model is one setting.** `desk.model` names it; when absent the
-desk uses `rung_std::decide::DEFAULT_MODEL` (`microsoft/microsoft-decision-1`).
-The previous model, `typesafe/jev-1.13` (`rung_std::decide::LEGACY_MODEL`), is
-one line away: `desk.model: typesafe/jev-1.13`. The same default and override
+desk uses `rung_std::decide::DEFAULT_MODEL` (`typesafe/jev-1.14`, 2026-10-15).
+It is reached through the decisions endpoint (`/api/v1/systemone`); the venue
+side reported that it answers there. No recorded run of it exists in this repo
+yet (its fixtures are not recorded). The previous
+default, `microsoft/microsoft-decision-1` (`rung_std::decide::PREVIOUS_MODEL`),
+is one line away: `desk.model: microsoft/microsoft-decision-1`; `typesafe/jev-1.13`
+is `rung_std::decide::LEGACY_MODEL`. The same default and override
 apply to the agent's turn check (`turn_check.model`) and to `Recorded`
 (`RUNG_DECIDE_MODEL`). Recorded fixtures keep the model that produced them
 and replay pinned to it. The desk's cost estimate (`JEV_USD_PER_INPUT_TOKEN`,

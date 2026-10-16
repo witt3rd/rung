@@ -27,7 +27,8 @@ use std::sync::Arc;
 use rung_agent::turn_check::{self, Turn, TurnReading, arm, turn_ask, turncheck};
 use rung_std::agent::AgentResult;
 use rung_std::decide::{
-    Ask, DEFAULT_MODEL, Decided, Decider, LEGACY_MODEL, Recorded, Undecided, read_answers,
+    Ask, DEFAULT_MODEL, Decided, Decider, LEGACY_MODEL, PREVIOUS_MODEL, Recorded, Undecided,
+    read_answers,
 };
 use rung_std::llm::{ChatMessage, MessageContent, MessageContentBlock, Usage};
 use serde_json::{Value, json};
@@ -784,15 +785,18 @@ fn reading_of(d: &Decided) -> TurnReading {
     }
 }
 
-/// Recorded from the default model (`microsoft/microsoft-decision-1`) by
+/// Recorded from `microsoft/microsoft-decision-1` (`PREVIOUS_MODEL`) by
 /// replaying the legacy fixture's request (docs/rung-decision-model-replay.md):
 /// the response has the System One shape and reads as `narrated`.
 #[test]
 fn the_default_model_response_reads_through_the_same_decider() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/decide/turn_check_decision1/narrated_note.json");
-    let d = Recorded::replay(path).decide(&narration_ask()).unwrap();
-    assert!(d.model.starts_with(DEFAULT_MODEL), "{}", d.model);
+    let d = Recorded::replay(path)
+        .with_model(PREVIOUS_MODEL)
+        .decide(&narration_ask())
+        .unwrap();
+    assert!(d.model.starts_with(PREVIOUS_MODEL), "{}", d.model);
     assert_eq!(d.choice("outcome").unwrap().0, "narrated");
     assert!(d.noul("claims_unperformed_action").unwrap() > 0.5);
 }
