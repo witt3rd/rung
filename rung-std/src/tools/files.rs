@@ -18,7 +18,9 @@ impl Tool for ReadFile {
     }
     fn description(&self) -> &'static str {
         "Read a file or directory. Lines are `N→content` (1-indexed). \
-         The whole file is returned; offset/limit select a window. Do not include the `N→` prefix when editing. \
+         The whole file is returned; offset/limit select a window of lines. A file with one very long line \
+         (minified JSON, say) cannot be cut by lines: read it in parts with from_char/to_char \
+         (characters, counted from 1, ends included); a part comes with the file's totals. Do not include the `N→` prefix when editing. \
          A PNG, JPEG, GIF or WebP image comes back as the image itself, so you can look at it."
     }
     fn input_schema(&self) -> Value {
@@ -27,7 +29,9 @@ impl Tool for ReadFile {
             "properties": {
                 "path": {"type": "string", "description": "File or directory"},
                 "offset": {"type": "integer", "description": "1-indexed start line (files only)"},
-                "limit": {"type": "integer", "description": "Max lines (default: to the end of the file)"}
+                "limit": {"type": "integer", "description": "Max lines (default: to the end of the file)"},
+                "from_char": {"type": "integer", "minimum": 1, "description": "First character to read (files only; not with offset/limit)"},
+                "to_char": {"type": "integer", "minimum": 1, "description": "Last character to read (default: to the end of the file)"}
             },
             "required": ["path"]
         })
@@ -80,7 +84,53 @@ fn read_image(path: &Path, media_type: &str) -> Result<ToolOutput, String> {
     .with_image(image))
 }
 
+/// A character range (1-based, inclusive, Unicode scalar values): the part
+/// with a header naming the file's totals. A range past the end gives the
+/// header and no text.
+fn read_chars(path: &Path, input: &Value) -> Result<Option<String>, String> {
+    let get = |k: &str| -> Result<Option<usize>, String> {
+        match input.get(k) {
+            None | Some(Value::Null) => Ok(None),
+            Some(_) => match fsutil::opt_usize(input, k) {
+                Some(n) if n >= 1 => Ok(Some(n)),
+                _ => Err(format!("`{k}` must be a whole number, 1 or more")),
+            },
+        }
+    };
+    let (fc, tc) = (get("from_char")?, get("to_char")?);
+    if fc.is_none() && tc.is_none() {
+        return Ok(None);
+    }
+    if ["offset", "limit"]
+        .iter()
+        .any(|k| !matches!(input.get(*k), None | Some(Value::Null)))
+    {
+        return Err(
+            "ask for lines (offset/limit) or characters (from_char/to_char), not both".into(),
+        );
+    }
+    let (a, b) = (fc.unwrap_or(1), tc.unwrap_or(usize::MAX));
+    if b < a {
+        return Err("`to_char` is before `from_char`".into());
+    }
+    let (_bom, text) = read_text(path)?;
+    let total = text.chars().count();
+    let lines = if text.is_empty() {
+        0
+    } else {
+        text.split('\n').count() - usize::from(text.ends_with('\n'))
+    };
+    let part: String = text.chars().skip(a - 1).take(b - a + 1).collect();
+    Ok(Some(format!(
+        "[characters {a}-{} of {total}; {lines} lines in the file]\n{part}",
+        b.min(total.max(a))
+    )))
+}
+
 fn read_lines(path: &Path, input: &Value) -> Result<String, String> {
+    if let Some(out) = read_chars(path, input)? {
+        return Ok(out);
+    }
     let offset = fsutil::opt_usize(input, "offset").unwrap_or(1).max(1);
     let limit = fsutil::opt_usize(input, "limit").unwrap_or(usize::MAX);
     let (_bom, text) = read_text(path)?;
