@@ -7,6 +7,16 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (read_file character ranges)
+- `rung-std`: `read_file` takes optional `from_char` / `to_char` (Unicode
+  characters, 1-based, ends included), as `ws_read` does, so a file of one very
+  long line (a tool result saved whole to a file by a host) can be read in
+  parts. A part starts with a header naming the file's character and line
+  totals; a range past the end gives the header and no text; offset/limit
+  together with a character range, or a backwards range, is refused. With no
+  range, and for line reads, nothing changes. Ships in the next release after
+  v0.3.1 (v0.3.2).
+
 ### Added (live strata, host half)
 - `rung-host`: the layers of a turn's context are recorded at its start. A new
   `turn.layers` line (the header and the recall block, whole and redacted, with

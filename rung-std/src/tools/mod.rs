@@ -311,6 +311,56 @@ mod tests {
     }
 
     #[test]
+    fn read_file_reads_a_one_line_file_in_character_ranges() {
+        let dir = tmp("read-chars");
+        let p = dir.join("one.json");
+        let text: String = "{\"k\":\"é世x\"},".repeat(8_000);
+        assert!(text.len() > 100_000 && !text.contains('\n'));
+        std::fs::write(&p, &text).unwrap();
+        let total = text.chars().count();
+        let (mut joined, mut from) = (String::new(), 1usize);
+        while from <= total {
+            let to = from + 4_095;
+            let out = ReadFile
+                .execute(&serde_json::json!({"path": p, "from_char": from, "to_char": to}))
+                .unwrap();
+            let (head, body) = out.split_once('\n').unwrap();
+            assert!(
+                head.starts_with(&format!("[characters {from}-{}", to.min(total))),
+                "{head}"
+            );
+            assert!(out.len() < 12_500, "a piece stays small: {}", out.len());
+            joined.push_str(body);
+            from = to + 1;
+        }
+        assert_eq!(joined, text);
+        let mid = ReadFile
+            .execute(&serde_json::json!({"path": p, "from_char": 2, "to_char": 4}))
+            .unwrap();
+        assert!(mid.ends_with("\n\"k\""), "{mid}");
+        // Past the end: the header, no text. Open-ended ranges work.
+        let past = ReadFile
+            .execute(&serde_json::json!({"path": p, "from_char": total + 10}))
+            .unwrap();
+        assert_eq!(past.lines().count(), 1, "{past}");
+        let tail = ReadFile
+            .execute(&serde_json::json!({"path": p, "from_char": total}))
+            .unwrap();
+        assert!(tail.ends_with(",") && tail.lines().count() == 2);
+        // Lines and characters together, or a backwards range, are refused.
+        assert!(
+            ReadFile
+                .execute(&serde_json::json!({"path": p, "offset": 1, "from_char": 1}))
+                .is_err()
+        );
+        assert!(
+            ReadFile
+                .execute(&serde_json::json!({"path": p, "from_char": 5, "to_char": 2}))
+                .is_err()
+        );
+    }
+
+    #[test]
     fn read_file_through_the_roster_keeps_the_image() {
         let dir = tmp("read-img-roster");
         let p = dir.join("frame.png");
