@@ -604,8 +604,7 @@ fn failed_then_asked_again(
     let turn2 = bodies.recv().unwrap();
     drop(stdin);
     let _ = child.wait();
-    let file = tmp.join(".rung/sessions").join(format!("{sid}.json"));
-    let session = serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
+    let session = rung_agent_core::session::SessionStore::at(tmp.join(".rung/sessions")).load(&sid).map(|s| serde_json::to_value(s).unwrap()).unwrap();
     (r1, turn2, session)
 }
 
@@ -860,9 +859,8 @@ fn session_ops_follow_session_cwd_not_process_cwd() {
             .unwrap()
     };
     let wd = work.to_string_lossy().into_owned();
-    let sess_file = |id: &str| work.join(".rung/sessions").join(format!("{id}.json"));
     let read = |id: &str| -> serde_json::Value {
-        serde_json::from_str(&std::fs::read_to_string(sess_file(id)).unwrap()).unwrap()
+        rung_agent_core::session::SessionStore::at(work.join(".rung/sessions")).load(id).map(|s| serde_json::to_value(s).unwrap()).unwrap()
     };
 
     // Process 1: new in `work`, two prompts, set_mode, close.
