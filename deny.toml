@@ -1,0 +1,37 @@
+# cargo-deny policy: advisories, yanked crates and licences.
+# Every exception below must carry a reason and a review date (YYYY-MM-DD);
+# an exception without both is not accepted in review.
+
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+# Exceptions: { id = "RUSTSEC-XXXX-NNNN", reason = "why it is safe here (review YYYY-MM-DD)" }
+ignore = []
+
+[licenses]
+confidence-threshold = 0.8
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0",
+    "MPL-2.0",
+    "OpenSSL",
+    "CDLA-Permissive-2.0",
+]
+
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
