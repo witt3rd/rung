@@ -123,7 +123,7 @@ fn background_unreachable_endpoint_records_error() {
     let sess = tmp
         .join(".rung")
         .join("sessions")
-        .join(format!("{id}.json"));
+        .join(format!("{id}.log"));
     let mut body = String::new();
     for _ in 0..600 {
         if let Ok(s) = std::fs::read_to_string(&sess) {
