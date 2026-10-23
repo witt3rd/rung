@@ -600,7 +600,10 @@ fn when_every_block_is_marked_the_whole_text_is_the_ask() {
 // ─── context in the session ─────────────────────────────────────────────────
 
 fn user_lines(cwd: &Path, sid: &str) -> Vec<String> {
-    let sess: Value = rung_agent_core::session::SessionStore::at(cwd.join(".rung/sessions")).load(sid).map(|s| serde_json::to_value(s).unwrap()).unwrap();
+    let sess: Value = rung_agent_core::session::SessionStore::at(cwd.join(".rung/sessions"))
+        .load(sid)
+        .map(|s| serde_json::to_value(s).unwrap())
+        .unwrap();
     sess["lines"]
         .as_array()
         .unwrap()

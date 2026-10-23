@@ -153,7 +153,10 @@ impl Acp {
     }
 
     fn session(&self) -> Value {
-        rung_agent_core::session::SessionStore::at(self.dir.join(".rung/sessions")).load(&self.sid).map(|s| serde_json::to_value(s).unwrap()).unwrap()
+        rung_agent_core::session::SessionStore::at(self.dir.join(".rung/sessions"))
+            .load(&self.sid)
+            .map(|s| serde_json::to_value(s).unwrap())
+            .unwrap()
     }
 }
 

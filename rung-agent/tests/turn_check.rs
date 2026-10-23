@@ -236,7 +236,10 @@ fn run(mut c: Command, tools: &str, prompt: &str) -> Run {
 }
 
 fn session_status(tmp: &Path, id: &str) -> String {
-    let s: Value = rung_agent_core::session::SessionStore::at(tmp.join(".rung/sessions")).load(id).map(|s| serde_json::to_value(s).unwrap()).unwrap();
+    let s: Value = rung_agent_core::session::SessionStore::at(tmp.join(".rung/sessions"))
+        .load(id)
+        .map(|s| serde_json::to_value(s).unwrap())
+        .unwrap();
     s["status"].as_str().unwrap().to_string()
 }
 
@@ -312,7 +315,10 @@ fn a_failed_rerun_keeps_the_steps_it_ran() {
 
     let id = r.out["task_id"].as_str().unwrap();
     assert_eq!(session_status(&tmp, id), "unverified");
-    let s: Value = rung_agent_core::session::SessionStore::at(tmp.join(".rung/sessions")).load(id).map(|s| serde_json::to_value(s).unwrap()).unwrap();
+    let s: Value = rung_agent_core::session::SessionStore::at(tmp.join(".rung/sessions"))
+        .load(id)
+        .map(|s| serde_json::to_value(s).unwrap())
+        .unwrap();
     let line = &s["lines"][1];
     assert_eq!(line["role"], "assistant", "{s}");
     assert_eq!(line["text"], NARRATION, "{s}");
@@ -632,7 +638,9 @@ fn task_reply() -> Value {
 fn parent_and_child(tmp: &Path, parent: &str) -> (String, String) {
     let dir = tmp.join(".rung/sessions");
     let text = serde_json::to_string(
-        &rung_agent_core::session::SessionStore::at(&dir).load(parent).unwrap(),
+        &rung_agent_core::session::SessionStore::at(&dir)
+            .load(parent)
+            .unwrap(),
     )
     .unwrap();
     let child: Vec<String> = std::fs::read_dir(&dir)

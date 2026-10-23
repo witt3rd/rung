@@ -604,7 +604,10 @@ fn failed_then_asked_again(
     let turn2 = bodies.recv().unwrap();
     drop(stdin);
     let _ = child.wait();
-    let session = rung_agent_core::session::SessionStore::at(tmp.join(".rung/sessions")).load(&sid).map(|s| serde_json::to_value(s).unwrap()).unwrap();
+    let session = rung_agent_core::session::SessionStore::at(tmp.join(".rung/sessions"))
+        .load(&sid)
+        .map(|s| serde_json::to_value(s).unwrap())
+        .unwrap();
     (r1, turn2, session)
 }
 
@@ -860,7 +863,10 @@ fn session_ops_follow_session_cwd_not_process_cwd() {
     };
     let wd = work.to_string_lossy().into_owned();
     let read = |id: &str| -> serde_json::Value {
-        rung_agent_core::session::SessionStore::at(work.join(".rung/sessions")).load(id).map(|s| serde_json::to_value(s).unwrap()).unwrap()
+        rung_agent_core::session::SessionStore::at(work.join(".rung/sessions"))
+            .load(id)
+            .map(|s| serde_json::to_value(s).unwrap())
+            .unwrap()
     };
 
     // Process 1: new in `work`, two prompts, set_mode, close.
@@ -931,7 +937,17 @@ fn session_ops_follow_session_cwd_not_process_cwd() {
     assert_eq!(read(&sid)["lines"].as_array().unwrap().len(), 6);
     assert!(!launch.join(".rung/sessions").exists());
     ask("session/delete", json!({"sessionId": sid}));
-    assert!(!sess_file(&sid).exists(), "delete missed the session cwd");
+    assert!(
+        !work
+            .join(".rung/sessions")
+            .join(format!("{sid}.log"))
+            .exists()
+            && !work
+                .join(".rung/sessions")
+                .join(format!("{sid}.json"))
+                .exists(),
+        "delete missed the session cwd"
+    );
     drop(stdin);
     let _ = child.wait();
 }
