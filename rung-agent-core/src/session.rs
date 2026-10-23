@@ -156,7 +156,10 @@ impl SessionStore {
         let p = self.path(id)?;
         if p.is_file() {
             let body = fs::read(&p).map_err(|e| format!("session {id}: {e}"))?;
-            return replay(&body).map(|(s, _)| s).map(Some).map_err(|e| format!("session {id}: {e}"));
+            return replay(&body)
+                .map(|(s, _)| s)
+                .map(Some)
+                .map_err(|e| format!("session {id}: {e}"));
         }
         let lp = self.legacy_path(id)?;
         if lp.is_file() {
@@ -219,7 +222,15 @@ impl SessionStore {
             .create(true)
             .open(&p)
             .map_err(|e| err(e.to_string()))?;
-        f.lock().map_err(|e| err(e.to_string()))?;
+        // Exclusive advisory lock, released when `f` closes. (`File::lock`
+        // needs Rust 1.89; the MSRV is 1.88.)
+        {
+            use std::os::unix::io::AsRawFd;
+            // SAFETY: flock on a descriptor `f` owns for this whole call.
+            if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX) } != 0 {
+                return Err(err(std::io::Error::last_os_error().to_string()));
+            }
+        }
         let mut body = Vec::new();
         std::io::Read::read_to_end(&mut f, &mut body).map_err(|e| err(e.to_string()))?;
         let (mut base, valid) = if body.is_empty() {
@@ -302,11 +313,16 @@ enum Rec {
     /// The session's fields, with no lines; the last one wins.
     Head(Session),
     Push(Line),
-    Truncate { len: usize },
+    Truncate {
+        len: usize,
+    },
 }
 
 fn head_of(s: &Session) -> Session {
-    Session { lines: Vec::new(), ..s.clone() }
+    Session {
+        lines: Vec::new(),
+        ..s.clone()
+    }
 }
 
 /// Replay a log: the session and the byte length of its valid records. A
