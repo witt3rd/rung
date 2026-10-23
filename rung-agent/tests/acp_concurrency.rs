@@ -228,8 +228,10 @@ fn stdio_close_cancels_mid_turn() {
     assert_eq!(got[0]["result"]["stopReason"], "cancelled", "{}", got[0]);
     assert!(got[1].get("result").is_some(), "{}", got[1]);
     assert_eq!(seen(&bodies), 1, "the closed turn called the LLM again");
-    let file = a.tmp.join(".rung/sessions").join(format!("{sid}.json"));
-    let sess: Value = serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
+    let sess: Value = rung_agent_core::session::SessionStore::at(a.tmp.join(".rung/sessions"))
+        .load(&sid)
+        .map(|s| serde_json::to_value(s).unwrap())
+        .unwrap();
     assert_eq!(sess["status"], "closed", "{sess}");
 }
 

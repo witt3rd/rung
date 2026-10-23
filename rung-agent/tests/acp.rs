@@ -140,17 +140,14 @@ fn fork_resume_does_not_replay_load_does() {
     let created = read_json(&mut stdout);
     let sid = created["result"]["sessionId"].as_str().expect("sessionId");
 
-    let path = tmp
-        .join(".rung")
-        .join("sessions")
-        .join(format!("{sid}.json"));
-    let mut sess: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-    sess["lines"] = json!([
+    let store = rung_agent_core::session::SessionStore::at(tmp.join(".rung").join("sessions"));
+    let mut sess = store.load(sid).unwrap();
+    sess.lines = serde_json::from_value(json!([
         {"role": "user", "text": "hi"},
         {"role": "assistant", "text": "secret-replay"}
-    ]);
-    std::fs::write(&path, serde_json::to_string_pretty(&sess).unwrap()).unwrap();
+    ]))
+    .unwrap();
+    store.save(&sess).unwrap();
 
     writeln!(
         stdin,
@@ -604,8 +601,10 @@ fn failed_then_asked_again(
     let turn2 = bodies.recv().unwrap();
     drop(stdin);
     let _ = child.wait();
-    let file = tmp.join(".rung/sessions").join(format!("{sid}.json"));
-    let session = serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
+    let session = rung_agent_core::session::SessionStore::at(tmp.join(".rung/sessions"))
+        .load(&sid)
+        .map(|s| serde_json::to_value(s).unwrap())
+        .unwrap();
     (r1, turn2, session)
 }
 
@@ -860,9 +859,11 @@ fn session_ops_follow_session_cwd_not_process_cwd() {
             .unwrap()
     };
     let wd = work.to_string_lossy().into_owned();
-    let sess_file = |id: &str| work.join(".rung/sessions").join(format!("{id}.json"));
     let read = |id: &str| -> serde_json::Value {
-        serde_json::from_str(&std::fs::read_to_string(sess_file(id)).unwrap()).unwrap()
+        rung_agent_core::session::SessionStore::at(work.join(".rung/sessions"))
+            .load(id)
+            .map(|s| serde_json::to_value(s).unwrap())
+            .unwrap()
     };
 
     // Process 1: new in `work`, two prompts, set_mode, close.
@@ -933,7 +934,17 @@ fn session_ops_follow_session_cwd_not_process_cwd() {
     assert_eq!(read(&sid)["lines"].as_array().unwrap().len(), 6);
     assert!(!launch.join(".rung/sessions").exists());
     ask("session/delete", json!({"sessionId": sid}));
-    assert!(!sess_file(&sid).exists(), "delete missed the session cwd");
+    assert!(
+        !work
+            .join(".rung/sessions")
+            .join(format!("{sid}.log"))
+            .exists()
+            && !work
+                .join(".rung/sessions")
+                .join(format!("{sid}.json"))
+                .exists(),
+        "delete missed the session cwd"
+    );
     drop(stdin);
     let _ = child.wait();
 }
