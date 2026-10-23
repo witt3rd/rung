@@ -140,17 +140,14 @@ fn fork_resume_does_not_replay_load_does() {
     let created = read_json(&mut stdout);
     let sid = created["result"]["sessionId"].as_str().expect("sessionId");
 
-    let path = tmp
-        .join(".rung")
-        .join("sessions")
-        .join(format!("{sid}.json"));
-    let mut sess: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-    sess["lines"] = json!([
+    let store = rung_agent_core::session::SessionStore::at(tmp.join(".rung").join("sessions"));
+    let mut sess = store.load(sid).unwrap();
+    sess.lines = serde_json::from_value(json!([
         {"role": "user", "text": "hi"},
         {"role": "assistant", "text": "secret-replay"}
-    ]);
-    std::fs::write(&path, serde_json::to_string_pretty(&sess).unwrap()).unwrap();
+    ]))
+    .unwrap();
+    store.save(&sess).unwrap();
 
     writeln!(
         stdin,
