@@ -35,7 +35,7 @@ EXPECTED_GATES=(
 if [ $# -eq 0 ]; then
   missing=()
   for g in "${EXPECTED_GATES[@]}"; do
-    grep -Eq "^test .*(::|[ ])$g \.\.\. ok" "$log" || missing+=("$g")
+    grep -Eq "^test (.*::)?$g \.\.\. ok" "$log" || missing+=("$g")
   done
   if [ ${#missing[@]} -ne 0 ]; then
     echo "expected gates did not run:" >&2
