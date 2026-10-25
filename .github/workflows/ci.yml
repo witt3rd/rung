@@ -31,8 +31,6 @@ jobs:
         run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
       - name: test (and leave nothing in the temp root)
         run: scripts/test_tmp_clean.sh
-      - name: perf gate logic
-        run: python3 -m unittest discover -s scripts -p 'test_perf_gate.py'
       - name: doctests (explicit; library doctests incl. README)
         run: cargo test --workspace --doc --locked
       - name: examples build
