@@ -7,6 +7,12 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (performance gate)
+- `scripts/perf_gate.py`: cold start, memory at a 10 MiB session and session
+  switch time for rung-agent, medians over interleaved trials against a scripted
+  model; noisy metrics are withheld; the gate fails on more than 10 percent
+  regression. No baseline is recorded yet.
+
 ### Added (live strata, host half)
 - `rung-host`: the layers of a turn's context are recorded at its start. A new
   `turn.layers` line (the header and the recall block, whole and redacted, with
