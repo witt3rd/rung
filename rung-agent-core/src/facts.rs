@@ -212,11 +212,8 @@ mod tests {
       {"id":"b/free","context_length":0,"pricing":{"prompt":"-1"}},
       {"context_length":5}]}"#;
 
-    fn tmp(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("rung-facts-{}-{name}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
-        d
+    fn tmp(name: &str) -> rung_testkit::TempDir {
+        rung_testkit::TempDir::new(name)
     }
 
     #[test]
