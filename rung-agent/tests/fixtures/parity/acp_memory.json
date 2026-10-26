@@ -79,8 +79,8 @@
         "[rung-std] call-0000: starting LLM call (attempt 1/32)",
         "[rung-std] call-0000: end_turn — Noted: the gate opens at nine.",
         "[rung-agent] memory: retain stored",
-        "[rung-std] call-0001: starting LLM call (attempt 1/32)",
-        "[rung-std] call-0001: end_turn — At nine.",
+        "[rung-std] call-0000: starting LLM call (attempt 1/32)",
+        "[rung-std] call-0000: end_turn — At nine.",
         "[rung-agent] memory: retain stored"
       ],
       "exit": 0
