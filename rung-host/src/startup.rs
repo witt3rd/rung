@@ -289,6 +289,19 @@ impl std::fmt::Display for Refusal {
     }
 }
 
+/// Share of the smallest ladder window the epoch budget takes.
+const EPOCH_WINDOW_FRACTION: f64 = 0.5;
+
+/// Set the epoch budget from the facts table: the fraction of the smallest
+/// window among the ladder's listed models (the rung that falls back to must
+/// fit too); the configured budget stands when none is listed.
+pub(crate) fn apply_window(config: &mut HostConfig, table: &rung_agent_core::facts::FactsTable) {
+    let smallest = config.ladder.iter().filter_map(|m| table.window(m)).min();
+    if let Some(w) = smallest {
+        config.epoch_budget_tokens = ((w as f64) * EPOCH_WINDOW_FRACTION) as usize;
+    }
+}
+
 fn refuse(why: impl Into<String>) -> Refusal {
     Refusal {
         stage: "configured",
@@ -410,6 +423,9 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
                 let engine = AgentEngine::new(ac, clock.clone())
                     .map_err(|e| refuse(format!("engine: {e}")))?;
                 let listing = f.listing.unwrap_or(true);
+                if listing && f.epoch_budget_tokens.is_none() {
+                    apply_window(&mut config, rung_agent_core::facts::global(&base, &key));
+                }
                 let lister = listing.then(|| Arc::new(HttpLister::new(&base)) as Arc<dyn Lister>);
                 if listing && f.probe.unwrap_or(true) {
                     prober = Some(Arc::new(HttpProber::new(&base, &key)));
@@ -799,6 +815,21 @@ impl Handoff {
 #[cfg(test)]
 mod desk_model_tests {
     use super::desk_model;
+
+    #[test]
+    fn the_epoch_budget_follows_the_smallest_listed_window() {
+        let t = rung_agent_core::facts::parse_listing(
+            r#"{"data":[{"id":"a/big","context_length":200000},{"id":"b/small","context_length":32000}]}"#,
+        )
+        .unwrap();
+        let mut c = HostConfig::new(std::env::temp_dir());
+        c.ladder = vec!["a/big".into(), "b/small".into(), "c/unlisted".into()];
+        apply_window(&mut c, &t);
+        assert_eq!(c.epoch_budget_tokens, 16_000);
+        c.ladder = vec!["c/unlisted".into()];
+        apply_window(&mut c, &t);
+        assert_eq!(c.epoch_budget_tokens, 16_000, "unlisted keeps the budget");
+    }
 
     #[test]
     fn the_desk_defaults_to_the_decision_model_and_the_old_one_is_a_setting() {
