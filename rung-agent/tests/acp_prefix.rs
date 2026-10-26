@@ -50,6 +50,7 @@ impl Acp {
             .env("RUNG_HOME", cwd)
             .env("RUNG_BASE_URL", url)
             .env("RUNG_MODEL", "m")
+            .env("RUNG_MODEL_FACTS", "off")
             .env("RUNG_API_KEY", "k")
             .env("RUNG_PROTOCOL", "openai")
             .env_remove("RUNG_TURN_CHECK")

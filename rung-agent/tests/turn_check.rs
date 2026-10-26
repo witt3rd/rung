@@ -196,6 +196,7 @@ fn agent(tmp: &Path, llm: &str, jev: Option<&str>) -> Command {
         .env("RUNG_HOME", tmp)
         .env("RUNG_BASE_URL", llm)
         .env("RUNG_MODEL", "m")
+        .env("RUNG_MODEL_FACTS", "off")
         .env("RUNG_API_KEY", "k")
         .env("RUNG_PROTOCOL", "openai")
         // The judge's key: a dummy, so a recording run's real key never
