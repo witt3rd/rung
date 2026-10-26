@@ -225,6 +225,12 @@ component of `state` when absent), `workspace`, `identity`, `owner_channel`,
 `epoch_budget_tokens`, `turn_bound_s`, `backoff_base_ms`, `seed_projects`
 (`[{id, title, why}]`), and under `engine`: `step_cap`, `timeout_s`.
 
+When `epoch_budget_tokens` is not set and the listing is on, the budget is
+half the smallest context window among the ladder's models in the model facts
+table (built from the router listing, cached, overridable in
+`$XDG_CONFIG_HOME/rung/model-facts.json`); a ladder with no listed window keeps
+the default. `RUNG_MODEL_FACTS=off` skips the listing request.
+
 ### Instances
 
 `rung-host run` writes one small entry per instance under
