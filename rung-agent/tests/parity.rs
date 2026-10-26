@@ -394,6 +394,8 @@ fn replay(f: &Fixture) -> Fixture {
         for (k, v) in &f.env {
             cmd.env(k, norm.undo(v));
         }
+        // the 0.1.13 goldens predate the model listing request
+        cmd.env("RUNG_MODEL_FACTS", "off");
         let mut child = cmd.spawn().unwrap();
         let mut stderr = child.stderr.take().unwrap();
         let err_reader = std::thread::spawn(move || {
@@ -508,7 +510,6 @@ fn base_env() -> BTreeMap<String, String> {
         ("RUNG_HOME", "<tmp>"),
         ("RUNG_BASE_URL", "<llm>"),
         ("RUNG_MODEL", "m"),
-        ("RUNG_MODEL_FACTS", "off"),
         ("RUNG_API_KEY", "k"),
         ("RUNG_PROTOCOL", "openai"),
     ]
