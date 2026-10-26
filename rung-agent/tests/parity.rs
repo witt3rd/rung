@@ -508,6 +508,7 @@ fn base_env() -> BTreeMap<String, String> {
         ("RUNG_HOME", "<tmp>"),
         ("RUNG_BASE_URL", "<llm>"),
         ("RUNG_MODEL", "m"),
+        ("RUNG_MODEL_FACTS", "off"),
         ("RUNG_API_KEY", "k"),
         ("RUNG_PROTOCOL", "openai"),
     ]
