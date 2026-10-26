@@ -38,6 +38,7 @@
 
 pub mod acp;
 pub mod acp_http;
+pub mod acp_proxy;
 pub mod args;
 pub mod background;
 pub mod catalog;

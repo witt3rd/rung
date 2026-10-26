@@ -243,19 +243,18 @@ fn stdio_cancel_between_turns_is_a_no_op() {
     assert_eq!(r["result"]["stopReason"], "end_turn", "{r}");
 }
 
-/// Turns off the loop still run one at a time, in arrival order: the second
-/// session's turn reaches the LLM only after the first's reply. (A turn sets
+/// Turns of one session still run one at a time, in arrival order: the second
+/// turn reaches the LLM only after the first's reply. (A turn sets
 /// the process cwd; two at once would race it.)
 #[test]
-fn stdio_turns_stay_serialized() {
+fn stdio_turns_of_a_session_stay_serialized() {
     let (mut a, bodies) = Stdio1::spawn(vec![
         (HOLD, text_reply("first")),
         (Duration::ZERO, text_reply("second")),
     ]);
     let s1 = a.open();
-    let s2 = a.new_session(3);
     a.request(4, "session/prompt", prompt(&s1, "one"));
-    a.request(5, "session/prompt", prompt(&s2, "two"));
+    a.request(5, "session/prompt", prompt(&s1, "two"));
     for r in a.responses(2) {
         assert_eq!(r["result"]["stopReason"], "end_turn", "{r}");
     }
