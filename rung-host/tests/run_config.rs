@@ -26,6 +26,7 @@ fn run(cfg: &Path, turns: Option<u64>, key: Option<&str>) -> Output {
     }
     // The host registers itself: keep that out of the operator's home.
     c.env("RUNG_HOME", cfg.with_extension("rung-home"));
+    c.env("RUNG_MODEL_FACTS", "off");
     match key {
         Some(k) => c.env(KEY_ENV, k),
         None => c.env_remove(KEY_ENV),
@@ -523,6 +524,7 @@ fn a_pacing_wait_sends_no_acknowledgement() {
         .args(["run", "--config", cfg.to_str().unwrap(), "--turns", "2"])
         .env(KEY_ENV, "k")
         .env("RUNG_HOME", root.join("rung-home"))
+        .env("RUNG_MODEL_FACTS", "off")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
