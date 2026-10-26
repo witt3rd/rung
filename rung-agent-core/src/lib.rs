@@ -43,6 +43,7 @@ pub mod background;
 pub mod catalog;
 pub mod config;
 pub mod engine;
+pub mod facts;
 pub mod isolation;
 pub mod mcp;
 pub mod memory;
