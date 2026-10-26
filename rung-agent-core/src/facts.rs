@@ -182,13 +182,19 @@ fn fetch_listing(base_url: &str, api_key: &str) -> Result<String, String> {
     resp.text().map_err(|e| e.to_string())
 }
 
-/// The process's table, built once from the configured endpoint. Blocking
+/// The process's table (`RUNG_MODEL_FACTS=off` skips the listing request;
+/// the cache and override file still apply), built once from the configured endpoint. Blocking
 /// on first use (one listing request, ten second bound).
 pub fn global(base_url: &str, api_key: &str) -> &'static FactsTable {
     static TABLE: OnceLock<FactsTable> = OnceLock::new();
     TABLE.get_or_init(|| {
         build(
-            || fetch_listing(base_url, api_key),
+            || {
+                if std::env::var("RUNG_MODEL_FACTS").is_ok_and(|v| v == "off") {
+                    return Err("model listing: off (RUNG_MODEL_FACTS=off)".into());
+                }
+                fetch_listing(base_url, api_key)
+            },
             &xdg("XDG_CACHE_HOME", ".cache").join("model-facts.json"),
             &xdg("XDG_CONFIG_HOME", ".config").join("model-facts.json"),
         )
