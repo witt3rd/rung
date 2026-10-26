@@ -822,12 +822,12 @@ mod desk_model_tests {
             r#"{"data":[{"id":"a/big","context_length":200000},{"id":"b/small","context_length":32000}]}"#,
         )
         .unwrap();
-        let mut c = HostConfig::new(std::env::temp_dir());
+        let mut c = crate::core::HostConfig::new(std::env::temp_dir());
         c.ladder = vec!["a/big".into(), "b/small".into(), "c/unlisted".into()];
-        apply_window(&mut c, &t);
+        super::apply_window(&mut c, &t);
         assert_eq!(c.epoch_budget_tokens, 16_000);
         c.ladder = vec!["c/unlisted".into()];
-        apply_window(&mut c, &t);
+        super::apply_window(&mut c, &t);
         assert_eq!(c.epoch_budget_tokens, 16_000, "unlisted keeps the budget");
     }
 

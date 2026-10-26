@@ -587,6 +587,7 @@ fn raw_meta(event: &StreamEvent) -> serde_json::Map<String, Value> {
     meta
 }
 
+#[cfg(test)]
 fn update_for_event(event: StreamEvent, streamed_text: &AtomicBool) -> SessionUpdate {
     update_for_event_sized(event, streamed_text, 0)
 }

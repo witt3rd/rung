@@ -129,10 +129,10 @@ fn write_cache(path: &Path, table: &FactsTable) {
         let _ = std::fs::create_dir_all(dir);
     }
     let tmp = path.with_extension("tmp");
-    if let Ok(body) = serde_json::to_string(table) {
-        if std::fs::write(&tmp, body).is_ok() {
-            let _ = std::fs::rename(&tmp, path);
-        }
+    if let Ok(body) = serde_json::to_string(table)
+        && std::fs::write(&tmp, body).is_ok()
+    {
+        let _ = std::fs::rename(&tmp, path);
     }
 }
 
