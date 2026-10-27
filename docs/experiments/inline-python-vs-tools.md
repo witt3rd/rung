@@ -1,10 +1,29 @@
 # Experiment: inline Python vs tool loop on long-input cases (issue #268)
 
-Status: **harness ready, experiment NOT run.** No result is claimed.
+Status: **harness ready, switch added, experiment NOT run.** No result is claimed.
+
+## The switch
+`RUNG_INLINE_PYTHON=off|also|only` (unset = off) selects the `InlinePython`
+mode for `rung-agent` jobs. `also`: tools stay on the wire and a text draft
+may be struck. `only`: no tools on the wire. The sandbox is
+`<workspace>/.rung/python-inline`.
+
+## Command a fleet host runs
+Needs Harbor, Docker and `OPENROUTER_API_KEY`; run from the repo root, once
+per mode, with the same `SUITE_MODEL` and cases (>=3 trials each):
+```
+export SUITE_MODEL=<model>
+RUNG_INLINE_PYTHON=off  python3 -m rung_harbor.validate run <case>   # Mode A (job dir A)
+RUNG_INLINE_PYTHON=also python3 -m rung_harbor.validate run <case>   # Mode B (job dir B)
+python3 -m rung_harbor.inline_compare --tools A_DIR --inline B_DIR
+```
+(Whether `validate run` forwards the env into the container is unchecked:
+confirm before trusting Mode B. The measured result is the
+`inline_compare` output.)
 
 ## Why it was not run
 The authoring environment had no Harbor, no Docker and no OpenRouter key.
-Also found while reading the code: `rung-agent` cannot select inline Python.
+Also found while reading the code: `rung-agent` could not select inline Python (now fixed, see above).
 `rung-agent-core/src/engine.rs` `carry()` sets `python: None`; the `python`
 tool group only admits the sandbox as a named tool (`--tools ...,python`),
 which is a third mode, not the `InlinePython` channel

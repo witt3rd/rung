@@ -345,3 +345,35 @@ fn the_mcp_roster_lives_across_turns_and_reconnects_when_a_server_is_gone() {
     assert!(results[1].contains("pong"), "{}", results[1]);
     assert!(results[3].contains("pong"), "{}", results[3]);
 }
+
+#[test]
+fn inline_python_is_off_by_default_and_only_mode_sends_no_tools() {
+    use rung_agent_core::engine::InlineMode;
+    assert_eq!(InlineMode::parse("").unwrap(), None);
+    assert_eq!(InlineMode::parse("off").unwrap(), None);
+    assert_eq!(InlineMode::parse("also").unwrap(), Some(InlineMode::Also));
+    assert_eq!(InlineMode::parse("only").unwrap(), Some(InlineMode::Only));
+    assert!(InlineMode::parse("bogus").is_err());
+
+    let tmp = tempdir("inline");
+    let (url, bodies) = mock_llm(vec![text_reply("plain"), text_reply("plain")]);
+    let off = Engine::new(spec(&url, "read", &tmp)).unwrap();
+    let sink = Arc::new(Keep::default());
+    done(off.turn(ask("hi"), ctl(&sink)));
+    let first = bodies.recv().unwrap();
+    assert!(first["tools"].as_array().is_some_and(|t| !t.is_empty()));
+
+    let only = Engine::build(spec(&url, "read", &tmp))
+        .unwrap()
+        .with_inline_python(Some(InlineMode::Only))
+        .connect()
+        .unwrap();
+    done(only.turn(ask("hi"), ctl(&sink)));
+    let second = bodies.recv().unwrap();
+    assert!(
+        second
+            .get("tools")
+            .is_none_or(|t| t.as_array().is_some_and(|a| a.is_empty())),
+        "{second}"
+    );
+}
