@@ -124,6 +124,39 @@ pub struct Engine {
     base: Arc<dyn Toolset>,
     mcp_specs: Vec<McpSpec>,
     mcp: Mutex<Option<Arc<McpRoster>>>,
+    /// Inline Python on the loop (off unless the builder sets it).
+    python: Option<agent::InlinePython>,
+}
+
+/// Which inline-Python channel a turn runs with (`RUNG_INLINE_PYTHON`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InlineMode {
+    /// Tools stay on the wire; a text-only draft may still be struck.
+    Also,
+    /// No tools on the wire; strike results come back, prose ends the loop.
+    Only,
+}
+
+impl InlineMode {
+    /// Parse `also` / `only`; empty or `off` is `None` (the default).
+    pub fn parse(s: &str) -> Result<Option<Self>, String> {
+        match s.trim() {
+            "" | "off" => Ok(None),
+            "also" => Ok(Some(Self::Also)),
+            "only" => Ok(Some(Self::Only)),
+            other => Err(format!(
+                "RUNG_INLINE_PYTHON: `{other}` is not off, also or only"
+            )),
+        }
+    }
+
+    /// `RUNG_INLINE_PYTHON`; unset is off.
+    pub fn from_env() -> Result<Option<Self>, String> {
+        match std::env::var("RUNG_INLINE_PYTHON") {
+            Ok(v) => Self::parse(&v),
+            Err(_) => Ok(None),
+        }
+    }
 }
 
 impl std::fmt::Debug for Engine {
@@ -142,6 +175,7 @@ pub struct EngineBuilder {
     spec: EngineSpec,
     roster: ToolRoster,
     outer: Option<Arc<dyn Toolset>>,
+    inline: Option<InlineMode>,
 }
 
 impl Engine {
@@ -164,6 +198,7 @@ impl Engine {
             spec,
             roster,
             outer: None,
+            inline: None,
         })
     }
 
@@ -228,7 +263,7 @@ impl Engine {
             },
             tools,
             config,
-            python: None,
+            python: self.python.clone(),
         }
     }
 
@@ -346,13 +381,34 @@ impl EngineBuilder {
         self
     }
 
+    /// Run turns with inline Python (`None` leaves it off). The sandbox
+    /// lives in `<workspace>/.rung/python-inline`.
+    pub fn with_inline_python(mut self, mode: Option<InlineMode>) -> Self {
+        self.inline = mode;
+        self
+    }
+
     /// Connect the MCP servers and finish the engine.
     pub fn connect(self) -> Result<Engine, String> {
         let EngineBuilder {
             spec,
             roster,
             outer,
+            inline,
         } = self;
+        let python = match inline {
+            None => None,
+            Some(mode) => {
+                let dir = spec.workspace.join(".rung").join("python-inline");
+                let sb =
+                    rung_std::python::Sandbox::open(rung_std::python::SandboxConfig::in_dir(&dir))
+                        .map_err(|e| format!("inline python sandbox: {e}"))?;
+                Some(match mode {
+                    InlineMode::Also => agent::InlinePython::also(sb),
+                    InlineMode::Only => agent::InlinePython::only(sb),
+                })
+            }
+        };
         let mut base: Arc<dyn Toolset> = Arc::new(roster);
         if let Some(outer) = outer {
             base = Arc::new(crate::memory::Layered { inner: base, outer });
@@ -372,6 +428,7 @@ impl EngineBuilder {
             base,
             mcp_specs: spec.mcp,
             mcp: Mutex::new(mcp),
+            python,
         })
     }
 }
