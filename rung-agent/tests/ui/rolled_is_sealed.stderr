@@ -1,0 +1,16 @@
+error[E0624]: associated function `new` is private
+ --> tests/ui/rolled_is_sealed.rs:8:13
+  |
+8 |       Rolled::new(c)
+  |               ^^^ private associated function
+  |
+ ::: $WORKSPACE/rung-agent-core/src/compact.rs
+  |
+  | / ladder!(Compaction {
+  | |     carry {
+  | |         policy: Policy,
+  | |         summarizer: Arc<dyn Summarizer>,
+... |
+  | |     },
+  | | });
+  | |__- private associated function defined here
