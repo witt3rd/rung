@@ -19,10 +19,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - name: records are append-only
+        run: docs/_records_guard.py "origin/${{ github.base_ref || 'master' }}"
       - name: fmt
         run: cargo fmt --check
       - name: clippy
@@ -64,8 +68,6 @@ jobs:
         run: docs/_props.py cited
       - name: no consumer-specific names (one-way rule)
         run: docs/_consumer_guard.py
-      - name: records are append-only
-        run: docs/_records_guard.py "origin/${{ github.base_ref || 'master' }}"
 
   # Verification only: this job never publishes (no cargo publish, no token).
   release-check:
