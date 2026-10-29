@@ -1,10 +1,9 @@
 # rung-host API — the doors a UI or gateway uses
 
 This is the written shape of what the continuous host offers to something
-that is not the agent: a command, files, and (as the slices land) HTTP doors.
+that is not the agent: a command, files and HTTP doors.
 It is the contract between the host and the multi-instance UI
-(`docs/reports/rung-ui-design-v1/`). A section is appended as its slice
-merges and is kept stable after: changes inside version 1 only add; a
+(`docs/reports/rung-ui-design-v1/`). Each section is kept stable once written: changes inside version 1 only add; a
 removed or renamed field needs version 2.
 
 Rules that hold for every door:
@@ -1635,39 +1634,24 @@ intent survives a restart.
 
 ### What the host does with it
 
-- **`next`**, as before: `now` at the next boundary, always.
-- **`steer`**: read at the next boundary, always, like `next`. The turn header marks
-  its row `[owner/id @time · steer]`. It cuts a long tool call exactly as an owner item
-  does (a call past one second is cut as soon as it waits; the call's result says the
-  owner is waiting): the same `OwnerWatch`, with no second mechanism, and the steer is
-  then read at the very next boundary.
-- **`free`** (plainly: it waits for free time, but a limit wins over the owner's flag, so it
-  is read after 30 minutes at the longest, committed or not): the desk's rule for it is
-  `at_break`, not `now`. The guard reads it when
-  the agent is not committed (free time, mid-session or at a break) and holds it while the
-  agent is committed. It never cuts a long tool call and never wakes a wait the owner
-  may cut (a paced wait), so it costs a committed agent nothing. **The desk's limits
-  and firm deadlines still win**: a firm item that is due is read (an owner item can be
-  firm), and so is any item that has waited its kind's longest (30 minutes for a message
-  from a channel), which means a `free` item sent to an agent that stays committed for
-  longer than that **is read after 30 minutes**; when it is read for that reason it
-  does not lift the hourly limit on interrupting a commitment for any other item. The
-  gates G-b and G-m do not count a `free` item as an owner item left past a boundary.
+What the desk does with each intent (when it is read, what it cuts, what the
+limits and firm deadlines still win) is stated once, in
+[`rung-host.md`](rung-host.md#owner-intent-next-steer-free), and not here. What
+a client of the door can see of it:
+
+- **`steer`** is marked in the turn header's row, `[owner/id @time · steer]`.
+- **`free`** is held while the agent is committed (see "Held" below), and is read
+  after 30 minutes at the longest, committed or not.
 
 ### Order
 
-The owner's items are above every other sender's, always (a peer's item is never above
-an owner's, and a `free` owner item is above a peer's). Within the owner's: `next` and
-`steer` together, in the order sent (they are read at the same boundary: that boundary
-reads them together, in that order); then `free`, in the order sent (it is read later).
-The queue list's `position` and order follow it: owner `next`/`steer`, owner `free`,
-peers, then the host's own items, each in the order they wait in: acceptance, as the
-owner's moves (S3) have changed it. **A move stays inside one of those groups** (the
-group is the read rank, so a `free` item is never moved among the `next` ones, which
-it would not be read among: that move is refused in words, nothing written), and the
-turn header's admitted rows, the `stimulus.admitted` ids and the list are in that one
-order. A message's text in the header, from any sender, is whole (white space runs become one
-space; nothing is cut or ended with an ellipsis); the shared redactor still runs on it.
+There is one read order, defined in `rung-host.md` (owner items first: `next` and
+`steer` together, then `free`; then peers, then the host's own items), and the
+queue list follows it. The list's `position` is that order as the owner's moves (S3)
+have changed it. **A move stays inside one of those groups** (the group is the read
+rank, so a `free` item is never moved among the `next` ones: that move is refused in
+words, nothing written). The turn header's admitted rows, the `stimulus.admitted`
+ids and the list are in that one order.
 
 ### Held
 
