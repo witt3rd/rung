@@ -7,7 +7,7 @@ daily limit). Jev stays on its accounted `OPENROUTER_API_KEY` (`dev_work`),
 Shadow mode, cap $0.25/day per run. `live.sh` supplies both keys through
 `doppler run --only-secrets`; neither is on a command line, in a file or in a
 log. Key scan of every committed file below: 0 occurrences of either key.
-Same harness, stimuli and analyzer as [run 3](rung-host-live-v3-qwen-2h.md).
+Same harness, stimuli and analyzer as [run 3](live-v3-qwen-2h.md).
 Raw numbers per arm: `rung-host/live/runs/2026-10-05-hostkey-*/`
 (`measures.txt`, `measures.json`, `arms.json`, `shadow-audit.md`,
 `coherence-sample.md`).
@@ -141,3 +141,7 @@ not see a step.
    from the ladder and pays the same cold cache. The ladder already absorbs
    429s with a recorded switch. Revisit it if the 429s inside a turn come to
    dominate turn latency.
+
+## Moved, 2026-10-29
+
+This record moved from `docs/rung-host-live-v4-hostkey.md` to this directory; its text above is unchanged apart from relative links. The rule it supports is stated in [`rung-host.md`](../../rung-host.md).

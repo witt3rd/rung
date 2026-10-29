@@ -228,3 +228,7 @@ whole body with a note and an event; a missing `read` group returns the whole
 body; a later turn without `read` gets the refusal naming the path from `ws_read` and `ws_list`, and `ws_write` is unaffected; a line
 range, and a character range over multi-byte text, return exactly the requested view and the totals;
 a one-line body is readable by character range; a restart removes nothing.
+
+## Moved, 2026-10-29
+
+This record moved from `docs/rung-host-web-fetch-spill.md` to this directory; its text above is unchanged apart from relative links. Design record; behaviour today is in [`rung-host.md`](../../rung-host.md) (fetched pages). Superseded: the hook point `WebReader::fetch` is now `fetch_into` and the body is streamed to the file as it arrives, not held whole in memory.

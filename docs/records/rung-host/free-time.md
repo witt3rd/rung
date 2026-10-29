@@ -84,3 +84,7 @@ tool call, filler length, retained candidates, and whether
 What it does not fix: turns still start every few seconds with nothing
 admitted, so quota is spent either way. Pacing idle turns is a separate
 host change, not free-time material.
+
+## Moved, 2026-10-29
+
+This record moved from `docs/rung-host-free-time.md` to this directory; its text above is unchanged apart from relative links. The idle rule's config key and default (off) are in [`rung-host.md`](../../rung-host.md); [v5](live-v5-idle-rule.md) found it not exercised.

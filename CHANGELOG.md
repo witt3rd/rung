@@ -86,7 +86,7 @@ git tags only.
   the queue doors' write path, and a stopped instance answers in words. The page
   buttons are a separate change. Shapes in `docs/rung-host-api.md` (S7).
 - `rung-host`, `rung-std`: a huge `web_fetch` body is saved whole to a
-  workspace file (`docs/rung-host-web-fetch-spill.md`). A body of at least
+  workspace file (`docs/records/rung-host/web-fetch-spill-design.md`). A body of at least
   `web_spill_bytes` (default 32768, in bytes) is streamed as it arrives to
   `.web/NNNN-<hash>.md` and the tool result is the header line (final URL,
   status) and a notice with the workspace-relative path and exact bytes and
