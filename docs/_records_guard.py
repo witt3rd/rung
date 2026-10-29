@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "origin/master"
-DATED = re.compile(r"\n#{2,6} [^\n]*\d{4}-\d{2}-\d{2}")
+DATED = re.compile(r"\n+#{2,6} [^\n]*\d{4}-\d{2}-\d{2}")
 
 
 def git(*args):
@@ -39,7 +39,7 @@ def main():
             continue
         if not new.startswith(old):
             bad.append(f"{new_path}: existing text was changed, not appended to")
-        elif not DATED.match("\n" + new[len(old):].lstrip("\n")):
+        elif not DATED.match(old[-1:] + new[len(old):]):
             bad.append(f"{new_path}: appended text must begin with a heading that carries a date")
     if bad:
         print("records-guard: FAIL (docs/records/ is append-only)")

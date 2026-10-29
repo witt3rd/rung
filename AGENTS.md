@@ -115,6 +115,7 @@ cargo run -q -p rung-doctrine --bin render -- --check
 docs/_props.py check
 docs/_props.py cited
 docs/_consumer_guard.py
+docs/_records_guard.py
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
 ```
 
@@ -202,6 +203,7 @@ Env `RUNG_*` / `XAI_API_KEY` wins over the agent file.
 | `docs/_props.py check` | stale number or dangling reference |
 | `docs/_props.py cited` | Rust comment citing a missing slug |
 | `docs/_consumer_guard.py` | a consumer-specific name in a tracked file |
+| `docs/_records_guard.py` | an existing record rewritten instead of appended to |
 | `cargo doc` (`-D warnings`) | a broken rustdoc link or warning |
 
 `trybuild` `.stderr` pins refusals. Do not cite `compile_fail` doctests as

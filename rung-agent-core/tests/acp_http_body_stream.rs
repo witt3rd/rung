@@ -167,7 +167,7 @@ async fn a_256_mib_body_arrives_whole_with_flat_memory() {
         "arrived whole, byte-identical, spooled in the configured dir"
     );
 
-    let grown_mib = hwm_kib().saturating_sub(before) / 1024;
+    let grown_mib = (hwm_kib() - before) / 1024;
     assert!(
         grown_mib < 64,
         "peak RSS grew {grown_mib} MiB for a {} MiB body",
