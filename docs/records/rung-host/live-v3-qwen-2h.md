@@ -1,6 +1,6 @@
 # rung-host — live run 3 on qwen alone, 2 hours (evidence note)
 
-Informative. Same setup as [run 2](rung-host-live-v2-qwen.md) (ladder
+Informative. Same setup as [run 2](live-v2-qwen.md) (ladder
 `qwen/qwen3.8-27b:free` only, `desk.mode: shadow`, Jev cap $0.25/day), window
 extended to 7,200 s (09:04:45–11:04:46Z, 2026-10-05), exit 0 by the run limit,
 no panic. Only live run on the host. Record, logs, analyzer output and the audit
@@ -44,3 +44,7 @@ disjoint from the rule has judged them.
   cause was not isolated (likely an owner message landing while a turn sat in
   429 backoff); the record has the sequence.
 - Failure rate rose from 22.5% (40 min) to 42% (2 h) on the free provider.
+
+## Moved, 2026-10-29
+
+This record moved from `docs/rung-host-live-v3-qwen-2h.md` to this directory; its text above is unchanged apart from relative links. Index: [README](README.md).

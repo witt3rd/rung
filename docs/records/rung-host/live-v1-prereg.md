@@ -120,3 +120,7 @@ jev-1.13 and `microsoft/microsoft-decision-1` only; it did not price
 `typesafe/jev-1.14`, whose price is not measured here, so the L7/L9 spend
 limits are not backed for the new default by that replay. The
 first-run record is not rewritten.
+
+## Moved, 2026-10-29
+
+This record moved from `docs/rung-host-live-v1-prereg.md` to this directory; its text above is unchanged apart from relative links. Index: [README](README.md).

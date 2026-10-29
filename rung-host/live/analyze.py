@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compute the pre-registered live-run measures (docs/rung-host-live-v1-prereg.md)
+"""Compute the pre-registered live-run measures (docs/records/rung-host/live-v1-prereg.md)
 from a run directory: the record, the exit codes, the syscall traces.
 
 usage: analyze.py RUN_DIR [--json OUT.json]

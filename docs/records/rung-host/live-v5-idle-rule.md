@@ -2,7 +2,7 @@
 
 Informative. Two 2-hour live windows of `rung-host run --config` on the named
 default ladder (no `ladder:` key), same harness, stimuli (10 owner messages and
-4 calendar entries) and analyzer as [v4](rung-host-live-v4-hostkey.md). Host
+4 calendar entries) and analyzer as [v4](live-v4-hostkey.md). Host
 key `RUNG_HOST_OPENROUTER_API_KEY` (fleet Doppler `dev_donald`) and Jev shadow
 on its accounted key at the existing cap (0.25 USD/day), both through
 `doppler run --only-secrets`. Free models only. Key scan of every committed
@@ -44,7 +44,7 @@ Reading the numbers:
   `degraded` waits), so there were almost no quiet ticks to fill. With 9 and 1
   completed free turns, a filler share of 0% in both says nothing about the
   rule. The 84-of-119 filler of the earlier
-  [free-time hour](rung-host-free-time.md) did not recur in A either, with
+  [free-time hour](free-time.md) did not recur in A either, with
   the rule off, so that finding is not the default behaviour on this ladder.
 - **Failure rate and admission p95 follow the upstream, not the rule.** A ran
   while nemotron-3-super and ultra were rate-limited, B2 after a reset with
@@ -79,3 +79,7 @@ after the first half hour.
 **Recommendation: no, leave `free_time_idle_rule` off by default; this soak
 did not exercise it, so re-measure on a window with quiet ticks (paid or
 dedicated quota) before changing the default.**
+
+## Moved, 2026-10-29
+
+This record moved from `docs/rung-host-live-v5-idle-rule.md` to this directory; its text above is unchanged apart from relative links. Index: [README](README.md).

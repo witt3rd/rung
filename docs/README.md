@@ -9,4 +9,7 @@
 - Where an informative document disagrees with a normative one, the
   normative one wins.
 - Files starting with `_` are tooling, not documents.
-- API reference is rustdoc, not prose here.
+- Dated records (pre-registrations, run results, design records) live in
+  `records/`, append-only; see `records/README.md`.
+- The Rust API reference is rustdoc; the host's wire contract is prose in
+  `rung-host-api.md`.

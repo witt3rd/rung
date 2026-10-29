@@ -1,5 +1,5 @@
 //! Spilling a huge `web_fetch` body to a workspace file, and reading part
-//! of a file back (`docs/rung-host-web-fetch-spill.md`).
+//! of a file back (`docs/records/rung-host/web-fetch-spill-design.md`).
 //!
 //! A body below the threshold is the tool result, as ever. A body at or
 //! above it is streamed, as it arrives, to a file under the reserved

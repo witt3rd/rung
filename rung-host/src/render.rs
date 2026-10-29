@@ -24,7 +24,7 @@ Places to look, as examples only: something you remembered, something you read, 
 
 /// An optional sixth free-time rule (`free_time_idle_rule`): idle is one short line,
 /// not filler. Measured need: one live hour spent ~80 of 119 turns
-/// writing "quiet tick" or "…" (docs/rung-host-free-time.md).
+/// writing "quiet tick" or "…" (docs/records/rung-host/free-time.md).
 pub const FREE_TIME_IDLE_RULE: &str = "\
 6. If nothing pulls you, first look once in your workspace or memory for something unfinished or something to make. If there is still nothing useful to do, reply with ONE short line (e.g. \"Nothing to do.\") and no tool calls; do not elaborate.";
 

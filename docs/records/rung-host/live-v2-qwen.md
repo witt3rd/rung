@@ -1,6 +1,6 @@
 # rung-host — live run 2 on qwen alone (evidence note)
 
-Informative. Rerun of the first live run ([prereg](rung-host-live-v1-prereg.md),
+Informative. Rerun of the first live run ([prereg](live-v1-prereg.md),
 same measures, same analyzer) with the immediate owner ack and the keyed
 probe merged. Ladder: `qwen/qwen3.8-27b:free` only (the other free rungs
 are refused by the account guardrail; no key was changed). Run through
@@ -38,3 +38,7 @@ tools 48/44, consolidate 0/5, pack 1/1.
 - The 40-minute window ended before the 60-minute calendar item and the
   later owner messages (o07 onward partially); 6 owner items arrived.
 - No PDF: nothing surprising.
+
+## Moved, 2026-10-29
+
+This record moved from `docs/rung-host-live-v2-qwen.md` to this directory; its text above is unchanged apart from relative links. Index: [README](README.md).

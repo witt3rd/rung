@@ -9,7 +9,7 @@ This document is informative. It describes slice 1 — the host against a
 scripted mock engine, a fake world and a fault injector, at $0 — and what
 slice 2 adds: the real engine adapter, the model ladder's listing filter,
 ACP outward and the startup-handoff ladder (below). The first live run (slice 3) is in
-[`rung-host-live-v1-prereg.md`](rung-host-live-v1-prereg.md) and `rung-host/live/`. Delegation to workers is a final
+[`records/rung-host/live-v1-prereg.md`](records/rung-host/live-v1-prereg.md) and `rung-host/live/`. Delegation to workers is a final
 extension; only its extension point exists (the `crew` group name and the
 `crew.*` record kinds are reserved, and the inbox admits external
 completion items).
@@ -53,7 +53,7 @@ material — todo items, projects, open questions, open expectations,
 integrity facts, recent traces — in creation order, never ranked. The
 agent picks. The optional `free_time_idle_rule: true` config key (default
 off) adds a sixth rule bounding the idle reply; see
-[`rung-host-free-time.md`](rung-host-free-time.md).
+[`records/rung-host/free-time.md`](records/rung-host/free-time.md).
 On the rule-only desk, every turn kind (free time included) offers the
 `core`, `memory`, `read` and `workspace_write` groups; any other group is
 offered only after a recent `want_tools` request. The workspace is the
@@ -348,7 +348,7 @@ ladder**: with no `ladder:` in the file the host runs
 `openrouter/free` (`ladder::default_ladder`, pinned by a unit test). Named
 models keep the prefix cache and the persona steady; the free router serves
 each request from a random free model, so the cache breaks and behaviour can
-drift mid-session. The evidence is in `docs/rung-host-live-v4-hostkey.md`.
+drift mid-session. The evidence is in `docs/records/rung-host/live-v4-hostkey.md`.
 
 - **Named (default):** omit `ladder:`, or list the models yourself.
 - **Named, with a last resort:** list the same models and add
@@ -456,7 +456,7 @@ agent reads it with `ws_read`, all of it or a range (`from_line`/`to_line`, or
 `from_char`/`to_char` counted in Unicode characters; a range states the file's
 totals). The page is never cut and never held whole in memory: the threshold
 decides only where the text goes. Design and rulings:
-`docs/rung-host-web-fetch-spill.md`.
+`docs/records/rung-host/web-fetch-spill-design.md`.
 
 - Spilling needs the `read` group on the turn; without it the whole body is
   the result. A later turn without `read` that calls `ws_read` or `ws_list` on
