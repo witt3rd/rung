@@ -88,5 +88,7 @@ continues in a new epoch.
 For memory (a provider container, `_meta.rung.memory`, `cached_tokens`) see
 [rung-memory-walkthrough.md](rung-memory-walkthrough.md).
 
-This example is run in CI (`rung-host/tests/quickstart.rs`), so it stays
-true.
+A CI test (`rung-host/tests/quickstart.rs`) runs the example config
+(`examples/rung-host-mock.yaml`), drops a message and reads the record. It
+does not read this page, so if the config block above differs from that file,
+the file is right.

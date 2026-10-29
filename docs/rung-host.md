@@ -5,14 +5,16 @@ around its turns. It imports `rung-agent-core` as a library (never the
 `rung-agent` binary). Nothing in it is kernel; nothing in the kernel
 changed for it.
 
-This document is informative. It describes slice 1 — the host against a
-scripted mock engine, a fake world and a fault injector, at $0 — and what
-slice 2 adds: the real engine adapter, the model ladder's listing filter,
-ACP outward and the startup-handoff ladder (below). The first live run (slice 3) is in
-[`records/rung-host/live-v1-prereg.md`](records/rung-host/live-v1-prereg.md) and `rung-host/live/`. Delegation to workers is a final
-extension; only its extension point exists (the `crew` group name and the
-`crew.*` record kinds are reserved, and the inbox admits external
-completion items).
+This document is informative. It describes the host: the loop, free time,
+the desk, the pack, ACP outward, the startup-handoff ladder, the engine
+adapter, the model ladder, the governor, owner intent, stop and restart, the
+record and the gates. The wire contract for a UI or gateway is
+[`rung-host-api.md`](rung-host-api.md); a five-minute run is
+[`rung-host-quickstart.md`](rung-host-quickstart.md); dated live runs,
+findings and design records are in [`records/rung-host/`](records/rung-host/README.md).
+Delegation to workers is a final extension; only its extension point exists
+(the `crew` group name and the `crew.*` record kinds are reserved, and the
+inbox admits external completion items).
 
 ## The loop
 
@@ -85,7 +87,7 @@ bounds, a rule fallback and a logged provenance:
 
 | family | decides | guard that always wins |
 |---|---|---|
-| Admit | interrupt now, wait for a break, or show as a digest line | owner items are `now` without asking, unless the owner sent one as `free` (S2: below); firm due calendar items are `now`; every kind has a maximum deferral; at most 6 interruptions of a commitment per hour |
+| Admit | interrupt now, wait for a break, or show as a digest line | owner items are `now` without asking, unless the owner sent one as `free` (below); firm due calendar items are `now`; every kind has a maximum deferral; at most 6 interruptions of a commitment per hour |
 | Inject | recall block and cue; expectation and calendar digests | one recall block per turn; everything goes in the newest header |
 | Tools | which groups are callable | `core` is always on; never outside the operator ceiling; hysteresis |
 | Pack | append, roll over now, or at the next break; which segments stay verbatim | roll over at 85% of the epoch budget; never below 40% (25% at a natural break) except on a copy loop; kept text ≤ 15% of the budget |
@@ -214,7 +216,7 @@ ladder: [ ... ]                      # default: the named ladder (never openrout
 listing: true                        # list at start and every 6 h (default for agent)
 probe: true                          # with each listing, one keyed probe per standing rung (default with listing)
 quota: { rpd: 1000, rpm: 20 }        # optional
-memory: true                         # baseline memory under the state dir
+memory: true                         # baseline memory under the state dir (default on)
 web: true                            # wire the live whole-page web_fetch (group web_read); default false: every fetch is refused. It fetches any address it is given; it is not a security boundary
 web_spill_bytes: 32768               # a fetched page of at least this many bytes is saved whole to .web/ in the workspace and the agent told where (default 32768); a context-budget setting, not a limit on what can be fetched
 acp: { http: "127.0.0.1:7878", tokens: { owner: RUNG_HOST_OWNER_TOKEN } }   # or { stdio: owner }
@@ -254,18 +256,17 @@ desk:                                # rule-only when absent
 ```
 
 **The decision model is one setting.** `desk.model` names it; when absent the
-desk uses `rung_std::decide::DEFAULT_MODEL` (`typesafe/jev-1.14`, 2026-10-15).
-It is reached through the decisions endpoint (`/api/v1/systemone`); the venue
-side reported that it answers there. No recorded run of it exists in this repo
-yet (its fixtures are not recorded). The previous
-default, `microsoft/microsoft-decision-1` (`rung_std::decide::PREVIOUS_MODEL`),
-is one line away: `desk.model: microsoft/microsoft-decision-1`; `typesafe/jev-1.13`
+desk uses `rung_std::decide::DEFAULT_MODEL` (`typesafe/jev-1.14`), reached
+through the decisions endpoint (`/api/v1/systemone`). The previous default,
+`microsoft/microsoft-decision-1` (`rung_std::decide::PREVIOUS_MODEL`), is one
+line away: `desk.model: microsoft/microsoft-decision-1`; `typesafe/jev-1.13`
 is `rung_std::decide::LEGACY_MODEL`. The same default and override
 apply to the agent's turn check (`turn_check.model`) and to `Recorded`
 (`RUNG_DECIDE_MODEL`). Recorded fixtures keep the model that produced them
 and replay pinned to it. The desk's cost estimate (`JEV_USD_PER_INPUT_TOKEN`,
-$0.042 per million input tokens) is the rate both models were billed at in
-the replay (`docs/rung-decision-model-replay.md`).
+$0.042 per million input tokens) is the rate the two earlier models were
+billed at in the replay (`docs/rung-decision-model-replay.md`); the default's
+own price is not measured there.
 
 With the kill file present every ask is `desk.ask{outcome: killed}` and
 every family decides by its rule (`by: {"rule": "killed"}`). An ask that
@@ -388,7 +389,7 @@ drift mid-session. The evidence is in `docs/records/rung-host/live-v4-hostkey.md
 - **Spend cap**: for paid providers only; reaching it halts
   (`Halted(SpendCap)`).
 
-## Owner intent: `next`, `steer`, `free` (S2)
+## Owner intent: `next`, `steer`, `free`
 
 An owner's message carries an `intent`, written on the item in `stimulus.accepted`
 (absent means `next`; every record from before it reads as `next`). Only an owner's
@@ -470,6 +471,13 @@ decides only where the text goes. Design and rulings:
   keeps a dead temp until that id is free again, a known limit). They are
   listed by `ws_list`; the agent (`ws_remove`, with `workspace_write`) or the
   owner clears them. The file is untrusted scratch: the agent can overwrite it.
+- Names: `NNNN` is the next unused counter found by scanning `.web/` (so it can
+  restart after the owner clears the directory, and an old path can then name a
+  different page), and `<hash>` is six hex digits of the stored body's SHA-256. The file
+  is created exclusively: a name clash takes the next counter, nothing is
+  overwritten. Nothing verifies the hash at read time.
+- Non-text bodies: `web_fetch` returns text only, so what is stored is that text,
+  decoded lossily, and `ws_read` reads it as text.
 - Redaction: the spilled file is workspace content and holds the page exactly
   as it was fetched. Nothing is redacted on the way from a tool result to the
   model (the tool result, the notice and a `ws_read` result reach it as the
@@ -495,14 +503,15 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `queue.moved` | `id`, `before` (an item id, or null for the end of its group), `key`? — the owner moved a waiting item; the waiting order is the fold of acceptance and these lines (`docs/rung-host-api.md`, S3) |
 | `channel.opened` | `session`, `role`, `channel` (an ACP channel) |
 | `calendar.added` / `.fired` / `.skipped` / `.removed` | an entry; a fire has `id`, `due`, `late_by_ms`, `missed`, `firm`, `item_id` |
+| `desk.ask` | one ask of the decider: `boundary`, `families`, `backend`, `questions`, `outcome` (`answered`, `timeout`, `capped`, `killed`, `undecided:<why>`), `est_usd`, `cost_usd`, `wall_us`; an ask that may have been billed counts its estimate against the day's cap |
 | `decision.<family>` | `boundary`, `turn`, `input_hash`, `questions_hash`, `answers`, `choice`, `by` (`{"jev": {backend, model, cost_usd}}` or `{"rule": why}`), `rule_choice` and `agree` in shadow mode, `wall_us` |
 | `turn.started` | `turn`, `turn_kind`, `mode`, `project`, `model`, `rung`, `epoch`, `pack_tokens`, `header_tokens`, `enabled`, `wall_boundary_us` |
 | `web.spill_failed` | `turn`, `why` — a fetched page could not be saved to `.web/`; the whole body was returned in the result instead |
 | `tool.call` / `tool.refused` | `turn`, `name`, `group`, `ok`; a refusal has `why` (`disabled`, `overran`, `owner_waiting`) and `message` |
 | `llm.call` | `turn`, `call`, `epoch`, `rung`, `model_requested`, `model_served`, `provider`, `prompt_tokens`, `cached_tokens`, `cache_write_tokens`, `completion_tokens`, `reasoning_tokens`, `cost_usd`, `latency_ms`, `prefix {s_hash, l_hash, log_len_bytes, expected_cached_tokens}` |
 | `cache.break` / `cache.cold` | `turn`, `call`, `cause` |
-| `turn.layers` | `turn`, `s_hash`, `l_hash` (the stable and epoch layers the turn's request starts with), `header`, `recall`, `recall_text`, `recall_hash`: the turn's own layers of the context, whole and redacted (the recall block is written here, once), in the same write as `turn.started`, so they are readable while the turn runs (S6) |
-| `turn.log` | `turn`, `header` (the header without recall; redacted before it is written, S4), `recall` (bool), `messages` (verbatim, as sent). The header as the model saw it is `header`, a line break and the turn's `turn.layers.recall_text`. A record from S4 to before S6 held `recall_text` and `recall_hash` here instead (the door reads either) |
+| `turn.layers` | `turn`, `s_hash`, `l_hash` (the stable and epoch layers the turn's request starts with), `header`, `recall`, `recall_text`, `recall_hash`: the turn's own layers of the context, whole and redacted (the recall block is written here, once), in the same write as `turn.started`, so they are readable while the turn runs |
+| `turn.log` | `turn`, `header` (the header without recall; redacted before it is written), `recall` (bool), `messages` (verbatim, as sent). The header as the model saw it is `header`, a line break and the turn's `turn.layers.recall_text`. An earlier record held `recall_text` and `recall_hash` here instead (the door reads either) |
 | `turn.ended` | `turn`, `turn_kind`, `status`, `calls`, `elapsed_ms`, `rung`, `failure {class, origin, retry_after_ms, reset_at, unroutable}`, `rewritten` (only when true), `cost`, `projection`, `wall_post_us` |
 | `kernel.commit` / `.progress` / `.release` / `.trace` | the agent's own tool calls (`via`, `released_by`, `similarity`) |
 | `note.written`, `todo.*`, `project.added`, `question.*` | the agent's registers |
@@ -515,12 +524,12 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `ladder.refused` | `rung`, `model`, `reasons` (the router's `ineligibility_reasons`), `by` (`probe` when a keyed probe found it): unavailable until the next listing |
 | `ladder.probed` | `probes`, `rungs [{rung, model, verdict, reasons?, error?, why?}]` (`verdict`: `routes`, `refused`, `unknown`, `skipped`) |
 | `ladder.listed` | `ok`, `error` (when not), `at_start` (the startup ladder's listing), `rungs [{rung, model, available, why}]` (`why`: `ok`, `not_listed`, `expired`, `not_free`, `no_tools`, `endpoint_down`, `router` (a free router such as `openrouter/free`: no endpoints of its own, the keyed probe tests it); `kept` / `kept_unavailable` after a failure), `available`, `next_at` |
-| `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms`; a rollover also has `l_hash` and `slow`, the epoch layer whole (redacted); a swap has `from`, `to`, `cause` (S4) |
-| `pack.layers` | `cause` (`start`, `swap`), `s_hash`, `tools` (the tool definitions, whole), `system` (the system text, whole): written once at each start and each swap, redacted (S4) |
+| `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms`; a rollover also has `l_hash` and `slow`, the epoch layer whole (redacted); a swap has `from`, `to`, `cause` |
+| `pack.layers` | `cause` (`start`, `swap`), `s_hash`, `tools` (the tool definitions, whole), `system` (the system text, whole): written once at each start and each swap, redacted |
 | `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |
 | `halted` | `why` |
 
-## Gates (slice 1)
+## Gates
 
 The gates are frozen in `rung-host/src/gates.rs` (thresholds and
 evaluators) and run by `rung-host/tests/`. All are automated, seeded and
@@ -539,19 +548,52 @@ free.
 | G-j bounded context | 10,000 turns | the pack never exceeds the epoch budget; every turn starts at ≤ 85%; the record grows linearly; the copy guard fires |
 | G-l cache discipline | 10,000 turns | within an epoch each request is a byte-prefix of the next; `s_hash` changes only at a swap, `l_hash` only at a rollover; canonical bytes stable across 2 processes; mock cache efficiency ≥ 0.98 outside recorded breaks |
 | G-m decisions | scripted answers, every `Undecided`, 3 s delays, cap exhaustion | every family returns a choice on every path with the right `by`; guards hold under adversarial answers; a 3 s delay costs ≤ 2 s per boundary; `Recorded` replay panics on a reworded question |
-| G-k cost | the whole slice | $0: loopback only, no live model, no live Jev |
+| G-k cost | the whole host | $0: loopback only, no live model, no live Jev |
 
-## Gates (slice 2)
-
-Frozen in the same file, below slice 1's, before the first run of what each
-gates. Every slice-2 run is loopback-only: a scripted provider on 127.0.0.1
+The gates below were frozen in the same file before the first run of what
+each gates. Every one of them is loopback-only: a scripted provider on 127.0.0.1
 (`rung-host/src/sim/http.rs`) answers in the OpenAI-compatible wire shape a
 router documents. No live model, no live Jev, no key.
 
 | id | measure | pass when |
 |---|---|---|
 | G-n engine adapter | the host on `rung-agent-core`'s engine through the adapter, 24 turns against the loopback provider | every request loopback and every `llm.call` served by it; each request asks for its turn's model with its epoch as `session_id`; exactly two cache breakpoints, at the stable and slow layers' ends; inside a session each request extends the previous (same tools, previous messages a prefix; a last step without its closing instruction); a long tool result seen again unchanged; every `llm.call` carries the served usage, cache and cost; the model's tool calls ran through the host (a note written, a disabled tool refused); a provider 429 recorded as the provider's and stepping down, later probing up; a platform 429 recorded as the platform's, waiting for its reset, no step down; $0 |
-| G-o ladder listing filter | 13 simulated hours on a seven-rung ladder against recorded-shape listing fixtures: one rung expires, one endpoint is down, one takes no tools, one is unlisted, one is paid; one refresh fails | listed before the first turn; each listing's verdict per rung is the oracle's (listed, not expired, prompt and completion free, takes `tools`, an endpoint at status ≥ 0); the expiry seen; a failed listing keeps the verdicts and is retried within 15 min; refreshed within 6 h; every turn on an available rung; a rung taken away is switched off before the next turn; a provider 429 steps down to the next available rung (skipping one), a probe up to the nearest available; listing GETs keyless and each on record; loopback, $0. **Amended 2026-10-04 (owner's ruling):** one rung is refused by the router for the account; it is unavailable until the next listing — no turn, step or probe lands on it, a failed listing keeps it unavailable, and a refused current rung is switched off before the next turn; at least one refusal seen |
+| G-o ladder listing filter | 13 simulated hours on a seven-rung ladder against recorded-shape listing fixtures: one rung expires, one endpoint is down, one takes no tools, one is unlisted, one is paid; one refresh fails | listed before the first turn; each listing's verdict per rung is the oracle's (listed, not expired, prompt and completion free, takes `tools`, an endpoint at status ≥ 0); the expiry seen; a failed listing keeps the verdicts and is retried within 15 min; refreshed within 6 h; every turn on an available rung; a rung taken away is switched off before the next turn; a provider 429 steps down to the next available rung (skipping one), a probe up to the nearest available; listing GETs keyless and each on record; loopback, $0. One rung is refused by the router for the account; it is unavailable until the next listing — no turn, step or probe lands on it, a failed listing keeps it unavailable, and a refused current rung is switched off before the next turn; at least one refusal seen |
 | G-p ACP outward | the binary on stdio (`sim --acp`, real clock, mock engine) and one JSON-RPC client: owner, peer and observer channels; a no-reply stimulus; prompts from two channels; a cancel; owner-only extensions from a peer; the owner's calendar entry; status, list, load; the owner's stop with a prompt open | every prompt exactly one response; the observer's refused; an answered prompt names the item and turn the record disposed it in, its streamed text ends with the agent's sends to that channel in that turn (or, for the highest-role channel in the turn, the final text), its turn's tool calls streamed; the final text and tool calls only to the highest-role channel admitted in the turn, no other channel's output or item ids to any other channel; a cancelled prompt answered `cancelled`, its item withdrawn or already in a turn; an agent-initiated message delivered as `_rung/outbox`, matching the record; `_rung/stimulus` on disk before its ack; the peer's stop, calendar and release refused; the owner's calendar entry added and fired; status reports the now set; list shows every channel, load reopens one; the owner's stop halts the host, answers open prompts, exit 0 within 5 s; mock engine, $0 |
 | G-q ACP over HTTP | the binary on Streamable HTTP (`sim --acp-http 127.0.0.1:0`, owner and peer tokens from env vars) and a raw HTTP client; refused starts without usable tokens | no or an unknown token refused 401; a token's role caps its channels (the peer token cannot open an owner channel); another valid token on an initialized connection refused 403 for POST, GET and DELETE; a peer prompt answered `end_turn` naming an item the record disposed in that turn; the peer's stop refused, the owner's halts and exits 0 within 5 s; no tokens or an unset token env var refuse to start (exit 2); no token in the record; bound to loopback |
 | G-r startup-handoff ladder | `rung-host run --config FILE` against the loopback router: a first run, a restart on the same state, an unknown config field, an unset key env var, an unreachable router; and compile-fail cases | each process lists the models at start, before its record exists, and records that listing (`at_start`) before its first turn; the restart recovers the record and lists again; turns run on the real adapter, $0; a bad field or unset key refused (exit 2) naming it, the state untouched; an unreachable router does not stop the start (listing recorded failed, turns fail and back off, ends by its limit); no stage can be skipped (recovering takes a `Listed`, not a `Configured`) and no mid-ladder rung, plan or handoff can be built from outside |
+
+### Running the gates
+
+- **No network, no key.** Every gate is loopback-only and free: a mock
+  engine and a scripted provider on 127.0.0.1. Nothing needs a credential or
+  Doppler. Only the live run (`rung-host/live/`) uses a real router.
+- **Run the crate:** `cargo test -p rung-host --locked`. The process gates
+  (`gate_process`, `gate_acp`, `gate_acp_http`, `gate_startup`) start the
+  built `rung-host` binary themselves; cargo builds it for them.
+- **One gate:** name the test target, e.g.
+  `cargo test -p rung-host --test gate_time --locked`; add `-- <name>` to
+  narrow to one test. The targets are `gate_time` (G-a, G-b, G-d, G-e),
+  `gate_kernel` (G-c), `gate_faults` (G-g), `gate_process` (G-h, G-i),
+  `gate_cache_context` (G-j, G-l), `gate_desk` (G-m), `gate_engine` (G-n),
+  `gate_ladder` (G-o), `gate_acp` (G-p), `gate_acp_http` (G-q) and
+  `gate_startup` (G-r).
+- **Wall-clock gates want a quiet machine.** G-a measures the host's own
+  work per boundary, so it runs alone inside its test binary. Waits in the
+  process gates stretch with the machine's load (1-minute load per CPU,
+  between 1 and 8); gate thresholds never do. A failure under heavy load is
+  worth one rerun on a quiet machine before it is investigated.
+- **Measurements are `#[ignore]`d.** They are not gates and run by hand with
+  `-- --ignored --nocapture` (for example the `measure_admission` target).
+- **The UI (trybuild) suites pin the stable compiler's wording.** CI runs
+  them only on the stable toolchain; on another toolchain a `.stderr` diff is
+  drift, not a regression.
+- **Recorded desk fixtures** under `rung-host/tests/fixtures/` are
+  regenerated only on purpose, with `RUNG_HOST_WRITE_FIXTURES=1`; review the
+  diff like any other change.
+- **Before a PR** run the commands in `AGENTS.md` (fmt, clippy, workspace
+  tests, `docs/_props.py check`, `docs/_props.py cited`,
+  `docs/_consumer_guard.py`).
+
+The measured results of the first gate run (2026-10-04, slice 1) are a record:
+[`records/rung-host/slice1-gate-results.md`](records/rung-host/slice1-gate-results.md).
