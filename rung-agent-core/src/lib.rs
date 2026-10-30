@@ -41,6 +41,7 @@ pub mod acp_http;
 pub mod args;
 pub mod background;
 pub mod catalog;
+pub mod compact;
 pub mod config;
 pub mod engine;
 pub mod isolation;

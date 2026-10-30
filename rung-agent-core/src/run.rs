@@ -413,6 +413,16 @@ fn thread_from(lines: &[Line], system_text: Option<&str>, user_material: Option<
                 Some(block) => crate::memory::shown(&l.text, block),
                 None => l.text.clone(),
             })),
+            // A compaction's summary replays as a fixed pair, so the bytes
+            // are the same every turn and the cached prefix holds.
+            (crate::compact::SUMMARY_ROLE, _) => {
+                messages.push(ChatMessage::user(format!(
+                    "{}{}",
+                    crate::compact::SUMMARY_PREFIX,
+                    l.text
+                )));
+                messages.push(ChatMessage::assistant(crate::compact::SUMMARY_ACK));
+            }
             // A turn that stopped replays the steps that ran, never its failure.
             ("assistant", turn) if l.failure.is_some() => {
                 messages.extend(turn.iter().flatten().cloned())
