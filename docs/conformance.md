@@ -620,7 +620,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 600 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 604 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -676,7 +676,7 @@ look shorter than it is.
 - `stdio_cancel_reaches_a_queued_turn`
 - `stdio_close_cancels_mid_turn`
 - `stdio_requests_answered_mid_turn`
-- `stdio_turns_stay_serialized`
+- `stdio_turns_of_a_session_stay_serialized`
 
 **`rung-agent/tests/acp_http.rs`** — 4 unclaimed
 
@@ -726,6 +726,13 @@ look shorter than it is.
 - `a_recall_block_follows_the_ask_and_is_replayed_with_it`
 - `an_all_text_ask_is_sent_as_the_bytes_a_later_turn_replays`
 - `with_memory_and_a_context_band_each_request_extends_the_last`
+
+**`rung-agent/tests/acp_workers.rs`** — 4 unclaimed
+
+- `a_turn_open_when_its_worker_dies_gets_an_error`
+- `killing_one_worker_leaves_the_others`
+- `second_session_is_not_held_by_the_first`
+- `streaming_and_cancel_cross_the_boundary`
 
 **`rung-agent/tests/cli.rs`** — 8 unclaimed
 

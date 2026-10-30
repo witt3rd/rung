@@ -7,6 +7,19 @@ git tags only.
 
 ## [Unreleased]
 
+### Changed (one worker process per ACP session)
+- `rung-agent --acp` (stdio) now fronts one detached worker process per
+  session (`acp_proxy`): a long turn, crash, OOM or hang in one session no
+  longer stalls or kills another, and the process cwd a turn sets is that
+  session's alone. Messages route by `sessionId`; updates and `session/cancel`
+  pass through unchanged. A worker that dies fails its open requests and is
+  restarted on the session's next message (`session/resume` from its file),
+  with 250 ms to 30 s backoff, 5 consecutive failures max, a 30 s lifetime
+  counting as stable. `RUNG_ACP_WORKERS=0` keeps the single process; `--acp-http`
+  and `rung-host` are unchanged. Cost: about 20 MB resident per idle worker
+  (debug build, measured on Linux). Turns of one session still run in order.
+  The per-process LLM call counter in diagnostics now restarts per session.
+
 ### Added (live strata, host half)
 - `rung-host`: the layers of a turn's context are recorded at its start. A new
   `turn.layers` line (the header and the recall block, whole and redacted, with
