@@ -548,11 +548,27 @@ struct ThoughtForwarder {
     streamed_text: Arc<AtomicBool>,
     /// `used` of the last `usage_update` sent this turn.
     last_used: Arc<AtomicU64>,
+    /// The model's context window from the facts table, resolved on the
+    /// first usage event (0: unknown).
+    window: std::sync::OnceLock<u64>,
+}
+
+/// The configured model's window (0 when unlisted or config is unreadable).
+fn configured_window() -> u64 {
+    crate::config::load()
+        .ok()
+        .and_then(|c| crate::facts::global(&c.base_url, &c.api_key).window(&c.model))
+        .unwrap_or(0)
 }
 
 impl rung_std::llm::StreamListener for ThoughtForwarder {
     fn on_event(&self, event: StreamEvent) {
-        let update = update_for_event(event, &self.streamed_text);
+        let window = if matches!(event, StreamEvent::MessageDelta { usage: Some(_), .. }) {
+            *self.window.get_or_init(configured_window)
+        } else {
+            0
+        };
+        let update = update_for_event_sized(event, &self.streamed_text, window);
         if let SessionUpdate::UsageUpdate(u) = &update {
             self.last_used.store(u.used, Ordering::SeqCst);
         }
@@ -571,7 +587,16 @@ fn raw_meta(event: &StreamEvent) -> serde_json::Map<String, Value> {
     meta
 }
 
+#[cfg(test)]
 fn update_for_event(event: StreamEvent, streamed_text: &AtomicBool) -> SessionUpdate {
+    update_for_event_sized(event, streamed_text, 0)
+}
+
+fn update_for_event_sized(
+    event: StreamEvent,
+    streamed_text: &AtomicBool,
+    window: u64,
+) -> SessionUpdate {
     let meta = raw_meta(&event);
     match event {
         StreamEvent::ContentBlockDelta {
@@ -593,7 +618,7 @@ fn update_for_event(event: StreamEvent, streamed_text: &AtomicBool) -> SessionUp
             usage: Some(usage), ..
         } => {
             let used = u64::from(usage.input_tokens) + u64::from(usage.output_tokens);
-            let mut update = UsageUpdate::new(used, 0).meta(meta);
+            let mut update = UsageUpdate::new(used, window).meta(meta);
             if let Some(cost) = usage.cost_usd {
                 update = update.cost(Cost::new(cost, "USD"));
             }
@@ -1126,6 +1151,7 @@ pub(crate) async fn connect_agent(
                             session_id: session_id.clone(),
                             streamed_text: streamed_text.clone(),
                             last_used: last_used.clone(),
+                            window: std::sync::OnceLock::new(),
                         })),
                         prompt_blocks: Some(blocks),
                         ask_text: Some(ask),
@@ -1357,6 +1383,23 @@ mod tests {
             meta,
             serde_json::json!({"rung": {"overflow": {"used": null, "size": null}}})
         );
+    }
+
+    #[test]
+    fn usage_update_carries_the_models_window() {
+        let streamed = AtomicBool::new(false);
+        let usage = rung_std::llm::Usage::from_openai(100, 20, 80, 5);
+        let SessionUpdate::UsageUpdate(u) = update_for_event_sized(
+            StreamEvent::MessageDelta {
+                stop_reason: None,
+                usage: Some(usage),
+            },
+            &streamed,
+            200_000,
+        ) else {
+            panic!("not a usage update");
+        };
+        assert_eq!(u.size, 200_000);
     }
 
     #[test]
