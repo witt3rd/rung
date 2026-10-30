@@ -737,6 +737,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
     let engine = Engine::build(spec)?
         .with_task(Arc::new(spawn))
         .with_outer(memory.toolset(&id))
+        .with_inline_python(crate::engine::InlineMode::from_env()?)
         .connect()?;
 
     let system_prompt = resolve_system_prompt(&origin, args.system_prompt.as_ref())?;
