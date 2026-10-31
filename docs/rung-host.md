@@ -278,8 +278,7 @@ it may have been billed without saying so.
 Status: design, NOT BUILT.
 
 A profile is what makes "the same being" the same: after a restart, on
-another machine, and beside other beings on the continuous host (for
-example Augur, Forge, Cookie). It builds on the startup-handoff ladder, on
+another machine, and beside other beings on the continuous host. It builds on the startup-handoff ladder, on
 Instances (one state directory, one state lock, `host.lock`), on Durability
 and restart, on The record, on Owner intent, and on Stop and supervision.
 A profile is a name plus the five things below.
