@@ -290,7 +290,7 @@ A profile is a name plus the five things below.
    and it is folded into access. The profile states that access.
 3. **History.** Traces and logs.
 4. **Memory**, in layers:
-   - *Long-term*: Prospecta. All memory is indexed and searchable, with
+   - *Long-term*: a long-term memory store (a memory provider). All memory is indexed and searchable, with
      automatic recall before, and automatic retain after, each agent turn.
    - *Ambient files*: `now.md` (working, short-term memory), `horizon.md`
      (active thoughts and areas to explore), `wisdom.md`, `know.md`.
@@ -314,7 +314,7 @@ Not answered here, and not to be designed yet.
 - A way in: an inbox, an owner channel, how the being stops.
 - Several profiles at once: listing, starting, stopping, one that never ran.
 - Moving a being to another machine: what travels, what stays (keys, local
-  paths, the Prospecta bank).
+  paths, the long-term memory store).
 - Where profiles live.
 - Whether the profile name must equal its folder name.
 - Whether an identity change is recorded (it changes the cached prompt
