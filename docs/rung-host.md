@@ -20,8 +20,9 @@ inbox admits external completion items).
 
 - **Idle time** — how long the host may rest between wakes, a setting.
   Idle time 0 means the host never rests.
-- **Continuous mode** — idle time 0. It has no idle time to wait out: after
-  every turn the next boundary begins. This is what the shipped code does.
+- **Continuous mode** — idle time 0, set explicitly. It has no idle time to
+  wait out: after every turn the next boundary begins. This is what the
+  shipped code does.
 - **Idle mode** — idle time above 0. The host really idles (no boundary, no
   turn) until its next wake. **SPECIFIED, NOT BUILT.**
 - **Scheduled wake** — the time the idle host wakes on its own. With idle
@@ -44,7 +45,7 @@ blocked credential), and each is recorded as `degraded`, never as rest.
 **Idle mode (SPECIFIED, NOT BUILT).** With idle time above 0 the loop gains
 a resting state, `Idle(until)`, after a boundary has nothing left to do. The
 host stays there until the first of: a scheduled wake (at most idle time
-away; 30 minutes when idle mode is on and nothing else is set), or a queue
+away; the specified default is 30 minutes), or a queue
 arrival. On a queue arrival it wakes, drains the queue through ordinary
 boundaries, and ends with ONE free-time pass, then returns to idle. At a
 scheduled wake it does one free-time pass, then returns to idle. So an
@@ -684,10 +685,12 @@ router documents. No live model, no live Jev, no key.
 The measured results of the first gate run (2026-10-04, slice 1) are a record:
 [`records/rung-host/slice1-gate-results.md`](records/rung-host/slice1-gate-results.md).
 
-## Idle mode: open questions (for the owner)
+## Idle mode: decisions
 
-Idle mode is specified, not built. Not decided here:
+Idle mode is specified, not built. Decided by the owner:
 
-- (a) Does the stop authority interrupt a sleeping host at once? Assumed yes.
-- (b) Is idle time a per-instance setting? Assumed yes.
-- (c) Does the host default stay 0 (continuous) or become 30 minutes?
+- The stop authority interrupts a sleeping host at once.
+- Idle time is a per-instance setting.
+- The specified default idle time is 30 minutes; continuous is idle time 0,
+  set explicitly. **Specified, not built:** the code as shipped today still
+  runs continuously (idle time 0) until idle mode is built.
