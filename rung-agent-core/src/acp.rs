@@ -11,7 +11,8 @@
 //! runs as a spawned task and the loop stays free for `session/cancel`,
 //! `session/close` and the rest. Work that must not overlap a turn (the turn
 //! itself, and the handlers that write a session file a turn also writes)
-//! goes through `queued`: one process-wide FIFO, so turns stay
+//! goes through `queued`: one FIFO per process (under `--acp` stdio each
+//! session has its own worker process, see `acp_proxy`), so turns stay
 //! serialized in arrival order as when the loop held them, and the
 //! process-global cwd a turn sets is never changed under it.
 
@@ -850,6 +851,8 @@ pub fn run(process: Args) -> Result<(), String> {
     rt.block_on(async {
         if let Some(addr) = process.acp_http.clone() {
             crate::acp_http::listen(process, addr).await
+        } else if process.acp && crate::acp_proxy::enabled() {
+            crate::acp_proxy::run(std::env::args().skip(1).collect())
         } else {
             let live = Live::new();
             connect_agent(Arc::new(process), live, Stdio::new())
