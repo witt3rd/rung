@@ -10,7 +10,7 @@ file {"requests": [{"index": N, "reason": "..."}], "sessions": [{"file":
 "relative/path", "reason": "..."}]}. Every entry needs a written reason.
 Metric lines: unintended_request_diffs=N cache_prefix_breaks=M
 """
-import argparse, json, os, re, subprocess, sys, tempfile, time
+import argparse, json, os, re, shutil, subprocess, sys, tempfile, time
 
 # one scripted conversation per entry; each is its own agent invocation
 INPUTS = [
@@ -21,7 +21,7 @@ INPUTS = [
 REPLIES = ["Noted.", "release/x", "Summary."]
 STAMP = re.compile(r"\d{4}-\d\d-\d\dT[\d:.]+Z?|\b\d{10,}\b")
 # session ids (time-ordered hex) and hashed file names differ on every run
-IDENT = re.compile(r"\b[0-9a-f]{16}(?:-[0-9a-f]{6})?\b")
+IDENT = re.compile(r"\b[0-9a-f]{16}(?:-[0-9a-f]{1,8})?\b")
 
 
 SCOPE = re.compile(r"rung-scope:[0-9a-f]+")  # hashed from the working directory
@@ -62,10 +62,8 @@ def run(d, work):
             rel = os.path.relpath(p, work)
             if rel in ("port", "port.requests", "none.yaml"):
                 continue
-            try:
-                txt = open(p, encoding="utf-8").read()
-            except UnicodeDecodeError:
-                continue
+            # latin-1 maps every byte, so a binary file is compared, not dropped
+            txt = open(p, encoding="latin-1").read()
             found.append((rel, norm(txt, work)))
     # Files are keyed by their normalised name plus the order of the original
     # names (ids are time-ordered), so run-specific ids do not read as diffs.
@@ -106,8 +104,11 @@ def main():
     ok_req = {e["index"] for e in exp.get("requests", [])}
     ok_ses = {e["file"] for e in exp.get("sessions", [])}
     tmp = tempfile.mkdtemp(prefix="refverify-")
-    rr, rs = run(a.ref_dir, os.path.join(tmp, "ref"))
-    cr, cs = run(a.cand_dir, os.path.join(tmp, "cand"))
+    try:
+        rr, rs = run(a.ref_dir, os.path.join(tmp, "ref"))
+        cr, cs = run(a.cand_dir, os.path.join(tmp, "cand"))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     diffs, breaks = [], 0
     if len(rr) != len(cr):
         diffs.append({"kind": "request_count", "ref": len(rr), "cand": len(cr)})
