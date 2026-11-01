@@ -667,6 +667,84 @@ async fn a_secret_in_a_record_line_never_appears_in_a_frame() {
     assert!(String::from_utf8(i.record_bytes()).unwrap().contains(PLAIN));
 }
 
+/// The OAuth credential shapes (GitHub's token prefixes and a Copilot token),
+/// all made up.
+fn oauth_shapes() -> Vec<String> {
+    let a = "SENTINELoauth0123456789abcdef";
+    vec![
+        format!("gho_{a}"),
+        format!("ghu_{a}"),
+        format!("ghs_{a}"),
+        format!("ghr_{a}"),
+        format!("ghp_{a}"),
+        format!("github_pat_{a}"),
+        format!("tid=0123abcd;exp=1800001800;proxy-ep=proxy.individual.githubcopilot.com;{a}:SIG"),
+    ]
+}
+
+#[tokio::test]
+async fn an_oauth_token_in_a_record_or_a_partial_frame_never_appears() {
+    let shapes = oauth_shapes();
+    // The record's line, as the stream sends it; the record itself stays verbatim.
+    let mut i = Instance::new("h5-red-oauth-record");
+    i.live();
+    for (n, s) in shapes.iter().enumerate() {
+        i.push(
+            "turn.ended",
+            json!({"turn": n, "final_text": format!("login {s} done"), "tools": [{"out": s}]}),
+        );
+    }
+    let mut ev = i.open(0).await;
+    let mut frames = Vec::new();
+    for _ in 0..=shapes.len() {
+        frames.push(next(&mut ev).await);
+    }
+    for s in &shapes {
+        assert!(
+            leaked(&frames, s).is_empty(),
+            "a record leaked a token shape"
+        );
+    }
+    assert!(
+        String::from_utf8(i.record_bytes())
+            .unwrap()
+            .contains(&shapes[0])
+    );
+
+    // The partial frames: text, a tool call's name and input, a tool result.
+    let mut i = Instance::new("h5-red-oauth-partial");
+    i.live();
+    let mut ev = i.open(0).await;
+    let t = i.bus.turn(1);
+    t.block_start(0);
+    for s in &shapes {
+        t.text(0, &format!("token {s} here. "));
+        t.tool_call(0, "c", &format!("tool {s}"));
+        t.tool_input(0, "c", &format!("{{\"note\": \"{s}\"}}"));
+        t.tool_done(0, "ws_write", false, &format!("error with {s}"));
+    }
+    t.block_end(0, None);
+    t.end();
+    let mut frames = Vec::new();
+    loop {
+        let f = next(&mut ev).await;
+        let done = matches!(&f, Frame::Delta(v) if v["kind"] == "turn_end");
+        frames.push(f);
+        if done {
+            break;
+        }
+    }
+    for s in &shapes {
+        assert!(
+            leaked(&frames, s).is_empty(),
+            "a partial frame leaked a token shape"
+        );
+    }
+    // The text around each token was kept: the frames were redacted, not dropped.
+    let all: String = frames.iter().map(Frame::sse).collect();
+    assert!(all.contains("here.") && all.contains("error with"), "{all}");
+}
+
 #[tokio::test]
 async fn a_secret_in_every_kind_of_partial_frame_never_appears() {
     let mut i = Instance::new("h5-red-partial");
@@ -766,6 +844,9 @@ fn a_secret_split_between_two_pieces_is_still_removed() {
         format!("here it is: {PLAIN}, keep it safe. And {SHAPED}!"),
         PLAIN.to_string(),
         format!("see {SHAPED}"),
+        format!(
+            "copilot tid=0123abcd;exp=1800001800;proxy-ep=proxy.x.githubcopilot.com;{SHAPED}:S, and gho_{SHAPED}."
+        ),
         "Authorization: Bearer abcdefghij1234567890 trailing words".to_string(),
         "export API_KEY=hunter2hunter2 && go".to_string(),
         "no secret at all, just words and numbers 12345.".to_string(),

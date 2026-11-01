@@ -16,7 +16,17 @@ fn sentinels() -> Vec<(&'static str, String)> {
         ("sk dash", format!("sk-or-v1-{a}")),
         ("anthropic", format!("sk-ant-api03-{a}")),
         ("github", format!("ghp_{a}")),
+        ("github oauth", format!("gho_{a}")),
+        ("github user-to-server", format!("ghu_{a}")),
+        ("github server-to-server", format!("ghs_{a}")),
+        ("github refresh", format!("ghr_{a}")),
         ("github fine", format!("github_pat_{a}")),
+        (
+            "copilot token",
+            format!(
+                "tid=0123abcd;exp=1800001800;proxy-ep=proxy.individual.githubcopilot.com;{a}:SENTINELSIG"
+            ),
+        ),
         ("gitlab", format!("glpat-{a}")),
         ("slack", format!("xoxb-{a}")),
         ("aws", "AKIASENTINEL01234567".to_string()),
@@ -344,6 +354,9 @@ fn hostile_text_is_redacted_in_time_linear_in_its_length() {
         ("tailnet prefixes", "tskey-"),
         ("slack app prefixes", "xapp-"),
         ("github prefixes", "ghp_"),
+        ("copilot token prefixes", "tid=;"),
+        ("copilot token starts", "tid="),
+        ("copilot exp fields", "tid=;exp="),
         ("aws prefixes", "AKIA"),
         ("google prefixes", "AIza"),
         ("jwt-like runs", "eyJ-"),

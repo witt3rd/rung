@@ -1,5 +1,6 @@
 //! OpenAI-compatible `/v1/chat/completions` protocol.
 
+use super::credential::RequestAuth;
 use super::error::{RawCallError, classify_http, header_pairs, http_failure, parse_sse_error};
 use super::types::{
     CacheBreakpoint, CachePolicy, ChatMessage, ContentBlock, ContentBlockDelta, ContentBlockStart,
@@ -29,10 +30,19 @@ pub fn raw_call(
     messages: &[ChatMessage],
     tools: &[ToolDefinition],
 ) -> Result<LlmResponse, RawCallError> {
-    if config.base_url.trim().is_empty() {
+    // A minted credential may also decide the route; ask it first.
+    let auth = match &config.credential {
+        Some(source) => Some(source.authorize()?),
+        None => None,
+    };
+    let routed = auth.as_ref().and_then(|a| a.base_url.as_deref());
+    if routed.unwrap_or(&config.base_url).trim().is_empty() {
         return Err(RawCallError::Config("empty base_url".into()));
     }
-    let prepared = prepare(config, messages, tools)?;
+    let mut prepared = prepare(config, messages, tools)?;
+    if let Some(base) = routed {
+        prepared.url = format!("{}/chat/completions", base.trim_end_matches('/'));
+    }
     let observed = Arc::new(AtomicBool::new(false));
     let listener: Option<Arc<dyn StreamListener>> = config.stream_listener.as_ref().map(|inner| {
         Arc::new(ObservingListener {
@@ -41,7 +51,13 @@ pub fn raw_call(
         }) as Arc<dyn StreamListener>
     });
 
-    let result = send(config, &prepared.url, prepared.body, listener.as_deref());
+    let result = send(
+        config,
+        &prepared.url,
+        prepared.body,
+        auth,
+        listener.as_deref(),
+    );
     match result {
         Err(e) if observed.load(Ordering::SeqCst) && e.is_retryable() => Err(e.suppress_retry()),
         other => other,
@@ -307,6 +323,7 @@ fn send(
     config: &LlmConfig,
     url: &str,
     body: serde_json::Value,
+    mut auth: Option<RequestAuth>,
     listener: Option<&dyn StreamListener>,
 ) -> Result<LlmResponse, RawCallError> {
     let client = reqwest::blocking::Client::builder()
@@ -317,31 +334,49 @@ fn send(
             observed: false,
         })?;
 
-    let mut req = client.post(url).json(&body);
-    if !config.api_key.is_empty() {
-        req = req.bearer_auth(&config.api_key);
-    }
-    let started = std::time::Instant::now();
-    let response = req.send().map_err(|e| RawCallError::Transport {
-        message: e.to_string(),
-        observed: false,
-    })?;
+    // A 401 on a minted bearer forces one refresh and one retry; a second
+    // refusal is the answer.
+    let mut refreshed = false;
+    let (response, status, started) = loop {
+        let mut req = client.post(url).json(&body);
+        match &auth {
+            Some(a) => {
+                req = req.bearer_auth(&a.bearer);
+                for (name, value) in &a.headers {
+                    req = req.header(name.as_str(), value.as_str());
+                }
+            }
+            None if !config.api_key.is_empty() => req = req.bearer_auth(&config.api_key),
+            None => {}
+        }
+        let started = std::time::Instant::now();
+        let response = req.send().map_err(|e| RawCallError::Transport {
+            message: e.to_string(),
+            observed: false,
+        })?;
+        let status = response.status().as_u16();
+        if status == 401
+            && !refreshed
+            && let (Some(source), Some(used)) = (&config.credential, &auth)
+        {
+            source.rejected(used);
+            auth = Some(source.authorize()?);
+            refreshed = true;
+            continue;
+        }
+        break (response, status, started);
+    };
+    let secret = auth
+        .as_ref()
+        .map_or(config.api_key.as_str(), |a| a.bearer.as_str());
 
-    let status = response.status().as_u16();
     if !(200..300).contains(&status) {
         let headers = header_pairs(response.headers());
         let body = response.text().unwrap_or_default();
         if let Some(l) = listener {
-            l.on_http_failure(&http_failure(status, &headers, &body, &config.api_key));
+            l.on_http_failure(&http_failure(status, &headers, &body, secret));
         }
-        return Err(classify_http(
-            "POST",
-            url,
-            status,
-            &headers,
-            &body,
-            &config.api_key,
-        ));
+        return Err(classify_http("POST", url, status, &headers, &body, secret));
     }
 
     if listener.is_some() {
@@ -1132,6 +1167,7 @@ mod tests {
             stream_listener: None,
             session_id: None,
             cache_breakpoints: Vec::new(),
+            credential: None,
         };
         let plain = request_body(&cfg(), &[ChatMessage::user("hi")], &[]);
         assert!(plain.get("stream").is_none());
@@ -1164,6 +1200,7 @@ mod tests {
             stream_listener: None,
             session_id: None,
             cache_breakpoints: Vec::new(),
+            credential: None,
         };
         let body = request_body(&cfg, &[ChatMessage::user("hi")], &[]);
         assert!(body.get("max_tokens").is_none());
@@ -1323,6 +1360,7 @@ mod tests {
             stream_listener: Some(Arc::new(Capture(tx))),
             session_id: None,
             cache_breakpoints: Vec::new(),
+            credential: None,
         };
         let call = std::thread::spawn(move || raw_call(&config, &[ChatMessage::user("hi")], &[]));
 

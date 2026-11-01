@@ -6,12 +6,14 @@
 
 mod anthropic;
 mod cache;
+pub mod credential;
 mod error;
 pub mod image;
 mod openai;
 mod sse;
 mod types;
 
+pub use credential::{CredentialError, CredentialSource, RequestAuth};
 pub use error::{HttpContext, LlmFailure, RawCallError, RequestClassification, retry_delay_ms};
 pub use types::{
     AudioSource, CacheBreakpoint, CacheHint, CachePolicy, ChatMessage, ContentBlock,
@@ -151,6 +153,7 @@ mod tests {
             stream_listener: None,
             session_id: None,
             cache_breakpoints: Vec::new(),
+            credential: None,
         };
         let p = prepare(&config, &[ChatMessage::user("hi")], &[]).unwrap();
         assert!(p.url.ends_with("/chat/completions"));

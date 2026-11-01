@@ -108,6 +108,19 @@ against `Live::launch`, not the process cwd. Mid-turn tests:
 `rung-agent/tests/acp_concurrency.rs` (its mock answers each request on its
 own thread, with a delay).
 
+## OAuth credentials (rung-agent-core)
+
+`llm.auth.oauth: {provider, profile}` is the credential kind beside
+`api_key_env`; contract and proofs in `docs/rung-agent-oauth.md`. A login is
+`$RUNG_HOME/oauth/<provider>--<profile>.json` (0600), not in `auth.yaml` (the
+driver parses that file as flat strings). The kernel knows only
+`rung_std::llm::CredentialSource`; the provider code is
+`rung-agent-core/src/oauth/`. Tests use `rung_testkit::http::Server` as the
+fake provider and a fake clock, never a real login. A new provider is an
+entry in `oauth::provider` plus its own section in `config.yaml`. The
+Copilot API's acceptable use from a non-editor client is an open owner
+decision (O18); do not close it in code.
+
 ## Turn check (rung-agent-core)
 
 `rung-agent-core/src/turn_check.rs` is a ladder after the agent loop: a judge (Jev, via

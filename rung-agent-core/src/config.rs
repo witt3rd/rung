@@ -38,6 +38,26 @@ struct FileConfig {
     /// Memory (`memory.rs`). Omitted means off.
     #[serde(default)]
     memory: Option<MemoryFile>,
+    /// Per-provider OAuth settings (`oauth.<provider>:`), read by the
+    /// provider itself (`oauth.rs`). `llm.auth.oauth` selects one.
+    #[serde(default)]
+    oauth: Option<std::collections::BTreeMap<String, serde_yaml::Value>>,
+}
+
+/// `llm.auth:` — how the call is authorized when not by `api_key_env`.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AuthFile {
+    #[serde(default)]
+    oauth: Option<OauthRef>,
+}
+
+/// `llm.auth.oauth:` — which provider's login, and which named profile of it.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OauthRef {
+    provider: Option<String>,
+    profile: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -134,6 +154,9 @@ struct LlmFile {
     /// The model takes images, so tool results may carry them. Default off.
     #[serde(default)]
     images: Option<bool>,
+    /// A minted credential instead of `api_key_env`.
+    #[serde(default)]
+    auth: Option<AuthFile>,
 }
 
 /// Directory for the product config: `$XDG_CONFIG_HOME/rung`.
@@ -308,9 +331,81 @@ fn resolve_tool_images(
 
 pub fn load_from_path(path: &Path) -> Result<LlmConfig, String> {
     let file = read_file(path)?;
-    resolve(file.as_ref().and_then(|f| f.llm.as_ref()), |k| {
-        std::env::var(k).ok()
-    })
+    let getenv = |k: &str| std::env::var(k).ok();
+    let mut cfg = resolve(file.as_ref().and_then(|f| f.llm.as_ref()), getenv)?;
+    attach_credential(&mut cfg, file.as_ref(), getenv)?;
+    Ok(cfg)
+}
+
+/// The `oauth.<provider>:` section of the config file, if there is one.
+pub fn load_oauth_section(provider: &str) -> Result<Option<serde_yaml::Value>, String> {
+    Ok(read_file(&config_path())?
+        .and_then(|f| f.oauth)
+        .and_then(|mut m| m.remove(provider)))
+}
+
+/// Wire an OAuth credential into `cfg` when one is selected: by
+/// `RUNG_OAUTH_PROVIDER` / `RUNG_OAUTH_PROFILE` (env wins) or by
+/// `llm.auth.oauth` in the file. The credential replaces the key: no
+/// `api_key_env` may be set beside it, and any key from the environment is
+/// dropped. The route is the provider's unless `llm.base_url` /
+/// `RUNG_BASE_URL` names one. Touches no network.
+fn attach_credential(
+    cfg: &mut LlmConfig,
+    file: Option<&FileConfig>,
+    getenv: impl Fn(&str) -> Option<String>,
+) -> Result<(), String> {
+    let env = |k: &str| {
+        getenv(k)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let llm = file.and_then(|f| f.llm.as_ref());
+    let from_file = llm
+        .and_then(|l| l.auth.as_ref())
+        .and_then(|a| a.oauth.as_ref());
+    let provider = env("RUNG_OAUTH_PROVIDER")
+        .or_else(|| from_file.and_then(|o| o.provider.clone()))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let Some(provider) = provider else {
+        if from_file.is_some() {
+            return Err("llm.auth.oauth: provider is required".into());
+        }
+        return Ok(());
+    };
+    let profile = env("RUNG_OAUTH_PROFILE")
+        .or_else(|| from_file.and_then(|o| o.profile.clone()))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| crate::oauth::DEFAULT_PROFILE.to_string());
+    crate::oauth::store::valid_name(&profile).map_err(|e| format!("oauth profile: {e}"))?;
+    if llm
+        .and_then(|l| l.api_key_env.as_deref())
+        .is_some_and(|k| !k.trim().is_empty())
+    {
+        return Err("llm: api_key_env and auth.oauth are two credentials; set one".into());
+    }
+    if cfg.protocol == Protocol::AnthropicMessages {
+        return Err("llm.auth.oauth: supported on the OpenAI-compatible route only".into());
+    }
+    let explicit_base = env("RUNG_BASE_URL").or_else(|| {
+        llm.and_then(|l| l.base_url.as_deref())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    });
+    let section = file
+        .and_then(|f| f.oauth.as_ref())
+        .and_then(|m| m.get(&provider));
+    let p = crate::oauth::provider(&provider, section, explicit_base.as_deref())?;
+    let store = crate::oauth::Store::new(crate::oauth::Store::default_dir_from(&getenv));
+    cfg.credential = Some(p.credential(
+        store,
+        &profile,
+        std::sync::Arc::new(crate::oauth::SystemClock),
+    ));
+    cfg.api_key.clear();
+    Ok(())
 }
 
 fn read_file(path: &Path) -> Result<Option<FileConfig>, String> {
@@ -398,6 +493,7 @@ fn resolve(
         stream_listener: None,
         session_id: None,
         cache_breakpoints: Vec::new(),
+        credential: None,
     })
 }
 
@@ -451,6 +547,7 @@ pub fn dummy() -> LlmConfig {
         stream_listener: None,
         session_id: None,
         cache_breakpoints: Vec::new(),
+        credential: None,
     }
 }
 
@@ -717,5 +814,75 @@ llm:
             Protocol::OpenAiChat
         );
         assert!(parse_protocol(Some("nope")).is_err());
+    }
+
+    /// `attach_credential` over a YAML config and an environment.
+    fn with_auth(yaml: &str, env: &HashMap<&str, &str>) -> Result<LlmConfig, String> {
+        let file: FileConfig = serde_yaml::from_str(yaml).unwrap();
+        let mut cfg = resolve(file.llm.as_ref(), getenv(env))?;
+        attach_credential(&mut cfg, Some(&file), getenv(env))?;
+        Ok(cfg)
+    }
+
+    const COPILOT: &str = "llm:\n  model: gpt-4.1\n  auth:\n    oauth:\n      provider: github-copilot\n      profile: work\n";
+
+    #[test]
+    fn oauth_in_the_file_selects_a_credential_and_drops_any_key() {
+        let env = HashMap::from([
+            ("RUNG_API_KEY", "env-key"),
+            ("RUNG_HOME", "/nonexistent-home"),
+        ]);
+        let c = with_auth(COPILOT, &env).unwrap();
+        assert!(c.api_key.is_empty(), "the credential replaces the key");
+        let shown = format!("{:?}", c.credential.expect("a credential"));
+        assert!(
+            shown.contains("github-copilot") && shown.contains("work"),
+            "{shown}"
+        );
+        // No oauth: no credential, the key is the key.
+        let c = with_auth("llm:\n  model: m\n", &env).unwrap();
+        assert!(c.credential.is_none());
+        assert_eq!(c.api_key, "env-key");
+    }
+
+    #[test]
+    fn the_environment_picks_the_profile_per_process() {
+        let env = HashMap::from([("RUNG_OAUTH_PROFILE", "personal")]);
+        let c = with_auth(COPILOT, &env).unwrap();
+        assert!(format!("{:?}", c.credential.unwrap()).contains("personal"));
+        // The environment can also choose the provider with no file entry; the
+        // profile is then `default`.
+        let env = HashMap::from([("RUNG_OAUTH_PROVIDER", "github-copilot")]);
+        let c = with_auth("llm:\n  model: m\n", &env).unwrap();
+        assert!(format!("{:?}", c.credential.unwrap()).contains("default"));
+    }
+
+    #[test]
+    fn oauth_beside_a_key_a_bad_name_or_the_wrong_route_is_refused() {
+        let none = HashMap::new();
+        let e = with_auth(&format!("{COPILOT}  api_key_env: SOME_KEY\n"), &none).unwrap_err();
+        assert!(e.contains("two credentials"), "{e}");
+        let e = with_auth(&COPILOT.replace("github-copilot", "nope"), &none).unwrap_err();
+        assert!(
+            e.contains("not known") && e.contains("github-copilot"),
+            "{e}"
+        );
+        let e = with_auth(&COPILOT.replace("work", "../x"), &none).unwrap_err();
+        assert!(e.contains("oauth profile"), "{e}");
+        let e =
+            with_auth(&format!("{COPILOT}  protocol: anthropic-messages\n"), &none).unwrap_err();
+        assert!(e.contains("OpenAI-compatible"), "{e}");
+        let e = with_auth("llm:\n  auth:\n    oauth: {}\n", &none).unwrap_err();
+        assert!(e.contains("provider is required"), "{e}");
+        // A typo in the block is an error, not a silent no-op.
+        assert!(serde_yaml::from_str::<FileConfig>("llm:\n  auth:\n    oauht: {}\n").is_err());
+    }
+
+    #[test]
+    fn a_provider_section_with_an_unknown_key_is_refused() {
+        let none = HashMap::new();
+        let yaml = format!("{COPILOT}oauth:\n  github-copilot:\n    cliend_id: x\n");
+        let e = with_auth(&yaml, &none).unwrap_err();
+        assert!(e.contains("oauth.github-copilot"), "{e}");
     }
 }

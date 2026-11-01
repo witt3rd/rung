@@ -275,6 +275,58 @@ async fn the_door_refuses_what_it_should_before_any_frame() {
 }
 
 #[tokio::test]
+async fn an_oauth_token_never_reaches_a_door_client_in_a_record_or_a_delta() {
+    // GitHub's token prefixes and a Copilot token, made up.
+    let a = "SENTINELoauth0123456789abcdef";
+    let shapes = [
+        format!("gho_{a}"),
+        format!("ghu_{a}"),
+        format!("github_pat_{a}"),
+        format!("tid=0123abcd;exp=1800001800;proxy-ep=proxy.individual.githubcopilot.com;{a}:SIG"),
+    ];
+    let mut h = Host::start("h5-door-oauth").await;
+    let mut s = Stream::open(&h, "", &[]).await;
+    for sh in &shapes {
+        h.push("note.written", json!({"text": format!("login {sh} done")}));
+    }
+    let mut seen = Vec::new();
+    while seen.len() < shapes.len() {
+        let f = s.next().await.expect("the stream ended");
+        if f.event == "record" {
+            seen.push(f.data.to_string());
+        }
+    }
+    let t = h.bus.turn(1);
+    t.block_start(0);
+    for sh in &shapes {
+        t.text(0, &format!("token {sh} here. "));
+        t.tool_run(0, "ws_write", &json!({"text": sh}));
+        t.tool_done(0, "ws_write", true, &format!("wrote {sh}"));
+    }
+    t.block_end(0, None);
+    t.end();
+    loop {
+        let f = s.next().await.unwrap();
+        let done = f.data["kind"] == "turn_end";
+        seen.push(f.data.to_string());
+        if done {
+            break;
+        }
+    }
+    let all = seen.join("\n");
+    for sh in &shapes {
+        assert!(
+            !all.contains(sh.as_str()),
+            "a token shape reached the client"
+        );
+    }
+    assert!(
+        all.contains("login") && all.contains("here."),
+        "frames were dropped"
+    );
+}
+
+#[tokio::test]
 async fn partial_frames_arrive_flagged_redacted_and_are_not_in_the_record() {
     let mut h = Host::start("h5-door-partial").await;
     h.push_n(1);

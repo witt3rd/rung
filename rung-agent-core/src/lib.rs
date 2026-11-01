@@ -26,6 +26,10 @@
 //! The file may name `api_key_env`; it does not hold the key. No key is
 //! required — LAN llama.cpp sends no Authorization header.
 //!
+//! OAuth ([`oauth`]): `llm.auth.oauth: {provider, profile}` replaces
+//! `api_key_env` with a login made once (`rung-agent auth login
+//! github-copilot`) and a bearer minted on demand. `docs/rung-agent-oauth.md`.
+//!
 //! Turn check ([`turn_check`]): off by default. `turn_check.backend: jev` in
 //! the same file, or `RUNG_TURN_CHECK=jev`, has Jev read each finished turn
 //! before it is reported `completed`.
@@ -48,6 +52,7 @@ pub mod mcp;
 pub mod memory;
 pub mod memory_fixture;
 pub mod memory_score;
+pub mod oauth;
 pub mod redact;
 pub mod run;
 pub mod session;

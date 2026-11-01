@@ -8,6 +8,16 @@ use std::process::ExitCode;
 fn main() -> ExitCode {
     let argv: Vec<String> = std::env::args().collect();
     match argv.get(1).map(String::as_str) {
+        Some("auth") if argv.len() > 2 => {
+            let code = rung_agent::oauth::cli::run(
+                &argv[2..],
+                &rung_agent::oauth::Store::from_env(),
+                std::sync::Arc::new(rung_agent::oauth::SystemClock),
+                &mut io::stdout(),
+                &mut io::stderr(),
+            );
+            return ExitCode::from(code as u8);
+        }
         Some("--memory-fixture") => {
             return match rung_agent::memory_fixture::serve(&argv[2..]) {
                 Ok(()) => ExitCode::SUCCESS,
