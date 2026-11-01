@@ -494,7 +494,7 @@ fn a_host_that_is_stopping_refuses_with_start_it_first_and_writes_nothing() {
             refused = Some((n, body));
             break;
         }
-        std::thread::sleep(std::time::Duration::from_millis(5));
+        std::thread::sleep(std::time::Duration::from_millis(1));
     }
     let (n, body) = refused.expect("a 409 while the host was stopping");
     let v: Value = serde_json::from_str(&body).unwrap();
