@@ -267,3 +267,37 @@ fn streaming_and_cancel_cross_the_boundary() {
     let (r, _) = c.response(10, Duration::from_secs(10));
     assert_eq!(r["result"]["stopReason"], "cancelled", "{r}");
 }
+
+#[test]
+fn a_client_id_in_the_proxys_own_space_is_refused() {
+    let mut c = Client::spawn(vec![]);
+    c.request(1, "initialize", json!({"protocolVersion": 1}));
+    c.response(1, Duration::from_secs(20));
+    c.send(
+        json!({"jsonrpc": "2.0", "id": "rung-proxy:1", "method": "session/list",
+        "params": {"cwd": c.tmp.to_string_lossy()}}),
+    );
+    let end = Instant::now() + Duration::from_secs(10);
+    loop {
+        let v = c
+            .next(end.saturating_duration_since(Instant::now()))
+            .expect("an error answer");
+        if v.get("id") == Some(&json!("rung-proxy:1")) {
+            assert_eq!(v["error"]["code"], -32600, "{v}");
+            break;
+        }
+    }
+}
+
+#[test]
+fn the_last_worker_is_reused_after_its_session_closes() {
+    let mut c = Client::spawn(vec![]);
+    c.request(1, "initialize", json!({"protocolVersion": 1}));
+    c.response(1, Duration::from_secs(20));
+    let sid = c.new_session(2);
+    c.request(3, "session/close", json!({"sessionId": sid}));
+    c.response(3, Duration::from_secs(20));
+    // a new session still answers, on the worker that was kept
+    let second = c.new_session(4);
+    assert_ne!(second, sid);
+}

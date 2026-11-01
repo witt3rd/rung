@@ -12,8 +12,10 @@
 //! and the next message for its session starts a fresh worker that
 //! `session/resume`s from the session file. Restarts back off from 250 ms to
 //! 30 s and stop after 5 consecutive failures; a worker that lived 30 s
-//! counts as stable and clears the count (the same shape as prime-agent's
-//! supervisor, ideas only).
+//! counts as stable: its own death then counts as the first failure, not the
+//! next of a run (the same shape as prime-agent's supervisor, ideas only).
+//! Request ids that begin with `rung-proxy:` are the proxy's own and are
+//! refused from a client.
 //!
 //! Set `RUNG_ACP_WORKERS=0` to keep the old single-process agent. `--acp-http`
 //! is unchanged and stays in-process.
@@ -300,6 +302,17 @@ impl Proxy {
             .and_then(Value::as_str)
             .map(str::to_string);
         let id = msg.get("id").cloned();
+        // The proxy's own requests use this prefix and their answers are
+        // dropped: a client id in that space would be swallowed.
+        if let Some(id) = &id
+            && id.as_str().is_some_and(|s| s.starts_with(PROXY_ID))
+            && method.is_some()
+        {
+            to_client(&json!({"jsonrpc": "2.0", "id": id, "error": {
+                "code": -32600,
+                "message": format!("request ids beginning `{PROXY_ID}` are reserved")}}));
+            return;
+        }
         let Some(method) = method else {
             // A client response: nothing the workers ask for needs one today.
             return;
@@ -419,8 +432,13 @@ impl Proxy {
             }
             None => false,
         };
-        if empty && self.spare != Some(wid) && self.workers.len() > 1 {
-            self.stop_worker(wid);
+        if empty && self.spare != Some(wid) {
+            if self.workers.len() > 1 {
+                self.stop_worker(wid);
+            } else {
+                // The last worker stays, and is the one a new session takes.
+                self.spare = Some(wid);
+            }
         }
     }
 
