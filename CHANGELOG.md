@@ -10,7 +10,7 @@ git tags only.
 ### Changed (docs overhaul)
 - `docs/_links.py` (in the `propositions` job) fails a document that points at
   something absent: a relative link, an anchor, a backticked repo path, a
-  `docs/...md` cited from code, or a hand-kept test count `(N tests)`. Its
+  a `docs/` document cited from code, or a hand-kept test count `(N tests)`. Its
   known exceptions are listed in `docs/_links.allow`; the list only shrinks.
 - Drift fixed: `G1`–`G16` and the idle and fleet rows in `AGENTS.md`, the
   stale `Last updated` line gone; `docs/triage.md` names all five props
