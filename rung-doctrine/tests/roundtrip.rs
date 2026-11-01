@@ -9,7 +9,7 @@
 //!
 //! It also fails cheaply, which is the point of doing it first.
 
-use rung_doctrine::{Doctrine, Element, Resolver, rung, rung_ct, rung_het};
+use rung_doctrine::{Doctrine, Element, Resolver, rung, rung_ct, rung_fleet, rung_het};
 use std::path::PathBuf;
 
 fn root() -> PathBuf {
@@ -33,7 +33,12 @@ fn docs() -> PathBuf {
 /// derivation, applied to a document that has not migrated yet. As each is
 /// encoded this shrinks, and when the last one lands it is empty.
 fn all() -> Vec<Doctrine> {
-    vec![rung::doctrine(), rung_het::doctrine(), rung_ct::doctrine()]
+    vec![
+        rung::doctrine(),
+        rung_het::doctrine(),
+        rung_ct::doctrine(),
+        rung_fleet::doctrine(),
+    ]
 }
 
 /// **Every document is encoded, so the resolver needs nothing external.**
@@ -214,7 +219,7 @@ fn coverage_is_reported() {
         );
     }
     println!("  {props} propositions encoded in total\n");
-    assert_eq!(props, 391, "the corpus did not survive migration");
+    assert_eq!(props, 440, "the corpus did not survive migration");
 }
 
 /// Where the triage has got to.
@@ -245,11 +250,11 @@ fn the_corpus_triage_is_recorded() {
     }
     println!("\n  corpus triage: {by_kind:?}\n");
     assert_eq!(by_kind.get("decidable").copied(), Some(132));
-    assert_eq!(by_kind.get("rationale").copied(), Some(148));
-    assert_eq!(by_kind.get("signature").copied(), Some(62));
+    assert_eq!(by_kind.get("rationale").copied(), Some(152));
+    assert_eq!(by_kind.get("signature").copied(), Some(74));
     assert_eq!(by_kind.get("judgmental").copied(), Some(47));
-    assert_eq!(by_kind.get("owed").copied(), Some(2));
-    assert_eq!(by_kind.values().sum::<usize>(), 391);
+    assert_eq!(by_kind.get("owed").copied(), Some(35));
+    assert_eq!(by_kind.values().sum::<usize>(), 440);
 }
 
 /// **Nothing is unclassified.** Every proposition carries a kind, because the
@@ -258,7 +263,7 @@ fn the_corpus_triage_is_recorded() {
 #[test]
 fn every_proposition_in_the_corpus_carries_a_kind() {
     let n: usize = all().iter().map(|d| d.props().count()).sum();
-    assert_eq!(n, 391);
+    assert_eq!(n, 440);
 }
 
 /// **Every decidable proposition's proof resolves.**

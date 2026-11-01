@@ -7,7 +7,7 @@
 //! has tested.
 
 use rung_doctrine::judgment::{Fault, Record, Ruling, Tier, check, read_all};
-use rung_doctrine::{Kind, rung, rung_ct, rung_het};
+use rung_doctrine::{Kind, rung, rung_ct, rung_fleet, rung_het};
 use std::path::PathBuf;
 
 fn root() -> PathBuf {
@@ -22,7 +22,12 @@ fn dir() -> PathBuf {
 }
 
 fn all() -> Vec<rung_doctrine::Doctrine> {
-    vec![rung::doctrine(), rung_het::doctrine(), rung_ct::doctrine()]
+    vec![
+        rung::doctrine(),
+        rung_het::doctrine(),
+        rung_ct::doctrine(),
+        rung_fleet::doctrine(),
+    ]
 }
 
 /// A record that should pass every check: a real judgmental proposition, the

@@ -46,6 +46,7 @@ DOC_NAMES = (
     "rung-props.md",
     "rung-het-props.md",
     "rung-ct-props.md",
+    "rung-fleet-props.md",
 )
 
 

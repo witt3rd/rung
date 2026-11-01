@@ -46,6 +46,7 @@ pub mod governed;
 pub mod judgment;
 pub mod rung;
 pub mod rung_ct;
+pub mod rung_fleet;
 pub mod rung_het;
 
 use std::collections::BTreeMap;

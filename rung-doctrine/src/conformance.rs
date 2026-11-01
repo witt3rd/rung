@@ -95,7 +95,7 @@ fn proof_of(p: &Prop) -> String {
 pub fn render(doctrines: &[Doctrine], r: &Resolver, tests: &[String]) -> String {
     let mut out = String::from(
         "# Conformance\n\n\
-         **Status: not normative, and generated.** The three `*-props.md` documents govern.\n\
+         **Status: not normative, and generated.** The `*-props.md` documents govern.\n\
          This is a **view of the doctrine** in [`rung-doctrine/`](../rung-doctrine/), written by\n\
          `cargo run -p rung-doctrine --bin render`. Editing it here does nothing; the next\n\
          render restores it, and CI fails if the two disagree.\n\n\

@@ -216,9 +216,9 @@ Five kinds — not a status field. The counts are the corpus; a test pins them.
 |---|---|---:|
 | **decidable** | a proof — a test that fails when the proposition is violated | 132 |
 | **judgmental** | a principal, **disjoint** from what it judges | 47 |
-| **owed** | an author, with **standing** over it | 2 |
-| **signature** | nobody — it declares vocabulary | 62 |
-| **rationale** | nobody — it argues, or records a limit | 148 |
+| **owed** | an author, with **standing** over it | 35 |
+| **signature** | nobody — it declares vocabulary | 74 |
+| **rationale** | nobody — it argues, or records a limit | 152 |
 
 ### Map
 
