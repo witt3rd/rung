@@ -1,0 +1,6 @@
+# The host gates assert wall-clock latency (p99 boundary-to-turn); they
+# must not share the runner with other tests, as nextest runs tests in
+# parallel where `cargo test` ran one binary at a time.
+[[profile.default.overrides]]
+filter = 'package(rung-host) and binary(/^gate_/)'
+threads-required = 'num-cpus'

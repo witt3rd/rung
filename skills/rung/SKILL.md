@@ -42,7 +42,16 @@ current (`--locked`), crates depending on a `publish = false` crate are also
 
 ## CI
 
-Required check is `check` (fmt, clippy `-D warnings`, rustdoc `-D warnings`, tests `--locked`).
+Required check is `check`: an aggregator job that needs every other job and
+fails if any failed, or was skipped while the plan had Rust work. Never rename it.
+The jobs run in parallel: `plan`, `lint` (fmt, clippy `-D warnings`), `test`
+(cargo-nextest, 4 shards, `scripts/test_tmp_clean.sh nextest`), `docs` (rustdoc
+`-D warnings`, doctests), `examples`, `msrv`, `deny`, `propositions`,
+`release-check`. Pull requests build only the crates a change affects (changed
+crates plus reverse dependencies); push, `merge_group` and tags run everything.
+Selection rules and their tests: `scripts/ci_plan.py`, `scripts/test_ci_plan.py`
+(dry run: `printf 'docs/x.md\n' | scripts/ci_plan.py --event pull_request --files -`).
+A test or example that reads a root-level path adds a row to `EXTRA_INPUTS` there.
 Propositions job: `render --check`, `docs/_props.py check`, `cited`,
 `docs/_consumer_guard.py` (no consumer-specific names; exemptions in
 `docs/_consumer_guard.allow`).
