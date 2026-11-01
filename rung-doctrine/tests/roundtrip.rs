@@ -632,70 +632,30 @@ fn mechanism_prose_cites_by_slug_and_every_citation_resolves() {
     );
 }
 
-/// **A count written by hand in a document must match the doctrine.**
+/// **No hand-written per-document count table in the triage note.**
 ///
 /// `docs/triage.md` once carried a per-document table I wrote out rather than
 /// derived. It was wrong by two, both versions summed to 70, and nothing
 /// caught it — in the note explaining why numbers should not be written by
 /// hand.
 ///
-/// The table is gone; `conformance.md` is generated and carries the per-document
-/// counts. What remains by hand is the README's corpus table, because a reader
-/// arriving at the repository should meet the shape without following a link.
-/// This is what keeps it true.
+/// The table is gone; `conformance.md` is generated and carries the counts per
+/// kind and per document, and the front-door `AGENTS.md` links to it instead
+/// of repeating them. This keeps the table from creeping back.
 ///
-/// Mutation: change any number in the README's kind table and this reddens.
+/// Mutation: put a `| `rung-props.md` |` row in `docs/triage.md` and this reddens.
 #[test]
-fn hand_written_counts_in_prose_match_the_doctrine() {
-    use rung_doctrine::Kind;
-    let mut by_kind = std::collections::BTreeMap::new();
-    for p in all()
-        .iter()
-        .flat_map(|d| d.props().cloned().collect::<Vec<_>>())
-    {
-        *by_kind.entry(p.kind.name()).or_insert(0usize) += 1;
-    }
-
+fn triage_carries_no_hand_written_count_table() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
         .to_path_buf();
-    let readme = std::fs::read_to_string(root.join("README.md")).expect("README.md");
-
-    let mut checked = 0;
-    for (kind, count) in &by_kind {
-        // Rows read `| **decidable** | ... | 113 |`.
-        let Some(line) = readme
-            .lines()
-            .find(|l| l.starts_with(&format!("| **{kind}**")))
-        else {
-            continue;
-        };
-        let shown: usize = line
-            .rsplit('|')
-            .nth(1)
-            .and_then(|c| c.trim().parse().ok())
-            .unwrap_or_else(|| panic!("README row for `{kind}` has no count: {line}"));
-        assert_eq!(
-            shown, *count,
-            "README says {shown} {kind} propositions; the doctrine has {count}"
-        );
-        checked += 1;
-    }
-    assert_eq!(
-        checked,
-        by_kind.len(),
-        "the README's kind table does not cover every kind"
-    );
-
-    // And no stale per-document table crept back into the triage note.
     let triage = std::fs::read_to_string(root.join("docs/triage.md")).expect("triage.md");
     assert!(
         !triage.contains("| `rung-props.md` |"),
         "docs/triage.md carries a hand-written per-document table again; \
          conformance.md is generated and has one"
     );
-    let _ = Kind::Rationale;
 }
 
 /// **The queue that points the other way.**
@@ -866,7 +826,7 @@ fn no_proof_names_an_ignored_test() {
 #[test]
 fn every_markdown_link_in_the_repository_resolves() {
     let r = root();
-    let mut files: Vec<std::path::PathBuf> = vec![r.join("README.md")];
+    let mut files: Vec<std::path::PathBuf> = Vec::new();
     for dir in [
         "docs",
         ".het/rung-questions/questions",

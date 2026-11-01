@@ -1030,7 +1030,6 @@ look shorter than it is.
 - `every_judgmental_proposition_names_the_role_that_could_settle_it`
 - `every_markdown_link_in_the_repository_resolves`
 - `every_proposition_in_the_corpus_carries_a_kind`
-- `hand_written_counts_in_prose_match_the_doctrine`
 - `mechanism_prose_cites_by_slug_and_every_citation_resolves`
 - `no_document_depends_on_a_number_read_off_a_page`
 - `no_proof_names_an_ignored_test`
@@ -1045,6 +1044,7 @@ look shorter than it is.
 - `the_source_holds_no_number_and_no_rendered_link`
 - `the_test_scan_includes_this_very_test`
 - `the_triage_is_recorded`
+- `triage_carries_no_hand_written_count_table`
 - `verbatim_blocks_carry_only_non_propositional_matter`
 
 **`rung-driver/tests/audit_only.rs`** — 1 unclaimed

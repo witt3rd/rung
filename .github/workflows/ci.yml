@@ -126,7 +126,7 @@ jobs:
           scripts/test_tmp_clean.sh nextest --locked $SCOPE \
             --partition "count:${{ matrix.shard }}/4" --no-tests=pass
 
-  # rustdoc and the doctests nextest does not run (library doctests incl. README).
+  # rustdoc and the doctests nextest does not run (library doctests, incl. the Getting Started example in rung/src/lib.rs).
   docs:
     needs: plan
     if: needs.plan.outputs.rust == 'true'
