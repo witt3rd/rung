@@ -228,8 +228,10 @@ force-pushing `master`; bypassing the queue.
 **The one exception:** a single designated committer agent may hold a write
 lock and fast-forward `master` after its own verification. Nobody else.
 
-**Throughput:** CI takes 16 to 24 minutes today, so about three changes land
-per hour. Speeding CI up is a later task; keep increments small meanwhile.
+**Throughput:** CI takes 16 to 28 minutes, measured on master runs of 2026-11-01
+(ids 41300208321, 41300091745, 41299556550, 41283238423, 41277878976,
+41275312471), so about two to three changes an hour land with a group size
+of 1. Speeding CI up is a later task; keep increments small meanwhile.
 
 ### Configuration
 
@@ -300,8 +302,9 @@ deltas are the `fleet_*` skills on the machine.
 
 ## Scope and audience
 
-Maintainer: write access on `witt3rd/rung`. Debugging on `master`;
-worktrees only for parallel features. External contributors: PRs against
+Maintainer: write access on `witt3rd/rung`. All agent work, the
+maintainers' included, goes through the merge queue; the single designated
+committer agent is the only direct path. External contributors: PRs against
 `master`; follow CI; do not rewrite history.
 
 Last updated: 2026-10-30.
