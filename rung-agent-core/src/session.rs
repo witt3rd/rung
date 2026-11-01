@@ -206,9 +206,12 @@ impl SessionStore {
         let lp = self.legacy_path(id)?;
         if lp.is_file() {
             let body = fs::read_to_string(&lp).map_err(|e| format!("session {id}: {e}"))?;
-            return serde_json::from_str(&body)
-                .map(Some)
-                .map_err(|e| format!("session {id}: {e}"));
+            let s: Session =
+                serde_json::from_str(&body).map_err(|e| format!("session {id}: {e}"))?;
+            // Seen with no log behind it: a rival that migrated first moves
+            // the log, and this writer's first save is refused.
+            s.witness.set(0);
+            return Ok(Some(s));
         }
         Ok(None)
     }
@@ -256,8 +259,8 @@ impl SessionStore {
     /// line may be rewritten or dropped, as a turn does. A session that was
     /// loaded or saved by this process is also refused when the log has grown
     /// since (its `witness`), which catches a rival that changed only the last
-    /// line. A session never loaded or saved (new, or from a legacy file) has
-    /// only the line check.
+    /// line. A session never loaded or saved (a new one) has only the line
+    /// check.
     pub fn save(&self, session: &Session) -> Result<(), String> {
         use std::io::{Seek, SeekFrom, Write};
         check_id(&session.id)?;
@@ -615,5 +618,20 @@ mod log_tests {
         a.lines.last_mut().unwrap().text = "r2".into();
         st.save(&a).unwrap();
         assert_eq!(st.load("r").unwrap(), a);
+    }
+
+    #[test]
+    fn two_writers_migrating_one_legacy_file_cannot_both_win() {
+        let dir = rung_testkit::TempDir::new("slog");
+        let st = SessionStore::at(&dir);
+        let old = r#"{"id":"m","kind":"implement","status":"idle","cwd":"/w","lines":[{"role":"user","text":"hi"}]}"#;
+        fs::write(st.legacy_path("m").unwrap(), old).unwrap();
+        let mut a = st.load("m").unwrap();
+        let mut b = st.load("m").unwrap();
+        a.lines.last_mut().unwrap().text = "from a".into();
+        st.save(&a).unwrap();
+        b.lines.last_mut().unwrap().text = "from b".into();
+        assert!(st.save(&b).is_err());
+        assert_eq!(st.load("m").unwrap(), a);
     }
 }
