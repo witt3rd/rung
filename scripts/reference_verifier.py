@@ -20,6 +20,17 @@ INPUTS = [
 ]
 REPLIES = ["Noted.", "release/x", "Summary."]
 STAMP = re.compile(r"\d{4}-\d\d-\d\dT[\d:.]+Z?|\b\d{10,}\b")
+# session ids (time-ordered hex) and hashed file names differ on every run
+IDENT = re.compile(r"\b[0-9a-f]{16}(?:-[0-9a-f]{6})?\b")
+
+
+SCOPE = re.compile(r"rung-scope:[0-9a-f]+")  # hashed from the working directory
+
+
+def norm(txt, work):
+    txt = re.sub(r'"pid": \d+', '"pid": 0', txt)
+    txt = SCOPE.sub("rung-scope:<I>", txt.replace(work, "<W>"))
+    return IDENT.sub("<I>", STAMP.sub("<T>", txt))
 
 
 def run(d, work):
@@ -42,9 +53,9 @@ def run(d, work):
                            stdout=subprocess.DEVNULL, timeout=120)
     finally:
         mock.kill()
-    reqs = [l.rstrip("\n") for l in open(port + ".requests")] \
+    reqs = [norm(l.rstrip("\n"), work) for l in open(port + ".requests")] \
         if os.path.exists(port + ".requests") else []
-    sessions = {}
+    found = []
     for root, _, files in os.walk(work):
         for f in files:
             p = os.path.join(root, f)
@@ -55,14 +66,26 @@ def run(d, work):
                 txt = open(p, encoding="utf-8").read()
             except UnicodeDecodeError:
                 continue
-            sessions[rel] = STAMP.sub("<T>", txt.replace(work, "<W>"))
+            found.append((rel, norm(txt, work)))
+    # Files are keyed by their normalised name plus the order of the original
+    # names (ids are time-ordered), so run-specific ids do not read as diffs.
+    sessions, seen = {}, {}
+    for rel, txt in sorted(found):
+        key = norm(rel, work)
+        seen[key] = seen.get(key, 0) + 1
+        sessions[f"{key}#{seen[key]}"] = txt
     return reqs, sessions
 
 
 def prefix_break(a, b):
     """Cache prefix break: request b is not byte-prefixed by the same
     leading messages as a (shared leading chars < the shorter request)."""
-    return a != b and os.path.commonprefix([a, b]) != min(a, b, key=len)
+    n = 0
+    for x, y in zip(a, b):
+        if x != y:
+            break
+        n += 1
+    return a != b and n < min(len(a), len(b))
 
 
 def main():
