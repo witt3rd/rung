@@ -44,6 +44,7 @@ fn cfg(protocol: Protocol) -> LlmConfig {
         stream_listener: None,
         session_id: None,
         cache_breakpoints: Vec::new(),
+        credential: None,
     }
 }
 

@@ -271,7 +271,7 @@ a count; never log it.
 | kind | replaced | kept |
 |---|---|---|
 | exact value of a named variable or `add_secret` (6+ chars) | the value, in any context | the rest |
-| key shapes: `sk-…`, `sk_live_…`, `ghp_…` (and `gho_ ghu_ ghs_ ghr_`), `github_pat_…`, `glpat-…`, `xox?-…`, `xapp-…`, `xai-…`, `gsk_…`, `tskey-…`, `AKIA…`/`ASIA…`, `AIza…`, `hf_…`, `npm_…`, `pypi-…`, `dp.st.…` (and `pt ct sa`), JWTs | the whole token | the rest |
+| key shapes: `sk-…`, `sk_live_…`, `ghp_…` (and `gho_ ghu_ ghs_ ghr_`), `github_pat_…`, Copilot tokens (`tid=…;exp=…;…`), `glpat-…`, `xox?-…`, `xapp-…`, `xai-…`, `gsk_…`, `tskey-…`, `AKIA…`/`ASIA…`, `AIza…`, `hf_…`, `npm_…`, `pypi-…`, `dp.st.…` (and `pt ct sa`), JWTs | the whole token | the rest |
 | private key block | the body | the BEGIN/END lines |
 | headers `Authorization`, `Proxy-Authorization` and the two HTTP session-state headers | the whole value (commas, semicolons and quotes inside it included): to the end of the line, or to the quote that opened the header (`-H "…"`), or to the closing quote of a quoted value | the name |
 | headers `X-Api-Key`, `Api-Key`, `X-Auth-Token`, `Mcp-Session-Id` | the value, to the next `,` `;` quote or end of line | the name |

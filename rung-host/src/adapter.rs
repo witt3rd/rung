@@ -145,6 +145,7 @@ impl AgentEngine {
             } else {
                 Vec::new()
             },
+            credential: None,
         };
         let spec = EngineSpec {
             llm,

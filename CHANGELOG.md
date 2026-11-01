@@ -16,6 +16,24 @@ git tags only.
   owner still confirms. `docs/conformance.md` lists the new claims. No crate
   code (witt3rd/rung#347).
 
+### Added (OAuth credentials)
+- `rung-agent`: a second credential kind beside `api_key_env`. `llm.auth.oauth:
+  {provider, profile}` (or `RUNG_OAUTH_PROVIDER` / `RUNG_OAUTH_PROFILE`) selects
+  a login made once with `rung-agent auth login github-copilot` (device code:
+  prints the code and URL, no browser on the host) and a bearer minted on
+  demand. GitHub Copilot is the first provider. Logins live machine-local at
+  mode 0600 under `$RUNG_HOME/oauth/`, never in a repo; named profiles; one
+  exchange however many callers or processes ask (a file lock); a 401 forces
+  one refresh and one retry; a revoked login is an auth failure naming the
+  command that fixes it; the route comes from the token's `proxy-ep`; the
+  editor-identity headers are configuration. Also `auth status | models |
+  logout`. Contract and proofs: `docs/rung-agent-oauth.md`. Whether a
+  non-editor client may use the Copilot API is an open decision (O18).
+- `rung-std`: `llm::CredentialSource`, the seam a minted credential plugs into
+  (`LlmConfig::credential`); OpenAI-compatible route only.
+- The credential redactor removes Copilot tokens (`tid=…;exp=…;…`).
+- `rung-testkit`: `http::Server`, a scripted HTTP server for any endpoint.
+
 ### Added (live strata, host half)
 - `rung-host`: the layers of a turn's context are recorded at its start. A new
   `turn.layers` line (the header and the recall block, whole and redacted, with

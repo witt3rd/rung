@@ -725,7 +725,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 35 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 600 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 627 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -751,6 +751,32 @@ look shorter than it is.
 - `a_turn_may_name_its_model_and_session_over_the_specs`
 - `a_turns_listener_sees_each_refused_attempt`
 - `the_caller_owns_the_thread_and_a_long_tool_result_comes_back_verbatim`
+
+**`rung-agent-core/tests/oauth.rs`** — 23 unclaimed
+
+- `a_401_forces_one_refresh_and_one_retry`
+- `a_chat_call_goes_through_the_minted_credential`
+- `a_good_token_is_reused_and_renewed_ahead_of_its_expiry`
+- `a_login_is_stored_at_mode_0600_in_a_private_directory`
+- `a_missing_login_says_how_to_make_one`
+- `a_profile_name_cannot_leave_the_store`
+- `a_revoked_login_is_an_actionable_auth_failure_and_is_not_retried_hot`
+- `a_second_401_is_the_answer_not_a_loop`
+- `a_second_process_reuses_the_token_the_first_stored`
+- `an_unknown_device_flow_error_is_reported_without_a_token`
+- `authorize_returns_a_bearer_the_route_and_the_editor_headers`
+- `device_flow_ends_on_expired_token_denied_and_a_spent_code`
+- `device_flow_waits_out_pending_and_slow_down_then_stores_the_login`
+- `editor_identity_headers_are_configuration`
+- `logins_list_and_remove`
+- `no_account_access_is_a_revoked_style_failure_and_a_throttle_waits`
+- `no_debug_or_error_text_holds_a_token`
+- `parallel_callers_cause_exactly_one_exchange`
+- `quota_and_rate_refusals_from_the_api_are_a_backoff_not_a_hot_retry`
+- `the_model_list_is_fetched_filtered_and_cached`
+- `the_token_names_the_route_and_enterprise_has_its_own_rule`
+- `the_token_route_is_used_when_nothing_overrides_it`
+- `two_profiles_of_one_provider_use_their_own_logins`
 
 **`rung-agent/tests/acp.rs`** — 18 unclaimed
 
@@ -849,6 +875,13 @@ look shorter than it is.
 - `a_missing_question_file_is_refused`
 - `baseline_and_provider_arms_report_on_the_fixture_set`
 - `the_memory_token_never_reaches_the_report`
+
+**`rung-agent/tests/oauth.rs`** — 4 unclaimed
+
+- `a_turn_on_an_oauth_credential_mints_once_and_sends_the_bearer`
+- `a_turn_with_no_login_fails_with_the_command_that_fixes_it`
+- `auth_usage_errors_exit_two_and_a_failed_login_leaves_nothing`
+- `login_status_models_and_logout_never_print_a_token`
 
 **`rung-agent/tests/parity.rs`** — 13 unclaimed
 

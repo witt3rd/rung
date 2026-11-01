@@ -31,6 +31,11 @@ pub fn raw_call(
     messages: &[ChatMessage],
     tools: &[ToolDefinition],
 ) -> Result<LlmResponse, RawCallError> {
+    if config.credential.is_some() {
+        return Err(RawCallError::Config(
+            "a minted credential is supported on the OpenAI-compatible route only".into(),
+        ));
+    }
     if config.base_url.trim().is_empty() {
         return Err(RawCallError::Config("empty base_url".into()));
     }
@@ -678,6 +683,7 @@ mod tests {
             stream_listener: None,
             session_id: None,
             cache_breakpoints: Vec::new(),
+            credential: None,
         }
     }
 

@@ -350,6 +350,10 @@ pub struct LlmConfig {
     /// Explicit prompt-cache breakpoints, in addition to what
     /// [`CachePolicy`] places. Empty places none.
     pub cache_breakpoints: Vec<CacheBreakpoint>,
+    /// A minted credential. When set it supplies the bearer (and may supply
+    /// the base URL and extra headers) of every request, and `api_key` is
+    /// not used. Supported on the OpenAI-compatible route only.
+    pub credential: Option<Arc<dyn super::credential::CredentialSource>>,
 }
 
 impl Clone for LlmConfig {
@@ -373,6 +377,7 @@ impl Clone for LlmConfig {
             stream_listener: self.stream_listener.clone(),
             session_id: self.session_id.clone(),
             cache_breakpoints: self.cache_breakpoints.clone(),
+            credential: self.credential.clone(),
         }
     }
 }
@@ -405,6 +410,7 @@ impl std::fmt::Debug for LlmConfig {
             )
             .field("session_id", &self.session_id)
             .field("cache_breakpoints", &self.cache_breakpoints)
+            .field("credential", &self.credential)
             .finish()
     }
 }

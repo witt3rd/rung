@@ -5,8 +5,10 @@
 //! test run leaves nothing behind. CI runs `scripts/test_tmp_clean.sh`, which runs
 //! the tests with a private temp root and fails if any entry survives in it.
 //!
-//! [`llm::mock_llm`] is the one scripted OpenAI-compatible server for tests.
+//! [`llm::mock_llm`] is the one scripted OpenAI-compatible server for tests;
+//! [`http::Server`] is a scripted HTTP server for any other endpoint.
 
+pub mod http;
 pub mod llm;
 
 use std::ops::Deref;

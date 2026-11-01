@@ -20,7 +20,7 @@
 //!   ([`Redactor::add_secret`]), in any shape and any context;
 //! - the **known key shapes**: the `SHAPES` table in `Scan::token_shape` is the
 //!   one list (restated nowhere else; `docs/rung-host-api.md` describes it),
-//!   plus AWS key ids and JWTs;
+//!   plus AWS key ids, JWTs and Copilot tokens (`tid=…;exp=…;…`);
 //! - **webhook URL tokens** (the path after a known webhook host);
 //! - **private key blocks** (the body; the BEGIN/END frame stays);
 //! - **auth headers** (the `HEADERS` table is the one list): the name stays,
@@ -403,6 +403,9 @@ struct Scan<'a, 'r> {
     // One memo per forward look.
     tok_end: Next,
     tok_trim: (usize, usize),
+    cop_end: Next,
+    cop_trim: (usize, usize),
+    cop_exp: Next,
     digit: Next,
     dot1: Next,
     dot2: Next,
@@ -431,6 +434,9 @@ impl<'a, 'r> Scan<'a, 'r> {
             mark_text: mark,
             tok_end: Next::default(),
             tok_trim: (usize::MAX, 0),
+            cop_end: Next::default(),
+            cop_trim: (usize::MAX, 0),
+            cop_exp: Next::default(),
             digit: Next::default(),
             dot1: Next::default(),
             dot2: Next::default(),
@@ -662,6 +668,29 @@ impl<'a, 'r> Scan<'a, 'r> {
         }
         if after_word {
             return;
+        }
+        // A Copilot token: `tid=<id>;exp=<epoch>;proxy-ep=<host>;…<signature>`,
+        // semicolon-separated, so it is not one `is_tok` run. It is a token
+        // when the run of its characters holds a `;exp=` field.
+        if rest.starts_with("tid=") {
+            let end = self.cop_end.find(b, i, |b, j| !is_copilot_char(b[j]));
+            let exp = self.cop_exp.find(b, i, |b, j| {
+                b[j] == b'e' && j > 0 && b[j - 1] == b';' && b[j..].starts_with(b"exp=")
+            });
+            // Trailing `.`, `;` and `:` are the sentence's, as for any other key.
+            if self.cop_trim.0 != end {
+                let mut e = end;
+                while e > i && matches!(b[e - 1], b'.' | b';' | b':') {
+                    e -= 1;
+                }
+                self.cop_trim = (end, e);
+            }
+            let end = self.cop_trim.1.max(i);
+            if exp < end && end - i >= 24 {
+                self.ranges.push((i, end));
+                self.glue = end;
+                return;
+            }
         }
         // AWS access key ids: AKIA / ASIA + 16 upper-case letters or digits.
         if (rest.starts_with("AKIA") || rest.starts_with("ASIA"))
@@ -919,6 +948,12 @@ fn is_header_char(c: u8) -> bool {
 
 fn is_name_char(c: u8) -> bool {
     c.is_ascii_alphanumeric() || matches!(c, b'_' | b'-' | b'.')
+}
+
+/// A character of a Copilot token: its fields are `name=value` pairs joined
+/// by `;`, and the tail is a signature.
+fn is_copilot_char(c: u8) -> bool {
+    is_tok(c) || matches!(c, b'=' | b';' | b':')
 }
 
 fn is_tok(c: u8) -> bool {
