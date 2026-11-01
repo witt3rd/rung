@@ -647,7 +647,7 @@ fn parent_and_child(tmp: &Path, parent: &str) -> (String, String) {
         .unwrap()
         .filter_map(|e| {
             let name = e.unwrap().file_name().to_string_lossy().into_owned();
-            let id = name.strip_suffix(".log")?.to_string();
+            let id = name.strip_suffix(".jsonl")?.to_string();
             (id != parent).then_some(id)
         })
         .collect();

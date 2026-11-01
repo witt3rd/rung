@@ -133,10 +133,11 @@ impl SessionStore {
         Self::at(cwd.join(".rung").join("sessions"))
     }
 
-    /// The append-only log: one JSON record per line, fsynced.
+    /// The append-only log: one JSON record per line, fsynced. Not `.log`:
+    /// a background child's captured output already lives there.
     pub fn path(&self, id: &str) -> Result<PathBuf, String> {
         check_id(id)?;
-        Ok(self.dir.join(format!("{id}.log")))
+        Ok(self.dir.join(format!("{id}.jsonl")))
     }
 
     /// The whole-file form older versions wrote. Still read; never written.
@@ -156,10 +157,11 @@ impl SessionStore {
         let p = self.path(id)?;
         if p.is_file() {
             let body = fs::read(&p).map_err(|e| format!("session {id}: {e}"))?;
-            return replay(&body)
-                .map(|(s, _)| s)
-                .map(Some)
-                .map_err(|e| format!("session {id}: {e}"));
+            // A log with no valid record yet (only a torn first write)
+            // falls through to an intact legacy file.
+            if let Some((s, _)) = replay(&body).map_err(|e| format!("session {id}: {e}"))? {
+                return Ok(Some(s));
+            }
         }
         let lp = self.legacy_path(id)?;
         if lp.is_file() {
@@ -180,7 +182,10 @@ impl SessionStore {
         let ents = fs::read_dir(&self.dir).map_err(|e| format!("sessions dir: {e}"))?;
         for ent in ents {
             let p = ent.map_err(|e| format!("sessions dir: {e}"))?.path();
-            if !matches!(p.extension().and_then(|e| e.to_str()), Some("json" | "log")) {
+            if !matches!(
+                p.extension().and_then(|e| e.to_str()),
+                Some("json" | "jsonl")
+            ) {
                 continue;
             }
             if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
@@ -208,7 +213,9 @@ impl SessionStore {
     /// lock, and fsync. The log is never rewritten. A session whose lines
     /// no longer extend the log's (another writer appended meanwhile) is
     /// refused rather than overwriting that writer's update; only the last
-    /// line may be rewritten or dropped, as a turn does.
+    /// line may be rewritten or dropped, as a turn does. Known gap: a rival
+    /// writer that changed only that last line is not told apart from this
+    /// writer rewriting it; a session has one writer at a time.
     pub fn save(&self, session: &Session) -> Result<(), String> {
         use std::io::{Seek, SeekFrom, Write};
         check_id(&session.id)?;
@@ -236,11 +243,10 @@ impl SessionStore {
         let (mut base, valid) = if body.is_empty() {
             (None, 0)
         } else {
-            match replay(&body) {
-                Ok((s, v)) => (Some(s), v),
+            match replay(&body).map_err(err)? {
+                Some((s, v)) => (Some(s), v),
                 // Only a torn first record: nothing valid yet.
-                Err(e) if e == "empty log" => (None, 0),
-                Err(e) => return Err(err(e)),
+                None => (None, 0),
             }
         };
         let mut from_legacy = false;
@@ -325,10 +331,11 @@ fn head_of(s: &Session) -> Session {
     }
 }
 
-/// Replay a log: the session and the byte length of its valid records. A
+/// Replay a log: the session and the byte length of its valid records (`None`
+/// when it holds no valid record). A
 /// final line with no newline or that does not parse is a torn write and
 /// is ignored; a bad record anywhere else is an error.
-fn replay(body: &[u8]) -> Result<(Session, usize), String> {
+fn replay(body: &[u8]) -> Result<Option<(Session, usize)>, String> {
     let mut sess: Option<Session> = None;
     let mut valid = 0usize;
     let mut pos = 0usize;
@@ -358,7 +365,7 @@ fn replay(body: &[u8]) -> Result<(Session, usize), String> {
         valid = end;
         pos = end;
     }
-    sess.map(|s| (s, valid)).ok_or_else(|| "empty log".into())
+    Ok(sess.map(|s| (s, valid)))
 }
 
 pub fn check_id(id: &str) -> Result<(), String> {
@@ -516,5 +523,25 @@ mod log_tests {
         st.save(&s).unwrap();
         assert_eq!(st.load("o").unwrap(), s);
         assert_eq!(st.list().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_torn_first_record_falls_back_to_the_legacy_file() {
+        let dir = rung_testkit::TempDir::new("slog");
+        let st = SessionStore::at(&dir);
+        let old = r#"{"id":"f","kind":"implement","status":"idle","cwd":"/w","lines":[{"role":"user","text":"hi"}]}"#;
+        fs::write(st.legacy_path("f").unwrap(), old).unwrap();
+        fs::write(st.path("f").unwrap(), b"{\"t\":\"head\",\"id").unwrap();
+        let s = st.load("f").unwrap();
+        assert_eq!(s.lines.len(), 1);
+        st.save(&s).unwrap();
+        assert_eq!(st.load("f").unwrap(), s);
+    }
+
+    #[test]
+    fn the_session_log_is_not_the_background_capture_file() {
+        let dir = rung_testkit::TempDir::new("slog");
+        let st = SessionStore::at(&dir);
+        assert_ne!(st.path("x").unwrap(), dir.join("x.log"));
     }
 }

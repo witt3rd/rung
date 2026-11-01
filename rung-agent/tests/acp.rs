@@ -937,7 +937,7 @@ fn session_ops_follow_session_cwd_not_process_cwd() {
     assert!(
         !work
             .join(".rung/sessions")
-            .join(format!("{sid}.log"))
+            .join(format!("{sid}.jsonl"))
             .exists()
             && !work
                 .join(".rung/sessions")

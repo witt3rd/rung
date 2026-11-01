@@ -120,7 +120,10 @@ fn background_unreachable_endpoint_records_error() {
         .lines()
         .find_map(|l| l.strip_prefix("task_id="))
         .expect("task_id line");
-    let sess = tmp.join(".rung").join("sessions").join(format!("{id}.log"));
+    let sess = tmp
+        .join(".rung")
+        .join("sessions")
+        .join(format!("{id}.jsonl"));
     let mut body = String::new();
     for _ in 0..600 {
         if let Ok(s) = std::fs::read_to_string(&sess) {
