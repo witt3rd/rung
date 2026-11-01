@@ -196,18 +196,40 @@ Required CI check is `check`. Merge method: rebase. Release: bump the
 workspace version in `Cargo.toml`, commit, then tag `vX.Y.Z` to match
 (procedure: `skills/rung/SKILL.md`).
 
-### House git
+### House git (trunk mandate, authoritative)
 
-House skill: `fleet_git`. Mainline is `master`. Merge method: rebase.
-Stage only files you touched; never `git add -A`.
+House skill: `fleet_git` (where it disagrees with this section, this wins).
+Mainline is `master`: the one shared reality. Stage only files you touched;
+never `git add -A`.
 
-**Debugging / iteration:** work on `master`. Commit small batches; never
-leave uncommitted work. Session start: `git checkout master && git pull
-origin master`. When stable, branch, rebase onto `origin/master`, PR.
+**The only path for agent work:**
 
-**Parallel features:** `git wt-new` → `rung.wt/<branch>/`. After merge:
-`git wt-rm`, fast-forward `master`. Task isolation worktrees
-(`rung-task/{id}`) are product, not `git-wt-new`.
+1. Cut an atomic task: one micro-increment that can land alone. Hide
+   unfinished work behind an abstraction (branch by abstraction), never
+   behind a long-lived branch.
+2. Work in an ephemeral worktree with a **45 minute lifetime**. If it cannot
+   be green and rebased in that window, stop it, log its artifacts, and split
+   the task (an orchestrator rule; settings cannot enforce it).
+3. Verify locally and narrowly (the tests that touch your change; CI runs
+   the rest).
+4. Rebase on a fresh `origin/master`, push a short-lived branch, open the PR
+   and enqueue it in the merge queue.
+5. The queue tests the change on top of master (`merge_group` runs the same
+   `ci.yml` jobs; required check: `check`), lands it on green and ejects it
+   on red. On red, a fixer agent is spawned with the logs.
+6. No human review or approval on the critical path.
+7. When another change lands, other agents rebase on the new `master` or
+   restart the task.
+
+**Forbidden:** pushing to `master` directly or concurrently; long-lived
+branches; stacking work on an unlanded branch; waiting for human approval;
+force-pushing `master`; bypassing the queue.
+
+**The one exception:** a single designated committer agent may hold a write
+lock and fast-forward `master` after its own verification. Nobody else.
+
+**Throughput:** CI takes 16 to 24 minutes today, so about three changes land
+per hour. Speeding CI up is a later task; keep increments small meanwhile.
 
 ### Configuration
 
