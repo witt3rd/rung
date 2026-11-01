@@ -57,12 +57,38 @@ member cannot be retired.
 
 | phase | scope | claims that become decidable |
 |---|---|---|
-| R1 | two hosts (a chief and a steward) on one machine behind the gateway; a registry convention only | `an-observer-cannot-prompt`, `chiefs-do-not-share-context` |
+| R1 | two hosts (a chief and a steward) on one machine behind the gateway; a registry convention only | `chiefs-do-not-share-context`, `a-member-is-named-by-its-role`, `a-read-only-role-watches-the-fleet` (done; see the R1 findings below). `an-observer-cannot-prompt` stays owed: its observer half is exercised by `rung-host/tests/gate_acp.rs`, its owner and reload halves are not cited yet |
 | R2 | the `crew` extension: typed ladders and delivery receipts | `a-skipped-transition-does-not-compile`, `held-and-stalled-are-recoverable`, `a-brief-is-a-typed-contract`, `an-unconsumed-receipt-does-not-compile`, `duplicate-delivery-is-idempotent`, `a-kill-loses-no-completion`, `crew-record-kinds-are-fleet-owned`, `reporting-line-is-a-tree`, `one-interface-to-the-principal`, the verbs, the queue claims, supervision from the record, `native-members-only`, `fleet-reuses-the-host-unchanged`, `no-consumer-in-the-repository`, `no-credential-in-a-committed-file` |
 | R3 | crew work: isolation worktrees and a real coding toolset | `unlanded-work-is-never-retired`, `a-stalled-crew-is-escalated-not-looped`, `irreversible-action-needs-authority`, `a-member-cannot-widen-its-own-policy`, `completion-is-judged-apart-from-its-author` |
 | R4 | model and budget control | the models-and-spend claims, `a-model-downgrade-needs-authority` |
 | R5 | remote placement | `remote-uses-the-same-verbs` stops being a rationale and gets a test |
 | R6 | scheduler placement | none; placement is not a guarantee |
+
+## R1 findings: two hosts behind one gateway
+
+**What is evidenced.** `rung-gateway/tests/fleet_r1.rs` runs three real hosts
+(two chiefs and a steward, mock engine) behind one gateway: a client holding
+only the read-only token lists them, reads a record and follows the live
+stream, and is refused a write. Kill, restart and recovery are not covered by
+that test and are not claimed here.
+
+**The convention.** No registry field. A member is named by its role first:
+`chief-<session>`, `steward-<project>`; the id is the slug of the name, so the
+role is the id's first segment. A second source of truth for a fact the name
+already carries was the larger cost.
+
+**Unknown 2: the resident cost of a host.** Not yet measured under a
+recorded run; RSS, CPU and record growth per host remain open for a run that
+names its evidence.
+
+**Gaps found in rung.**
+
+- Without a `quota` there is no pace but the 600-a-minute governor ceiling (see
+  above). Reported, not changed: the pace is a policy a fleet sets.
+- A gateway started without `registry_dir` lists no native instance and says
+  nothing; its start line prints only the configured-instance count. Not fixed.
+- The host's own HTTP door has no `/v1/summary`: the summary is the gateway's
+  fold of the record, so a client of a host alone folds the record itself.
 
 ## Notes on particular claims
 

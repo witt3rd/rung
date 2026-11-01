@@ -7,10 +7,11 @@ names no consumer. Every claim is stated once, in one place, and referred to
 elsewhere by number.
 
 **Props come first.** `rung-fleet` is a product crate (J2) that does not exist
-yet. Nothing here is decidable *today*: every claim that a machine will settle is
-`owed`, with the form its proof will take, and the conformance view is the work
-queue of the crate. A claim moves from `owed` to `decidable` in the change that
-adds its test, never earlier.
+yet. A claim a machine will settle is `owed`, with the form its proof will take,
+unless a test already settles it (the claims a fleet of unmodified hosts already
+meets are decidable), and the conformance view is the work queue of the crate. A
+claim moves from `owed` to `decidable` in the change that adds its test, never
+earlier.
 
 The numbering is a tree. A proposition `n.m` is a remark on `n`; `n.mm` is a
 remark on `n.m`. Interior propositions are the conjunction of their children.
@@ -110,6 +111,15 @@ chief.
 their records do not: each chief is its own host with its own state directory,
 held by the host's one-live-host lock.
 
+<a id="a-member-is-named-by-its-role" data-parent="three-roles"></a>
+**2.7** A member's **instance name** begins with its role: `chief` or `steward`, then a
+`-` and what tells it from its peers (the session for a chief, the project for a
+steward), as in `chief-main` and `steward-alpha`. The instance id is the slug of
+that name, so the role is the first segment of the id. The instance index gains
+no field for it: a listing already carries the role, and a reader that wants it
+splits the id. A name that does not begin with a role is not a member of a
+fleet, and nothing about it changes.
+
 ---
 
 ## 3 · The delegation lifecycle
@@ -199,18 +209,24 @@ boundary. It is never a keystroke into a running process.
 **5.2** `read` and `list` are **observations**: they change nothing in any host's state
 and are available to a read-only role.
 
+<a id="a-read-only-role-watches-the-fleet" data-parent="fleet-verbs"></a>
+**5.3** A gateway in front of the fleet lists its members from the instance index, and
+a holder of the **read-only** token can list them, read any member's record and
+follow its live event stream, and cannot write to any member. A stopped member
+stays in the list.
+
 <a id="stop-records-why" data-parent="fleet-verbs"></a>
-**5.3** `stop` goes through the host's **stop authority** and the record states why and
+**5.4** `stop` goes through the host's **stop authority** and the record states why and
 by whom; a stopped member is not removed from the list.
 
 <a id="an-observer-cannot-prompt" data-parent="fleet-verbs"></a>
-**5.4** Attachment reuses the ACP channel roles. An **observer** channel watches and
+**5.5** Attachment reuses the ACP channel roles. An **observer** channel watches and
 cannot prompt; an **owner** channel takes the session over. A member is headless
 the rest of the time, and a session survives a restart through the host's
 session list and load.
 
 <a id="remote-uses-the-same-verbs" data-parent="fleet-verbs"></a>
-**5.5** A remote member is reached through the **same verbs**, over the stable stdio
+**5.6** A remote member is reached through the **same verbs**, over the stable stdio
 transport carried by SSH, or the streamable HTTP transport once it is stable. The
 fleet adds no transport. A scheduler is a later placement layer: to the fleet, an
 instance is a long-running process with an entry in the instance index.
