@@ -7,6 +7,18 @@ git tags only.
 
 ## [Unreleased]
 
+### Changed (docs overhaul)
+- `docs/_links.py` (in the `propositions` job) fails a document that points at
+  something absent: a relative link, an anchor, a backticked repo path, a
+  `docs/...md` cited from code, or a hand-kept test count `(N tests)`. Its
+  known exceptions are listed in `docs/_links.allow`; the list only shrinks.
+- Drift fixed: `G1`–`G16` and the idle and fleet rows in `AGENTS.md`, the
+  stale `Last updated` line gone; `docs/triage.md` names all five props
+  documents and no count; `docs/rung-notes.md` points at the Python proof of
+  concept under `.archive/python-poc/`; the hand test counts in
+  `docs/rung-host-api.md` removed; `ui/README.md` and `.het/README.md`
+  corrected; the stale "Next" roadmap in `skills/rung/SKILL.md` removed.
+
 ### Added (rung-host idle mode display)
 - A resting host reads as idle until its wake wherever the host is read: the
   gateway's summary and list say `Idle until <time>` (not `needs_you`, not

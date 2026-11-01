@@ -735,8 +735,8 @@ registry holds no address or key. Writes never come from the state directory.
 
 ### Proof
 
-`rung-gateway/tests/native_doors.rs` (22 tests) and
-`rung-gateway/tests/native_doors_memory.rs` (1), written first against the
+`rung-gateway/tests/native_doors.rs` and
+`rung-gateway/tests/native_doors_memory.rs`, written first against the
 gateway as it was and kept red until the code made them green: every door's
 shape; the state words from the record and the lock; paging (page one, the
 cursor, the last page, an empty instance, a cursor past the end, a huge page
@@ -753,7 +753,7 @@ refused, the Host check applied; the state directory byte-identical (contents
 and times) after every door has answered; and a page of the whole record
 streamed with a counting allocator showing its peak a small fraction of the page.
 
-`rung-gateway/tests/native_doors_stall.rs` (3 tests, H3b), written first and
+`rung-gateway/tests/native_doors_stall.rs` (H3b), written first and
 kept red until the stall deadline existed: 520 clients that ask for the whole
 record and read nothing (more than the 512 blocking-pool slots) while a normal
 request still completes; a dropped client's answer ends short, never
@@ -947,9 +947,9 @@ registry folder) the stream is the host's own, passed through with its key.
 
 ### Proof
 
-`rung-host/tests/events_stream.rs` (37 tests), `rung-host/tests/events_adapter.rs`
-(3) and `rung-host/tests/events_memory.rs` (1), then `rung-host/tests/events_door.rs`
-(6) and `rung-gateway/tests/events.rs` (11), written first against the code as
+`rung-host/tests/events_stream.rs`, `rung-host/tests/events_adapter.rs`
+and `rung-host/tests/events_memory.rs`, then `rung-host/tests/events_door.rs`
+and `rung-gateway/tests/events.rs`, written first against the code as
 it was and kept red until it made them green: replay then live in order; a
 line appended during the replay neither missed nor repeated, with no poll to
 rescue a missed wake; reconnect from a cursor, by query and by `Last-Event-ID`,
@@ -1164,8 +1164,8 @@ verbatim. A replaced value is `[redacted]`.
 
 ### Proof
 
-`rung-host/tests/context_record.rs` (12 tests), `context_door.rs` (2),
-`rung-gateway/tests/context.rs` (3) and `context_memory.rs` (1), written first
+`rung-host/tests/context_record.rs`, `context_door.rs`,
+`rung-gateway/tests/context.rs` and `context_memory.rs`, written first
 against stubs and kept red until the code made them green: the layers whole
 (a complete tool-definition set, a 100,000-character epoch layer, a
 200,000-character recall) through the record and the door; the bands rebuilding
@@ -1380,7 +1380,7 @@ door.
 
 ### Proof
 
-`rung-host/tests/queue_door.rs` (11), `rung-host/tests/queue_door_memory.rs` (3), `rung-gateway/tests/queue.rs` (20) and `rung-gateway/tests/queue_memory.rs` (1), and
+`rung-host/tests/queue_door.rs`, `rung-host/tests/queue_door_memory.rs`, `rung-gateway/tests/queue.rs` and `rung-gateway/tests/queue_memory.rs`, and
 the fold's own tests in `rung-host/src/queue.rs`, written first against code with
 neither door and kept red until it made them green: an item in the record before
 the answer; one key twice is one item, a different message under the key is
@@ -1580,7 +1580,7 @@ ACP, or a steer, does).
 
 ### Proof
 
-`rung-host/tests/queue_move.rs` (17) over real HTTP against the `rung-host`
+`rung-host/tests/queue_move.rs` over real HTTP against the `rung-host`
 binary, and `rung-gateway/tests/queue.rs` (the S3 block, 9), and the fold's own
 tests in `rung-host/src/inbox.rs` and `queue.rs`, each written first and shown
 red against code with no door: an owner item moved up, down and to the end with
@@ -1682,8 +1682,8 @@ Moving and cancelling an item (S3), stop and release (S7), a `intent` on ACP's
 
 ### Proof
 
-`rung-host/tests/intent_desk.rs` (8, the desk's guard: each intent, a firm deadline,
-the longest wait, the interrupt limit), `rung-host/tests/queue_move.rs` (the S2 and S3 block, 3: the header in the order the owner moved items to, a move across `free` and `next` refused with no line, `steer`, `next` and `free` after moves and a restart), `rung-host/tests/intent_run.rs` (9, whole
+`rung-host/tests/intent_desk.rs` (the desk's guard: each intent, a firm deadline,
+the longest wait, the interrupt limit), `rung-host/tests/queue_move.rs` (the S2 and S3 block: the header in the order the owner moved items to, a move across `free` and `next` refused with no line, `steer`, `next` and `free` after moves and a restart), `rung-host/tests/intent_run.rs` (whole
 simulated runs on a simulated clock: a steer read at the first boundary after it arrives
 and marked, a long steer whole, a free item held through committed turns and read once
 the agent is free, the header order, a paced wait a free item does not end, a steer that

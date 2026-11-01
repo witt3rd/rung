@@ -43,4 +43,4 @@ it. The root holds only the `rung*` sources, `docs/`, and the build files.
 Deliberately provisional: this actualizes the Q18 shape for rung's own
 `rung-questions` instance; the name (`/ .het/` vs something else) and the full
 carrier/external + shared/bespoke matrix are Q18's open answers, tracked in
-`questions/open/q18-het-state-sidecar-convention.md`.
+`rung-questions/questions/q18-het-state-sidecar-convention.md`.

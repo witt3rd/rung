@@ -86,7 +86,8 @@ Not crates:
 | `.github/` | CI workflows and the review council's principles |
 
 `rung-host` has two modes by idle time: continuous (idle time 0) and
-idle mode (idle time above 0, `docs/rung-host.md`). The
+idle mode (idle time above 0; claims in `docs/rung-host-idle-props.md`, design in
+`docs/rung-host.md`). The
 `rung-fleet` crate (chief, steward, crew supervising hosts) is
 planned and not in the workspace: its claims are `docs/rung-fleet-props.md`,
 its derivation `docs/rung-fleet-notes.md`; R1 runs as ordinary hosts behind
@@ -271,7 +272,7 @@ Env `RUNG_*` / `XAI_API_KEY` wins over the agent file.
 | `cargo doc` (`-D warnings`) | a broken rustdoc link or warning |
 
 `trybuild` `.stderr` pins refusals. Do not cite `compile_fail` doctests as
-evidence. `G1`–`G14` and `J1`–`J2` are labelled subtrees cited from Rust
+evidence. `G1`–`G16` and `J1`–`J2` are labelled subtrees cited from Rust
 and test filenames.
 
 Five kinds — not a status field. The counts are the corpus; a test pins them.
@@ -291,8 +292,9 @@ Five kinds — not a status field. The counts are the corpus; a test pins them.
 | ladder language (normative) | `docs/rung-props.md` |
 | category | `docs/rung-ct-props.md` |
 | Het | `docs/rung-het-props.md` |
-| fleet (planned crate) | `docs/rung-fleet-props.md` |
+| fleet (planned crate) | `docs/rung-fleet-props.md`, `docs/rung-fleet-notes.md` |
 | host, gateway doors | `docs/rung-host.md`, `docs/rung-host-api.md` |
+| host idle mode | `docs/rung-host-idle-props.md` |
 | OAuth credentials | `docs/rung-agent-oauth.md` |
 | principals / questions (informative) | `docs/rung-std/` |
 | conformance view | `docs/conformance.md` |
@@ -319,8 +321,6 @@ Maintainer: write access on `witt3rd/rung`. All agent work, the
 maintainers' included, goes through a pull request with auto-merge (no
 merge queue exists); direct pushes to `master` are refused. External contributors: PRs against
 `master`; follow CI; do not rewrite history.
-
-Last updated: 2026-11-01.
 
 <!-- OPENWIKI:START -->
 
