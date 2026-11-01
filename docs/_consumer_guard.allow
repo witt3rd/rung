@@ -15,3 +15,4 @@ rung-agent-core/src/redact.rs  # the credential redactor names the HTTP `Cookie`
 rung-host/tests/redactor.rs  # proves the redactor on the HTTP `Cookie`/`Set-Cookie` headers; same reason
 rung-gateway/src/server.rs  # generic HTTP Cookie header, not a consumer name
 rung-gateway/tests/gateway.rs  # generic HTTP Cookie header, not a consumer name
+openwiki/  # generated wiki; HTTP "Cookie" header is not a consumer name

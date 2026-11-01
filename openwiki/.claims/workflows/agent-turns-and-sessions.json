@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:826e063f5a37c2662800d739f04aee2076bbee8b38a400999eb3da4d27bc4e36",
+  "claims": [
+    {
+      "id": "claim_84825dd8c17443efac73f4910fe0c6dc",
+      "statement": "The CLI accepts a prompt from arguments or non-interactive stdin, polls when given only a task ID, dispatches ACP modes separately, and uses exit code 2 for usage errors versus 1 for job errors.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/args.rs#L28-L202",
+          "version": "repo-lines-v1:sha256:c2af70f3426d267f19cb897f292fb1e70ecb47526b519a38e82bea55783f769c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTc1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmMDdkZTczYzI2NjJjY2YyYWU1NDZhNzdmN2YyMjQ5NmU3MGJlM2I5MzUyOWQ2NDVmMzcyNmMyMzUxNTJmMzVjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJmOWIxOTgyZThkZDc0ODExODE0NmIzOWEyZDAwNjJmNDA4MWUzNDc3OWI4Njc1YzIzNGM0ZmIxMjRkYzM5MzkwIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIn0"
+        },
+        {
+          "resource": "repo://rung-agent/src/main.rs#L35-L117",
+          "version": "repo-lines-v1:sha256:f39a329ef33a29a21736a024f102dcb815ba28a2bbdc7602e73d39210c705bea:eyJzZWxlY3RlZExpbmVDb3VudCI6ODMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJkMjk4ODNkMTU3YTk5YzQyZGY2ODQ5YWYxZjM4MWRjNGFhZTQ1N2U5OWI3OWM0N2ExZDhkMDJkOTMzNmI4YjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY3Njg2ZDQ1YTk5MjcyZTFhMGZlNjdjYjhhNGRhYjA2MTBkYTMyZDBkYzIwMDUxNzVkYmJlMDhkNmRkMjNhYjkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjliMDFhNjRkODI4YTc4NjA2ZGZjZTE2MGQwZjBhZDExODJiZGI4OTNlNjFhYTUwNDJkZWQxMzdhZjZmNGFhMjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdlOWQzYmI0ZjkwODc5NmQ3Mjg5MTc3ZmZjMDFiYjEzZDE2ZDNkMWJmYjcyOWM3ZTA3OWNjMzUzZTcyZDVjMzEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_dbe18769e21648d586a8e903acc349aa",
+      "statement": "Engine::turn operates on a caller-supplied Thread and TurnCtl without reading configuration or environment, writing session storage, or changing the process cwd; job orchestration owns session persistence and cwd/isolation handling.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L1-L17",
+          "version": "repo-lines-v1:sha256:1e94d5899272d3f71a3d7534c648f72da99b655adcc33461a37923d30399b38b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2NzZmYWUzMWQ3OTJjMzFjZTMzOGNjZDBhYjUyYmQ4MmIzMTJmMWI4NzQ3MGRlZDZkYjVjOWQwZDg0NTIyNTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5NTg1NGJiMGQ2ZDViNTgxMGI1MTI3NDQwM2UzNWI0M2FjNTM4ZTU3N2ViOGIxYTljN2UwOGU2ZTg1ZDAwNzAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJkNjM5YzI3ZjA1OTg2MDJmMmRkZjNjMmU1MWI1ZjNlYzFiMDQ3ZGIwOTcwNTM3YzA0YmM1NTM1NDI3YWQwZGIifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/run.rs#L549-L667",
+          "version": "repo-lines-v1:sha256:0970e806381c90460fde211da85d25d7344fb886118e6927a0410ff4dd4327f4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE5LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmN2ZmOWVmODU0YTU2ZTUwYWU2MGExZmFkOTZhYWJjMGZiMDE1NjNmYTJjNzY1YjAwNGI5YjE2ZWNkMTliOGIyIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJmNTkwYjcyNzE2NGIyMjk1N2VjZWIwMGY4OWQxYTY4OTExZGVkMGM2ZDQzYTdhNWY4OGUwMTIzMzEyNzQ0ZjE2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3NDkxMDlmOWM5NDBiZTAwMDA4OWYwMGYxMzlmODFkODUwMjEwMTdmYmRhNGE3ODQzMDFjNzJmYjY1ZGFiMTUwIn0"
+        },
+        {
+          "resource": "repo://rung-agent-core/tests/engine.rs#L110-L150",
+          "version": "repo-lines-v1:sha256:e4dd3329564adadfcebf4c1cd7358bf111b4fb33060a9140d107c677cf3a2382:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYxODI5MzA0ZWZiN2Y1NDZlYTBkYzY3OTdhOTRlOWMwMDliOTg3Mjk1NTg0Mzk1MGEwYmExOGZjOTBiYmRhZDkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d434a4df75884fc2bcc6cc78f7dbd07c",
+      "statement": "Tool scope precedence is CLI --tools, then configured tools, then the selected preset; preset iteration defaults are 32 for implement and 16 for explore/review, while an explicit cap of zero is unlimited.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/catalog.rs#L48-L73",
+          "version": "repo-lines-v1:sha256:89e077bae9baa3b5fdc4547c08f6b84c587353b56fd2d7a2d59c7c1e902ac19e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1Nzg5YzM1ZjNkM2JhYjY3MTE0ZDMzZWQ1MDk0N2JlNmUxYjZmZDMyYmNkZmJlMjg0Y2RlYzE3NjMxNjEwMjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFmMGY4Zjg4YWQ4ZGQ5ZmJlMzVjNDM5Nzg5Yzk5N2RkZDBlYmUyZmU0MWQ5NGE1YWE1ZDEzMjBlOGUwZDIwODgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiMmQ2MGZkYjc2NTM5YzI3MzE2MjgxNmJlMjFjODcxZTBmZGM3ZjY4NWU5ZTJjMmQzMzExOWViNWMwMTMyNDgifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L102-L113",
+          "version": "repo-lines-v1:sha256:76526154d3e6b5ec7c8205ca01a3867e7d61343f8e4b7e289af920a8b9f73d8a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhOTQ5OTU0NjY3ZDhiNGQ3YjFlNjg0MWU3MGUxMzdkNDkzM2I2MGNkODk1NjJiNWE2ODkyNmMzMDhlNDM2ZDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIxMGM0NTZiZDE1MmRjZjg3NGNlZTNmYTVhNTJjNDY4NzI5N2E5NmQ5MWYwODhjODYzNjhhNjA1ZTA2ODNlNzAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4089b988f5e543c2aa21451fa0a265ff",
+      "statement": "Sessions are stored under the origin cwd as fsynced append-only JSONL logs, retain compatibility with legacy JSON, use locking and a writer witness to reject unseen concurrent updates, and recover by ignoring a torn final record.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/session.rs#L161-L217",
+          "version": "repo-lines-v1:sha256:0356d691938ccfe79dd4fee1bc9c09e7d902ab51754886f26985b63995a4f53e:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYwN2RlNzNjMjY2MmNjZjJhZTU0NmE3N2Y3ZjIyNDk2ZTcwYmUzYjkzNTI5ZDY0NWYzNzI2YzIzNTE1MmYzNWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ3Yzk0ZjFhMDYxNjdjMjQ4YjMxNjEzYjQ1ZmFkYWZmZDQzODExNTFiOWFiZmYyZjU3ZmJmMDNmOTAyMDQ3YzAifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/session.rs#L255-L365",
+          "version": "repo-lines-v1:sha256:5d435db047fb3122c2c11cfb98bc2a4979f173039ec742ac0e04cd36e23a6690:eyJzZWxlY3RlZExpbmVDb3VudCI6MTExLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlMDcyNjNhMWRlMmViOTk3Nzc0ZWNiNzBkOTVmYTliY2Y1N2M0ZmUxMzhmNDM0ODZjYzkwNjBjNWY0OGU3YjJhIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI1MDcxYzZlOTIyZDY0ZTNjMmQxMmQxYjQwMDg0YzMxY2M0ZTc4MDdmYjQyZTdmNzIyOWNjODg2MDVlN2ZjOGI1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxNjJlZTU3ZTQxYThjMjBhZTAxNjRkZjI2MTQzOWRjYzQ5OWQzNTIwODM0MTUxNTE2ZDA0N2U4ZGVhZThhNDY2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIn0"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/session.rs#L387-L400",
+          "version": "repo-lines-v1:sha256:92538be1eb4502de51aa8c8ec1229a9de3f32ad71f2be7b73492e365f1168723:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwMjgzM2E5MDY0YTcxYTU4ZGMwY2M3MmJiYWVlNmUzNWM1YjM5MjMzMzYwNjZkYjdkNGZhNmVkMjk1MGUzYjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgwMTUwMmI3M2JjZmEwYWM5MTI0Yzk5MDNlZTQyY2MxNmMwMmQ4MTFhZjU5OTc5MmJhNjFlODM2OGUzNjJiOTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYzYjNjY2E0ZWEyYTY5ZDMyNmEzM2UyMGUzN2E4ODY4ZTljMzkzYWJjMmQ2Y2Q3MzE2YTI1ZjliNDgzNGQzMzIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8104819245614a1db989b577b6d7e665",
+      "statement": "Session replay preserves complete assistant message sequences including tool interactions; failed turns preserve executed steps but do not replay failure prose, while overflow removes the pending ask and turn history.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/run.rs#L401-L493",
+          "version": "repo-lines-v1:sha256:a4f0171402601d8429f00677570b60bbaab340a3a866b246d91a12448b746cf9:eyJzZWxlY3RlZExpbmVDb3VudCI6OTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2ZDczMTg1OTI2ZTUzMmMwZGZkOTllNzA4NzAzNzg1NzdhMGExNTc0MDZlNjU1YjU5MTlkN2ZiNGM1NGVlN2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVkNDIyMmNjMmM1NWVkMmNjOTI3Njg0YTZiMTQ1YWEwOWQ5YjQ1YzQzNDc3ZjE0N2IxMTlmNzQ2YWZjYjNlYWEifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/session.rs#L1-L35",
+          "version": "repo-lines-v1:sha256:290a536d016ce4c98a76e7aa7f37131538dcfe4d5a22e4322c40d84bdf878e50:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5NDdkZWIwYTZjZDgyNTlkMmQxMTAyOGMxY2RjOGI4MjU4OGFkMzg5YjdlODVlZjI1NWYwOTUxM2JhOWFhYTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNlMDFkMDQ2YzhmM2EyODA4OGUxYTExNjc1YTE3NzU2Y2Q2ZGIwNWI3MDk2M2E1MDE5MjkwYTRkY2EyNzFhMjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljZGQ3YWQ3NDFkNTMwOTJmOTIwZmE3YjFjYjJkYjI5MWYxOGJmZDdmMzQyMzIwYmY1MTM0MGIzOWY5ZmM2N2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_36a57162f93e45f881208076f290a58e",
+      "statement": "The engine composes built-in scope tools with optional Python, nested task, memory-provider, MCP, and observer layers; disabled tools stay declared but are refused without executing.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L270-L307",
+          "version": "repo-lines-v1:sha256:2f1a5855129f17f4ccec4522bddb1e28bd44144372dce666a8d0a162bd478866:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmMzcxZDFkNzU5NzhjMzFjZGY5ZWFkZjA2MDE5YzY5NWE5MzQyNjZjY2JlNzg4OWQ2YzI5ZTFiMGU3NWI3Y2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5YzEzNTkwNjY1NjMyM2QxYzVlYTQxNjU0ZWU2NmFmYjU4NWFjZGNmYWVhY2ExMjFkNWUzMGJmMTkzZWVkZDciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWJkZWZlZWFjYTYzNDBlMDI5MGRjODZlODg5Yzg5ZDVlMTg5YWE1YmE0NGI1ODViM2I3MDczNGY0YTYyZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMxMjQ5N2NjZTUzMzlmZGQ4YTAzM2Q1OWY1OTA4ODM4NWUwZjRiOGI3ZjNhODU4YjFmNDlhMjRhOTA0YWNmZjAifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L365-L432",
+          "version": "repo-lines-v1:sha256:96bd5c6b33feadb00ecd9898b9d7892076fbcfb9987f1777508abf7845052553:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExMmQxYjBhNGZmNTliMjFiNjljZjkyZjkzYjExNDVkNzI5YmE0MWM0OGY4MzNhMjg2NDMyZDRkOGI0MjVjOGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5YjE5ODJlOGRkNzQ4MTE4MTQ2YjM5YTJkMDA2MmY0MDgxZTM0Nzc5Yjg2NzVjMjM0YzRmYjEyNGRjMzkzOTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L442-L605",
+          "version": "repo-lines-v1:sha256:b0b5738b1d5cf8788335af17540b6c49e96505126f0a9474dcea8e341f1822f6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTY0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5NDExOWRiOTIwN2RiMmRlOWRhZWM5M2E0MTA1ZmVmZDE0ZjU2NGY0NDE3MjQzZDk3YTA3ZWIzOTVhOTMxNGVhIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI2YTM0ZTAxY2M0MGMxZThkN2IwM2UwMWU4MmY5ZDBlOWJkNWRiMzZmMjI1YTBkN2QzNzg1Yzg0ZTA2NDFhZGYwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlNDk1YWUxYWI3OWU5OWRiYjUzMTc4YThkODFkZDUzMmJjMmQ1ODYyNWI1MDU0ZTEyNjY0MzlhODdlMzA1NThhIn0"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/memory.rs#L461-L499",
+          "version": "repo-lines-v1:sha256:07617db4af8d9e95d78ed1835317ca020539a2ccd491d6b723a156f054b24493:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImExOWU4YTE1NmRkNjhiNzdiZGVhMzYzMjBkMzFlYjUwODljOTNlNjFjZjhiNjBjMTA3ZWFkNzJkZjk1YzRjNDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3NDFmZTMyMWJhNTE5ODA4MjFlODcyYzA4NTU2N2FkNWE5NTNlNWViYjc4ODU4NmMzM2UzYjRlNjJjOGRhN2YifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0bfa4b7519dd479682ed4b730614c06e",
+      "statement": "MCP servers are initialized and discovered when an engine is built, their roster persists across turns, and a later turn reconnects a roster whose server is no longer alive.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L215-L250",
+          "version": "repo-lines-v1:sha256:6e103c554ecfbb687d6225124f896fa5be9263803186cf9c37195520f5b009f1:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5MTljOTk3YWQ3ODQ4MjA0MWFlYTk1OTI2NjE0M2U0NzJlYWY3OWVlMzE2ZmRkYjA3MjQ0ZTRjOTc5MDYxOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlkMjA5ODM5ZjM3NzlhMjhlZWFmY2NhODkzY2FiNDFkMDBlOThiZGJhMWM2MDg5YWNjYTUwN2ZkMzkyYTRjZWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRlZWM1ZGE5ZWJmNDZkYmY0NmQwOTc4NTlkNzQzMjc5MGU0ZTk1YjNhODNhNmE1MTRmYTg4YjAzMTIwOTYzY2UifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/mcp.rs#L1231-L1257",
+          "version": "repo-lines-v1:sha256:9414cb5bd4a8ef47ad97623867a41f38ab8d080d7162bb059ecc67ff0f093451:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImViYTEwNzJmYmNkOWY5ZTQ4MzI5ZDlmYzlhMDY3MTA5NzJhZTIwMTMxYWI1Yzg0ZWVlODhjZTQwNjRiMTYyMTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZmOTViYzEwYzQ4YjJhNjE4OGQ2MWM2YWRjZWNmNTA0ZDQzOGNmYmQ1M2VkZTZjZGUyOTNmYTk3MTE1OWI4ZDAifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/tests/engine.rs#L291-L347",
+          "version": "repo-lines-v1:sha256:a64c82baa35527187ad419f2e2120d7881b16383612f66131ccd1fdf0d5100e5:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc1Mzg0NmYyMDgyMWY5ZWMwZTc4YTMxNGI3ZmZmZmFmYTlhZmY3YzJhZTAxMWYyMjRkYjg5YTE4MTg3ZjM1YjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU5OTA4YmM4Y2Y2NmQzN2FkMWIxNGY3YTMwZjg0OGZhZDI0MWUxNmIxOGNhZWNkNjA0MjVlZTZhM2JlNWY2MzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2YTIwNjIyOTM1ODRhY2E2MDI0YjMwMWYxY2E1NzQwYmEzMDMwZDQyNTJkYjI2ZTYxNjhjZTMxMjZlM2Q4N2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1c88d02edbf94969b2502d11dda6ae4d",
+      "statement": "A completed status is produced only by a passed turn check or by the check being switched off; enabled checking may nudge a narrated turn once, while an unavailable or malformed judge produces unchecked rather than completed.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L619-L760",
+          "version": "repo-lines-v1:sha256:043412955b2261fea83d5ffa718df7bfdef85806d22a58daae4e0658ef212deb:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIyNTA3YjdjYTJhMTYyYzJmOWRmOGI0NDY2MGNmNGQ1ZGY2YTkwN2RmYjY1Y2M4OWY3NDRiY2FmNGEzN2MwNmFjIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0NTI3MDJlNTZiZGZhNTkxYjIxMGY5YTI3NjRkNTExZjY2NmQwMzM3MTY3OTU0OGVjYzJhNmI5MTY3OGJkNjRjIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MSwiZm9sbG93aW5nQ29udGV4dEhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIn0"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/run.rs#L20-L40",
+          "version": "repo-lines-v1:sha256:484378fdffe7040f08460386964ff9714c87ddcc2bf7ad8c3a128a64e410c0e9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgxODk1YjMzODM0M2ViOWZiZWFkY2U5MTNjYjBiZjk4ZDMxMDVhZThhNDkwYjZhYTliZTZhM2U1NjdlY2E4YjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNjNTA0ODlmYWYyYWYxZjJlODY5NmEzYzM3OWVjMzhmNWI5MjJlODE3NjYzZTA2Njk1YTZkNzI0N2ZmMDc1OWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY4MGM4ZDgxMjFjZmFlMjQxY2VkMTdlNTgxZmEwMDM1MmJhOGNlNjk3ZTA1MTAwN2RkNDJmYWFlNGE0YWNmODkifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/turn_check.rs#L1-L30",
+          "version": "repo-lines-v1:sha256:46571cd38943407688197322744e82e1e0ffb7aed7035481b5839eb07f858d12:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwZjMwNDUzODZjMmE4ZGM3MGMwZDIxMjJiYjIzNzczNjdmMGQ5MzNlMjlkMTZhZjJiNGQ1NjFjMGIxZDZmOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzNWY5ZGJiMTk1NzI1ZjE5NGVmZGFhNTNhMzdhNDVhYWE0NWYzZjljYjcxMTRlMmE0MTc4ZWIzNTU5MGUwYjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjZDE0MTNjN2JjZTNjM2QzY2EyNDI1YmI0MDlhMzA5OGU1ZDMzNDY2YmM5ZmMxZTExMGY4YjVlMDM4MDEzMWYifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/turn_check.rs#L564-L635",
+          "version": "repo-lines-v1:sha256:d91c1b97c2e5b6fecdbffcb3543d905c0c21f9c79c00a72128cb8ba6d1a0fb44:eyJzZWxlY3RlZExpbmVDb3VudCI6NzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiMDg1M2Y1MGNlODc0MTg4NzY3ZGMwMGMxMGU5ZTc5M2MyMzIyM2E2ZTIyOGRmNjUyN2Q2MGY0YjZmYmU5ZGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExOTkwNzVmOTc2OTU2NWQ0Nzg4MWYzMzEyZDI4Yjg3YzMwZGIwNzc1MjBhMjg3YzI3YzM3OWIxOGU3Nzg2MGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM3Y2EyZDM0ZmYyZDJlMjRmYWMyYTYxNGMzYmUyZjM4MGQ2ZjcxNmMzYTQxNjE4NjkzOGRlNTAwNmUxYTY2YTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_465680e7b32f4de887f0e1a71cff11ee",
+      "statement": "Truncation is reported before turn checking, interruption becomes a cancelled outcome with persisted interrupted status, and other loop failures become JobError with an error session record; typed provider failures are exposed on TurnReport.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L518-L527",
+          "version": "repo-lines-v1:sha256:23b6ee7c9c2fab81e21998c942ff1e28a49f2f4b022f8fdfcba904f36f225ab6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3N2NjODA5NDJmNzFiOWNjNDA0MDE0NTVhMzFmZTkzZGExOGEyMmI1NzhmZWNhYmQ3NjgwNmY5MzRiOTYwZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlkYTU3MzRiNTM3MmJiZjY2MGE4ODdkZWE3MjcwMzc0ZTk3ZDc1MGJhYzc2ZWM5YTUyMTk4Y2Y0MDllYmJkZGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE2YWUwZjlhYzk4NGQyYTk0MGFkODIyMjZmZDIyMzMzYTI0ZmUzZGY2MGMwNmVlYmU0YmM0YTZkNzI4NzQzYjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ1NTMzY2IwMTM2MTgyNWU0OWM2ZTY2NTA3N2MzNDJiNjZlNzNiOWZiNTVjNjA3NjQ0YjBhY2ZlOWVhZDU2YmIifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/engine.rs#L626-L658",
+          "version": "repo-lines-v1:sha256:328fa0485100f382cd41ca3d3e0e8eda4ca82afbb32a08612ddddd1e50967294:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkOTUwMzM0ZWI0OTc2ZjM3MGUwMjRhMTY2NDgzMGUxNzdlNTQ1YjQ0ODFlM2ExNDAyY2ZhNGViYWE4MjFlZDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmZjZlYzdhMmQ3NTQzYTBhZDAyZGM5OWNhYjU3NGEwNjA2YjM3YTlkOGVjM2VmZWFjOWE4NDY0MjhhODI0OWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1OTg1MWJjZmJiNzkzMTQyYjEyOWFmNWM5MmQ5NmIxMDk2ZDRjMTVkYzU2N2YyNjBkZTkwNDA1Yzg3MzFiNGYifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/run.rs#L826-L895",
+          "version": "repo-lines-v1:sha256:26e7fa124f42d79990322fa9ec43ba1c3e4576bf1c011a3ac96fc276abd345a7:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI3ZTUxMWUxMzYwYTBmNWJhNWY2YWExYWUyZDc1YTI4ZTY4OGU0NGM3OWZhNjRkOWVhNjllYWM2YjM2Mjg1NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ0MzAzMjk4Y2NlZjk1YmQ0MTg3YmEzZmJmZmQ0YjI5YTA1OWQxMWEzN2NkNWVhYzJlODEyMTRiNzEyMjdkNGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_595286a814674f8a871718bef6521a43",
+      "statement": "Memory authority resolves from --memory, then RUNG_MEMORY, then config, then off; before a turn recall is injected after the user message and retained for replay, and after a turn only completed outcomes are offered for retention.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/config.rs#L246-L298",
+          "version": "repo-lines-v1:sha256:3e767c8e09cb7b1b46f41926f2d2915846971c8724d2453b59535030c6205f10:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY5YzZkZDlhOWYzMjQwMmM4ZTRhMDk4M2E1MDU2NmI4NjYyNjI5ZjNmMDdmZDNiMjBjOTFkMWNmODNhNDA3ZGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0NzVlOTRhOTA0YWM0OWIzMTU0ZDQ2NzJhNjZlODYyOWI4NmRhYzc0ZTNlMjkzN2JlNjkyN2FlM2RhMTFjNTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwNjNjNGQxYWY4Y2Q4OWJiMGJkZDc2NTdmZmNiZjY4MDZhNjEwZDc5ZDZjOGQ0YzMwN2MyNDFkZjM5MDA1MjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA3ZWY0NjZiOGNjNGVhNTJlM2NjMmQzNGYzOGU2N2IzMTVkNjg5YmJlOGUzYjk5MWZkMmI0ZGNmOGU2ZWE2OGMifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/memory.rs#L30-L35",
+          "version": "repo-lines-v1:sha256:b783f80693375ea7179a9b9269686a13800239c1c2223dbc647bc055a9930c8a:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTAyOTdhYmM3OTAyYzQzZDgzZDYzMDFiM2NkOTFiOGFmOWRkMzk3MGY0YTc3NWIxNzBmYTI3YmM1Y2RmNzMyZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzgxMzU5MjM2ZjNjY2E4OWJhMzk0ZGExOWU5M2YzZTE5OGE0MDA3NjI4NDM1MDkzZTBlMzU2MGViNDgwZGU3OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWI5MWY2NDI3YWQwNzkwOWI4YjcwNGYyY2YzMjEyYjhkOWYwODg1NmI2MjYxNDU3MmI2MmViNWIzMjZhYjIwZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWM0ZWUzNWI0MjI2YzUyMzFlMzAwNjYwMGJhNzcyNDVjZjBlNTgwYzZlMGMxNDE4NGVkYjhjYzNlZTJhY2QzMCJ9"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/memory.rs#L377-L408",
+          "version": "repo-lines-v1:sha256:da52c3249c53f7ffd9e1a7bb5a7bd28b906700dfc2a6e003f4ce2ad6c9c74cb0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4Mjg5ODAzMGRlNGU3ZGU1ZWQyOWZiZDM1YmRlNzY2Zjc3NDk4ZGMxZThjNjE2Mzk5NWI2ODlkYjFmYTIzNDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkOWUxMjU0NjQyNTU3NmQzZGVhZThjOWI5ZGJmMTI4ZDVkNmRkYWY1ZDdmZTg1NzkzNDkyN2RlZmZhM2I5ZGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJmMzZiYzU1ZWJlN2ZlZTQ1NmU1MzZjY2EwYmQ0YWMzZWY4MGZjZTljNzY1NmY5NDllOTNmNDg3NzEzOTVmN2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY2MjFlZTcwNDUwOGI4ZjhkNjEyNGFkYTIzNWM5M2EyMTY5NjhkMzhkMjkzNjdhMTY4MDM2NzEwYzdkZjE4ODcifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/run.rs#L788-L849",
+          "version": "repo-lines-v1:sha256:f6db5837aad7904d026c245d184fdebbcbe70de886159d7abb47cf97bd048852:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjOTExMzk1ZTc4MDk2YjY5NDZmNTRhMzE3YzMyMjY4OWE5MDc5MjBmZjM5OTUwYjhmMmEzNzRhMjc2NmM1YzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk0YmIyNzEyMDdlY2Y4M2QxMzhhNzViM2E1OGI1ODliZTFiYWFkMjFkNmYwNGExYTczOGU4ZDYwNTZjNTY1NGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkZDU5YTg5NjBkODFkMDcyYjRiODgzMTQwNmJhZmUyYzAwYTQ4ZmM5OTRlZTE4MzUxZGVjOTRiNmI5N2Q0MzgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9a60e67814b24031a29362839ede46ef",
+      "statement": "Memory-provider construction, recall, and retain failures are nonfatal to an agent turn and are communicated through memory reports and diagnostics; retain is asynchronous and initially reported as deferred.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/memory.rs#L185-L203",
+          "version": "repo-lines-v1:sha256:18944d85cd69f9ccc5d80b20861c89af4980e1549e08cc03a7f0e6066b88bd10:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5MGIwNzRhZTFmOWE4MWYzNDE1YWNmZTUzYThjY2Y0N2UzODg0ZjBkNGJkYWY2MTEzYTNlMDMwMTM1YmUxNzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJlMGQ2YjQwZGZlYTQyNmVhNWZiZDE3OWRhNmZlMDBkYjQ3ZjcyYzcxMDczZDU3YzMzYjhlNDA5ODBhOGJhZDYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViNjMzMTJiZTA0ZTBlNGVkNjk4MDM3N2E0NTA3YWU1ZDY3YmU0MDM0ZjZjNmQzZGZhNjU3YzNhMmMyMjM1YTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmM2UzN2Y2NzljZDY2NzAyYjcxZjNmOThkN2IyYjYyZTAwMGEzM2FkYjQ4OTE1NDdjNjZhOTJkNDEyNGIxNzkifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/memory.rs#L24-L28",
+          "version": "repo-lines-v1:sha256:5241bf44a6b4f1a4af5a3eca423b3fa8f9df107e2b631b5de54a5390e878975f:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWY0YmJmNzJlMWQyM2Q5NTRiYjQwMGE3MDcxYWNjOTAxMWFjZWRjODIzYWU2MTgyZDY2ZmFjNWJiNjNlZGJhZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTUzMDQwMWUzZGQwMzMyNmYxOGIxODc0YzI2OWRiYjcyNDFmZmVlNjFlYjRkNGU3YTYwYmEyMzU4Y2ZlM2YzMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjA1NmY5ZDk0M2UxMTZkMTI4YjkzZWNiYjA1NDdjYWIxYzAyYzg4NmM4MDc1OTE5YmVkYTJmYmEyZjBiZGYxZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjI5ZTVmYjk2Yzc4MjUyY2VmY2FjNTIzMDBkOGQwZTU3MGE5ZDNmNzhhMGE4NjVlNzZmYTgzNzU1MDAzYWRmMCJ9"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/memory.rs#L241-L320",
+          "version": "repo-lines-v1:sha256:6b4d4ec84a43a663befa028a2202be80fc2fe13b0b79b738c2ff2b2713ab490b:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI5YWE1MWZhNzg4ZTIxNjAyMzZlNjE2NzVkMmE4ZDBhNGJiY2QxOTU3NTAxZTYxNmU1ZDllOGI2YmQ3NjdmZjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWJkZWZlZWFjYTYzNDBlMDI5MGRjODZlODg5Yzg5ZDVlMTg5YWE1YmE0NGI1ODViM2I3MDczNGY0YTYyZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ4MDdlNTg3NTIzMmMwZDU2NTE3ZTllM2QzYjRkNjkzNTcyOWE2ODcxYjhkZTIzMGQyMTRiMjQ3Mjk4OWI3NjEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_36a29dfb41974845b32b343f2db8e4f7",
+      "statement": "Default memory scope is an opaque hash of the Git origin URL or canonical root fallback, allowing worktrees to share a scope without exposing a filesystem path.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/memory.rs#L423-L449",
+          "version": "repo-lines-v1:sha256:c025b4b7952764a7993a2da7c1a6fb89c2e36d3795e59030eaad2325034e1af8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZiY2IzYjdhMGFlYjJiODQwMmY4NDFjNDcwMTg2YmM1NmIzYjVkNzVhYTBlMTk2MWZmZTNjMTAyM2UyZTBmY2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjNGUwMjhlMzE4ZWY1OTkzZDI2NWUxNjJlODMzNGRhMjQzZGZhY2U3N2VjNzNlNjI2NTJhYmQ3YjZlZDU0MTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY3Y2E1Y2NlYTZlNGZkNzkxYzIxNmRkYjViOTFiYWE4NGFmOWUyZDY1NmY1OTYwMTVkZDg4Y2M0N2MzMjZiZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI3ZmE0MzRlMGQyNzlmMDhmY2Q1MGEyNTM0M2Y1ODJmNDYwNTdhZjdjN2M4NjM5ZTExMzY2MDEzMmM3NjQ0MTkifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-11-01T15:22:53.269Z"
+  }
+}

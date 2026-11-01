@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:ae40a09ba8fda6810727f5f47e487e7031c22853a972758e83da625d02b85658",
+  "claims": [
+    {
+      "id": "claim_4f110a679458468cba8e8aa789d18253",
+      "statement": "The Cargo workspace separates reusable runtime/macro crates from product crates: `rung` and `rung-macro` form the public type-ladder runtime/macro split; `rung-agent-core`, `rung-agent`, `rung-memory`, `rung-host`, and `rung-gateway` are product-side components.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L55-L71",
+          "version": "repo-lines-v1:sha256:d419aba91ef9b5539931ac68dcfcbf486b90faed8762220f4c976f0fd6f97cff:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwYWVhZDI2NTEzNjljMDdkMzAwYTJmMDc3YmY1MzA0NzQ4MWNhZjdmNmJmNzBjYmEwMmNkZDhiYWI4ZTMzMTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YzA2YzU2MWQ1YzMyNzM0MzY4NTI2OGE0NmIzMzkxZjM5OThlZWU4OTBkMmJlNTFmMGQyMWNjNGE1M2FlNmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhYWNhNGRhOTdkNDFjNDc1NzA3ODhjZjg2MDhlY2QxY2UzNTE0OWQ5MzBkYWUwZGJmYWVhZmRmNjFmMGZmZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIyODE4NGY2MTEyY2FmYjQ1YWE1ZjYyYjZhNzU0OTU2Nzg5ZGQ0ZWQ4YzYzY2ZhMmNjYjA0MzNmZjBlOTU5MmEifQ"
+        },
+        {
+          "resource": "repo://Cargo.toml#L1-L16",
+          "version": "repo-lines-v1:sha256:a7dcbe419ef59dbe93336c96691efbd6d910e0e4828b669043b0ed7bee334884:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyNzYwMGM0YzEzNThlMDhmNmRlNDQwMjRlNDViNjNhMDUyZTdiYjMwOGUzMzVhMzJhOTdmOWU3YmJkMzdiZWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljOTcxZjdkYjllZTNlMDA1MWUwMjUyOTc2YzgwNDRmNjRkODYwN2Q5MDg5MzFhN2NkMGI4MzU0ZmRhMWYwMjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8ecfdc6300cb4efe812d28f3bc9362f8",
+      "statement": "The `rung`/`rung-macro` split is required because a proc-macro crate cannot export the runtime types generated code needs; `rung` owns those runtime types and re-exports `ladder!`, so consumers depend on `rung` alone.",
+      "evidence": [
+        {
+          "resource": "repo://Cargo.toml#L1-L7",
+          "version": "repo-lines-v1:sha256:def8a7cfe10c0caea7e32507bbc1150c23439d2f16179140ba06f5ebb45fdf94:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDM0ZTEwMmM4NjFmOTk0ZDJhYWNlOTExNGQzOTJkYmMxNjIxOTBlMDBiZThmZTM1N2Q0NzIxNTBjYTQzOTYxNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMGQ4ZmUxM2U4OWRjYjY2NTMyYWNjZmI0ZDA5Njc2ODI4ZWUyZGNlNDg5ZjNjZWI2MDY5YzcwYzc1ODE1ZjA4ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzJlODFjMzkxM2RjOGIzODNjOGNlYTQwZDZlMmVhYzdhNTA1ODA2YWY4YjYyNTE4YTFlYTFmZTI1ZGU2OGY3YSJ9"
+        },
+        {
+          "resource": "repo://rung-macro/Cargo.toml#L9-L15",
+          "version": "repo-lines-v1:sha256:10ea1450c234569030896abb2ff29faa41c59fd146b5ae82ad6f3d6b9450a3ef:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzg0MzVlZjU5NGYzMzcwNzMwN2MxZmU1OWIwMTdmMjExZTllZThhMTVjODJkZDVlYWIxOWI3NjdhNmY3NGJlOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTBhYmZjYjdjM2UwNTk2ODBiYmRjOWZkNGQ3NDY3OGNjMjI4OTViZTQxY2ZjZTA1NDZmM2I4YjIzMjdhOTg4NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNWQ4MWM5ZTc4Mzk1OTEwNzRjNGJlN2M4NTRmY2QyM2FjMjczMzcwMmMzZTA3ZGE2Njg2Y2Y1ZjU0MjE4ZmNlOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://rung/Cargo.toml#L1-L10",
+          "version": "repo-lines-v1:sha256:7e0bad9d425be7ff16c316b839f62a6e6683636f65b84c3a9ac3d26c7646af2f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhM2NkNWE4MWIzZjlhNjIxYWE0OTNkOTBjNDVmNDJhYjU3MWQ0ZTQyYjhhZTVhZmYzNTFjYjBhMDJkMDZkODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRhYmE0OTNkZjVmODIwMTc0MGU5OWUyOWZiOTVkYWZlNGY0NDVlZjcyMTRmYjIzNGQwOTA3NjkyYzdjYjdlODQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg5MGQzNTcyZTVmNGUxNjgwNzYzYWY1MzM2MTE0YjMyNTZjZWE0OGViNjBmNDU5MDUyMmZkNDk5YWYwNTdhMjAifQ"
+        },
+        {
+          "resource": "repo://rung/src/lib.rs#L144-L156",
+          "version": "repo-lines-v1:sha256:cac673da32230423c692864330ff44e54fb2c5c80d4861e39f14368d9c0cb69c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhOTRjYmU4Y2ZjODIyMTQ1NTdhYmI4MzVmNGE4OGU0YzBhNTlhODcxNzcyZjUzODk1MzU3YWVkYjE4NzA0OTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYwMmU3ZjFmZjU1YTY3OWI2ODcyOTJkZGFhMjQyYTE4NjMzZmIwNzBiYjAyOTc3N2IwNTliZWZiYjU5ODRjYTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIzNDk2NGJmNzgwZmQ3OGM3OTFmZjliMDY0NTMwZWUyNGZkOGZiNjRhNTMwYzI4NDhiYWI1OTdhZDkwYTVjZTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc0YjllZDAwOTBhNmM5OTcxOGFmNDFiZWFhZWE5YTU1MWRlZmQzM2UwNDJkZmY2YWQyY2VlNTcxODY3MjMxMzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_01813b9fb13644c5a8f43849a6cdf25d",
+      "statement": "`rung-std` admits canonical caller-neutral reusable blocks, while product-specific concerns such as session catalogs, resume, isolation worktrees, background spawning, and XDG configuration do not belong in the kernel.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L32-L37",
+          "version": "repo-lines-v1:sha256:ed0fd5f74763ad404499d958d1d5f78783249f5f5b20f310b3e0a7da1aeea8bc:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjJkZDcyYTE0YWU4YTdkZTllMjg4MjE4NDZmMzg2YzQ3ODUwYzI5NTA3ZDczZWY1OGI3MmFmOTA2ZDE3ZDcwNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzBhZDJmZTc2M2JhM2I5MmJjNmFlODJiMTMxYjY1MzYxY2FmYzM0MjNlNDRlMTM5NjlkOWFjMzY5ZjBiM2FlNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmFmMGRiN2NlYWI0ZGEwZDdiM2ZiZTc2M2RmMjcyYjY0OTczNDE0ODZmMmZkYTMxNjE2ZjE1MzY0Y2Q2NGFmYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjJmYTU3ZTQxMGFhMjFmMTkyNDdlODJiMjM3YTQ0MjNiZjA4NGFhOTE2NjAxM2ZjZjlmMDdhNDFmMzFlZjY3NCJ9"
+        },
+        {
+          "resource": "repo://rung-std/src/lib.rs#L1-L31",
+          "version": "repo-lines-v1:sha256:f2cfc93e1cf60feedbd83611a2c89600c88744a9566a7a85042228505ca04813:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU1MjJmODZkMzBlOTkzZDQ5MDBkMjU2YzExM2ZkMGIyZTc0MTNiOGIwOTE4ZDFjMDczMzVlYzZjM2ExZDcyOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjYzQyM2QzOWZiMjMyMWY1NjMxY2FkZjA0YjY2YTExNDJmNTYxMDNmNzFiMWM3ZDIxNjRiYjFhZDUwNjY1MTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIzZTUxNDcxMTI1N2ZjOGEyZDA2NmJiN2U2NzMyYTM3NzU0ZTEzZGIyZjhmODAxMmYwZGViMmY2NWMwYzk4MmIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_830004b582b9456683fb7c8682bf6262",
+      "statement": "`rung-driver` is deliberately theory- and domain-blind: it configures principals and drives supplied ladders/carriers, while declining to choose among qualifying principals, procure models, or set parking timeouts.",
+      "evidence": [
+        {
+          "resource": "repo://rung-driver/Cargo.toml#L8-L19",
+          "version": "repo-lines-v1:sha256:86f3467f13ee787f47cf79631fd9a9467c212e239381e895cd1307147b87f2b1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlNzlmNTJiZWI0YTJlZGM0NzVlNTU4YWM4NmY2Mzc0MWM0ZjUxOWFlZTllOWZhMjY3ZjlkYzQ1MjZhZTNmOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4Y2U3MTBjODQ3YWYxNDcxNjgwYmU5Y2Y5YjljMWM2OWJhZTgxNTEzZTgxN2U4NDI3ZDBmNjg3NTU2MWJmMjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3OGIyMGZmOGIyN2MyOWQ2NzU0N2M2YTZiNzgyZjUzYzE0OGJjZDU0OTQzOWY2MzUxNGU1MDhhMjNhYTdiOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY4MDk5MDA3MGNlOTg0NDQ2MzE2Mjg3NDBmZDY5Njg0NmZiYTU1NzJhZTczZDkwZjg5OWM4YjRmYjM2Njc1NmMifQ"
+        },
+        {
+          "resource": "repo://rung-driver/src/lib.rs#L1-L30",
+          "version": "repo-lines-v1:sha256:e666c6696b5799be2bc2759cacac861fc63503ec7b52db03d6d4f86b09476595:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkNDkzODE0Y2FkZmIzZjkyZjk1M2U4NzAwZGQzMTg4ODU4MDk4YjBmYjRhOWFhMDQ3YjQ2MjI0ODJmNWY5OTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5ZDllZjRiOWQ5MDA0ZTNiNTAxNzAwMDRlZjYxNDEyNDIxNDk2YThlZTlhNjM0ZmI1ZjViMDg3OGRkMzZlMmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdhYWM4MzA4MDcwYTNmMjYwOTA1YTg0ZjczOGRiYjQ4MTIxOWM2MDMwYjIyZjQwZGU3OTE4NDhiOWE2NGZkNTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5ca663d2f38e4bb199a18c8cb1e9c2c1",
+      "statement": "`rung-agent-core` is the reusable agent product library; its `Engine` runs a caller-assembled turn without session-store side effects, while `run::run_job` performs the CLI-oriented load, assemble, turn, and save lifecycle.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/Cargo.toml#L8-L30",
+          "version": "repo-lines-v1:sha256:5fe08839662ed54300607e402b3d8d269478e45f8758c9e18875c691d05edc37:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjODRmYWI4NjNmNjYwMjEyZmRmNzVlNzc0YmFiNjhiMjNiMzI3NmMxZTQ1NTMwMWUzYmRiMDdmMTc1ZGUxZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzMmE0MGIxNmU3M2Q5YTY3MGI2MWEzYWMwODI4NTJiZjNmNzNkMDZlZmI5ZmRhMGM2Mjk1ZmMzY2RmMTlhMGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3OGIyMGZmOGIyN2MyOWQ2NzU0N2M2YTZiNzgyZjUzYzE0OGJjZDU0OTQzOWY2MzUxNGU1MDhhMjNhYTdiOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE4Y2U3MTBjODQ3YWYxNDcxNjgwYmU5Y2Y5YjljMWM2OWJhZTgxNTEzZTgxN2U4NDI3ZDBmNjg3NTU2MWJmMjcifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/lib.rs#L1-L12",
+          "version": "repo-lines-v1:sha256:da6b97f72784664d3b60158adbb61179daa9315d809644eb368b9622898d6e7a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhOGYwNDk3MzM5ODY0NmU1YjAzZGM0MWFkZWRlNTdjNjRjZTIwZjZmYWVjYzQ1Yzk0MDg5YmI5MmFiN2Y2OTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxNjM5MWE4N2I2MjU1OTU5MjI0MGVmY2Q0N2I1MDIxMmY0Mzc3MDNjYzAxMGQ5ZTdmMTI0Nzc0NzUwZWNjMGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIwMmNlNDgxODlhYmY2YjE3YzUzM2ZkZjBlZjNkNzEzOTBmNWU1Zjk4MThjY2U1YWE5ZjVjYTc3ZTI5NWUzMGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_33407530eb944b5ab35b898f2a807556",
+      "statement": "`rung-agent` is a thin executable shell over `rung-agent-core`: it dispatches special utility/auth/ACP modes, otherwise parses arguments and invokes `run_job`.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent/Cargo.toml#L8-L19",
+          "version": "repo-lines-v1:sha256:5a7f5540cdb2e0c8a4b0c82f989b1ec1dadf50a17eff5885a369a68f600a25b1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmMTljZmY0N2U2MTAxMjFhNDc1NjE5NzI3YjgxNDU3ZmQ4ZmVjMjk0ZmU2NGNmYjFiMDI0ODQ1YjUwZTE4MTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZTNjY2RkMmNmODdlNTRlOGRiYzM3Yzg1NGI5ZjVkYWQxOTExNDNmZDM0MWM0YjZmM2RhMTA0Yzg3NTYxM2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3OGIyMGZmOGIyN2MyOWQ2NzU0N2M2YTZiNzgyZjUzYzE0OGJjZDU0OTQzOWY2MzUxNGU1MDhhMjNhYTdiOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3ZjBiNDkzNWQ5YTc2YTQ5ODlkYzUzNDQxMTJhNDNhMjRjZWE1ZTJlYWQzZmFlODkxMzlkM2FmOWFhODk5NTEifQ"
+        },
+        {
+          "resource": "repo://rung-agent/src/main.rs#L8-L117",
+          "version": "repo-lines-v1:sha256:a2071dceae48b56c7a9e98c9b6df28f2bc1700b2b71015e41faaba3b2fb6352c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI4ZWM5MzZkNjhkNGEzZTMyMjMwZDRmYmFiNTg1ZmUyNDEwOTgwMDc0MzNmNGEyOTY5YjZhMjVhNGE5YTI3ZDA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI2NzY4NmQ0NWE5OTI3MmUxYTBmZTY3Y2I4YTRkYWIwNjEwZGEzMmQwZGMyMDA1MTc1ZGJiZTA4ZDZkZDIzYWI5IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlMDAzMGM4YjBiMDU3ODNiMDlhYmU3MjIzMjk3MDdkNjQ0MmU3YmFiYjZmOTU1OWNhYzJkMmQwOGQ5N2JlZTY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3ZTlkM2JiNGY5MDg3OTZkNzI4OTE3N2ZmYzAxYmIxM2QxNmQzZDFiZmI3MjljN2UwNzljYzM1M2U3MmQ1YzMxIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_a92e4341a0954782ab523c40265c2f39",
+      "statement": "`rung-host` owns the lifecycle and durable context around agent turns and imports `rung-agent-core` as a library rather than invoking the agent binary.",
+      "evidence": [
+        {
+          "resource": "repo://docs/rung-host.md#L1-L17",
+          "version": "repo-lines-v1:sha256:53974f0f90855789abd959a0a2a04ff313d3cb5a6076299c0ae0855db89e075e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhMTdhMTVlNWM1ZjJkYTMzMTNhZDc1OWZjYzFjMWM2OGMxNzE0OWIyYTRkNDQyZTc0M2RhNDNiYmJhYzBiMWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlYTk4MGRjZjcxNWUzYzJmZTIyZTFkYmE1NzZiYTRhNjdhZTlkOWI5ZTc3MzI2YzdjYzU2NjE3MmM3NzJkOTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1ZDZlZGQ2MTNiMzUyZGIzNTI1ZWE1NjBiZjFlNDY0MTkwNzdjNzE4Y2RlYTc2YzdkYTZmZTFhMTYyMGFkOTYifQ"
+        },
+        {
+          "resource": "repo://rung-host/Cargo.toml#L8-L24",
+          "version": "repo-lines-v1:sha256:d67bf0fb752977c159cec6e3304363606927325bba0ad368a3051b6e9f2cd265:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhYTA2MzY0ODEwYTJkNjQzMGJmMzVmNzM1Y2FkNTkwZTU2MWRmODI0MzUwNmE2MWNhYTEyNmVkYjgwOWE0NzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3OGIyMGZmOGIyN2MyOWQ2NzU0N2M2YTZiNzgyZjUzYzE0OGJjZDU0OTQzOWY2MzUxNGU1MDhhMjNhYTdiOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2YjQ0YzA2NTgwOTgxMzdhMzdiYzc1YjE0ZjZhYjZkMzQ2MDkyNzg4MzdjZjc2ZDNhMzdiZDM3MjE0YWQzNjcifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/lib.rs#L1-L10",
+          "version": "repo-lines-v1:sha256:1079f8dfe6529f4923deba394b748d020e8cce649e449f4245e8804bebe96597:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4Njc1MDEyYmRjZmE3NzA5YzM0NTQ2MDA2YTJlZGU3MGU2YzcxNDBkZDlhMDA4NTFjZWU0MWY5OGMwZWZiOGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3NjY0ZTBjOGU1NTgyYTAyMWM2MTZkZDkwNTBjY2E3YTkyNDRiNTI3NTdiNzBmMzFmMGQ5MjRkOGNiODg1ZGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEyNDljZDMxMDU5M2I5NmFiYTAyNmQ4ZDQyN2U5MWY1N2QwMDIwZTVmNTZiZDJlMzZkYWYzZWY4NGVlMmEwZWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_224a79b5f9e046289e81dc7db73ef02d",
+      "statement": "`rung-gateway` is the HTTP edge for multiple hosts: it serves the UI app, lists instances, proxies instance `/v1` doors with keys held by the gateway, and enforces a read-only token role.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/Cargo.toml#L8-L24",
+          "version": "repo-lines-v1:sha256:a4e8063b5ceca795f32c7e83bb6729653abb390b3cc35870938bcba3d90c35b8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjYmVkM2I1OThkYjljOGEyNzgxODc5ZDYwOTkxN2U1NDhhMTI5YmNkZmNiOGI0NTQyOGFiMGE0MzMzNzJhMDkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4Y2U3MTBjODQ3YWYxNDcxNjgwYmU5Y2Y5YjljMWM2OWJhZTgxNTEzZTgxN2U4NDI3ZDBmNjg3NTU2MWJmMjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3OGIyMGZmOGIyN2MyOWQ2NzU0N2M2YTZiNzgyZjUzYzE0OGJjZDU0OTQzOWY2MzUxNGU1MDhhMjNhYTdiOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJiYjRlMGI2ZGM4ZDU5OGJkMTg5ODRjZjQwOWYwNzA0NmU3OTExOGRhMTVhZmI4ZDU1NjE4ZmJmZDgxOGIyMjUifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/lib.rs#L1-L20",
+          "version": "repo-lines-v1:sha256:b0380a132d9c771ae29a7181e2ec06dc55c9dd725f36f780468cfe5fa9e22aea:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4ZjlkNTczNDdlYzE2MTdiZGRkZDQwNTAyMjI0MTM3NzEyMTljOTg1ZDYwNWFlZTZiMmYxMmMyNGE5MzgxOTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkyZDU3ODk2MWZlMmU3M2U2ZjY1MjFkOTIwZmMwYjIzNzZlYTgzNDc1N2JkNDYyYTNkNDMyMzk2ZGNhYjU2MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIxYWMyYWZlNWE5YzYzNDU1MTFlYTQzZDE3YWFlZDVlN2QwODBjMzE3YThjZDc5ZmE1NTAyMDQ2NDMzODNiMGQifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L1-L35",
+          "version": "repo-lines-v1:sha256:ee77cc78a5ba3876e1e6028b41898d6e769379d74e1ab90ba1f5d92ee471d843:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVjNWI3ZWRjYWUwNTI1MjMzNWM0NWYwZTYxNjUzNDhlOWFjODUwMmJjM2MzZTQ5OTdiMzMxNWIzMDc0YjI4ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmY2Q0N2NmMWE3ZGYzMzg4OWY4OWVlNGQzODA0NTRhYTFhNzU2YTdkZGUyYTY5ZDc0YTU0MmEwN2UwZmJhMGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE3YTc0NGIxNzE3NTJmNGExMjllNDFkY2ViMTg5MzYzZmNmZTMwYjBkMzA5OWQyMWEwY2ExMGEwZmQzZTY1MWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_848e074d4b884061956132c884260f07",
+      "statement": "The normative `docs/*-props.md` documents and `docs/conformance.md` are generated from `rung-doctrine`; informative documents lose on conflict, and CI's renderer check detects stale generated output.",
+      "evidence": [
+        {
+          "resource": "repo://docs/README.md#L1-L15",
+          "version": "repo-lines-v1:sha256:09a584917aafc5815bdfa22d11ead99d3105d9d2d864f84cb588d4f676c2f545:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1Zjk3MTg3ZDdiYTlhMjc5NDU1MDcyZGRjMzEyMTQyM2Q2MzVlMTc3MTc2YjA1ZGIwNjM2MGYwMTljZTUxYWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhNTFlM2M4NjY5MWU2ODQ2NThmNDU4MGEzODVmNWRhN2JmN2ExZGYzNzk5YTQ0NTcwMWZhNjYyMzY0NmY4NTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://rung-doctrine/src/bin/render.rs#L1-L14",
+          "version": "repo-lines-v1:sha256:410c83aeb3db182c549e7a40cfd458b2ede14072fc0916bcca7ed28b963f53cf:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4NDBmNmFkM2E5YTEwNWVhYjFhZTVkYTU2MGE4ZWYxOGRkMzljYzRlMjEwZGY2NTE3NjE0MjNhMWM1NTIwM2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlNDVlZWFiMWFmZjQ1ZWY2MWY2MjA0YTc5MTJmODc2YTU5OWI2ZDNkZTgwMTljYmUzYWRiMzdmZGFmMGZhMTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM5MzMxY2MzY2ZiYjgwYzM1ODhjNzJjNzRhMTA4NWIwODA2NTkzNjYyM2ZjZThmZWMwMzk2YTVhMjQ4ZjU1MWEifQ"
+        },
+        {
+          "resource": "repo://rung-doctrine/src/bin/render.rs#L60-L108",
+          "version": "repo-lines-v1:sha256:2e08360613fb9df65c4ee2ca1c86aeeb92f705b081de3df35c9549c695abf4fe:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYjllZWU5MWJjMGIxYTc3YjVmMjI0ZmQ2OTQ1ZjNkZWMyMzRlNTU5NmI5NDc1YzkwYzVhZWM5ZTZhZTIwYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRiODhhYWQ1NzFmNjUxOWNjZjBhZWZhOWM1Yjc0Mzc5MjBlYmFmZWVjODE1OTU2MWI2MzJjNThjMWI3MGM1NDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2a4b04f5ce154e0c8ad1e061d9bd2b1f",
+      "statement": "The one-way consumer rule requires `rung` to have no consumer-specific dependency or terminology in code, tests, docs, or errors; `docs/_consumer_guard.py` enforces this across tracked files.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L35-L37",
+          "version": "repo-lines-v1:sha256:a64ced9558b33bc834633522f6f7654fcdeeddbf024a2b7aee8adb0b2f0f3e2a:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWY5MjBmZmJhNDI0MmFjY2ZjYWFkNzA4M2U3MGJlNWM0MjUxZTI0NmFjN2JkNjkwNzgzZWVhMjY5ZTBiNjllNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzBhZDJmZTc2M2JhM2I5MmJjNmFlODJiMTMxYjY1MzYxY2FmYzM0MjNlNDRlMTM5NjlkOWFjMzY5ZjBiM2FlNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWQ2ZjEwNGE4OWYyMTYzM2QxODJmOTY0NWFlMjAzMDUxZjZlYmRkODVhNGM4YmU4ZjY2YzNkMzI2OTY2OTZkMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjJmYTU3ZTQxMGFhMjFmMTkyNDdlODJiMjM3YTQ0MjNiZjA4NGFhOTE2NjAxM2ZjZjlmMDdhNDFmMzFlZjY3NCJ9"
+        },
+        {
+          "resource": "repo://docs/_consumer_guard.py#L1-L10",
+          "version": "repo-lines-v1:sha256:3d3a268ad8d016a49a7ab8288c5a3bbf623a8b4db64fcaed71fb7d2ed22b0605:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2ODJjYmRiNGM4YjA3NTE4YmY0ODZjNTg5OTBmYzM5MTc4M2FhMjBhOTE2YmZiMjdhZDIxMWViMWQ1YzM2NDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUxNjU4ODhhMTg5OTU5YWJkMGI0NjdhYjcyYjg3YWYzMTVhNWViNjBiZDc5MGQ2MjQ1N2YyNGRkYjIyNzI1MmUifQ"
+        },
+        {
+          "resource": "repo://docs/_consumer_guard.py#L38-L57",
+          "version": "repo-lines-v1:sha256:953756757c78f4938f31e82e094c96222d0eff928e8f0eddd857b9ce34baaa28:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyZTMxMjU3ZGMwYWUxZDU5MzAzN2MyODBjOWFkNTA4MTliOGE2YzhjZjcyOGJlMDcxNmQwMGEzZWVjYzA0YmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5ZjVlZTEzZmE3OWYxZDczMThlNzI3ZmFjMGU4NmUwZDc4NzJmMjlkYWMxNzRkZDBkNzdhOGIyYmU0MTRjZTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiNDY4YWQwYWJkNWRmODYyMGJiOTRiZGZmZTg1ZjQyMTEwZWNkYThhZjc2NGE0ZDVjM2JhMDZiYWE1Zjc3M2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA1NzIyYjhjNGYyODMxYTA4YTZmZjE2OGQxNjUxMTRiNmZkYmFjZjk4NDIxNTM2NjI3NzY5M2JkY2IzYmQwMjAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2401791f013b4408aec73f5cd5a6b468",
+      "statement": "`rung-fixture` pins what crosses a crate boundary, and unpublished `rung-testkit` supplies test-only scratch-directory and scripted HTTP/LLM test infrastructure for product crates.",
+      "evidence": [
+        {
+          "resource": "repo://rung-fixture/Cargo.toml#L1-L15",
+          "version": "repo-lines-v1:sha256:e52b4b8a8f9a0a5949be5aaf56f2161a4932060c77a99de6a3f78b2ddcf36455:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhM2NkNWE4MWIzZjlhNjIxYWE0OTNkOTBjNDVmNDJhYjU3MWQ0ZTQyYjhhZTVhZmYzNTFjYjBhMDJkMDZkODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY3ZjBiNDkzNWQ5YTc2YTQ5ODlkYzUzNDQxMTJhNDNhMjRjZWE1ZTJlYWQzZmFlODkxMzlkM2FmOWFhODk5NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://rung-fixture/src/lib.rs#L1-L25",
+          "version": "repo-lines-v1:sha256:73262c20b787408d4de988bf8987d53d014810adbe1d4bb20ff268a185bdfd6f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmMWI1NDVhODE1NzUxOWI0YzRlYTFhZjQ3Njc4ZjhmOTBkN2M0Njk0Mjg1MjQ3ZjE0MWMzYTM5NGY0OTgyN2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5YjIxYjE5YzNjMTE3MGQ0ZmY1ZmUwOThlYjhjYTBkNzQ2ZTExODMzMDhhYjBjNTMwYzg4Y2EwZDViZjBlOTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU0NjYwODk0ZjMzODhjZmY4ZTk4NzY3MzYyNTdkZGEyYjJkNTlkZTA0ODFmZDNkYzM4MDcyM2RlNTJhZjQ5ZWQifQ"
+        },
+        {
+          "resource": "repo://rung-testkit/Cargo.toml#L1-L11",
+          "version": "repo-lines-v1:sha256:c03328f23b620f33dceab5be8eb9f7488d79d662c3770b4970eff61362b1e468:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhM2NkNWE4MWIzZjlhNjIxYWE0OTNkOTBjNDVmNDJhYjU3MWQ0ZTQyYjhhZTVhZmYzNTFjYjBhMDJkMDZkODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmZmNlOGM2NjczZGM4NGEwNGVjYTg5MjcwYzI2ZDgyYmY0ZDkxZmVkYTE5YWI0ODJjYjRmZjZlNWY4NjUxMTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://rung-testkit/src/lib.rs#L1-L10",
+          "version": "repo-lines-v1:sha256:b0f004217bb86174a59e618a64fd38c8aba4b6e56f2893d71df54bb6e535fe6f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY3ODFmZTM1YmJkN2QwNmU1ZWVjMzQ5MjRlNDdhOWIzZDk4YmEwZWI2YTVmNDU2YTgzNWI3NjIyNjlmYjI1MDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2MmFkNTRmMDcwODMwMjI5ZTBhNmQ4N2UyYWI2ODZkNWU5ZTcxOTYyNTZkNzk0MmYxMjliYjQ0OThjZGVjNTYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a2a9e424ab0d490a956d194efca187d3",
+      "statement": "The `ui/` directory is a private non-Cargo TypeScript application built and tested with npm; it consumes the gateway/host HTTP contract rather than importing Rust product crates.",
+      "evidence": [
+        {
+          "resource": "repo://ui/README.md#L1-L19",
+          "version": "repo-lines-v1:sha256:f43210cd3019116b7ee342afcb1d3a1b5c8a06eda730f5d706ef511e9f35a35d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZDYyNmFiZTkxZjgxNzdjNDAxZjYwZmI1YTBiZTk3MGMwNDdhZTBhYWFkNzE1M2M5OGUyOTAwYzY4MGNlNDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5M2FhOTRjM2ZiYWZjMzM5ZDIxYzJlOGI2M2MxMzU1YWY1ODcwMjVhNWNmZTlmZmU2Njk2ZjRlNjg5ZTY2OTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI3OTJjNjc1ZjljNjc0Y2E5MGE2NDVjMjU0ZDk3N2UyNjgzNzk3ZGM1MGJmNDkxYTIyNjcxMmMyNjhhYWUyNmQifQ"
+        },
+        {
+          "resource": "repo://ui/README.md#L21-L41",
+          "version": "repo-lines-v1:sha256:0df50d5e1c7c497a91289e4950da298c0713f6a418490e74b8a3255644e6adc5:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5YmQyNjNkM2ZhYTJjZTVmZmY1Y2E5YjdkMzM4YmI2YTA2NDFjYmY5MWMzMDUyMzk3Mzg2NzAzMDFhZDBmZDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxNTM5NWViYjFiNmM5OGU4YWY4Y2EzY2YwYjUzM2E2MmYyYzllY2NlMjRhMjA3M2QwOWQyNDQyYjAzMTUxY2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJhZTA2YjgxZmE4MjE2NGNmMTY0OTkyOTRhZWU4NmVlZTY2NjQ0YTNiOTRkOWY1OWI3NDNhNWU5OGRkM2NiYjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjViZTUxNTRmMWFiNjkxODQ5M2ZmYWU4YjU5Y2Q1OTBiMzM4NmNlZWUyZTBiZmU3NzI2ZjU3YjA5NjJhOGM2M2IifQ"
+        },
+        {
+          "resource": "repo://ui/package.json#L1-L42",
+          "version": "repo-lines-v1:sha256:28cb123dcd9c91d6bb277e2706293b145a27e718f936a0a05ac30ac3238d64ec:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZmIwOGZkYTFhY2I5NTdiNjExNmJkMzc4MTFhMWZlNDFhMDE2MTFjMDYzMWVkYmY3ODZkNjg4OWEyN2E1NWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_44ad272b93304d7f8354e97daf62279d",
+      "statement": "`rung-memory` is product-side memory infrastructure: its recall/retain ladders distinguish successful empty reads from unavailable memory so product callers can proceed without treating failure as absence.",
+      "evidence": [
+        {
+          "resource": "repo://rung-memory/Cargo.toml#L1-L19",
+          "version": "repo-lines-v1:sha256:462327b32d3288fb6f41b39edcf416e4f93809b3a26e8ea37ac17f37ef1a4dc1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhM2NkNWE4MWIzZjlhNjIxYWE0OTNkOTBjNDVmNDJhYjU3MWQ0ZTQyYjhhZTVhZmYzNTFjYjBhMDJkMDZkODIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY3ZjBiNDkzNWQ5YTc2YTQ5ODlkYzUzNDQxMTJhNDNhMjRjZWE1ZTJlYWQzZmFlODkxMzlkM2FmOWFhODk5NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://rung-memory/src/lib.rs#L1-L34",
+          "version": "repo-lines-v1:sha256:bf2d407f7408687ccca7d924168dd49055b6a2acb9d7af5784a88696ef7a7093:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyMDJiNzhjOGIwYTEzZTNlNDhmY2JmNzg5YzRkOGZiYWU5NDc1ZmRlMjUwZjM0MjVjYTJmZTc2ZDk5ZDFiMmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxMGRhNDc2OTA4YzM2ZDVmMjVmNzNkZGZmMDMyODI3MDU4MWE4YTk1NjIzYmU4ZWJkODlhNjlhZTU0MWNiNjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYwMzBjMDY1MjU1M2E3NjAwYmNmNWIyMjVhNzJmYzdmMDEwY2RmOTBjNTk1ZTI4NDM0ODEyY2NlMTQ3MTM4NTEifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-11-01T15:22:53.269Z"
+  }
+}

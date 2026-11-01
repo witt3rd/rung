@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:9fb98e1cefe7a77b01f02bab6bef0646871e74fd5e48df4ad0c5456503948a05",
+  "claims": [
+    {
+      "id": "claim_d81165144b4a466ab6b3d6850010ecee",
+      "statement": "The gateway is a single HTTP listener that serves the observer application, lists instances, and exposes only `/api/i/{id}/v1/...` host doors; it retains each instance key and uses it only as upstream bearer authorization.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/lib.rs#L1-L9",
+          "version": "repo-lines-v1:sha256:0f970bc60a1bcaea462d2af881bc5fad962599fade3d0fdc5bc5d401b0bd877e:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjhmOWQ1NzM0N2VjMTYxN2JkZGRkNDA1MDIyMjQxMzc3MTIxOWM5ODVkNjA1YWVlNmIyZjEyYzI0YTkzODE5NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjIzYTBmOGY0Y2NmMTgwYzhiMGNiMTdkYjZjZWZlMGI0ZTg4MjMwYmNiMTQ3NDg1YjQyNTNjY2M3YjIyZDdmYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGFhYTdhY2Y3NTZhZWE3ZjY2ZjQ4ODUyMDAwN2M0YjE0NGMxMTc2MzFmNDliYWM3MTBmMDU5Mjg0NDdmZTUzZCJ9"
+        },
+        {
+          "resource": "repo://rung-gateway/src/registry.rs#L1-L27",
+          "version": "repo-lines-v1:sha256:fe3510f914ad7f6cfb39a8760e2d1a9fce529dd15f4fe620d70f09188d334565:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxZjVhODliZjVmNmEwNjE3MmUzMzRkY2M3OTNlMWNiMjNmOWZjNThkM2RmYjQyNzdlMDUyODc2YTkyOWZlYWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY1ZmZmNjA3NDkxYjVjM2UzZWE2ZTYzMmFkZTZiY2FkMTI2ZGM5Njc0ZTAwY2ZiMjI3Nzc1Zjc3Mjc1NDc2ZTcifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L571-L699",
+          "version": "repo-lines-v1:sha256:ca649295cbe9fe9e7c2dca08c5a4be024f276cd6a1c793a81bc4e381b2b3638c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI5LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI1MjkyN2FkNGJiOTZmZGE0YTcxYzRlODk5NGMyYzRkODg1ZmE2N2YyZGQ4MGVjNTczOTUzNzRkZjYzMjlmYjRiIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI0YzM5NTQxY2U3MTUzZDUxYjZmZTU2N2M0OTViOTIwY2FhMTAyNGM5NDdiODBlMmU1Y2VhNGEyMGU2NzA0OWQ3In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_87474e67ecf7400faf5f41b6c22fc3bd",
+      "statement": "Gateway configuration resolves read-only tokens and per-instance owner keys from named environment variables, rejects invalid instance IDs, duplicate IDs, non-HTTP URLs, missing/empty variables, and header-unsafe keys, and avoids exposing token values in `Settings` debug output.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/config.rs#L10-L50",
+          "version": "repo-lines-v1:sha256:3a3e00f09891cc92d7f6d5e2d47cbace60359e6d3dc1e71d5008688209c4c69d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE2NGFhMWIwZjEzOWY4NmNkZWYxY2Y4MjE4OTFhMmMzYmQzNzkwNzc5YWJlZTVmZDlkN2RkMjc3ODY5OGZhYzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI0YWQzM2JkOTUwNTE4NjkwNGU1ZWU0MGM4ODhkZjdiYmI3OGVjNWI0YzZlMWQzZWJlMzZhYWU3ODg1NmRlZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMwZGE0MmRkOGExOWM0OWZhYzFiYWMxNzQ3YzYwNmE2MDRjZTU1ZmQ1NDYzM2ZkN2MwN2Y3NDVhNzNiM2JiMDIifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/config.rs#L105-L172",
+          "version": "repo-lines-v1:sha256:59f79d29e2f41a867cac85f1d80c76b30855e0800f5eb95155784bda7e65a961:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjOWVhNDJmYjZmNmFjZGYwNjA0N2IyMzdjN2Y4Y2NiYzNhMjAxYTA3YTRkMjg3ZWQxNmM1ZmZlMzIzYTUyNWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiMjk0NTkwZTU2NWY5ZjQ1ZTZkYWYxMjcxZmI4NmZjZWFiZjc5OTAzYTYwMDBlMzRmOWU3NDMxNmQ5NTk4N2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE5MGZlZWFjZDcyOTAwMDFkMTQ4NzFlOWM0NTNjYmU0MTFhYjhhNDg5MmYwZGExMTFjZmJkZDU3ODMyOTUwZmEifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/config.rs#L70-L80",
+          "version": "repo-lines-v1:sha256:23b4181d262de70b0d565acaa1f0d30d5ac6860a47d71a14b8950b2161e3c12f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwYmMxODQxMzdmNDhlYjU3ZGM0ZGQ4OWUyZmZhYWUxNTQ4NTEwYTRhZWE5Njg4NGIzZGMwZDI0ZTA4OGM3MDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkyM2FkNjIzNTA1NDI1YWNmOTg0MjZlNzExMGNhNTQ1Y2IzMGZhNWNhMjcxMWI4M2YxM2Q3MWY3ZDAxZmIxYTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4YmJhYTExODhjYTIwYzdjOWY3ZTlhYmQzYzcyYjMxNDc1ODk5ZjA1NTg2ZmVlYmQ3NmEyMGRmODEzNmU3NzEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_994f89982f78422fb8f9113f8aad90b2",
+      "statement": "The gateway uses tailnet posture rather than a login system: no credential means owner, configured bearer/query tokens mean read-only, malformed or unknown supplied credentials are unauthorized, and read-only writes are rejected before reaching a host.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/role.rs#L1-L42",
+          "version": "repo-lines-v1:sha256:fb1b3a6a94d59f5edc6d99ca025295426b49fa55c13c32f09807450389345dc9:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxNzgxZDlmNWEyYzM5ZTg1NGE5NjM4NWZjNzIzNWYyZDZmYWQyMzQxYmY1ZmNhY2Y5MTliZGE4YjM1YzQ4NTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhmOWFmZDkzYmY2MDM3M2Y2NDI2MjE1N2M3M2FkMjhjMjVhZThiZjhjNzAzYmU4Yzk1MTUwZGI5MDExZDJkOGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L238-L304",
+          "version": "repo-lines-v1:sha256:1ec0a9e8258318692bf75e625a45dc1b67731ffd46b7ae01a35dbd9983be2efc:eyJzZWxlY3RlZExpbmVDb3VudCI6NjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmZTY0ZDRlZDYyODQxODFlNzU1MGFjYWJjODRhOWZkYjcxY2Y5ZmFhNTcxZjY1YzNlNjhkMjQ2YzZjMDk5YmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2MGE4NDVhZjhmYjQ3Njg4ZmUyNmFhMGI3OWZlN2QxOWQ5MzZlZWVlZjFjNWViY2VlYjYxMjdkYjY4ZmM3ZGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwNGM5NGMyNTJlNDY5MzgxMjljN2U3MWZmNGY2MDQ0MWVlNjA2ODJhZGZlMDRhZTU2Mzc4YjkyOTkzNDZiYWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkyNDllYzJhYmFlMWM1Y2E2N2ZlNDBhM2NjMTU0YzE1ODllMjA0ZjE0MjgxNDA1YWE3MDhkMjQ2N2UzMmEyNDQifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L571-L600",
+          "version": "repo-lines-v1:sha256:42f84ef862e36fd16db43be18432cea1fd0b7fe6f52cf978dafc5dcfabccdbbd:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUyOTI3YWQ0YmI5NmZkYTRhNzFjNGU4OTk0YzJjNGQ4ODVmYTY3ZjJkZDgwZWM1NzM5NTM3NGRmNjMyOWZiNGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA5YzQzYmFlYWNmZjQ0NGVlOTU3OTJiODllNmE4MjAyYTk3YzA4ZmM1ZGNkMjM0MWFlNzZjZDExZWU5Nzc2NmQifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/gateway.rs#L299-L399",
+          "version": "repo-lines-v1:sha256:d8167d12e932bce56ff4deb49645331e4be80a7db9b45f0f87a75f0e768505da:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI1MTk0ODRlZWRmMzY0ZmI4YzEyZjFlYjk4ZmJmNmE5YjRmNjUwZjQyNzg3NGE4ZDczNTkwMTBhYWRlNDMxYmM4IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJlMzYzNjEwZDgwZDYxMjM4NTBmN2JhYjY2NTI4YjhiMDVmZWY2NWM1Yzg5NTEzOGM4OGJhMDZmNjU2MDVlYzg1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJkYjBiNzc5YzZlMzVmYmY3OGUwM2Q0MzhmMjgyYmU3OGFiMWMwMjRmNzczYjBiOTQyOGE0MThlMTQzMDk0OWYyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3NzcyZTkyNzVjYjZhMjRmZmE4OTUyY2NhNzdlNmE0YTVhMmFkZTYzY2VkNDM1MWM2YmM1ODYwYWFmZTUyMmQxIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_cd149e61694e42849ecea118046ae96c",
+      "statement": "Owner API requests are constrained by an allowed Host check, and owner writes with an Origin header must have a same-origin value; these guards protect against DNS rebinding while read-only requests take their separate access path.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L327-L392",
+          "version": "repo-lines-v1:sha256:71c3ae91979ff71775d06b9660419a930fc38a95eeb41e122c28220f49c1e0c6:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMzI2N2RmM2RjYTcwNzg4MDA5YzlhN2NjYzFlMjM0ZWI2ZTZhMWEwYjAyNzY4ZGE1ZDQ2YzIyMjgzOTgxMjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQyNDlmYjc0NGE3NGNlNzRhMjc2MTA1NmYxMTE3YThjNTMxOWRhNTI1MDhkNGM1ODEwMTgxYmQ4NGNkYmU1NjEifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/gateway.rs#L749-L915",
+          "version": "repo-lines-v1:sha256:416eba0f37c2a289bad6914ad205ef87050e7050ac14ee3c19c1c55efd62db2c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTY3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI1MTk0ODRlZWRmMzY0ZmI4YzEyZjFlYjk4ZmJmNmE5YjRmNjUwZjQyNzg3NGE4ZDczNTkwMTBhYWRlNDMxYmM4IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4NzY1ZGIwZWIyMDY1ZTVlYzhlMjcyNzQzZTI5NDk5NGU3NTMzY2Q4ZTc2NWFkOWYzNTAyNTYyYjEzMjY4NzZhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3ODBmNGRiZjZhNTk3MWUxMTlhOWY3OGUwYmI2YThiMzhhZmYwMWQ0YmUyYzU0YjM4ODFhODJhZWZkMDRjZDc4In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_6e2634b7118a41069862199e68b86a1f",
+      "statement": "The door table explicitly classifies known host `/v1` doors as read or write, and defaults unknown paths to read only for GET/HEAD and write for every other method.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/doors.rs#L1-L85",
+          "version": "repo-lines-v1:sha256:85c48b13da4a9338101897afb6dd757e7c1de8705508f8fb097f9c738bda4eba:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwOGVjMTZhN2E0OGM3MDc0ZWQwZDg4ZDcxYzQ1MjhkZTQ5ZmRhZDNiOWI0MzIyYTQ1Y2FlYTkzYTIyNzZkNDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2ff86d00a8aa453aa832eb0b660553ca",
+      "statement": "Configured instances are probed for their summary with a five-second bound and remain in the overview with `reachable: false` when unavailable, while the Registry abstraction is queried on each request and native rows can be read from state directories.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/registry.rs#L40-L56",
+          "version": "repo-lines-v1:sha256:ddd4e08f245748590130f16c077a8441a391c21b799e22f83da1e0dd47ef8584:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YzZjYTcxNTFmMTA0Nzk4MTI2MzE3YThkN2Q0ODFmNWUyMWJlMTIwM2EwYWM2YTVjZDVjYTRlYzJjODhmN2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L421-L488",
+          "version": "repo-lines-v1:sha256:eb92c0d6d9d964ee882a891dfa6c77b38e648514ff5e773ad62ec1174a0c0582:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxNmE2ZDhhZDEwMTZiNWM3NzVkNzQwNzQwZTFkMDQwNzNlODg1ZTg4ZTI4OWZiODgzNzBhNDI1ZTZmMTg4YzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0NzVlOTRhOTA0YWM0OWIzMTU0ZDQ2NzJhNjZlODYyOWI4NmRhYzc0ZTNlMjkzN2JlNjkyN2FlM2RhMTFjNTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI4NTYwNGI2MjZiYWQwNzcwNWVkOTA4ODMzY2FlMTU1Y2UyOTI2ZjFkMmU1ZDFhMDE0OGI5ZWRmYWFkMDVmZTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4ZTJiOWMxNjZhY2IxZjQ2YTQwOGE4NDc1NzdiOGNiZDE5ZDNiOWU2YTk1YWEzODRjNjY0MDgzN2ZlMWEwNDQifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/gateway.rs#L164-L192",
+          "version": "repo-lines-v1:sha256:6c44e1b70117bb489c7494e766be2a12c0865f70f66002e0221446981698c207:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxOTQ4NGVlZGYzNjRmYjhjMTJmMWViOThmYmY2YTliNGY2NTBmNDI3ODc0YThkNzM1OTAxMGFhZGU0MzFiYzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYwMDBiNjBhZDYwZTI5Y2ZlMDdiNGUxMzBiYzEzMjE5OTA3NmVkYTg1M2NhZWIzMTdkNjZkZjM1M2IyM2VhMzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZhMTZlYWUzMGQ5ZjJjNzFlZTQxOWJmYWMwZDMwMzhjMmE2ZDAwOTRiM2JmZjU0ZWY0YWMxMDg3OWIwZGQzMWEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a3bad29bd06741889e22a73559f8f2c5",
+      "statement": "For native instances, the gateway answers summary and record reads from the registered state directory, redacts output using gateway/registry secrets, and streams record pages through a bounded channel so stalled readers are cut instead of causing unbounded buffering.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L1106-L1221",
+          "version": "repo-lines-v1:sha256:3ea70e125e01942869a8af2264803f1e7c90a246f4c074726c79f8a12f81c624:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI3MmEyNzJjMGVmZWMyNzg3ZTkxNzcxOTI4YTdjNzI2OGQ4MjRmNDNmY2U3ZDgyMzNkN2IxNzY1OGIwYjZmZDk1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlOTZmOGNiMDgzZmE4MDBhNGRjZDI5Njk3MjJkN2I5MjY4NmFkZDllYmUzNjU1NDkyZmE2NzJiMWE3Y2VkMjQyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI5OWViZDk5MTU0YzAyNDNlNDk3M2U0M2U1MjM1MmZjYzU2N2YzYTI0MGM4MDZlYmE5MmE0NGMwNzU3MTI0MWQ0In0"
+        },
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L406-L414",
+          "version": "repo-lines-v1:sha256:09d78f101e35bdf3345b11db8b450ae1311cfe8e5cdfdd4e129739556ccda32c:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTMyNTI3YTBkNmViNGFlNmU3MzFiZWRhYTllMzg0ZTZjZTNjMjM1MjU1MmQ4M2Q2NjEwM2NhYWYwMDEzOGZiMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTk2ZjhjYjA4M2ZhODAwYTRkY2QyOTY5NzIyZDdiOTI2ODZhZGQ5ZWJlMzY1NTQ5MmZhNjcyYjFhN2NlZDI0MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjgxZGFhODQ4Njg1OWVjZWFhYTcyYzViZDJjYmY5NDQ0ZDI4MDk0NTI1OWZkYzJjMzQ5ODdmZTI4OTQyNTgxYSJ9"
+        },
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L996-L1046",
+          "version": "repo-lines-v1:sha256:4c10624d465351d99447f99172bef9c74aef6a73435cd8cc00a0fd1e39ab5464:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ4YzU4ZDkwNTI5Y2JmMGQ0MWI2NDc2NjBmNjc3MzFhY2E0ZmNmMmM4NTg0YWRlNjYxMmNjMzg1M2IwZmFlZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzZWM5MjExMTg5OGQ0ODA5MzY3YTlkZWY2OGM1MDRhNGU2NWM0OTM2ZjIzMmUwOTBlZWRiNjI3Mzc2NjNjZDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2YjQ5YWUzYjMyNjhhNjY0M2FjNTY0MzkxMWRiNmViYzU1OGMxZWUwY2Q1YmU3ZTU4Yzc0Y2Q3MmM5M2ZmZjMifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/native_doors.rs#L753-L783",
+          "version": "repo-lines-v1:sha256:29fb6d97290c11218f8bfc155279b2f60aa6c02a108bf4cc26a72567e68efbfb:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5ZDZiYTU0Zjg3YzVhZDg5MzE1YTlkYzEwNDBiMTg5YWZmNTNmMzViN2RjNDE2MmVkNjA2NDQ4NjBkYTE3MDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyZTRkNWI1NzMyMzVmZTI4ZWM1ZjY2Mjg3ZjNhY2IzOGU5NzJkYzljNTA4MjQ1YWY0MzQzNDI1ZTg3MjRjZmMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_691999dd16384096af814e64b5c79ac2",
+      "statement": "The events door sends replayable, numbered record frames and ephemeral unnumbered delta frames; native replay reads the state directory while partial deltas may be relayed from a running host, and failure to obtain partials does not prevent record streaming.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L1230-L1321",
+          "version": "repo-lines-v1:sha256:a97b35a624368c29b7ac703b9aee424529e4c91bf2cd43c0d369a59729cca91e:eyJzZWxlY3RlZExpbmVDb3VudCI6OTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyMTY5YzRjNDFkZDYwZmYzZjFiY2E0NmQ3NzVjMDRjMWM1YzMwYWVjNWYwZmNjN2Y4MjliYzAxYzQzZDY2ZTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEzM2ZmOTdjODEzNzVhOGM1MTM3ZDBiMzBmZDBlNzA4MTk2NTAwYTk1ZjFiNjVhNThmODQxMzY3ZTg2MTY4OTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA4MzM5NmRhMGQxZWE4ZGRkN2ZkMGRmMGQzZjRkNDFlNGJiODVkYTZhOGFiM2IxM2Q2M2I5YjE3NWI0MTE0MmEifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/src/server.rs#L1323-L1389",
+          "version": "repo-lines-v1:sha256:ebc91417a953f6896f71d5f82ef7c9ab18ef05e50674827fdb14145cd526ffab:eyJzZWxlY3RlZExpbmVDb3VudCI6NjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhmMzA1MWU0ZTkwNDVlNDMxYTQxODZhZWFlZjAwZjBmOWVhODc1OTY3ZWE1YTZmN2UxYjgyN2I4MjkwMTNhZDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU4NzAwMjVhY2ZkZTEzYWYyNGJkNjNiMjk4ZjcyZTAwYTRlNTU2YzE2NzkzYzVjNDFlNTkwMWYxNzZlZDkyYmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU1ZWM1MDEwNTJmYmE3ODc0YWJlMWJmY2UwZDQ3ZjdkNGMzYjA4ZTA2NWM4YTBmNjVjMjE0YmMzN2I1NjkwNGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQwMjRlMDdhYjBjMTk1YzNiNjE3MmVlNmQxOTgxN2QxM2ZkZmEzYjFjZDM5NWU5ZWQ3MjY3MmM5MTg5NDRhMWMifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/events.rs#L225-L261",
+          "version": "repo-lines-v1:sha256:c1fc27e6fc34beb94a5ac8a1c39d1054a56f0c2d731e249150447a4aef24b1eb:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1N2QzZTFhZTlkMTQ0MGE0ZjJjNDczYjhjMTc3MDkzNmVkYjNhZjkxZmU1NGUxYjBjNmI0OTQ4MzZmZGQ3NzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM0YTgzYWI0N2FkOTgwNjA5NTFjYzJiZWRlZGEyMjQzYTI2MTkwMmZlMzRlNTJiZTRlMzNiZWQxYjlkMmQ1MmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZiZGIxMjU5Y2Q5NTY5NWMyZTYyM2YyNWU2Mjg1NmU4MzRhYTRiYTk4Yjk0YTRmYzU0ZWI1OWJhNWYyNjEyMjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc3NzJlOTI3NWNiNmEyNGZmYTg5NTJjY2E3N2U2YTRhNWEyYWRlNjNjZWQ0MzUxYzZiYzU4NjBhYWZlNTIyZDEifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/events.rs#L497-L568",
+          "version": "repo-lines-v1:sha256:3a1397c09188b2af2dd6c4bc169648904bb75f819f47ddc60dde4039a5d60ef8:eyJzZWxlY3RlZExpbmVDb3VudCI6NzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhZWJkMjU0NTZhMTllNjA0ZjQwM2UwMDE0YWE0ZGI1MzdhOGQxMWFmNjNiZjRmYTc5MmE1ZDI4NWM1ZDlhOWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJmNDg0Y2FlMjZlMGZjMjEyOTMxY2Q0NzQxZDI2OTM0MDBkMWE0YmI1MzZjNTdmNjM3MDFkNTQ0MDM4YTE4NDYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc3NzJlOTI3NWNiNmEyNGZmYTg5NTJjY2E3N2U2YTRhNWEyYWRlNjNjZWQ0MzUxYzZiYzU4NjBhYWZlNTIyZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc3NzJlOTI3NWNiNmEyNGZmYTg5NTJjY2E3N2U2YTRhNWEyYWRlNjNjZWQ0MzUxYzZiYzU4NjBhYWZlNTIyZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_396af04ffc2641229485ede1cbf9756d",
+      "statement": "The React observer detects gateway versus static mode through `api/health`, refreshes the live instance index, loads a followed instance's record before following its event stream, and treats the host summary as authoritative for displayed state.",
+      "evidence": [
+        {
+          "resource": "repo://ui/src/data/hooks.ts#L11-L26",
+          "version": "repo-lines-v1:sha256:4f89907a38d616467149b0f8da4c6fa08abd388be0c093b49ac8c8d54d213e76:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwOTMwMGM2NDI0MjZmMzE2YmI5MTkxNTdkOGUzOGUxMWM5YmI5ZTIxMDUwNDk2MTUwNDE0Yjc3MTdkZDdhMzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEyNjAwZWUyOTg0MzMxYzVjN2Y1ZDhhZWZlMzYxODU5NmVlYTVlNzJlNzhlODM3ODBiN2UxNDU4MWMxMTVkYjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMyNWI2ZmI3MGMxNWY3ZDgzYTZjNzRlYWRkYjVkYTJjNGExZGE3NWFlMTQxMjE4NGNjMGQ1OWU2ODBmOGUwMzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI1YWQ2NmRiMmM2N2JiOGUyMzcyZTMzNmI4MDg3YmY0ZDVkODZlZjdlZjdhZmYxMzRjNTI5MjU5ZGZmNDdjODgifQ"
+        },
+        {
+          "resource": "repo://ui/src/data/hooks.ts#L34-L69",
+          "version": "repo-lines-v1:sha256:747697d163a219c663c9c8ba983d9b5c6e133443c1807a7eea3d0e80c35fb70d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE5YmQ0ODZiZWI3NWVlZTdiMDUzZTJmMzI4ZmUyNzYxZjgzYmNiYWFhMmY3OWVhMzhiMTRhYmUyYjcxNDIzOWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk1YmM5ZmFlOTRhNDg5MDBjZDE2ZDM5ZmNhNTJiYzU3MzZiZGM4M2UzNTI3MDE2NTAxYmUzYjhiODc0NTI1MzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3NjQ2NjczNzBmMDdjNGIxYTQzNWY2NTBlNzg5ZmUyN2I2YjE5NjhkZDUxOGExMjNjODhjZmFhZTg0OGU0YzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        },
+        {
+          "resource": "repo://ui/src/data/source.ts#L43-L88",
+          "version": "repo-lines-v1:sha256:61c5be279aec610eb6b908579437ca182e0fdaceefa327e02d74b6fe30b2b6f4:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwMjEwY2M0ZDU4YTRmODUwZWZmOTIzMGYxNmIxYjJjNzJkYmVmMzQ5YTBiMzYwYmRkZDA3MzkyZGU2MjA0NTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyYTJjYjI1YTEyMmI0NDIyMWE2MjM0ZWM2NjBhN2I1ZmI3ZjliZGU3YjNiOWUyYjNjNTU5YTBkOTZmYWM3MzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwMmU5YTAyYWY3NDdiOGViOTkxYWQ5ZjkxZGNkNmMxYjRjODhiNjhjYzk2ZTZkM2M1YjM2NDI0ZDM5NGQ2M2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        },
+        {
+          "resource": "repo://ui/src/live/store.ts#L100-L168",
+          "version": "repo-lines-v1:sha256:2a7ff494cf1aab440ba6259bbc5f36d3ae5df5fc2b3cb16f600290d58bb48c4f:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmNjA1OWY2MTEyODMxNzViNjEwZTY3YzA3YzdhZDNmNDI4ZDNiYjBjZTNiNjViZGI2NTdlZjQyYjBmZTFiN2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwNTI2N2JhNWRkNDI4NDA5YzBhZGY1MWEyOWI4NTc5NThjODUzYzU3ODhiMmFmZDdmYjA2MDVkNDUzYTE0ZjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNiZTAzYTNlOTNiOGYxYWFmMzQzZWZkOTQ4MDExMmY2YjJmNzQyNjVhZWIyMTJkNzg0NTkzYjQwMDE0MWRmMTUifQ"
+        },
+        {
+          "resource": "repo://ui/src/live/store.ts#L215-L230",
+          "version": "repo-lines-v1:sha256:e34ccc6c182ac5b959a109d88694922dfb3284d0785327c770ad942997c85cd7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI0Mjk0ZDVjNjg2YjUzMTQ3ZTAzZWM1ZTMyN2I0NjEyMjJlOGFhMDU4MTc4M2YwNmY4YTUwODliNjY4M2ZmMWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzMmY4YWFhMTZhZDU5M2E3NGMwNDY3OWEzOGE2YTA5MWEyZmJmOTBkNmYwMjRlZDA5ODU2NThhNTYxOWYwNGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1NjJlYTU3Y2VkN2IwN2RiNGE0NjAwZDlkZjA2YzRkZTk2YWNiNmU2NjlmMmJhY2ViZWNkNTAwZWU5YTQyZGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIxOTI2MzVhNWZhNWFkZjg0N2U2NDVkMmVkNTljZjY2OTYxZWE4MjFhYTMzN2YzNGExY2I0YzJhMmFkMTg1NjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9aa737f99b4745f2bba9b75fbfda1b10",
+      "statement": "The UI events client maintains a durable sequence cursor across reconnects, ignores duplicate replay frames, refuses to apply a sequence gap, reloads after `409 cursor_ahead`, and does not replay deltas.",
+      "evidence": [
+        {
+          "resource": "repo://ui/src/live/client.ts#L1-L49",
+          "version": "repo-lines-v1:sha256:fabba6dab711092eb7fbd61d58fd5ae624e43e23a7c0558cfa0222dec2b39572:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzOTkyMWZiMTMyYjZlMzg1YjRkNDc0MTAzYmRkZWM0MGYyNjEyMWY4ZDg3YTMxZDFhMTg2MTUwYWU1ZDI0MzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk2ZjExZWVkNGQ3YmYxOTQwOGM3YTA3OTk4ZjJhMTI3NjFhYWNmMmVjNmE5NzEyNGVmZWQxNzcyNDQ0MGY4YmUifQ"
+        },
+        {
+          "resource": "repo://ui/src/live/client.ts#L68-L126",
+          "version": "repo-lines-v1:sha256:1a4cdfa63f67fd74235f1f36a0e1eee09f0802dc611e1ca31b61645e66f54861:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImViZGMyMmMwZWI1ZDZmZGJkOWY1ODE0Njc5MTgyZDQwMTU5MDQ4OTljNzMxMDBjMjcyNTMwODU1ZTU2MmJlZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwODk1ODU3Y2FiMzYwNGUzNmIxZTM1NWE5ZTQ0NzUyODljOWUyNTM5NDNmNzY4YzJlZmE2OTkxMTU4YjZlOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRmNzM5YTA2YzFjYmIxMjQ0ZTMzNjNkMzhiY2Y5ZmE1MGNlODRmZWQzOTljMjE5M2EzYzdmMDhkNTk5MThiMmEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_dbc8b1864c1b45fab5d87fe34cb9bd11",
+      "statement": "The live store treats partial deltas as a transient overlay: it waits for catch-up, hides text from a pre-existing or torn turn, clears it on a `behind` frame or durable turn end, and redacts streamed content again in the browser.",
+      "evidence": [
+        {
+          "resource": "repo://ui/src/live/store.ts#L170-L205",
+          "version": "repo-lines-v1:sha256:894aae2047496536c19b44d2002630c69455501ae4424d17db187e5963ff643d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0NTE3NTA4OTcyNTE2YjI3OTVkNzlkYjUxM2RiNGEyNmY0YWEyMzIyMzE3NGUyYjJjMjU1YmViZjU3MjJkMWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI3NTIyMDM2Y2Y5ZTg4ZjhjMzdmYmU4NjM4MjJmNWUyZmRkMDc2MWIyZTc2ZTJmOTE2ZGRiOTY5MDBjZjliOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwMjYxYjBiOGViMzllZTM5ZGQ0YzczYzExOGM1YWYxZmZmYTE0ZThhNjMzNTU0NjNmN2NmZmY4NTIxMzkwOGYifQ"
+        },
+        {
+          "resource": "repo://ui/src/live/store.ts#L207-L261",
+          "version": "repo-lines-v1:sha256:144f1d471d85b8aac564a8cbf10df1f043bd2f8e011455a27b3d55e82392d1ac:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUzMDA0NzFkMjYxMDg4Nzc5NGViMTdhNTI1YzFjZDBiNmFlOWVmNjE0NDNiYzg3NTBmNTQzNzZhMDE5NWE1YzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViMTRmNTM0MzU4Njc0M2Y3NTg0MzQ4MGYzNTZmMDAxNTgxYTRkZWIxMmQxMWQ3NTc4NDVlZjZmY2Q5Yjc0ZTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        },
+        {
+          "resource": "repo://ui/src/live/store.ts#L44-L87",
+          "version": "repo-lines-v1:sha256:4da959e91b09ae389b0b555e2bff256059495233a61e5b97e5188e700f111ca4:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1Nzc3ODVlZjQwY2NiM2U4ODJkYzQxYjQ1NDgzMjk0MTQ3Njg5NjhkZTExOGQyMDFjNzhjMWI2NjJlOWY0YmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzYzdjOGE0MGEzZjE3M2YwMjMzNzg3N2IzMWRmODFmODI0MGJiMTZlMmRmYTY0YmY1ZWY3NWVmNTYzNWVkOTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRlMTkwOTM1YzU0NDVjNzgzNzM1NjAzYjMxMGJkNjMzMTM2Mzc1YmFhYjYxZWE5ZGJmOTQ4NjQyMDgzZTIxNTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBkM2EzMzcxZTA3MDI0ZmRkMmVmZmY0ZmM4M2NkZmNjZjhlNTE5MDdiZmRiYjM5ZmUxODY1MzcyNWUxMDZlNjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_df7bb4d3bd9e4a83a611d20677794fc3",
+      "statement": "Queue submission coalesces an identical in-flight press and reuses its idempotency key after an uncertain failure, while categorizing read-only and known gateway refusals as non-retryable outcomes.",
+      "evidence": [
+        {
+          "resource": "repo://ui/src/queue/send.ts#L1-L79",
+          "version": "repo-lines-v1:sha256:53fcad5b82ba3b7f0780cd05654ae1dcfcf17ca980f6e31acec86ecc31db9362:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0NTdhYjhhNTBmN2ZmMTQzYWI0ZjQ0NTBlMjhlNmFlOTJhNTJiNzE0ZDYwNWRkZmRlNjQzMTE5MjlkMWI4OGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5bb006e8c8174784bbde071b63d13d83",
+      "statement": "The UI contract suite validates live gateway summary, record paging, SSE replay/resume, read-only behavior, redaction, and stop semantics, and can target a real gateway through `RUNG_CONTRACT_URL` and `RUNG_CONTRACT_INSTANCE`.",
+      "evidence": [
+        {
+          "resource": "repo://ui/test/contract.test.ts#L1-L23",
+          "version": "repo-lines-v1:sha256:f1fe2735bc63b4f51e75df684c0e07fc259b0594c2cc3119717668e607593b07:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2NzQxZGMzMzA4ODZkOGNiNGIyMzg4MzlhYzYxMjM5YzhjNDM1MjNkYzUwNzBlZTg0MWE3NjgwMTg2Nzk0MjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3NGZlYTc1YmI0MGVlOWMyZjU1ZmQzOGVkNWJmZjM5NjRiZDYzNTQ4MzgwNDExMDEyZTU4MGY5NjU4YTkzMTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZjZTQ4NmZhZTRiMTBmZjBiZmE3ZjRjOGExMWM2Y2Q4Njc4M2Q1YmM4MTRjM2RjNmVmYjAzZTc4YzFjZjAzOGMifQ"
+        },
+        {
+          "resource": "repo://ui/test/contract.test.ts#L254-L323",
+          "version": "repo-lines-v1:sha256:385a2304a295e14e9aa7474631a0745e5e3cd775b9ce91aeaecff6569d733ba6:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjljNzMxNGJjMmJkMGU4NmYyNmY3NTYzYzhkYzlmZjdlNDk3YTQzMjQ2N2IwMWQ1Y2IzMjA1OTA5NmZhOTUzNWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ0Y2VmNDRiZGM2NGUwZDM0ZDkxMjNkYTBlNTA3OGQ1NGJhZTM0MmYyZmIxMDYyMGNiYTY1ZWNkNmYzMTIyYWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://ui/test/contract.test.ts#L62-L160",
+          "version": "repo-lines-v1:sha256:084e88099d9807302702088f400575f972a9074cf4a37fcec698933df0d7e1bc:eyJzZWxlY3RlZExpbmVDb3VudCI6OTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMwMmYzNDA3MmQwYjUzZWI1NDY5ZTExMmJlMzg1ZmYwNjE1ZDM5MzczMDVjZDg4NGY0ZWNhNWVlNWZhNzdmOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViMWVhMTVhMGY3YjFkNzc0MWMwOTJkZTgwMmQzOWZkYTQ0MzRlY2YwNWY5NDM1OGM2ZjM2OWNhOTExNmUyMmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNmMmVjNTBhMzA4Y2RkMTQyMjA4ZjAzMzA0MGVhYWNkZTBmOGQxMTc3NzM5OWQ4MjZhMWY4Nzk0ZDBkNjAxZWMifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-11-01T15:22:53.269Z"
+  }
+}

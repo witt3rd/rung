@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "pages": {
+    "/openwiki/architecture/workspace-boundaries.md": {
+      "pageVersion": "sha256:ae40a09ba8fda6810727f5f47e487e7031c22853a972758e83da625d02b85658",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/concepts/memory-providers.md": {
+      "pageVersion": "sha256:f927a0a98502f086ba0c033f68720d243cd55ecc5040c780a2fc820153593f19",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/concepts/type-ladders-and-heteronomy.md": {
+      "pageVersion": "sha256:7d78ae6ceaaaf370279f27eb6bea5bec318ac61de271dc594730bd507741b531",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/integrations/acp-mcp-and-oauth.md": {
+      "pageVersion": "sha256:3cffd0063e11a5f3b4e3127da738a35181befcd80fb87625bac06dc02cda3c9f",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/integrations/gateway-and-ui.md": {
+      "pageVersion": "sha256:9fb98e1cefe7a77b01f02bab6bef0646871e74fd5e48df4ad0c5456503948a05",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/operations/configuration-and-secrets.md": {
+      "pageVersion": "sha256:39d5865816e73105a76ef9dc3857f150e86dfb5d21428aa08eed7056ed731425",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/operations/continuous-host.md": {
+      "pageVersion": "sha256:24e7c9c13bff83df9079facda8e61452cfd1651b2e30c751933664d57417d49c",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/quickstart.md": {
+      "pageVersion": "sha256:9002b6ec4c01d52948aa1d93138e0126c99b5a546913bb13468e2af41a8f0d53",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/testing/verification-and-ci.md": {
+      "pageVersion": "sha256:315b9e7d779c842b720456d95bb50217a24035a14a0e180fe34e44d7cdb4b4c9",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    },
+    "/openwiki/workflows/agent-turns-and-sessions.md": {
+      "pageVersion": "sha256:826e063f5a37c2662800d739f04aee2076bbee8b38a400999eb3da4d27bc4e36",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "94942098-51b3-4c9f-beff-87d9ab9424d8",
+      "gitHead": "f1bd1c0d770e651e1c0915c6b4784c894d7d65c3",
+      "sourceFingerprint": "sha256:e23b7a49084c9095ac73eb20250f526c446fb91ba45485ff318c90e76d445031"
+    }
+  }
+}
