@@ -1,6 +1,6 @@
 # rung-host quickstart
 
-Run the host (continuous mode, idle time 0; idle mode is specified, not built, see [rung-host.md](rung-host.md)) on the scripted mock engine in five minutes. No
+Run the host (continuous, `idle_time_s: 0`; without that line it is in idle mode and rests between wakes, see [rung-host.md](rung-host.md)) on the scripted mock engine in five minutes. No
 network, no key. The mock answers deterministically, so this shows the
 plumbing (inbox, record, stop) rather than model quality. For the design,
 see [rung-host.md](rung-host.md).
@@ -23,6 +23,7 @@ stop_file: demo/STOP       # touch this file to stop
 engine:
   kind: mock
 memory: false
+idle_time_s: 0         # continuous: the demo takes its turns back to back (omit for the 30-minute default)
 ```
 
 Conventions:

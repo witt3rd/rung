@@ -4,6 +4,7 @@ inbox: demo/inbox
 engine:
   kind: mock
 memory: false
+idle_time_s: 0
 calendar:
   - id: standup
     in_s: 1

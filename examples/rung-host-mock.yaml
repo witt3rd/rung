@@ -7,3 +7,4 @@ stop_file: demo/STOP       # touch this file to stop
 engine:
   kind: mock
 memory: false
+idle_time_s: 0         # continuous: the demo takes its turns back to back (omit for the 30-minute default)

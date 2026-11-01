@@ -31,7 +31,7 @@ fn fixture(name: &str) -> Value {
 
 fn config(state: &Path, base_url: &str, extra: &str) -> String {
     format!(
-        "state: {state}\nengine:\n  kind: agent\n  base_url: {base_url}\n  api_key_env: {KEY_ENV}\n  reasoning: medium\nladder:\n  - qwen/qwen3.8-27b:free\n  - nvidia/nemotron-3-super-120b-a12b:free\nmemory: false\n{extra}",
+        "state: {state}\nengine:\n  kind: agent\n  base_url: {base_url}\n  api_key_env: {KEY_ENV}\n  reasoning: medium\nladder:\n  - qwen/qwen3.8-27b:free\n  - nvidia/nemotron-3-super-120b-a12b:free\nmemory: false\nidle_time_s: 0\n{extra}",
         state = state.display()
     )
 }

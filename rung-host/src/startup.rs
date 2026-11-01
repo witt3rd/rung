@@ -171,6 +171,10 @@ struct FileConfig {
     epoch_budget_tokens: Option<usize>,
     #[serde(default)]
     turn_bound_s: Option<i64>,
+    /// How long the host may rest between wakes, in seconds. 0 is
+    /// continuous mode (never rests); absent is 30 minutes (idle mode).
+    #[serde(default)]
+    idle_time_s: Option<i64>,
     #[serde(default)]
     backoff_base_ms: Option<i64>,
     /// Baseline memory under the state directory (default on).
@@ -374,6 +378,11 @@ pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refu
     if let Some(s) = f.turn_bound_s {
         config.turn_bound_ms = s * SECOND;
     }
+    config.idle_time_ms = match f.idle_time_s {
+        None => crate::core::DEFAULT_IDLE_TIME_MS,
+        Some(s) if s < 0 => return Err(refuse("idle_time_s: must be 0 (continuous) or more")),
+        Some(s) => s.saturating_mul(SECOND),
+    };
     if let Some(ms) = f.backoff_base_ms {
         config.governor.backoff_base_ms = ms;
     }

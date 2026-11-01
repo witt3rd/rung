@@ -50,6 +50,9 @@ impl Sealed for crate::registers::Settlement {
     }
 }
 
+/// The idle time of a host started from a config file that names none.
+pub const DEFAULT_IDLE_TIME_MS: Millis = 30 * MINUTE;
+
 /// The operator's configuration of one host.
 #[derive(Debug, Clone, Serialize)]
 pub struct HostConfig {
@@ -75,6 +78,11 @@ pub struct HostConfig {
     /// Add [`crate::render::FREE_TIME_IDLE_RULE`] to the free-time rules
     /// (off by default).
     pub free_time_idle_rule: bool,
+    /// How long the host may rest between wakes. 0 is continuous mode (the
+    /// host never rests); above 0 is idle mode ([`crate::presence`]). A
+    /// config file that names none gets [`DEFAULT_IDLE_TIME_MS`]; a host
+    /// built in code is continuous unless it sets this.
+    pub idle_time_ms: Millis,
     /// Projects the operator seeds (id, title, why).
     pub seed_projects: Vec<(String, String, String)>,
     /// Write queued outbox messages here as `*.msg` files, if set.
@@ -107,6 +115,7 @@ impl HostConfig {
             governor: GovConfig::default(),
             owner_channel: "owner".into(),
             free_time_idle_rule: false,
+            idle_time_ms: 0,
             seed_projects: Vec::new(),
             outbox_dir: None,
             workspace,

@@ -64,7 +64,7 @@ rung-driver     population → pool; audit-rectify driver
 rung-memory     memory contract and stores (publish = false)
 rung-agent-core the agent as a library: catalog, sessions, turn engine, MCP, ACP, OAuth
 rung-agent      thin task-CLI shell over rung-agent-core
-rung-host       continuous host, one agent that never rests (docs/rung-host.md)
+rung-host       single-agent host (continuous or idle mode) (docs/rung-host.md)
 rung-gateway    HTTP gateway in front of hosts: one listener for the UI, instance keys, read-only token role
 rung-fixture    cross-crate consumption tests
 rung-testkit    test-only helpers: TempDir, scripted mock LLM and HTTP servers (publish = false)
@@ -241,9 +241,9 @@ Five kinds — not a status field. The counts are the corpus; a test pins them.
 
 | kind | discharged by | count |
 |---|---|---:|
-| **decidable** | a proof — a test that fails when the proposition is violated | 136 |
+| **decidable** | a proof — a test that fails when the proposition is violated | 145 |
 | **judgmental** | a principal, **disjoint** from what it judges | 47 |
-| **owed** | an author, with **standing** over it | 45 |
+| **owed** | an author, with **standing** over it | 36 |
 | **signature** | nobody — it declares vocabulary | 75 |
 | **rationale** | nobody — it argues, or records a limit | 152 |
 

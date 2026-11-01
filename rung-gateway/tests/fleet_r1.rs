@@ -56,7 +56,7 @@ impl Member {
             &cfg,
             format!(
                 "name: {name}\nstate: {d}/state\nworkspace: {d}/workspace\n\
-                 inbox: {d}/inbox\nstop_file: {d}/STOP\nengine:\n  kind: mock\nmemory: false\n",
+                 inbox: {d}/inbox\nstop_file: {d}/STOP\nengine:\n  kind: mock\nmemory: false\nidle_time_s: 0\n",
                 d = dir.display()
             ),
         )

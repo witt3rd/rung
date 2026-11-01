@@ -95,6 +95,12 @@ pub struct State {
     pub desk: DeskState,
     pub governor: GovState,
     pub pack: PackMeta,
+    /// The scheduled wake of a resting host: set by an `idle` line, cleared
+    /// by the line that ends the rest (and by anything that proves the host
+    /// awake). `None` for a host that is not resting. Not part of the hash:
+    /// a record written before idle mode folds to the hash it was written with.
+    #[serde(skip)]
+    pub idle_until: Option<Millis>,
 }
 
 impl State {
@@ -102,7 +108,12 @@ impl State {
         self.last_at = l.at;
         match l.kind.as_str() {
             "turn.started" => self.turn = l.u64("turn"),
-            "boundary" => self.boundary = l.u64("n"),
+            "boundary" => {
+                self.boundary = l.u64("n");
+                self.idle_until = None;
+            }
+            "idle" => self.idle_until = Some(l.i64("until")),
+            "idle.ended" | "halted" | "host.start" => self.idle_until = None,
             _ => {}
         }
         self.inbox.apply(l);

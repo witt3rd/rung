@@ -91,7 +91,7 @@ fn config(root: &Path, url: &str, desk: &str) -> String {
     format!(
         "state: {d}/state\nworkspace: {d}/sandbox\ninbox: {d}/inbox\nstop_file: {d}/STOP\n\
          engine:\n  kind: agent\n  base_url: {url}\n  api_key_env: {KEY_ENV}\n\
-         ladder:\n  - qwen/qwen3.8-27b:free\nlisting: false\nmemory: false\n\
+         ladder:\n  - qwen/qwen3.8-27b:free\nlisting: false\nmemory: false\nidle_time_s: 0\n\
          calendar:\n  - {{id: tea, in_s: 0, text: Tea break, firm: true}}\n{desk}"
     )
 }
@@ -290,7 +290,7 @@ fn a_rung_the_router_will_not_route_for_this_account_is_stepped_past() {
         &cfg,
         format!(
             "state: {d}/state\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
-             ladder:\n  - a/closed:free\n  - b/open:free\nlisting: false\nmemory: false\nbackoff_base_ms: 20\n",
+             ladder:\n  - a/closed:free\n  - b/open:free\nlisting: false\nmemory: false\nidle_time_s: 0\nbackoff_base_ms: 20\n",
             provider.url
         ),
     )
@@ -331,7 +331,7 @@ fn a_run_limit_ends_a_long_backoff() {
         &cfg,
         format!(
             "state: {d}/state\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
-             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nrun_for_s: 3\nbackoff_base_ms: 600000\n",
+             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nidle_time_s: 0\nrun_for_s: 3\nbackoff_base_ms: 600000\n",
             provider.url
         ),
     )
@@ -388,7 +388,7 @@ fn a_rung_refused_for_the_account_is_not_stepped_onto_again() {
         &cfg,
         format!(
             "state: {d}/state\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
-             ladder:\n  - b/open:free\n  - c/closed:free\nlisting: false\nmemory: false\nbackoff_base_ms: 20\n",
+             ladder:\n  - b/open:free\n  - c/closed:free\nlisting: false\nmemory: false\nidle_time_s: 0\nbackoff_base_ms: 20\n",
             provider.url
         ),
     )
@@ -456,7 +456,7 @@ fn an_owner_waiting_through_a_provider_backoff_hears_from_the_host_at_once() {
         &cfg,
         format!(
             "state: {d}/state\ninbox: {d}/inbox\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
-             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nbackoff_base_ms: 600\n",
+             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nidle_time_s: 0\nbackoff_base_ms: 600\n",
             provider.url
         ),
     )
@@ -514,7 +514,7 @@ fn a_pacing_wait_sends_no_acknowledgement() {
         &cfg,
         format!(
             "state: {d}/state\ninbox: {d}/inbox\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
-             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nquota:\n  rpd: 1000\n  rpm: 1\n",
+             ladder:\n  - a/one:free\nlisting: false\nmemory: false\nidle_time_s: 0\nquota:\n  rpd: 1000\n  rpm: 1\n",
             provider.url
         ),
     )
@@ -632,7 +632,7 @@ fn probe_config(root: &Path, url: &str, extra: &str) -> std::path::PathBuf {
         format!(
             "state: {d}/state\nengine:\n  kind: agent\n  base_url: {url}\n  api_key_env: {KEY_ENV}\n\
              ladder:\n  - qwen/qwen3.8-27b:free\n  - nvidia/nemotron-3-super-120b-a12b:free\n\
-             memory: false\nbackoff_base_ms: 20\n{extra}"
+             memory: false\nidle_time_s: 0\nbackoff_base_ms: 20\n{extra}"
         ),
     )
     .unwrap();
@@ -801,7 +801,7 @@ fn a_probe_that_refuses_the_current_rung_names_itself_in_the_switch() {
         &cfg,
         format!(
             "state: {d}/state\nengine:\n  kind: agent\n  base_url: {}\n  api_key_env: {KEY_ENV}\n\
-             ladder:\n  - {refused}\n  - qwen/qwen3.8-27b:free\nmemory: false\n",
+             ladder:\n  - {refused}\n  - qwen/qwen3.8-27b:free\nmemory: false\nidle_time_s: 0\n",
             provider.url
         ),
     )
