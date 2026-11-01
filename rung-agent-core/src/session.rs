@@ -81,6 +81,42 @@ impl PartialEq for Line {
 
 impl Eq for Line {}
 
+/// Where this process last saw a session's log: its byte length plus one, or
+/// zero for "never". A save is refused when the log has moved since, so a
+/// writer that was not the last to append cannot overwrite the one that was.
+/// Not part of the session: never stored, cloned by value, equal to any other.
+#[derive(Debug, Default)]
+pub struct Witness(std::sync::atomic::AtomicU64);
+
+impl Witness {
+    fn get(&self) -> Option<u64> {
+        match self.0.load(std::sync::atomic::Ordering::SeqCst) {
+            0 => None,
+            n => Some(n - 1),
+        }
+    }
+
+    fn set(&self, len: u64) {
+        self.0.store(len + 1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl Clone for Witness {
+    fn clone(&self) -> Self {
+        Self(std::sync::atomic::AtomicU64::new(
+            self.0.load(std::sync::atomic::Ordering::SeqCst),
+        ))
+    }
+}
+
+impl PartialEq for Witness {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for Witness {}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Session {
     pub id: String,
@@ -98,6 +134,8 @@ pub struct Session {
     pub system: Option<String>,
     #[serde(default)]
     pub lines: Vec<Line>,
+    #[serde(skip)]
+    pub witness: Witness,
 }
 
 impl Session {
@@ -111,6 +149,7 @@ impl Session {
             pid: Some(std::process::id()),
             system: None,
             lines: Vec::new(),
+            witness: Witness::default(),
         }
     }
 
@@ -159,7 +198,8 @@ impl SessionStore {
             let body = fs::read(&p).map_err(|e| format!("session {id}: {e}"))?;
             // A log with no valid record yet (only a torn first write)
             // falls through to an intact legacy file.
-            if let Some((s, _)) = replay(&body).map_err(|e| format!("session {id}: {e}"))? {
+            if let Some((s, valid)) = replay(&body).map_err(|e| format!("session {id}: {e}"))? {
+                s.witness.set(valid as u64);
                 return Ok(Some(s));
             }
         }
@@ -213,9 +253,11 @@ impl SessionStore {
     /// lock, and fsync. The log is never rewritten. A session whose lines
     /// no longer extend the log's (another writer appended meanwhile) is
     /// refused rather than overwriting that writer's update; only the last
-    /// line may be rewritten or dropped, as a turn does. Known gap: a rival
-    /// writer that changed only that last line is not told apart from this
-    /// writer rewriting it; a session has one writer at a time.
+    /// line may be rewritten or dropped, as a turn does. A session that was
+    /// loaded or saved by this process is also refused when the log has grown
+    /// since (its `witness`), which catches a rival that changed only the last
+    /// line. A session never loaded or saved (new, or from a legacy file) has
+    /// only the line check.
     pub fn save(&self, session: &Session) -> Result<(), String> {
         use std::io::{Seek, SeekFrom, Write};
         check_id(&session.id)?;
@@ -259,6 +301,12 @@ impl SessionStore {
                 from_legacy = true;
             }
         }
+        if session.witness.get().is_some_and(|w| w != valid as u64) {
+            return Err(err(
+                "the log changed since this writer last read or wrote it (another writer); reload first"
+                    .into(),
+            ));
+        }
         // A torn final record (crash mid-append) is cut before appending.
         if (valid as u64) < body.len() as u64 {
             f.set_len(valid as u64).map_err(|e| err(e.to_string()))?;
@@ -300,6 +348,7 @@ impl SessionStore {
             recs.push(Rec::Push(l.clone()));
         }
         if recs.is_empty() {
+            session.witness.set(valid as u64);
             return Ok(());
         }
         let mut out = Vec::new();
@@ -309,6 +358,7 @@ impl SessionStore {
         }
         f.write_all(&out).map_err(|e| err(e.to_string()))?;
         f.sync_all().map_err(|e| err(e.to_string()))?;
+        session.witness.set((valid + out.len()) as u64);
         Ok(())
     }
 }
@@ -543,5 +593,27 @@ mod log_tests {
         let dir = rung_testkit::TempDir::new("slog");
         let st = SessionStore::at(&dir);
         assert_ne!(st.path("x").unwrap(), dir.join("x.log"));
+    }
+
+    #[test]
+    fn a_rival_that_rewrote_only_the_last_line_is_refused() {
+        let dir = rung_testkit::TempDir::new("slog");
+        let st = SessionStore::at(&dir);
+        let mut s = sess("r");
+        s.lines.push(Line::user("q"));
+        st.save(&s).unwrap();
+        let mut a = st.load("r").unwrap();
+        let mut b = st.load("r").unwrap();
+        a.lines.last_mut().unwrap().text = "from a".into();
+        st.save(&a).unwrap();
+        b.lines.last_mut().unwrap().text = "from b".into();
+        assert!(st.save(&b).is_err());
+        assert_eq!(st.load("r").unwrap(), a);
+        // the same writer may go on saving
+        a.lines.push(Line::assistant("r"));
+        st.save(&a).unwrap();
+        a.lines.last_mut().unwrap().text = "r2".into();
+        st.save(&a).unwrap();
+        assert_eq!(st.load("r").unwrap(), a);
     }
 }
