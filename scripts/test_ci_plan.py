@@ -94,6 +94,36 @@ class Selection(unittest.TestCase):
         self.assertEqual((solo["agents"], solo["rung"]), ("false", "false"))
 
 
+class Gui(unittest.TestCase):
+    """The GUI workspace is outside the main one: matched by path, never an
+    unknown path, and it builds no main-workspace crate."""
+
+    def test_gui_files_run_only_the_gui_job(self):
+        r = run("pull_request", ["gui/rung-client/src/lib.rs", "gui/Cargo.toml"])
+        self.assertEqual((r["gui"], r["rust"], r["full"], r["scope"]), ("true", "false", "false", ""))
+
+    def test_gui_files_leave_the_other_crates_alone(self):
+        r = run("pull_request", ["gui/rung-ui/src/main.rs", "leaf/src/lib.rs"])
+        self.assertEqual((r["gui"], r["packages"]), ("true", "app,leaf"))
+
+    def test_other_changes_do_not_run_it(self):
+        for f in ("leaf/src/lib.rs", "AGENTS.md", "ui/src/a.ts"):
+            self.assertEqual(run("pull_request", [f])["gui"], "false", f)
+
+    def test_the_binaries_its_tests_run_do(self):
+        meta = {"workspace_root": ROOT, "packages": [
+            pkg("core"), pkg("rung-host", ["core"]), pkg("rung-gateway", ["rung-host"]),
+            pkg("solo")]}
+        for f in ("rung-gateway/src/a.rs", "rung-host/src/a.rs", "core/src/a.rs"):
+            self.assertEqual(c.plan("pull_request", [f], meta)["gui"], "true", f)
+        self.assertEqual(c.plan("pull_request", ["solo/src/a.rs"], meta)["gui"], "false")
+
+    def test_global_files_and_every_other_event_run_it(self):
+        self.assertEqual(run("pull_request", ["Cargo.lock"])["gui"], "true")
+        for ev in ("push", "merge_group", "workflow_dispatch"):
+            self.assertEqual(run(ev, ["AGENTS.md"])["gui"], "true", ev)
+
+
 class Cli(unittest.TestCase):
     def test_dry_run_prints_key_value_lines(self):
         import json
@@ -148,6 +178,14 @@ class RealWorkspace(unittest.TestCase):
             self.assertIn(crate, pk)
         self.assertNotIn("rung-std", pk)
         self.assertEqual((r["rung"], r["agents"]), ("false", "true"))
+
+    def test_the_gui_needs_name_real_crates_and_the_gateway_reaches_it(self):
+        names = {p["name"] for p in self.meta["packages"]}
+        self.assertLessEqual(c.GUI_NEEDS, names)
+        for f in ("rung-gateway/src/lib.rs", "rung-host/src/lib.rs"):
+            self.assertEqual(self.plan(f)["gui"], "true", f)
+        self.assertEqual(self.plan("docs/rung-host.md")["gui"], "false")
+        self.assertEqual(self.plan("gui/rung-client/src/lib.rs")["gui"], "true")
 
     def test_every_extra_input_names_a_workspace_crate(self):
         names = {p["name"] for p in self.meta["packages"]}

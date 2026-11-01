@@ -1,0 +1,15 @@
+[package]
+name = "rung-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "A typed, blocking client of the rung-gateway's doors (no GUI): health and the instance list"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Blocking and small; `tls` so the gateway can sit behind https (tailscale serve).
+ureq = { version = "2", default-features = false, features = ["tls"] }

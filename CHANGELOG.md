@@ -19,6 +19,16 @@ git tags only.
   `docs/rung-host-api.md` removed; `ui/README.md` and `.het/README.md`
   corrected; the stale "Next" roadmap in `skills/rung/SKILL.md` removed.
 
+### Added (rung-client, the new UI's gateway client)
+- `gui/`: a second cargo workspace, outside the main one (no default build or
+  `check` cost), for the new desktop UI. First crate: `rung-client`, a typed
+  blocking client of the gateway's health and instance-list doors (state word
+  and "doing" are the host's own; the read-only token is never printed),
+  tested against an in-process stub and against the real `rung-gateway` and
+  `rung-host` binaries. A separate `gui` CI job (not part of `check`) runs it
+  when `gui/` or the gateway or host changes; `scripts/ci_plan.py` gains a
+  `gui` output. The old `ui/` is untouched.
+
 ### Added (rung-host idle mode display)
 - A resting host reads as idle until its wake wherever the host is read: the
   gateway's summary and list say `Idle until <time>` (not `needs_you`, not

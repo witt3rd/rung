@@ -31,6 +31,7 @@ jobs:
       scope: ${{ steps.plan.outputs.scope }}
       rung: ${{ steps.plan.outputs.rung }}
       agents: ${{ steps.plan.outputs.agents }}
+      gui: ${{ steps.plan.outputs.gui }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -187,6 +188,44 @@ jobs:
           cargo build -q -p rung-agent -p rung-host -p rung-testkit --locked
           examples/notes/run.sh
           examples/reminders/run.sh
+
+  # The GUI workspace (`gui/`: the typed gateway client and the desktop app).
+  # Its own cargo root, outside the main workspace, and deliberately NOT in
+  # `check`'s needs: GPUI is slow to build, and the required status must stay
+  # fast. It runs when `gui/` changes or when the gateway or host (whose real
+  # binaries its tests start) is in scope, and always on master and the merge
+  # group. One shared cache for both workspaces; only master saves it.
+  gui:
+    needs: plan
+    if: needs.plan.outputs.gui == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      RUNG_BIN_DIR: ${{ github.workspace }}/target/debug
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: gui
+          workspaces: |
+            . -> target
+            gui -> target
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: the real binaries the client tests start
+        run: cargo build -p rung-gateway -p rung-host --locked
+      - name: fmt
+        working-directory: gui
+        run: cargo fmt --check
+      - name: clippy
+        working-directory: gui
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: test
+        working-directory: gui
+        run: cargo test --workspace --locked
 
   # The one required status. Its name never changes: branch protection and the
   # merge queue name `check`. It passes only when every job above passed; a
