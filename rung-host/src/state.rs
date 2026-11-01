@@ -80,6 +80,29 @@ impl PackMeta {
     }
 }
 
+/// What a record line does to whether the host is resting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Idle {
+    /// An `idle` line: resting until this wake.
+    Rests(Millis),
+    /// A line that proves the host awake (the rest ended, a boundary began,
+    /// the host started or halted).
+    Wakes,
+    /// Any other line: a resting host writes some without waking (a channel
+    /// opened, a calendar entry added).
+    Unchanged,
+}
+
+/// The one rule for reading rest off the record: the state's fold and the
+/// registry's look at the tail of a record both use it.
+pub fn idle_effect(l: &Line) -> Idle {
+    match l.kind.as_str() {
+        "idle" => Idle::Rests(l.i64("until")),
+        "idle.ended" | "boundary" | "halted" | "host.start" => Idle::Wakes,
+        _ => Idle::Unchanged,
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct State {
     /// The last turn started.
@@ -108,13 +131,13 @@ impl State {
         self.last_at = l.at;
         match l.kind.as_str() {
             "turn.started" => self.turn = l.u64("turn"),
-            "boundary" => {
-                self.boundary = l.u64("n");
-                self.idle_until = None;
-            }
-            "idle" => self.idle_until = Some(l.i64("until")),
-            "idle.ended" | "halted" | "host.start" => self.idle_until = None,
+            "boundary" => self.boundary = l.u64("n"),
             _ => {}
+        }
+        match idle_effect(l) {
+            Idle::Rests(until) => self.idle_until = Some(until),
+            Idle::Wakes => self.idle_until = None,
+            Idle::Unchanged => {}
         }
         self.inbox.apply(l);
         self.calendar.apply(l);

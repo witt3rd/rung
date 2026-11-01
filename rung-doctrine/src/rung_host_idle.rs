@@ -2,8 +2,7 @@
 //!
 //! Written by hand, props first: a claim a machine will settle is
 //! [`Kind::Owed`] and names the form its proof will take until the change that
-//! adds its test makes it [`Kind::Decidable`]. Two claims (the display of a
-//! resting host, and a restart waking it) are still owed. The markdown is rendered from this.
+//! adds its test makes it [`Kind::Decidable`]. The markdown is rendered from this.
 
 use crate::{Doctrine, Element, Kind, Prop};
 
@@ -196,7 +195,7 @@ A wait the world imposes (backoff, quota, a blocked credential) is still
         Element::Prop(Prop {
             slug: "a-resting-host-is-seen-resting".into(),
             parent: None,
-            kind: Kind::Owed { why: r#"unimplemented — a record-fold test that the summary of a host whose last line is an idle line says it is idle until the time the line names, and that no other line leaves it so"#.into() },
+            kind: Kind::Decidable { proof: "rung-gateway/tests/native_doors.rs::a_resting_host_reads_idle_until_its_wake".into() },
             numbering: None,
             prose: r#"A resting host shows as **idle until `<time>`**, the time of its scheduled wake,
 wherever the host is read: the instance index's listing and the gateway's
@@ -204,19 +203,19 @@ summary of the instance. It is not `needs_you`, and it is not `Waiting` (that is
 the degraded wait). The line that ends the rest, and any halt, ends the display.
 
 "#.into(),
-            mechanism: r#"The listing and the summary are both read from the record alone, so a fixture record ending in an idle line, then one ending in the line that ends it, settles both."#.into(),
+            mechanism: r#"The summary and the list are both read from the record alone, so fixture records settle them: one ending in an idle line (and one with a channel opened after it) reads `Idle until <time>`, not `needs_you`, not `Waiting`, `waiting_for` the wake; one ending in the line that ends the rest reads awake; a degraded wait after a rest reads `Waiting`. The listing's `idle_until` and the `ls` table are settled the same way for a running host (`rung-host/tests/gate_registry.rs::a_resting_host_lists_as_idle_until_its_wake_and_a_stop_ends_it` on the binary, and the registry's own tail-reading test)."#.into(),
         }),
         Element::Prop(Prop {
             slug: "a-restart-wakes-the-host".into(),
             parent: Some("a-resting-host-is-seen-resting".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a restart test: a state whose record ends in an idle line, started again, shows idle no longer, answers what waits, takes one free-time pass, and rests"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::a_host_that_died_resting_wakes_on_restart_takes_one_pass_and_rests_again".into() },
             numbering: None,
             prose: r#"A rest does not outlive its process. A host that starts on a record ending in an
 idle line is awake: it answers what waits, takes one free-time pass, and rests
 with a new scheduled wake.
 
 "#.into(),
-            mechanism: r#"Start, rest, kill, start again on the same state and read the record."#.into(),
+            mechanism: r#"Run a host, keep its record up to its first idle line (what a kill mid-rest leaves), start again on that state two hours later and read the record: it recovers, is awake as of its start line, takes one free-time pass, and rests with a wake idle time after that pass."#.into(),
         }),
         ],
     }

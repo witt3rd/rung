@@ -520,3 +520,65 @@ fn a_refused_sim_registration_opens_no_record() {
     signal(&live, libc::SIGTERM);
     live.wait().unwrap();
 }
+
+#[test]
+fn a_resting_host_lists_as_idle_until_its_wake_and_a_stop_ends_it() {
+    rung_host::sim::test_timeout(180);
+    let f = Fleet::new("registry-idle");
+    let cfg = f.root.path().join("rung-host.yaml");
+    let state = f.state("rest");
+    std::fs::write(
+        &cfg,
+        format!(
+            "name: sleeper\nstate: {}\nstop_file: {}\nengine:\n  kind: mock\nmemory: false\n",
+            state.display(),
+            f.root.path().join("STOP").display()
+        ),
+    )
+    .unwrap();
+    /// Stops the host (a stop file) however the test ends, so a failure leaves nothing resting.
+    struct StopOnDrop(PathBuf);
+    impl Drop for StopOnDrop {
+        fn drop(&mut self) {
+            let _ = std::fs::write(&self.0, "");
+        }
+    }
+    let _stop = StopOnDrop(f.root.path().join("STOP"));
+    // idle time not set: the 30-minute default, so the host rests after its first pass
+    let mut host = Command::new(BIN)
+        .args(["run", "--config"])
+        .arg(&cfg)
+        .env("RUNG_HOME", f.home())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn rung-host");
+    let t = Instant::now();
+    let idle_until = loop {
+        let row = f.listed().into_iter().find(|e| e["id"] == "sleeper");
+        if let Some(u) = row.as_ref().and_then(|e| e["idle_until"].as_i64()) {
+            break u;
+        }
+        assert!(
+            t.elapsed() < Duration::from_secs(60),
+            "never listed as resting: {row:?}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    // `running` is still the word; the table says when it wakes
+    assert_eq!(f.word("sleeper").as_deref(), Some("running"));
+    let table = String::from_utf8_lossy(&f.ls(&[]).stdout).to_string();
+    let want = format!("idle until {}", rung_host::clock::iso(idle_until));
+    assert!(table.contains(&want), "{table}");
+    // a stop ends the rest and the display
+    std::fs::write(f.root.path().join("STOP"), "").unwrap();
+    assert!(host.wait().unwrap().success());
+    assert_eq!(f.word("sleeper").as_deref(), Some("stopped"));
+    let row = f
+        .listed()
+        .into_iter()
+        .find(|e| e["id"] == "sleeper")
+        .unwrap();
+    assert!(row["idle_until"].is_null(), "{row}");
+}

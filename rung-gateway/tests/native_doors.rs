@@ -462,6 +462,100 @@ async fn the_state_word_follows_the_record_and_the_lock() {
     assert_eq!((d.as_str(), &needs), ("Down", &json!(true)));
 }
 
+/// A resting host reads "Idle until <time>" in the summary and in the list: not
+/// `needs_you`, not `Waiting`, and the wake is what it waits for. The line that
+/// ends the rest (or any halt, or a new boundary) ends the display; lines a resting
+/// host writes without waking do not.
+#[tokio::test]
+async fn a_resting_host_reads_idle_until_its_wake() {
+    let mut f = Fleet::new("h3-idle");
+    let until = T0 + 30 * MIN;
+    let idle = || {
+        (
+            "idle",
+            json!({"until": until, "idle_time_ms": 30 * MIN, "boundary": 1}),
+        )
+    };
+    let mut put = |id: &str, tail: Vec<(&str, Value)>| {
+        f.add(id, None);
+        let mut v = vec![
+            ("host.start", json!({"config": {}})),
+            ("boundary", json!({"n": 1, "mode": "free", "pending": 0})),
+        ];
+        v.extend(tail);
+        f.record(id, &numbered(v));
+        f.hold(id);
+    };
+    put("resting", vec![idle()]);
+    put(
+        "resting-chatter",
+        vec![
+            idle(),
+            (
+                "channel.opened",
+                json!({"session": "s", "role": "owner", "channel": "owner"}),
+            ),
+        ],
+    );
+    put(
+        "woken",
+        vec![
+            idle(),
+            ("idle.ended", json!({"cause": "arrival", "waited_ms": 5})),
+        ],
+    );
+    put(
+        "backing-off",
+        vec![
+            idle(),
+            ("idle.ended", json!({"cause": "scheduled", "waited_ms": 5})),
+            (
+                "degraded",
+                json!({"class": "backoff", "until": until, "why": "the provider is down"}),
+            ),
+        ],
+    );
+    let gw = f.serve().await;
+    for id in ["resting", "resting-chatter"] {
+        let s = gw.get(&format!("/api/i/{id}/v1/summary")).await.json();
+        assert_eq!(
+            s["state"],
+            format!("Idle until {}", rung_host::clock::iso(until)),
+            "{id}: {s}"
+        );
+        assert_eq!(s["needs_you"], false);
+        assert_eq!(s["idle_until"], until);
+        assert_eq!(s["waiting_for"]["kind"], "idle");
+        assert_eq!(s["waiting_for"]["until"], until);
+        assert_eq!(s["word"], "running");
+    }
+    assert_eq!(
+        gw.get("/api/i/woken/v1/summary").await.json()["state"],
+        "Free time"
+    );
+    assert!(gw.get("/api/i/woken/v1/summary").await.json()["idle_until"].is_null());
+    // a degraded wait is the world's, never a rest
+    let b = gw.get("/api/i/backing-off/v1/summary").await.json();
+    assert_eq!(b["state"], "Waiting");
+    // the list shows it too
+    let list = gw.get("/api/instances").await.json();
+    let row = |id: &str| {
+        list["instances"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["id"] == id)
+            .unwrap_or_else(|| panic!("{id} not listed: {list}"))
+            .clone()
+    };
+    assert_eq!(row("resting")["idle_until"], until);
+    assert_eq!(
+        row("resting")["summary"]["state"],
+        format!("Idle until {}", rung_host::clock::iso(until))
+    );
+    assert!(row("woken")["idle_until"].is_null());
+}
+
 /// The fold of a recorded run equals what the live host computed at each
 /// turn end: every `turn.ended` line carries the hash of the state replayed up
 /// to it, and the door's lines replay to the same hashes. The summary's own
