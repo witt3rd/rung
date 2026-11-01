@@ -153,11 +153,10 @@ impl Acp {
     }
 
     fn session(&self) -> Value {
-        let file = self
-            .dir
-            .join(".rung/sessions")
-            .join(format!("{}.json", self.sid));
-        serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap()
+        rung_agent_core::session::SessionStore::at(self.dir.join(".rung/sessions"))
+            .load(&self.sid)
+            .map(|s| serde_json::to_value(s).unwrap())
+            .unwrap()
     }
 }
 

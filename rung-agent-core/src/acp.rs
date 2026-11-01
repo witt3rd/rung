@@ -1045,6 +1045,8 @@ pub(crate) async fn connect_agent(
                         let kind = parent.kind().unwrap_or(Kind::Implement);
                         let mut child = parent;
                         child.id = id.clone();
+                        // A new log: nothing of the parent's was seen there.
+                        child.witness = crate::session::Witness::default();
                         child.cwd = cwd.to_string_lossy().into_owned();
                         child.status = "new".into();
                         child.pid = Some(std::process::id());

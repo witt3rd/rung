@@ -313,9 +313,9 @@ fn assert_recalled(body: &Value, session_a: &str) {
 /// `text`: the user's words stay the user's.
 fn sessions_keep_recall_beside_the_ask(cwd: &Path) {
     let mut kept = 0;
-    for e in std::fs::read_dir(cwd.join(".rung/sessions")).unwrap() {
-        let text = std::fs::read_to_string(e.unwrap().path()).unwrap();
-        let sess: Value = serde_json::from_str(&text).unwrap();
+    let store = rung_agent_core::session::SessionStore::at(cwd.join(".rung/sessions"));
+    for s in store.list().unwrap() {
+        let sess: Value = serde_json::to_value(s).unwrap();
         for l in sess["lines"].as_array().unwrap() {
             assert!(
                 !l["text"].as_str().unwrap().contains("Recalled memory"),
@@ -600,8 +600,10 @@ fn when_every_block_is_marked_the_whole_text_is_the_ask() {
 // ─── context in the session ─────────────────────────────────────────────────
 
 fn user_lines(cwd: &Path, sid: &str) -> Vec<String> {
-    let path = cwd.join(".rung/sessions").join(format!("{sid}.json"));
-    let sess: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let sess: Value = rung_agent_core::session::SessionStore::at(cwd.join(".rung/sessions"))
+        .load(sid)
+        .map(|s| serde_json::to_value(s).unwrap())
+        .unwrap();
     sess["lines"]
         .as_array()
         .unwrap()
