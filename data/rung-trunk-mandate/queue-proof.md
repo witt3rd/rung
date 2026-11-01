@@ -1,9 +1,11 @@
-# Master protection: PR + required `check` (strict) + auto-merge (2026-11-02)
+# Master protection: PR + required `check` (strict) + auto-merge (2026-11-01)
 
 rung has **no true merge queue**: GitHub offers it to organizations only, and
 `witt3rd/rung` is user-owned. The API refused the `merge_queue` rule with
 `422 Invalid rule 'merge_queue'`, for the full parameter set and for a disabled
-probe ruleset alike, while a control rule type was accepted (probes deleted).
+probe ruleset alike, while a control rule type was accepted (probes deleted; the API responses are quoted here, they are the retained
+evidence). The table of remaining remote branches is kept outside the repo
+(the consumer guard forbids the branch family names in tracked files).
 The owner chose to emulate it.
 
 ## Applied (ruleset `protect-default-branch`, id 19141262)

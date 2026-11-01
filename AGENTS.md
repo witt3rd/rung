@@ -78,7 +78,7 @@ Not crates:
 | `skills/` | lived experience of this repo (`skills/rung/SKILL.md`) |
 | `scripts/` | Python probes and audits (cache probes, shadow audit) and their tests |
 | `examples/` | host sample workspaces and the mock-host config (the ladder examples are `rung/examples/`) |
-| `data/` | written test requests (build briefs) |
+| `data/` | written test requests (build briefs); `data/rung-trunk-mandate/` holds the master-protection evidence |
 | `docs/` | specs, derivations, designs, tooling (`docs/README.md`) |
 | `docs/records/` | dated records; append-only (`docs/_records_guard.py`) |
 | `.het/` | per-carrier audit-rectify state (`.het/README.md`) |
@@ -320,7 +320,7 @@ maintainers' included, goes through a pull request with auto-merge (no
 merge queue exists); direct pushes to `master` are refused. External contributors: PRs against
 `master`; follow CI; do not rewrite history.
 
-Last updated: 2026-10-30.
+Last updated: 2026-11-01.
 
 <!-- OPENWIKI:START -->
 

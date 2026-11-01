@@ -1,4 +1,4 @@
-# Deleted branches (2026-11-02, owner-confirmed)
+# Deleted branches (2026-11-01, owner-confirmed)
 
 Recreate any with: git push origin <commit>:refs/heads/<name>
 
