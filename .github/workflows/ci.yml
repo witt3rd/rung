@@ -52,6 +52,16 @@ jobs:
           examples/notes/run.sh
           examples/reminders/run.sh
 
+  deny:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories licenses sources
+
   propositions:
     runs-on: ubuntu-latest
     permissions:
