@@ -192,7 +192,7 @@ fn main() {
 }
 ```
 
-Required CI check is `check`. Merge method: rebase. Release: bump the
+Required CI check is `check`. Merge method: squash, through the merge queue. Release: bump the
 workspace version in `Cargo.toml`, commit, then tag `vX.Y.Z` to match
 (procedure: `skills/rung/SKILL.md`).
 
@@ -228,10 +228,11 @@ force-pushing `master`; bypassing the queue.
 **The one exception:** a single designated committer agent may hold a write
 lock and fast-forward `master` after its own verification. Nobody else.
 
-**Throughput:** CI takes 16 to 28 minutes, measured on master runs of 2026-11-01
-(ids 41300208321, 41300091745, 41299556550, 41283238423, 41277878976,
-41275312471), so about two to three changes an hour land with a group size
-of 1. Speeding CI up is a later task; keep increments small meanwhile.
+**Throughput:** a full CI run takes about 11 minutes (since 2026-11-01, when
+the jobs were parallelized and the tests sharded): 658 s on run 41304730702
+(cold cache), 651 s on master run 41310497173. The queue runs the full suite
+(`merge_group`), so with a group size of 1 about five changes an hour land.
+Keep increments small.
 
 ### Configuration
 
