@@ -3,6 +3,7 @@
 Builds a throwaway git repo with one good and several broken documents and
 checks that the guard reports each defect and nothing else."""
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -26,7 +27,9 @@ def repo(files):
 
 class Links(unittest.TestCase):
     def run_check(self, files):
-        return L.check(repo(files))
+        d = repo(files)
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        return L.check(d)
 
     def test_clean_repo_has_no_problems(self):
         self.assertEqual(self.run_check({
