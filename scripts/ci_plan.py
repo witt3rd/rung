@@ -25,6 +25,10 @@ Prints `key=value` lines (append them to $GITHUB_OUTPUT):
     rung      true when the `rung` crate is in scope (its examples run)
     agents    true when the example agents (rung-agent, rung-host,
               rung-testkit) are in scope
+    gui       true when the GUI workspace (`gui/`, outside the main
+              workspace and the required `check`) has work: a file under
+              `gui/` changed, or a crate its tests run (the gateway and the
+              host binaries) is in scope
     packages  the affected crates, comma separated (empty when full)
     reason    one line saying why
 
@@ -76,6 +80,12 @@ INERT = [
 ]
 
 AGENT_CRATES = {"rung-agent", "rung-host", "rung-testkit"}
+
+# The GUI workspace is its own cargo root, so `cargo metadata` of the main
+# workspace does not list it: its files are matched by path. Its tests run the
+# real binaries of these main-workspace crates.
+GUI = ["gui/*"]
+GUI_NEEDS = {"rung-gateway", "rung-host"}
 
 
 def match(path, patterns):
@@ -134,17 +144,21 @@ def plan(event, files, meta):
     dirs, deps = workspace(meta)
     everything = {
         "full": "true", "rust": "true", "scope": "--workspace",
-        "rung": "true", "agents": "true", "packages": "",
+        "rung": "true", "agents": "true", "gui": "true", "packages": "",
     }
     if event != "pull_request":
         return {**everything, "reason": f"{event}: the full suite always runs"}
     seed = set()
+    gui = False
     for f in files:
         f = f.strip()
         if not f:
             continue
         if match(f, GLOBAL):
             return {**everything, "reason": f"{f} affects every crate"}
+        if match(f, GUI):
+            gui = True
+            continue
         crate = owner(f, dirs)
         if crate:
             seed.add(crate)
@@ -166,6 +180,7 @@ def plan(event, files, meta):
         "scope": " ".join(f"-p {c}" for c in ordered),
         "rung": "true" if "rung" in affected else "false",
         "agents": "true" if affected & AGENT_CRATES else "false",
+        "gui": "true" if gui or affected & GUI_NEEDS else "false",
         "packages": ",".join(ordered),
         "reason": (
             f"changed {', '.join(sorted(seed))}; with reverse dependencies: {', '.join(ordered)}"
@@ -199,7 +214,7 @@ def main(argv=None):
     else:
         files = []
     result = plan(a.event, files, load_metadata(a.metadata))
-    for k in ("full", "rust", "scope", "rung", "agents", "packages", "reason"):
+    for k in ("full", "rust", "scope", "rung", "agents", "gui", "packages", "reason"):
         print(f"{k}={result[k]}")
     return 0
 

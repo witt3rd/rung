@@ -1,0 +1,16 @@
+# The GUI workspace: its own root, deliberately outside the main workspace.
+# `cargo build` / `cargo test --workspace` at the repository root never
+# builds these crates; the `gui` CI job does (see .github/workflows/ci.yml).
+# GPUI is heavy to build, so the required `check` does not wait for it.
+[workspace]
+members = ["rung-client"]
+resolver = "2"
+
+[workspace.package]
+version = "0.3.2"
+edition = "2024"
+# GPUI (rung-ui) needs 1.92; the client alone would build on the main MSRV.
+rust-version = "1.92"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/witt3rd/rung"
+publish = false
