@@ -7,6 +7,17 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 1)
+- New product crate `rung-fleet` (`publish = false`). `lifecycle` holds the
+  typed delegation ladders: `delegation` (spawned, assigned, active, with held
+  and stalled as recoverable verdicts, ending in done) and `closure` (done to
+  retired, enterable only from a `Done` verdict). `Brief` is the typed
+  contract a task is spawned with. Compile-fail cases pin a skipped
+  transition and a forged `Active` or `Finished`. Props
+  `a-skipped-transition-does-not-compile`, `held-and-stalled-are-recoverable`
+  and `a-brief-is-a-typed-contract` become decidable. Retirement does not yet
+  consume proof of landed work (R3).
+
 ### Added (rung-ui, crew and receipts on fixtures)
 - `rung-ui --crew-fixture [FILE]` shows a Crew section on a steward's page from
   sample data (`gui/rung-ui/fixtures/crew.json`, or a file): the delegation ladder

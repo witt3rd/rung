@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 3 decidable · 32 owed · 4 rationale · 12 signature · 51 total.
+**Counts.** 6 decidable · 29 owed · 4 rationale · 12 signature · 51 total.
 
 ### What the fleet is
 
@@ -628,9 +628,9 @@ unsettled. Where it is blank, nobody has written one down.
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
 | [3](rung-fleet-props.md#delegation-is-a-ladder) | `delegation-is-a-ladder` | `signature` | — | — |
-| [3.1](rung-fleet-props.md#a-skipped-transition-does-not-compile) | `a-skipped-transition-does-not-compile` | `owed` | Same mechanism as the kernel's refusals: the case is a compile-fail test whose snapshot holds the message, so a refusal that changes its reason is caught. | **owed** — unimplemented — `trybuild` cases: assigning a task that was never spawned, activating one never assigned, and retiring one not done each fail to compile with a committed message |
-| [3.2](rung-fleet-props.md#held-and-stalled-are-recoverable) | `held-and-stalled-are-recoverable` | `owed` | — | **owed** — unimplemented — a test that a held or stalled task is recovered only through its paired recover edge and a value dropped on an error path is a compile error |
-| [3.3](rung-fleet-props.md#a-brief-is-a-typed-contract) | `a-brief-is-a-typed-contract` | `owed` | — | **owed** — unimplemented — a compile-fail case: `assign` without a brief, and a brief missing any of intent, completion test, delivery mode or autonomy, do not compile |
+| [3.1](rung-fleet-props.md#a-skipped-transition-does-not-compile) | `a-skipped-transition-does-not-compile` | `decidable` | Same mechanism as the kernel's refusals: the case is a compile-fail test whose snapshot holds the message, so a refusal that changes its reason is caught. | `rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile` |
+| [3.2](rung-fleet-props.md#held-and-stalled-are-recoverable) | `held-and-stalled-are-recoverable` | `decidable` | — | `rung-fleet/tests/lifecycle.rs::a_hold_stays_open_until_its_own_key_resolves_it` |
+| [3.3](rung-fleet-props.md#a-brief-is-a-typed-contract) | `a-brief-is-a-typed-contract` | `decidable` | — | `rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile` |
 | [3.4](rung-fleet-props.md#a-stalled-crew-is-escalated-not-looped) | `a-stalled-crew-is-escalated-not-looped` | `owed` | — | **owed** — unimplemented — a fake-clock test: a crew silent past its bound becomes stalled, one retry is allowed, and a second stall of the same task is escalated to the steward's parent instead of retried |
 | [3.5](rung-fleet-props.md#completion-is-judged-apart-from-its-author) | `completion-is-judged-apart-from-its-author` | `owed` | The kernel already types this: a transition marked judgmental takes a token that no author can mint. This proposition is the fleet's use of that gate, and the case checks the completion transition carries the marker. | **owed** — unimplemented — a compile-fail case: the transition to done takes a qualified-judgment token of the kernel's judgmental gate, which only a principal disjoint from the author can produce |
 | [3.6](rung-fleet-props.md#unlanded-work-is-never-retired) | `unlanded-work-is-never-retired` | `owed` | — | **owed** — unimplemented — a compile-fail case: the retire transition takes a `Landed` token, and a test that an uncommitted isolation worktree is refused retirement |
@@ -1177,6 +1177,12 @@ look shorter than it is.
 - `a_consumer_may_place_an_order_and_drive_it`
 - `an_invented_order_settles_exactly_as_a_real_one_does`
 - `the_knowledge_exists_upstream_and_cannot_cross`
+
+**`rung-fleet/tests/lifecycle.rs`** — 3 unclaimed
+
+- `a_brief_refuses_an_empty_field`
+- `a_stalled_task_returns_to_active`
+- `a_task_runs_from_spawned_to_retired`
 
 **`rung-gateway/tests/events.rs`** — 1 unclaimed
 

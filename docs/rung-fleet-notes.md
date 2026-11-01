@@ -93,6 +93,16 @@ and money; give every member a `quota`. The table and the run are in
 
 The full list, with the fixes made, is in the R1 record linked above.
 
+## R2 progress
+
+**Step 1: the lifecycle.** `rung-fleet/src/lifecycle.rs`. A ladder's functions
+take only the token, so the one input a step reads is `Work.signal`, set by the
+caller before stepping. A hold stays open by construction: a held task steps to
+`Held` again until `Work.resolution` equals its `hold` key. Retirement is a
+second ladder (`closure`) whose only input, `Finished`, is built from a `Done`
+verdict; it takes no landing proof yet (R3). Still owed in R2: delivery
+receipts, the `crew.*` record kinds, the verbs and the small CLI.
+
 ## Notes on particular claims
 
 **The tree of depth three.** The command structure is capped. Every layer

@@ -257,7 +257,7 @@ produces it.
         Element::Prop(Prop {
             slug: "a-skipped-transition-does-not-compile".into(),
             parent: Some("delegation-is-a-ladder".into()),
-            kind: Kind::Owed { why: r#"unimplemented — `trybuild` cases: assigning a task that was never spawned, activating one never assigned, and retiring one not done each fail to compile with a committed message"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile".into() },
             numbering: None,
             prose: r#"A skipped transition is a **compile error**, not a runtime refusal. A caller
 that holds an `Assigned` task cannot be handed an `Active` one without going
@@ -269,7 +269,7 @@ through the activation.
         Element::Prop(Prop {
             slug: "held-and-stalled-are-recoverable".into(),
             parent: Some("delegation-is-a-ladder".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that a held or stalled task is recovered only through its paired recover edge and a value dropped on an error path is a compile error"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/lifecycle.rs::a_hold_stays_open_until_its_own_key_resolves_it".into() },
             numbering: None,
             prose: r#"*Held* and *stalled* are **recoverable** states: each has a paired recover edge
 back to the rung it left, and a task in either state is never dropped silently.
@@ -282,7 +282,7 @@ open until a resolution that carries its key arrives.
         Element::Prop(Prop {
             slug: "a-brief-is-a-typed-contract".into(),
             parent: Some("delegation-is-a-ladder".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a compile-fail case: `assign` without a brief, and a brief missing any of intent, completion test, delivery mode or autonomy, do not compile"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile".into() },
             numbering: None,
             prose: r#"A task is assigned only with a **brief**: what to build or learn, how it is
 done (what counts as complete), how it is delivered, and how much autonomy the

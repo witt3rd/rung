@@ -1,0 +1,15 @@
+[package]
+name = "rung-fleet"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A tiered fleet of rung hosts: the typed delegation lifecycle, delivery receipts, the crew record kinds and the fleet verbs (docs/rung-fleet-props.md)"
+publish = false
+
+[dependencies]
+rung = { path = "../rung" }
+
+[dev-dependencies]
+trybuild = "1"

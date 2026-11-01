@@ -1,0 +1,16 @@
+error[E0624]: associated function `new` is private
+  --> tests/ui/forge_active.rs:17:39
+   |
+17 |       let _active = delegation::Active::new(work, delegation::Carry { task: "t".into() });
+   |                                         ^^^ private associated function
+   |
+  ::: src/lifecycle.rs
+   |
+   | / ladder!(Delegation {
+   | |     carry { task: String }
+   | |
+   | |     Spawned(Spawn)
+...  |
+   | |     },
+   | | });
+   | |__- private associated function defined here
