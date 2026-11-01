@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Link and path guard: a document must not point at something that is not there.
 
-Checks, over every tracked `.md` (not rung-host/live/runs, not node_modules):
+Checks, over every tracked `.md` (not rung-host/live/runs, not the generated openwiki/, not node_modules):
   1. relative links `[t](path)` resolve to a tracked file or directory;
   2. `#anchor` fragments resolve to a heading (GitHub slug) or `<a id>`/`<a name>`;
   3. backtick repo paths (`dir/file.ext`, first segment a tracked top-level
@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parent.parent
-SKIP_DOCS = ("rung-host/live/runs/",)
+SKIP_DOCS = ("rung-host/live/runs/", "openwiki/")  # openwiki/ is generated
 SKIP_PARTS = ("node_modules/",)
 HISTORICAL = ("docs/records/", "docs/reports/", "docs/.archive/", ".archive/")
 CITING = (".rs", ".py", ".yml", ".yaml")
