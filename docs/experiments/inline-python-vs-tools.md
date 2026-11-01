@@ -1,6 +1,6 @@
 # Experiment: inline Python vs tool loop on long-input cases (issue #268)
 
-Status: **harness ready, switch added, experiment NOT run.** No result is claimed.
+Status: **harness ready, switch added (off by default), experiment NOT run.** No result exists; see the hypothesis at the end.
 
 ## The switch
 `RUNG_INLINE_PYTHON=off|also|only` (unset = off) selects the `InlinePython`
@@ -43,7 +43,11 @@ change first: let `carry()` take `Some(InlinePython::also(sandbox))`
    solved task (input+output over solved trials; solved trials lacking
    token data are counted in `tokens_missing`).
 
-## Recommendation (provisional)
-Do not build a host bridge yet. There is no evidence either way; wire the
-flag, run the protocol, and build a bridge only if inline mode raises pass
-rate or cuts peak context/tokens per solved task on the long-input cases.
+## Hypothesis (not a finding)
+No experiment has run: there is no result, and nothing here is a measured
+conclusion. The working hypothesis is that a host bridge is not worth building
+until inline mode is shown to help. Wire the flag, run the protocol, and build a
+bridge only if inline mode raises pass rate or cuts peak context or tokens per
+solved task on the long-input cases. The switch is off by default
+(`RUNG_INLINE_PYTHON` unset), and a test pins that the default turn is
+unchanged: tools stay on the wire.
