@@ -26,7 +26,7 @@ git tags only.
   member. Three props become decidable: `chiefs-do-not-share-context`,
   `a-member-is-named-by-its-role` (new), `a-read-only-role-watches-the-fleet`
   (new). Measured cost per host and the gaps found: `docs/rung-fleet-notes.md`
-  (witt3rd/rung#347).
+  (witt3rd/rung#347, #352).
 
 ### Added (rung-fleet props, R0)
 - `docs/rung-fleet-props.md`: the normative claims of `rung-fleet`, a planned
@@ -35,7 +35,7 @@ git tags only.
   claim is `owed` until the crate adds its test. `docs/rung-fleet-notes.md` is
   the derivation, with the phase each claim is discharged in and the points the
   owner still confirms. `docs/conformance.md` lists the new claims. No crate
-  code (witt3rd/rung#347).
+  code (witt3rd/rung#347, #349).
 
 ### Added (OAuth credentials)
 - `rung-agent`: a second credential kind beside `api_key_env`. `llm.auth.oauth:
@@ -49,7 +49,8 @@ git tags only.
   command that fixes it; the route comes from the token's `proxy-ep`; the
   editor-identity headers are configuration. Also `auth status | models |
   logout`. Contract and proofs: `docs/rung-agent-oauth.md`. Whether a
-  non-editor client may use the Copilot API is an open decision (O18).
+  non-editor client may use the Copilot API is an open decision (O18)
+  (#350).
 - `rung-std`: `llm::CredentialSource`, the seam a minted credential plugs into
   (`LlmConfig::credential`); OpenAI-compatible route only.
 - The credential redactor removes Copilot tokens (`tid=…;exp=…;…`).
@@ -209,6 +210,21 @@ git tags only.
   groups the epoch into that many segments, every turn in one of them. With the
   register lists shown whole, an agent that never closes its todos and projects
   has a header that grows without bound, by design.
+
+### Documentation and CI
+- `docs/rung-host.md`: idle mode specified beside continuous mode (#351). Idle
+  time above 0 makes the host really idle between boundaries, wake on a
+  stimulus or a scheduled wake (default 30 minutes), and take one free-time
+  pass per wake; idle time 0 is the shipped behaviour. Marked SPECIFIED, NOT
+  BUILT; no code.
+- `docs/rung-host.md`: a Profiles design section (#346).
+- The eight rung-host records moved to `docs/records/rung-host` with an index
+  and a dated Moved note on each (#342); the rung-host testing doc was merged
+  into the spec as a Gates section and the spec de-duplicated (#343).
+- CI: `docs/_records_guard.py` keeps `docs/records` append-only; it runs in the
+  required `check` job (#344).
+- Test: `acp_http_body_stream` no longer underflows when the runner reports a
+  lower peak RSS after the run than before it (#345).
 
 ## [0.3.2] - 2026-10-20
 
