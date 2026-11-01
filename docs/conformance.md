@@ -761,7 +761,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 34 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 639 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 646 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -770,6 +770,19 @@ reads it as incidental and deletes it, because nothing says otherwise.
 Not filtered by crate: some of these test the tooling and will never cite a
 proposition. Excluding them by name would be the quiet narrowing that makes a queue
 look shorter than it is.
+
+**`gui/rung-client/tests/gateway.rs`** — 2 unclaimed
+
+- `a_chief_and_a_steward_behind_a_real_gateway`
+- `a_wrong_token_is_refused_in_the_gateways_words`
+
+**`gui/rung-client/tests/stub.rs`** — 5 unclaimed
+
+- `a_wrong_shape_is_a_decode_error`
+- `an_error_status_carries_the_gateways_words_not_the_token`
+- `health_and_the_list_are_read`
+- `nothing_listening_is_a_transport_error`
+- `the_token_rides_as_a_bearer_and_only_then`
 
 **`rung-agent-core/tests/engine.rs`** — 9 unclaimed
 
