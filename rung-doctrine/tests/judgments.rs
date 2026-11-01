@@ -7,7 +7,7 @@
 //! has tested.
 
 use rung_doctrine::judgment::{Fault, Record, Ruling, Tier, check, read_all};
-use rung_doctrine::{Kind, rung, rung_ct, rung_fleet, rung_het};
+use rung_doctrine::{Kind, rung, rung_ct, rung_fleet, rung_het, rung_host_idle};
 use std::path::PathBuf;
 
 fn root() -> PathBuf {
@@ -27,6 +27,7 @@ fn all() -> Vec<rung_doctrine::Doctrine> {
         rung_het::doctrine(),
         rung_ct::doctrine(),
         rung_fleet::doctrine(),
+        rung_host_idle::doctrine(),
     ]
 }
 

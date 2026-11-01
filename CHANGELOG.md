@@ -7,6 +7,15 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-host idle mode props)
+- `docs/rung-host-idle-props.md`: the normative claims of rung-host idle mode
+  (idle time per instance, 0 is continuous, default 30 minutes; rest until a
+  scheduled wake or a queue arrival; one free-time pass per wake; a stop
+  interrupts a rest; a resting host shows as idle until its wake). Generated
+  from `rung-doctrine/src/rung_host_idle.rs`; every claim is `owed` except the
+  existing idle-time-0 gate (G-a), until the change that builds idle mode adds
+  its tests. `docs/conformance.md` lists them. No host code.
+
 ### Added (rung-fleet, R1)
 - A chief and a steward are two ordinary `rung-host` instances behind
   `rung-gateway`; no fleet code. The registry convention is a name that begins

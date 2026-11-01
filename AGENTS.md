@@ -214,10 +214,10 @@ Five kinds — not a status field. The counts are the corpus; a test pins them.
 
 | kind | discharged by | count |
 |---|---|---:|
-| **decidable** | a proof — a test that fails when the proposition is violated | 135 |
+| **decidable** | a proof — a test that fails when the proposition is violated | 136 |
 | **judgmental** | a principal, **disjoint** from what it judges | 47 |
-| **owed** | an author, with **standing** over it | 34 |
-| **signature** | nobody — it declares vocabulary | 74 |
+| **owed** | an author, with **standing** over it | 45 |
+| **signature** | nobody — it declares vocabulary | 75 |
 | **rationale** | nobody — it argues, or records a limit | 152 |
 
 ### Map

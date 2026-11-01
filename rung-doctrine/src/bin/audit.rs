@@ -28,7 +28,7 @@
 //! cargo run -p rung-doctrine --bin audit -- --quiet   # verdict line only
 //! ```
 
-use rung_doctrine::{Doctrine, Kind, rung, rung_ct, rung_fleet, rung_het};
+use rung_doctrine::{Doctrine, Kind, rung, rung_ct, rung_fleet, rung_het, rung_host_idle};
 use std::collections::BTreeMap;
 use std::process::Command;
 
@@ -51,6 +51,7 @@ fn main() {
         rung_het::doctrine(),
         rung_ct::doctrine(),
         rung_fleet::doctrine(),
+        rung_host_idle::doctrine(),
     ];
 
     eprintln!("running the suite…");
@@ -295,5 +296,6 @@ fn all() -> Vec<Doctrine> {
         rung_het::doctrine(),
         rung_ct::doctrine(),
         rung_fleet::doctrine(),
+        rung_host_idle::doctrine(),
     ]
 }

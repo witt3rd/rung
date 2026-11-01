@@ -48,6 +48,7 @@ pub mod rung;
 pub mod rung_ct;
 pub mod rung_fleet;
 pub mod rung_het;
+pub mod rung_host_idle;
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;

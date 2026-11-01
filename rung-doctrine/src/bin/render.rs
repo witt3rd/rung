@@ -13,7 +13,7 @@
 //! says it is. A repository where the two can differ has two sources of truth
 //! and a habit of picking whichever was edited last.
 
-use rung_doctrine::{Doctrine, Resolver, rung, rung_ct, rung_fleet, rung_het};
+use rung_doctrine::{Doctrine, Resolver, rung, rung_ct, rung_fleet, rung_het, rung_host_idle};
 use std::path::{Path, PathBuf};
 
 fn docs() -> PathBuf {
@@ -65,6 +65,7 @@ fn main() {
         rung_het::doctrine(),
         rung_ct::doctrine(),
         rung_fleet::doctrine(),
+        rung_host_idle::doctrine(),
     ];
 
     let encoded: Vec<&str> = doctrines.iter().map(|d| d.file.as_str()).collect();
