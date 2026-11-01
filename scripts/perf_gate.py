@@ -123,6 +123,7 @@ def write_session(cwd, sid, nbytes):
 def trial(binary):
     work = Path(tempfile.mkdtemp(prefix="perf-gate-"))
     model = Model()
+    live = []  # agents to stop on every exit path, error or not
     try:
         env = {k: v for k, v in os.environ.items() if not k.startswith("RUNG_")}
         env.update({
@@ -134,6 +135,7 @@ def trial(binary):
         # cold start: spawn -> first model request of a fresh session
         t0 = time.perf_counter()
         a = Acp(binary, env, work)
+        live.append(a)
         a.call("initialize", {"protocolVersion": 1})
         sid = a.call("session/new", {"cwd": str(work), "mcpServers": []})["sessionId"]
         a.call("session/prompt", {"sessionId": sid, "prompt": [{"type": "text", "text": "hi"}]})
@@ -143,6 +145,7 @@ def trial(binary):
         write_session(work, "big", 10 * 1024 * 1024)
         write_session(work, "other", 256 * 1024)
         a = Acp(binary, env, work)
+        live.append(a)
         a.call("initialize", {"protocolVersion": 1})
         a.call("session/load", {"sessionId": "other", "cwd": str(work), "mcpServers": []})
         t1 = time.perf_counter()
@@ -153,6 +156,9 @@ def trial(binary):
         a.stop()
         return out
     finally:
+        for a in live:
+            if a.p.poll() is None:
+                a.stop()
         model.close()
         shutil.rmtree(work, ignore_errors=True)
 
