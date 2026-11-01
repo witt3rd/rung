@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:315b9e7d779c842b720456d95bb50217a24035a14a0e180fe34e44d7cdb4b4c9",
+  "claims": [
+    {
+      "id": "claim_f844139fe0c8427ab7b16276c7757c8d",
+      "statement": "Rung uses compile-time positive API-shape checks alongside trybuild refusal tests: trybuild compares committed full stderr snapshots so a case must fail with the intended diagnostic, unlike a rustdoc compile_fail doctest that only establishes non-compilation.",
+      "evidence": [
+        {
+          "resource": "repo://rung/tests/compile_pass.rs#L35-L54",
+          "version": "repo-lines-v1:sha256:39197bd255390c5a3f45e9ceabe582899cb63475aabbdb3035045da4f9ac659a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ1Mjc1OWMzYWNkYjQ4YjBlNzY0OWNlMzJmMzczNDQ3MmJmY2NmNjI0YTMwZDUzYTM3MGYyYjEwNWU2YzNkNDciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM5OTRhOGMyM2JiZDllOGQ5MWEwZjA4YzI2NWE0MDIwYjk5ZmIzMWZkZjU2MmU2ZjlhYWFkMGYzYjZhNjkxNGQifQ"
+        },
+        {
+          "resource": "repo://rung/tests/spec_refusals.rs#L1-L21",
+          "version": "repo-lines-v1:sha256:8504afb3b134c0c7e87f403dea8a95850818a60c41951559092026cf4c5fea00:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiMjM3MmMyM2VmZDI2NjdmNWJlMGVmY2UyNDVkNzU3OWI3OWNhZTYyYmUzMTM4ZDY2ZTllNDk0ZDU2YWQ2ODMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxYTU4MGNiNWM0YjRhODIxZjRkYzllOGNmYThkMjQ2OWY1YmQ4MjdjNTkwYjRjZTFlNjE0MTFmMmIzMTVkZjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY0ZGMyMDNmYzgwOTVmYWJjYTBjMDg1MDIzMGM2YTg3NjA4NDA1NjQzM2E0NjVkMjEyMWJlOWJhYjAxNzA5NzEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9ce30d890a9040da826ed619db2f9409",
+      "statement": "The agent-core engine integration suite drives Engine::turn against a local scripted OpenAI-compatible provider and verifies tool refusal without execution, typed provider failures, and MCP reconnection after a server exits between turns.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/tests/engine.rs#L1-L4",
+          "version": "repo-lines-v1:sha256:b39499de645286c896f7840eac99c84aaab0bae4198e420ca315f350280aabce:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDA2MmEwNWQxY2Y1ODc2ZGMyNGVkZmM5YmI0MGUyMmFiODlkMTU2ZGVmMjJmMDgwYTUzYzExNjgxYWMzZTZmZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGJkNTFmNTRkYjE2ZDBlNDZhNWNjM2JiYWZmMTAwNGE0ZmZlNmU3NDUyOTg3MDFhZDUyM2Y1ZTY3OWU1MGU4MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTljZWJmMTdjNTIxYTUyNWYzOWRlYWJjM2NkNDMwOWQ5ZmZkZWMzNjBhNTMyOWVkZDI3NmYxYWRkZjAzZTZhMiJ9"
+        },
+        {
+          "resource": "repo://rung-agent-core/tests/engine.rs#L177-L212",
+          "version": "repo-lines-v1:sha256:6cafdbe6b6ab1ec894e515911d900cd7120b87f2516f4c40c774e8c417daa483:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFjMjRjNzc4NzU3OGM5ZWJlOWYwMmE3MjUyOGQ5Yjg4MWIzYTliMTE0ZjIyMDdjYTQyYzk0Y2E2MzZhNjcwODUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY0NTkwZDg3OWMzZWFhNGMwNDM3OTBlZjY0M2E0YzFkZWJhMGVlZTQzMmViYjE0OTY0YjlmM2EyZDNiZmNlM2MifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/tests/engine.rs#L243-L280",
+          "version": "repo-lines-v1:sha256:856c8a84b85e4efb9c6c5464660efec6b2a0670343c1d836f714176e9d563fc3:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUyZDA4YmYyZjQyMmUzNDIxNzgzZmI4NjkzM2JlOGViNjM5Y2ZiMmNkNGY5MDBlOTMyMWRlYmFmYTk3NzIxNzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2ZGRmNTEwZjcxNDE5Nzg1OTMxOGRjM2Q4YzliMzNkZmE4Nzg2Yzk4YzgyMGI4ZWMzOWJjYmQwZGQ1ZDIyZjcifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/tests/engine.rs#L291-L347",
+          "version": "repo-lines-v1:sha256:a64c82baa35527187ad419f2e2120d7881b16383612f66131ccd1fdf0d5100e5:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc1Mzg0NmYyMDgyMWY5ZWMwZTc4YTMxNGI3ZmZmZmFmYTlhZmY3YzJhZTAxMWYyMjRkYjg5YTE4MTg3ZjM1YjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU5OTA4YmM4Y2Y2NmQzN2FkMWIxNGY3YTMwZjg0OGZhZDI0MWUxNmIxOGNhZWNkNjA0MjVlZTZhM2JlNWY2MzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2YTIwNjIyOTM1ODRhY2E2MDI0YjMwMWYxY2E1NzQwYmEzMDMwZDQyNTJkYjI2ZTYxNjhjZTMxMjZlM2Q4N2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3293742cab284b87acdfde009678cbf7",
+      "statement": "ACP concurrency tests launch the real rung-agent process over stdio and HTTP, proving that cancellation/close can land during a turn, requests can be answered mid-turn, and prompts in one session remain serialized.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent/tests/acp_concurrency.rs#L1-L7",
+          "version": "repo-lines-v1:sha256:3604cd79e02df37b56e163d9aedc39d859fb088dcd3513b2ba2bb78352b973b8:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDlmMGU1ZDQxMDFmNjY3OGYxYzA5Y2I4ZTQxMmY1MmVmNDdlYmY4YzYxMzUyMWE4YzBmZmQzNTVlODliMzM4NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmNlYjc4ODBkZmRmMmYzY2E3ZmJkMmE2MzRmOWMzZTk5YWVjMDAxNWE0OWZiZGE4NWZlMWNkNzJkOWEyNTE2MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTI4MTNhOTYyMDMxM2NiZTA2MDdmZGUzYTY1NTc2OTlhNGFlYTE0MzhhOGY2MzhiMDk0OWY3MTI3NTQxOTI5NiJ9"
+        },
+        {
+          "resource": "repo://rung-agent/tests/acp_concurrency.rs#L187-L289",
+          "version": "repo-lines-v1:sha256:d4253d504f80c5d9151d5aa532e305f836f31ce02fd8fd3015133d2b8b2f2179:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI2MDQwMjg2ZjI1YTZmOWVlY2M2YmI2YzBkZTIyZmEwMjBiMmY2MzRmNzhmMTJiYjcxZGI5ODM2ZGVlMWMyMTRmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhNThlZWVjMzljNzg2NWU4NmI4M2ZmYmIzZjE5NTg3MTljMDg2NjA1YmQwOGQ3Mjg2MGYyMTc1YTZiMDM5N2M2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIzYzZmZjAzNWM1MDQzNDAzNjgyZGY0ZTk5ODYxNmNiYmQxMDk4NWNjOGQxNmFmNWFlYzEyNDNhNGMxYWJiZDE1In0"
+        },
+        {
+          "resource": "repo://rung-agent/tests/acp_concurrency.rs#L414-L456",
+          "version": "repo-lines-v1:sha256:16c2f40f679ef28601d2b757b4f5c00d797ce49329a084d7a1a842007c2632c1:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjODViNjRmOTdhOTMwYjI4MTAzM2JkYWY4NWQ3MjczZjA0ZTUzNDU5YmY5NWRhNmZlMTk3ZDk5OGZmMjk0MWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImViZTE3YTM1NmQ4ODc1YzJlZjRlMjk5YjViYjFiNmE3MmM1NDNkMDViMzE5ODI5ZmQ4YTJlZjQzOTQwZWIzN2EiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a10063816dba42b685dcda9d75a2b511",
+      "statement": "Host verification includes a loopback-provider adapter gate and a simulated restart soak that injects faults and abrupt failures, then checks record sequencing/time and turn/stimulus uniqueness invariants.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/tests/gate_engine.rs#L1-L4",
+          "version": "repo-lines-v1:sha256:3bccb3860dd695854cb6a8199559c8639f61cbd44117965152dd583e3030564a:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjY5M2FmZjJjZGFlZWFiMTY3MDVlMWI2NGEyNjMyZGM0MDk0M2I1ZGRmZjFkMjE3YzQzNzFhMmRlMWIxYjg2ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTM4ZTgyNjkyYWRlZjczNmE5YzEzNjRhMjkyMmZhNjdjZDRmNWMzNzRiMGMyMDIyMDAxNDdhYmJhYWJlMDZhYSJ9"
+        },
+        {
+          "resource": "repo://rung-host/tests/gate_engine.rs#L83-L171",
+          "version": "repo-lines-v1:sha256:2a20e5c7271b89b67afb7288b615dff2541cfbb65ca3c738bdcef09cc3e7e17b:eyJzZWxlY3RlZExpbmVDb3VudCI6ODksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmZTA2MDM5YTA3ODI1MzliNDNkMTY5NzdmMmJkN2U3ZTRiN2QzNjE4YTc3MTZkYWQwNThlNWFkYWQxMDI3ZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI0ZDY5MzJlNDc4MzMwOTU4ZmI4OWFiZDE3Y2ZjMmJmODJlZTNlYmZiOWFhN2MwMjJiNjQ5NjgxYmIxODI3N2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdmOWFkNDYzYmU3MWM1ZjQyMDk0NmFmYmYwN2QwZmU5ZjVmMTFkYTgyZjFlOTQ5MDNjYzMzOTVkOGMxYTBiMzgifQ"
+        },
+        {
+          "resource": "repo://rung-host/tests/soak_restarts.rs#L1-L6",
+          "version": "repo-lines-v1:sha256:f1369c8e5bd711e8ca5fb1477b726c1797b722174292cc3944ba952dc0b2ffec:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzRjYjU3ODEzY2MzYjZkYzQ2NTEzZGEyYWU3YzQ4MjFlZDk1MDdlZTQ0OWFiY2Q4MTMyMjg0NzI2NDRhNzkzOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjcyYTZlY2MyMzA2NGZkMDdiOGIzN2Y3OTViNGQ2M2RmODVkMjc5MTA3MWRlNDk4YjcyMjE5YjZhOTE1YmU3YyJ9"
+        },
+        {
+          "resource": "repo://rung-host/tests/soak_restarts.rs#L162-L221",
+          "version": "repo-lines-v1:sha256:9a7216854bfb7c463f742c65ffb242ab1ba64e9ee8727f9cd172dcd755e38236:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJiOTY3ZjE5OTNlZTc5NzJhMTJlNDg0ZGQyYTNkNGJmYTIzZWQ1MzE5OWU2ZWIyOWM3MWM5Y2YwZmQ3NjUwNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJlMWY4Y2VmZDk1MDBjMTYyMDAxM2YwZDk5YTgwODlmMjFkYTZiMTQyNzc0NTkzOTQ5NjJmNThiNjg1MDllNTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJmM2UzN2Y2NzljZDY2NzAyYjcxZjNmOThkN2IyYjYyZTAwMGEzM2FkYjQ4OTE1NDdjNjZhOTJkNDEyNGIxNzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_626a0c82ea4e46c595283dc30237538c",
+      "statement": "Gateway integration tests use a stub host to verify credential replacement and non-leakage, unbuffered SSE forwarding, path restriction, and read-only authorization before writes reach the host.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/tests/gateway.rs#L1-L4",
+          "version": "repo-lines-v1:sha256:c877fe03cedbc173b7a510de33ac8564bee8d7de6daf4c07ce93984dfaded168:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjNlYzA2YTJiNjgxYzIwNjYyMTRlNjc1M2EzOWQ0ZDMyMzcxOTU3OWZhMTgyNTk2N2JkOWRmYjYwYjg4NzU1ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjhlMjBjMDlhMDkzNmYwYzc4ZTk4YTNjMmVkZTYzZTk0MjY4N2U5NDFhNDRhNjBiYmJjODE2NTA2ZTk1YWRmYiJ9"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/gateway.rs#L194-L261",
+          "version": "repo-lines-v1:sha256:6e7e47e7009c8c2f0b132b1af693bf681382881c45d80b17a510afdaceed4f3c:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxOTQ4NGVlZGYzNjRmYjhjMTJmMWViOThmYmY2YTliNGY2NTBmNDI3ODc0YThkNzM1OTAxMGFhZGU0MzFiYzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ4ZDc1M2ZlNjMyMjRiZmIyOTJmZWE0OWU1YWY3NzViYzUxODJlZGI4OTkzZGEyZWNjMTJiNjcxNDFjNTVlMjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ2M2JjNGQ5NWM1MDBiNGU2MjIxNTA1MmQ4NTYxNTVlNjdkMDYzYjNiOTZiNTA3YzE3Yjg4OTQ1MDBmZTliZjAifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/gateway.rs#L263-L340",
+          "version": "repo-lines-v1:sha256:61aa2035b23efa6812b5db824f4fea685d149f3c9a1e4f04ec381c069cffe58d:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxOTQ4NGVlZGYzNjRmYjhjMTJmMWViOThmYmY2YTliNGY2NTBmNDI3ODc0YThkNzM1OTAxMGFhZGU0MzFiYzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0ZTQyMDhjZDZmZmI4YzRhMzU0N2IyZjU0YWRhMTk5NzhjM2YzNjVlNzhmOTUwMmVmNTE0NWNkZDJhYTg1NDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBkYmQ4NTdmZDExNTg3YWY3MTBlYWE4NTEyZDZiZmM5MjJhYmQ5ZjgxMDAwZjJjMDE4MWVmODRiMDViYTUzZjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc3NzJlOTI3NWNiNmEyNGZmYTg5NTJjY2E3N2U2YTRhNWEyYWRlNjNjZWQ0MzUxYzZiYzU4NjBhYWZlNTIyZDEifQ"
+        },
+        {
+          "resource": "repo://rung-gateway/tests/gateway.rs#L483-L525",
+          "version": "repo-lines-v1:sha256:e4eeb92eb9090b5291d0047a1a299f3592b66a4e44e94d13c6acae673b69cc23:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MTQyYzVhYjc4NGI5MjMxZjdkZTBhZTczYzUzZTMwYzBjZjc1YTU3ODliYmI1YWJhNDMxZWI2YzVkMDZiNjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc3NzJlOTI3NWNiNmEyNGZmYTg5NTJjY2E3N2U2YTRhNWEyYWRlNjNjZWQ0MzUxYzZiYzU4NjBhYWZlNTIyZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdmOWFkNDYzYmU3MWM1ZjQyMDk0NmFmYmYwN2QwZmU5ZjVmMTFkYTgyZjFlOTQ5MDNjYzMzOTVkOGMxYTBiMzgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_893e8d74541b41abbe5f49ff343c7ea3",
+      "statement": "Memory property tests deliberately use a scope-leaking store across deterministic seeds and assert that walk either returns only the requested scope or explicitly refuses foreign data; budget cutting also preserves whole ordered unique records within limits.",
+      "evidence": [
+        {
+          "resource": "repo://rung-memory/tests/properties.rs#L1-L4",
+          "version": "repo-lines-v1:sha256:c041f61e8ca15e90379f25ee322a9d5148717fb6f2078993dc2f01a7d12b055d:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZWZjMjBmNTEyOWI4NzM0ZDFmZGViMTkyN2Q3MWI0ZmJjZGJhMGEwZDcxNjYzYjgyOTYyN2YxMWZjMWU5N2RhZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2JlMDEzNWFjNjE0NTFiNjc1MTY0N2E4NGIyMGVhNDA3YTJjMDNhOWFlODBiODQ5NWZjMDFmM2JmNTMwMDU0YyJ9"
+        },
+        {
+          "resource": "repo://rung-memory/tests/properties.rs#L196-L275",
+          "version": "repo-lines-v1:sha256:fae6f7961b3bff99b6df9d88ac5ee499a771ee35819f5fa8c547ac8ba4037706:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZkMDk2OTJhMDc1ZDFmM2Q5MmZkMmNhZTJmYTI4ZDExODI4ODNjNTA4NDkwNjgyZWE5ZTdhMGE0MGQ5ZTg3YWIifQ"
+        },
+        {
+          "resource": "repo://rung-memory/tests/properties.rs#L40-L135",
+          "version": "repo-lines-v1:sha256:e03d15ad73c1216d82a2477a50bd2c7f6a0194ccea16ab5b888b6070f64b3143:eyJzZWxlY3RlZExpbmVDb3VudCI6OTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NDZhMzkzOWM4NmY2OGEwODFlMjI4NGY2OTM3YmZlNTRlZTYxYWJjYjIxZGE4OGJlZTYxMGVhZjM4MWFkNWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdmOWFkNDYzYmU3MWM1ZjQyMDk0NmFmYmYwN2QwZmU5ZjVmMTFkYTgyZjFlOTQ5MDNjYzMzOTVkOGMxYTBiMzgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_55a854fcbb1949148688345ca0040d8b",
+      "statement": "The UI package provides explicit TypeScript typecheck, build, general test, and contract-test commands; its contract tests can target a real gateway through configured environment variables and verify record/SSE replay and queue durability/idempotency behavior.",
+      "evidence": [
+        {
+          "resource": "repo://ui/package.json#L7-L20",
+          "version": "repo-lines-v1:sha256:0d2d6db5fb208ac2121ac2f31904a6d3b4d046de2f1a05f5774eb1d59957de65:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0ODMzZDU5NDljMDNhNDBjYTk1MjQ5MTYxMGE2NjU5NjQ0YjNhYTQ2NjM2MmY3OTkwMjBkYmYxOTgxNTQ3ZGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0NWU4NWQ4ODJjMWM3OTM1NmVjMzAwMTg1YTg4NjljYWNiZDM2NmYyZTE2MjY5NzE4ZTBiY2U1MmY5NzY1N2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxMmM3NDAzODRhNDJhNmE2NDkyZDY4MTI0OThhYmQ0OTM2Yjg5MWNiODQ0MTUzYTM2YzM1ZTJkYmQ1ZDBjYjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEwMmE3MjRmYzEyZTQ3Zjg5NmRlNGY5NzE3NjBmMzNiNzUzOGI4ZTAwYjAzM2U4OTYyNTgyODY2YjQxZmQwYzUifQ"
+        },
+        {
+          "resource": "repo://ui/test/contract-queue.test.ts#L78-L125",
+          "version": "repo-lines-v1:sha256:ecac6dd1b6f998e9b7b0a1543dfe18cdf6a5b83aefa319ebbf5018be61ae9fe6:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMzZTJlZDQ1NDM3MjE2MGQ4ZmQwNzUwMTUyN2I2N2Q1YWYxMjMyZGU5YjI3MzZjNDdkY2M5MmUyMDNkZDhkOGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYxZTVkYWM1N2RhODk0ZjhhMjdlZTJhMzQ4ZWRiY2Q2ZDRkMWYwM2YyNjk0ZGRiYTYwZGI0YjM2NzE3MTA4MWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViMWVhMTVhMGY3YjFkNzc0MWMwOTJkZTgwMmQzOWZkYTQ0MzRlY2YwNWY5NDM1OGM2ZjM2OWNhOTExNmUyMmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjExZWRkZWY1YTQxY2QyMTA4MGUzOWVkMWU2NDNjZWRkYzcyMTMzYWM0ZjZmYzRiOGU1N2YzOTJlM2FkNjUxZDUifQ"
+        },
+        {
+          "resource": "repo://ui/test/contract.test.ts#L1-L4",
+          "version": "repo-lines-v1:sha256:7b4ad9796149c5919ee945a18cf6ce508de68faf10c4775f544b5fe537d6e430:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDY3NDFkYzMzMDg4NmQ4Y2I0YjIzODgzOWFjNjEyMzljOGM0MzUyM2RjNTA3MGVlODQxYTc2ODAxODY3OTQyMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzZjN2NjZTBhNzBiMzRlZmEzYWUzODBlYTEyMDZlNGZmMDAzM2ZmMmY3NmU3YzZkZmU0Y2UzZjdkY2QwODYyMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmNmNDQ4Njk5ZTIxYWQ5MmU2YzYzNWViYjRiZDkxNWMyNWM0NjJkZjlmYjM5YjhkMThhMzQzNWRhZmU3ZmVmNyJ9"
+        },
+        {
+          "resource": "repo://ui/test/contract.test.ts#L104-L148",
+          "version": "repo-lines-v1:sha256:9bb736614d8dd09abd71c10767cc14c09c017d3984031091c9f6ca91c092f48d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1ODZjYzkzNWZjMDdkOTEyYmUxMzE2YzBmZjViOGY4MDRkMGEwNTE0YzJlZGJhMmNmNzAzMGQwMDhkNmI4M2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI4YWM2YmM5MTkyMDE0ZWIxZjk2OTViZmQ5MGI2YjYxMmUwMjVkOGE5NDI0YjM4N2FhNmZlNDBlZDhiM2E2NGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBmYWY4Yjg5MDBiNzRmNWUwOWU0MWNhNDkxMDJkNmZkNzNhNzA5ZGRlMzM1YjE1NmIwZTIyMTcyZGFkZThiMmMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_70bf280181e746ebb5c4920ec98af158",
+      "statement": "On pull requests, CI planning selects changed crate owners plus their reverse dependency closure, recognizes configured extra inputs, skips Rust work for inert paths, and conservatively selects the whole workspace for unknown/global paths; non-pull-request events always run the full suite.",
+      "evidence": [
+        {
+          "resource": "repo://scripts/ci_plan.py#L1-L31",
+          "version": "repo-lines-v1:sha256:5de6bb79f7ea9f6a722a685ae93d8e9fee03b384df4dc31d3ba6103ad23170be:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2ODJjYmRiNGM4YjA3NTE4YmY0ODZjNTg5OTBmYzM5MTc4M2FhMjBhOTE2YmZiMjdhZDIxMWViMWQ1YzM2NDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ0OTgxNjNkNjQ2Yjk1MTBmZmI5YmI0MTM0MmRiNDJiOWI2NzE4ZWI4MWE4ODQ1MGJhNTNlNmVkNjBmYmRlZTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg5N2RjYmRjYTlhZmJhOTUzNzI3NWRkNjM1ZGU5OGVmMDMwZjZiNmE2ZDc0YjBkMTE3ZjBkZjc5NDM1NWM2MzgifQ"
+        },
+        {
+          "resource": "repo://scripts/ci_plan.py#L111-L120",
+          "version": "repo-lines-v1:sha256:50707487a2d82c279642b60939582a5ce412f1567bb69a8d9410b72c7af1eb5e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhNzQ2MzEwZjczMzZiMjE1MTQzOWVlOWMxYzIyYWFiMjJkNmRmYmM3YWI3NDM0NDJkMDE3N2MwNzk5NzZiZTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0NTI2YWZkNzhlMmJiZGM0N2QwODZmNjliOTdhZjYwZTQ5MjAzZDNjNDlhMTAwMDNmNTQxNzEyODlmOTYxZTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkzMjA3NGMxYmVmNTUxNjE0YjA2MDI3MDBjNmRjZDVlMDE1YTU1M2RhNDdhOWM2NDEwZmVlZTFmY2ZmMzQzZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdjMWEzMDRkNjkzOTJlNzkxZDU5NTNjMGJjMWY5MmI1YWM4ODc5MmRhYjVkMTMwYjIzNmI3ZGNkNDRkZDVjNWUifQ"
+        },
+        {
+          "resource": "repo://scripts/ci_plan.py#L133-L174",
+          "version": "repo-lines-v1:sha256:fc2d4c23c0e9769b0a9f6503428b5dc66a043cc3b507010e2bec074efe6c15ee:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZkMWE3MzNiYTVmNmE3NDc1NmE2YTIzMGZkNTE0YzJkMDI0MjYyZDUyNDU0NjNmYWRhMzc3NTYyNjRjNDc1ZDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyODgyNDI4ODJlYWY3ZTBmMTRjN2YxYWZiMDA3MzViMzc0YWIxMmI3ODE5NWIyMjVjMzkyMDM5NzUwMTQ2OWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQyM2Q2Njc1Y2EwMGIwOWMyYmRiMGQ1YmZkY2IzMmIwMzY4N2NjZDJhZGI2NjdiNzYyOGRkNzExZDc1MjZiOTIifQ"
+        },
+        {
+          "resource": "repo://scripts/ci_plan.py#L39-L76",
+          "version": "repo-lines-v1:sha256:37505ad66e6f7ebcf4ef1516957c895baa328668ceb8fc064301b1694d98fddc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxNGRiN2YwNTEwZDJmZTA4NDI5YTA1NmQxOGJjYTQyNWExN2QyODQyMWMwZDI3ZDEzZjY2YmEzZGNiODZjYzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5NDE2ZTA5Zjc4YmEzMTZjMDMyNTY4MjEzYjg1NWVlNzU2ZTQxNTY1ZDkxOGYwOTUxOWM4MWZkNjIwZjQwNjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIxNDRiNDA3OTU1ZGNkZTI0YzIyZTFkZTU2MTliZGZlMzlkNzFlNjFhNTdlNDlhMDRlMDQ0NWQxMjVhNTI4NzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU4NTQ1YzJiODg5ZGI5MTU5ZDE2ZGZmNzJmY2RjNjg4ZDVjZTY0ZGFkZjI3ZjdlNGViYmIxYjE4ZmViNTAyZjAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_467ab66f29a543b2868b8ddecfef34ed",
+      "statement": "The CI test job runs selected Rust tests with cargo-nextest across four round-robin partitions and fail-fast disabled, while the required check aggregate accepts skipped Rust jobs only when the planner found no Rust work and otherwise requires all needed jobs to pass.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L191-L220",
+          "version": "repo-lines-v1:sha256:4d6bbad4755e6f278cf22011dac38bd52bf447a127c521c0074ee0635f47ebcf:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3YTExZDIwYTdkYWE0MDVlZmE0NDhiOTVkOWI2ZWJjZDM1ZTAxODMwMTU3YjViYjg1ODYyMjk3OWQ4YWM2MzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiM2I3NDVkYzgwMDRmYmEyNmM4NmNhNGUzNWQ1NDI3ODdkMDM3NGEzOTgwODY1MzIzNzMxM2U3ODZhZWNmMzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxZWRmMDEwMWRiZjc3MmYwYjM5ZTY5MTZhOGI5Y2NjM2ZiOTQ5ODBmZTIwMTBmNzY4NGRjZTUzZmY2ZjhmMTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJkZWQxNzU4NjZkNjc0Y2M4NWMwMWJiMDcwZGUzNTEzY2Q3ZTJiOTFlODM2OWIwNjFkNWMwMDU3OWNiODE4ZWYifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/ci.yml#L93-L126",
+          "version": "repo-lines-v1:sha256:32c8215133f2bf56a851ae08b2a48d54e34bcfc8a458311479ee53449861265a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxYzQ2YWRhNjU5ODFiZWU4MDNkMmFkMzNhZWJjNzE0OTQ5NDg2ZGNjY2M1ODFiOTJlZDlhZTUzYWJjMWQzNzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhOTZmZjI1NGI3NjUzYjgxNjYxMDgwOTQzMjJkMTg5ZDIyNTY3OGI1OTJlZTAzZjY5MjE4MTRlM2MxOWNjZWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRhNjgzODE5ZjQ2ZDAzMzQ3ZGYxNDVmZjI4ZmUzMmM4MzkyOWE1ZDViZjNmYmEwM2ZjMjZjOWM4NWFkOWJiNjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI3ZWJmMmY1ZTZiMDcxZGNmNzg1OWNjMDVmNjVlYzI1MzM0MWNhN2U2NTE1ODI3NjgzZWUyNzMyYmZjZmI2ZWQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_209c05e50fd044caac8bcb5ecce17a65",
+      "statement": "CI also runs strict formatting/clippy, rustdoc/doctests, examples, an MSRV all-target check and unit tests, dependency policy, release verification, and proposition/repository guards; UI has no Node workflow job and ui/* is classified as inert Rust input.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L128-L189",
+          "version": "repo-lines-v1:sha256:0bdc40002a2ee756c581e8f34dbeb5e9728de9b8328d8d6b9d5c511809885df6:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY5MTNlNGQ2NWRjMTc5YjY4MTgyM2I3MDM3ODZiYzVhZjQwMjJhZjcwOTk2NjlkODE4ZDA5NTliY2E4NDBiNGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0N2ExOWIxMTVjMTI5MjFmNDNjMGFmMmM4NjA0ZmQ1YTg3NjJiOGY1NTY5OGNiZTQ4MWMyMjhhMDQ0OTgyYzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc2YTRlNmE3YzVlN2IxYWViNGFkMzc4MGZkOGQyMTNlYTU1NjVmNTI1ZWUxMzUxNDliZWU5MDQzZGQ4ODhiNGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0NmM0MmEwOGI1MmI5Y2VhMWRkZTdlMDk0NWNmYzZiYjlmZjA1OWU5Zjc1OWRhNmMyYjIwYTE0NDY2N2RjYzkifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/ci.yml#L222-L302",
+          "version": "repo-lines-v1:sha256:56a3d42b534d50bc36bdacfe01c33352676c7341b01fdb73d13cd46788138955:eyJzZWxlY3RlZExpbmVDb3VudCI6ODEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg2N2Q1N2M3MzJjMTY5MTRhZDA1N2U1YWE5YjA0M2VhM2ZjODlmNzMxOWM4ZGZiMjMwMzdhNThjYjhlZjY1YWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhZmU1NDEyMjM5NjhiMzZjY2ZjNWNiOWQ1N2I0M2QwZmFkZmYwNTJlMDhjMjU1ZGM2ZTE5NGQxMDUxYTMyODciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjczNDk2MWExMjkwMWQ0OTFjN2NmNDgxNzgzMmVkMmM2YzY4MTM5OTYzNzMzOGFiMDY2YzUwNTZiMmUwMDZkZGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/ci.yml#L56-L91",
+          "version": "repo-lines-v1:sha256:ed1724cad589ebb9748d3a6dba4ed1c6ffb5ba4cdd873c658629800e864cd8b8:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZDEyZDc5NjlkZTA3NTk0YTNiZWFiNjgyNjIzZjA3YTM0ZGY3Mjg0ZDlmZDAyZWVhYTVhZjgyNTk3ZTBhMDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgyNjc5ZDRiZjI4MjhlN2FlOWMwODYxMzE5MjU1MmE4ZDg5YTI3NzE4YTUyMGY3YjRlMDVmNzJiZWZkNTkwNTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZkN2M5YWRmNTE0OTMyNjE0Y2VlMWZlMjIxZWJmZDNkY2Q1MjJkYTM5NmM1MGZjYmNmODFiNTY4N2FiOWE0MjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhiMjhiNzZjOTQ1NTY3NTQ0YWFmNjBkMzkxYTlhYzNjMTYwMjk1NmU4NzU3YjJmNjRmOTBlNDdjMzE4OTFhMTgifQ"
+        },
+        {
+          "resource": "repo://scripts/ci_plan.py#L63-L76",
+          "version": "repo-lines-v1:sha256:a6786ca222bf5bc83b0cf37d1dbf1e7795bfbc89b08873ca2af736f1c7bd4a65:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2ZmIyYzBjYjMyZDdmZTZkNGQzMmQ2YmNiN2JjNTE4ODc0ODE5NTlhNzk5NmI5ZWUxMTkwYWFjZDIxMjNjNzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5NDE2ZTA5Zjc4YmEzMTZjMDMyNTY4MjEzYjg1NWVlNzU2ZTQxNTY1ZDkxOGYwOTUxOWM4MWZkNjIwZjQwNjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZkYjM5ZGU5M2JjZmFjNWU2ZDc2OWM5YmFkZDQ3OTQ2ZGU2Mzg3YTllNTE4NjJiYjRmOGI0ODViMDFkMDE1NzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU4NTQ1YzJiODg5ZGI5MTU5ZDE2ZGZmNzJmY2RjNjg4ZDVjZTY0ZGFkZjI3ZjdlNGViYmIxYjE4ZmViNTAyZjAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_34e087cc1c274b889c80f9e01a787886",
+      "statement": "Normative proposition documents and conformance.md are renderer outputs: the rung-doctrine render command writes them or, with --check, fails if their checked-in content differs from the encoding; CI additionally checks proposition numbering, references, citations, and the one-way consumer rule.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L232-L249",
+          "version": "repo-lines-v1:sha256:1594ce0683bb5e1452c64dc49913fe3c239ce22877277b27c73a26b9ab8d9c06:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0ZmQwMjU1OThjODdhNWY1ZDUyMWMwMjdhOWJjNzI5ZGMyNzY4ZWNlMzllNTYzYTcyMDMyNTJhYjkyODJlNmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgwYzNjOTBhNzAyMTBkNjBhMzk1OGJlOTg3OTE3MjQwMWY2NTJiZGNkMDZhZTQxNzNlNDIzZTI3NjVhMWE4MzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE2YzIwMTVmYWVmZGRhZTg5ODZkZTU0ZTgyMjBhYjg1NDE1MjhmMDQ2NWVjMWY4OTc4ZjEyMmRhYzM5MDUyZmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJmNjI0NGI5OGViMzdiMzczNTU5MjI4MWZhM2MyZmUwM2ZiYWZmYjE2YmNkNjE3MGY5Y2RmOTkyNTU2YjkxNTYifQ"
+        },
+        {
+          "resource": "repo://docs/_consumer_guard.py#L1-L9",
+          "version": "repo-lines-v1:sha256:9886e480024190b5c68e2900a7a5beaccc1bf76476514e8b931b3cc5447c7bf5:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDY4MmNiZGI0YzhiMDc1MThiZjQ4NmM1ODk5MGZjMzkxNzgzYWEyMGE5MTZiZmIyN2FkMjExZWIxZDVjMzY0MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWYxZmQ1MzA5N2YwMTY4YmUyODZlY2RkZDExMjdiMmE5YWRlMDE4Y2YzNzI4NTEyYmMzMmRiOWEyMzJkMGQ2MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDdiMDE5NzZiNzcxZWQ3Mzk4ZTRiOTYxMmQwNDI1Mjk1MzAzMDlmYWMzMDIyODNiMGY4MmRjZTAxMjg3MTUxZSJ9"
+        },
+        {
+          "resource": "repo://docs/_props.py#L1-L35",
+          "version": "repo-lines-v1:sha256:ee01cfc8eed1c734202c8edd15be5b8f512e6df52f04ee767abddda4e1165b5e:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2ODJjYmRiNGM4YjA3NTE4YmY0ODZjNTg5OTBmYzM5MTc4M2FhMjBhOTE2YmZiMjdhZDIxMWViMWQ1YzM2NDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI4YzUxMDQyNjE3YzM1Y2QyMTE5YTg3ZDdlYTIxNTI0OTFmNGQyOTBkZDRlNzk3NWZmNTYyYjc2ZTBhMWYzMmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVhNjQxOGQxYTU3MWVkZWQxOGFhZTlkMmZkOWRmZWVkMzhiYzg5MmU2MzYzZDhlZTgwZjk0OGY0OTIzYzBjMmYifQ"
+        },
+        {
+          "resource": "repo://rung-doctrine/src/bin/render.rs#L1-L14",
+          "version": "repo-lines-v1:sha256:410c83aeb3db182c549e7a40cfd458b2ede14072fc0916bcca7ed28b963f53cf:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4NDBmNmFkM2E5YTEwNWVhYjFhZTVkYTU2MGE4ZWYxOGRkMzljYzRlMjEwZGY2NTE3NjE0MjNhMWM1NTIwM2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlNDVlZWFiMWFmZjQ1ZWY2MWY2MjA0YTc5MTJmODc2YTU5OWI2ZDNkZTgwMTljYmUzYWRiMzdmZGFmMGZhMTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM5MzMxY2MzY2ZiYjgwYzM1ODhjNzJjNzRhMTA4NWIwODA2NTkzNjYyM2ZjZThmZWMwMzk2YTVhMjQ4ZjU1MWEifQ"
+        },
+        {
+          "resource": "repo://rung-doctrine/src/bin/render.rs#L60-L124",
+          "version": "repo-lines-v1:sha256:54ee93d8626ee273d7465560f79603c77a338751666426199dd38e16ba64f332:eyJzZWxlY3RlZExpbmVDb3VudCI6NjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYjllZWU5MWJjMGIxYTc3YjVmMjI0ZmQ2OTQ1ZjNkZWMyMzRlNTU5NmI5NDc1YzkwYzVhZWM5ZTZhZTIwYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNjRhYjNlNTUwMzNmODk0NTQwNTYyNzhmNGI1MTI5MGEyMWY5MjZmNmYyNDlhYzQzMzIzNzAyZWRhZDM5ZjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_753732b2d213457fa4d242023ed5fa3a",
+      "statement": "The records guard enforces append-only history under docs/records/: existing content must remain a byte-for-byte prefix and additions must begin with a dated heading.",
+      "evidence": [
+        {
+          "resource": "repo://docs/_records_guard.py#L1-L8",
+          "version": "repo-lines-v1:sha256:81bbfb3f1ab798b83246b98956669eec2230c036f159394345f96265c4b8bd7c:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDY4MmNiZGI0YzhiMDc1MThiZjQ4NmM1ODk5MGZjMzkxNzgzYWEyMGE5MTZiZmIyN2FkMjExZWIxZDVjMzY0MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmY4ZGMxMmFiZTMyODY1ZmE5MzRjYTYxMGM3MTUyMDAyZDY2NjZlZGI2NWYzMGE5MzcxYzczZDVhNTg4YzA2NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDdiMDE5NzZiNzcxZWQ3Mzk4ZTRiOTYxMmQwNDI1Mjk1MzAzMDlmYWMzMDIyODNiMGY4MmRjZTAxMjg3MTUxZSJ9"
+        },
+        {
+          "resource": "repo://docs/_records_guard.py#L22-L49",
+          "version": "repo-lines-v1:sha256:48ee195e012f5721532fa23923c26024f673bc745da5261bff9f342b294d0b6b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyZTMxMjU3ZGMwYWUxZDU5MzAzN2MyODBjOWFkNTA4MTliOGE2YzhjZjcyOGJlMDcxNmQwMGEzZWVjYzA0YmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5YTkyMGQwMzRiMGQwODk1ZGU4NmYxNWM4YzZkMjFkZWVmZmZlMzVkNzA2YWRlOGI0MjdkZDVkZjVkZjYxNjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY1OWQ4OTFmMDYwYjFhODI0NDcyNzFjMWZkZmFmOTg2ZmIzMmI3YjdlYjk1OGQzNGRhYzc0MzU1ZmQzMmE5MTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNlMGQ0ZWIwMGM1NTgyNmNhYmVlZTJmZGM5ZWI0NTY1ODc1YWUyMWZiNTBjZTI0ZWU5ZjA4Mjc3ZDhhOGVmNDcifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-11-01T15:22:53.269Z"
+  }
+}

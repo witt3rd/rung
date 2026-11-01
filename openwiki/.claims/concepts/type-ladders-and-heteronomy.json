@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:7d78ae6ceaaaf370279f27eb6bea5bec318ac61de271dc594730bd507741b531",
+  "claims": [
+    {
+      "id": "claim_590cc920a41e4ef6909ef1d3419d9b65",
+      "statement": "`ladder!` declares a rung spine ending in a branching transition, with terminal, recoverable, and continue outcomes; its parser and structural checker reject malformed recovery, target, payload, and inline-body declarations before code generation.",
+      "evidence": [
+        {
+          "resource": "repo://docs/rung-props.md#L149-L191",
+          "version": "repo-lines-v1:sha256:9bae25830335c1cfea03b5e4d50dcb741ccfa3b9bb289d808fd58fd060484f4a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4ODg2MDJkMDlkNDAwYjY4NzNhZjhjNzYxNTkyNDQ1NTU5NWM3ZDQ3MjRjYWJjMTRkYWVhNWQ3YjBhYmI4YTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxZWJiZjZlYmQ4ODhiZGVlNjQyYjg1YWZjN2M1OTJjMTlmMTQzMDc5N2E4NjQ2ZTU2OGU5NDc1NzJhODUwNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY2OTRkNjYwNjY3ZGE5YzAxYWM0NDU3NGMwOThjMjA4ZTJkMzM5ZTQ2MzIxOWZmZjFlN2ZjNWQyNTc3MGY3YjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEifQ"
+        },
+        {
+          "resource": "repo://rung-macro/src/lib.rs#L450-L537",
+          "version": "repo-lines-v1:sha256:4fe02c44dd8fb2ab2f40e5f93cfaa445e888bd1e3571cc18ca32d303265ad0a2:eyJzZWxlY3RlZExpbmVDb3VudCI6ODgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJmNTAwNjIxOTIwMDkwZmNlZjgxZWYxYmNhZDZiZmY0MWFkOTVmNmJhM2EzMTcxNGU5MjQ2MjI3YTA2ODNmOTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5YjE5ODJlOGRkNzQ4MTE4MTQ2YjM5YTJkMDA2MmY0MDgxZTM0Nzc5Yjg2NzVjMjM0YzRmYjEyNGRjMzkzOTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE1MTNhZjg0MGEyZTQ4YzUwZGUyYWE2YTFkMjkzNTQ4MDM1ZGI1MzZjMGY4YjkyMGYyOGU0NzI2ZjhjZmMyMjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUifQ"
+        },
+        {
+          "resource": "repo://rung-macro/src/lib.rs#L591-L775",
+          "version": "repo-lines-v1:sha256:e38ea2c45d39a973eb90f3368fc0232298fcc2d56eb838abd9fdcb8e37a341a1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTg1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmZDVlMWVmZWU2ZTVmMzc1OTg4ZTk4ZmI3M2IxNWQzZGFmMDk1NWE4OTYzZDE4YjdmMWM3NGQ1NzUwMGJhZWI3IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5OTliZGVmZWVhY2E2MzQwZTAyOTBkYzg2ZTg4OWM4OWQ1ZTE4OWFhNWJhNDRiNTg1YjNiNzA3MzRmNGE2MmQ4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIxMWZiMzZmMDQ2ZDQxZWJhMWYzMjM0Yzk4NDJhYjRiMmQzNDc1MjZkMTY0Nzk2OGI1ODVlOTBjMTE4ZWFlNWRhIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_80b70111f5f549aba95d3c4bf8f42ee4",
+      "statement": "Generated ladder tokens enforce affine progression through by-value transitions, private downstream constructors for inline implementations, `!Send + !Sync` thread bounds, and `#[must_use]` diagnostics; carry data is available only through an immutable shared reference.",
+      "evidence": [
+        {
+          "resource": "repo://docs/rung-props.md#L340-L383",
+          "version": "repo-lines-v1:sha256:4d27240c86b2aa201f9906f40ea65b969b920d12bb14c156bc165d03ac25831b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAzYzc1NWIwODgwODUxMjFmZjhjMjYwZDAwYTczMGQ5N2I1ZjBiMTQ2NmE1NGQ3MGQ0ZWM1MzQ5Yjg1OWI4MzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0MWFmN2YzOTg5ZjIxNWMyZWViNGQzODdiYWIzMDI3NGQ4NTNkNTQyMTA4ZjEyY2Y2NWZjZTA5OTY0M2U1NjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU1YzdjZDY3YjFjNWVjY2ZiYjA3NGY2ZTUxZjE5YjUzNTAyNGVjMGNiMzhhMmE3YTg4MWRmNGE1YWVlZjY2MzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxZWZkNjI1ZWU1MTU2MzNmM2ZiNWY3YjRhYjAxNzYyMzYwYzQ5Y2ZjN2I0YTYxODQzNzIzM2YyY2Y5YWVkNTAifQ"
+        },
+        {
+          "resource": "repo://rung-macro/src/lib.rs#L824-L904",
+          "version": "repo-lines-v1:sha256:f34bf946c41475d00883cdf3bf727a13ee180e36e03cfd8d3895067646337cc0:eyJzZWxlY3RlZExpbmVDb3VudCI6ODEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2YjQ3MTQ3MDdlY2IzZTMzZDVjODVhM2RmM2MxM2U3NDdiZDkyYmYzMjY0YWY5ZjFhMjVlOWE4ZjNhZWFiYjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwNDY1ZmNkODE3YzM4OGRlZjI2YjRlMjEyMGQzNGE5ZWNjYjI5ZjhkY2RmOGRkMmIwODUyMGJjYmU4NmU4MGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzN2U3NGE3NDZmM2U0ZmE5OGQ3Y2I5OGRiMDdkMzBiZmY2NWNlZjY3NmYxN2FiMWVhNDkzYWM0ODQ5MDY4MTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE3MDgxZjY3ZWUzZDM4MWFlYWQxZjgxMzQzNjliODkzOTRhYzE3NWViYTFhODJmODBhNWNjOGQ4MmZhYzFhMGIifQ"
+        },
+        {
+          "resource": "repo://rung/src/lib.rs#L28-L39",
+          "version": "repo-lines-v1:sha256:28638afa3e7359410eaf651a8d6aba6b44d3e51db0918c2cb955b4718047e990:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0ZDk5OTUyZTRjN2E1MDI1NGNmZjUzN2UwZTk2YjY5MzNmMjI3ZTVmOWMwZWM2MDhiYWY5M2YyZTkxZTg5YzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJlMDlkNTYyNDAzYzA5OGM1YmNlMTFmODcyZGRkZjIxOTM0Y2FlNmUwY2EyOTRhNzVkNzYxNDQ1NmViZWRhZDkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlMzFmNmExYjRjNDMzZTY2OWRjOGFmMGU0NGUzODU2YzY0NTJlYmMzNmFiYzMzZWI1OGU3YWZjMmM4ZWRkNWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc3MDVjNTljYzI1ZTQ0NWIwMDg5OGFjZjQ2OTI3MGNmN2U5ZTA0ODJkNTlhY2EzODhmMTczZjZiYWQ4Zjg2NzMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f1ccb0ec14f741a4ad4ddaea4a98b37e",
+      "statement": "Verdict recovery has a macro-injected progress guard, whereas error-path recovery and continue arms intentionally have no such guard because they respectively may retry an unchanged token or directly carry the next rung.",
+      "evidence": [
+        {
+          "resource": "repo://docs/rung-props.md#L394-L411",
+          "version": "repo-lines-v1:sha256:da4c3730e8852d719137264596d8a74e9eb74d6ac020e4025f03d4f91363a0c9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5YjVmYzA1M2VkYjRkNjNmYTBlNjkzYjg4NmRiOTc1MDQxYjNiOTE5NjQ4MjYzZDI1NzkzZjRlMTgzY2EzYzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhYjkxOWYxNTczOGU4ZDdiMGM0NjJhMWViYzI0OGI2OTNiMzg1YzJhOWIwMjVlNjllZjhhZjM1NzkzYzUxYzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNhZjI2MmQ4MzFiMTZhYjJjNDJhY2I4MThlYzc0OTc2YWEwNGUzODFiZjI4ZDBiODgwNDUzZGIxNDk4MGMwNjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZiZTY3YjI5OTA0M2ViYThhM2I5MWY4YWVmZjY5MDA5NGUwNDczYTg1NDQ0MDdlZDJkMDhhMzMwMDQ0NTI5M2QifQ"
+        },
+        {
+          "resource": "repo://rung/tests/end_to_end.rs#L166-L255",
+          "version": "repo-lines-v1:sha256:4de813a97edda4e415fcdb3ecc02ec6ea2ace5a4746e79689f575e8b9ee7fcc8:eyJzZWxlY3RlZExpbmVDb3VudCI6OTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJiYTRhZmYxZDhjYzhlOWJhNTBjZmM3NTZlMDI1MjVhYWY4OWExNTU3ZmQxMTdlYjNiZjZiZjY0YzhmZGRkYzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyMWUyNTQ1MjM1MTZlMGYzMjVmYTBhMjJjYjk2OWY5NmQ0YmEyZmRkMWIwMzlhMDQzZmYxMDdhOGNiMDg3MjMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2731dcb8dde1495ab796dbf4c3916fa1",
+      "statement": "The implemented `ladder!` gate markers produce incompatible signatures: judgmental arrows require `Qualified<R>` and argument binding, authorial arrows require `Authorized<'_, R>` and container-standing binding; the macro refuses conditional markers.",
+      "evidence": [
+        {
+          "resource": "repo://docs/rung-props.md#L112-L143",
+          "version": "repo-lines-v1:sha256:533adb1d1d041ddb65a9446247c3a259ccc1d66992881e0c6e76271c2e05aec3:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5OWYzYWI1Zjc4NTRkMzllYmM1OTQzZDNiOTY1YjBmYTc0YjkzYTE0Y2MwZDZkYzBjOGJkMWFjNDIwNDQ5MjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRlMGQwMzg1NmE5ZTczOTQyNzcxN2UzZmQ0NzMzZmVlNDQzNWI1ZDBkMGQ2MTFlMzE1YjYxZWQ1MTc0ZjNmOGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRhOGRlN2NlMTk3ZWJmNDZiNjQ4ODQ4Y2Q4MjE4NTU3NWQ5M2JlZDU5NGU0MzJlMzQxMDY3NmI1OGUzMzFiZWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEifQ"
+        },
+        {
+          "resource": "repo://docs/rung-props.md#L418-L525",
+          "version": "repo-lines-v1:sha256:2982ed5c50939a2e88d36f68d946e14f9d69852bfc6dd46063f76d5b75c64b67:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlZjZkNDFiMjkxMWQ1MGYyMThhNjEyZjRmMzkyOWZmMzViYjI4MzE0YzQ2ZWJiNDU2OTQyOTRjOGU5YzI4ZDhlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJjYjc0MDFlOGM4MTI4ZjkyMTAwMGE1NGEyZThiNTE4YzIxYTBhZTVkODNmMzdjMTBkOGRjOGY0ZjA5ZGVkMDE5IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIzOWQ5MDMzNjk5ZGQwNDA2ZGMyY2FiYzQ3NzhhZDAyMjU2NWI5MDU2ZGEyYTYxNDk5Y2ZkZjc3ZjBkYjFmZGU0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIwZjUxNzQyYWY1NTlkNDRkNzE1MzQ1OGI3YmY1NzkwMDg1ZjBiYzg3NTFkYjljYTc1ZjI5N2E2MjU2M2ExNDNmIn0"
+        },
+        {
+          "resource": "repo://rung-macro/src/lib.rs#L68-L166",
+          "version": "repo-lines-v1:sha256:faa99c31a6ab3019adb39fc191b0ba976face34dc99fd55efbd9023d55339053:eyJzZWxlY3RlZExpbmVDb3VudCI6OTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1NTJhNWM2ZTYxMDNjNjI5ZmExODQxN2I1MmVlZTZjYTcxNzNiMjNiNTE3MTVkZGU2YTUzYTAyZDQ2NzliMGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YWE2NmIxOTljYmM3ODg0MWRjYjYzOTdhOGZmZTc2YzEyNmMxNmU3MDNjYTAzZjk5ZmE3NWU0MTQ5ZmE0Y2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUxZjhjNWY4MGUyNzk0NjQzOWQwODU0MmU3MmM5MWUwNWM4NDE2YjY5YzBjYmYxNGJlMzliODRiZDc5NGU4OGMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2812b28eca7748bf84e7ae02d624dfb1",
+      "statement": "The judgmental pool filter admits only capable principals whose provenance is disjoint from a nonempty argument provenance, and a qualified token records that argument so it cannot be transferred to a different subject.",
+      "evidence": [
+        {
+          "resource": "repo://rung-het/src/lib.rs#L822-L863",
+          "version": "repo-lines-v1:sha256:c0373718475e3c62e490d852cdd5ea791f24a2d95ab40957bf961fb4c638e823:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwNWU3NGQyNWNkNTEzNWIwNTJlNjYxNjQ3ZTA3YjA0OTMxMjFkMzYxMzQyNzY2YmY5Njk4NjNkZjU1NDI3MmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4ODcwNTliNDViMTgxNzEwMTFkZWZmOTNkZjY1OTUxM2Y3ZjZhYzNmNDhmYmQxZDA1MWRlOTY2YTExOWZhNjcifQ"
+        },
+        {
+          "resource": "repo://rung-het/tests/gate_law.rs#L156-L230",
+          "version": "repo-lines-v1:sha256:9719d1b50d0be101b79cba82c25c3fae5055832cf3f60c2037b030e54e2c65c0:eyJzZWxlY3RlZExpbmVDb3VudCI6NzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU3ODI4ZGQ4NWE0M2I5NTEwNjliYjNmNTczNjhjYTgxZTUxZTE5NDQ4OTU5OTlmNTU3NDZlMTVkMGE5MmYzNmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdmOWFkNDYzYmU3MWM1ZjQyMDk0NmFmYmYwN2QwZmU5ZjVmMTFkYTgyZjFlOTQ5MDNjYzMzOTVkOGMxYTBiMzgifQ"
+        },
+        {
+          "resource": "repo://rung/src/lib.rs#L165-L284",
+          "version": "repo-lines-v1:sha256:03ef2db7e8e0a5b3c8bd834ccc5874b1b1f4c2d510c4e13d367b3ee23356e4f8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiOGRmNDIwMmQ3MzlhMmE0MGU5YWUyNzg1ODA0ZjU5Yjg3NWVjZGMwZDJjOTk2MWM1MWIxNzQwYTljOTk1MWRhIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhMDZmNzdhNmU3NzFlMWUxMzJiMTY5NmU4OWFiMTM2NDhiYWFhNmFkNDJkNDUzNTRlNzNiMmMxYjFmZTdjNzAzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI2NTVkMTMzMDFmMzY5NTc5NzdjYmE4NjkwZjBkM2I0NTdjNmFmOWNkZWNlNjgxMTI1NjE0NWNiNGU0YjkxNTA3In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_01b9c20b01f24008bfb116abb9ca7752",
+      "statement": "A sealed `Judgment` is minted only through a principal oracle response and carries the judge provenance; judgmental forward ladder transitions enforce that their output provenance derives from that judge, closing caller-supplied verdict and mismatched-outcome paths.",
+      "evidence": [
+        {
+          "resource": "repo://docs/rung-props.md#L527-L569",
+          "version": "repo-lines-v1:sha256:ea330011f33246358d7674ecf12c161f016574ec950c78ad6c23e6563b947e6f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmNzNmZGU5YzE2N2MzZjBkMzViZmExNTc0ZTgwN2E1MTgxZGNhZTRmMDZhOTU4YTA3YzdiNjZkMGM4ZGRhYTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzNzY4MmM0ZWQwNTlkMzQzMDMxNWU3YjM0ZDY4ODY3MmEwZTE0OGI3MTAzY2JkZTMyMjcxYjU3MmQyZTM2NWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0NDgwOWRiZDllM2JjY2YzNjU1MWMyYWVlZWMyZTMwZGEwMGRkNDM4YzBjZGU1OWE4ODM0M2I3NDc3YjBhYjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA4NTFlNmNjMTUxNjUwZDg5NjIxZmUxMjhlY2NlMWFiNWVmODNiOGZmYmFiNWMyOWM1NDQ3Yjc5NjlkOGRmMmUifQ"
+        },
+        {
+          "resource": "repo://rung/src/lib.rs#L371-L440",
+          "version": "repo-lines-v1:sha256:38517146b4dfee925254fe43d170955b614149842b8f9f2303186c49c45e467c:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwZGJhNDc2OWIyYmQ2M2M5ZWZjMzU2YjBhNjA4MzAzZTRmYTEwNTlmZDMwM2E2NzZhYjhkNTEwYzM1MzY1NzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ2NDkxZjEyMzg3MGFiNTZlYWQwOTU1NmI5ZTZmYjM5Y2I0ODczMTgxNzk4YmY0YzZkZWUzODkyOTI4MWYyNWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiYmFlNjRjMTU4NzVhNmM4N2QzZTU3NzEzYWNlNjQ2ZmExMGU2ZTNjMDhiOTYwMGFkNDIzMGI5NDFkNThmZDQifQ"
+        },
+        {
+          "resource": "repo://rung/src/lib.rs#L909-L948",
+          "version": "repo-lines-v1:sha256:8be36553fcc996f8a834956a4368958d4e41a46126924de9744ff51cc4d91f79:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MjZlNmMxNjRjNTE4Zjc0ODEyZDEzNTc2NmIzY2RlYWRmMGJkZTA0ZTg4NzdmYzBkMjMzOGE4YjI2N2I4MGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwOWU3OWUyY2Q3MjRlOGUxMDhjZmM3M2YxMTllNTRkMGI4MzQxZjQ5ZmM0YzQyMTIxM2YwMzlmODY1MDRlYjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4N2VjZTkwNDQ3NjFmNGI1MzhlMzQyYzRjOGE5ODNhNDQ0YTQzMzhmYzM5ZDhkMjRhMzdhZmU5MzMyNTcyYWEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_30e1b1ea13ec400ba62c7798e6aa95ad",
+      "statement": "A judgmental forward transition can defer into `Suspended<Prev>` carrying the unconsumed rung and opaque raised matter; its authorial resume edge requires standing over the subject plus terminal evidence answering that exact raised matter, without a progress guard.",
+      "evidence": [
+        {
+          "resource": "repo://docs/rung-props.md#L571-L627",
+          "version": "repo-lines-v1:sha256:f494d492fd3eced35ed7eda98fb4c82fa7bf3d0a4e46891a8fcb5e295b6689c9:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYmIxYWIzZjhkOTkxZDljY2NhNTg2MzU0ZTJhNzcxNDY1NGM4ZWU3ZThlYjZmOTdkZTA2YWQ0Zjc5OTE0Y2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjllMDlmMWEyZTliYTU5YmM1YTRlMmMxMDA2NTc2YzdlM2RhMDRkNzYwYzY5MjA3NjZhODYzYzI5YzIyNWE5YWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5YzYyODFhM2ZhOWRiM2NkMDQxMGViMmZiZDc4MWJhZjdmMTQ1OTFmMDA1NGIzZGZjNDUxY2VmZTdlYzVhMzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEifQ"
+        },
+        {
+          "resource": "repo://rung-macro/src/lib.rs#L915-L967",
+          "version": "repo-lines-v1:sha256:640792bf904d90f305655d5e492fd34360a439d5872b280a1201812e2938c2b8:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRiOTEzYTQ2YTYyNGQ4MWY5OGIwN2FjMjc1MmY1NGIyOWVjZjg3M2M4ZTgyNjQyMjNlNjM3OWI1ZTYyYTRjZjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkOWUxMjU0NjQyNTU3NmQzZGVhZThjOWI5ZGJmMTI4ZDVkNmRkYWY1ZDdmZTg1NzkzNDkyN2RlZmZhM2I5ZGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU0Yzk0NWEwYmMxNjhhNzZkMmM3OGFhNGM3ODAxN2UxZTc5YjIzMWJlNjY5N2U5ODdiNWQwYTI0ODgyODIzOGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg4ODM5MzcwOTg1MDI1M2NlMDg4YzIwNmExZTBiNWQ3NWI1ZjJlZGU5NmY2MjU2NmYwMDFlM2U1YmNkMDNhMmIifQ"
+        },
+        {
+          "resource": "repo://rung/src/lib.rs#L447-L574",
+          "version": "repo-lines-v1:sha256:208cdf2758463f005cdbfe111d58c1adcc92b429c9dc2bb2ecea9fb9e39a0e39:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJhN2I5YjFkMTAyNGFlMTdiYTJjMWRjNTQzYmRmMDIyODA3YTAzZmMxY2Q2NmI2MGM5NWNlMGU2OTc3MTM1NjlkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlMDQ1ZmZiMDk3YjhlODRkM2U5OGViYjFlMTYxNDNjZThkOTMyOGEwOTIzMzQ2MGEyNDZjZWY4ZTY5YmY1ZWI5IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI1ZTg5Mzk0NTllMmEzMTc3MDBmYmMyNzdiMDU2ZTNhZTZhYjE5NGNhZTgzNWY5NjUwMzNmNmIzMzkxNzZjMjViIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_27d5b41d23dc4c02992526f5531ceade",
+      "statement": "`rung_het` separates authorial proposals and enactment from judgmental disposal: proposal provenance is the author's, disposal requires a token bound to that proposal, and a ruling licenses—but does not itself perform—enactment under the target world's law.",
+      "evidence": [
+        {
+          "resource": "repo://rung-het/src/lib.rs#L421-L471",
+          "version": "repo-lines-v1:sha256:aaadb5c79acfec5c6b74e8a9c3022560d9075602c00be00d78ff2d2e9740ffa0:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjZDFjZTJiYTJiZmYyODUwYjc1ZDczYmJkMWFjZDI2OTk2ZDdiM2MwNzBjY2JkYTFjNmEyZDA5MWMyZTFkMjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUxOWMyYzc3MDZiMjA5YTIzNmRlOTBmNWE0MTc0MzgwNDliYzQ1MDU5ODY1MTdhNGUyYTRkYTdkMGM1NmI1NmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNkZTMyMWJkMDEyNmYzMDk2YTk3MjJiYTNjMDZhMjk4ZTk3ZjFmM2I0MmRkODViNDAzMWRkZTZkMDJlY2JiYzIifQ"
+        },
+        {
+          "resource": "repo://rung-het/src/lib.rs#L742-L775",
+          "version": "repo-lines-v1:sha256:127576a8d9de72d327934a23451100f3bc728ebcf14a2b22059c011df1b98544:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmMjFjZjgwYjA0ODU1NzU5ZTFkMTBiMWMwNTdhYzYyNGQ0OTcwYjZhMTU2YjFkZTZiNzk5ODk0YTYwOTVlN2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZlZTQyODE5MmRhZTM4ODBkOWVkNThkYWQwMWNhMzI0NTFkMjIxMzQzOGJlMmVjNGM1ZDgzMDExNTBkZDQ2ZDAifQ"
+        },
+        {
+          "resource": "repo://rung-het/src/lib.rs#L822-L863",
+          "version": "repo-lines-v1:sha256:c0373718475e3c62e490d852cdd5ea791f24a2d95ab40957bf961fb4c638e823:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwNWU3NGQyNWNkNTEzNWIwNTJlNjYxNjQ3ZTA3YjA0OTMxMjFkMzYxMzQyNzY2YmY5Njk4NjNkZjU1NDI3MmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4ODcwNTliNDViMTgxNzEwMTFkZWZmOTNkZjY1OTUxM2Y3ZjZhYzNmNDhmYmQxZDA1MWRlOTY2YTExOWZhNjcifQ"
+        },
+        {
+          "resource": "repo://rung-het/src/lib.rs#L911-L939",
+          "version": "repo-lines-v1:sha256:f829f970d1134da187f0ba75c1df9cd2b9fc0bb12c53a4ba0746d4f37624281d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI0YzczNDM2NTFkOWMwZWYxMGIzYzZlMDdiYzU1ZTQ3MzljZTg1NGFhM2FmYjU4NmM0YTczNTkzMjhlNzk2NDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEyMzFlMTJlM2M1ZTIwNjEzNDJjYWZlY2QxNjYyYjk1YzQ1MzU1N2QxNzNkOWE3ZjEwYzVjYWU0MDM0OGIzMmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA4YTk2MGJlM2ZjOWNmMTM2MTNhMGJiZGI2YzNlOTZhMzQwMDAzYTc1ZWFhMDdiNjQxOWUxYzkzMzllNTAzZTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_df8f85927b8b4616ac0616f878102277",
+      "statement": "`rung-driver` supplies a domain-blind audit/pass engine: theories provide audit, edit, re-proposal, verification, persistence, and panel-combination behavior, while `run_cycle` dispatches qualifying judges, enacts an affirmed edit, verifies it, records sealed judgments, and surfaces deferral or rejection.",
+      "evidence": [
+        {
+          "resource": "repo://rung-driver/src/lib.rs#L1-L30",
+          "version": "repo-lines-v1:sha256:e666c6696b5799be2bc2759cacac861fc63503ec7b52db03d6d4f86b09476595:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkNDkzODE0Y2FkZmIzZjkyZjk1M2U4NzAwZGQzMTg4ODU4MDk4YjBmYjRhOWFhMDQ3YjQ2MjI0ODJmNWY5OTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5ZDllZjRiOWQ5MDA0ZTNiNTAxNzAwMDRlZjYxNDEyNDIxNDk2YThlZTlhNjM0ZmI1ZjViMDg3OGRkMzZlMmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdhYWM4MzA4MDcwYTNmMjYwOTA1YTg0ZjczOGRiYjQ4MTIxOWM2MDMwYjIyZjQwZGU3OTE4NDhiOWE2NGZkNTAifQ"
+        },
+        {
+          "resource": "repo://rung-driver/src/pass.rs#L114-L201",
+          "version": "repo-lines-v1:sha256:192bea8df608e19db0185738b004a5f628f28803f2e553459ce533e03e63467b:eyJzZWxlY3RlZExpbmVDb3VudCI6ODgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwNjg1ODRhMDU2ODgyMmI2YjAyNWNmZDgxNWUxMmZjN2E5ZWMyYzMyN2RhYThiNWVjYzk5MWIxMzQ0MmI1NzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2NzY1YzQ0OWUzNjEzZTBhYjFlYjY2ZGE3ZjAyYmNiZDFiMGNmMzc1YzkzMzYwMmZjYmFkMjNiN2JiMmUxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRkYmE0NWY4MmUzYzBlNjRiZjkzYTQ5ZTliYWJjZTAzMTc3YzJjOTEwNzkwOTI5MDQ5M2M5ZWVhMTIwMzUyYWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBjMGFiYjEwZmRiOWUyNjk4YzI3MWUzYjVmNWRkYWNmODcxZmM4NDVlMTE4MzdlMzcxYWFhZjdlNWMwYmQ5MDcifQ"
+        },
+        {
+          "resource": "repo://rung-driver/src/pass.rs#L24-L73",
+          "version": "repo-lines-v1:sha256:92696b1ef4451c187e0368dfc05197e324914112eb8308952b86fd34a97754ea:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyMDkxNjY4MjgwODhiMDk5MjI0OGY1NDMyNmIxYzMyOTZlMTZkZTkxMmQ4MThkNmVmNWQxZmVlZWI0NDBlOGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkxOTlmNWQwMDQxZDQ1NjY4MDljNjViMDRjY2YzYTYwYzJlZjQ3ZGYwYzkyMDhmOTE4YmQ1MjIyMmVlMzU5YTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc4YWY4ZmZkOTczYzRhYjFmM2JiMzgxNmVjZWI3NDQ5MDljN2ZhOTFmNWFiZDFlZjczYzJmYjY0YTI1ZGQwNTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0b94a0d614784d7e8a7745cb24a44cb1",
+      "statement": "The project verifies ladder refusals with `trybuild` stderr snapshots rather than relying on compile-fail doctests for diagnostics, while end-to-end and gate-law tests exercise recovery, gate qualification, oracle judgment, and uncertainty behavior.",
+      "evidence": [
+        {
+          "resource": "repo://rung-het/tests/gate_law.rs#L123-L186",
+          "version": "repo-lines-v1:sha256:0e189c4b1ed0e789353822ed93b6918c8dda641dc7c0d6a8026522ec6065ff9d:eyJzZWxlY3RlZExpbmVDb3VudCI6NjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA3MGEwYjI0NGIzOGE0MzA3MmU2ODkxYmEwM2UzNTE4MjBkODBlMjBjOTkzNjYzN2UwNWIzNzk2MmZiNzJhY2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFmZjI1NzA2MmY0NjkwYWFhZDkwZTgzYTYyNzUxMzZlYWI5YzE2MmZmMmJjNjI1NmE2NTg0ODU3Zjc0OTU4YmIifQ"
+        },
+        {
+          "resource": "repo://rung-het/tests/gate_law.rs#L276-L410",
+          "version": "repo-lines-v1:sha256:0e388f71164a29950fb4f9e5eab736731db00b2647259014c386411bc180d54d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJkMmNkNGRiNDhhMzUwZThmMGI0Nzk0NGM0NmUzZmZkYmJhMTMyZDIyOTBhOTFkNzAxMmI1NmViNDZjOGFiNGY2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxMDM4YWZlYjQ4NGI0Mjg4MzNhMGNiZmE0MGM3MGJmM2RjNzUyZWZiM2Y4ODZjOGM2M2Q4ZDU1Y2EyZTI1YmY0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlMDMyNDEzOTU2YjFlZmU4NWIyYTBiYjgzZTY1NmI1OGY5M2UzZDQ0Yzc4Y2IyNzA0NTNiMjA4MGMyZmVkMDEyIn0"
+        },
+        {
+          "resource": "repo://rung/tests/end_to_end.rs#L95-L172",
+          "version": "repo-lines-v1:sha256:2c529c1f579d902e8ab6e7ad74cb7eff5539d667bb1922105e2a32327fd76957:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxZjY1YzU5NDFkYzFiOTFjZDFiYWQ3Y2EzYjNiYzE4NTQyNDVhZGUxNDg1YTRlZmNhNGU0ODc3M2JhNmM0ZjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4MDk3YWJmN2YxN2QzNjBlNTFhOTEyNjgzZjc2ZDNhNTYzNGMyNzAxZTcyZGRjYmYwMzA1MjAwNTA4M2MwYmUifQ"
+        },
+        {
+          "resource": "repo://rung/tests/spec_refusals.rs#L2-L21",
+          "version": "repo-lines-v1:sha256:6013087935ba8045e1cfacc6ededf3e0a0de063663a98d862b8f733ab8f4ffbe:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYwNjU3MzdlMDcxZjlmYmNkZjU0YjhhZDM4ZTY2ZTRiNmYxZjlmYTFjMDFlZDZhZjlkOTY2NGQyMjJhOTY0MDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxYTU4MGNiNWM0YjRhODIxZjRkYzllOGNmYThkMjQ2OWY1YmQ4MjdjNTkwYjRjZTFlNjE0MTFmMmIzMTVkZjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoxLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiMjM3MmMyM2VmZDI2NjdmNWJlMGVmY2UyNDVkNzU3OWI3OWNhZTYyYmUzMTM4ZDY2ZTllNDk0ZDU2YWQ2ODMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY0ZGMyMDNmYzgwOTVmYWJjYTBjMDg1MDIzMGM2YTg3NjA4NDA1NjQzM2E0NjVkMjEyMWJlOWJhYjAxNzA5NzEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_cf3cc3a206484c8e9ce472abee5adc35",
+      "statement": "The generated proposition documents in `docs/` are rendered from `rung-doctrine`; the doctrine encoding derives numbering at render time and treats unresolved references and structural faults as render errors.",
+      "evidence": [
+        {
+          "resource": "repo://docs/rung-het-props.md#L19-L29",
+          "version": "repo-lines-v1:sha256:6e256887925ef0d6f8cf760f83e1459b83882bda86d5ca425bf46e9cf17ed809:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2ODhjNjdkMDM0YWRlNjc3MTBiYzE5OTFmNzY0NTZmOTJlYWExMmZmMDJhYWZlY2UzOTVmN2E4NWJlZGZjMWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5ZmI0NmJlODcxNjc5NmM3ZTlhZDVkZGM5Yjc5MTFiNWU5YTI5M2I0NmQ0MzYxYTgwYTAxOTBhMjg5MGFjNDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY3YjBjYTI5YWY2NDI0ZjgyNzkzMTBkY2FiM2M3YmY1M2MyZmMyYTUxYjIzZTcxZDI3ZThiMjcxMGZjNzU4Y2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEifQ"
+        },
+        {
+          "resource": "repo://docs/rung-props.md#L12-L22",
+          "version": "repo-lines-v1:sha256:5fe64e1961a9121c73ee9a75699f2f65f7afd5591bfa161c673b0fd92eaadbaa:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE5N2VjMTRjZWUxZDU3ODI0ZTRkOTMxZDg2YTNmYjk1M2JiNDlkMDMyMmM0N2FlNjkzMzY3YTA0YjEzZWRhZTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiMzI0ZjVjYzhkYTdjODIyOTRjZThiNzBiY2UyZTUxNGVjMmQxNWMxNGYzOTQ1MjYxYTVmMzI3NDIzZWY3YjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZjODExYjJiNzU0NmM3YzYzM2I4Y2QzMzM2YmU2ZjhlOTRlOTdjZDBjMmZlYzdjOTY2YmJiMTQ5YzU0YjViZGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBlNjM5MjM5NjRkYjg1YzA4N2YxZTNlMWI1MzE2NDY1ZmI5YTdhMjAwMWIxNjNjMWFkODhiZTY4OTM4MGNmNGIifQ"
+        },
+        {
+          "resource": "repo://rung-doctrine/src/lib.rs#L148-L176",
+          "version": "repo-lines-v1:sha256:c070044b66a249bcba3bfdff16f0dd9c6aa607954ed8a6de89ebab122e91df48:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJjNDQ5ZWRiNTExM2M4ZTgwNTNiZmM5ODA0MDU1ZGE4MDg2MTkyOThlMTQ3YzI1YjNiMzk5Y2Q2NjYwM2ExNDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0Y2JhOTlhMTU0YmYyYjEyYTc2Yzc2MjVjZjM5ODRiNzQxODY3YWNlZDVhMjIxMDdiMjBmM2IzYWE5ODI5M2MifQ"
+        },
+        {
+          "resource": "repo://rung-doctrine/src/lib.rs#L333-L393",
+          "version": "repo-lines-v1:sha256:95ecb27e5c43810e26d9c6b90fec25014a9b9d1d843b70a443f3c6730624b580:eyJzZWxlY3RlZExpbmVDb3VudCI6NjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMjAyMGEwMzcxNGQxYzBjOGFjOTc3YWEyMWZjYzAyODA1ZjBjODRiYTE2NmMxNThjNmExODY0YTI1MmU0NTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MDFmMjVjOGYxMWJjMGE0N2U1ZGZiMWRiN2ZmN2FhMGQ4ODUxZTc0ZDBhMmVhYjJkZmFlYzA2YjUwZmMxOTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIxYzdjZDgxZDc2NmI2NDY5NDg1YTYyY2ZkNDA4ZDdhODVmZDdlMTk2YzEyNThhMzhiY2QyZGMxNzg0ZjI1MzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE0ZWMzODZmNWNkYjFjODYyOTk4YmY2MjMxYWM1MjUwMDI5ZTc1NzNkN2VhN2EwZTJmZWIzMzY4OGFmMGM5NTcifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-11-01T15:22:53.269Z"
+  }
+}

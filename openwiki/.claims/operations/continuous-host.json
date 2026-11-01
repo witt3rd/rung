@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:24e7c9c13bff83df9079facda8e61452cfd1651b2e30c751933664d57417d49c",
+  "claims": [
+    {
+      "id": "claim_c6273d74423642c3bd275b3e4a686965",
+      "statement": "`rung-host run --config` uses a typed startup ladder: configuration is parsed with unknown fields refused and named environment variables resolved before listing; model listing occurs before record opening, then the state lock is acquired and the record is opened/replayed before a host is handed to the Presence loop.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/startup.rs#L1-L22",
+          "version": "repo-lines-v1:sha256:6e2a2f6a83fe0c1bd1bfa1545342a045824a5d88c6713ee8d55d08be20b0f136:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZGI5ZmRhNjFiODI5MzNlN2M4Y2MzYTNmZDQxYWFhOWJiZDI2ZjRjNWE2M2M5OTE2NGQzYmVkZDkxZDRiYzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhODQ1NzAzNjg1NjllMTgxODdkN2FiYmQ5OWRiODk2Njg0OGMyOWI0YTFhNGEzMjQ2YjM2MTdhODg2ZGM4NTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljNjVhOWYzNGY2YTczYjU1ZmY0OTQ1MTg1MTEwMGYzNDMyMGQ3ZjIyNGEzYTNlNzQyNmYyOWI0OTgyM2YwODUifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/startup.rs#L340-L437",
+          "version": "repo-lines-v1:sha256:3e1289dc9860a53d2a637b34e58c5c76b49bcd1164c9f54f706795f551d22bfe:eyJzZWxlY3RlZExpbmVDb3VudCI6OTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2MDI5OTk3ZTY5YzY5NGM3NGFkNmUzOGZlZDYxNWZhMzgwNTEzMGNkZWJjNTllMDliMDE4MzBhNTFjN2I1N2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1Y2RlZjgwODVhZTc0YWI2MzZkNjQ1OWY1YzZkNWZiZmIwZGIyNjRmMWIwZDc1YmFjNTE5YzliM2Y2NzE3YWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk0YWY5NWE0YWY1OTdjMmViZWJmY2U2ODFhYzUxODM2YjVmYTllMjNlNDc5NTA3ZDc2Zjg1NWRkYzExYTFiNzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU2N2VmNGU5MDljNzYyMzI4MDlhOTgxZmQ4YzVkNjQwYWZiZmVjNzZlZWU5YTgzOGUxNjdhYjgyMDg4ZDgxODUifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/startup.rs#L606-L716",
+          "version": "repo-lines-v1:sha256:b130c1a8e4ff52512fb7b1de2921ad36a110b06246c0dc3894c2b1d887e6782f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTExLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJhMTRhYjM0YWM1ZWNlNzExNjgzODJmNzY0ZWEwOGFjMDQ3MmM4NzI1NTQwOTliYjMwN2Y3ODEwNDRmOGY5MjgzIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJmNGQ2OTkwN2ZmYzZiYmFkNDg3ZDQzNzkzOWM4NDg4NDQ4M2I3MDVjMmQ0Y2M5MTFhZjY2MzlmYTlmZTAwYzg4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI0MDY0MmU5NWZhYTIwMGRiYTBkNjRkYzEwNTgxOWM1OGJjY2RhNTIyMDcwZjc4NDI1NTAxMTUzOGU4N2M1OTI2In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_b4756b26a4c1467586db734d134aa87a",
+      "statement": "A config-file host defaults to 30-minute idle mode when `idle_time_s` is absent, while `idle_time_s: 0` selects continuous mode; direct `HostConfig` construction defaults to a zero idle duration unless set.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/core.rs#L101-L125",
+          "version": "repo-lines-v1:sha256:e13ba6f1124da7992a92098c86e8c6e7bd640d66152c1a5365d505ac8770cd93:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2NDA1MWZmZWY5NjkzM2JjZTZiODA2NDRjMDIyNzkzYTdlMWJjNzYzZjYwOTcxZWJhYmY3NTZmNDZjMWUyYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMyZDZiMWFkNTgzYmVmOWI0NGU0NjExODgzMGM1MmNkMWQ4MWRhNzBiNzI5NzFkMTQ3MzQ4ZTNiY2U0NjNiZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjNDdmNjJhYWJlODc0OGQ5M2YwNTlmMzZiMzg5ZDRmMjBkNzRmNjRjMzg2NWQ3ZTlhNzlhYTVlNmEyZTNkYmYifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/core.rs#L53-L54",
+          "version": "repo-lines-v1:sha256:b4a0f7bc252e2032f0ea0e69581886f89b095ccac0ffb25338acbf7155c45f4c:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDcxM2I0NTY5YWM5OTBkYTVjNDAzYzgxNzk1MjYwOTZjOWFjYWJjODEzOTM5NzJkYzM5YjhiMTg4MmI2MTc4NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTAxYTY4NWVlMTJmNGUwMjkxZjdjY2IzZjJhOTc5M2QyZGNmY2E1NzllOGJkNWRhOTZhNzE5NjNkNjM5OWM2NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTllNzYzNTVjZjExOTk0ODBjM2Y5OTgzNmIxNDg2Yzg0MWQ4OTFmYWFkOTA0YzYwOGUwOTMwMjJkMzc1N2FlZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmZjYWQ2YjYxYzAzMzIzYTRkMDk1OGZiZTFlNGRiYjBkMDhhNDZjYzhkNjk4OTdhYjczMDZmYTRiYzEzZTc2ZiJ9"
+        },
+        {
+          "resource": "repo://rung-host/src/core.rs#L81-L85",
+          "version": "repo-lines-v1:sha256:48baa1df41d14f1ec1cef047effcfd560202f263fc9577ae77f2db7e0230b12c:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2VhYmI4ZDNmZjRhOGM2NjE0NWZmZjUyNGU2NmVlZTc3Nzg5MTM4ZDQ0MWYxODc5Nzg0OTg3Njc4ZDc4ZGI3MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWJkZGEyNGQwNzMzODY0YTRhYzA2OWQwY2RjYjU5NzMzNGMxNmNiMTI1MTBmYjdlYzExYTZmYThhZmI0NGI1NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWE4MmI5NmZmZWI0N2I1MzlkMmJiYmU2YTU5NzM0ZjA0YWI2MmMxOWY3ZTNjY2NlNDQ3YTU5YTNiZjNkZTkzOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjIzMzM3NGMzZTE2OTNmZDliODE3NWE0MjE0NDFlZjFlNTVhYmM1YzI0ODgwYWU5YmFlY2JmNGQ1NDkyMTJkNiJ9"
+        },
+        {
+          "resource": "repo://rung-host/src/startup.rs#L174-L177",
+          "version": "repo-lines-v1:sha256:f01e658dd0953808e41d082950f68967cae9571518b7b4a94085fad9e8d142c9:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzAyOGY5Yjk4MDk0ZTBmZTY3ODE0NWZmMTZmYjdmM2NkZDIzOGMzMjdkMmNlYWJkOTgwYzIxNzRlYWNlZTJiMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTRhZDdhOWMxMzQxMmZjMzFjM2VmYmZhZWExNzg2YjdiYjYxNTgwMjUyZTBmODA4OGE0NjRiNWI4ZDdjYmZjYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODMwYzQ1ZjFkZjc2ODhkNzMyOTJlNTg5ZmE2MDNhZTQwYjllMDBkZDhlNjM1NTE0MGRhNmFmY2Y3YWY1ZWVhMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDNkOWRlZWE4ODk4YjBjNWQyZGYwMDc2OWM2ZThiYjdkNTQ3N2ZiNjBhYTMxNTg0ZTZlMzg5Yjc0MGIxMjJlNSJ9"
+        },
+        {
+          "resource": "repo://rung-host/src/startup.rs#L381-L385",
+          "version": "repo-lines-v1:sha256:9ba88c7135aeb9587e684dc9a9e90f22677b192ab98d0df201d8200214869faa:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2MyM2NjMWEwZjA1YzlkNTg2ODIzN2NkNDE3NTExMmRkZjBjN2E1MzE1NmFjNGI0M2M3OTcwZTMxNjk1NzRhYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWQ5ZTEyNTQ2NDI1NTc2ZDNkZWFlOGM5YjlkYmYxMjhkNWQ2ZGRhZjVkN2ZlODU3OTM0OTI3ZGVmZmEzYjlkZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTY1ZWM0OGQxNWYwYTZkMDM3OTVjNzdmOGJlZDQ1YzRmYzA2MTMyODI3NjBlYTA4MDMxODUyNTY5MjBkNDYyZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmU5MzA2MDg3MjQyMDhiYjQxYTgxMjBmZTA0MTQ2NDAyOTIwZWM5Mjg1YjBjMmNiYmYxMzAzNzk0OWM5YjMzYSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_47a9a2699c244c6c8f03e631e23df8f9",
+      "statement": "At each Presence boundary the host checks stopping/limits, records the boundary, polls stimuli, processes calendar and expectations, updates ladder state, then either rests, decides/admit work, waits under the governor, or runs one turn.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/presence.rs#L736-L795",
+          "version": "repo-lines-v1:sha256:6d5713f07c0f142507ab9cdb75cb2ac6764709fca8e21f6447dc2709207f7568:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkzNWEyMmZhYmM3Y2Q2MzVkNmRhNDlkMDNlNzI1MzlhYjFmZWEwMDdhNjgxMTVhYzc2ZjNlYzI4MGE5NjZiMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkxM2JlMDZlNDM4ZDI1MmE1YjQ4NDYxZDJmYTIxMjBjZWNmNmZiYzlkZjEyZGVmOGEzODRkNjQzNmU1ZmJhOGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlkNGExMjU1MWViYzJhOWRhYjE5YmI4ODAzYmRkYjliZjFiOWVmYmUxYWE2YmRkMWQzNjZhYWY1MzljOWU5ZmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_977e98babdcc4536ba0a7141f95c2820",
+      "statement": "Idle mode rests only after its owed pass is complete and no item is pending or in flight; it records idle state, polls only stop and stimulus wake conditions, and records the wake cause without running a boundary, turn, or request during the rest.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/presence.rs#L797-L867",
+          "version": "repo-lines-v1:sha256:1ebc540e45741edde34f64999e7acb58b716610a72aad7f970b70430a0396a27:eyJzZWxlY3RlZExpbmVDb3VudCI6NzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEyN2RkZTA0OGEzMjJjZTZmNTZhNDY5OGMyYzZkYzBhODcwYTUxYWQ0ZTcwNWYxNmMwN2ZmNTEzZGUwY2JjM2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0MWFiZDM5MDI3ZDU1NWFiYjRlMzFiYjcyMGY5OWI4MTJjZjE5NTU2Mzk2ZDkxODFmOGUzMjAwNTlkODdmZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjViZmQ4NWM0MTMyZTU5ZjRkY2RhZjlmNjZkNzQ4NmEwMjRmNWM3NDBjZTMwYTk5NzllMmQ3M2NiYWU3YWQ2MDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiNzFlZmUwOGRlMmNkYzM4NWYyNmJkNzdmYTlkZDhkY2FiOTYwNWE5MTc0MGQ1M2U3MTRiNGUyNmYwZGQwMjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_540e498ee49746428df6257a4b7087e4",
+      "statement": "The agent adapter runs `rung-agent-core::Engine` using the host-owned thread and toolset, sends the ladder-selected model with epoch session/cache metadata, and records per-call served usage; provider versus platform 429 classification determines whether a model step-down is appropriate.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/adapter.rs#L1-L26",
+          "version": "repo-lines-v1:sha256:0ae81c0ebee0825f852d787b33ed8a14626eb5a57c9509e58128161ae830afad:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3N2ZiMzJlOTc5YjI4MDM2NDFjMjA3MjhhOTg1N2ZjZjM4MzY0ZWYxYjljZjEwOWQ0Njk1ZDEzY2Q1ZTBlN2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3MTJkMjY0YTk4YjZjNjA0MDYxNWI1MTMyMGQ3NWRjNWZlMTkwNjNlYTJhYTg2ODI3YTA5MGUzZjdiNDI1YjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYxYzgwMWIzNzgyOWFmZDQwZmQyOTI2YWViM2MxMGVlMjZkY2Y4YWZkYWQ2ZDMxMzRhNWRkMzk4NzUwZDI5ZTMifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/adapter.rs#L122-L170",
+          "version": "repo-lines-v1:sha256:f6bb75247e1cee3ea48925d88edc2ef5c289c9dc78da4b282567e3b6da9cba3f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3ZTFiNmI1MWQwYzYwZGI4ZTFlMjg4NTM0NDgzYTIxNmUyMDkyMGMxYzM1OGVmNDVlMjRmMjE0MDEzMjcxMjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5YjE5ODJlOGRkNzQ4MTE4MTQ2YjM5YTJkMDA2MmY0MDgxZTM0Nzc5Yjg2NzVjMjM0YzRmYjEyNGRjMzkzOTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/adapter.rs#L501-L565",
+          "version": "repo-lines-v1:sha256:6a9cfb1e798bb346b9675c6bf34acda028884805d748a6b09ec33c42a021e224:eyJzZWxlY3RlZExpbmVDb3VudCI6NjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJlMDQyNTdjY2ZjZTJiNTc0YjEzZWUzNTQxMWFlNGI4MTEzOGVkMTIxZGMyYmJjNjk2M2JhZDlhNDgwMjQ2OGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2OTdjYmQ4Yzk2MzI0MTliZjRkMDk5OWFmYWY2YmRjNjhjZGFhOTM4NDBkYWQ5NDcxZDgwNWUzYWVmNzg0MmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE1MjE2MDRiMzVmYzQwYWYwMGNiYTRlZWEyZmQ1ZTJjM2FmMTg2M2IzOTExODVkN2JmNGJiMDllNzJkMGM4YjMifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/adapter.rs#L51-L97",
+          "version": "repo-lines-v1:sha256:071d665e84394c13715440cc49f5b726bcd80e9caec14844702af9312c994203:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExOTdjZTUxYWNmYzRjZDAyOWI0NjViZTViOTNhOTFjNDFhYjY4ZTI3MTQ5NTI4MDdmMjBjMTU5YzlhNmQ2YWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA3MThjMTk3YjFmZTIyNWU4NDcyNjAxY2JkY2VmY2RkYWM2OGRhNmFhNjJkYzU4MTc5YjA2M2I0MTNlMjBkYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzMzA2OGRjYWVkYTUwOTNjMDRiM2EwMjRiMDY2NGYzOGM2ZDk5MDNlOTUxMTQ1NTM2Y2E5OWNlOTY0MTk0NmUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_371f41daa3ae42d9942ac098b5b152ad",
+      "statement": "The model ladder filters configured rungs by listing, expiry, free pricing, tool support, and endpoint availability; failed listings preserve previous verdicts and retry, while provider failures can step down and platform quota failures wait without a step-down.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/governor.rs#L312-L410",
+          "version": "repo-lines-v1:sha256:450e8488fd1e2c463ef76715c9a44e54921e6e4b17b12b0e352f848313a2313e:eyJzZWxlY3RlZExpbmVDb3VudCI6OTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJiOTQyZDcxZjdiZWE2MjMxZjQ1YjA3YTRhMDIyMDlkZTJjMDYzNDhlNjkzOWFmNTMxNWQ3YjYzNTI5MGViNmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQyMTFhODkzNjE4YmMzNzlkM2NmNTFjNWYyY2RhMzUzMzRmNjljZGRjYmM2MzRlYTMyZWJmZTJlYzk4N2E0MjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVlYWM5YjU5OTE5NTQ0MGIxM2U2NTYyYTc1Nzk2ZDI0ZTQ2ZDNhNmExZGU2ZTFiODc1ZGU4NDBhNWZiM2M0N2IifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/governor.rs#L413-L435",
+          "version": "repo-lines-v1:sha256:84596e8304da752d607b56aee949e996e6d40fbba3704481eb98c2ae1335f181:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1ZDE2MDU1YTc1MDY1OTYwZWY2NGE5MzI0Zjg3N2ZiYzFkNjAzZWNiMDFhYzk2NTM3Y2Y1N2U1NjY0NzAwNTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYyNjFjMjY4MWFiNWU1ZGQ1MDM3ZmE2ZDI2ZmJkMzk0MWM3ZDdlNTJiY2VmZTMzZWY2MTQ0YjcxNjFiNGMwNDcifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/ladder.rs#L1-L20",
+          "version": "repo-lines-v1:sha256:6bf7e9add2ed79f74b36a0b047d1022ee9702072eeae218c8a938a46e0ebc238:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ4MDUxYWZmNzA0NmU2YjVmOGIzNjRmY2JiNDRmM2M0NTI5NDQyMWE1ODNiYmEwMTM4NGU2ODg3NTRmOTYyYWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1YTBmZTcwMDUzODU3YjczYTdlZDc0ZTYwNDM1ZTA4MTRiMjQ0YzVhMDU3MjE3NjRkNDg2MDY2NDc4ZDc4NzAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdlNmE1YTExOTgyYTBiYmFlNzRmMjUzYjA3ODgwNTVlOTYzMTk0OTIzYjg2ZmRiODkzMjNmZGQzNTBmOTE3NTcifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/ladder.rs#L280-L329",
+          "version": "repo-lines-v1:sha256:ca7d54dec63f53fce035a147cd9e164576d886ccedd377b646da7633dec617fa:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkNGI0ODI4YWYyMWZjNzUxOGNhNTRlMGNiNzZkNDIyMmNkNjY3Y2ZkMzZmOWQ4ZTI0MjM5MjJmODZkZDliNTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwNjNjNGQxYWY4Y2Q4OWJiMGJkZDc2NTdmZmNiZjY4MDZhNjEwZDc5ZDZjOGQ0YzMwN2MyNDFkZjM5MDA1MjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE1MjE2MDRiMzVmYzQwYWYwMGNiYTRlZWEyZmQ1ZTJjM2FmMTg2M2IzOTExODVkN2JmNGJiMDllNzJkMGM4YjMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ecc5a403010944979a76c7245daaa297",
+      "statement": "A stimulus is accepted at most once through an atomic seen-ID check and is fsynced before source acknowledgement; queue state is a non-writing record fold over acceptance, admission, requeue, disposal, movement, and latest admission-decision events.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/presence.rs#L870-L910",
+          "version": "repo-lines-v1:sha256:3070fca68b6c98affe2a262f68f10e994c750873d643c9ba1decc1e8e830fcc5:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxYjg0YTk3YTNhYTk2NTQwYjUwZDE4NGEyZWM1Mjk0MWY0YWNjODI4YzZhZjllZDk3MmZlNWVmMzIyMzVlMjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhMTAzMjkxYjhhZTk0NmUzYzg0N2YzNDI0MWU0NzkxYjk1YzliNmRkYTdlMzgyZTdkNzg2OGZkY2EyMTc1MGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjViZmQ4NWM0MTMyZTU5ZjRkY2RhZjlmNjZkNzQ4NmEwMjRmNWM3NDBjZTMwYTk5NzllMmQ3M2NiYWU3YWQ2MDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyYjE5YTllZmE4MDk1ZDM0YTUwODExMmQxMDI4ZTM2NjI2Mjc1OTdhNTVlM2YyZmFlNTMzYjc2ZDJmYjVlODAifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/queue.rs#L1-L18",
+          "version": "repo-lines-v1:sha256:10b985c4265af6092603f2b5003a5f7bde94eee2188d744f478a7986ece3baa6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVlYzFmMDlmOTU5Njg5YmY4NTZlZWU1YzZiYmIzZTAwN2YwNTdhZDY2YmExODI1OTQwN2UzYzYzMDdlYzlhMTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhZjc2NzIxM2JmYWU4YTU2OGFkZmJhZjg4N2RkNmJhOTQ4ZWY0NDU2N2U1ZjIzNjRhNjlhZTc3ZjczNTM0OGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4NzkxZGQzM2QwMzIzOTQ5YTE1OWNhNTU5NDgzYzQ4MDUxNGI1NGVjYWM0MDRjMTVlNGI5MjllNWY1OTUxZTUifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/queue.rs#L128-L234",
+          "version": "repo-lines-v1:sha256:b1697605102b9c06f9ad8e7a75f102f3ddaab962a9596b6a030d43e5618557fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJkY2Q3ZTNmMTJjMDkzNDY5MjdjNDkxZDg1MjM3NzEyMmNiYTFhZjQxZTdhODdmY2ZkZmM5ODcwOGY3MjU4MzA0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOWU3NjM1NWNmMTE5OTQ4MGMzZjk5ODM2YjE0ODZjODQxZDg5MWZhYWQ5MDRjNjA4ZTA5MzAyMmQzNzU3YWVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3OTA3MGFiZTRjMGMxODI0MDIxOWU3ZjQ1MmUzZjFhYTEyMTQxYTU3OWJhZWNiMzI4MDQwYzZkZWFkZTNhMGUwIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_a337b74aab064dcead68866bb71fd8e1",
+      "statement": "The record is canonical append-only segmented NDJSON; opening truncates only an incomplete final line, and generic append refuses authority-bearing `kernel.commit`, `kernel.release`, and `expectation.settled` kinds, which must use sealed entries.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/record.rs#L1-L19",
+          "version": "repo-lines-v1:sha256:dc35e1f7b4b298fdfa58a4d727d13bd64a414249359f7459e37a01bc8330f1c0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYwMmVkMWNjMDQ3N2I0MmYzMmVjZGNiZWI3Nzk0MmRlN2Y2ODMxNjhjMDFkOGQ4YjYyZjU3OWIyZWEyNjU5NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjczZWNhNmUzNjc3YTBiZjQxMDc2NmU2NmZhMDU4YWY4ZGRmZmQwYWM2NjA3MWRkNWQ1NDUxMGU0NjIzOTMwNWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ4MzNkNjEzYzFhNDNjZTU0MzBiNTc5Nzc4Nzg4Y2YxMGZkMTFiZDI5MTZiOWZmMWUwMDZkZDQ2YmJhZjNjZDMifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/record.rs#L229-L279",
+          "version": "repo-lines-v1:sha256:dd2cadfd598eb07aff9cfbb5842e962874ecb7d10065cc1f6a301e0af6273956:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhYjNhNDFlODE4NTc0Yjg1ZDA2N2QyOGNhMDVkZDA2ZDk5YWI1N2VmY2Y3MTNhMTVkN2Q3NmUwZmEyN2IyY2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1ZjZmNDY2ZTU5Y2ZjMzA3MDNjNDVmNzJhZjY1ZGU1NGFjMzYzZDM1NGNjMWEzMzMwMzUwYWNkNDUyNDM0YzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNjZGVhMmJiN2MwODZhYzdhNDgyZDQzNjVhNDAzZjk1MmVkZWQxOGViMzJmMjY3OGY2YWIzY2NjYjA4ODk3MGYifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/record.rs#L390-L430",
+          "version": "repo-lines-v1:sha256:5f465ad2a8583c33a6e9b3906e49889a749fd2f510629e17884e04a73b5a134d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0YmFlNGM3ZTE2MGYzMzAzMGY4OWNhMjRmOWZmYzQ4NTMyNjRmOGJkZDFhYmE0YTM1YWU5YmE4ZDRkMDExOWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU0YTgyNDg5YTBmNWQ2YmU1NTRhYTI3NTZkZGZkYWY0MjgzNjMyMWI5NmJlYzQ1MzZjMWFjZTFlMDFmMjFkNzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMyNDQ0MGQwMGVjZWI5ZDJiY2E2MDY1NjI5ZTdhNTliNzA1NGUwZTA1ZGU1ODc2ZWQ2MTM1YWQ4YTY4MmE0NmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIwZGUzNmVhOTI3MjY2NzFiNjIxNGQzNTczODA3ZGY2MmI3YjljNDU1MmQyNWMyYjE2YWM2NmQwMjAwNmFhYTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_275356fff2c64a00af7f0e5a53c0ebd3",
+      "statement": "Live state changes only by append-and-apply under the Core state lock, and replay applies the same ordered lines to reconstruct deterministic state; `turn.ended` can carry the pre-ending projection hash for replay verification.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/core.rs#L1-L6",
+          "version": "repo-lines-v1:sha256:96cc7152886417f4312262a1733ce642be9f1708f658b0b405687848988c53de:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDNhZDBmN2FjZGIzODk0ZmIxYTM5NmE3ZjE4Y2FlZmZlZjcxMDhmOTUwNzA1ZTRhNjI4MWE1ODZmOWQ0ZGUzMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzNjZjYzMzM4OTllNGVlMDNmNzAzMTExN2I2NzNiMGQzMDQ4NGE0MWU0YWIxZDJiMjYxODBkMWY0YWQ0ZDgyYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjNkZDRmMDU1NjdmMDJjOWZiZWI5Y2JiNjYzOGFiMjc2MzI3ZjZlZGZmMDM1ODNiNWFiNTgwZjBjMWMxZTRhMSJ9"
+        },
+        {
+          "resource": "repo://rung-host/src/core.rs#L185-L270",
+          "version": "repo-lines-v1:sha256:4d946faddd8ef0bcb7f1699af53907e3bb873151280bb941782c794fa06c52cd:eyJzZWxlY3RlZExpbmVDb3VudCI6ODYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0MzU1NzE5NzM0NjcwNDQ0MjZhOTJhYjFhYTg1M2I5NzI2Yjg3ODkzMzhkMGI4YTU5NTgyZjVkNDE4MzFjYzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2ZmI1M2E3ZjM0ZTcwMzAwZjVmYWNjNDYyYjUzYWMzZjg3NzQ2N2RjZDg2YzVmODM2YjhkZDM2NTRiNDUwMTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWJkZWZlZWFjYTYzNDBlMDI5MGRjODZlODg5Yzg5ZDVlMTg5YWE1YmE0NGI1ODViM2I3MDczNGY0YTYyZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxODM0M2I0NzUyN2JhMjEyZWUzYzk5MTA5ZmNmYTBjMDQ1ZDUzOTY4ZWIyMWI1ZmU5MDgzYWFhMzRhZjc1MmEifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/state.rs#L1-L6",
+          "version": "repo-lines-v1:sha256:e1b8cf85f49f0cac2e4166920892d707baeb3d04f994dc030f79c57b38c5a9aa:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWE3ZDhlMWY2N2QyMDA4N2M2YWI2Njg1NDM2NzE3YzA1NmRkZGU2MDM5Mzc0YTE2M2I0MzdhNzk0MTYzMGI4NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTIxOWMzOGI2ZjdmNjJmY2JmOGQ1ZjNiMGFmZDM4NjhjY2YxMWZhYTQ5MjM4MzA5ZTUxYzRmYjE0Yzc5ZmZmNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGNiNzUyOTcyOThhMTllYzgzOTRiOGI4MzJiODU1ODgxMDYyNDkyODZhMjBmOGYxMzFmMzVkYzZlM2ExYWQ2ZiJ9"
+        },
+        {
+          "resource": "repo://rung-host/src/state.rs#L129-L180",
+          "version": "repo-lines-v1:sha256:5d44faabeefd73b50c52139ef3bd4346af3009ee6add51c6b59b44da056c9010:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3YzlmOTk5ZmVmNjYyNmQ0MzYwNGMzNDg4MjFmMWVhYjIxNGFkOWQ4N2I4ZWU4Njc0ZmNkZTdiYTVlY2M0YjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ1M2JlM2JlYjE1MGZkZmE2OGFhODJiNGMxNTEwNWY3ZTE5NjNiM2NmODM3Njc3ZWUxYjI3MzE3MjI3N2M1OGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_289ffe0ee81848909995552ebd9b48fd",
+      "statement": "On restart the host emits recovery metadata, requeues stimuli still in flight as interrupted by restart, clears an interrupted degraded wait, and starts a new epoch; StopAuthority accepts signals, stop-file detection, and explicit requests, and is polled at boundaries and waits.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/presence.rs#L651-L720",
+          "version": "repo-lines-v1:sha256:fb55dfaad5cc3c4270a068ae38f507adc5caa1cccae8afc14a24989b46a30160:eyJzZWxlY3RlZExpbmVDb3VudCI6NzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjZjBlN2QwOWZlOTM3ZTk5N2U4NDRjN2JlNDgyNzdhNmI4Y2JkNDNmMmNkODVmMmRlOTNiNDNlNjVhMDAyZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyMjEyYmY1MzdlMTZmZTZjOTI3MmE2Zjk2ZTMyM2FmNWE5ZTdmNjU1MjE5ODk5NjAyYmQ2NmNjM2Q4NmMzYTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBmOTZiM2Y3ZTM5N2JmNTk1YmE4NzRkYzJmYWMxYTUzY2QzZjJhNmJjMjMxMTVlNTczNmRhNDhhNGRmNGI2M2UifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/stop.rs#L1-L9",
+          "version": "repo-lines-v1:sha256:376e3879b583f5337921c8a246090b289927ad0e169f8e769da47f8ba2de8369:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGYyZmRlYTQ3NWM3ZDkxYjIzZDlhYzViOTdjNjIyZjdhYzA0NzRhYjJhYTljMGNlMDFkMTNlY2M1ZGM0ZTYwOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2ZmOGY1NWI4ZGFmYjdiYmIxZDNmYmI3OTU1ODE4ZTAwNDRlMWFmZTUzMjA1OTJhNTAyZDEwMGRiZDlkZjNjMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDFhYjM5MjY3MzA4NTlhYzc3NTUwYTIyNDVhMjY3MjVlZDVhYzNmZGFmODE3MjlhMzU4NTFhYTAwNzQyZTg4ZCJ9"
+        },
+        {
+          "resource": "repo://rung-host/src/stop.rs#L53-L113",
+          "version": "repo-lines-v1:sha256:119a4f0aa9158b6d58bff6a751ffcad5532c88628f75c4a6533b6c0609b1799d:eyJzZWxlY3RlZExpbmVDb3VudCI6NjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMWMxNmI2NDRhYjYzZTI0NTNlOTNkMDZlNTFhMTI3ZmQ5ZjQ0ODgxZDVmZDlhNjAyMjlhYWYxY2M1Y2I4YWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTc2MzU1Y2YxMTk5NDgwYzNmOTk4MzZiMTQ4NmM4NDFkODkxZmFhZDkwNGM2MDhlMDkzMDIyZDM3NTdhZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fcc7b76e77e54a87b85e1c2a061de669",
+      "statement": "Focused tests cover the adapter against a loopback provider, durable queue acknowledgement through a spawned host, and simulated abrupt restarts that check no stimulus loss/duplication and replay consistency.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/tests/gate_engine.rs#L1-L4",
+          "version": "repo-lines-v1:sha256:3bccb3860dd695854cb6a8199559c8639f61cbd44117965152dd583e3030564a:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjY5M2FmZjJjZGFlZWFiMTY3MDVlMWI2NGEyNjMyZGM0MDk0M2I1ZGRmZjFkMjE3YzQzNzFhMmRlMWIxYjg2ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTM4ZTgyNjkyYWRlZjczNmE5YzEzNjRhMjkyMmZhNjdjZDRmNWMzNzRiMGMyMDIyMDAxNDdhYmJhYWJlMDZhYSJ9"
+        },
+        {
+          "resource": "repo://rung-host/tests/gate_engine.rs#L83-L171",
+          "version": "repo-lines-v1:sha256:2a20e5c7271b89b67afb7288b615dff2541cfbb65ca3c738bdcef09cc3e7e17b:eyJzZWxlY3RlZExpbmVDb3VudCI6ODksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmZTA2MDM5YTA3ODI1MzliNDNkMTY5NzdmMmJkN2U3ZTRiN2QzNjE4YTc3MTZkYWQwNThlNWFkYWQxMDI3ZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI0ZDY5MzJlNDc4MzMwOTU4ZmI4OWFiZDE3Y2ZjMmJmODJlZTNlYmZiOWFhN2MwMjJiNjQ5NjgxYmIxODI3N2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdmOWFkNDYzYmU3MWM1ZjQyMDk0NmFmYmYwN2QwZmU5ZjVmMTFkYTgyZjFlOTQ5MDNjYzMzOTVkOGMxYTBiMzgifQ"
+        },
+        {
+          "resource": "repo://rung-host/tests/queue_door.rs#L1-L4",
+          "version": "repo-lines-v1:sha256:493c55ab4921a5d20e8f7f6fb946f881cbaa9ff08f06e913c18853da66d3ebb7:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjJjM2MzMGI2MDU1YjYxYzI1NTAzMGNhNmZkYjNjZjk1OGNhZDFjNDEwNTliZmZjZTc3OTM1OTRmY2ZhMTYwNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWM5NjYzYjg1NzJjYTI5NjNlZjA2NDMwMTIzZGYxYTg1ZDc2YWIzZWMzYjg1MjE3MzQ4NzkyN2MwMjEyOGRiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGI3ZjZiNmY2YTIzZmI2MjE3OWI2NDEwYWM2ZmU4ZDg3MGMyZTI5Mzg0NDNjYjYwZGM1NmY2MTYxODI4NGRiNSJ9"
+        },
+        {
+          "resource": "repo://rung-host/tests/queue_door.rs#L148-L160",
+          "version": "repo-lines-v1:sha256:1e424a086ee9f4213d50449a4cb764a622b20d81150f994ef6dbcd2bda8f522f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwN2VmYjAwNDc1YTNkZmE5MzczM2ZkYTNlMjgyNzQ5Yjk0YTZlODQ4Zjc4Yzk0YmM5N2RjNWNmZmMwZmYwMTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ4ODU5MjEwZWJjYjEyY2Y2OGM2MTYyMjJmYzU2MGMxZjY4ZTJmYTMxZjYzMDQ5M2RmODA5NTg4ODdkNTdhZjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4YThiOWY3NzY5NzY4ZGRjYzI0OGVlN2JhYTgzODFhM2UxZTVhZWQ1MGMwZDI3NjU3YzljMmFjNWFhZDQ3ZjIifQ"
+        },
+        {
+          "resource": "repo://rung-host/tests/soak_restarts.rs#L1-L5",
+          "version": "repo-lines-v1:sha256:956a330889bb4a5f7ff95f33e554f928af7d4eecd08eb65a0516ba2ed6c23644:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzRjYjU3ODEzY2MzYjZkYzQ2NTEzZGEyYWU3YzQ4MjFlZDk1MDdlZTQ0OWFiY2Q4MTMyMjg0NzI2NDRhNzkzOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTc3OWI1Y2I2ZmQzNmYxNDJhMmEzYzg0NTEwNmEyYmEzYjBhNDY0YmMzOWIxZGQ0NDg4MDI5ZTNhMTQ5ZmRmYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDdkNDE2OTA0OWQzZmM5NzIwMTkzOTM0NWM0OGE3MjE5YWU3NzQ1MGJhYzhkOTI5N2RhNmVlZWU2YjY4YTVhZiJ9"
+        },
+        {
+          "resource": "repo://rung-host/tests/soak_restarts.rs#L98-L159",
+          "version": "repo-lines-v1:sha256:d9c70cc6689147521a787d2ee2e8c8542ba92454f37533661ebbea35399c481a:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyY2Q0ZGI0OGEzNTBlOGYwYjQ3OTQ0YzQ2ZTNmZmRiYmExMzJkMjI5MGE5MWQ3MDEyYjU2ZWI0NmM4YWI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJmOGIyYTAyMGQ5OTY3MTJhNDA5MDRiMDM3MTk1ODkxNWE1NTk5NzEyMjRiYzk0M2MwMzdkNTMzYzI4YWU4M2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc4NDk4NGNjNWI2OTIxM2U3ZjRmMGY2MDZjNTQwMjkyM2IwNzUxYWIxNzVlN2Q1NDliODdkNjZlNGIxMTIxZmUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-11-01T15:22:53.269Z"
+  }
+}

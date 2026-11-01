@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:9002b6ec4c01d52948aa1d93138e0126c99b5a546913bb13468e2af41a8f0d53",
+  "claims": [
+    {
+      "id": "claim_a98b7fb16f874deabfb6b23d99772ab1",
+      "statement": "The workspace separates a reusable type-state kernel from product crates: `rung-macro` implements the proc macro, `rung` supplies runtime types and re-exports `ladder!`, while agent, memory, host, and gateway concerns are workspace product members.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L55-L71",
+          "version": "repo-lines-v1:sha256:d419aba91ef9b5539931ac68dcfcbf486b90faed8762220f4c976f0fd6f97cff:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwYWVhZDI2NTEzNjljMDdkMzAwYTJmMDc3YmY1MzA0NzQ4MWNhZjdmNmJmNzBjYmEwMmNkZDhiYWI4ZTMzMTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YzA2YzU2MWQ1YzMyNzM0MzY4NTI2OGE0NmIzMzkxZjM5OThlZWU4OTBkMmJlNTFmMGQyMWNjNGE1M2FlNmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhYWNhNGRhOTdkNDFjNDc1NzA3ODhjZjg2MDhlY2QxY2UzNTE0OWQ5MzBkYWUwZGJmYWVhZmRmNjFmMGZmZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIyODE4NGY2MTEyY2FmYjQ1YWE1ZjYyYjZhNzU0OTU2Nzg5ZGQ0ZWQ4YzYzY2ZhMmNjYjA0MzNmZjBlOTU5MmEifQ"
+        },
+        {
+          "resource": "repo://Cargo.toml#L1-L16",
+          "version": "repo-lines-v1:sha256:a7dcbe419ef59dbe93336c96691efbd6d910e0e4828b669043b0ed7bee334884:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNGUxMDJjODYxZjk5NGQyYWFjZTkxMTRkMzkyZGJjMTYyMTkwZTAwYmU4ZmUzNTdkNDcyMTUwY2E0Mzk2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyNzYwMGM0YzEzNThlMDhmNmRlNDQwMjRlNDViNjNhMDUyZTdiYjMwOGUzMzVhMzJhOTdmOWU3YmJkMzdiZWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljOTcxZjdkYjllZTNlMDA1MWUwMjUyOTc2YzgwNDRmNjRkODYwN2Q5MDg5MzFhN2NkMGI4MzU0ZmRhMWYwMjkifQ"
+        },
+        {
+          "resource": "repo://rung/src/lib.rs#L1-L5",
+          "version": "repo-lines-v1:sha256:821e105fe410252b95576b9565d3d94149477b87b59cc40a65fe524fb1c2ee6c:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzgzZmRhZTI3ZmFhYzNiOTc1MzBjYzg5YWExYzc3ZWViOTFiODljYzllMmZlMjE1OGJlMGE0MTQ3NjhmMDc5OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTFhNDViZTIwZDQ5YWVjZWNkZGUyOWJmZTZjYjllMWRiNzE4MmFiNDBjN2I3MTZkMDA3MjY1NmYxYzdhYTcwZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzQ0MjdmYzk4ZGRlMWRlMjg1ZjNhZmJjMzM4M2EwMDVmYzQwNmIzMTg1YTQ0YWI0YmI1OThkNWYzMGVkYzFlNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_a032b8c1635f486783b68e81579014b5",
+      "statement": "The kernel is required to remain consumer-neutral: consumer-specific names, types, IDs, environment variables, and dependencies belong in adapters or product crates rather than the standalone harness.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L32-L37",
+          "version": "repo-lines-v1:sha256:ed0fd5f74763ad404499d958d1d5f78783249f5f5b20f310b3e0a7da1aeea8bc:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjJkZDcyYTE0YWU4YTdkZTllMjg4MjE4NDZmMzg2YzQ3ODUwYzI5NTA3ZDczZWY1OGI3MmFmOTA2ZDE3ZDcwNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzBhZDJmZTc2M2JhM2I5MmJjNmFlODJiMTMxYjY1MzYxY2FmYzM0MjNlNDRlMTM5NjlkOWFjMzY5ZjBiM2FlNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmFmMGRiN2NlYWI0ZGEwZDdiM2ZiZTc2M2RmMjcyYjY0OTczNDE0ODZmMmZkYTMxNjE2ZjE1MzY0Y2Q2NGFmYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjJmYTU3ZTQxMGFhMjFmMTkyNDdlODJiMjM3YTQ0MjNiZjA4NGFhOTE2NjAxM2ZjZjlmMDdhNDFmMzFlZjY3NCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_edb87b9225ce49859eba996896e6a0a2",
+      "statement": "`rung-agent-core` is the embeddable agent library; its `Engine` runs one caller-assembled turn without session-store side effects, while `run::run_job` performs CLI-oriented session load, thread assembly, turn execution, and save.",
+      "evidence": [
+        {
+          "resource": "repo://rung-agent-core/src/lib.rs#L1-L12",
+          "version": "repo-lines-v1:sha256:da6b97f72784664d3b60158adbb61179daa9315d809644eb368b9622898d6e7a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhOGYwNDk3MzM5ODY0NmU1YjAzZGM0MWFkZWRlNTdjNjRjZTIwZjZmYWVjYzQ1Yzk0MDg5YmI5MmFiN2Y2OTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxNjM5MWE4N2I2MjU1OTU5MjI0MGVmY2Q0N2I1MDIxMmY0Mzc3MDNjYzAxMGQ5ZTdmMTI0Nzc0NzUwZWNjMGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIwMmNlNDgxODlhYmY2YjE3YzUzM2ZkZjBlZjNkNzEzOTBmNWU1Zjk4MThjY2U1YWE5ZjVjYTc3ZTI5NWUzMGEifQ"
+        },
+        {
+          "resource": "repo://rung-agent-core/src/lib.rs#L43-L68",
+          "version": "repo-lines-v1:sha256:146f6c05f25c909408104e9ad32f7a41e0d15c75354846e6e9dba6df0ce59616:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1YmFkMDYxOWNjMzM3OTMwNDBhZTBmZjhkOGQ4MTJlYTg2ODFkNmZmODQzNDAzNDllOGRlNjQwMWFhNjQ3MWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMwNjA4MGQyM2MzNWEwYTY4YmRkYmUzYjI4MDI4MzFjNWNlYjk4ZGY3OTA2NjBhZDJlMjc5MDBhZWFjZGVkMTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVkYTRjOGRlM2M0ZTM3ZmE2ZmUwNWM3NGE2ODA2MzlhZTA3NzkxZTFhYmEwZTI3OTA1YmUxYTI5MTg2ZTY5NWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_225f0ff00dbb40b19161a66ab41b96d8",
+      "statement": "`rung-host` owns the continuous-host concerns around an agent turn—stimuli/inbox, calendar, record/state, decisions, context, memory, governance, and stop—and imports the agent core turn engine as a library rather than the agent binary.",
+      "evidence": [
+        {
+          "resource": "repo://rung-host/src/lib.rs#L1-L10",
+          "version": "repo-lines-v1:sha256:1079f8dfe6529f4923deba394b748d020e8cce649e449f4245e8804bebe96597:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4Njc1MDEyYmRjZmE3NzA5YzM0NTQ2MDA2YTJlZGU3MGU2YzcxNDBkZDlhMDA4NTFjZWU0MWY5OGMwZWZiOGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3NjY0ZTBjOGU1NTgyYTAyMWM2MTZkZDkwNTBjY2E3YTkyNDRiNTI3NTdiNzBmMzFmMGQ5MjRkOGNiODg1ZGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEyNDljZDMxMDU5M2I5NmFiYTAyNmQ4ZDQyN2U5MWY1N2QwMDIwZTVmNTZiZDJlMzZkYWYzZWY4NGVlMmEwZWUifQ"
+        },
+        {
+          "resource": "repo://rung-host/src/lib.rs#L12-L44",
+          "version": "repo-lines-v1:sha256:8cd30a3963f1c6c045f8e283b8c13301f469d82b0144da82936927975b2909b9:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1YmFkMDYxOWNjMzM3OTMwNDBhZTBmZjhkOGQ4MTJlYTg2ODFkNmZmODQzNDAzNDllOGRlNjQwMWFhNjQ3MWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5NmYzZWQ2NjIxZGM5NDNhZTM0Y2M5YTJkNjhiNjYzOWVhMWY0ZDgzMzQ0YzUwOWY5ZmNhNjgyMjRiZjhjZGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBhY2I0ODY1ZTVhZWVmMjRjZGEyNzIwYTNjNjIzNWU0ZmNkMzIyMWZmMTZhYzM1ZGJjOTQyMGJjZTJmOWM1YjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7cd0400f1aa846459dfe004aa470744a",
+      "statement": "`rung-gateway` is a single HTTP listener in front of hosts: it serves the UI, lists instances, proxies instance `/v1` doors while adding retained instance keys, streams responses unchanged, and limits a read-only token to read access.",
+      "evidence": [
+        {
+          "resource": "repo://rung-gateway/src/lib.rs#L1-L19",
+          "version": "repo-lines-v1:sha256:819b8b0afe9997646c72cc58a940f8b321ae5f6ed300a239446747ab3ad98535:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4ZjlkNTczNDdlYzE2MTdiZGRkZDQwNTAyMjI0MTM3NzEyMTljOTg1ZDYwNWFlZTZiMmYxMmMyNGE5MzgxOTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0MDEwMzY2Y2EyNDBhM2UzMDJhNjQ2ODE3OTNlMmE0OTBiOGRkNmNlN2IxMjE0OTIwMzgzODM0OGRkMzM0OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQxMmQ4ODRiZDBhNjI0MTIwMjk3YjBjYWJhMzlmN2JjZWViYjk3YTEzYWNhOTNkMTBkODkwMjU3YzZlOTdlOTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_64e94b99ce1e448d9a3ec9bf21ec1b13",
+      "statement": "The observer UI is a separate, unpublished npm/TypeScript deliverable for watching, queueing, and configuring continuous hosts; it has its own test/build/contract commands and uses gateway health to select live versus recorded data.",
+      "evidence": [
+        {
+          "resource": "repo://ui/README.md#L1-L19",
+          "version": "repo-lines-v1:sha256:f43210cd3019116b7ee342afcb1d3a1b5c8a06eda730f5d706ef511e9f35a35d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZDYyNmFiZTkxZjgxNzdjNDAxZjYwZmI1YTBiZTk3MGMwNDdhZTBhYWFkNzE1M2M5OGUyOTAwYzY4MGNlNDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5M2FhOTRjM2ZiYWZjMzM5ZDIxYzJlOGI2M2MxMzU1YWY1ODcwMjVhNWNmZTlmZmU2Njk2ZjRlNjg5ZTY2OTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI3OTJjNjc1ZjljNjc0Y2E5MGE2NDVjMjU0ZDk3N2UyNjgzNzk3ZGM1MGJmNDkxYTIyNjcxMmMyNjhhYWUyNmQifQ"
+        },
+        {
+          "resource": "repo://ui/README.md#L21-L41",
+          "version": "repo-lines-v1:sha256:0df50d5e1c7c497a91289e4950da298c0713f6a418490e74b8a3255644e6adc5:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5YmQyNjNkM2ZhYTJjZTVmZmY1Y2E5YjdkMzM4YmI2YTA2NDFjYmY5MWMzMDUyMzk3Mzg2NzAzMDFhZDBmZDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxNTM5NWViYjFiNmM5OGU4YWY4Y2EzY2YwYjUzM2E2MmYyYzllY2NlMjRhMjA3M2QwOWQyNDQyYjAzMTUxY2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJhZTA2YjgxZmE4MjE2NGNmMTY0OTkyOTRhZWU4NmVlZTY2NjQ0YTNiOTRkOWY1OWI3NDNhNWU5OGRkM2NiYjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjViZTUxNTRmMWFiNjkxODQ5M2ZmYWU4YjU5Y2Q1OTBiMzM4NmNlZWUyZTBiZmU3NzI2ZjU3YjA5NjJhOGM2M2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f403d1e702684a98bff4558356b9b22e",
+      "statement": "Repository-level verification includes formatting, strict workspace clippy, workspace tests, generated-proposition rendering checks, proposition and consumer guards, record guards, and rustdoc warnings; credentials must not be committed and are referenced by environment-variable names.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L134-L150",
+          "version": "repo-lines-v1:sha256:3ee7699ad84b13545919124848273df7d0149e444b43e32e19626974e8b17156:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjNTZiMTdhNzg3YjUxYWEyMzI5NWQ1ODhkMDk4YzRmZTEwMzM5ZjQ5YmQxYjUyODNiN2EyZDg2M2RiMTgzNzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5NGMyODEzMzA5ZWZhNGE1ZDJkYTI0YzlkNDJhYzY4YjFkN2M5MGEyMmJlZjQ3MTZhNGExYTkyZDk1ZTIwZWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFjZTFkZjhhOGUxMWZmOWE5NTJlZGExNTNiZTI2OWU4MTI1Zjg2NDBiYzM2ZDM1OGVmMDY0ZGMxNGIzYTFmOWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk2NTIyZGRiMWZjOGQwZmNhNDMwZmE3YTkxZjA0MDRlNDQyNzNhNTRlNjdkYjViNTlhNjk5Nzk0ZmM4NDdkZTYifQ"
+        },
+        {
+          "resource": "repo://AGENTS.md#L237-L247",
+          "version": "repo-lines-v1:sha256:43272118b67b77887c4aaa6259d5fa01e33450ce5e48286df65ae1c204a7a996:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmZmI4NjNiYmI4M2U2Y2FhOGI0OWY1NjI4MGViMGI4YTM1ODE3MTQ2NTQ4NjQ3MDc0MmIzY2EzZTAxNmMyOTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNkZjRhMzE1MjdmMTNmMzEyNDNhYTJjYWYzZjAxN2ZhMjc2MDVjMWM0OGMyN2RmMmM1MzJiYTBmMzRmOTkwNzAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRhNGU3ZTU0ZjBhMGI5OWRjOGM4YTc4ZmQxODM2MTVkOWE5MGQzYjRkNWEwOTA5ODE2ZWMzYjNkZDY0MzI1ODUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjNWYyNWMwZDMwZTNiNzhlM2RhODliODZlYmE3YjhhY2JkMzJlZDUwZDQ2YWEyMGJlNjZjMzYyYzhjMmMwOTkifQ"
+        },
+        {
+          "resource": "repo://AGENTS.md#L29-L36",
+          "version": "repo-lines-v1:sha256:54cbf50a78d8bc61530273cbf1f74d085ed12c98ebf2988ba682536113126f68:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTQ4NWZmMzNlOTllZGRhNzI3MzFlMDBiMTA4MWZkMDY3NjlkMmMyYmYzMWQyZjJjNjEwMjU4YjgyNDEwYjc1ZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjFlOThkMGM5MjZhNGZhZjJhNjAzZjE2OGQ2MGQ0YjQ2NjhiNmMzNmQwMDliZWMwNWNkYzAxMDEzMjRjYjhmMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGJjOTRhZjMyMzdkNTAzMGJlNjkxYWY4ODFhZTYwODEyNTczMzI3YjNjMmY4NGU5MGNkNzc1ZThlNmU4OTg3YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYWU0YzYyMmI4YmFmMmY0NWE1ZWNjM2VkM2M0ZmQzMWZkNWQyNTI1ZWMwNDhkY2M2NzI1NThmOTY0YzBmNjhiNiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-11-01T15:22:53.269Z"
+  }
+}
