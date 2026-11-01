@@ -21,10 +21,10 @@ inbox admits external completion items).
 - **Idle time** — how long the host may rest between wakes, a setting.
   Idle time 0 means the host never rests.
 - **Continuous mode** — idle time 0, set explicitly. It has no idle time to
-  wait out: after every turn the next boundary begins. This is what the
-  shipped code does.
+  wait out: after every turn the next boundary begins.
 - **Idle mode** — idle time above 0. The host really idles (no boundary, no
-  turn) until its next wake. **SPECIFIED, NOT BUILT.**
+  turn) until its next wake. A config file that names no idle time gets
+  idle mode with the default below.
 - **Scheduled wake** — the time the idle host wakes on its own. With idle
   mode on and no other idle time set, the specified default is 30 minutes (per instance).
 - **Queue arrival** — an item reaching an inbound queue (stimulus source).
@@ -37,12 +37,12 @@ inbox admits external completion items).
 Waking(Recovered) => Boundary(Edge) => { Again -> Boundary | Halted(Why) }
 ```
 
-In continuous mode (idle time 0, the shipped behaviour) there is no
+In continuous mode (idle time 0) there is no
 resting rung. After every turn the next boundary begins. The
 only waits are ones the world imposes (provider backoff, a quota, a
 blocked credential), and each is recorded as `degraded`, never as rest.
 
-**Idle mode (SPECIFIED, NOT BUILT).** With idle time above 0 the loop gains
+**Idle mode.** With idle time above 0 the loop gains
 a resting state, `Idle(until)`, after a boundary has nothing left to do. The
 host stays there until the first of: a scheduled wake (at most idle time
 away; the specified default is 30 minutes), or a queue
@@ -82,7 +82,7 @@ explicit stop. A boundary:
 
 Free time is the default mode in continuous mode: whenever nothing is
 admitted and nothing is committed, the next turn is free time. In idle mode
-(SPECIFIED, NOT BUILT) free time is not endless: it is one pass per wake
+free time is not endless: it is one pass per wake
 (a scheduled wake, or after a queue drain), and the host then rests. A free-time turn shows the agent its own
 material — todo items, projects, open questions, open expectations,
 integrity facts, recent traces — in creation order, never ranked. The
@@ -250,6 +250,7 @@ listing: true                        # list at start and every 6 h (default for 
 probe: true                          # with each listing, one keyed probe per standing rung (default with listing)
 quota: { rpd: 1000, rpm: 20 }        # optional
 memory: true                         # baseline memory under the state dir (default on)
+idle_time_s: 1800                    # idle time: seconds the host may rest between wakes; 0 is continuous (default 1800, idle mode)
 web: true                            # wire the live whole-page web_fetch (group web_read); default false: every fetch is refused. It fetches any address it is given; it is not a security boundary
 web_spill_bytes: 32768               # a fetched page of at least this many bytes is saved whole to .web/ in the workspace and the agent told where (default 32768); a context-budget setting, not a limit on what can be fetched
 acp: { http: "127.0.0.1:7878", tokens: { owner: RUNG_HOST_OWNER_TOKEN } }   # or { stdio: owner }
@@ -446,7 +447,7 @@ drift mid-session. The evidence is in `docs/records/rung-host/live-v4-hostkey.md
 
 Pacing and idle are different waits. A governor wait (`paced`, `quota`,
 `backoff`, `blocked`) is imposed by the world and recorded `degraded`; an
-idle wait (idle mode, SPECIFIED, NOT BUILT) is the host's own choice and is
+idle wait (idle mode) is the host's own choice and is
 recorded as idle, never `degraded`. An idle host spends no requests.
 
 - **Pacer**: a daily request quota (`rpd`), a per-minute limit (`rpm`), a
@@ -614,6 +615,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `epoch.rollover` / `pack.swap` | `from`, `to`, `cause`, `by`, `kept`, `tokens_before`, `l1`, `gap_ms`; a rollover also has `l_hash` and `slow`, the epoch layer whole (redacted); a swap has `from`, `to`, `cause` |
 | `pack.layers` | `cause` (`start`, `swap`), `s_hash`, `tools` (the tool definitions, whole), `system` (the system text, whole): written once at each start and each swap, redacted |
 | `copy.guard` / `copy.loop` | the copy guard's flag; the intervention |
+| `idle` / `idle.ended` | `idle`: `until` (the scheduled wake), `idle_time_ms`, `boundary`; `idle.ended`: `cause` (`scheduled`, `arrival`, `stop`), `waited_ms`. Between the two the host runs no boundary, no turn and no model call; a rest is never `degraded` |
 | `halted` | `why` |
 
 ## Gates
@@ -624,7 +626,7 @@ free.
 
 | id | measure | pass when |
 |---|---|---|
-| G-a no rest (idle time 0 only; idle mode, SPECIFIED, NOT BUILT, is exempt and needs its own gate) | 30 min, no stimuli, no quota pressure | idle wall time outside turns (excluding declared `degraded`) ≤ 2%; boundary → next turn p99 ≤ 50 ms; every boundary has `decision.*` lines |
+| G-a no rest (idle time 0 only; idle mode is exempt and has its own tests, `idle_mode`) | 30 min, no stimuli, no quota pressure | idle wall time outside turns (excluding declared `degraded`) ≤ 2%; boundary → next turn p99 ≤ 50 ms; every boundary has `decision.*` lines |
 | G-b responsiveness | owner stimuli under load | admission p95 ≤ p95 turn + 100 ms; no turn past its bound; scripted long work refused with the commit-or-steps message |
 | G-c free-time kernel | 2,000 scripted turns | no admitted item and no commitment → free turn, 100%; after `commit`, committed until `release` (interruptions return); material order identical under 100 random register scores; no `kernel.commit`/`kernel.release` except from the agent's tools or the owner's release (trybuild) |
 | G-d schedule | due and missed items | each due item fired at the first boundary after due, once, lateness recorded; items missed during downtime fired once; firm items admitted at that boundary regardless of the decider |
@@ -687,9 +689,29 @@ The measured results of the first gate run (2026-10-04, slice 1) are a record:
 
 ## Idle mode: decisions
 
-Idle mode is specified, not built. The owner's decisions (a stop interrupts a
-sleeping host at once; idle time is a per-instance setting; the default is 30
-minutes and continuous is idle time 0, set explicitly) are stated once, as
-claims, in [`rung-host-idle-props.md`](rung-host-idle-props.md); each is `owed`
-until the change that builds idle mode adds its test. **Specified, not built:**
-the code as shipped today still runs continuously (idle time 0) until then.
+Idle mode is built (the display of a resting host in the instance listing and
+the gateway is not yet). The owner's decisions (a stop interrupts a sleeping
+host at once; idle time is a per-instance setting; the default is 30 minutes
+and continuous is idle time 0, set explicitly) are stated once, as claims, in
+[`rung-host-idle-props.md`](rung-host-idle-props.md).
+
+How the loop does it (`rung-host/src/presence.rs`):
+
+- Idle time is `idle_time_s` in the config file (0 is continuous; absent is 30
+  minutes) and `HostConfig::idle_time_ms` in code (0 unless set).
+- A boundary that finds nothing waiting, after the host has taken its
+  free-time pass since it last woke or took an item, rests. The `idle` line
+  names the scheduled wake: idle time from now, or earlier when a calendar
+  item is due, an expectation can be settled (just after its due time), or the
+  run limit ends.
+- The rest polls the stimulus sources and the stop authority and nothing
+  else. A queue arrival (an item pending after a poll) ends it at once, and
+  so does the stop authority; the `idle.ended` line says which (`arrival`,
+  `stop`, or `scheduled`).
+- After any wake one free-time pass is owed. A turn that took an item (an
+  answer, or a digest line) is the queue draining and leaves it owed; a turn
+  that took none is the pass. Start is a wake: a fresh host takes one pass,
+  then rests. A committed turn is such a turn too, so a host committed to a
+  project takes its pass as a committed turn.
+- A world-imposed wait (backoff, quota, a blocked key) is still `degraded`
+  and is never a rest; an idle host spends no requests.

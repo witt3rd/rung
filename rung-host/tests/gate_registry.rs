@@ -275,7 +275,7 @@ fn run_registers_from_its_config_and_an_empty_registry_lists_nothing() {
     std::fs::write(
         &cfg,
         format!(
-            "name: Deep Thought\nstate: {}\nworkspace: {}\nengine:\n  kind: mock\nmemory: false\n",
+            "name: Deep Thought\nstate: {}\nworkspace: {}\nengine:\n  kind: mock\nmemory: false\nidle_time_s: 0\n",
             state.display(),
             workspace.display()
         ),
@@ -360,7 +360,7 @@ fn a_registry_refusal_creates_nothing_else() {
     std::fs::write(
         &cfg,
         format!(
-            "name: alpha\nstate: {}\ninbox: {}\nengine:\n  kind: mock\nmemory: false\n",
+            "name: alpha\nstate: {}\ninbox: {}\nengine:\n  kind: mock\nmemory: false\nidle_time_s: 0\n",
             f.state("b").display(),
             inbox.display()
         ),

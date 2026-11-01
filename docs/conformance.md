@@ -704,28 +704,28 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-host-idle-props.md`
 
-**Counts.** 1 decidable · 11 owed · 1 signature · 13 total.
+**Counts.** 10 decidable · 2 owed · 1 signature · 13 total.
 
 ### The setting
 
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
 | [1](rung-host-idle-props.md#idle-time-is-a-per-instance-setting) | `idle-time-is-a-per-instance-setting` | `signature` | — | — |
-| [1.1](rung-host-idle-props.md#idle-time-defaults-to-thirty-minutes) | `idle-time-defaults-to-thirty-minutes` | `owed` | Start the binary on a configuration without the key and read the idle time the `host.start` line recorded; start another with idle time 0 and read 0. | **owed** — untested — a start from a configuration file that names no idle time records an idle time of 30 minutes |
+| [1.1](rung-host-idle-props.md#idle-time-defaults-to-thirty-minutes) | `idle-time-defaults-to-thirty-minutes` | `decidable` | Start the binary on a configuration without the key and read the idle time the `host.start` line recorded (30 minutes) and the first `idle` line's wake; `idle_time_zero_in_a_config_is_continuous` starts another with idle time 0 and reads 0 and no idle line. | `rung-host/tests/idle_mode.rs::a_config_without_idle_time_rests_for_thirty_minutes_and_a_stop_file_ends_it` |
 | [1.2](rung-host-idle-props.md#idle-time-zero-never-rests) | `idle-time-zero-never-rests` | `decidable` | G-a (30 simulated minutes, no stimuli) already measures idle wall time outside turns, with idle time 0, at 2% or less. It stays as it is. | `rung-host/tests/gate_time.rs::thirty_quiet_minutes_have_no_rest` |
 
 ### Resting and waking
 
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
-| [2](rung-host-idle-props.md#an-idle-host-really-rests) | `an-idle-host-really-rests` | `owed` | A simulated clock and a scripted queue: let the host rest across many idle times and count the record's boundaries, turns and `llm.call` lines inside each rest. | **owed** — unimplemented — a fake-clock test over an empty queue: from the moment the host rests until its wake, the record gains no boundary, no turn and no model call |
-| [2.1](rung-host-idle-props.md#a-rest-ends-at-the-first-wake) | `a-rest-ends-at-the-first-wake` | `owed` | Three runs on a simulated clock, one per cause, each asserting the cause the ending line records. | **owed** — unimplemented — a fake-clock test: a rest ends at the earliest of the scheduled wake, a queue arrival and the stop authority, and the record says which |
-| [2.11](rung-host-idle-props.md#the-scheduled-wake-is-within-idle-time) | `the-scheduled-wake-is-within-idle-time` | `owed` | A simulated clock with an empty queue and a calendar entry due before the idle time ends: the rest ends at the entry, not at the idle time. | **owed** — unimplemented — a fake-clock test that no rest is longer than idle time, and that a rest ends no later than the next due calendar item |
-| [2.12](rung-host-idle-props.md#an-arrival-wakes-at-once) | `an-arrival-wakes-at-once` | `owed` | A fake queue that delivers an item part-way through a rest on a simulated clock: the rest ends at the arrival's time. | **owed** — unimplemented — a fake-queue test: an item arriving mid-rest ends the rest at the next wake poll, not at the scheduled wake |
-| [2.13](rung-host-idle-props.md#the-stop-authority-interrupts-a-rest) | `the-stop-authority-interrupts-a-rest` | `owed` | On a simulated clock, a stop raised mid-rest ends it at that moment and the record's last line is `halted`; on the real clock, SIGTERM and the stop file halt a resting binary within the stop gate's bound (G-h). | **owed** — unimplemented — a test that a stop raised mid-rest halts the host within one wake poll, and a process test (SIGTERM, stop file) within the stop gate's bound |
-| [2.2](rung-host-idle-props.md#an-arrival-drains-then-one-free-time-pass) | `an-arrival-drains-then-one-free-time-pass` | `owed` | A fake queue with several items, one of them arriving mid-drain: the turn kinds between the two rests are all responding, then exactly one free. | **owed** — unimplemented — a fake-queue test: after an arrival the host answers every waiting item through ordinary boundaries, takes exactly one free-time pass, and rests |
-| [2.3](rung-host-idle-props.md#a-scheduled-wake-is-one-free-time-pass) | `a-scheduled-wake-is-one-free-time-pass` | `owed` | A simulated clock over several idle times with an empty queue: between consecutive rests there is exactly one turn, of kind free, and the gaps are the idle time. | **owed** — unimplemented — a fake-clock test: at the scheduled wake with an empty queue the host takes exactly one free-time pass, then rests |
-| [2.4](rung-host-idle-props.md#a-rest-is-not-degraded) | `a-rest-is-not-degraded` | `owed` | Two scripted runs on a simulated clock, one resting and one in provider backoff, comparing the record's line kinds. | **owed** — unimplemented — a test that a rest writes idle lines and no `degraded` line, and that a world-imposed wait still writes `degraded` and no idle line |
+| [2](rung-host-idle-props.md#an-idle-host-really-rests) | `an-idle-host-really-rests` | `decidable` | A simulated clock over three hours with an empty queue: inside each rest the record holds no boundary, no turn, no model call and no degraded line, and the fold of the record equals the live state. | `rung-host/tests/idle_mode.rs::an_idle_host_rests_and_a_scheduled_wake_is_one_free_pass` |
+| [2.1](rung-host-idle-props.md#a-rest-ends-at-the-first-wake) | `a-rest-ends-at-the-first-wake` | `decidable` | Each cause is asserted by a test of its own, on the line that ends the rest: `scheduled` (the rest test), `arrival` (this test), `stop` (the stop test). | `rung-host/tests/idle_mode.rs::an_arrival_wakes_at_once_drains_the_queue_then_one_free_pass` |
+| [2.11](rung-host-idle-props.md#the-scheduled-wake-is-within-idle-time) | `the-scheduled-wake-is-within-idle-time` | `decidable` | The rest test computes each wake from the fold (idle time, the next due calendar item, an open expectation, the run limit) and compares it with the idle line; this test adds a calendar entry due before the idle time ends: the rest ends at the entry and the item fires at that boundary. | `rung-host/tests/idle_mode.rs::a_due_calendar_item_ends_a_rest_and_is_answered_before_the_pass` |
+| [2.12](rung-host-idle-props.md#an-arrival-wakes-at-once) | `an-arrival-wakes-at-once` | `decidable` | A fake queue delivers an owner item mid-rest on a simulated clock: the rest ends at the arrival's time, well before the scheduled wake, and the item is accepted (on the record) before the next boundary. | `rung-host/tests/idle_mode.rs::an_arrival_wakes_at_once_drains_the_queue_then_one_free_pass` |
+| [2.13](rung-host-idle-props.md#the-stop-authority-interrupts-a-rest) | `the-stop-authority-interrupts-a-rest` | `decidable` | On a simulated clock a stop raised mid-rest ends it at that moment (the `halted` line's time is the stop's, not the scheduled wake's) with no boundary or turn after; on the real clock the stop file and SIGTERM each halt a resting binary within a fraction of the idle time (`a_config_without_idle_time_rests_for_thirty_minutes_and_a_stop_file_ends_it`, `sigterm_ends_a_rest_at_once`). | `rung-host/tests/idle_mode.rs::a_stop_mid_rest_halts_at_once` |
+| [2.2](rung-host-idle-props.md#an-arrival-drains-then-one-free-time-pass) | `an-arrival-drains-then-one-free-time-pass` | `decidable` | A fake queue with two owner items, the second arriving while the first is answered: both are disposed, the turns between the two rests end with exactly one free-time pass (a free turn that took no item), and the next rest is idle time after that pass. | `rung-host/tests/idle_mode.rs::an_arrival_wakes_at_once_drains_the_queue_then_one_free_pass` |
+| [2.3](rung-host-idle-props.md#a-scheduled-wake-is-one-free-time-pass) | `a-scheduled-wake-is-one-free-time-pass` | `decidable` | A simulated clock over several idle times: between consecutive rests there is exactly one free-time pass, last in the stretch (an item the agent scheduled for itself is drained first), and the first pass is at the start. | `rung-host/tests/idle_mode.rs::an_idle_host_rests_and_a_scheduled_wake_is_one_free_pass` |
+| [2.4](rung-host-idle-props.md#a-rest-is-not-degraded) | `a-rest-is-not-degraded` | `decidable` | A provider outage while an owner item waits: the wait is a `degraded` wait with no idle line inside it, no rest holds a `degraded` line, and the item is answered once the provider is back. | `rung-host/tests/idle_mode.rs::a_world_imposed_wait_is_degraded_and_never_a_rest` |
 
 ### Seeing it
 
@@ -740,9 +740,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 136 |
+| `decidable` | 145 |
 | `judgmental` | 47 |
-| `owed` | 45 |
+| `owed` | 36 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **455** |
@@ -760,8 +760,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 45 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 626 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 36 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 631 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1340,6 +1340,14 @@ look shorter than it is.
 - `g_d_holds_when_every_ask_times_out`
 - `only_the_host_settles_expectations_and_calibration_recomputes`
 - `owner_stimuli_under_load_are_admitted_at_the_next_boundary`
+
+**`rung-host/tests/idle_mode.rs`** — 5 unclaimed
+
+- `a_negative_idle_time_is_refused_naming_the_key`
+- `idle_time_zero_in_a_config_is_continuous`
+- `idle_time_zero_writes_no_idle_line`
+- `sigterm_ends_a_rest_at_once`
+- `the_fold_is_idle_from_the_idle_line_until_it_ends`
 
 **`rung-host/tests/intent_desk.rs`** — 8 unclaimed
 

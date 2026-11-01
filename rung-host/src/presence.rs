@@ -187,6 +187,11 @@ pub struct Host {
     live: Arc<crate::stream::LiveBus>,
     /// What request text passes through before it is recorded (S4).
     redactor: crate::redact::Redactor,
+    /// Idle mode: the wake the host is in has had its one free-time pass
+    /// (or answered nothing since). False at start, which is a wake, and
+    /// after any turn that answered an item; true after a turn that did
+    /// not. The host rests only once it is true (and nothing waits).
+    pass_done: Mutex<bool>,
 }
 
 /// What survives a host-made change, for the next call's expectation.
@@ -318,6 +323,7 @@ impl Host {
             live: b.live,
             redactor: b.redactor,
             desk_deadline: Mutex::new(Instant::now()),
+            pass_done: Mutex::new(false),
         });
         Ok((host, recovered))
     }
@@ -762,6 +768,9 @@ impl Host {
         self.settle();
         self.list_ladder();
         self.probe_up();
+        if self.rests_now() {
+            return self.rest(n);
+        }
         let (admit, inject, tools, kind) = self.decide(n, turn_next);
         // The governor: a world-imposed wait, never rest.
         let wait = {
@@ -774,9 +783,95 @@ impl Host {
         }
         let (now_items, digests) = self.admit(edge, &admit, turn_next);
         let note_line = self.consolidate_and_pack(n, turn_next, kind);
+        let took_items = !now_items.is_empty() || !digests.is_empty();
         self.turn(
             n, turn_next, kind, now_items, digests, inject, tools, note_line, started,
         );
+        // A turn that took an item (answered it, or showed it as a digest
+        // line) is the queue draining and leaves the free-time pass owed;
+        // any other turn is the pass.
+        *lock(&self.pass_done) = kind != TurnKind::Responding && !took_items;
+        Next::Again(Edge::mint(n + 1))
+    }
+
+    /// Idle mode: whether the host rests at this boundary. It does when idle
+    /// time is above 0, it has taken its free-time pass since it last woke
+    /// or answered, and nothing waits.
+    fn rests_now(&self) -> bool {
+        if self.cfg().idle_time_ms <= 0 || !*lock(&self.pass_done) {
+            return false;
+        }
+        let st = self.core.state();
+        st.inbox.pending.is_empty() && st.inbox.in_flight.is_empty()
+    }
+
+    /// Rest until the first of: the scheduled wake (idle time from now, and
+    /// no later than the next due calendar item or expectation, or the run
+    /// limit), a queue arrival, the stop authority. No boundary, no turn, no
+    /// request in between; the host polls only its wake conditions. The
+    /// rest is the host's own choice: recorded `idle`, never `degraded`.
+    /// Waking leaves a free-time pass owed.
+    fn rest(&self, n: u64) -> Next {
+        let core = &*self.core;
+        let start = core.now();
+        let (idle_ms, until) = {
+            let st = core.state();
+            let idle_ms = self.cfg().idle_time_ms;
+            let due = st.calendar.next_due().into_iter().filter(|d| *d > start);
+            let exp = st
+                .registers
+                .expectations
+                .values()
+                .filter(|e| e.state == ExpState::Open)
+                // a decidable check settles once `now` is past its due time
+                .map(|e| e.due.saturating_add(1))
+                .filter(|d| *d > start);
+            let until = due
+                .chain(exp)
+                .chain(self.limits.until.filter(|u| *u > start))
+                .fold(start.saturating_add(idle_ms), Millis::min);
+            (idle_ms, until)
+        };
+        core.emit(
+            "idle",
+            json!({"until": until, "idle_time_ms": idle_ms, "boundary": n}),
+        );
+        core.sync();
+        let next = || {
+            let src = lock(&self.sources);
+            let a = src.iter().filter_map(|s| s.next_at()).min();
+            let b = core.state().calendar.next_due();
+            match (a, b) {
+                (Some(x), Some(y)) => Some(x.min(y)),
+                (x, y) => x.or(y),
+            }
+        };
+        let cause = std::cell::Cell::new("scheduled");
+        let mut wake = |_now: Millis| {
+            core.notifier.alive();
+            if core.stop.raised() {
+                cause.set("stop");
+                return true;
+            }
+            self.poll_sources();
+            if core.stop.raised() {
+                cause.set("stop");
+                return true;
+            }
+            if !core.state().inbox.pending.is_empty() {
+                cause.set("arrival");
+                return true;
+            }
+            false
+        };
+        let _ = core.clock.wait(until, &next, &mut wake);
+        core.emit(
+            "idle.ended",
+            json!({"cause": cause.get(), "waited_ms": core.now() - start}),
+        );
+        core.sync();
+        *lock(&self.pass_done) = false;
+        // The next boundary checks the stop authority first.
         Next::Again(Edge::mint(n + 1))
     }
 

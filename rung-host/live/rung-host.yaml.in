@@ -26,6 +26,7 @@ ladder:                              # the operator's free ladder, best first; t
 listing: true
 quota: { rpd: 400, rpm: 20 }         # this run's share of the account's 1,000 free requests a day
 turn_bound_s: 240
+idle_time_s: 0                       # the live runs measure the continuous host
 memory: true
 seed_projects:
   - { id: anticipate, title: "A model of what the host will do next", why: "Seeded: predict your own host's mechanics from the record you can see." }

@@ -7,6 +7,19 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-host idle mode)
+- Idle mode: with idle time above 0 the host rests between wakes. It rests
+  (an `idle` line, then `idle.ended` with its cause) until the first of its
+  scheduled wake (idle time away, or earlier for a due calendar item or an
+  expectation to settle), a queue arrival, or the stop authority. After a wake
+  it drains the queue, takes one free-time pass, and rests again; a rest runs
+  no boundary, turn or model call and is never `degraded`. Idle time is
+  `idle_time_s` in a config file: 0 is continuous, absent is 30 minutes (a
+  change for configs that named none; the examples and the live config set 0).
+  `HostConfig::idle_time_ms` is 0 unless set. Nine props of
+  `docs/rung-host-idle-props.md` become decidable (`rung-host/tests/idle_mode.rs`);
+  the display of a resting host and a restart waking it stay owed.
+
 ### Added (rung-host idle mode props)
 - `docs/rung-host-idle-props.md`: the normative claims of rung-host idle mode
   (idle time per instance, 0 is continuous, default 30 minutes; rest until a

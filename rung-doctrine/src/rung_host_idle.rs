@@ -1,9 +1,9 @@
 //! The host's idle-mode doctrine, encoded.
 //!
-//! Written by hand, props first: idle mode is specified in `docs/rung-host.md`
-//! and not built, so a claim a machine will settle is [`Kind::Owed`] and names
-//! the form its proof will take. A proposition becomes [`Kind::Decidable`] in
-//! the change that adds its test. The markdown is rendered from this.
+//! Written by hand, props first: a claim a machine will settle is
+//! [`Kind::Owed`] and names the form its proof will take until the change that
+//! adds its test makes it [`Kind::Decidable`]. Two claims (the display of a
+//! resting host, and a restart waking it) are still owed. The markdown is rendered from this.
 
 use crate::{Doctrine, Element, Kind, Prop};
 
@@ -65,14 +65,14 @@ mode**; idle time above 0 is **idle mode**.
         Element::Prop(Prop {
             slug: "idle-time-defaults-to-thirty-minutes".into(),
             parent: Some("idle-time-is-a-per-instance-setting".into()),
-            kind: Kind::Owed { why: r#"untested — a start from a configuration file that names no idle time records an idle time of 30 minutes"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::a_config_without_idle_time_rests_for_thirty_minutes_and_a_stop_file_ends_it".into() },
             numbering: None,
             prose: r#"An instance started from a configuration file that names no idle time has an
 idle time of **30 minutes**. Continuous mode is chosen by setting idle time 0
 explicitly; it is never the result of leaving the setting out.
 
 "#.into(),
-            mechanism: r#"Start the binary on a configuration without the key and read the idle time the `host.start` line recorded; start another with idle time 0 and read 0."#.into(),
+            mechanism: r#"Start the binary on a configuration without the key and read the idle time the `host.start` line recorded (30 minutes) and the first `idle` line's wake; `idle_time_zero_in_a_config_is_continuous` starts another with idle time 0 and reads 0 and no idle line."#.into(),
         }),
         Element::Prop(Prop {
             slug: "idle-time-zero-never-rests".into(),
@@ -94,67 +94,67 @@ backoff, a quota) are recorded as degraded, never as rest.
         Element::Prop(Prop {
             slug: "an-idle-host-really-rests".into(),
             parent: None,
-            kind: Kind::Owed { why: r#"unimplemented — a fake-clock test over an empty queue: from the moment the host rests until its wake, the record gains no boundary, no turn and no model call"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::an_idle_host_rests_and_a_scheduled_wake_is_one_free_pass".into() },
             numbering: None,
             prose: r#"With idle time above 0, a host that has nothing left to do **rests**: from the
 record's idle line until the line that ends the rest it begins no boundary,
 runs no turn, spends no request, and polls nothing but its wake conditions.
 
 "#.into(),
-            mechanism: r#"A simulated clock and a scripted queue: let the host rest across many idle times and count the record's boundaries, turns and `llm.call` lines inside each rest."#.into(),
+            mechanism: r#"A simulated clock over three hours with an empty queue: inside each rest the record holds no boundary, no turn, no model call and no degraded line, and the fold of the record equals the live state."#.into(),
         }),
         Element::Prop(Prop {
             slug: "a-rest-ends-at-the-first-wake".into(),
             parent: Some("an-idle-host-really-rests".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a fake-clock test: a rest ends at the earliest of the scheduled wake, a queue arrival and the stop authority, and the record says which"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::an_arrival_wakes_at_once_drains_the_queue_then_one_free_pass".into() },
             numbering: None,
             prose: r#"A rest ends at the **first** of three things: the **scheduled wake**, a **queue
 arrival**, or the **stop authority**. The record's line that ends the rest names
 which.
 
 "#.into(),
-            mechanism: r#"Three runs on a simulated clock, one per cause, each asserting the cause the ending line records."#.into(),
+            mechanism: r#"Each cause is asserted by a test of its own, on the line that ends the rest: `scheduled` (the rest test), `arrival` (this test), `stop` (the stop test)."#.into(),
         }),
         Element::Prop(Prop {
             slug: "the-scheduled-wake-is-within-idle-time".into(),
             parent: Some("a-rest-ends-at-the-first-wake".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a fake-clock test that no rest is longer than idle time, and that a rest ends no later than the next due calendar item"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::a_due_calendar_item_ends_a_rest_and_is_answered_before_the_pass".into() },
             numbering: None,
             prose: r#"The scheduled wake is at most **idle time** after the rest began, and no later
 than the next due calendar item or expectation. A calendar item and an
 expectation therefore still fire at the first boundary after they are due.
 
 "#.into(),
-            mechanism: r#"A simulated clock with an empty queue and a calendar entry due before the idle time ends: the rest ends at the entry, not at the idle time."#.into(),
+            mechanism: r#"The rest test computes each wake from the fold (idle time, the next due calendar item, an open expectation, the run limit) and compares it with the idle line; this test adds a calendar entry due before the idle time ends: the rest ends at the entry and the item fires at that boundary."#.into(),
         }),
         Element::Prop(Prop {
             slug: "an-arrival-wakes-at-once".into(),
             parent: Some("a-rest-ends-at-the-first-wake".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a fake-queue test: an item arriving mid-rest ends the rest at the next wake poll, not at the scheduled wake"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::an_arrival_wakes_at_once_drains_the_queue_then_one_free_pass".into() },
             numbering: None,
             prose: r#"An item reaching an inbound queue while the host rests ends the rest at once,
 whatever the time of the scheduled wake. The item is on the record before
 anything else is.
 
 "#.into(),
-            mechanism: r#"A fake queue that delivers an item part-way through a rest on a simulated clock: the rest ends at the arrival's time."#.into(),
+            mechanism: r#"A fake queue delivers an owner item mid-rest on a simulated clock: the rest ends at the arrival's time, well before the scheduled wake, and the item is accepted (on the record) before the next boundary."#.into(),
         }),
         Element::Prop(Prop {
             slug: "the-stop-authority-interrupts-a-rest".into(),
             parent: Some("a-rest-ends-at-the-first-wake".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that a stop raised mid-rest halts the host within one wake poll, and a process test (SIGTERM, stop file) within the stop gate's bound"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::a_stop_mid_rest_halts_at_once".into() },
             numbering: None,
             prose: r#"The stop authority interrupts a resting host at once: a signal, a stop file or
 an explicit stop halts it within one wake poll, with the same `halted` line a
 running host writes, and no further turn runs. Rest never delays a stop.
 
 "#.into(),
-            mechanism: r#"On a simulated clock, a stop raised mid-rest ends it at that moment and the record's last line is `halted`; on the real clock, SIGTERM and the stop file halt a resting binary within the stop gate's bound (G-h)."#.into(),
+            mechanism: r#"On a simulated clock a stop raised mid-rest ends it at that moment (the `halted` line's time is the stop's, not the scheduled wake's) with no boundary or turn after; on the real clock the stop file and SIGTERM each halt a resting binary within a fraction of the idle time (`a_config_without_idle_time_rests_for_thirty_minutes_and_a_stop_file_ends_it`, `sigterm_ends_a_rest_at_once`)."#.into(),
         }),
         Element::Prop(Prop {
             slug: "an-arrival-drains-then-one-free-time-pass".into(),
             parent: Some("an-idle-host-really-rests".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a fake-queue test: after an arrival the host answers every waiting item through ordinary boundaries, takes exactly one free-time pass, and rests"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::an_arrival_wakes_at_once_drains_the_queue_then_one_free_pass".into() },
             numbering: None,
             prose: r#"On a queue arrival the host drains its queue through ordinary boundaries, then
 takes **one free-time pass**, then rests again. An item that arrives during the
@@ -162,31 +162,31 @@ drain or the pass is drained too, and a free-time pass follows the last answer
 given. The host never takes a second free-time pass in a row.
 
 "#.into(),
-            mechanism: r#"A fake queue with several items, one of them arriving mid-drain: the turn kinds between the two rests are all responding, then exactly one free."#.into(),
+            mechanism: r#"A fake queue with two owner items, the second arriving while the first is answered: both are disposed, the turns between the two rests end with exactly one free-time pass (a free turn that took no item), and the next rest is idle time after that pass."#.into(),
         }),
         Element::Prop(Prop {
             slug: "a-scheduled-wake-is-one-free-time-pass".into(),
             parent: Some("an-idle-host-really-rests".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a fake-clock test: at the scheduled wake with an empty queue the host takes exactly one free-time pass, then rests"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::an_idle_host_rests_and_a_scheduled_wake_is_one_free_pass".into() },
             numbering: None,
             prose: r#"At the scheduled wake the host takes **one free-time pass**, then rests again.
 An idle host thus takes a free-time pass at least every idle time, and between
 passes runs only on arrivals.
 
 "#.into(),
-            mechanism: r#"A simulated clock over several idle times with an empty queue: between consecutive rests there is exactly one turn, of kind free, and the gaps are the idle time."#.into(),
+            mechanism: r#"A simulated clock over several idle times: between consecutive rests there is exactly one free-time pass, last in the stretch (an item the agent scheduled for itself is drained first), and the first pass is at the start."#.into(),
         }),
         Element::Prop(Prop {
             slug: "a-rest-is-not-degraded".into(),
             parent: Some("an-idle-host-really-rests".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that a rest writes idle lines and no `degraded` line, and that a world-imposed wait still writes `degraded` and no idle line"#.into() },
+            kind: Kind::Decidable { proof: "rung-host/tests/idle_mode.rs::a_world_imposed_wait_is_degraded_and_never_a_rest".into() },
             numbering: None,
             prose: r#"A rest is the host's own choice and is recorded as idle, never as `degraded`.
 A wait the world imposes (backoff, quota, a blocked credential) is still
 `degraded`, and is never recorded as rest.
 
 "#.into(),
-            mechanism: r#"Two scripted runs on a simulated clock, one resting and one in provider backoff, comparing the record's line kinds."#.into(),
+            mechanism: r#"A provider outage while an owner item waits: the wait is a `degraded` wait with no idle line inside it, no rest holds a `degraded` line, and the item is answered once the provider is back."#.into(),
         }),
         Element::Verbatim(r#"---
 
