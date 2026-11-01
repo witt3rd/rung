@@ -2,7 +2,7 @@
 name: rung
 description: >
   Lived experience for the rung repo. Load when working in ~/src/witt3rd/rung
-  (or a worktree): house git (trunk path: ephemeral worktree, merge queue),
+  (or a worktree): house git (trunk path: ephemeral worktree, PR with auto-merge),
   CI, proposition citations, kernel vs product. Not the ladder
   language itself — that is AGENTS.md + docs/.
 metadata:
@@ -21,9 +21,10 @@ handoff.
 House `fleet_git`; AGENTS.md House git is authoritative. Work in an
 ephemeral worktree cut from a fresh `origin/master`, 45 minute limit (else
 stop, log, split). Verify narrowly locally, rebase on fresh `origin/master`,
-push a short-lived branch and enqueue it in the merge queue. No long-lived
-branches.
-Merge method squash, through the queue (full CI about 11 minutes). Never `git add -A`.
+push a short-lived branch, open the PR and enable auto-merge
+(`gh pr merge --auto --squash`); it lands on green `check` with the branch up
+to date. There is no merge queue (user-owned repo). No long-lived branches.
+Merge method squash (full CI about 11 minutes). Never `git add -A`.
 
 Task isolation worktrees (`{repo}.wt/rung-task--{id}`, branch `rung-task/{id}`)
 are product, not `git-wt-new`. Do not use `git-wt-new` for those.

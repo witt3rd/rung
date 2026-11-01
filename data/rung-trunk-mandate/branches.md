@@ -24,3 +24,12 @@ Proposed DELETE list (four names): `fm/rung-nocaps-p7`, `fm/rung-nocaps-p7b`,
 `s2-archive` names say archive; their content is on master, so the branches add
 nothing. `fm/rung-trunk-mandate` was removed by the merge of #357.
 The open-PR branches shrink as the other mate merges them.
+
+## Update 2026-11-02
+
+Owner confirmed the DELETE list; the four branches are deleted (commit ids and
+proof lines: `deleted-branches.md`). `fm/rung-idle-mode-display`,
+`spire/b1a816c679f0` and `spire/bf17754cce70` were merged by another mate and
+are gone from the remote. Remaining: the open-PR branches `fm/rung-docs-s1`,
+`fm/rung-fleet-r2`, `fm/rung-fleet-r2-receipts`, and `spire/698612cbd7e0`
+(kept: unlanded Continuum config).

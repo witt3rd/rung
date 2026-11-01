@@ -192,7 +192,7 @@ fn main() {
 }
 ```
 
-Required CI check is `check`. Merge method: squash, through the merge queue. Release: bump the
+Required CI check is `check`. Merge method: squash, by auto-merge (there is no merge queue). Release: bump the
 workspace version in `Cargo.toml`, commit, then tag `vX.Y.Z` to match
 (procedure: `skills/rung/SKILL.md`).
 
@@ -213,26 +213,38 @@ never `git add -A`.
 3. Verify locally and narrowly (the tests that touch your change; CI runs
    the rest).
 4. Rebase on a fresh `origin/master`, push a short-lived branch, open the PR
-   and enqueue it in the merge queue.
-5. The queue tests the change on top of master (`merge_group` runs the same
-   `ci.yml` jobs; required check: `check`), lands it on green and ejects it
-   on red. On red, a fixer agent is spawned with the logs.
+   and enable auto-merge (`gh pr merge --auto --squash`).
+5. The PR lands by itself when `check` is green and the branch is up to
+   date with `master`. On red, a fixer agent is spawned with the logs.
 6. No human review or approval on the critical path.
-7. When another change lands, other agents rebase on the new `master` or
-   restart the task.
+7. When another change lands first, the branch is out of date: rebase on the
+   new `master` (auto-merge stays armed after a push) or restart the task.
+
+**There is no true merge queue.** GitHub offers merge queues to
+organizations only and `witt3rd/rung` is user-owned (the API refuses the
+rule). The path is: short branch, rebase, enable auto-merge, it lands on
+green. Master's ruleset `protect-default-branch` enforces it: a pull request
+is required (zero approvals), the status `check` must pass with the strict
+"branch up to date" policy, force pushes and deletion are blocked, and there
+is no bypass actor, so direct pushes to `master` are refused for everyone.
+The workflow also triggers on `merge_group`, ready if the repo ever moves to
+an organization.
 
 **Forbidden:** pushing to `master` directly or concurrently; long-lived
 branches; stacking work on an unlanded branch; waiting for human approval;
-force-pushing `master`; bypassing the queue.
+force-pushing `master`; merging around the required check.
 
 **The one exception:** a single designated committer agent may hold a write
-lock and fast-forward `master` after its own verification. Nobody else.
+lock and fast-forward `master` after its own verification. Nobody else. The
+ruleset has no bypass actor today, so this path does not exist until the
+owner adds one.
 
 **Throughput:** a full CI run takes about 11 minutes (since 2026-11-01, when
 the jobs were parallelized and the tests sharded): 658 s on run 41304730702
-(cold cache), 651 s on master run 41310497173. The queue runs the full suite
-(`merge_group`), so with a group size of 1 about five changes an hour land.
-Keep increments small.
+(cold cache), 651 s on master run 41310497173. The strict policy serializes
+landing: each PR must be up to date when it merges, so a PR that loses the
+race to another is rebased and re-run. Roughly five changes an hour land;
+keep increments small.
 
 ### Configuration
 
@@ -304,8 +316,8 @@ deltas are the `fleet_*` skills on the machine.
 ## Scope and audience
 
 Maintainer: write access on `witt3rd/rung`. All agent work, the
-maintainers' included, goes through the merge queue; the single designated
-committer agent is the only direct path. External contributors: PRs against
+maintainers' included, goes through a pull request with auto-merge (no
+merge queue exists); direct pushes to `master` are refused. External contributors: PRs against
 `master`; follow CI; do not rewrite history.
 
 Last updated: 2026-10-30.
