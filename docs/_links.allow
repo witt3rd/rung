@@ -1,0 +1,7 @@
+# Known problems the guard found when it landed; each is fixed in the drift
+# pull request and its line removed. Format: `path: message-prefix  # reason`.
+# The list only shrinks.
+.het/rung-questions/questions/INTAKE.md: backtick path does not exist: rung-het/tests/question_registry.rs  # D7
+.het/rung-questions/questions/q9-the-dependency-superstructure.md: backtick path does not exist: rung-het/tests/question_registry.rs  # D7
+docs/rung-notes.md: backtick path does not exist: rung/  # D8
+docs/rung-host-api.md: hand-kept test count  # D9

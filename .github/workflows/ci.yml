@@ -247,6 +247,10 @@ jobs:
         run: docs/_props.py cited
       - name: no consumer-specific names (one-way rule)
         run: docs/_consumer_guard.py
+      - name: links, anchors, cited paths (self-test, then the guard)
+        run: |
+          python3 scripts/test_links.py
+          docs/_links.py
 
   # Verification only: this job never publishes (no cargo publish, no token).
   release-check:
