@@ -51,6 +51,7 @@ impl Client {
             .env("RUNG_MODEL", "m")
             .env("RUNG_API_KEY", "k")
             .env("RUNG_PROTOCOL", "openai")
+            .env("RUNG_MODEL_FACTS", "off")
             .env_remove("RUNG_ACP_WORKERS")
             .env_remove("RUNG_ACP_WORKER")
             .stdin(Stdio::piped())
