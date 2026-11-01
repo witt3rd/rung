@@ -269,7 +269,7 @@ through the activation.
         Element::Prop(Prop {
             slug: "held-and-stalled-are-recoverable".into(),
             parent: Some("delegation-is-a-ladder".into()),
-            kind: Kind::Decidable { proof: "rung-fleet/tests/lifecycle.rs::a_hold_stays_open_until_its_own_key_resolves_it".into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/lifecycle.rs::held_and_stalled_are_recoverable".into() },
             numbering: None,
             prose: r#"*Held* and *stalled* are **recoverable** states: each has a paired recover edge
 back to the rung it left, and a task in either state is never dropped silently.

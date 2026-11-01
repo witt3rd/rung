@@ -10,10 +10,7 @@ fn brief() -> Brief {
 
 fn active() -> delegation::Active {
     let spawned = delegation::Spawned::new(
-        Spawn {
-            brief: brief(),
-            assignee: "worker-1".into(),
-        },
+        Spawn::new(brief(), "worker-1").unwrap(),
         delegation::Carry { task: "t-1".into() },
     );
     delegation::active(delegation::assigned(spawned))
@@ -94,8 +91,60 @@ fn a_hold_stays_open_until_its_own_key_resolves_it() {
     assert!(a.payload.hold.is_none());
 }
 
+/// The claim's proof: both recoverable states return to *active* through
+/// their own paired edge, and a hold stays open until its own key arrives.
+#[test]
+fn held_and_stalled_are_recoverable() {
+    // stalled -> restart -> active, and the stall is counted, not lost
+    let mut a = active();
+    a.payload.signal = Signal::Stall;
+    let stalled = match delegation::step(a) {
+        Ok(delegation::StepOutcome::Stalled(s)) => s,
+        _ => panic!("expected stalled"),
+    };
+    let a = delegation::restart(stalled);
+    assert_eq!(a.payload.stalls, 1);
+    // a restarted task works on: a beat is progress, not another stall
+    assert!(matches!(
+        delegation::step(a),
+        Ok(delegation::StepOutcome::Progress(_))
+    ));
+
+    // held -> resume -> active only with the hold's own key
+    let mut a = active();
+    a.payload.signal = Signal::Hold(HoldKey("k".into()));
+    let held = match delegation::step(a) {
+        Ok(delegation::StepOutcome::Held(h)) => h,
+        _ => panic!("expected held"),
+    };
+    let mut a = delegation::resume(held);
+    assert!(a.payload.hold.is_some(), "no resolution: still held");
+    a.payload.resolve(HoldKey("k".into()));
+    let held = match delegation::step(a) {
+        Ok(delegation::StepOutcome::Held(h)) => h,
+        _ => panic!("held until resumed"),
+    };
+    let a = delegation::resume(held);
+    assert!(a.payload.hold.is_none());
+    assert!(matches!(
+        delegation::step(a),
+        Ok(delegation::StepOutcome::Progress(_))
+    ));
+}
+
 #[test]
 fn a_brief_refuses_an_empty_field() {
+    assert_eq!(
+        Brief::new("o", "d", "  ", Autonomy::Ask),
+        Err(BriefError::Empty("delivery"))
+    );
+    assert_eq!(
+        Spawn::new(brief(), " ").unwrap_err(),
+        BriefError::Empty("assignee")
+    );
+    assert_eq!(brief().delivery(), "pull request");
+    assert_eq!(brief().autonomy(), Autonomy::Ask);
+
     assert_eq!(
         Brief::new("", "d", "p", Autonomy::Decide),
         Err(BriefError::Empty("objective"))
@@ -112,6 +161,8 @@ fn the_refusals_do_not_compile() {
     t.compile_fail("tests/ui/skip_assignment.rs");
     t.compile_fail("tests/ui/forge_active.rs");
     t.compile_fail("tests/ui/forge_finished.rs");
-    t.compile_fail("tests/ui/brief_missing_field.rs");
+    t.compile_fail("tests/ui/brief_literal.rs");
+    t.compile_fail("tests/ui/spawn_literal.rs");
+    t.compile_fail("tests/ui/held_dropped.rs");
     t.compile_fail("tests/ui/autonomy_has_no_default.rs");
 }

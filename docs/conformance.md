@@ -629,7 +629,7 @@ unsettled. Where it is blank, nobody has written one down.
 |---|---|---|---|---|
 | [3](rung-fleet-props.md#delegation-is-a-ladder) | `delegation-is-a-ladder` | `signature` | — | — |
 | [3.1](rung-fleet-props.md#a-skipped-transition-does-not-compile) | `a-skipped-transition-does-not-compile` | `decidable` | Same mechanism as the kernel's refusals: the case is a compile-fail test whose snapshot holds the message, so a refusal that changes its reason is caught. | `rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile` |
-| [3.2](rung-fleet-props.md#held-and-stalled-are-recoverable) | `held-and-stalled-are-recoverable` | `decidable` | — | `rung-fleet/tests/lifecycle.rs::a_hold_stays_open_until_its_own_key_resolves_it` |
+| [3.2](rung-fleet-props.md#held-and-stalled-are-recoverable) | `held-and-stalled-are-recoverable` | `decidable` | — | `rung-fleet/tests/lifecycle.rs::held_and_stalled_are_recoverable` |
 | [3.3](rung-fleet-props.md#a-brief-is-a-typed-contract) | `a-brief-is-a-typed-contract` | `decidable` | — | `rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile` |
 | [3.4](rung-fleet-props.md#a-stalled-crew-is-escalated-not-looped) | `a-stalled-crew-is-escalated-not-looped` | `owed` | — | **owed** — unimplemented — a fake-clock test: a crew silent past its bound becomes stalled, one retry is allowed, and a second stall of the same task is escalated to the steward's parent instead of retried |
 | [3.5](rung-fleet-props.md#completion-is-judged-apart-from-its-author) | `completion-is-judged-apart-from-its-author` | `owed` | The kernel already types this: a transition marked judgmental takes a token that no author can mint. This proposition is the fleet's use of that gate, and the case checks the completion transition carries the marker. | **owed** — unimplemented — a compile-fail case: the transition to done takes a qualified-judgment token of the kernel's judgmental gate, which only a principal disjoint from the author can produce |
@@ -740,9 +740,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 147 |
+| `decidable` | 150 |
 | `judgmental` | 47 |
-| `owed` | 34 |
+| `owed` | 31 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **455** |
@@ -760,8 +760,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 34 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 659 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 31 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 663 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1178,9 +1178,10 @@ look shorter than it is.
 - `an_invented_order_settles_exactly_as_a_real_one_does`
 - `the_knowledge_exists_upstream_and_cannot_cross`
 
-**`rung-fleet/tests/lifecycle.rs`** — 3 unclaimed
+**`rung-fleet/tests/lifecycle.rs`** — 4 unclaimed
 
 - `a_brief_refuses_an_empty_field`
+- `a_hold_stays_open_until_its_own_key_resolves_it`
 - `a_stalled_task_returns_to_active`
 - `a_task_runs_from_spawned_to_retired`
 

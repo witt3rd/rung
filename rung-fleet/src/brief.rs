@@ -2,7 +2,7 @@
 //! (`a-brief-is-a-typed-contract`).
 //!
 //! Every field is required and none has a default: the machinery refuses to
-//! guess one. A struct literal that leaves a field out does not compile, and
+//! guess one. The fields are private, so a struct literal does not compile, and
 //! an empty text field is refused by [`Brief::new`].
 
 /// How much the worker may decide on its own. There is no `Default`: autonomy
@@ -33,13 +33,14 @@ impl std::fmt::Display for BriefError {
 impl std::error::Error for BriefError {}
 
 /// What to build or learn, what counts as complete, how it is delivered, and
-/// how much autonomy the worker has.
+/// how much autonomy the worker has. The fields are private: [`Brief::new`] is
+/// the only constructor, so a brief that exists has been validated.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Brief {
-    pub objective: String,
-    pub done_when: String,
-    pub delivery: String,
-    pub autonomy: Autonomy,
+    objective: String,
+    done_when: String,
+    delivery: String,
+    autonomy: Autonomy,
 }
 
 impl Brief {
@@ -60,8 +61,7 @@ impl Brief {
         Ok(brief)
     }
 
-    /// Check every text field is non-empty (a literal can bypass `new`).
-    pub fn validate(&self) -> Result<(), BriefError> {
+    fn validate(&self) -> Result<(), BriefError> {
         for (name, text) in [
             ("objective", &self.objective),
             ("done_when", &self.done_when),
@@ -72,5 +72,25 @@ impl Brief {
             }
         }
         Ok(())
+    }
+
+    /// What to build or learn.
+    pub fn objective(&self) -> &str {
+        &self.objective
+    }
+
+    /// What counts as complete.
+    pub fn done_when(&self) -> &str {
+        &self.done_when
+    }
+
+    /// How the result is delivered.
+    pub fn delivery(&self) -> &str {
+        &self.delivery
+    }
+
+    /// How much the worker may decide.
+    pub fn autonomy(&self) -> Autonomy {
+        self.autonomy
     }
 }

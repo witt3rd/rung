@@ -9,7 +9,7 @@
 //! reads is the `signal` on the [`delegation::Active`] payload; the helpers
 //! here are the typed doors that set it.
 
-use crate::brief::Brief;
+use crate::brief::{Brief, BriefError};
 use rung::ladder;
 
 /// The key a hold carries. Only a resolution with the same key closes it
@@ -27,15 +27,45 @@ pub struct Completion {
 /// be spawned without a brief (`a-brief-is-a-typed-contract`).
 #[derive(Clone, Debug)]
 pub struct Spawn {
-    pub brief: Brief,
-    pub assignee: String,
+    brief: Brief,
+    assignee: String,
+}
+
+impl Spawn {
+    /// Spawn a task for `assignee`. The brief is already validated; an empty
+    /// assignee is refused.
+    pub fn new(brief: Brief, assignee: impl Into<String>) -> Result<Self, BriefError> {
+        let assignee = assignee.into();
+        if assignee.trim().is_empty() {
+            return Err(BriefError::Empty("assignee"));
+        }
+        Ok(Spawn { brief, assignee })
+    }
+
+    pub fn brief(&self) -> &Brief {
+        &self.brief
+    }
+
+    pub fn assignee(&self) -> &str {
+        &self.assignee
+    }
 }
 
 /// A task assigned to a worker with the brief it was given.
 #[derive(Clone, Debug)]
 pub struct Assignment {
-    pub brief: Brief,
-    pub assignee: String,
+    brief: Brief,
+    assignee: String,
+}
+
+impl Assignment {
+    pub fn brief(&self) -> &Brief {
+        &self.brief
+    }
+
+    pub fn assignee(&self) -> &str {
+        &self.assignee
+    }
 }
 
 /// What the worker reported since the last step.

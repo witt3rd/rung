@@ -1,0 +1,13 @@
+error[E0451]: fields `objective`, `done_when`, `delivery` and `autonomy` of struct `Brief` are private
+  --> tests/ui/brief_literal.rs:7:9
+   |
+ 6 |     let _b = Brief {
+   |              ----- in this type
+ 7 |         objective: "".into(),
+   |         ^^^^^^^^^ private field
+ 8 |         done_when: "d".into(),
+   |         ^^^^^^^^^ private field
+ 9 |         delivery: "p".into(),
+   |         ^^^^^^^^ private field
+10 |         autonomy: Autonomy::Ask,
+   |         ^^^^^^^^ private field
