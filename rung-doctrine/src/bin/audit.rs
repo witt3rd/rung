@@ -28,7 +28,7 @@
 //! cargo run -p rung-doctrine --bin audit -- --quiet   # verdict line only
 //! ```
 
-use rung_doctrine::{Doctrine, Kind, rung, rung_ct, rung_het};
+use rung_doctrine::{Doctrine, Kind, rung, rung_ct, rung_fleet, rung_het};
 use std::collections::BTreeMap;
 use std::process::Command;
 
@@ -46,7 +46,12 @@ enum Outcome {
 
 fn main() {
     let quiet = std::env::args().any(|a| a == "--quiet");
-    let doctrines = vec![rung::doctrine(), rung_het::doctrine(), rung_ct::doctrine()];
+    let doctrines = vec![
+        rung::doctrine(),
+        rung_het::doctrine(),
+        rung_ct::doctrine(),
+        rung_fleet::doctrine(),
+    ];
 
     eprintln!("running the suite…");
     // Merged through a shell, deliberately. Cargo writes `Running tests/foo.rs`
@@ -285,5 +290,10 @@ fn parse(text: &str) -> BTreeMap<String, Outcome> {
 /// doctrine list is ever built elsewhere.
 #[allow(dead_code)]
 fn all() -> Vec<Doctrine> {
-    vec![rung::doctrine(), rung_het::doctrine(), rung_ct::doctrine()]
+    vec![
+        rung::doctrine(),
+        rung_het::doctrine(),
+        rung_ct::doctrine(),
+        rung_fleet::doctrine(),
+    ]
 }

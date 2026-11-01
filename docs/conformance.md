@@ -1,6 +1,6 @@
 # Conformance
 
-**Status: not normative, and generated.** The three `*-props.md` documents govern.
+**Status: not normative, and generated.** The `*-props.md` documents govern.
 This is a **view of the doctrine** in [`rung-doctrine/`](../rung-doctrine/), written by
 `cargo run -p rung-doctrine --bin render`. Editing it here does nothing; the next
 render restores it, and CI fails if the two disagree.
@@ -595,16 +595,121 @@ unsettled. Where it is blank, nobody has written one down.
 
 ---
 
+## `rung-fleet-props.md`
+
+**Counts.** 33 owed · 4 rationale · 12 signature · 49 total.
+
+### What the fleet is
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [1](rung-fleet-props.md#fleet-is-a-product-crate) | `fleet-is-a-product-crate` | `signature` | — | — |
+| [1.1](rung-fleet-props.md#native-members-only) | `native-members-only` | `owed` | A `cargo metadata` test over the crate's dependency graph: the allow-list is short enough to read, and a new dependency is a red test rather than a review catch. | **owed** — unimplemented — a dependency-graph test that the crate depends on `rung-host` and `rung-agent-core` and on no foreign-harness adapter |
+| [1.2](rung-fleet-props.md#fleet-reuses-the-host-unchanged) | `fleet-reuses-the-host-unchanged` | `owed` | The host's own rule that a door never writes the record is the premise; this checks the crate adds no writer beside it. | **owed** — unimplemented — a test that the crate's public surface re-exports no second record, inbox, calendar or governor |
+| [1.3](rung-fleet-props.md#no-consumer-in-the-repository) | `no-consumer-in-the-repository` | `owed` | A scan over every tracked file under the crate and its documents for the consumer terms the repository guard already lists. A guard that scans nothing is not a proof, so the test also asserts that it scanned a non-empty set. | **owed** — unimplemented — the repository-wide scan (`docs/_consumer_guard.py`) exists but is not a test the audit can run, and does not yet name this crate's scope; R2 adds a test that scans the crate and its documents |
+| [1.4](rung-fleet-props.md#the-chiefs-instructions-are-consumer-text) | `the-chiefs-instructions-are-consumer-text` | `rationale` | — | — |
+| [1.5](rung-fleet-props.md#no-credential-in-a-committed-file) | `no-credential-in-a-committed-file` | `owed` | — | **owed** — unimplemented — a test that a started fleet's records, briefs and configuration contain no value read from a named environment variable |
+
+### Roles
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [2](rung-fleet-props.md#three-roles) | `three-roles` | `signature` | — | — |
+| [2.1](rung-fleet-props.md#chief-is-a-host-per-session) | `chief-is-a-host-per-session` | `signature` | — | — |
+| [2.2](rung-fleet-props.md#steward-is-a-host-per-project) | `steward-is-a-host-per-project` | `signature` | — | — |
+| [2.3](rung-fleet-props.md#crew-is-an-agent-in-isolation) | `crew-is-an-agent-in-isolation` | `signature` | — | — |
+| [2.4](rung-fleet-props.md#reporting-line-is-a-tree) | `reporting-line-is-a-tree` | `owed` | A property test over generated fleets: whatever sequence of verbs ran, the parent relation is acyclic and single-valued. | **owed** — unimplemented — a test over the fleet's spawn and assignment edges: every member has exactly one parent, the chief has none |
+| [2.5](rung-fleet-props.md#one-interface-to-the-principal) | `one-interface-to-the-principal` | `owed` | — | **owed** — unimplemented — a channel-admission test: a steward or crew session cannot hold an owner channel to a principal, and addresses the principal only through its chief's inbox |
+| [2.6](rung-fleet-props.md#chiefs-do-not-share-context) | `chiefs-do-not-share-context` | `owed` | — | **owed** — unimplemented — a two-chief run: no record line, inbox item or pack segment of one chief appears in the other's state directory |
+
+### The delegation lifecycle
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [3](rung-fleet-props.md#delegation-is-a-ladder) | `delegation-is-a-ladder` | `signature` | — | — |
+| [3.1](rung-fleet-props.md#a-skipped-transition-does-not-compile) | `a-skipped-transition-does-not-compile` | `owed` | Same mechanism as the kernel's refusals: the case is a compile-fail test whose snapshot holds the message, so a refusal that changes its reason is caught. | **owed** — unimplemented — `trybuild` cases: assigning a task that was never spawned, activating one never assigned, and retiring one not done each fail to compile with a committed message |
+| [3.2](rung-fleet-props.md#held-and-stalled-are-recoverable) | `held-and-stalled-are-recoverable` | `owed` | — | **owed** — unimplemented — a test that a held or stalled task is recovered only through its paired recover edge and a value dropped on an error path is a compile error |
+| [3.3](rung-fleet-props.md#a-brief-is-a-typed-contract) | `a-brief-is-a-typed-contract` | `owed` | — | **owed** — unimplemented — a compile-fail case: `assign` without a brief, and a brief missing any of intent, completion test, delivery mode or autonomy, do not compile |
+| [3.4](rung-fleet-props.md#a-stalled-crew-is-escalated-not-looped) | `a-stalled-crew-is-escalated-not-looped` | `owed` | — | **owed** — unimplemented — a fake-clock test: a crew silent past its bound becomes stalled, one retry is allowed, and a second stall of the same task is escalated to the steward's parent instead of retried |
+| [3.5](rung-fleet-props.md#completion-is-judged-apart-from-its-author) | `completion-is-judged-apart-from-its-author` | `owed` | The kernel already types this: a transition marked judgmental takes a token that no author can mint. This proposition is the fleet's use of that gate, and the case checks the completion transition carries the marker. | **owed** — unimplemented — a compile-fail case: the transition to done takes a qualified-judgment token of the kernel's judgmental gate, which only a principal disjoint from the author can produce |
+| [3.6](rung-fleet-props.md#unlanded-work-is-never-retired) | `unlanded-work-is-never-retired` | `owed` | — | **owed** — unimplemented — a compile-fail case: the retire transition takes a `Landed` token, and a test that an uncommitted isolation worktree is refused retirement |
+
+### Delivery
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [4](rung-fleet-props.md#the-durable-record-is-the-delivery) | `the-durable-record-is-the-delivery` | `signature` | — | — |
+| [4.1](rung-fleet-props.md#an-unconsumed-receipt-does-not-compile) | `an-unconsumed-receipt-does-not-compile` | `owed` | — | **owed** — unimplemented — a compile-fail case: a delivery receipt bound and dropped without being consumed is refused (`#[must_use]`, linear) |
+| [4.2](rung-fleet-props.md#duplicate-delivery-is-idempotent) | `duplicate-delivery-is-idempotent` | `owed` | — | **owed** — unimplemented — a test that delivering the same correlation id twice to one inbox yields one record line and the same receipt |
+| [4.3](rung-fleet-props.md#a-kill-loses-no-completion) | `a-kill-loses-no-completion` | `owed` | The host already requeues a stimulus admitted to a turn that never ended; this proposition adds that no crew completion falls between the crew's inbox write and the steward's recovery. | **owed** — unimplemented — a `kill -9` test of a steward mid-task: on restart its record recovers, the completion of its crew is delivered once, and none is lost |
+| [4.4](rung-fleet-props.md#crew-record-kinds-are-fleet-owned) | `crew-record-kinds-are-fleet-owned` | `owed` | — | **owed** — unimplemented — a schema test over every `crew.*` line the fleet writes, and a test that no other crate writes one |
+
+### Verbs and attachment
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [5](rung-fleet-props.md#fleet-verbs) | `fleet-verbs` | `signature` | — | — |
+| [5.1](rung-fleet-props.md#a-steer-is-an-inbox-item) | `a-steer-is-an-inbox-item` | `owed` | — | **owed** — unimplemented — a test that `steer` writes one inbox item with an owner-class intent to the target's inbox, and sends nothing else to its terminal |
+| [5.2](rung-fleet-props.md#read-and-list-never-write) | `read-and-list-never-write` | `owed` | — | **owed** — unimplemented — a test that `read` and `list` leave every record, inbox and instance entry byte-identical, and that a read-only gateway token can call both |
+| [5.3](rung-fleet-props.md#stop-records-why) | `stop-records-why` | `owed` | — | **owed** — unimplemented — a test that `stop` raises the target's stop authority and the target's record holds the reason and who asked |
+| [5.4](rung-fleet-props.md#an-observer-cannot-prompt) | `an-observer-cannot-prompt` | `owed` | — | **owed** — unimplemented — an attach test over the three ACP channel roles: an observer channel to a member is refused a prompt; an owner channel is accepted and takes over; a session reloads after a restart |
+| [5.5](rung-fleet-props.md#remote-uses-the-same-verbs) | `remote-uses-the-same-verbs` | `rationale` | — | — |
+
+### Authority and policy
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [6](rung-fleet-props.md#authority-is-explicit-and-typed) | `authority-is-explicit-and-typed` | `signature` | — | — |
+| [6.1](rung-fleet-props.md#irreversible-action-needs-authority) | `irreversible-action-needs-authority` | `owed` | — | **owed** — unimplemented — compile-fail cases: merge, discard, destructive and security-sensitive transitions each refuse to compile without an authority token, and a standing grant cannot be passed where a one-time one is asked |
+| [6.2](rung-fleet-props.md#a-member-cannot-widen-its-own-policy) | `a-member-cannot-widen-its-own-policy` | `owed` | — | **owed** — unimplemented — a test that the tool policy a steward hands a crew member is a subset of the steward's own, and that the member has no verb that edits it |
+| [6.3](rung-fleet-props.md#a-model-downgrade-needs-authority) | `a-model-downgrade-needs-authority` | `owed` | — | **owed** — unimplemented — a test that a per-instance override naming a weaker model than the role default is refused without authority |
+
+### The work queue
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [7](rung-fleet-props.md#the-queue-is-the-hosts-own) | `the-queue-is-the-hosts-own` | `signature` | — | — |
+| [7.1](rung-fleet-props.md#a-queue-has-one-writer) | `a-queue-has-one-writer` | `owed` | — | **owed** — unimplemented — a test that another member's items reach a host only as inbox deliveries, and that two hosts cannot hold one state directory |
+| [7.2](rung-fleet-props.md#an-external-reference-is-not-state) | `an-external-reference-is-not-state` | `owed` | — | **owed** — unimplemented — a test that a host resumes every queued item with the external ledger unreachable |
+| [7.3](rung-fleet-props.md#a-decision-is-a-held-item) | `a-decision-is-a-held-item` | `owed` | — | **owed** — unimplemented — a test that a decision opens a held item with a key, that no later message closes it, and that only a resolution carrying the key does |
+
+### Supervision
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [8](rung-fleet-props.md#recovery-from-the-record) | `recovery-from-the-record` | `signature` | — | — |
+| [8.1](rung-fleet-props.md#supervision-reconciles-from-disk) | `supervision-reconciles-from-disk` | `owed` | — | **owed** — unimplemented — a test that a restarted steward reconstructs its crew list, their rungs and its open holds from its record and the instance index alone |
+| [8.2](rung-fleet-props.md#an-obligation-closes-by-a-record) | `an-obligation-closes-by-a-record` | `owed` | — | **owed** — unimplemented — a test that a promised reply, an open hold and a queued item are each retired only by the durable event that answers it |
+| [8.3](rung-fleet-props.md#away-state-is-a-record-fact) | `away-state-is-a-record-fact` | `owed` | — | **owed** — unimplemented — a test that a chief's away state is written to its record, replayed on restart, and that while it holds only escalations, review-ready work and failures reach the principal |
+| [8.4](rung-fleet-props.md#escalation-goes-up-one-level) | `escalation-goes-up-one-level` | `owed` | — | **owed** — unimplemented — a test that a crew's blocker is an item in its steward's inbox, a steward's is in its chief's, and none skips a level |
+| [8.5](rung-fleet-props.md#principal-facing-text-states-outcomes) | `principal-facing-text-states-outcomes` | `rationale` | — | — |
+
+### Models and spend
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [9](rung-fleet-props.md#models-are-resolved-in-one-place) | `models-are-resolved-in-one-place` | `signature` | — | — |
+| [9.1](rung-fleet-props.md#a-call-is-checked-against-its-configuration) | `a-call-is-checked-against-its-configuration` | `owed` | — | **owed** — unimplemented — a test over a deliberately mis-configured host: the model each host actually served (the host's per-call usage lines) differs from the configured one, and the check fails and says which host and which models |
+| [9.2](rung-fleet-props.md#a-spend-cap-stops-and-says-why) | `a-spend-cap-stops-and-says-why` | `owed` | — | **owed** — unimplemented — a test that an instance reaching its cap stops through the stop authority and records the cap, the total and the reason |
+
+### Placement
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [10](rung-fleet-props.md#placement-is-local-first) | `placement-is-local-first` | `rationale` | — | — |
+
+---
+
 ## The whole corpus
 
 | kind | count |
 |---|---:|
 | `decidable` | 132 |
 | `judgmental` | 47 |
-| `owed` | 2 |
-| `rationale` | 148 |
-| `signature` | 62 |
-| **total** | **391** |
+| `owed` | 35 |
+| `rationale` | 152 |
+| `signature` | 74 |
+| **total** | **440** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
@@ -619,7 +724,7 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 2 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 35 |
 | **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 600 |
 
 The second is the sharper one. A test guarding a real property the documents never

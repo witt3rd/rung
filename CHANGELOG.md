@@ -7,6 +7,15 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet props, R0)
+- `docs/rung-fleet-props.md`: the normative claims of `rung-fleet`, a planned
+  product crate that supervises rung hosts as a tiered fleet (chief, steward,
+  crew). Generated from `rung-doctrine/src/rung_fleet.rs`; every machine-settled
+  claim is `owed` until the crate adds its test. `docs/rung-fleet-notes.md` is
+  the derivation, with the phase each claim is discharged in and the points the
+  owner still confirms. `docs/conformance.md` lists the new claims. No crate
+  code (witt3rd/rung#347).
+
 ### Added (live strata, host half)
 - `rung-host`: the layers of a turn's context are recorded at its start. A new
   `turn.layers` line (the header and the recall block, whole and redacted, with
