@@ -1,6 +1,6 @@
 # rung-host API — the doors a UI or gateway uses
 
-This is the written shape of what the continuous host offers to something
+This is the written shape of what the host offers to something
 that is not the agent: a command, files and HTTP doors.
 It is the contract between the host and the multi-instance UI
 (`docs/reports/rung-ui-design-v1/`). Each section is kept stable once written: changes inside version 1 only add; a
@@ -612,7 +612,7 @@ and `fold_hash` is the same hash over the whole record.
 |---|---|
 | `contract` | `1`; the UI contract's summary fields (`state`, `doing`, `needs_you`, `turn`, `last_seq`, `last_at`, `requests`, `quota`, `spend_usd_day`) are all here |
 | `word` | the registry's word (above) |
-| `state` | `Working`, `Answering`, `Free time`, `Waiting`, `Stuck` (the lock is held), or `Down`, `Stopped`, `Unreadable` (from `word`). Order of the held ones: **Stuck** when the governor is blocked (a refused key) or the copy guard has seen `COPY_LOOP_TURNS` copying turns in a row; **Waiting** when a degraded wait is open (`paced`, `quota`, `backoff`); **Answering** when an item is in a turn or the turn running is `responding`; **Working** when committed to a project; else **Free time**. Thresholds that need a clock (a turn past its bound, a missed watchdog, no progress for a set number of turns) are not derived here |
+| `state` | `Working`, `Answering`, `Free time`, `Waiting`, `Stuck` (the lock is held), or `Down`, `Stopped`, `Unreadable` (from `word`). Idle mode (SPECIFIED, NOT BUILT) adds `Idle until <time>`: a sleeping host, distinct from degraded `Waiting`; it is not `needs_you`, and `waiting_for` would name the next scheduled wake. Order of the held ones: **Stuck** when the governor is blocked (a refused key) or the copy guard has seen `COPY_LOOP_TURNS` copying turns in a row; **Waiting** when a degraded wait is open (`paced`, `quota`, `backoff`); **Answering** when an item is in a turn or the turn running is `responding`; **Working** when committed to a project; else **Free time**. Thresholds that need a clock (a turn past its bound, a missed watchdog, no progress for a set number of turns) are not derived here |
 | `doing` | one line: the commitment, `Free time`, or why it is not running |
 | `needs_you` | true for `Stuck` and `Down` (what the record can say; an unread message to the owner is not recorded) |
 | `turn` | the last turn started, or null |

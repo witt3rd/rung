@@ -1,4 +1,4 @@
-# rung-host — the continuous host
+# rung-host — the host
 
 `rung-host` is a product crate (J2): one long-lived agent and everything
 around its turns. It imports `rung-agent-core` as a library (never the
@@ -16,15 +16,45 @@ Delegation to workers is a final extension; only its extension point exists
 (the `crew` group name and the `crew.*` record kinds are reserved, and the
 inbox admits external completion items).
 
+## Terms
+
+- **Idle time** — how long the host may rest between wakes, a setting.
+  Idle time 0 means the host never rests.
+- **Continuous mode** — idle time 0, set explicitly. It has no idle time to
+  wait out: after every turn the next boundary begins. This is what the
+  shipped code does.
+- **Idle mode** — idle time above 0. The host really idles (no boundary, no
+  turn) until its next wake. **SPECIFIED, NOT BUILT.**
+- **Scheduled wake** — the time the idle host wakes on its own. With idle
+  mode on and no other idle time set, the specified default is 30 minutes (per instance).
+- **Queue arrival** — an item reaching an inbound queue (stimulus source).
+  It wakes an idle host at once.
+- **Free-time pass** — one free-time turn (see Free time and the kernel).
+
 ## The loop
 
 ```text
 Waking(Recovered) => Boundary(Edge) => { Again -> Boundary | Halted(Why) }
 ```
 
-There is no resting rung. After every turn the next boundary begins. The
+In continuous mode (idle time 0, the shipped behaviour) there is no
+resting rung. After every turn the next boundary begins. The
 only waits are ones the world imposes (provider backoff, a quota, a
 blocked credential), and each is recorded as `degraded`, never as rest.
+
+**Idle mode (SPECIFIED, NOT BUILT).** With idle time above 0 the loop gains
+a resting state, `Idle(until)`, after a boundary has nothing left to do. The
+host stays there until the first of: a scheduled wake (at most idle time
+away; the specified default is 30 minutes), or a queue
+arrival. On a queue arrival it wakes, drains the queue through ordinary
+boundaries, and ends with ONE free-time pass, then returns to idle. At a
+scheduled wake it does one free-time pass, then returns to idle. So an
+idle host takes a free-time pass at least every idle time, and otherwise
+only runs on arrivals. Idle is not `degraded`: the host chose to rest, the
+world did not impose it. Calendar items and expectations still fire at the
+first boundary after they are due; the idle wake is also set no later than
+the next due one.
+
 Only the stop authority reaches `Halted`: a signal, a stop file, or an
 explicit stop. A boundary:
 
@@ -50,7 +80,10 @@ explicit stop. A boundary:
 
 ## Free time and the kernel
 
-Free time is the default mode. A free-time turn shows the agent its own
+Free time is the default mode in continuous mode: whenever nothing is
+admitted and nothing is committed, the next turn is free time. In idle mode
+(SPECIFIED, NOT BUILT) free time is not endless: it is one pass per wake
+(a scheduled wake, or after a queue drain), and the host then rests. A free-time turn shows the agent its own
 material — todo items, projects, open questions, open expectations,
 integrity facts, recent traces — in creation order, never ranked. The
 agent picks. The optional `free_time_idle_rule: true` config key (default
@@ -411,6 +444,11 @@ drift mid-session. The evidence is in `docs/records/rung-host/live-v4-hostkey.md
 
 ## The governor
 
+Pacing and idle are different waits. A governor wait (`paced`, `quota`,
+`backoff`, `blocked`) is imposed by the world and recorded `degraded`; an
+idle wait (idle mode, SPECIFIED, NOT BUILT) is the host's own choice and is
+recorded as idle, never `degraded`. An idle host spends no requests.
+
 - **Pacer**: a daily request quota (`rpd`), a per-minute limit (`rpm`), a
   share reserved for Responding turns (25%), released linearly over the
   UTC day. Waits are `degraded: paced`, interruptible by stop and by an
@@ -586,7 +624,7 @@ free.
 
 | id | measure | pass when |
 |---|---|---|
-| G-a no rest | 30 min, no stimuli, no quota pressure | idle wall time outside turns (excluding declared `degraded`) ≤ 2%; boundary → next turn p99 ≤ 50 ms; every boundary has `decision.*` lines |
+| G-a no rest (idle time 0 only; idle mode, SPECIFIED, NOT BUILT, is exempt and needs its own gate) | 30 min, no stimuli, no quota pressure | idle wall time outside turns (excluding declared `degraded`) ≤ 2%; boundary → next turn p99 ≤ 50 ms; every boundary has `decision.*` lines |
 | G-b responsiveness | owner stimuli under load | admission p95 ≤ p95 turn + 100 ms; no turn past its bound; scripted long work refused with the commit-or-steps message |
 | G-c free-time kernel | 2,000 scripted turns | no admitted item and no commitment → free turn, 100%; after `commit`, committed until `release` (interruptions return); material order identical under 100 random register scores; no `kernel.commit`/`kernel.release` except from the agent's tools or the owner's release (trybuild) |
 | G-d schedule | due and missed items | each due item fired at the first boundary after due, once, lateness recorded; items missed during downtime fired once; firm items admitted at that boundary regardless of the decider |
@@ -646,3 +684,13 @@ router documents. No live model, no live Jev, no key.
 
 The measured results of the first gate run (2026-10-04, slice 1) are a record:
 [`records/rung-host/slice1-gate-results.md`](records/rung-host/slice1-gate-results.md).
+
+## Idle mode: decisions
+
+Idle mode is specified, not built. Decided by the owner:
+
+- The stop authority interrupts a sleeping host at once.
+- Idle time is a per-instance setting.
+- The specified default idle time is 30 minutes; continuous is idle time 0,
+  set explicitly. **Specified, not built:** the code as shipped today still
+  runs continuously (idle time 0) until idle mode is built.

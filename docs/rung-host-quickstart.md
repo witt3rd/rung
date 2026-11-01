@@ -1,6 +1,6 @@
 # rung-host quickstart
 
-Run the continuous host on the scripted mock engine in five minutes. No
+Run the host (continuous mode, idle time 0; idle mode is specified, not built, see [rung-host.md](rung-host.md)) on the scripted mock engine in five minutes. No
 network, no key. The mock answers deterministically, so this shows the
 plumbing (inbox, record, stop) rather than model quality. For the design,
 see [rung-host.md](rung-host.md).
