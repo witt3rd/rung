@@ -8,7 +8,9 @@ all-features = true
 [advisories]
 yanked = "deny"
 # Exceptions: { id = "RUSTSEC-XXXX-NNNN", reason = "why it is safe here (review YYYY-MM-DD)" }
-ignore = []
+ignore = [
+    { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml is unmaintained and comes only through serde_yaml, which has no drop-in replacement here yet; no vulnerability is reported (review 2026-11-01)" },
+]
 
 [licenses]
 confidence-threshold = 0.8
