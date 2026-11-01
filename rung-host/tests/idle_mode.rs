@@ -382,6 +382,54 @@ fn the_fold_is_idle_from_the_idle_line_until_it_ends() {
     assert_eq!(State::replay(&ls[..=b]).idle_until, None);
 }
 
+// ─── a-restart-wakes-the-host ────────────────────────────────────────────────
+
+#[test]
+fn a_host_that_died_resting_wakes_on_restart_takes_one_pass_and_rests_again() {
+    sim::test_timeout(300);
+    let mut sc = idle_scenario("idle-restart", HOUR);
+    let dir = sc.dir.clone();
+    let guard = sc.cleanup.take();
+    let out = sim::run(sc);
+    let first_idle = out.lines.iter().position(|l| l.kind == "idle").unwrap();
+    // what a kill during the first rest leaves: the record ends in its idle line
+    let kept: Vec<String> = out.lines[..=first_idle]
+        .iter()
+        .map(|l| l.to_value().to_string())
+        .collect();
+    drop(out); // the first host's state lock goes with it
+    let seg = dir.join("record").join("seg-00000001.ndjson");
+    std::fs::write(&seg, kept.join("\n") + "\n").unwrap();
+    let ended = Record::read_dir(dir.join("record")).unwrap();
+    assert_eq!(ended.last().unwrap().kind, "idle");
+    assert!(State::replay(&ended).idle_until.is_some());
+
+    // restart two hours later on the same state
+    let woke = SIM_START + 2 * HOUR;
+    let mut again = sim::Scenario::new(&dir, 11);
+    again.config.idle_time_ms = IDLE;
+    again.start = woke;
+    again.until = Some(woke + 45 * MINUTE);
+    let out = sim::run(again);
+    let ls = &out.lines[ended.len()..];
+    assert!(ls.iter().any(|l| l.kind == "recovered"), "it recovered");
+    // awake: the rest it died in is over as of the start line
+    let start = ls.iter().position(|l| l.kind == "host.start").unwrap();
+    assert_eq!(
+        State::replay(&out.lines[..ended.len() + start + 1]).idle_until,
+        None
+    );
+    // one free-time pass, then a rest with a new scheduled wake
+    let rest = ls
+        .iter()
+        .position(|l| l.kind == "idle")
+        .expect("it rests again");
+    one_pass_last(&ls[..rest]);
+    assert_eq!(ls[rest].i64("until") - ls[rest].at, IDLE);
+    assert!(ls[rest].at >= woke);
+    drop(guard);
+}
+
 // ─── the binary: the 30-minute default, a stop reaches a rest ────────────────
 
 const BIN: &str = env!("CARGO_BIN_EXE_rung-host");

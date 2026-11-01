@@ -689,8 +689,7 @@ The measured results of the first gate run (2026-10-04, slice 1) are a record:
 
 ## Idle mode: decisions
 
-Idle mode is built (the display of a resting host in the instance listing and
-the gateway is not yet). The owner's decisions (a stop interrupts a sleeping
+Idle mode is built. The owner's decisions (a stop interrupts a sleeping
 host at once; idle time is a per-instance setting; the default is 30 minutes
 and continuous is idle time 0, set explicitly) are stated once, as claims, in
 [`rung-host-idle-props.md`](rung-host-idle-props.md).
@@ -715,3 +714,6 @@ How the loop does it (`rung-host/src/presence.rs`):
   project takes its pass as a committed turn.
 - A world-imposed wait (backoff, quota, a blocked key) is still `degraded`
   and is never a rest; an idle host spends no requests.
+- A resting host reads as `Idle until <time>` in the gateway's summary and
+  list, and `rung-host ls` shows `idle until <time>` for it (its word stays
+  `running`); both come from the record alone ([`rung-host-api.md`](rung-host-api.md)).

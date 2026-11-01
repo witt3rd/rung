@@ -15,7 +15,7 @@
 //!
 //! | word | when |
 //! |---|---|
-//! | `running` | the lock is held |
+//! | `running` | the lock is held (a resting host in idle mode is still `running`; its row also carries `idle_until`, and the table shows `idle until <time>`) |
 //! | `stopped` | the lock is free and the record's last line is `halted` |
 //! | `down` | the lock is free and the last line is not a halt: it died |
 //! | `unreadable` | the entry (or its lock) cannot be read; shown with the problem |
@@ -336,6 +336,10 @@ pub struct Row {
     pub entry: Option<Entry>,
     pub word: Word,
     pub last: Option<Last>,
+    /// When a running host that is resting wakes on its own (idle mode),
+    /// read from the tail of its record; `None` for a host that is not
+    /// resting and for one that is not running.
+    pub idle_until: Option<Millis>,
     /// Why something could not be read, when it could not.
     pub problem: Option<String>,
 }
@@ -350,6 +354,7 @@ impl Row {
         };
         v["word"] = json!(self.word.as_str());
         v["last"] = serde_json::to_value(&self.last).unwrap_or(Value::Null);
+        v["idle_until"] = json!(self.idle_until);
         v["problem"] = json!(self.problem);
         v
     }
@@ -383,6 +388,23 @@ fn last_of(state_dir: &Path) -> Result<Option<Last>, String> {
             })
         })
         .map_err(|e| format!("record: {e}"))
+}
+
+/// How far back from the end of its record a row looks for a rest. A
+/// resting host writes little; a rest that began further back reads as none.
+const IDLE_LOOKBACK: u64 = 64 * 1024;
+
+/// When the host of `state_dir` wakes on its own, if its record says it is
+/// resting: the same rule the state's fold uses ([`crate::state::idle_effect`]),
+/// over the tail of the record.
+fn idle_until_of(state_dir: &Path) -> Option<Millis> {
+    use crate::state::{Idle, idle_effect};
+    let tail = Record::tail(state_dir.join("record"), IDLE_LOOKBACK).ok()?;
+    tail.iter().rev().find_map(|l| match idle_effect(l) {
+        Idle::Rests(until) => Some(Some(until)),
+        Idle::Wakes => Some(None),
+        Idle::Unchanged => None,
+    })?
 }
 
 /// Every registered instance in the folder [`dir`], by id.
@@ -439,6 +461,7 @@ fn row_of(path: &Path) -> Row {
                 entry: None,
                 word: Word::Unreadable,
                 last: None,
+                idle_until: None,
                 problem: Some(format!("{}: {why}", path.display())),
             };
         }
@@ -453,9 +476,13 @@ fn row_of(path: &Path) -> Row {
         (Ok(false), Ok(_)) => (Word::Down, None),
         (Ok(false), Err(why)) => (Word::Down, Some(why.clone())),
     };
+    let idle_until = (word == Word::Running)
+        .then(|| idle_until_of(&entry.state_dir))
+        .flatten();
     Row {
         id: entry.id.clone(),
         last: last.ok().flatten(),
+        idle_until,
         entry: Some(entry),
         word,
         problem,
@@ -474,7 +501,10 @@ pub fn render(rows: &[Row]) -> String {
             let e = r.entry.as_ref();
             [
                 r.id.clone(),
-                r.word.as_str().to_string(),
+                match r.idle_until {
+                    Some(t) => format!("idle until {}", crate::clock::iso(t)),
+                    None => r.word.as_str().to_string(),
+                },
                 match (r.word, e) {
                     (Word::Running, Some(e)) => e.pid.to_string(),
                     _ => "-".into(),
@@ -700,5 +730,71 @@ mod tests {
         f.write_all(b"{\"seq\":99,\"at\"").unwrap();
         let last = Record::last_line(&dir).unwrap().unwrap();
         assert_eq!((last.seq, last.kind.as_str()), (40, "note"));
+    }
+
+    /// A running host's row, for a record that ends as `tail` says.
+    fn resting_row(name: &str, tail: &[(&str, serde_json::Value)], held: bool) -> Row {
+        use crate::record::Record;
+        let d = crate::sim::temp_dir_guard(name);
+        let reg = d.path().join("reg");
+        let state = d.path().join("s");
+        let lock = hold(&state);
+        Registration::register_in(&reg, &instance("one", &state), 5, &lock).unwrap();
+        let opened = Record::open_with(state.join("record"), crate::record::SEGMENT_BYTES).unwrap();
+        opened.record.append(1, "host.start", json!({"config": {}}));
+        opened.record.append(2, "boundary", json!({"n": 1}));
+        for (i, (kind, body)) in tail.iter().enumerate() {
+            opened.record.append(3 + i as i64, kind, body.clone());
+        }
+        drop(opened);
+        if !held {
+            drop(lock);
+        }
+        let rows = list_in(&reg).unwrap();
+        // the guard's directory is removed when it drops: keep what was read
+        rows.into_iter().next().unwrap()
+    }
+
+    #[test]
+    fn a_running_host_whose_record_ends_in_a_rest_is_idle_until_its_wake() {
+        let idle = (
+            "idle",
+            json!({"until": 90_000, "idle_time_ms": 60_000, "boundary": 1}),
+        );
+        // the rest is the last thing the host said
+        let r = resting_row("registry-idle-last", std::slice::from_ref(&idle), true);
+        assert_eq!((r.word, r.idle_until), (Word::Running, Some(90_000)));
+        assert_eq!(r.to_json()["idle_until"], 90_000);
+        assert!(render(&[r]).contains("idle until 1970-01-01T00:01:30Z"));
+        // lines a resting host writes without waking (a channel opened, a calendar entry added)
+        let r = resting_row(
+            "registry-idle-chatter",
+            &[
+                idle.clone(),
+                (
+                    "channel.opened",
+                    json!({"session": "s1", "role": "owner", "channel": "owner"}),
+                ),
+                ("calendar.added", json!({"entry": {"id": "x"}})),
+            ],
+            true,
+        );
+        assert_eq!(r.idle_until, Some(90_000));
+        // the rest ended, or the host halted: not idle
+        for end in ["idle.ended", "halted", "boundary"] {
+            let r = resting_row(
+                &format!("registry-idle-{end}"),
+                &[
+                    idle.clone(),
+                    (end, json!({"cause": "arrival", "why": {}, "n": 2})),
+                ],
+                true,
+            );
+            assert_eq!(r.idle_until, None, "{end}");
+        }
+        // a host that is not running is not resting, whatever its last line says
+        let r = resting_row("registry-idle-dead", &[idle], false);
+        assert_eq!((r.word, r.idle_until), (Word::Down, None));
+        assert!(r.to_json()["idle_until"].is_null());
     }
 }

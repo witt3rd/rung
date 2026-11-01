@@ -7,6 +7,16 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-host idle mode display)
+- A resting host reads as idle until its wake wherever the host is read: the
+  gateway's summary and list say `Idle until <time>` (not `needs_you`, not
+  `Waiting`; `idle_until` and `waiting_for: idle` carry the wake), and
+  `rung-host ls` shows `idle until <time>` (its `word` stays `running`; `ls --json`
+  rows gain `idle_until`, read from the tail of the record by the rule the fold
+  uses, `state::idle_effect`). The last two idle-mode props become decidable
+  (`a-resting-host-is-seen-resting`, `a-restart-wakes-the-host`). The rest and
+  the governor's wait share one helper for the next external event.
+
 ### Added (rung-host idle mode)
 - Idle mode: with idle time above 0 the host rests between wakes. It rests
   (an `idle` line, then `idle.ended` with its cause) until the first of its

@@ -837,15 +837,7 @@ impl Host {
             json!({"until": until, "idle_time_ms": idle_ms, "boundary": n}),
         );
         core.sync();
-        let next = || {
-            let src = lock(&self.sources);
-            let a = src.iter().filter_map(|s| s.next_at()).min();
-            let b = core.state().calendar.next_due();
-            match (a, b) {
-                (Some(x), Some(y)) => Some(x.min(y)),
-                (x, y) => x.or(y),
-            }
-        };
+        let next = || self.next_external_at();
         let cause = std::cell::Cell::new("scheduled");
         let mut wake = |_now: Millis| {
             core.notifier.alive();
@@ -1266,6 +1258,18 @@ impl Host {
         )
     }
 
+    /// The time of the next thing the world will do on its own that a
+    /// waiting clock may jump to: the next scheduled arrival at a source, or
+    /// the next due calendar item.
+    fn next_external_at(&self) -> Option<Millis> {
+        let a = lock(&self.sources).iter().filter_map(|s| s.next_at()).min();
+        let b = self.core.state().calendar.next_due();
+        match (a, b) {
+            (Some(x), Some(y)) => Some(x.min(y)),
+            (x, y) => x.or(y),
+        }
+    }
+
     /// Wait out a world-imposed interval.
     fn wait(&self, w: Wait) {
         let core = &*self.core;
@@ -1277,15 +1281,7 @@ impl Host {
             );
         }
         let start = core.now();
-        let next = || {
-            let src = lock(&self.sources);
-            let a = src.iter().filter_map(|s| s.next_at()).min();
-            let b = core.state().calendar.next_due();
-            match (a, b) {
-                (Some(x), Some(y)) => Some(x.min(y)),
-                (x, y) => x.or(y),
-            }
-        };
+        let next = || self.next_external_at();
         // A wait the owner cannot cut (the provider backs off, a quota, a
         // blocked credential): tell each waiting owner item at once, with
         // no model call, that the answer waits for the provider.

@@ -340,6 +340,44 @@ impl Record {
         Ok(None)
     }
 
+    /// The complete lines in roughly the last `max_bytes` of `dir`, oldest
+    /// first, read from the end (newest segment first, so the cost does not
+    /// grow with the record). A torn last line and a line cut by the window's
+    /// start are left out; a line that does not parse is skipped.
+    pub fn tail(dir: impl AsRef<Path>, max_bytes: u64) -> io::Result<Vec<Line>> {
+        use std::io::{Seek, SeekFrom};
+        let mut out: Vec<Line> = Vec::new();
+        let mut budget = max_bytes;
+        for (_, path) in segments(dir.as_ref())?.iter().rev() {
+            if budget == 0 {
+                break;
+            }
+            let mut f = File::open(path)?;
+            let len = f.metadata()?.len();
+            let start = len.saturating_sub(budget);
+            let mut bytes = vec![0u8; (len - start) as usize];
+            f.seek(SeekFrom::Start(start))?;
+            f.read_exact(&mut bytes)?;
+            budget -= len - start;
+            // Bytes after the last newline are a torn line.
+            let end = bytes.iter().rposition(|b| *b == b'\n').map_or(0, |p| p + 1);
+            let mut body = &bytes[..end];
+            // Cut at the window's start: drop the partial first line.
+            if start > 0 {
+                body = match body.iter().position(|b| *b == b'\n') {
+                    Some(p) => &body[p + 1..],
+                    None => &[],
+                };
+            }
+            let lines: Vec<Line> = String::from_utf8_lossy(body)
+                .lines()
+                .filter_map(Line::parse)
+                .collect();
+            out.splice(0..0, lines);
+        }
+        Ok(out)
+    }
+
     pub fn dir(&self) -> &Path {
         &self.dir
     }
@@ -528,6 +566,30 @@ mod tests {
         assert_eq!(o.lines.len(), 1);
         assert_eq!(o.record.append(3, "b", json!({})).seq, 2);
         assert_eq!(Record::read_dir(&d).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn the_tail_is_whole_lines_from_the_end_across_segments() {
+        let (_guard, d) = dir("tail");
+        assert!(Record::tail(d.join("none"), 1024).unwrap().is_empty());
+        let o = Record::open_with(&d, 200).unwrap();
+        for i in 0..40 {
+            o.record.append(i, "k", json!({"i": i}));
+        }
+        drop(o);
+        let all = Record::read_dir(&d).unwrap();
+        // a window over everything is everything
+        assert_eq!(Record::tail(&d, u64::MAX).unwrap(), all);
+        // a small window is the newest whole lines, in order, with no cut line
+        let t = Record::tail(&d, 300).unwrap();
+        assert!(!t.is_empty() && t.len() < all.len());
+        assert_eq!(t.as_slice(), &all[all.len() - t.len()..]);
+        // a torn last line is left out
+        let mut segs = segments(&d).unwrap();
+        let newest = segs.pop().unwrap().1;
+        let mut f = fs::OpenOptions::new().append(true).open(newest).unwrap();
+        std::io::Write::write_all(&mut f, b"{\"seq\":99,\"at\"").unwrap();
+        assert_eq!(Record::tail(&d, u64::MAX).unwrap(), all);
     }
 
     #[test]

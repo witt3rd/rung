@@ -704,7 +704,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-host-idle-props.md`
 
-**Counts.** 10 decidable · 2 owed · 1 signature · 13 total.
+**Counts.** 12 decidable · 1 signature · 13 total.
 
 ### The setting
 
@@ -731,8 +731,8 @@ unsettled. Where it is blank, nobody has written one down.
 
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
-| [3](rung-host-idle-props.md#a-resting-host-is-seen-resting) | `a-resting-host-is-seen-resting` | `owed` | The listing and the summary are both read from the record alone, so a fixture record ending in an idle line, then one ending in the line that ends it, settles both. | **owed** — unimplemented — a record-fold test that the summary of a host whose last line is an idle line says it is idle until the time the line names, and that no other line leaves it so |
-| [3.1](rung-host-idle-props.md#a-restart-wakes-the-host) | `a-restart-wakes-the-host` | `owed` | Start, rest, kill, start again on the same state and read the record. | **owed** — unimplemented — a restart test: a state whose record ends in an idle line, started again, shows idle no longer, answers what waits, takes one free-time pass, and rests |
+| [3](rung-host-idle-props.md#a-resting-host-is-seen-resting) | `a-resting-host-is-seen-resting` | `decidable` | The summary and the list are both read from the record alone, so fixture records settle them: one ending in an idle line (and one with a channel opened after it) reads `Idle until <time>`, not `needs_you`, not `Waiting`, `waiting_for` the wake; one ending in the line that ends the rest reads awake; a degraded wait after a rest reads `Waiting`. The listing's `idle_until` and the `ls` table are settled the same way for a running host (`rung-host/tests/gate_registry.rs::a_resting_host_lists_as_idle_until_its_wake_and_a_stop_ends_it` on the binary, and the registry's own tail-reading test). | `rung-gateway/tests/native_doors.rs::a_resting_host_reads_idle_until_its_wake` |
+| [3.1](rung-host-idle-props.md#a-restart-wakes-the-host) | `a-restart-wakes-the-host` | `decidable` | Run a host, keep its record up to its first idle line (what a kill mid-rest leaves), start again on that state two hours later and read the record: it recovers, is awake as of its start line, takes one free-time pass, and rests with a wake idle time after that pass. | `rung-host/tests/idle_mode.rs::a_host_that_died_resting_wakes_on_restart_takes_one_pass_and_rests_again` |
 
 ---
 
@@ -740,9 +740,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 145 |
+| `decidable` | 147 |
 | `judgmental` | 47 |
-| `owed` | 36 |
+| `owed` | 34 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **455** |
@@ -760,8 +760,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 36 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 632 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 34 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 633 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1311,11 +1311,12 @@ look shorter than it is.
 - `a_stop_is_prompt_from_a_turn_and_from_any_wait_and_the_watchdog_fires`
 - `fifty_kills_lose_nothing_and_restore_everything`
 
-**`rung-host/tests/gate_registry.rs`** — 9 unclaimed
+**`rung-host/tests/gate_registry.rs`** — 10 unclaimed
 
 - `a_refused_sim_registration_opens_no_record`
 - `a_registry_refusal_creates_nothing_else`
 - `a_restart_keeps_the_entry_and_a_second_live_host_with_the_id_is_refused`
+- `a_resting_host_lists_as_idle_until_its_wake_and_a_stop_ends_it`
 - `a_start_refused_for_its_state_leaves_no_entry`
 - `an_entry_id_that_is_not_a_slug_or_not_its_file_name_is_unreadable_not_followed`
 - `hosts_racing_for_one_state_leave_one_id_and_one_entry`

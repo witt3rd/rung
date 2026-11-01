@@ -866,17 +866,24 @@ pub fn queue(registry_dir: &Path, id: &str, q: &crate::queue::Query, base: &Reda
 
 // ─── the summary ─────────────────────────────────────────────────────────────
 
-fn state_label(row: &Row, f: &Fold) -> &'static str {
+/// The resting host's state word: `Idle until <time>`, with the time as
+/// the record's `iso`. It is the host's own choice to rest, so it is not
+/// `Waiting`, and it is not `needs_you`.
+const IDLE_UNTIL: &str = "Idle until";
+
+fn state_label(row: &Row, f: &Fold) -> String {
     match row.word {
-        Word::Down => return "Down",
-        Word::Stopped => return "Stopped",
-        Word::Unreadable => return "Unreadable",
+        Word::Down => return "Down".into(),
+        Word::Stopped => return "Stopped".into(),
+        Word::Unreadable => return "Unreadable".into(),
         Word::Running => {}
     }
     let gov = &f.state.governor;
     let blocked = gov.blocked || gov.degraded.as_ref().is_some_and(|w| w.class == "blocked");
-    if blocked || f.state.kernel.copy_streak >= COPY_LOOP_TURNS {
+    let word = if blocked || f.state.kernel.copy_streak >= COPY_LOOP_TURNS {
         "Stuck"
+    } else if let Some(until) = f.state.idle_until {
+        return format!("{IDLE_UNTIL} {}", iso(until));
     } else if gov.degraded.is_some() {
         "Waiting"
     } else if !f.state.inbox.in_flight.is_empty()
@@ -889,7 +896,8 @@ fn state_label(row: &Row, f: &Fold) -> &'static str {
         "Working"
     } else {
         "Free time"
-    }
+    };
+    word.into()
 }
 
 fn doing(label: &str, f: &Fold) -> String {
@@ -906,6 +914,10 @@ fn doing(label: &str, f: &Fold) -> String {
             None => "Not running; no record".into(),
         },
         "Unreadable" => "Cannot be read".into(),
+        l if l.starts_with(IDLE_UNTIL) => match f.state.idle_until {
+            Some(t) => format!("Resting until {}; nothing is waiting", iso(t)),
+            None => "Resting".into(),
+        },
         _ => match f.state.kernel.commitment() {
             Some(c) => format!("Committed to {}: {}", c.project, c.title),
             None => "Free time".into(),
@@ -918,6 +930,9 @@ fn waiting_for(label: &str, f: &Fold) -> Value {
         return Value::Null;
     }
     let st = &f.state;
+    if let Some(until) = st.idle_until.filter(|_| label.starts_with(IDLE_UNTIL)) {
+        return json!({"kind": "idle", "until": until});
+    }
     if let Some(w) = &st.governor.degraded {
         return json!({"kind": "degraded", "class": w.class, "until": w.until, "why": w.why});
     }
@@ -1004,6 +1019,7 @@ fn summary_value(row: &Row, entry: &Entry, red: &Redactor, env_unset: &[String])
     let f = fold(&entry.state_dir)?;
     let cfg = ConfigView::read(entry);
     let label = state_label(row, &f);
+    let label = label.as_str();
     let st = &f.state;
     let started_cfg = f.started.as_ref().and_then(|s| s.get("config"));
     let quota = started_cfg.and_then(|c| c["governor"]["quota"]["rpd"].as_u64());
@@ -1026,6 +1042,7 @@ fn summary_value(row: &Row, entry: &Entry, red: &Redactor, env_unset: &[String])
         "state": label,
         "doing": doing(label, &f),
         "needs_you": needs_you,
+        "idle_until": st.idle_until.filter(|_| label.starts_with(IDLE_UNTIL)),
         "turn": (st.turn > 0).then_some(st.turn),
         "last_seq": f.lines,
         "last_at": (f.lines > 0).then_some(st.last_at),

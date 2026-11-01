@@ -196,10 +196,11 @@ Every entry field above, then:
 |---|---|---|
 | `word` | string | `running`, `stopped`, `down` or `unreadable` |
 | `last` | object or null | the record's last line: `seq`, `at` (ms), `kind`; null when there is no record |
+| `idle_until` | integer or null | ms: when a running host that is resting (idle mode) wakes on its own, read from the last 64 KiB of its record by the rule the summary's fold uses (an `idle` line, not yet followed by the line that ends the rest, a boundary, a halt or a start); null for a host that is not resting and for one that is not running. `rung-host ls` shows `idle until <time>` in its table for such a row; its `word` stays `running` |
 | `problem` | string or null | why something could not be read (an unparseable entry, an unreadable record); null otherwise |
 
 An `unreadable` entry carries only `id` (the file's name), `word`, `last`
-(null) and `problem`.
+(null), `idle_until` (null) and `problem`.
 
 A `down` host's `pid` is the pid that **was** its process; `ls` shows it as
 `-` and the JSON still carries it. Do not signal it: the number may have
@@ -563,7 +564,7 @@ reason the registry folder could not be listed; the configured instances are
 still listed).
 
 A native row (`source: "registry"`) is the H2 row (`rung-host ls --json`: the
-entry's fields, `word`, `last`, `problem`) plus:
+entry's fields, `word`, `last`, `idle_until`, `problem`) plus:
 
 | field | type | meaning |
 |---|---|---|
@@ -617,13 +618,14 @@ and `fold_hash` is the same hash over the whole record.
 |---|---|
 | `contract` | `1`; the UI contract's summary fields (`state`, `doing`, `needs_you`, `turn`, `last_seq`, `last_at`, `requests`, `quota`, `spend_usd_day`) are all here |
 | `word` | the registry's word (above) |
-| `state` | `Working`, `Answering`, `Free time`, `Waiting`, `Stuck` (the lock is held), or `Down`, `Stopped`, `Unreadable` (from `word`). Idle mode (SPECIFIED, NOT BUILT) adds `Idle until <time>`: a sleeping host, distinct from degraded `Waiting`; it is not `needs_you`, and `waiting_for` would name the next scheduled wake. Order of the held ones: **Stuck** when the governor is blocked (a refused key) or the copy guard has seen `COPY_LOOP_TURNS` copying turns in a row; **Waiting** when a degraded wait is open (`paced`, `quota`, `backoff`); **Answering** when an item is in a turn or the turn running is `responding`; **Working** when committed to a project; else **Free time**. Thresholds that need a clock (a turn past its bound, a missed watchdog, no progress for a set number of turns) are not derived here |
+| `state` | `Working`, `Answering`, `Free time`, `Waiting`, `Stuck` (the lock is held), or `Down`, `Stopped`, `Unreadable` (from `word`). Idle mode adds `Idle until <time>` (the time as `YYYY-MM-DDTHH:MM:SSZ`): a sleeping host, distinct from degraded `Waiting`; it is not `needs_you`, and `waiting_for` names the scheduled wake. Order of the held ones: **Stuck** when the governor is blocked (a refused key) or the copy guard has seen `COPY_LOOP_TURNS` copying turns in a row; **Idle until** when the fold's last rest line (an `idle` line) has not been followed by the line that ends the rest, a boundary, a halt or a start (a resting host may still write a line or two, a channel opened, a calendar entry added, without waking); **Waiting** when a degraded wait is open (`paced`, `quota`, `backoff`); **Answering** when an item is in a turn or the turn running is `responding`; **Working** when committed to a project; else **Free time**. Thresholds that need a clock (a turn past its bound, a missed watchdog, no progress for a set number of turns) are not derived here |
 | `doing` | one line: the commitment, `Free time`, or why it is not running |
 | `needs_you` | true for `Stuck` and `Down` (what the record can say; an unread message to the owner is not recorded) |
 | `turn` | the last turn started, or null |
 | `last_seq`, `last_at` | the last intact line's number and time (ms); `0` and null for an empty record |
 | `requests`, `spend_usd_day` | the llm calls and their paid cost for the UTC `day` of the last line (counters are those of that day, not of the day the page is read); `quota` is the config's requests-a-day or null |
-| `waiting_for` | what it waits for: `degraded` (`class`, `until`, `why`), `turn` (running now), `boundary` (items waiting for the next one), `calendar` (the next entry due), or null |
+| `idle_until` | integer or null | ms: the scheduled wake, while the state is `Idle until <time>`; null otherwise |
+| `waiting_for` | what it waits for: `idle` (`until`: the scheduled wake), `degraded` (`class`, `until`, `why`), `turn` (running now), `boundary` (items waiting for the next one), `calendar` (the next entry due), or null |
 | `boundary` | the last `boundary` line: `n`, `at`, `mode`, `pending` (items waiting then), or null |
 | `turn_in_progress` | the turn started and not ended (cleared by `recovered`), or null |
 | `queue` | `waiting` and `in_flight` counts, and `head`: the oldest waiting item whole, with `order` (the number of its `stimulus.accepted` line), or null. The full list is H6's door |
