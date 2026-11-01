@@ -1,0 +1,9 @@
+error[E0451]: fields `lines` and `record` of struct `Compacted` are private
+ --> tests/ui/compacted_cannot_be_built.rs:8:9
+  |
+7 |     let _ = Compacted {
+  |             --------- in this type
+8 |         lines: Vec::new(),
+  |         ^^^^^ private field
+9 |         record: Record { tokens_before: 0, tokens_after: 0, lines_folded: 0, lines_kept: 0 },
+  |         ^^^^^^ private field
