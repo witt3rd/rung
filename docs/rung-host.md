@@ -26,7 +26,7 @@ inbox admits external completion items).
 - **Idle mode** — idle time above 0. The host really idles (no boundary, no
   turn) until its next wake. **SPECIFIED, NOT BUILT.**
 - **Scheduled wake** — the time the idle host wakes on its own. With idle
-  mode on and no other idle time set, the idle-mode default is 30 minutes.
+  mode on and no other idle time set, the specified default is 30 minutes (per instance).
 - **Queue arrival** — an item reaching an inbound queue (stimulus source).
   It wakes an idle host at once.
 - **Free-time pass** — one free-time turn (see Free time and the kernel).
