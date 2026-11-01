@@ -702,16 +702,50 @@ unsettled. Where it is blank, nobody has written one down.
 
 ---
 
+## `rung-host-idle-props.md`
+
+**Counts.** 1 decidable · 11 owed · 1 signature · 13 total.
+
+### The setting
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [1](rung-host-idle-props.md#idle-time-is-a-per-instance-setting) | `idle-time-is-a-per-instance-setting` | `signature` | — | — |
+| [1.1](rung-host-idle-props.md#idle-time-defaults-to-thirty-minutes) | `idle-time-defaults-to-thirty-minutes` | `owed` | Start the binary on a configuration without the key and read the idle time the `host.start` line recorded; start another with idle time 0 and read 0. | **owed** — untested — a start from a configuration file that names no idle time records an idle time of 30 minutes |
+| [1.2](rung-host-idle-props.md#idle-time-zero-never-rests) | `idle-time-zero-never-rests` | `decidable` | G-a (30 simulated minutes, no stimuli) already measures idle wall time outside turns, with idle time 0, at 2% or less. It stays as it is. | `rung-host/tests/gate_time.rs::thirty_quiet_minutes_have_no_rest` |
+
+### Resting and waking
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [2](rung-host-idle-props.md#an-idle-host-really-rests) | `an-idle-host-really-rests` | `owed` | A simulated clock and a scripted queue: let the host rest across many idle times and count the record's boundaries, turns and `llm.call` lines inside each rest. | **owed** — unimplemented — a fake-clock test over an empty queue: from the moment the host rests until its wake, the record gains no boundary, no turn and no model call |
+| [2.1](rung-host-idle-props.md#a-rest-ends-at-the-first-wake) | `a-rest-ends-at-the-first-wake` | `owed` | Three runs on a simulated clock, one per cause, each asserting the cause the ending line records. | **owed** — unimplemented — a fake-clock test: a rest ends at the earliest of the scheduled wake, a queue arrival and the stop authority, and the record says which |
+| [2.11](rung-host-idle-props.md#the-scheduled-wake-is-within-idle-time) | `the-scheduled-wake-is-within-idle-time` | `owed` | A simulated clock with an empty queue and a calendar entry due before the idle time ends: the rest ends at the entry, not at the idle time. | **owed** — unimplemented — a fake-clock test that no rest is longer than idle time, and that a rest ends no later than the next due calendar item |
+| [2.12](rung-host-idle-props.md#an-arrival-wakes-at-once) | `an-arrival-wakes-at-once` | `owed` | A fake queue that delivers an item part-way through a rest on a simulated clock: the rest ends at the arrival's time. | **owed** — unimplemented — a fake-queue test: an item arriving mid-rest ends the rest at the next wake poll, not at the scheduled wake |
+| [2.13](rung-host-idle-props.md#the-stop-authority-interrupts-a-rest) | `the-stop-authority-interrupts-a-rest` | `owed` | On a simulated clock, a stop raised mid-rest ends it at that moment and the record's last line is `halted`; on the real clock, SIGTERM and the stop file halt a resting binary within the stop gate's bound (G-h). | **owed** — unimplemented — a test that a stop raised mid-rest halts the host within one wake poll, and a process test (SIGTERM, stop file) within the stop gate's bound |
+| [2.2](rung-host-idle-props.md#an-arrival-drains-then-one-free-time-pass) | `an-arrival-drains-then-one-free-time-pass` | `owed` | A fake queue with several items, one of them arriving mid-drain: the turn kinds between the two rests are all responding, then exactly one free. | **owed** — unimplemented — a fake-queue test: after an arrival the host answers every waiting item through ordinary boundaries, takes exactly one free-time pass, and rests |
+| [2.3](rung-host-idle-props.md#a-scheduled-wake-is-one-free-time-pass) | `a-scheduled-wake-is-one-free-time-pass` | `owed` | A simulated clock over several idle times with an empty queue: between consecutive rests there is exactly one turn, of kind free, and the gaps are the idle time. | **owed** — unimplemented — a fake-clock test: at the scheduled wake with an empty queue the host takes exactly one free-time pass, then rests |
+| [2.4](rung-host-idle-props.md#a-rest-is-not-degraded) | `a-rest-is-not-degraded` | `owed` | Two scripted runs on a simulated clock, one resting and one in provider backoff, comparing the record's line kinds. | **owed** — unimplemented — a test that a rest writes idle lines and no `degraded` line, and that a world-imposed wait still writes `degraded` and no idle line |
+
+### Seeing it
+
+| prop | slug | kind | mechanism | discharged by |
+|---|---|---|---|---|
+| [3](rung-host-idle-props.md#a-resting-host-is-seen-resting) | `a-resting-host-is-seen-resting` | `owed` | The listing and the summary are both read from the record alone, so a fixture record ending in an idle line, then one ending in the line that ends it, settles both. | **owed** — unimplemented — a record-fold test that the summary of a host whose last line is an idle line says it is idle until the time the line names, and that no other line leaves it so |
+| [3.1](rung-host-idle-props.md#a-restart-wakes-the-host) | `a-restart-wakes-the-host` | `owed` | Start, rest, kill, start again on the same state and read the record. | **owed** — unimplemented — a restart test: a state whose record ends in an idle line, started again, shows idle no longer, answers what waits, takes one free-time pass, and rests |
+
+---
+
 ## The whole corpus
 
 | kind | count |
 |---|---:|
-| `decidable` | 135 |
+| `decidable` | 136 |
 | `judgmental` | 47 |
-| `owed` | 34 |
+| `owed` | 45 |
 | `rationale` | 152 |
-| `signature` | 74 |
-| **total** | **442** |
+| `signature` | 75 |
+| **total** | **455** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
@@ -726,8 +760,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 34 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 627 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 45 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 626 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1300,13 +1334,12 @@ look shorter than it is.
 - `the_configured_start_is_refused_on_a_held_state_too`
 - `the_lock_dies_with_the_process`
 
-**`rung-host/tests/gate_time.rs`** — 5 unclaimed
+**`rung-host/tests/gate_time.rs`** — 4 unclaimed
 
 - `due_items_fire_at_the_first_boundary_and_missed_ones_once`
 - `g_d_holds_when_every_ask_times_out`
 - `only_the_host_settles_expectations_and_calibration_recomputes`
 - `owner_stimuli_under_load_are_admitted_at_the_next_boundary`
-- `thirty_quiet_minutes_have_no_rest`
 
 **`rung-host/tests/intent_desk.rs`** — 8 unclaimed
 

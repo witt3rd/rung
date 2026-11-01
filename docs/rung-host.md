@@ -687,7 +687,9 @@ The measured results of the first gate run (2026-10-04, slice 1) are a record:
 
 ## Idle mode: decisions
 
-Idle mode is specified, not built. Decided by the owner:
+Idle mode is specified, not built. Its normative claims, each `owed` until the
+change that builds it adds the test, are in
+[`rung-host-idle-props.md`](rung-host-idle-props.md). Decided by the owner:
 
 - The stop authority interrupts a sleeping host at once.
 - Idle time is a per-instance setting.
