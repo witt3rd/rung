@@ -83,6 +83,11 @@ lock** (`STATE_DIR/host.lock`, the H1 section above), not a file here.
 - The id is the name as a slug: ASCII letters and digits lowercased, every
   other run of characters one `-`, none at the ends (`Deep Thought` →
   `deep-thought`). A name with no letter or digit is refused.
+- **A fleet names its members by role** (a convention, not a rule the
+  registry checks): `chief` or `steward`, then `-` and the session or project,
+  as in `chief-main` and `steward-alpha`. The role is the id's first segment;
+  the entry has no role field. See
+  [rung-fleet-props.md](rung-fleet-props.md#a-member-is-named-by-its-role).
 - A host that serves HTTP (`acp.http:` / `--acp-http`) may ask for port `0`.
   It then writes the **real, bound address** into `address` as soon as the
   listener is up.

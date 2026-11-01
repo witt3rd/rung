@@ -1,9 +1,9 @@
 //! The fleet doctrine, encoded.
 //!
 //! Written by hand, props first: `rung-fleet` is a product crate that has no
-//! code yet, so every claim a machine will settle is [`Kind::Owed`] and names
-//! the form its proof will take. A proposition becomes [`Kind::Decidable`] in
-//! the change that adds its test. The markdown is rendered from this.
+//! code yet, so a claim a machine will settle is [`Kind::Owed`] and names the
+//! form its proof will take, until a test settles it. A proposition becomes
+//! [`Kind::Decidable`] in the change that adds its test. The markdown is rendered from this.
 
 use crate::{Doctrine, Element, Kind, Prop};
 
@@ -21,10 +21,11 @@ names no consumer. Every claim is stated once, in one place, and referred to
 elsewhere by number.
 
 **Props come first.** `rung-fleet` is a product crate (J2) that does not exist
-yet. Nothing here is decidable *today*: every claim that a machine will settle is
-`owed`, with the form its proof will take, and the conformance view is the work
-queue of the crate. A claim moves from `owed` to `decidable` in the change that
-adds its test, never earlier.
+yet. A claim a machine will settle is `owed`, with the form its proof will take,
+unless a test already settles it (the claims a fleet of unmodified hosts already
+meets are decidable), and the conformance view is the work queue of the crate. A
+claim moves from `owed` to `decidable` in the change that adds its test, never
+earlier.
 
 The numbering is a tree. A proposition `n.m` is a remark on `n`; `n.mm` is a
 remark on `n.m`. Interior propositions are the conjunction of their children.
@@ -209,14 +210,30 @@ chief.
         Element::Prop(Prop {
             slug: "chiefs-do-not-share-context".into(),
             parent: Some("three-roles".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a two-chief run: no record line, inbox item or pack segment of one chief appears in the other's state directory"#.into() },
+            kind: Kind::Decidable { proof: "rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway".into() },
             numbering: None,
             prose: r#"Several chiefs may run side by side. Their contexts **never mix**, because
 their records do not: each chief is its own host with its own state directory,
 held by the host's one-live-host lock.
 
 "#.into(),
-            mechanism: r#""#.into(),
+            mechanism: r#"The cited test starts two chiefs and a steward as three real hosts, drops an owner message in the first chief's inbox, and reads every file under the other two members' directories: the message is in the first chief's state and in nothing else. It runs on the mock engine, so it shows that the state directories are disjoint, not what a model does with them."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "a-member-is-named-by-its-role".into(),
+            parent: Some("three-roles".into()),
+            kind: Kind::Decidable { proof: "rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway".into() },
+            numbering: None,
+            prose: r#"A member's **instance name** begins with its role: `chief` or `steward`, then a
+`-` and what tells it from its peers (the session for a chief, the project for a
+steward), as in `chief-main` and `steward-alpha`. The instance id is the slug of
+that name, so the role is the first segment of the id. The instance index gains
+no field for it: a listing already carries the role, and a reader that wants it
+splits the id. A name that does not begin with a role is not a member of a
+fleet, and nothing about it changes.
+
+"#.into(),
+            mechanism: r#"A convention, not a mechanism: nothing refuses a name that breaks it, and the crate adds no role field to the instance index (a second source of truth for a fact the name already states). The cited test starts three members under role-first names and checks that the gateway's list returns them in id order with the role as each id's first segment. Crew naming is left to the crew extension."#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -414,6 +431,19 @@ and are available to a read-only role.
 
 "#.into(),
             mechanism: r#""#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "a-read-only-role-watches-the-fleet".into(),
+            parent: Some("fleet-verbs".into()),
+            kind: Kind::Decidable { proof: "rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway".into() },
+            numbering: None,
+            prose: r#"A gateway in front of the fleet lists its members from the instance index, and
+a holder of the **read-only** token can list them, read any member's record and
+follow its live event stream, and cannot write to any member. A stopped member
+stays in the list.
+
+"#.into(),
+            mechanism: r#"The cited test holds only the read-only token: it lists three running members, reads a steward's record, follows a chief's stream until a message dropped in its inbox appears, is refused (403) a write to the queue, and after the members stop finds all three still listed as `stopped`. A wrong token is 401."#.into(),
         }),
         Element::Prop(Prop {
             slug: "stop-records-why".into(),

@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 33 owed · 4 rationale · 12 signature · 49 total.
+**Counts.** 3 decidable · 32 owed · 4 rationale · 12 signature · 51 total.
 
 ### What the fleet is
 
@@ -620,7 +620,8 @@ unsettled. Where it is blank, nobody has written one down.
 | [2.3](rung-fleet-props.md#crew-is-an-agent-in-isolation) | `crew-is-an-agent-in-isolation` | `signature` | — | — |
 | [2.4](rung-fleet-props.md#reporting-line-is-a-tree) | `reporting-line-is-a-tree` | `owed` | A property test over generated fleets: whatever sequence of verbs ran, the parent relation is acyclic and single-valued. | **owed** — unimplemented — a test over the fleet's spawn and assignment edges: every member has exactly one parent, the chief has none |
 | [2.5](rung-fleet-props.md#one-interface-to-the-principal) | `one-interface-to-the-principal` | `owed` | — | **owed** — unimplemented — a channel-admission test: a steward or crew session cannot hold an owner channel to a principal, and addresses the principal only through its chief's inbox |
-| [2.6](rung-fleet-props.md#chiefs-do-not-share-context) | `chiefs-do-not-share-context` | `owed` | — | **owed** — unimplemented — a two-chief run: no record line, inbox item or pack segment of one chief appears in the other's state directory |
+| [2.6](rung-fleet-props.md#chiefs-do-not-share-context) | `chiefs-do-not-share-context` | `decidable` | The cited test starts two chiefs and a steward as three real hosts, drops an owner message in the first chief's inbox, and reads every file under the other two members' directories: the message is in the first chief's state and in nothing else. It runs on the mock engine, so it shows that the state directories are disjoint, not what a model does with them. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
+| [2.7](rung-fleet-props.md#a-member-is-named-by-its-role) | `a-member-is-named-by-its-role` | `decidable` | A convention, not a mechanism: nothing refuses a name that breaks it, and the crate adds no role field to the instance index (a second source of truth for a fact the name already states). The cited test starts three members under role-first names and checks that the gateway's list returns them in id order with the role as each id's first segment. Crew naming is left to the crew extension. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
 
 ### The delegation lifecycle
 
@@ -651,9 +652,10 @@ unsettled. Where it is blank, nobody has written one down.
 | [5](rung-fleet-props.md#fleet-verbs) | `fleet-verbs` | `signature` | — | — |
 | [5.1](rung-fleet-props.md#a-steer-is-an-inbox-item) | `a-steer-is-an-inbox-item` | `owed` | — | **owed** — unimplemented — a test that `steer` writes one inbox item with an owner-class intent to the target's inbox, and sends nothing else to its terminal |
 | [5.2](rung-fleet-props.md#read-and-list-never-write) | `read-and-list-never-write` | `owed` | — | **owed** — unimplemented — a test that `read` and `list` leave every record, inbox and instance entry byte-identical, and that a read-only gateway token can call both |
-| [5.3](rung-fleet-props.md#stop-records-why) | `stop-records-why` | `owed` | — | **owed** — unimplemented — a test that `stop` raises the target's stop authority and the target's record holds the reason and who asked |
-| [5.4](rung-fleet-props.md#an-observer-cannot-prompt) | `an-observer-cannot-prompt` | `owed` | — | **owed** — unimplemented — an attach test over the three ACP channel roles: an observer channel to a member is refused a prompt; an owner channel is accepted and takes over; a session reloads after a restart |
-| [5.5](rung-fleet-props.md#remote-uses-the-same-verbs) | `remote-uses-the-same-verbs` | `rationale` | — | — |
+| [5.3](rung-fleet-props.md#a-read-only-role-watches-the-fleet) | `a-read-only-role-watches-the-fleet` | `decidable` | The cited test holds only the read-only token: it lists three running members, reads a steward's record, follows a chief's stream until a message dropped in its inbox appears, is refused (403) a write to the queue, and after the members stop finds all three still listed as `stopped`. A wrong token is 401. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
+| [5.4](rung-fleet-props.md#stop-records-why) | `stop-records-why` | `owed` | — | **owed** — unimplemented — a test that `stop` raises the target's stop authority and the target's record holds the reason and who asked |
+| [5.5](rung-fleet-props.md#an-observer-cannot-prompt) | `an-observer-cannot-prompt` | `owed` | — | **owed** — unimplemented — an attach test over the three ACP channel roles: an observer channel to a member is refused a prompt; an owner channel is accepted and takes over; a session reloads after a restart |
+| [5.6](rung-fleet-props.md#remote-uses-the-same-verbs) | `remote-uses-the-same-verbs` | `rationale` | — | — |
 
 ### Authority and policy
 
@@ -704,12 +706,12 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 132 |
+| `decidable` | 135 |
 | `judgmental` | 47 |
-| `owed` | 35 |
+| `owed` | 34 |
 | `rationale` | 152 |
 | `signature` | 74 |
-| **total** | **440** |
+| **total** | **442** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
@@ -724,7 +726,7 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 35 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 34 |
 | **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 627 |
 
 The second is the sharper one. A test guarding a real property the documents never

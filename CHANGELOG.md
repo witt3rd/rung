@@ -7,6 +7,18 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R1)
+- A chief and a steward are two ordinary `rung-host` instances behind
+  `rung-gateway`; no fleet code. The registry convention is a name that begins
+  with the role (`chief-main`, `steward-alpha`), with no new entry field.
+  `rung-gateway/tests/fleet_r1.rs` runs two chiefs and a steward as real hosts
+  (mock engine), lists them with the read-only token, reads a record, follows a
+  live stream and shows that one chief's inbox message reaches no other
+  member. Three props become decidable: `chiefs-do-not-share-context`,
+  `a-member-is-named-by-its-role` (new), `a-read-only-role-watches-the-fleet`
+  (new). Measured cost per host and the gaps found: `docs/rung-fleet-notes.md`
+  (witt3rd/rung#347).
+
 ### Added (rung-fleet props, R0)
 - `docs/rung-fleet-props.md`: the normative claims of `rung-fleet`, a planned
   product crate that supervises rung hosts as a tiered fleet (chief, steward,
