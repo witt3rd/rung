@@ -1,1 +1,29 @@
-{"requests": [], "sessions": []}
+{
+  "requests": [],
+  "sessions": [
+    {
+      "file": ".rung/sessions/<I>.json#1",
+      "reason": "session store moved from a whole-file .json to an append-only .jsonl log (witt3rd/rung#334); drop this entry once the pinned reference is a release that has it"
+    },
+    {
+      "file": ".rung/sessions/<I>.json#2",
+      "reason": "session store moved from a whole-file .json to an append-only .jsonl log (witt3rd/rung#334); drop this entry once the pinned reference is a release that has it"
+    },
+    {
+      "file": ".rung/sessions/<I>.json#3",
+      "reason": "session store moved from a whole-file .json to an append-only .jsonl log (witt3rd/rung#334); drop this entry once the pinned reference is a release that has it"
+    },
+    {
+      "file": ".rung/sessions/<I>.jsonl#1",
+      "reason": "session store moved from a whole-file .json to an append-only .jsonl log (witt3rd/rung#334); drop this entry once the pinned reference is a release that has it"
+    },
+    {
+      "file": ".rung/sessions/<I>.jsonl#2",
+      "reason": "session store moved from a whole-file .json to an append-only .jsonl log (witt3rd/rung#334); drop this entry once the pinned reference is a release that has it"
+    },
+    {
+      "file": ".rung/sessions/<I>.jsonl#3",
+      "reason": "session store moved from a whole-file .json to an append-only .jsonl log (witt3rd/rung#334); drop this entry once the pinned reference is a release that has it"
+    }
+  ]
+}
