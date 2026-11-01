@@ -7,7 +7,7 @@ Checks, over every tracked `.md` (not rung-host/live/runs, not node_modules):
   3. backtick repo paths (`dir/file.ext`, first segment a tracked top-level
      entry; root- or document-relative) exist; historical text (docs/records,
      docs/reports, docs/.archive) is exempt;
-  4. `docs/....md` paths cited in tracked .rs/.py/.yml files exist;
+  4. documentation paths cited in tracked .rs/.py/.yml files exist;
   5. no hand-kept test counts of the form `(N tests)` in living documents
      (they drift on every test added; link to the test file instead).
 Known problems still to fix are listed in docs/_links.allow, one
