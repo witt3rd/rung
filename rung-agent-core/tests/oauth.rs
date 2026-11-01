@@ -814,7 +814,7 @@ fn no_debug_or_error_text_holds_a_token() {
     ]
     .join("\n");
     for secret in [REFRESH, auth.bearer.as_str(), "sig1"] {
-        assert!(!seen.contains(secret), "leaked {secret}");
+        assert!(!seen.contains(secret), "a secret leaked into text");
     }
     // Failures name the login, not the token.
     w.gh.chat_status.store(401, Ordering::SeqCst);
