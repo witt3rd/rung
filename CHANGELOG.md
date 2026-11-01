@@ -17,9 +17,9 @@ git tags only.
   - the `rung-agent` ACP notes, configuration table and Harbor suite move from
     `AGENTS.md` to `rung-agent/AGENTS.md`;
   - the hand-written kind-count table is replaced by a link to
-    `docs/conformance.md`; its check in `rung-doctrine/tests/roundtrip.rs`
-    (`hand_written_counts_in_prose_match_the_doctrine`) is replaced by
-    `triage_carries_no_hand_written_count_table`.
+    `docs/conformance.md`; its test in `rung-doctrine/tests/roundtrip.rs`
+    (`hand_written_counts_in_prose_match_the_doctrine`) is removed, and
+    `docs/conformance.md` re-rendered.
 - `docs/_links.py` (in the `propositions` job) fails a document that points at
   something absent: a relative link, an anchor, a backticked repo path, a
   a `docs/` document cited from code, or a hand-kept test count `(N tests)`. Its

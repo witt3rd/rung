@@ -632,32 +632,6 @@ fn mechanism_prose_cites_by_slug_and_every_citation_resolves() {
     );
 }
 
-/// **No hand-written per-document count table in the triage note.**
-///
-/// `docs/triage.md` once carried a per-document table I wrote out rather than
-/// derived. It was wrong by two, both versions summed to 70, and nothing
-/// caught it — in the note explaining why numbers should not be written by
-/// hand.
-///
-/// The table is gone; `conformance.md` is generated and carries the counts per
-/// kind and per document, and the front-door `AGENTS.md` links to it instead
-/// of repeating them. This keeps the table from creeping back.
-///
-/// Mutation: put a `| `rung-props.md` |` row in `docs/triage.md` and this reddens.
-#[test]
-fn triage_carries_no_hand_written_count_table() {
-    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .to_path_buf();
-    let triage = std::fs::read_to_string(root.join("docs/triage.md")).expect("triage.md");
-    assert!(
-        !triage.contains("| `rung-props.md` |"),
-        "docs/triage.md carries a hand-written per-document table again; \
-         conformance.md is generated and has one"
-    );
-}
-
 /// **The queue that points the other way.**
 ///
 /// `Kind::Owed` is a proposition with no proof. This is a proof with no

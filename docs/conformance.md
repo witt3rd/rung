@@ -761,7 +761,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 34 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 646 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 645 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1022,7 +1022,7 @@ look shorter than it is.
 - `the_collection_is_empty_and_says_so`
 - `the_tier_records_whether_a_ruling_can_be_audited`
 
-**`rung-doctrine/tests/roundtrip.rs`** — 22 unclaimed
+**`rung-doctrine/tests/roundtrip.rs`** — 21 unclaimed
 
 - `coverage_is_reported`
 - `every_derived_number_matches_the_document`
@@ -1044,7 +1044,6 @@ look shorter than it is.
 - `the_source_holds_no_number_and_no_rendered_link`
 - `the_test_scan_includes_this_very_test`
 - `the_triage_is_recorded`
-- `triage_carries_no_hand_written_count_table`
 - `verbatim_blocks_carry_only_non_propositional_matter`
 
 **`rung-driver/tests/audit_only.rs`** — 1 unclaimed
