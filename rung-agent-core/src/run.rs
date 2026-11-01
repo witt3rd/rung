@@ -1085,6 +1085,30 @@ mod tests {
     }
 
     #[test]
+    fn a_summary_line_replays_as_a_fixed_pair_then_the_tail() {
+        let mut summary = Line::user("facts from turn 0");
+        summary.role = crate::compact::SUMMARY_ROLE.into();
+        let lines = vec![summary, Line::user("next question")];
+        let first = thread_from(&lines, None, None);
+        assert_eq!(first.messages.len(), 3, "{:?}", first.messages);
+        let want_user = ChatMessage::user(format!(
+            "{}facts from turn 0",
+            crate::compact::SUMMARY_PREFIX
+        ));
+        assert_eq!(format!("{:?}", first.messages[0]), format!("{want_user:?}"));
+        assert_eq!(
+            format!("{:?}", first.messages[1]),
+            format!("{:?}", ChatMessage::assistant(crate::compact::SUMMARY_ACK))
+        );
+        // byte-stable: the same lines replay to the same messages every turn
+        let again = thread_from(&lines, None, None);
+        assert_eq!(
+            format!("{:?}", first.messages),
+            format!("{:?}", again.messages)
+        );
+    }
+
+    #[test]
     fn a_failure_before_any_step_replays_nothing() {
         let lines = vec![
             Line::user("do it"),
