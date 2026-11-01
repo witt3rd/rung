@@ -1,7 +1,8 @@
 # The triage — what kind of thing each proposition is
 
-**Status: informative.** `rung-props.md`, `rung-ct-props.md` and
-`rung-het-props.md` govern. This records the criteria by which each of the 380
+**Status: informative.** The `*-props.md` documents (`rung-props.md`,
+`rung-ct-props.md`, `rung-het-props.md`, `rung-host-idle-props.md`,
+`rung-fleet-props.md`) govern. This records the criteria by which each of their
 propositions was classified, and the calls most likely to be wrong. It states no
 proposition.
 

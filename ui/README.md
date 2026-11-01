@@ -4,8 +4,8 @@ The page for watching, queueing for and configuring continuous rung hosts. Not p
 Design: `docs/reports/rung-ui-design-v1/` (the acceptance scenario, the host pieces, the five slices).
 
 **Slice 0: a read-only observer over a recorded event log.** Instances overview, then one
-instance: Now and Turns. Slice 0 alone changes nothing on a host (the queue box of S1, below, is the one control). A running host's doors do not exist yet, so the app
-reads recorded files; that one module (`src/data/source.ts`) is the seam a host's read doors replace.
+instance: Now and Turns. Slice 0 alone changes nothing on a host (the queue box of S1, below, is the one control). Slice 0 reads recorded files; that one module
+(`src/data/source.ts`) is the seam a host's read doors replace (slice 1, below, does).
 
     npm ci
     npm test                  # folds on the recorded runs, the canary check

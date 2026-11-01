@@ -206,8 +206,8 @@ There is no `Transitions` trait: one API surface. A separate-compilation trait f
 
 The proc macro performs the same 8 structural checks as the Python rung checker at compile time (plus 2 more when an inline `impl { .. }` block is present: every body names a real transition/recover fn, and every transition/recover fn has a body), then expands to Rust code:
 
-1. **Parse** the `ladder!` token stream into an AST (identical to `rung/ast.py`), plus the optional trailing `impl { .. }` bodies
-2. **Check** the AST (8 rules mirroring `rung/checker.py`, + 2 impl-block rules, single pass)
+1. **Parse** the `ladder!` token stream into an AST (identical to `.archive/python-poc/rung/ast.py`), plus the optional trailing `impl { .. }` bodies
+2. **Check** the AST (8 rules mirroring `.archive/python-poc/rung/checker.py`, + 2 impl-block rules, single pass)
 3. **Emit** the Rust module
 
 ### Checks performed by the macro (compile-time refusals)
@@ -383,9 +383,9 @@ This is the pragmatic ~80% of no-silent-drop available today. It does not stop `
 
 | Artifact | Status |
 |---|---|
-| `rung/ast.py` | Done — AST nodes for ladder, carry, transition, recover, verdict |
-| `rung/checker.py` | Done — 8 static checks, single-pass, 11 tests. **Verified in sync** with the Rust `check()` (audited 2026-07-17; all 8 rules map 1:1). Docstring mentions a "reachability" check that was never implemented in either — stale comment only. |
-| `rung/interpreter.py` | Done — linear token tracking, provenance trace |
+| `.archive/python-poc/rung/ast.py` | Done — AST nodes for ladder, carry, transition, recover, verdict |
+| `.archive/python-poc/rung/checker.py` | Done — 8 static checks, single-pass, 11 tests. **Verified in sync** with the Rust `check()` (audited 2026-07-17; all 8 rules map 1:1). Docstring mentions a "reachability" check that was never implemented in either — stale comment only. |
+| `.archive/python-poc/rung/interpreter.py` | Done — linear token tracking, provenance trace |
 | `rust-example/` | Done — **ported to the macro** (2026-07-17). The hand-written `mod metric_opt` is deleted; the crate now drives a `ladder!`-generated MetricOptimization via the inline `impl { .. }` form. Workspace member. |
 | `ladder!` proc macro | Done — `rung-macro/src/lib.rs`: parse (+ optional inline `impl` block) + 10 checks (8 structural + 2 impl-block) + emit (sealed `!Send` rungs & verdicts, sealed constructors, carry accessor, `Failed<Prev>`, verdict enum, auto-injected `must_progress` guard, inline transition/recover `pub fn`s) |
 | End-to-end drivability | Done — `rung/tests/end_to_end.rs`: starts a run via the public entry `::new`, steps it, takes the recover edge, reaches a terminal verdict; plus load-bearing proofs that §4.1 fabrication fails to compile (E0624) and §4.4's guard is auto-injected (panics with no explicit call) |

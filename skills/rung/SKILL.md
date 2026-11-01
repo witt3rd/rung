@@ -260,11 +260,6 @@ expiry vanished, nemotron-ultra went `endpoint_down`). Evidence:
 `docs/records/rung-host/live-v4-hostkey.md`; named-ladder idle-rule soak:
 `docs/records/rung-host/live-v5-idle-rule.md`.
 
-## Next
-
-`rung-agent` and the Harbor adapter have landed. Walk the validation
-ladder (`validate next`); then `terminal-bench@2.0` one task at a time.
-
 ## Cache-miss probe
 
 `python3 scripts/cache_probe.py REQUESTS.jsonl USAGE.jsonl` prints per call `cached/prompt` tokens and the first differing byte offset vs the previous request (key-sorted JSON; an early offset is the prefix break). Inputs/formats: docstring in the script; tests: `python3 scripts/test_cache_probe.py`.
