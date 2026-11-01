@@ -66,52 +66,27 @@ member cannot be retired.
 
 ## R1 findings: two hosts behind one gateway
 
-**What was run.** Two real `rung-host` processes (names `chief` and
-`steward-alpha`) and one `rung-gateway`, on one machine, with a stub provider
-(an OpenAI-compatible server on loopback that answers one fixed line) and no
-key. A client holding only the read-only token listed both, read a steward's
-record, followed a chief's stream live while an owner message was dropped in its
-inbox, was refused a write (403), and was refused with a wrong token (401). A
-`kill -9` of the steward showed `down` in `rung-host ls`; a restart showed
-`running`, with a `recovered` line and a new epoch. The same shape runs in CI as
-`rung-gateway/tests/fleet_r1.rs` (three real hosts, mock engine).
+**What is evidenced.** `rung-gateway/tests/fleet_r1.rs` runs three real hosts
+(two chiefs and a steward, mock engine) behind one gateway: a client holding
+only the read-only token lists them, reads a record and follows the live
+stream, and is refused a write. Kill, restart and recovery are not covered by
+that test and are not claimed here.
 
 **The convention.** No registry field. A member is named by its role first:
 `chief-<session>`, `steward-<project>`; the id is the slug of the name, so the
 role is the id's first segment. A second source of truth for a fact the name
 already carries was the larger cost.
 
-**Unknown 2: the resident cost of a host** (Linux x86-64, release build, memory
-on, stub provider; 60 s windows unless noted; one core is 100%):
-
-| hosts | provider and pacing | RSS per host | CPU per host | record growth per host |
-|---|---|---|---|---|
-| 1 to 20 | 0.3 s per call, no quota | 19.6 to 20.7 MB (20 hosts: 408 MB in all) | about 5% (20 hosts: one full core) | about 1 MB a minute |
-| 10 | 0.3 s per call, `quota.rpm: 60` | 20.5 MB | 1.9% | 0.4 MB a minute |
-| 10 | 0.3 s per call, `quota.rpm: 6` | 19.8 MB | 0.5% | 0.08 MB a minute |
-| 10 | 5 s per call, no quota | 20.1 MB | 0.5% | 0.08 MB a minute |
-| 3, 10 minutes | 2 s per call, `quota.rpm: 30` | 19.8 at start, 20.2 to 21.4 at the end | 1.1% | 0.17 MB a minute |
-
-The gateway holds about 5.5 MB and no measurable CPU for ten instances. A host
-has three threads and about ten file descriptors. The memory is flat enough that
-the count of hosts, not their age, sets the cost. What sets CPU and disk is the
-**free-time pace**: a host with nothing to do keeps taking turns, so the number
-of turns a minute is the provider's speed unless a `quota` (or a slow provider)
-holds it back. With a real provider each of those turns is a paid call, so a
-fleet configuration should give every member a `quota` from the start; that
-belongs to the model and budget phase (R4).
+**Unknown 2: the resident cost of a host.** Not yet measured under a
+recorded run; RSS, CPU and record growth per host remain open for a run that
+names its evidence.
 
 **Gaps found in rung.**
 
 - Without a `quota` there is no pace but the 600-a-minute governor ceiling (see
   above). Reported, not changed: the pace is a policy a fleet sets.
 - A gateway started without `registry_dir` lists no native instance and says
-  nothing; its start line printed `(0 instances)` for a gateway whose instances
-  all come from the registry. Fixed in its own change: the line names the
-  registry folder.
-- The workspace did not pass `clippy -D warnings` on the current stable
-  toolchain (one `drop` of a non-`Drop` value in a gateway test). Fixed in its
-  own change.
+  nothing; its start line prints only the configured-instance count. Not fixed.
 - The host's own HTTP door has no `/v1/summary`: the summary is the gateway's
   fold of the record, so a client of a host alone folds the record itself.
 
