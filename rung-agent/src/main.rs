@@ -8,7 +8,7 @@ use std::process::ExitCode;
 fn main() -> ExitCode {
     let argv: Vec<String> = std::env::args().collect();
     match argv.get(1).map(String::as_str) {
-        Some("auth") => {
+        Some("auth") if argv.len() > 2 => {
             let code = rung_agent::oauth::cli::run(
                 &argv[2..],
                 &rung_agent::oauth::Store::from_env(),
