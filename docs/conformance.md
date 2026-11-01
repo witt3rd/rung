@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 7 decidable · 28 owed · 4 rationale · 12 signature · 51 total.
+**Counts.** 9 decidable · 26 owed · 4 rationale · 12 signature · 51 total.
 
 ### What the fleet is
 
@@ -640,8 +640,8 @@ unsettled. Where it is blank, nobody has written one down.
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
 | [4](rung-fleet-props.md#the-durable-record-is-the-delivery) | `the-durable-record-is-the-delivery` | `signature` | — | — |
-| [4.1](rung-fleet-props.md#an-unconsumed-receipt-does-not-compile) | `an-unconsumed-receipt-does-not-compile` | `owed` | — | **owed** — unimplemented — a compile-fail case: a delivery receipt bound and dropped without being consumed is refused (`#[must_use]`, linear) |
-| [4.2](rung-fleet-props.md#duplicate-delivery-is-idempotent) | `duplicate-delivery-is-idempotent` | `owed` | — | **owed** — unimplemented — a test that delivering the same correlation id twice to one inbox yields one record line and the same receipt |
+| [4.1](rung-fleet-props.md#an-unconsumed-receipt-does-not-compile) | `an-unconsumed-receipt-does-not-compile` | `decidable` | — | `rung-fleet/tests/delivery.rs::the_refusals_do_not_compile` |
+| [4.2](rung-fleet-props.md#duplicate-delivery-is-idempotent) | `duplicate-delivery-is-idempotent` | `decidable` | — | `rung-fleet/tests/delivery.rs::the_record_is_the_delivery_and_a_duplicate_adds_nothing` |
 | [4.3](rung-fleet-props.md#a-kill-loses-no-completion) | `a-kill-loses-no-completion` | `owed` | The host already requeues a stimulus admitted to a turn that never ended; this proposition adds that no crew completion falls between the crew's inbox write and the steward's recovery. | **owed** — unimplemented — a `kill -9` test of a steward mid-task: on restart its record recovers, the completion of its crew is delivered once, and none is lost |
 | [4.4](rung-fleet-props.md#crew-record-kinds-are-fleet-owned) | `crew-record-kinds-are-fleet-owned` | `decidable` | — | `rung-fleet/tests/records.rs::every_crew_kind_round_trips_through_a_record_line` |
 
@@ -740,9 +740,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 151 |
+| `decidable` | 153 |
 | `judgmental` | 47 |
-| `owed` | 30 |
+| `owed` | 28 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **455** |
@@ -760,8 +760,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 30 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 667 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 28 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 669 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1177,6 +1177,11 @@ look shorter than it is.
 - `a_consumer_may_place_an_order_and_drive_it`
 - `an_invented_order_settles_exactly_as_a_real_one_does`
 - `the_knowledge_exists_upstream_and_cannot_cross`
+
+**`rung-fleet/tests/delivery.rs`** — 2 unclaimed
+
+- `a_damaged_receiver_record_is_not_reported_as_waiting`
+- `an_unsafe_correlation_id_is_refused`
 
 **`rung-fleet/tests/lifecycle.rs`** — 4 unclaimed
 

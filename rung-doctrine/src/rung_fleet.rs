@@ -349,7 +349,7 @@ line.
         Element::Prop(Prop {
             slug: "an-unconsumed-receipt-does-not-compile".into(),
             parent: Some("the-durable-record-is-the-delivery".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a compile-fail case: a delivery receipt bound and dropped without being consumed is refused (`#[must_use]`, linear)"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/delivery.rs::the_refusals_do_not_compile".into() },
             numbering: None,
             prose: r#"A delivery receipt is **consumed exactly once**. A function that sends and
 discards its receipt fails to compile; the caller either records it, hands it on,
@@ -361,7 +361,7 @@ or says explicitly that it does not care.
         Element::Prop(Prop {
             slug: "duplicate-delivery-is-idempotent".into(),
             parent: Some("the-durable-record-is-the-delivery".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that delivering the same correlation id twice to one inbox yields one record line and the same receipt"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/delivery.rs::the_record_is_the_delivery_and_a_duplicate_adds_nothing".into() },
             numbering: None,
             prose: r#"Delivery is **idempotent by correlation id**. The same completion delivered
 twice, as after a retry or a restart of the sender, is one item in the receiver's

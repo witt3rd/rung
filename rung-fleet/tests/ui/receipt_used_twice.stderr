@@ -1,0 +1,15 @@
+error[E0382]: use of moved value: `r`
+ --> tests/ui/receipt_used_twice.rs:6:14
+  |
+4 | fn twice(r: Receipt) {
+  |          - move occurs because `r` has type `Receipt`, which does not implement the `Copy` trait
+5 |     let _a = r.record();
+  |                -------- `r` moved due to this method call
+6 |     let _b = r.record();
+  |              ^ value used here after move
+  |
+note: `rung_fleet::delivery::Receipt::record` takes ownership of the receiver `self`, which moves `r`
+ --> src/delivery.rs
+  |
+  |     pub fn record(self) -> Acknowledged {
+  |                   ^^^^

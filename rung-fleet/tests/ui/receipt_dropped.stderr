@@ -1,0 +1,36 @@
+error: unused `Sent` that must be used
+ --> tests/ui/receipt_dropped.rs:7:5
+  |
+7 |     send(target, d).unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: a Sent is a promise: confirm it against the receiver's record
+note: the lint level is defined here
+ --> tests/ui/receipt_dropped.rs:3:9
+  |
+3 | #![deny(unused_must_use)]
+  |         ^^^^^^^^^^^^^^^
+help: use `let _ = ...` to ignore the resulting value
+  |
+7 |     let _ = send(target, d).unwrap();
+  |     +++++++
+
+warning: path statement drops value
+  --> tests/ui/receipt_dropped.rs:12:9
+   |
+12 |         receipt;
+   |         ^^^^^^^^ help: use `drop` to clarify the intent: `drop(receipt);`
+   |
+   = note: `#[warn(path_statements)]` (part of `#[warn(unused)]`) on by default
+
+error: unused `Receipt` that must be used
+  --> tests/ui/receipt_dropped.rs:12:9
+   |
+12 |         receipt;
+   |         ^^^^^^^
+   |
+   = note: a Receipt must be recorded, handed on, or explicitly discarded
+help: use `let _ = ...` to ignore the resulting value
+   |
+12 |         let _ = receipt;
+   |         +++++++
