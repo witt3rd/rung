@@ -63,7 +63,7 @@ rung-doctrine encoding of the proposition documents
 rung-driver   population → pool; audit-rectify driver
 rung-memory   memory contract and stores (publish = false)
 rung-agent-core  turn engine library imported by rung-agent and rung-host
-rung-host     single-agent continuous host (docs/rung-host.md)
+rung-host     single-agent host (continuous; idle mode specified) (docs/rung-host.md)
 rung-fixture  cross-crate consumption tests
 rung-testkit  test-only helpers: TempDir (publish = false)
 ```
