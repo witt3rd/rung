@@ -20,7 +20,24 @@ actors; enforcement active. Repository auto-merge was already enabled
 Open PRs are not blocked: `check` reports on every pull request, and they
 merge through `gh pr merge --auto`.
 
-## Proof
+## Proof (real pull request, merged only by auto-merge)
 
-Pending: the PR that carries this file is enabled for auto-merge as the real
-test. Results are appended below.
+PR https://github.com/witt3rd/rung/pull/364 (the change that wrote this text
+and the house-git rule):
+
+- Auto-merge enabled 2026-11-01T22:34:09Z (`gh pr merge --auto --squash`).
+- First head: `check` failed (the consumer guard in `propositions` found
+  branch-family names in a data file), so auto-merge did not fire: the
+  required check holds.
+- Second head `63159aa`: CI run 41358728625 (pull_request, docs-only so the
+  planner skipped the Rust jobs) started 22:45:35Z, `check` green at
+  22:46:34Z (59 s). Auto-merge squash-merged it at 22:46:39Z as `b330a65`,
+  by auto-merge, no human action. The push run on master is 41358820614.
+- Auto-merge stayed armed across a rebase push: yes.
+- Strictness observed: the PR showed `BEHIND` when master moved first; a
+  rebase was needed before it could merge.
+- Not proven here: a full Rust CI run on the new path (about 11 minutes,
+  see AGENTS.md); this proof change was docs-only.
+
+Open PRs 355, 356 and 360 are mergeable through the same path (they report
+`check`; no approval is required).
