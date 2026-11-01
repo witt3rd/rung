@@ -85,9 +85,9 @@ Not crates:
 | `.archive/` | retired material (the Python proof of concept) |
 | `.github/` | CI workflows and the review council's principles |
 
-`rung-host` has two modes by idle time: continuous (idle time 0, the shipped
-behaviour) and idle mode (idle time above 0, specified in `docs/rung-host.md`,
-not built). The `rung-fleet` crate (chief, steward, crew supervising hosts) is
+`rung-host` has two modes by idle time: continuous (idle time 0) and
+idle mode (idle time above 0, `docs/rung-host.md`). The
+`rung-fleet` crate (chief, steward, crew supervising hosts) is
 planned and not in the workspace: its claims are `docs/rung-fleet-props.md`,
 its derivation `docs/rung-fleet-notes.md`; R1 runs as ordinary hosts behind
 `rung-gateway`.
