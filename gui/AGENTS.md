@@ -1,7 +1,7 @@
 # AGENTS.md — gui/
 
-The new rung UI's workspace: a typed gateway client (`rung-client`) and, next,
-a desktop app on GPUI Kit (`rung-ui`). Architecture and slices: the owner's UI
+The new rung UI's workspace: a typed gateway client (`rung-client`) and a
+desktop app on GPUI Kit (`rung-ui`). Architecture and slices: the owner's UI
 design note (ten slices; this is slice 1). The old web page in `../ui/` keeps
 working and is not touched.
 
@@ -32,3 +32,4 @@ working and is not touched.
 | crate | what |
 |---|---|
 | `rung-client` | blocking typed client of the gateway: `health`, `instances`; no GUI (`rung-client/AGENTS.md`) |
+| `rung-ui` | the GPUI Kit window: the instance list from a live gateway (`rung-ui/AGENTS.md`, with the build lane's needs) |

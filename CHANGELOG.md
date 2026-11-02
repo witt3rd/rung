@@ -7,6 +7,15 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, the new desktop UI's first window)
+- `gui/rung-ui`: a GPUI Kit window listing the instances behind a gateway
+  (name, the host's own state word, what it is doing; a needs-you mark; the
+  last good list stays up when the link drops), refreshed every three
+  seconds and read-only. `rung-ui --list` prints the same list as text with no
+  display. It is built and tested only by the `gui` job (which now installs
+  GPUI's system libraries), never by the root build or `check`. The build
+  lane's needs are in `gui/rung-ui/AGENTS.md`. The old `ui/` is untouched.
+
 ### Changed (docs overhaul)
 - `docs/_links.py` (in the `propositions` job) fails a document that points at
   something absent: a relative link, an anchor, a backticked repo path, a
