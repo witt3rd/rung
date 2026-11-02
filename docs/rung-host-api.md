@@ -475,7 +475,8 @@ Later slices add rows as their doors land.
 | Door | Access | Stream | Slice |
 |---|---|---|---|
 | `GET /v1/summary`, `/v1/status`, `/v1/report` | read | | H3 |
-| `GET /v1/record`, `/v1/turns`, `/v1/turns/{n}`, `/v1/decisions`, `/v1/pack`, `/v1/spend` | read | | H3 |
+| `GET /v1/record`, `/v1/decisions`, `/v1/pack`, `/v1/spend` | read | | H3 |
+| `GET /v1/turns`, `/v1/turns/{n}` | read | | S8 |
 | `GET /v1/events?after=N` | read | yes | H5 |
 | `GET /v1/turns/{n}/context?call=k` | read | yes | S4 |
 | `GET /v1/queue` | read | | S1 |
@@ -489,7 +490,7 @@ Later slices add rows as their doors land.
 
 Of the H3 rows, the first slice serves `summary` and `record` for native
 instances (the H3 section below); `status`, `report`, `decisions`, `pack` and
-`spend` are named here and not served yet, and `turns` is specified in S8 below
+`spend` are named here and not served yet; `turns` is specified in S8 below
 (not served yet). `events` (H5) is served
 for native instances from their state directories, and by the host's own
 listener (the H5 section).
@@ -650,7 +651,7 @@ oldest first, **paged by the caller**. The same paging rule as every list
 | `after` | the cursor: the page starts after this line number (`after=N` is `offset=N`: line numbers count from 1 with no gap). Not with `offset`; oldest first only |
 | `order` | `asc` (default) or `desc`; with `desc` the offset counts from the newest line and the page is newest first |
 
-A name not in the table, a repeated name, a value that is not a whole number,
+Turn numbers need not be contiguous, so this list pages by cursor on the turn number, not by `offset` (the one stated exception to the paging rule). A name not in the table, a repeated name, a value that is not a whole number,
 `limit=0`, `offset` with `after`, or `after` with `order=desc` is 400
 `bad_request`.
 
@@ -1802,7 +1803,7 @@ its `turn` number:
 |---|---|
 | `turn`, `kind`, `mode`, `project`, `model`, `epoch` | `turn.started` (`turn_kind` is `kind`); `kind` and `model` are then overwritten by `turn.ended`'s when it has them |
 | `started_at`, `ended_at`, `elapsed_ms` | `turn.started`'s and `turn.ended`'s `at`, and `turn.ended`'s `elapsed_ms`; `ended_at` and `elapsed_ms` are null without an end |
-| `status` | `turn.ended`'s `status` when it is `completed` or `bounded`, else `failed`; with no `turn.ended`: `running` when a host holds the state lock and this is the newest started turn, else `interrupted` (cut off: the host died, or the next turn began) |
+| `status` | `turn.ended`'s `status` when it is `completed` or `bounded`; `interrupted` when it is `cancelled` (a stop cut it off); else `failed`; with no `turn.ended`: `running` when a host holds the state lock and this is the newest started turn, else `interrupted` (cut off: the host died, or the next turn began) |
 | `failure` | `turn.ended`'s `failure` object, whole, when it has a `class`; else null |
 | `text` | the turn's reply, whole: the text of every assistant message of its `turn.log`, each trimmed, joined by a blank line; then `turn.ended`'s `final_text` (trimmed) when that is not already inside it; empty while the turn has no `turn.log` |
 | `llm` | `{"calls", "prompt_tokens", "cached_tokens", "completion_tokens", "cost_usd"}`: the sums over the turn's `llm.call` lines |
@@ -1875,7 +1876,7 @@ between turns, by line number). `text` is the item's whole text.
   are null when the call has no result;
 - when it has none (a turn running, or cut off): one per `tool.call` line,
   with its `name`, `group` and `ok`, and `input` and `result` null;
-- then, either way, one per `tool.refused` line: `ok` false, `refused` its
+- when it has none, then one per `tool.refused` line (with a `turn.log` a refusal is already one of its calls): `ok` false, `refused` its
   `why`, `result` its `message`.
 
 ### Cost and size
