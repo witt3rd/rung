@@ -1,4 +1,4 @@
-/** The queue as the page reads it: the host's `GET /v1/queue` answer (ui/contract/README.md), read whole and redacted, the words
+/** The queue as the page reads it: the host's `GET /v1/queue` answer (ui/contract/AGENTS.md), read whole and redacted, the words
  *  the page uses for an item, the order it shows, and the fold of a long text. Nothing here writes. */
 import { redact } from "../live/wire.ts";
 

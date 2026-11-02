@@ -93,7 +93,7 @@ fn run_question_audit(inst: &Instance, base: &Path) {
             .unwrap_or("");
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let Some(q) = Question::parse(RUNG, &text, dir, stem) else {
-            // infra files (README, INTAKE, _map) are not questions of the sort
+            // infra files (AGENTS, INTAKE, _map) are not questions of the sort
             continue;
         };
         audited += 1;

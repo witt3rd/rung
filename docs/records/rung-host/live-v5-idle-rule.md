@@ -82,4 +82,4 @@ dedicated quota) before changing the default.**
 
 ## Moved, 2026-10-29
 
-This record moved from `docs/rung-host-live-v5-idle-rule.md` to this directory; its text above is unchanged apart from relative links. Index: [README](README.md).
+This record moved from `docs/rung-host-live-v5-idle-rule.md` to this directory; its text above is unchanged apart from relative links. Index: [README](AGENTS.md).

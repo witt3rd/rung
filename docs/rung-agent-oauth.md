@@ -1,6 +1,6 @@
 # rung-agent — OAuth credentials
 
-**Status: informative** (a crate design, `docs/README.md`). The propositions
+**Status: informative** (a crate design, `docs/AGENTS.md`). The propositions
 below are numbered `O1…`; each names the test that proves it, or says it is
 not proven. Where this page and the code disagree, the test is right.
 

@@ -1,5 +1,5 @@
 /** A simulated host: a numbered, gap-free record that grows, and subscribers that follow it. It speaks the doors in
- *  ui/contract/README.md and nothing else. It stands where H3 (read doors) and H5 (events) will stand; the contract tests
+ *  ui/contract/AGENTS.md and nothing else. It stands where H3 (read doors) and H5 (events) will stand; the contract tests
  *  are what both must pass. Not a model of the host's thinking: the lines have the real record's shapes, the content is invented. */
 import type { ServerResponse } from "node:http";
 import type { Line } from "../src/record/types.ts";

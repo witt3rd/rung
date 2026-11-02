@@ -284,7 +284,7 @@ fn instance_config_drives_a_carrier_audit() {
             .and_then(|d| d.to_str())
             .unwrap_or("");
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-        // infra files (README, INTAKE, _map) are not questions — the theory
+        // infra files (AGENTS, INTAKE, _map) are not questions — the theory
         // skips them, and so does the audit over the carrier's subjects.
         let Some(q) = Question::parse(scheme, &content, dir, stem) else {
             continue;

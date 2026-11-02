@@ -11,7 +11,7 @@ adapter, the model ladder, the governor, owner intent, stop and restart, the
 record and the gates. The wire contract for a UI or gateway is
 [`rung-host-api.md`](rung-host-api.md); a five-minute run is
 [`rung-host-quickstart.md`](rung-host-quickstart.md); dated live runs,
-findings and design records are in [`records/rung-host/`](records/rung-host/README.md).
+findings and design records are in [`records/rung-host/`](records/rung-host/AGENTS.md).
 Delegation to workers is a final extension; only its extension point exists
 (the `crew` group name and the `crew.*` record kinds are reserved, and the
 inbox admits external completion items).
