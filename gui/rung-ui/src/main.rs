@@ -12,12 +12,14 @@
 //! page; `--select ID` opens with one already chosen. The window only reads:
 //! nothing in it writes to a host.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use gpui_kit::component::{ActiveTheme as _, h_flex, v_flex};
 use gpui_kit::*;
-use rung_client::Client;
-use rung_ui::{Detail, Link, Row, Snapshot, as_text, detail_text, look};
+use rung_client::{Client, Event, Follow, follow};
+use rung_ui::{Detail, Feed, Link, Row, Snapshot, as_text, detail_text, look, utc};
 
 const DEFAULT_GATEWAY: &str = "http://127.0.0.1:8787";
 const EVERY: Duration = Duration::from_secs(3);
@@ -31,11 +33,22 @@ struct InstanceList {
     snapshot: Snapshot,
     /// The instance whose page is open (an id).
     selected: Option<String>,
+    client: Client,
+    /// The followed record of the selected instance.
+    feed: Feed,
+    /// The id the running stream follows, and the flag that stops it.
+    following: Option<(String, Arc<AtomicBool>)>,
+    /// Which stream the window listens to (older ones are ignored).
+    generation: u64,
 }
+
+/// How many lines back from the newest the page starts its record.
+const BACKFILL: u64 = 100;
 
 impl InstanceList {
     fn new(client: Client, selected: Option<String>, cx: &mut Context<Self>) -> Self {
         let gateway = client.base().to_string();
+        let own = client.clone();
         // A worker thread looks every few seconds and hands the result over;
         // the window never waits on the network. It stops when the window's
         // end of the channel is gone.
@@ -61,6 +74,10 @@ impl InstanceList {
             link: Link::Connecting,
             snapshot: Snapshot::default(),
             selected,
+            client: own,
+            feed: Feed::default(),
+            following: None,
+            generation: 0,
         }
     }
 
@@ -73,7 +90,71 @@ impl InstanceList {
             // keep the last good rows on screen, and say the link is down
             Err(why) => self.link = Link::Down(why),
         }
+        self.ensure_stream(cx);
         cx.notify();
+    }
+
+    /// Select an instance: its page opens and its record is followed.
+    fn select(&mut self, id: String, cx: &mut Context<Self>) {
+        self.selected = Some(id);
+        self.ensure_stream(cx);
+        cx.notify();
+    }
+
+    /// Follow the selected instance's record. The stream starts a little
+    /// behind its newest line (not at the first: a long record is not
+    /// replayed), is resumed by the client after a drop, and is stopped when
+    /// another instance is chosen.
+    fn ensure_stream(&mut self, cx: &mut Context<Self>) {
+        let Some(id) = self.selected.clone() else {
+            return;
+        };
+        if self.following.as_ref().is_some_and(|(f, _)| *f == id) {
+            return;
+        }
+        // wait for the first look: it says where the record is
+        let Some(row) = self.snapshot.rows.iter().find(|r| r.id == id) else {
+            return;
+        };
+        let after = row.last_seq.map(|n| n.saturating_sub(BACKFILL));
+        if let Some((_, stop)) = self.following.take() {
+            stop.store(true, Ordering::Relaxed);
+        }
+        self.generation += 1;
+        let generation = self.generation;
+        self.feed = Feed::default();
+        let stop = Arc::new(AtomicBool::new(false));
+        self.following = Some((id.clone(), stop.clone()));
+
+        let (tx, rx) = async_channel::unbounded::<Event>();
+        let client = self.client.clone();
+        std::thread::spawn(move || {
+            follow(&client, &id, after, Follow::default(), &stop, |e| {
+                tx.send_blocking(e).is_ok()
+            });
+        });
+        cx.spawn(async move |this, cx| {
+            while let Ok(first) = rx.recv().await {
+                let mut batch = vec![first];
+                while let Ok(e) = rx.try_recv() {
+                    batch.push(e);
+                }
+                let live = this.update(cx, |v, cx| {
+                    if v.generation != generation {
+                        return false;
+                    }
+                    for e in &batch {
+                        v.feed.apply(e);
+                    }
+                    cx.notify();
+                    true
+                });
+                if !matches!(live, Ok(true)) {
+                    return; // the window is gone, or another stream took over
+                }
+            }
+        })
+        .detach();
     }
 }
 
@@ -103,10 +184,7 @@ impl Render for InstanceList {
                     r,
                     &theme,
                     selected,
-                    cx.listener(move |this, _, _, cx| {
-                        this.selected = Some(id.clone());
-                        cx.notify();
-                    }),
+                    cx.listener(move |this, _, _, cx| this.select(id.clone(), cx)),
                 ));
             }
         }
@@ -166,11 +244,14 @@ impl Render for InstanceList {
             .bg(theme.background)
             .text_color(theme.foreground)
             .child(list)
-            .children(
-                self.selected
-                    .as_ref()
-                    .map(|id| page(id, self.snapshot.rows.iter().find(|r| &r.id == id), &theme)),
-            )
+            .children(self.selected.as_ref().map(|id| {
+                page(
+                    id,
+                    self.snapshot.rows.iter().find(|r| &r.id == id),
+                    &self.feed,
+                    &theme,
+                )
+            }))
     }
 }
 
@@ -215,7 +296,12 @@ fn row(
 
 /// One instance's page, beside the list: its name, then each section of the
 /// host's summary as label and value.
-fn page(id: &str, row: Option<&Row>, theme: &gpui_kit::component::Theme) -> AnyElement {
+fn page(
+    id: &str,
+    row: Option<&Row>,
+    feed: &Feed,
+    theme: &gpui_kit::component::Theme,
+) -> AnyElement {
     let muted = theme.muted_foreground;
     let mut col = v_flex()
         .id("page")
@@ -239,7 +325,11 @@ fn page(id: &str, row: Option<&Row>, theme: &gpui_kit::component::Theme) -> AnyE
     };
     let detail: &Detail = &row.detail;
     col = col.child(div().text_lg().child(row.name.clone()));
-    for sec in &detail.sections {
+    for (n, sec) in detail.sections.iter().enumerate() {
+        if n == 1 {
+            // the followed record sits right under Now
+            col = col.child(record(feed, theme));
+        }
         let mut block = v_flex().gap_1().child(
             div()
                 .pt_2()
@@ -264,7 +354,88 @@ fn page(id: &str, row: Option<&Row>, theme: &gpui_kit::component::Theme) -> AnyE
         }
         col = col.child(block);
     }
+    if detail.sections.len() < 2 {
+        col = col.child(record(feed, theme));
+    }
     col.into_any_element()
+}
+
+/// The followed record: the stream's state, the running turn's text as it
+/// arrives, then the newest record lines, newest first.
+fn record(feed: &Feed, theme: &gpui_kit::component::Theme) -> AnyElement {
+    let muted = theme.muted_foreground;
+    let mut block = v_flex().gap_1().child(
+        div()
+            .pt_2()
+            .text_sm()
+            .text_color(muted)
+            .child(format!("Record · {}", feed.state.words())),
+    );
+    let p = &feed.partial;
+    if !p.text.is_empty() || !p.tools.is_empty() || p.gap {
+        let mut live = v_flex()
+            .gap_1()
+            .p_2()
+            .rounded_md()
+            .bg(theme.secondary)
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(muted)
+                    .child(format!("Turn {} as it is written", p.turn.unwrap_or(0))),
+            );
+        if !p.text.is_empty() {
+            // the tail: a long answer shows its newest words
+            let n = p.text.chars().count();
+            let tail: String = p.text.chars().skip(n.saturating_sub(600)).collect();
+            live = live.child(div().child(tail));
+        }
+        if !p.tools.is_empty() {
+            live = live.child(
+                div()
+                    .text_sm()
+                    .text_color(muted)
+                    .child(format!("tools: {}", p.tools.join(" → "))),
+            );
+        }
+        if p.gap {
+            live = live.child(
+                div()
+                    .text_sm()
+                    .text_color(theme.warning)
+                    .child("some live text was missed; the record has it"),
+            );
+        }
+        block = block.child(live);
+    }
+    for l in feed.lines.iter().take(60) {
+        let when = l.at.map(|t| utc(t)[11..19].to_string()).unwrap_or_default();
+        block = block.child(
+            h_flex()
+                .gap_2()
+                .items_baseline()
+                .child(
+                    div()
+                        .w(px(46.))
+                        .flex_none()
+                        .text_color(muted)
+                        .child(l.seq.to_string()),
+                )
+                .child(div().w(px(84.)).flex_none().text_color(muted).child(when))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .truncate()
+                        .child(if l.text.is_empty() {
+                            l.kind.clone()
+                        } else {
+                            format!("{} · {}", l.kind, l.text)
+                        }),
+                ),
+        );
+    }
+    block.into_any_element()
 }
 
 /// The command line.

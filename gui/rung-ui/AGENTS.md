@@ -12,7 +12,12 @@ under a chief; the real edge comes with the fleet's records, not from a guess.
 Clicking an instance opens its page beside the list: Now (state, doing,
 what it waits for, turn, last activity), Queue, Spend, Desk and Governor, laid
 out from the host's own summary that the list already carries (no second
-door, no fold here); an instance the gateway cannot read says why. `--select
+door, no fold here); an instance the gateway cannot read says why. The page also follows the instance's record live: the newest
+lines (newest first, kept to 300) and the running turn's text and tools as they
+arrive, from the gateway's event stream. The stream starts 100 lines behind the
+newest, is resumed from the last line seen after a drop (back-off 1 s doubling to
+30 s), is stopped when another instance is chosen, and says in the page when it
+is reconnecting or the instance's stream ended. `--select
 ID` opens with one chosen. It only reads.
 
 ```text

@@ -5,7 +5,9 @@
 //! The words are the host's own (`rung-client` reads them from the summary
 //! the gateway lists); nothing here folds a record or removes a secret.
 
-use rung_client::{Client, Instance, Instances, Role};
+use std::collections::VecDeque;
+
+use rung_client::{Client, Event, Frame, Instance, Instances, Role};
 
 /// One line of the list: name, state word, what it is doing.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +25,8 @@ pub struct Row {
     pub needs_you: bool,
     /// Everything the host's summary says, for the instance's own page.
     pub detail: Detail,
+    /// Its newest record line number: where a followed stream may start.
+    pub last_seq: Option<u64>,
 }
 
 /// One instance's page: sections of label and value, all of it the host's own
@@ -155,6 +159,7 @@ pub fn snapshot_of(list: &Instances) -> Snapshot {
             .map(|i| Row {
                 id: i.id.clone(),
                 detail: detail_of(i),
+                last_seq: i.summary.as_ref().and_then(|s| s.last_seq),
                 name: i.display_name().to_string(),
                 role: i.role(),
                 unreachable: i.unreachable(),
@@ -393,6 +398,133 @@ pub fn detail_text(row: &Row) -> String {
         }
     }
     out
+}
+
+/// The most record lines the page keeps (older ones fall off the far end).
+pub const FEED_CAP: usize = 300;
+
+/// One line of the followed record, as one line of text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FeedLine {
+    pub seq: u64,
+    /// When the host wrote it (ms since the epoch).
+    pub at: Option<i64>,
+    pub kind: String,
+    /// The first readable words of the line, if it has any.
+    pub text: String,
+}
+
+/// The running turn's partial text and tool progress: short-lived, never in
+/// the record. The finished turn is in the record lines.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Partial {
+    pub turn: Option<u64>,
+    pub text: String,
+    /// Tools begun or done in this turn, in order (`name`, `name ✓`, `name ✗`).
+    pub tools: Vec<String>,
+    /// Partial frames were missed (the reader fell behind); the record has them.
+    pub gap: bool,
+}
+
+/// Where a followed stream stands.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum StreamState {
+    #[default]
+    Connecting,
+    Live,
+    /// The connection is gone; it will be tried again.
+    Lost(String),
+    /// The instance's stream ended (`stopped`, `down`, ...); a restart is waited for.
+    Ended(String),
+}
+
+impl StreamState {
+    pub fn words(&self) -> String {
+        match self {
+            StreamState::Connecting => "connecting…".into(),
+            StreamState::Live => "live".into(),
+            StreamState::Lost(why) => format!("reconnecting ({})", clip(why, 60)),
+            StreamState::Ended(reason) => format!("ended: {reason}; waiting for it"),
+        }
+    }
+}
+
+/// One followed instance: its newest record lines (newest first) and the
+/// partial text of the turn that is running.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Feed {
+    pub lines: VecDeque<FeedLine>,
+    pub partial: Partial,
+    pub state: StreamState,
+}
+
+/// The first readable words of a record line: the first of a few common text
+/// fields, one line, cut. A display aid only: the host's line is untouched.
+pub fn describe(line: &serde_json::Value) -> String {
+    for key in [
+        "text", "content", "message", "title", "name", "reason", "why",
+    ] {
+        if let Some(t) = line.get(key).and_then(|v| v.as_str()) {
+            let t = clip(t, 140);
+            if !t.is_empty() {
+                return t;
+            }
+        }
+    }
+    String::new()
+}
+
+impl Feed {
+    /// Take one thing the follower reported.
+    pub fn apply(&mut self, e: &Event) {
+        match e {
+            Event::Connected(_) => self.state = StreamState::Live,
+            // the follower reports the end and then the wait: keep the end,
+            // which says more than the wait
+            Event::Lost { .. } if matches!(self.state, StreamState::Ended(_)) => {}
+            Event::Lost { why, .. } => self.state = StreamState::Lost(why.clone()),
+            Event::Frame(Frame::Record { seq, line }) => {
+                self.state = StreamState::Live;
+                self.lines.push_front(FeedLine {
+                    seq: *seq,
+                    at: line.get("at").and_then(|v| v.as_i64()),
+                    kind: line
+                        .get("kind")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("?")
+                        .to_string(),
+                    text: describe(line),
+                });
+                self.lines.truncate(FEED_CAP);
+            }
+            Event::Frame(Frame::End(end)) => self.state = StreamState::Ended(end.reason.clone()),
+            Event::Frame(Frame::Delta(d)) => {
+                if d.kind == "turn_end" {
+                    // the finished turn is in the record
+                    self.partial = Partial::default();
+                    return;
+                }
+                if self.partial.turn != Some(d.turn) {
+                    self.partial = Partial {
+                        turn: Some(d.turn),
+                        ..Partial::default()
+                    };
+                }
+                let name = d.name.clone().unwrap_or_default();
+                match d.kind.as_str() {
+                    "text" => self.partial.text.push_str(d.text.as_deref().unwrap_or("")),
+                    "tool_call" => self.partial.tools.push(name),
+                    "tool_done" => {
+                        let mark = if d.ok == Some(false) { '✗' } else { '✓' };
+                        self.partial.tools.push(format!("{name} {mark}"));
+                    }
+                    "behind" => self.partial.gap = true,
+                    _ => {}
+                }
+            }
+            Event::Frame(Frame::Other { .. }) | Event::Frame(Frame::Open(_)) => {}
+        }
+    }
 }
 
 /// One look: health first (so a dead gateway reads as that), then the list.
@@ -770,6 +902,113 @@ Other instances (1)
             ),
             "{text}"
         );
+    }
+
+    fn rec(seq: u64, line: &str) -> Event {
+        Event::Frame(Frame::Record {
+            seq,
+            line: serde_json::from_str(line).unwrap(),
+        })
+    }
+
+    fn delta(
+        turn: u64,
+        kind: &str,
+        text: Option<&str>,
+        name: Option<&str>,
+        ok: Option<bool>,
+    ) -> Event {
+        Event::Frame(Frame::Delta(rung_client::Delta {
+            turn,
+            call: 0,
+            kind: kind.into(),
+            text: text.map(Into::into),
+            name: name.map(Into::into),
+            ok,
+            output: None,
+            skipped: None,
+        }))
+    }
+
+    #[test]
+    fn records_come_newest_first_with_their_words_and_the_feed_is_capped() {
+        let mut f = Feed::default();
+        f.apply(&rec(1, r#"{"seq":1,"at":5,"kind":"turn.started"}"#));
+        f.apply(&rec(
+            2,
+            r#"{"seq":2,"at":6,"kind":"message","text":"hello\nsecond line"}"#,
+        ));
+        assert_eq!(f.state, StreamState::Live);
+        let got: Vec<_> = f
+            .lines
+            .iter()
+            .map(|l| (l.seq, l.at, l.kind.as_str(), l.text.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                (2, Some(6), "message", "hello…"),
+                (1, Some(5), "turn.started", "")
+            ]
+        );
+        for n in 3..(FEED_CAP as u64 + 50) {
+            f.apply(&rec(n, r#"{"kind":"k"}"#));
+        }
+        assert_eq!(f.lines.len(), FEED_CAP);
+        assert_eq!(f.lines[0].seq, FEED_CAP as u64 + 49, "the newest is kept");
+    }
+
+    #[test]
+    fn streaming_text_builds_up_then_the_finished_turn_replaces_it() {
+        let mut f = Feed::default();
+        f.apply(&delta(4, "text", Some("Hel"), None, None));
+        f.apply(&delta(4, "text", Some("lo"), None, None));
+        f.apply(&delta(4, "tool_call", None, Some("read"), None));
+        f.apply(&delta(4, "tool_done", None, Some("read"), Some(true)));
+        f.apply(&delta(4, "tool_done", None, Some("write"), Some(false)));
+        assert_eq!(f.partial.text, "Hello");
+        assert_eq!(f.partial.tools, ["read", "read ✓", "write ✗"]);
+        assert_eq!(f.partial.turn, Some(4));
+        // the next turn starts clean
+        f.apply(&delta(5, "text", Some("B"), None, None));
+        assert_eq!((f.partial.text.as_str(), f.partial.tools.len()), ("B", 0));
+        // the end of the turn drops the partial: the record has the text
+        f.apply(&delta(5, "turn_end", None, None, None));
+        assert_eq!(f.partial, Partial::default());
+    }
+
+    #[test]
+    fn a_missed_stretch_is_marked_and_the_link_states_are_worded() {
+        let mut f = Feed::default();
+        f.apply(&delta(1, "behind", None, None, None));
+        assert!(f.partial.gap);
+        f.apply(&Event::Lost {
+            why: "refused".into(),
+            retry_in: std::time::Duration::ZERO,
+        });
+        assert_eq!(f.state.words(), "reconnecting (refused)");
+        f.apply(&Event::Frame(Frame::End(rung_client::End {
+            reason: "down".into(),
+            last_seq: Some(3),
+            problem: None,
+        })));
+        assert_eq!(f.state.words(), "ended: down; waiting for it");
+        f.apply(&Event::Lost {
+            why: "the stream ended".into(),
+            retry_in: std::time::Duration::ZERO,
+        });
+        assert_eq!(
+            f.state.words(),
+            "ended: down; waiting for it",
+            "the end is kept over the wait"
+        );
+        f.apply(&Event::Connected(rung_client::Open {
+            after: 3,
+            live: true,
+            partials: true,
+        }));
+        assert_eq!(f.state.words(), "live");
+        assert_eq!(StreamState::Connecting.words(), "connecting…");
     }
 
     #[test]

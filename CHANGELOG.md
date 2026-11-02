@@ -7,6 +7,17 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, the live record)
+- `rung-client` reads the gateway's event stream: `Client::events` (one
+  connection, frames in order) and `follow` (reconnect with `Last-Event-ID`
+  from the last record seen, quiet back-off from 1 s to 30 s, a fresh start on
+  a cursor from another instance, stop on a flag), tested against a scripted stub and
+  a real gateway and host (replay, resume by cursor, 409/404, a killed host
+  ends its stream `down`). The `rung-ui` instance page follows the chosen
+  instance: its newest record lines (newest first, 300 kept) and the running
+  turn's text and tools as they arrive, with the stream's state in words
+  (live, reconnecting, ended). Read-only; the old `ui/` is untouched.
+
 ### Added (rung-ui, the instance page)
 - Clicking an instance in `rung-ui` opens its page: Now (state, doing, what it
   waits for, turn, last activity), Queue, Spend (paid today, requests of quota,
