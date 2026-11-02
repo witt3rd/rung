@@ -6,8 +6,8 @@ A file that exists at the base must keep its old text byte for byte as a
 prefix; what follows must begin with a heading that carries a date
 (`## Moved, 2026-10-29`, `## 2026-11-01 correction`). New files are free.
 One retargeting is allowed: this repository has no README.md anywhere, so the
-file name `README.md` in an old text may become `AGENTS.md` (a link follows its
-renamed target); nothing else in old text may change.
+file name `README.md` is read as `AGENTS.md` on both sides of the comparison (a
+link follows its renamed target); nothing else in old text may change.
 Run locally:  docs/_records_guard.py [BASE_REF]
 """
 import re
@@ -39,6 +39,7 @@ def main():
         old = git("show", f"{base}:{old_path}").decode()
         new = git("show", f"HEAD:{new_path}").decode()
         old = old.replace("README.md", "AGENTS.md")
+        new = new.replace("README.md", "AGENTS.md")
         if new == old:
             continue
         if not new.startswith(old):
