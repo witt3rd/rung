@@ -744,9 +744,8 @@ pub fn strata_of(v: &ContextView) -> Strata {
     }
 }
 
-/// What opening a band shows: its text (the first part), or a count.
+/// What opening a band shows: its whole text, or a count.
 pub fn band_preview(b: &Band) -> String {
-    const SHOW: usize = 1500;
     match b.band.as_str() {
         "tools" => {
             let names: Vec<&str> = b.items.iter().map(|t| t.name.as_str()).collect();
@@ -761,19 +760,26 @@ pub fn band_preview(b: &Band) -> String {
             b.calls_so_far.unwrap_or(0),
             b.messages
         ),
-        _ => match &b.text {
-            Some(t) if t.chars().count() > SHOW => {
-                format!(
-                    "{}…\n({} characters in all)",
-                    t.chars().take(SHOW).collect::<String>(),
-                    grouped(t.chars().count() as u64)
-                )
-            }
-            Some(t) => t.clone(),
-            None => String::new(),
-        },
+        _ => b.text.clone().unwrap_or_default(),
     }
 }
+
+/// A band's text cut for drawing: the part shown, the whole length, and
+/// whether anything is held back. Nothing is lost: expanding shows it all.
+pub fn band_fold(text: &str, expanded: bool) -> (&str, usize, bool) {
+    let total = text.chars().count();
+    if expanded || total <= BAND_FOLD {
+        return (text, total, false);
+    }
+    let end = text
+        .char_indices()
+        .nth(BAND_FOLD)
+        .map_or(text.len(), |(i, _)| i);
+    (&text[..end], total, true)
+}
+
+/// How many characters of a band are drawn before "Show more".
+pub const BAND_FOLD: usize = 20_000;
 
 /// One look: health first (so a dead gateway reads as that), then the list.
 pub fn look(client: &Client) -> Result<Snapshot, String> {
@@ -1425,14 +1431,22 @@ Other instances (1)
         assert_eq!(band_preview(&v.bands[0]), "2 tool definitions: read, write");
         assert_eq!(band_preview(&v.bands[1]), "You are an agent.");
         assert!(band_preview(&v.bands[4]).starts_with("1 model calls so far"));
+        let huge = "é".repeat(2_000_000);
         let long = Band {
             band: "system".into(),
-            text: Some("é".repeat(2000)),
+            text: Some(huge.clone()),
             ..Band::default()
         };
-        let p = band_preview(&long);
-        assert!(p.ends_with("…\n(2,000 characters in all)"), "{p}");
-        assert_eq!(p.chars().filter(|c| *c == 'é').count(), 1500);
+        assert_eq!(band_preview(&long), huge);
+        let (part, total, folded) = band_fold(&huge, false);
+        assert!(folded);
+        assert_eq!(total, 2_000_000);
+        assert_eq!(part.chars().count(), BAND_FOLD);
+        let (all, total, folded) = band_fold(&huge, true);
+        assert!(!folded);
+        assert_eq!(all, huge);
+        assert_eq!(total, 2_000_000);
+        assert_eq!(band_fold("short", false), ("short", 5, false));
     }
 
     #[test]

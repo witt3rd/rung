@@ -25,8 +25,8 @@ use gpui_kit::component::{ActiveTheme as _, h_flex, v_flex};
 use gpui_kit::*;
 use rung_client::{Client, ContextView, Event, Follow, Intent, QueueList, follow};
 use rung_ui::{
-    Cache, Detail, Feed, Link, Row, Snapshot, Way, as_text, band_preview, detail_text, fresh_key,
-    look, move_target, queue_line, said, strata_of, utc,
+    Cache, Detail, Feed, Link, Row, Snapshot, Way, as_text, band_fold, band_preview, detail_text,
+    fresh_key, look, move_target, queue_line, said, strata_of, utc,
 };
 
 const DEFAULT_GATEWAY: &str = "http://127.0.0.1:8787";
@@ -63,6 +63,7 @@ struct InstanceList {
     _subscription: Subscription,
     /// The context inspector: what was sent to the model on one call of one turn.
     ctx: Option<CtxState>,
+    ctx_more: bool,
     /// A turn to open the inspector at once the instance is listed (`--turn`).
     ctx_pending: Option<u64>,
     ctx_band: Option<String>,
@@ -151,6 +152,7 @@ impl InstanceList {
             writes: 0,
             _subscription: subscription,
             ctx: None,
+            ctx_more: false,
             ctx_pending: turn,
             ctx_band: None,
         };
@@ -438,6 +440,7 @@ impl InstanceList {
                 .items_baseline()
                 .cursor_pointer()
                 .on_click(cx.listener(move |this, _, _, cx| {
+                    this.ctx_more = false;
                     this.ctx_band = if this.ctx_band.as_deref() == Some(name.as_str()) {
                         None
                     } else {
@@ -462,6 +465,8 @@ impl InstanceList {
             .as_ref()
             .and_then(|n| v.bands.iter().find(|b| &b.band == n))
         {
+            let full = band_preview(b);
+            let (part, total, folded) = band_fold(&full, self.ctx_more);
             block = block.child(
                 div()
                     .id("band-text")
@@ -471,8 +476,32 @@ impl InstanceList {
                     .rounded_md()
                     .bg(theme.secondary)
                     .text_sm()
-                    .child(band_preview(b)),
+                    .child(part.to_string()),
             );
+            let mut foot =
+                h_flex()
+                    .gap_2()
+                    .items_center()
+                    .child(div().text_sm().text_color(muted).child(format!(
+                        "{} characters in all",
+                        rung_ui::grouped(total as u64)
+                    )));
+            if folded || self.ctx_more {
+                foot = foot.child(
+                    Button::new("band-more")
+                        .ghost()
+                        .label(if self.ctx_more {
+                            "Show less"
+                        } else {
+                            "Show more"
+                        })
+                        .on_click(cx.listener(|t, _, _, cx| {
+                            t.ctx_more = !t.ctx_more;
+                            cx.notify();
+                        })),
+                );
+            }
+            block = block.child(foot);
         }
         for f in &strata.facts {
             block = block.child(div().text_sm().text_color(muted).child(f.clone()));
