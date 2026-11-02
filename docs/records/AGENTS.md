@@ -27,7 +27,7 @@ No stub files were left behind.
 | `data/rung-test-requests/rung-webfetch-artifact-build.md` | `docs/records/rung-host/rung-webfetch-artifact-build.md` |
 | `docs/.archive/` | `docs/records/archive/` |
 
-Subjects now under `docs/records/`: `rung-host/` (see its `AGENTS.md`),
+Subjects now under `docs/records/`: `rung-host/` (see its README),
 `rung-agent/`, `rung-ui/`, `rung-het/`, `archive/` (handoff letters and the
 early design notes).
 
