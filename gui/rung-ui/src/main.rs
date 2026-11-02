@@ -21,16 +21,24 @@ use std::time::Duration;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::resizable::{h_resizable, resizable_panel};
 use gpui_kit::component::{ActiveTheme as _, h_flex, v_flex};
+use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::*;
 use rung_client::{
     Client, ContextView, Event, Follow, Intent, QueueList, TurnDetail, TurnRow, follow,
 };
 use rung_ui::{
     Cache, Detail, Feed, Link, Row, Snapshot, Way, as_text, asked_line, band_fold, band_preview,
-    call_body, call_line, detail_text, fresh_key, look, move_target, queue_line, said, strata_of,
-    turn_changed, turn_facts, turn_headline, turn_meta, utc,
+    call_body, call_line, detail_text, fresh_key, look, move_target, queue_line, said,
+    step_selection, strata_of, turn_changed, turn_facts, turn_headline, turn_meta, utc,
 };
+
+actions!(rung_ui, [NextInstance, PrevInstance, ToggleTheme]);
+
+/// The key context of the window's root: the bindings below apply anywhere
+/// inside it, the message box included (they are all chords, never a bare key).
+const CONTEXT: &str = "RungUi";
 
 const DEFAULT_GATEWAY: &str = "http://127.0.0.1:8787";
 const EVERY: Duration = Duration::from_secs(3);
@@ -83,6 +91,8 @@ struct InstanceList {
     /// Show more / less of the open turn's reply, and the open tool call.
     turn_more: bool,
     turn_call: Option<usize>,
+    /// Where keyboard focus rests when nothing else has it, so the chords work.
+    focus: FocusHandle,
 }
 
 /// One answer of the context door, or why there is none.
@@ -182,9 +192,12 @@ impl InstanceList {
             turn_detail: None,
             turn_more: false,
             turn_call: None,
+            focus: cx.focus_handle(),
         };
         if this.writer.is_some() {
             this.input.update(cx, |s, cx| s.focus(window, cx));
+        } else {
+            this.focus.focus(window, cx);
         }
         this
     }
@@ -261,6 +274,27 @@ impl InstanceList {
             call = (call + dcall).clamp(1, calls);
         }
         self.load_context(turn as u64, Some(call as u64), cx);
+    }
+
+    /// Move the selection one step down or up the list (Alt+Down, Alt+Up).
+    fn step(&mut self, way: Way, cx: &mut Context<Self>) {
+        let next = step_selection(&self.snapshot.ordered_ids(), self.selected.as_deref(), way);
+        if let Some(id) = next
+            && self.selected.as_deref() != Some(id.as_str())
+        {
+            self.select(id, cx);
+        }
+    }
+
+    /// Light or dark (Ctrl+T): the theme's own mode change, which refreshes every window.
+    fn toggle_theme(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let to = if cx.theme().mode.is_dark() {
+            ThemeMode::Light
+        } else {
+            ThemeMode::Dark
+        };
+        Theme::change(to, Some(window), cx);
+        cx.notify();
     }
 
     /// Turn the owner's controls on (a click) or off.
@@ -1150,22 +1184,40 @@ impl Render for InstanceList {
             .children(empty)
             .child(div().text_color(muted).text_sm().child("read-only view"));
 
-        h_flex()
+        // the list and the page are two panels with a drag handle between them
+        let page = self.selected.as_ref().map(|id| {
+            page(
+                id,
+                self.snapshot.rows.iter().find(|r| &r.id == id),
+                &self.feed,
+                queue_block,
+                context_block,
+                turns_block,
+                &theme,
+            )
+        });
+        let mut panels = h_resizable("rung-panels").child(
+            resizable_panel()
+                .size(px(380.))
+                .size_range(px(240.)..px(1100.))
+                .child(list),
+        );
+        if let Some(page) = page {
+            panels = panels.child(resizable_panel().child(page));
+        }
+        div()
+            .id("rung-root")
+            .key_context(CONTEXT)
+            .track_focus(&self.focus)
+            .on_action(cx.listener(|this, _: &NextInstance, _, cx| this.step(Way::Down, cx)))
+            .on_action(cx.listener(|this, _: &PrevInstance, _, cx| this.step(Way::Up, cx)))
+            .on_action(
+                cx.listener(|this, _: &ToggleTheme, window, cx| this.toggle_theme(window, cx)),
+            )
             .size_full()
             .bg(theme.background)
             .text_color(theme.foreground)
-            .child(list)
-            .children(self.selected.as_ref().map(|id| {
-                page(
-                    id,
-                    self.snapshot.rows.iter().find(|r| &r.id == id),
-                    &self.feed,
-                    queue_block,
-                    context_block,
-                    turns_block,
-                    &theme,
-                )
-            }))
+            .child(panels)
     }
 }
 
@@ -1222,9 +1274,7 @@ fn page(
     let muted = theme.muted_foreground;
     let mut col = v_flex()
         .id("page")
-        .w(px(340.))
-        .flex_none()
-        .h_full()
+        .size_full()
         .overflow_y_scroll()
         .p_4()
         .gap_3()
@@ -1467,6 +1517,11 @@ fn main() {
 
     application().with_assets(assets::Assets).run(move |cx| {
         init(cx);
+        cx.bind_keys([
+            KeyBinding::new("alt-down", NextInstance, Some(CONTEXT)),
+            KeyBinding::new("alt-up", PrevInstance, Some(CONTEXT)),
+            KeyBinding::new("ctrl-t", ToggleTheme, Some(CONTEXT)),
+        ]);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                 None,

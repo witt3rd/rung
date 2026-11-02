@@ -12,7 +12,14 @@ under a chief; the real edge comes with the fleet's records, not from a guess.
 Clicking an instance opens its page beside the list: Now (state, doing,
 what it waits for, turn, last activity), Queue, Spend, Desk and Governor, laid
 out from the host's own summary that the list already carries (no second
-door, no fold here); an instance the gateway cannot read says why. The page's Context section is the inspector: the request of one call of one
+door, no fold here); an instance the gateway cannot read says why. **Panels, keyboard, theme.** The list and the instance page are two resizable
+panels (drag the handle between them). Chords work anywhere in the window,
+the message box included (all are chords, never a bare key): Alt+Down / Alt+Up
+select the next / previous instance in the order the list shows (chiefs,
+stewards, the rest; they stop at the ends), Ctrl+T switches light and dark
+(the theme's own mode change). `step_selection` is the tested helper.
+
+The page's Context section is the inspector: the request of one call of one
 turn as stripes in the order the model sees them (tools, system, epoch, history,
 message, recall, this turn), widths and cache marks (cached / partly / new) from
 the host's own `context` door, plus the provider's counts and cache breakpoints
