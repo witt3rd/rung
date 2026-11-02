@@ -782,8 +782,6 @@ pub fn band_fold(text: &str, expanded: bool) -> (&str, usize, bool) {
 /// How many characters of a band are drawn before "Show more".
 pub const BAND_FOLD: usize = 20_000;
 
-/// The first line of a turn's reply, or (no reply) what happened to it: the
-/// words a list shows for a turn. The reply itself is whole in the row.
 /// Append an older page to the loaded turns (newest first): only turns below
 /// the oldest loaded, so a repeated or stale page adds nothing twice.
 pub fn merge_older(loaded: &mut Vec<TurnRow>, page: Vec<TurnRow>) {
@@ -796,6 +794,8 @@ pub fn merge_older(loaded: &mut Vec<TurnRow>, page: Vec<TurnRow>) {
     }
 }
 
+/// The first line of a turn's reply, or (no reply) what happened to it: the
+/// words a list shows for a turn. The reply itself is whole in the row.
 pub fn turn_headline(r: &TurnRow) -> String {
     let first = r.text.lines().map(str::trim).find(|l| !l.is_empty());
     if let Some(l) = first {
