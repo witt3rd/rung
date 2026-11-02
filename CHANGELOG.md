@@ -10,7 +10,7 @@ git tags only.
 ### Changed (docs overhaul)
 - Front door: the root `README.md` (a symlink to `AGENTS.md`) is removed. rung
   is an agents-only library: `AGENTS.md` is the one agent file name, there is
-  no `README.md`. `AGENTS.md` is rewritten as a short charter. Moved:
+  no root `README.md`. `AGENTS.md` is rewritten as a short charter. Moved:
   - the Getting Started program (doctested) moves from `README.md` to the crate
     docs of `rung/src/lib.rs` (section "Getting started"); the `rung` crate no
     longer includes `README.md` as a doctest;

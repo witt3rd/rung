@@ -3,7 +3,7 @@
 <!--
 Read by every council reviewer from the PR's base commit, together with
 AGENTS.md (.github/workflows/review-council.yml calls them). AGENTS.md
-"Merits" and docs/*-props.md stay the source of truth: this file points at
+"What is load-bearing" and docs/*-props.md stay the source of truth: this file points at
 them and adds only what a reviewer needs beyond them. From the rung
 caretaker's proposal (2026-10-03); P1-P11 are its numbers. P12 on are generic
 principles adapted for rung; the PR that added them lists where each came
