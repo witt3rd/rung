@@ -651,7 +651,7 @@ oldest first, **paged by the caller**. The same paging rule as every list
 | `after` | the cursor: the page starts after this line number (`after=N` is `offset=N`: line numbers count from 1 with no gap). Not with `offset`; oldest first only |
 | `order` | `asc` (default) or `desc`; with `desc` the offset counts from the newest line and the page is newest first |
 
-Turn numbers need not be contiguous, so this list pages by cursor on the turn number, not by `offset` (the one stated exception to the paging rule). A name not in the table, a repeated name, a value that is not a whole number,
+A name not in the table, a repeated name, a value that is not a whole number,
 `limit=0`, `offset` with `after`, or `after` with `order=desc` is 400
 `bad_request`.
 
@@ -1818,6 +1818,8 @@ its `turn` number:
 | `limit` | turns in the page, a whole number ≥ 1; default 50 (a default, not a bound). **No maximum** |
 | `before` | the cursor: the page holds the newest turns numbered **below** this. Default: from the newest |
 | `after` | the cursor: the page holds the oldest turns numbered **above** this, oldest first. Not with `before` |
+
+Turn numbers need not be contiguous, so this list pages by cursor on the turn number, not by `offset` (the one stated exception to the paging rule).
 
 A name not in the table, a repeated name, a value that is not a whole number,
 `limit=0`, or both `before` and `after` is 400 `bad_request`.
