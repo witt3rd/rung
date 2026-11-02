@@ -21,7 +21,9 @@ use std::fmt;
 use std::time::Duration;
 
 mod events;
+mod queue;
 pub use events::{Delta, End, Event, Events, Follow, Frame, Open, follow};
+pub use queue::{Added, Cancelled, Counts, Intent, Moved, QueueItem, QueueList, Released, Stopped};
 
 use serde::Deserialize;
 
@@ -443,19 +445,17 @@ impl Client {
     }
 }
 
-/// The gateway's own words from `{"error": {"message": ".."}}`, else nothing.
+/// The gateway's own words from its error body: `{"error": "code",
+/// "message": "..."}`, or the nested `{"error": {"message": "..."}}`; else the
+/// code alone, else nothing.
 fn message_of(body: &str) -> String {
-    #[derive(Deserialize)]
-    struct Wrap {
-        error: Inner,
-    }
-    #[derive(Deserialize)]
-    struct Inner {
-        #[serde(default)]
-        message: String,
-    }
-    serde_json::from_str::<Wrap>(body)
-        .map(|w| w.error.message)
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(body) else {
+        return String::new();
+    };
+    let text = |x: &serde_json::Value| x.as_str().map(str::to_string);
+    text(&v["message"])
+        .or_else(|| text(&v["error"]["message"]))
+        .or_else(|| text(&v["error"]))
         .unwrap_or_default()
 }
 

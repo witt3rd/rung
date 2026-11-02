@@ -18,10 +18,20 @@ arrive, from the gateway's event stream. The stream starts 100 lines behind the
 newest, is resumed from the last line seen after a drop (back-off 1 s doubling to
 30 s), is stopped when another instance is chosen, and says in the page when it
 is reconnecting or the instance's stream ended. `--select
-ID` opens with one chosen. It only reads.
+ID` opens with one chosen.
+
+The page shows the instance's queue (read: refreshed every 3 s). **The window
+starts read-only**: send, reorder (↑ ↓), cancel, stop and release appear only
+after "Turn controls on" is clicked (or `--controls` at the start). Writes go
+to the gateway through a client with no token (the owner role; the gateway
+holds the write key by name per instance, `instances[].key_env`), each with a
+fresh key so a retry changes nothing twice; a stop or release needs a second
+click; what the gateway answers (done, or its refusal in its own words) is shown
+under the buttons. A read-only connection is refused by the gateway, not by
+the UI.
 
 ```text
-rung-ui [--gateway URL] [--select ID] [--list | --show ID]
+rung-ui [--gateway URL] [--select ID] [--controls] [--list | --show ID]
 ```
 
 Gateway: `--gateway`, else `$RUNG_GATEWAY`, else `http://127.0.0.1:8787`. A

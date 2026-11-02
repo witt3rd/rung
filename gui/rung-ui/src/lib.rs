@@ -7,7 +7,7 @@
 
 use std::collections::VecDeque;
 
-use rung_client::{Client, Event, Frame, Instance, Instances, Role};
+use rung_client::{Client, Error, Event, Frame, Instance, Instances, QueueItem, Role};
 
 /// One line of the list: name, state word, what it is doing.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -527,6 +527,62 @@ impl Feed {
     }
 }
 
+/// Which way a queue item is moved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Way {
+    Up,
+    Down,
+}
+
+/// What to send as `before` to move waiting item `id` one place: `Some(Some(x))`
+/// puts it in front of `x`, `Some(None)` at the end, `None` means it is
+/// already at that edge. Only waiting items count: one being answered is not
+/// moved over. (The host refuses a move across groups, the owner's against a
+/// peer's, in words; the page shows them.)
+pub fn move_target(items: &[QueueItem], id: &str, way: Way) -> Option<Option<String>> {
+    let waiting: Vec<&QueueItem> = items.iter().filter(|i| i.state == "waiting").collect();
+    let at = waiting.iter().position(|i| i.id == id)?;
+    match way {
+        Way::Up => (at > 0).then(|| Some(waiting[at - 1].id.clone())),
+        Way::Down => match waiting.get(at + 2) {
+            Some(after) => Some(Some(after.id.clone())),
+            None if at + 1 < waiting.len() => Some(None),
+            None => None,
+        },
+    }
+}
+
+/// One queue item as a line: `[steer] text…`, and how it stands.
+pub fn queue_line(i: &QueueItem) -> String {
+    let kind = i.intent.as_deref().unwrap_or("next");
+    let who = if i.role == "owner" {
+        ""
+    } else {
+        " (not yours)"
+    };
+    let state = match (i.state.as_str(), i.turn) {
+        ("answering", Some(t)) => format!(" — being answered in turn {t}"),
+        ("answering", None) => " — being answered".to_string(),
+        _ => String::new(),
+    };
+    format!("[{kind}] {}{who}{state}", clip(&i.text, 100))
+}
+
+/// A key for a write that may be retried: the same key is the same write.
+pub fn fresh_key(now_ms: u128, n: u64) -> String {
+    format!("ui-{now_ms}-{n}")
+}
+
+/// What a failed write says, in words for the page.
+pub fn said(e: &Error) -> String {
+    match e {
+        Error::Status { code: 403, message } if !message.is_empty() => {
+            format!("refused: {message} (turn controls on with a connection that may write)")
+        }
+        other => format!("did not go: {other}"),
+    }
+}
+
 /// One look: health first (so a dead gateway reads as that), then the list.
 pub fn look(client: &Client) -> Result<Snapshot, String> {
     let health = client.health().map_err(|e| e.to_string())?;
@@ -1009,6 +1065,85 @@ Other instances (1)
         }));
         assert_eq!(f.state.words(), "live");
         assert_eq!(StreamState::Connecting.words(), "connecting…");
+    }
+
+    fn item(id: &str, state: &str) -> QueueItem {
+        QueueItem {
+            id: id.into(),
+            text: format!("text of {id}"),
+            role: "owner".into(),
+            state: state.into(),
+            ..QueueItem::default()
+        }
+    }
+
+    #[test]
+    fn a_move_names_what_to_go_in_front_of_and_stops_at_the_edges() {
+        let items = [
+            item("a", "answering"),
+            item("b", "waiting"),
+            item("c", "waiting"),
+            item("d", "waiting"),
+        ];
+        // up: in front of the one above it among the waiting; the answered one is not jumped
+        assert_eq!(move_target(&items, "c", Way::Up), Some(Some("b".into())));
+        assert_eq!(
+            move_target(&items, "b", Way::Up),
+            None,
+            "the top of the waiting"
+        );
+        // down: in front of the one after the next, or the end of its group
+        assert_eq!(move_target(&items, "b", Way::Down), Some(Some("d".into())));
+        assert_eq!(move_target(&items, "c", Way::Down), Some(None));
+        assert_eq!(move_target(&items, "d", Way::Down), None, "already last");
+        assert_eq!(
+            move_target(&items, "a", Way::Up),
+            None,
+            "one being answered does not move"
+        );
+        assert_eq!(move_target(&items, "zzz", Way::Up), None);
+    }
+
+    #[test]
+    fn a_queue_line_shows_intent_text_whose_it_is_and_the_turn() {
+        let mut i = item("a", "waiting");
+        i.intent = Some("steer".into());
+        assert_eq!(queue_line(&i), "[steer] text of a");
+        i.role = "peer".into();
+        i.intent = None;
+        i.state = "answering".into();
+        i.turn = Some(7);
+        assert_eq!(
+            queue_line(&i),
+            "[next] text of a (not yours) — being answered in turn 7"
+        );
+    }
+
+    #[test]
+    fn keys_are_distinct_per_write_and_a_refusal_is_said_in_the_gateways_words() {
+        assert_ne!(fresh_key(5, 1), fresh_key(5, 2));
+        assert_eq!(
+            fresh_key(5, 1),
+            fresh_key(5, 1),
+            "the same write, the same key"
+        );
+        let e = Error::Status {
+            code: 403,
+            message: "this token can only read".into(),
+        };
+        assert!(
+            said(&e).starts_with("refused: this token can only read"),
+            "{}",
+            said(&e)
+        );
+        let e = Error::Status {
+            code: 409,
+            message: "start it first".into(),
+        };
+        assert_eq!(
+            said(&e),
+            "did not go: the gateway answered 409: start it first"
+        );
     }
 
     #[test]
