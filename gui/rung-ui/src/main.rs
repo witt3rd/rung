@@ -29,8 +29,9 @@ use rung_client::{
     Client, ContextView, Event, Follow, Intent, QueueList, TurnDetail, TurnRow, follow,
 };
 use rung_ui::{
-    Cache, Detail, Feed, Link, Row, Snapshot, Way, as_text, asked_line, band_fold, band_preview,
-    call_body, call_line, detail_text, fresh_key, look, move_target, queue_line, said,
+    Cache, CrewFile, Detail, Feed, Link, Row, Rung, SAMPLE_CREW, Snapshot, Way, as_text,
+    asked_line, band_fold, band_preview, call_body, call_line, crew_summary, detail_text,
+    fresh_key, look, member_facts, move_target, queue_line, read_crew, receipt_lines, said,
     step_selection, strata_of, turn_changed, turn_facts, turn_headline, turn_meta, utc,
 };
 
@@ -93,6 +94,20 @@ struct InstanceList {
     turn_call: Option<usize>,
     /// Where keyboard focus rests when nothing else has it, so the chords work.
     focus: FocusHandle,
+    /// Sample crew data, only when asked for (`--crew-fixture`): the host's crew
+    /// records are not served yet, so there is no other source. Never shown otherwise.
+    crew: Option<Result<CrewFile, String>>,
+    crew_open: Option<String>,
+}
+
+/// What the command line asked the window to start with.
+struct Start {
+    selected: Option<String>,
+    controls: bool,
+    turn: Option<u64>,
+    open_turn: Option<u64>,
+    crew: Option<Result<CrewFile, String>>,
+    crew_open: Option<String>,
 }
 
 /// One answer of the context door, or why there is none.
@@ -118,15 +133,15 @@ enum Msg {
 const BACKFILL: u64 = 100;
 
 impl InstanceList {
-    fn new(
-        client: Client,
-        selected: Option<String>,
-        controls: bool,
-        turn: Option<u64>,
-        open_turn: Option<u64>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Self {
+    fn new(client: Client, start: Start, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let Start {
+            selected,
+            controls,
+            turn,
+            open_turn,
+            crew,
+            crew_open,
+        } = start;
         let gateway = client.base().to_string();
         let own = client.clone();
         // the owner role sends no token
@@ -193,6 +208,8 @@ impl InstanceList {
             turn_more: false,
             turn_call: None,
             focus: cx.focus_handle(),
+            crew,
+            crew_open,
         };
         if this.writer.is_some() {
             this.input.update(cx, |s, cx| s.focus(window, cx));
@@ -219,6 +236,14 @@ impl InstanceList {
             self.load_context(t, None, cx);
         }
         cx.notify();
+    }
+
+    /// The steward the crew data belongs to (the sample names one).
+    fn crew_steward(&self) -> Option<&str> {
+        match &self.crew {
+            Some(Ok(f)) => Some(f.steward.as_str()),
+            _ => None,
+        }
     }
 
     fn selected_row(&self) -> Option<&Row> {
@@ -406,6 +431,135 @@ impl InstanceList {
             self.confirm = Some(what);
             cx.notify();
         }
+    }
+
+    /// The crew of the selected steward: SAMPLE DATA, said so on its face. Only with
+    /// `--crew-fixture`; the host serves no crew records yet.
+    fn crew_block(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let crew = self.crew.as_ref()?;
+        let theme = cx.theme().clone();
+        let muted = theme.muted_foreground;
+        let mut block = v_flex().gap_1().child(
+            div()
+                .pt_2()
+                .text_sm()
+                .text_color(theme.warning)
+                .child("Crew · SAMPLE DATA, not from the host"),
+        );
+        let file = match crew {
+            Ok(f) => f,
+            Err(why) => {
+                return Some(
+                    block
+                        .child(div().text_color(theme.danger).child(why.clone()))
+                        .into_any_element(),
+                );
+            }
+        };
+        block = block
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(muted)
+                    .child(file.fixture.clone()),
+            )
+            .child(div().child(format!("{} · {}", file.steward, crew_summary(&file.crew))));
+        for (n, m) in file.crew.iter().enumerate() {
+            let rung = m.rung();
+            let color = if rung.needs_you() {
+                theme.danger
+            } else if rung == Rung::Done {
+                theme.success
+            } else {
+                theme.foreground
+            };
+            let id = m.id.clone();
+            let open = self.crew_open.as_deref() == Some(m.id.as_str());
+            let mut row = v_flex()
+                .id(("crew", n))
+                .cursor_pointer()
+                .py_1()
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.crew_open = if this.crew_open.as_deref() == Some(id.as_str()) {
+                        None
+                    } else {
+                        Some(id.clone())
+                    };
+                    cx.notify();
+                }))
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .items_baseline()
+                        .child(
+                            div()
+                                .w(px(84.))
+                                .flex_none()
+                                .text_color(color)
+                                .child(format!(
+                                    "{}{}",
+                                    if rung.needs_you() { "● " } else { "" },
+                                    rung.word()
+                                )),
+                        )
+                        .child(div().flex_1().min_w_0().truncate().child(m.task.clone())),
+                );
+            if open {
+                row = row
+                    .bg(theme.secondary)
+                    .child(self.crew_page(m, file.now, &theme));
+            }
+            block = block.child(row);
+        }
+        Some(block.into_any_element())
+    }
+
+    /// One crew member: its brief (what, done when, delivery, autonomy), its
+    /// rung's facts and its receipts (each names a record line).
+    fn crew_page(
+        &self,
+        m: &rung_ui::Member,
+        now: Option<i64>,
+        theme: &gpui_kit::component::Theme,
+    ) -> AnyElement {
+        let muted = theme.muted_foreground;
+        let mut page = v_flex()
+            .gap_1()
+            .p_2()
+            .child(div().text_sm().text_color(muted).child("Brief"));
+        for (k, v) in [
+            ("Build", &m.brief.build),
+            ("Complete when", &m.brief.complete_when),
+            ("Delivery", &m.brief.delivery),
+            ("Autonomy", &m.brief.autonomy),
+        ] {
+            page = page.child(
+                h_flex()
+                    .gap_2()
+                    .items_start()
+                    .child(div().w(px(96.)).flex_none().text_color(muted).child(k))
+                    .child(div().flex_1().min_w_0().child(v.clone())),
+            );
+        }
+        page = page.child(div().pt_1().text_sm().text_color(muted).child("Facts"));
+        for (k, v) in member_facts(m, now) {
+            page = page.child(
+                h_flex()
+                    .gap_2()
+                    .items_start()
+                    .child(div().w(px(96.)).flex_none().text_color(muted).child(k))
+                    .child(div().flex_1().min_w_0().child(v)),
+            );
+        }
+        let receipts = receipt_lines(m);
+        page = page.child(div().pt_1().text_sm().text_color(muted).child("Receipts"));
+        if receipts.is_empty() {
+            page = page.child(div().text_color(muted).child("none yet"));
+        }
+        for r in receipts {
+            page = page.child(div().child(r));
+        }
+        page.into_any_element()
     }
 
     /// The context inspector: the request of one call as stripes, in the order the
@@ -1128,6 +1282,11 @@ impl Render for InstanceList {
         let queue_block = self.queue_block(cx);
         let context_block = self.context_block(cx);
         let turns_block = self.turns_block(cx);
+        let crew_block = if self.selected.as_deref() == self.crew_steward() {
+            self.crew_block(cx)
+        } else {
+            None
+        };
         let list = v_flex()
             .flex_1()
             .min_w_0()
@@ -1190,9 +1349,12 @@ impl Render for InstanceList {
                 id,
                 self.snapshot.rows.iter().find(|r| &r.id == id),
                 &self.feed,
-                queue_block,
-                context_block,
-                turns_block,
+                Blocks {
+                    queue: queue_block,
+                    context: context_block,
+                    turns: turns_block,
+                    crew: crew_block,
+                },
                 &theme,
             )
         });
@@ -1262,15 +1424,27 @@ fn row(
 
 /// One instance's page, beside the list: its name, then each section of the
 /// host's summary as label and value.
+/// The blocks the page is built from, drawn by the view (they need its state).
+struct Blocks {
+    queue: AnyElement,
+    context: AnyElement,
+    turns: AnyElement,
+    crew: Option<AnyElement>,
+}
+
 fn page(
     id: &str,
     row: Option<&Row>,
     feed: &Feed,
-    queue_block: AnyElement,
-    context_block: AnyElement,
-    turns_block: AnyElement,
+    blocks: Blocks,
     theme: &gpui_kit::component::Theme,
 ) -> AnyElement {
+    let Blocks {
+        queue: queue_block,
+        context: context_block,
+        turns: turns_block,
+        crew: crew_block,
+    } = blocks;
     let muted = theme.muted_foreground;
     let mut col = v_flex()
         .id("page")
@@ -1295,11 +1469,13 @@ fn page(
     let mut queue_block = Some(queue_block);
     let mut context_block = Some(context_block);
     let mut turns_block = Some(turns_block);
+    let mut crew_block = crew_block;
     for (n, sec) in detail.sections.iter().enumerate() {
         if n == 1 {
             // the queue and the followed record sit right under Now
             col = col
                 .children(queue_block.take())
+                .children(crew_block.take())
                 .child(context_block.take().expect("once"))
                 .children(turns_block.take())
                 .child(record(feed, theme));
@@ -1331,6 +1507,7 @@ fn page(
     if detail.sections.len() < 2 {
         col = col
             .children(queue_block.take())
+            .children(crew_block.take())
             .children(context_block.take())
             .children(turns_block.take())
             .child(record(feed, theme));
@@ -1423,6 +1600,10 @@ struct Opts {
     controls: bool,
     turn: Option<u64>,
     open: Option<u64>,
+    /// `--crew-fixture [FILE]`: show sample crew data (the shipped sample, or FILE).
+    crew: Option<Option<String>>,
+    /// `--crew-open ID`: open that crew member's page at the start.
+    crew_open: Option<String>,
     list: bool,
     show: Option<String>,
 }
@@ -1435,10 +1616,12 @@ fn args() -> Result<Opts, String> {
         controls: false,
         turn: None,
         open: None,
+        crew: None,
+        crew_open: None,
         list: false,
         show: None,
     };
-    let mut it = std::env::args().skip(1);
+    let mut it = std::env::args().skip(1).peekable();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--gateway" => o.gateway = it.next().ok_or("--gateway needs an address")?,
@@ -1459,6 +1642,8 @@ fn args() -> Result<Opts, String> {
                         .ok_or("--turn needs a turn number")?,
                 )
             }
+            "--crew-fixture" => o.crew = Some(it.next_if(|n| !n.starts_with("--"))),
+            "--crew-open" => o.crew_open = Some(it.next().ok_or("--crew-open needs a crew id")?),
             "--list" => o.list = true,
             other => return Err(format!("unknown argument {other:?}")),
         }
@@ -1515,6 +1700,12 @@ fn main() {
         return;
     }
 
+    let crew = opts.crew.as_ref().map(|file| match file {
+        Some(path) => std::fs::read_to_string(path)
+            .map_err(|e| format!("{path}: {e}"))
+            .and_then(|t| read_crew(&t)),
+        None => read_crew(SAMPLE_CREW),
+    });
     application().with_assets(assets::Assets).run(move |cx| {
         init(cx);
         cx.bind_keys([
@@ -1534,10 +1725,14 @@ fn main() {
             cx.new(|cx| {
                 InstanceList::new(
                     client,
-                    opts.select,
-                    opts.controls,
-                    opts.turn,
-                    opts.open,
+                    Start {
+                        selected: opts.select,
+                        controls: opts.controls,
+                        turn: opts.turn,
+                        open_turn: opts.open,
+                        crew,
+                        crew_open: opts.crew_open,
+                    },
                     window,
                     cx,
                 )

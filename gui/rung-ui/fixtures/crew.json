@@ -1,0 +1,100 @@
+{
+  "fixture": "Sample data, not from any host: the crew records are not served yet (the fleet's R2 settles their kinds). This file stands in until they are.",
+  "steward": "steward-alpha",
+  "now": 1793600000000,
+  "crew": [
+    {
+      "id": "crew-migrate-1",
+      "task": "Write the migration plan for the notes index",
+      "rung": "active",
+      "since": 1793598200000,
+      "brief": {
+        "build": "A migration plan for moving the notes index to the new layout, with the order of steps.",
+        "complete_when": "The plan is merged and a second reader has checked every step against the old layout.",
+        "delivery": "A pull request against the notes repository, receipt to the steward.",
+        "autonomy": "May read and edit inside its worktree only; may not merge."
+      },
+      "receipts": [
+        {"correlation": "c-101", "what": "hand-off of the outline", "line": 812, "at": 1793598900000}
+      ]
+    },
+    {
+      "id": "crew-audit-2",
+      "task": "Audit the build scripts for hard-coded paths",
+      "rung": "held",
+      "since": 1793597000000,
+      "waiting_on": "A decision only the principal can make: whether the vendored scripts may be rewritten.",
+      "brief": {
+        "build": "A list of every hard-coded path in the build scripts.",
+        "complete_when": "The list is reviewed by someone other than its author.",
+        "delivery": "A report in the steward's inbox.",
+        "autonomy": "Read only."
+      },
+      "receipts": [
+        {"correlation": "c-087", "what": "question to the principal", "line": 790, "at": 1793597400000}
+      ]
+    },
+    {
+      "id": "crew-fix-3",
+      "task": "Fix the flaky export test",
+      "rung": "stalled",
+      "since": 1793590000000,
+      "silent_for_s": 5400,
+      "brief": {
+        "build": "A fix for the flaky export test.",
+        "complete_when": "Fifty consecutive green runs, judged by the validator.",
+        "delivery": "A pull request.",
+        "autonomy": "May run the test suite."
+      },
+      "receipts": []
+    },
+    {
+      "id": "crew-docs-4",
+      "task": "Document the queue controls",
+      "rung": "done",
+      "since": 1793580000000,
+      "validator": "steward-alpha",
+      "landed": false,
+      "brief": {
+        "build": "A page on the queue controls.",
+        "complete_when": "Merged.",
+        "delivery": "A pull request.",
+        "autonomy": "Docs only."
+      },
+      "receipts": [
+        {"correlation": "c-064", "what": "completion", "line": 701, "at": 1793585000000},
+        {"correlation": "c-064", "what": "completion (repeat, one line)", "line": 701, "at": 1793585100000}
+      ]
+    },
+    {
+      "id": "crew-spike-5",
+      "task": "Spike a faster index",
+      "rung": "retired",
+      "since": 1793500000000,
+      "validator": "steward-alpha",
+      "landed": true,
+      "brief": {
+        "build": "A throw-away spike.",
+        "complete_when": "Recorded as intentionally scratch.",
+        "delivery": "Notes only.",
+        "autonomy": "Own worktree."
+      },
+      "receipts": [
+        {"correlation": "c-031", "what": "completion", "line": 455, "at": 1793520000000}
+      ]
+    },
+    {
+      "id": "crew-new-6",
+      "task": "Research the quota headers",
+      "rung": "assigned",
+      "since": 1793599500000,
+      "brief": {
+        "build": "A note on the provider's quota headers.",
+        "complete_when": "Reviewed.",
+        "delivery": "A note.",
+        "autonomy": "Read only."
+      },
+      "receipts": []
+    }
+  ]
+}

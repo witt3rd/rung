@@ -12,7 +12,19 @@ under a chief; the real edge comes with the fleet's records, not from a guess.
 Clicking an instance opens its page beside the list: Now (state, doing,
 what it waits for, turn, last activity), Queue, Spend, Desk and Governor, laid
 out from the host's own summary that the list already carries (no second
-door, no fold here); an instance the gateway cannot read says why. **Panels, keyboard, theme.** The list and the instance page are two resizable
+door, no fold here); an instance the gateway cannot read says why. **Crew and receipts, on fixtures.** The host serves no crew records yet (the
+fleet's R2 settles their kinds), so there is no real source. `--crew-fixture
+[FILE]` shows a Crew section on the steward the file names, from sample data
+(`fixtures/crew.json`, or FILE): the ladder (spawned, assigned, active, held,
+stalled, done, retired; held and stalled marked as needing someone), each
+member's brief (build, complete when, delivery, autonomy), its rung's facts (what
+a hold waits on, how long a stall has been silent, who judged it, whether it
+landed) and its receipts (each names a record line; a repeat is one line). It is
+labelled **SAMPLE DATA, not from the host** on its face and is never shown
+without the flag. The file's shape is the fixture's own and claims nothing about the
+`crew.*` kinds; when R2 lands the section reads the real lines instead.
+
+**Panels, keyboard, theme.** The list and the instance page are two resizable
 panels (drag the handle between them). Chords work anywhere in the window,
 the message box included (all are chords, never a bare key): Alt+Down / Alt+Up
 select the next / previous instance in the order the list shows (chiefs,
@@ -57,7 +69,7 @@ under the buttons. A read-only connection is refused by the gateway, not by
 the UI.
 
 ```text
-rung-ui [--gateway URL] [--select ID] [--turn N] [--open N] [--controls] [--list | --show ID]
+rung-ui [--gateway URL] [--select ID] [--turn N] [--open N] [--controls] [--crew-fixture [FILE]] [--crew-open ID] [--list | --show ID]
 ```
 
 Gateway: `--gateway`, else `$RUNG_GATEWAY`, else `http://127.0.0.1:8787`. A
