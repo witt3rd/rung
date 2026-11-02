@@ -74,6 +74,7 @@ struct InstanceList {
     turns: Vec<TurnRow>,
     turns_total: u64,
     turns_next: Option<u64>,
+    older_pending: bool,
     turns_error: Option<String>,
     /// The turn whose page is open, and its detail (or why there is none).
     turn_open: Option<u64>,
@@ -174,6 +175,7 @@ impl InstanceList {
             turns: Vec::new(),
             turns_total: 0,
             turns_next: None,
+            older_pending: false,
             turns_error: None,
             turn_open: None,
             turn_open_pending: open_turn,
@@ -703,6 +705,7 @@ impl InstanceList {
         self.turns.clear();
         self.turns_total = 0;
         self.turns_next = None;
+        self.older_pending = false;
         self.turns_error = None;
         self.turn_open = None;
         self.turn_detail = None;
@@ -786,6 +789,12 @@ impl InstanceList {
         };
         let client = self.client.clone();
         let generation = self.generation;
+        if older {
+            if self.older_pending {
+                return;
+            }
+            self.older_pending = true;
+        }
         let (limit, before) = if older {
             (20, self.turns_next)
         } else {
@@ -801,14 +810,18 @@ impl InstanceList {
                 if v.generation != generation {
                     return;
                 }
+                if older {
+                    v.older_pending = false;
+                }
                 match got {
                     Ok(list) => {
                         v.turns_error = None;
                         v.turns_total = list.total;
-                        v.turns_next = list.next;
                         if older {
-                            v.turns.extend(list.turns);
+                            v.turns_next = list.next;
+                            rung_ui::merge_older(&mut v.turns, list.turns);
                         } else {
+                            v.turns_next = list.next;
                             v.turns = list.turns;
                         }
                     }

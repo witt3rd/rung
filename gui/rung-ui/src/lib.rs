@@ -784,6 +784,18 @@ pub const BAND_FOLD: usize = 20_000;
 
 /// The first line of a turn's reply, or (no reply) what happened to it: the
 /// words a list shows for a turn. The reply itself is whole in the row.
+/// Append an older page to the loaded turns (newest first): only turns below
+/// the oldest loaded, so a repeated or stale page adds nothing twice.
+pub fn merge_older(loaded: &mut Vec<TurnRow>, page: Vec<TurnRow>) {
+    let mut floor = loaded.last().map_or(u64::MAX, |r| r.turn);
+    for r in page {
+        if r.turn < floor {
+            floor = r.turn;
+            loaded.push(r);
+        }
+    }
+}
+
 pub fn turn_headline(r: &TurnRow) -> String {
     let first = r.text.lines().map(str::trim).find(|l| !l.is_empty());
     if let Some(l) = first {
@@ -1598,6 +1610,19 @@ Other instances (1)
 
     fn trow(json: &str) -> TurnRow {
         serde_json::from_str(json).expect("a turn row")
+    }
+
+    #[test]
+    fn an_older_page_merges_once_and_in_order() {
+        let t = |n: u64| trow(&format!(r#"{{"turn":{n},"status":"completed"}}"#));
+        let nums = |v: &Vec<TurnRow>| v.iter().map(|r| r.turn).collect::<Vec<_>>();
+        let mut loaded = vec![t(5), t(4)];
+        merge_older(&mut loaded, vec![t(3), t(2)]);
+        merge_older(&mut loaded, vec![t(3), t(2)]);
+        assert_eq!(nums(&loaded), [5, 4, 3, 2]);
+        let mut refreshed = vec![t(9), t(8), t(7), t(6), t(5), t(4), t(3)];
+        merge_older(&mut refreshed, vec![t(5), t(4), t(3), t(2)]);
+        assert_eq!(nums(&refreshed), [9, 8, 7, 6, 5, 4, 3, 2]);
     }
 
     #[test]
