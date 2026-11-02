@@ -78,6 +78,13 @@ class Links(unittest.TestCase):
             "ui/node_modules/p/README.md": "[x](nope.md)\n",
         }), [])
 
+    def test_a_workspace_member_needs_an_agents_file(self):
+        probs = self.run_check({
+            "Cargo.toml": '[workspace]\nmembers = ["a", "b"]\n',
+            "a/Cargo.toml": "", "a/AGENTS.md": "# a\n", "b/Cargo.toml": "",
+        })
+        self.assertEqual(probs, ["b/Cargo.toml:1: workspace member has no AGENTS.md (b/AGENTS.md)"])
+
     def test_real_repo_is_clean(self):
         root = Path(__file__).resolve().parent.parent
         self.assertEqual(L.unallowed(root, L.check(root)), [])

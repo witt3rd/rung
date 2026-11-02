@@ -72,6 +72,10 @@ class Selection(unittest.TestCase):
                                  "scripts/shadow_audit.py", "ui/src/a.ts"])
         self.assertEqual((r["rust"], r["full"], r["scope"]), ("false", "false", ""))
 
+    def test_a_crates_agents_file_does_not_rebuild_the_crate(self):
+        r = run("pull_request", ["base/AGENTS.md", "leaf/AGENTS.md"])
+        self.assertEqual((r["rust"], r["full"], r["scope"]), ("false", "false", ""))
+
     def test_unknown_path_runs_everything(self):
         self.assertEqual(run("pull_request", ["brand-new-dir/x"])["full"], "true")
 

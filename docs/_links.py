@@ -9,7 +9,8 @@ Checks, over every tracked `.md` (not rung-host/live/runs, not the generated ope
      docs/reports, docs/.archive) is exempt;
   4. documentation paths cited in tracked .rs/.py/.yml files exist;
   5. no hand-kept test counts of the form `(N tests)` in living documents
-     (they drift on every test added; link to the test file instead).
+     (they drift on every test added; link to the test file instead);
+  6. every workspace member in Cargo.toml has an AGENTS.md beside it.
 Known problems still to fix are listed in docs/_links.allow, one
 `path: message-prefix  # reason` per line; the list only shrinks.
 Run locally:  docs/_links.py      Self-test:  scripts/test_links.py
@@ -149,7 +150,20 @@ def check(root, files=None):
                 for ref in DOCREF.findall(line):
                     if not exists(ref):
                         probs.append(f"{f}:{n}: cites missing document: {ref}")
+    probs.extend(crate_fronts(root, fileset))
     return probs
+
+
+def crate_fronts(root, fileset):
+    """Every workspace member has an `AGENTS.md` beside its Cargo.toml."""
+    if "Cargo.toml" not in fileset:
+        return []
+    m = re.search(r"^members\s*=\s*\[(.*?)\]", (root / "Cargo.toml").read_text(), re.S | re.M)
+    if not m:
+        return []
+    return [f"{c}/Cargo.toml:1: workspace member has no AGENTS.md ({c}/AGENTS.md)"
+            for c in re.findall(r'"([^"]+)"', m.group(1))
+            if f"{c}/AGENTS.md" not in fileset]
 
 
 def allowed(root):

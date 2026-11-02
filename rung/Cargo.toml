@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+description = "The ladder runtime: declare rungs and transitions once and the compiler refuses any path that skips a rung (re-exports the ladder! macro)"
 repository.workspace = true
 
 [dependencies]
