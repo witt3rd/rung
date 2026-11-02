@@ -13,7 +13,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use rung_client::{Client, Error};
+use rung_client::{Client, Error, Role};
 
 const TOKEN_ENV: &str = "RUNG_CLIENT_TEST_VIEW_TOKEN";
 const TOKEN: &str = "view-token-canary-client-4417";
@@ -154,10 +154,16 @@ fn a_chief_and_a_steward_behind_a_real_gateway() {
     assert_eq!(list.registry_error, None);
     let ids: Vec<&str> = list.instances.iter().map(|i| i.id.as_str()).collect();
     assert_eq!(ids, ["chief-main", "steward-alpha"], "ordered by id");
+    let roles: Vec<Role> = list.instances.iter().map(|i| i.role()).collect();
+    assert_eq!(
+        roles,
+        [Role::Chief, Role::Steward],
+        "the role is read from the id"
+    );
     for i in &list.instances {
         assert_eq!(i.word.as_deref(), Some("running"), "{}", i.id);
         assert_eq!(i.source.as_deref(), Some("registry"));
-        assert!(i.reachable);
+        assert!(i.reachable && !i.unreachable());
         // the words are the host's own, not the client's
         let s = i.summary.as_ref().unwrap();
         assert_eq!(i.state_word(), s.state.as_deref().unwrap());

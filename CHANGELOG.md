@@ -7,6 +7,15 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, the fleet screen)
+- The `rung-ui` instance list is now the fleet: grouped Chiefs, Stewards and
+  other instances, by the id's first segment (`rung-client` gains
+  `Instance::role()` and `Instance::unreachable()`). A host that needs you is
+  marked `●` in red, one the gateway cannot read `○` in amber, and the header
+  counts both; `rung-ui --list` prints the same grouping as text. The id names
+  no chief for a steward, so none is invented. Still read-only; the old `ui/`
+  is untouched.
+
 ### Added (rung-ui, the new desktop UI's first window)
 - `gui/rung-ui`: a GPUI Kit window listing the instances behind a gateway
   (name, the host's own state word, what it is doing; a needs-you mark; the

@@ -5,12 +5,16 @@
 //! The words are the host's own (`rung-client` reads them from the summary
 //! the gateway lists); nothing here folds a record or removes a secret.
 
-use rung_client::{Client, Instances};
+use rung_client::{Client, Instances, Role};
 
 /// One line of the list: name, state word, what it is doing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Row {
     pub name: String,
+    /// Chief, steward or neither, from the instance id.
+    pub role: Role,
+    /// The gateway cannot read it (no answer, or an unreadable entry).
+    pub unreachable: bool,
     pub state: String,
     pub doing: String,
     /// The host asks for the owner (`Stuck` or `Down`).
@@ -23,6 +27,84 @@ pub struct Snapshot {
     pub rows: Vec<Row>,
     /// The gateway's own note when it could not read its registry.
     pub note: Option<String>,
+}
+
+/// The rows of one role, in the gateway's order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Group<'a> {
+    pub role: Role,
+    pub rows: Vec<&'a Row>,
+}
+
+/// How many of each, for the header.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Counts {
+    pub chiefs: usize,
+    pub stewards: usize,
+    pub others: usize,
+    pub needs_you: usize,
+    pub unreachable: usize,
+}
+
+impl Snapshot {
+    /// The rows grouped by role: chiefs, then stewards, then the rest; a role
+    /// with no rows is left out. The id does not say which chief a steward
+    /// serves (the fleet props give the registry no such field), so a steward
+    /// is listed under its role and never under a chief it may not have.
+    pub fn groups(&self) -> Vec<Group<'_>> {
+        [Role::Chief, Role::Steward, Role::Other]
+            .into_iter()
+            .map(|role| Group {
+                role,
+                rows: self.rows.iter().filter(|r| r.role == role).collect(),
+            })
+            .filter(|g| !g.rows.is_empty())
+            .collect()
+    }
+
+    pub fn counts(&self) -> Counts {
+        let mut c = Counts::default();
+        for r in &self.rows {
+            match r.role {
+                Role::Chief => c.chiefs += 1,
+                Role::Steward => c.stewards += 1,
+                Role::Other => c.others += 1,
+            }
+            c.needs_you += usize::from(r.needs_you);
+            c.unreachable += usize::from(r.unreachable);
+        }
+        c
+    }
+}
+
+impl Counts {
+    /// One line for the header: `1 chief · 2 stewards · 1 needs you · 1 unreachable`;
+    /// what is zero is left out, and an empty fleet says so.
+    pub fn words(&self) -> String {
+        let plural =
+            |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
+        let mut parts = Vec::new();
+        if self.chiefs > 0 {
+            parts.push(plural(self.chiefs, "chief", "chiefs"));
+        }
+        if self.stewards > 0 {
+            parts.push(plural(self.stewards, "steward", "stewards"));
+        }
+        if self.others > 0 {
+            parts.push(plural(self.others, "other", "others"));
+        }
+        if self.needs_you > 0 {
+            parts.push(format!("{} needs you", self.needs_you));
+        }
+        if self.unreachable > 0 {
+            parts.push(format!("{} unreachable", self.unreachable));
+        }
+        if parts.is_empty() {
+            "no instances".into()
+        } else {
+            parts.join(" · ")
+        }
+    }
 }
 
 /// Where the link to the gateway stands.
@@ -55,6 +137,8 @@ pub fn snapshot_of(list: &Instances) -> Snapshot {
             .iter()
             .map(|i| Row {
                 name: i.display_name().to_string(),
+                role: i.role(),
+                unreachable: i.unreachable(),
                 state: i.state_word().to_string(),
                 doing: i.doing().to_string(),
                 needs_you: i.needs_you(),
@@ -76,7 +160,8 @@ pub fn look(client: &Client) -> Result<Snapshot, String> {
         .map_err(|e| e.to_string())
 }
 
-/// The list as plain text, one instance per line (`--list`).
+/// The list as plain text, grouped by role, one instance per line
+/// (`--list`). `!` marks a host that needs you, `?` one the gateway cannot read.
 pub fn as_text(snap: &Snapshot) -> String {
     let w = snap
         .rows
@@ -91,16 +176,25 @@ pub fn as_text(snap: &Snapshot) -> String {
         .max()
         .unwrap_or(0);
     let mut out = String::new();
-    for r in &snap.rows {
-        let mark = if r.needs_you { "!" } else { " " };
-        out.push_str(&format!(
-            "{mark} {:w$}  {:s$}  {}\n",
-            r.name,
-            r.state,
-            r.doing,
-            w = w,
-            s = s
-        ));
+    for g in snap.groups() {
+        out.push_str(&format!("{} ({})\n", g.role.plural(), g.rows.len()));
+        for r in g.rows {
+            let mark = if r.needs_you {
+                "!"
+            } else if r.unreachable {
+                "?"
+            } else {
+                " "
+            };
+            out.push_str(&format!(
+                "{mark} {:w$}  {:s$}  {}\n",
+                r.name,
+                r.state,
+                r.doing,
+                w = w,
+                s = s
+            ));
+        }
     }
     if let Some(n) = &snap.note {
         out.push_str(&format!("(the gateway says: {n})\n"));
@@ -165,63 +259,127 @@ mod tests {
         assert!(e.contains("500") && e.contains("broken"), "{e}");
     }
 
+    /// Two chiefs, two stewards (one down, one unreachable) and a plain
+    /// instance, deliberately out of role order.
+    const FLEET: &str = r#"{"instances":[
+      {"id":"steward-alpha","word":"running","reachable":true,
+       "summary":{"state":"Working","doing":"Committed to p: t","needs_you":false}},
+      {"id":"scratch","word":"running","reachable":true,
+       "summary":{"state":"Free time","doing":"Free time","needs_you":false}},
+      {"id":"chief-main","word":"running","reachable":true,
+       "summary":{"state":"Free time","doing":"Free time","needs_you":false}},
+      {"id":"steward-beta","word":"down","reachable":true,
+       "summary":{"state":"Down","doing":"Not running; no record","needs_you":true}},
+      {"id":"chief-second","word":"running","reachable":true,
+       "summary":{"state":"Working","doing":"Committed to q: u","needs_you":false}},
+      {"id":"steward-ghost","name":"Ghost","source":"config","reachable":false,
+       "summary":null,"error":"the instance did not answer in time"}
+    ],"registry_error":null}"#;
+
+    fn names<'a>(g: &Group<'a>) -> Vec<&'a str> {
+        g.rows.iter().map(|r| r.name.as_str()).collect()
+    }
+
     #[test]
-    fn rows_carry_the_hosts_words_in_the_gateways_order() {
-        let snap = snapshot_of(&list(
-            r#"{"instances":[
-              {"id":"chief-main","name":"chief-main","word":"running","reachable":true,
-               "summary":{"state":"Working","doing":"Committed to p: t","needs_you":false}},
-              {"id":"steward-a","word":"down","reachable":true,
-               "summary":{"state":"Down","doing":"Not running; no record","needs_you":true}},
-              {"id":"far","name":"Far","reachable":false,"summary":null,"error":"no answer"}
-            ],"registry_error":null}"#,
-        ));
+    fn rows_carry_the_hosts_words_and_the_role_of_the_id() {
+        let snap = snapshot_of(&list(FLEET));
         let got: Vec<_> = snap
             .rows
             .iter()
             .map(|r| {
                 (
                     r.name.as_str(),
+                    r.role,
                     r.state.as_str(),
-                    r.doing.as_str(),
                     r.needs_you,
+                    r.unreachable,
                 )
             })
             .collect();
         assert_eq!(
             got,
             [
-                ("chief-main", "Working", "Committed to p: t", false),
-                ("steward-a", "Down", "Not running; no record", true),
-                ("Far", "unreachable", "no answer", false),
+                ("steward-alpha", Role::Steward, "Working", false, false),
+                ("scratch", Role::Other, "Free time", false, false),
+                ("chief-main", Role::Chief, "Free time", false, false),
+                ("steward-beta", Role::Steward, "Down", true, false),
+                ("chief-second", Role::Chief, "Working", false, false),
+                ("Ghost", Role::Steward, "unreachable", false, true),
             ]
         );
-        assert_eq!(snap.note, None);
+        // the role comes from the id, not the display name
+        assert_eq!(snap.rows[5].role, Role::Steward);
     }
 
     #[test]
-    fn text_lists_one_line_each_and_marks_needs_you() {
-        let snap = Snapshot {
-            rows: vec![
-                Row {
-                    name: "a".into(),
-                    state: "Working".into(),
-                    doing: "x".into(),
-                    needs_you: false,
-                },
-                Row {
-                    name: "long-name".into(),
-                    state: "Down".into(),
-                    doing: "y".into(),
-                    needs_you: true,
-                },
-            ],
-            note: Some("registry unreadable".into()),
+    fn groups_are_chiefs_then_stewards_then_the_rest_each_in_the_gateways_order() {
+        let snap = snapshot_of(&list(FLEET));
+        let groups = snap.groups();
+        let roles: Vec<_> = groups.iter().map(|g| g.role).collect();
+        assert_eq!(roles, [Role::Chief, Role::Steward, Role::Other]);
+        assert_eq!(names(&groups[0]), ["chief-main", "chief-second"]);
+        assert_eq!(
+            names(&groups[1]),
+            ["steward-alpha", "steward-beta", "Ghost"]
+        );
+        assert_eq!(names(&groups[2]), ["scratch"]);
+    }
+
+    #[test]
+    fn a_role_with_no_rows_has_no_group_and_an_empty_fleet_has_none() {
+        let only_stewards = snapshot_of(&list(
+            r#"{"instances":[{"id":"steward-a","summary":{"state":"Free time"}}]}"#,
+        ));
+        let roles: Vec<_> = only_stewards.groups().iter().map(|g| g.role).collect();
+        assert_eq!(roles, [Role::Steward]);
+        assert!(Snapshot::default().groups().is_empty());
+    }
+
+    #[test]
+    fn counts_say_how_many_of_each_and_who_needs_you() {
+        let snap = snapshot_of(&list(FLEET));
+        assert_eq!(
+            snap.counts(),
+            Counts {
+                chiefs: 2,
+                stewards: 3,
+                others: 1,
+                needs_you: 1,
+                unreachable: 1
+            }
+        );
+        assert_eq!(
+            snap.counts().words(),
+            "2 chiefs · 3 stewards · 1 other · 1 needs you · 1 unreachable"
+        );
+        let one = Counts {
+            chiefs: 1,
+            ..Counts::default()
         };
+        assert_eq!(one.words(), "1 chief");
+        assert_eq!(Counts::default().words(), "no instances");
+    }
+
+    #[test]
+    fn text_is_grouped_and_marks_needs_you_and_unreachable() {
+        let mut snap = snapshot_of(&list(FLEET));
+        snap.note = Some("registry unreadable".into());
         assert_eq!(
             as_text(&snap),
-            "  a          Working  x\n! long-name  Down     y\n(the gateway says: registry unreadable)\n"
+            "\
+Chiefs (2)
+  chief-main     Free time    Free time
+  chief-second   Working      Committed to q: u
+Stewards (3)
+  steward-alpha  Working      Committed to p: t
+! steward-beta   Down         Not running; no record
+? Ghost          unreachable  the instance did not answer in time
+Other instances (1)
+  scratch        Free time    Free time
+(the gateway says: registry unreadable)
+"
         );
+        assert_eq!(as_text(&Snapshot::default()), "");
     }
 
     #[test]
