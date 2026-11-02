@@ -406,6 +406,7 @@ fn fold_window(
                 t.ended_at = Some(l.at);
                 t.status = match l.str("status") {
                     s @ ("completed" | "bounded") => s.to_string(),
+                    "cancelled" => "interrupted".to_string(),
                     _ => "failed".to_string(),
                 };
                 t.failure = if l.get("failure")["class"].is_string() {
