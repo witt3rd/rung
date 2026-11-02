@@ -17,3 +17,5 @@ rung-gateway/src/server.rs  # generic HTTP Cookie header, not a consumer name
 rung-gateway/tests/gateway.rs  # generic HTTP Cookie header, not a consumer name
 openwiki/  # generated wiki; HTTP "Cookie" header is not a consumer name
 gui/Cargo.lock  # generated
+LICENSE-MIT  # copyright holder name
+LICENSE-APACHE  # copyright holder name
