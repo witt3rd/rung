@@ -22,7 +22,8 @@ a hold waits on, how long a stall has been silent, who judged it, whether it
 landed) and its receipts (each names a record line; a repeat is one line). It is
 labelled **SAMPLE DATA, not from the host** on its face and is never shown
 without the flag. The file's shape is the fixture's own and claims nothing about the
-`crew.*` kinds; when R2 lands the section reads the real lines instead.
+`crew.*` kinds; when R2 lands the section reads the real lines instead. A file
+that cannot be read shows its error on every selected instance page.
 
 **Panels, keyboard, theme.** The list and the instance page are two resizable
 panels (drag the handle between them). Chords work anywhere in the window,
