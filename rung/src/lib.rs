@@ -25,6 +25,52 @@
 //! Omit the `impl { .. }` block for a type-only declaration (structs, verdict
 //! enum, and guards, but no transition logic).
 //!
+//! ## Getting started
+//!
+//! A complete program: `Pending` can only become `Running` through `running`, and
+//! `Running` can only become `Done` through `step`. It is compiled and run as a
+//! doctest, so it cannot drift from the macro. (This is the repository's Getting
+//! Started example; the front-door `AGENTS.md` points here.)
+//!
+//! ```rust
+//! use rung::ladder;
+//!
+//! struct Task;
+//! struct Job { step: u32 }
+//! struct Output { steps: u32 }
+//!
+//! ladder!(Workflow {
+//!     carry { task_id: String }
+//!
+//!     Pending(Task) => Running(Job) => {
+//!         Step -> Running
+//!         | Done(Output)
+//!     }
+//! } impl {
+//!     running = |pending| { Running::new(Job { step: 0 }, pending.carry().clone()) },
+//!     step = |running| {
+//!         let n = running.payload.step;
+//!         if n >= 3 {
+//!             return Ok(StepOutcome::Done(Done::new(Output { steps: n })));
+//!         }
+//!         Ok(StepOutcome::Step(Running::new(Job { step: n + 1 }, running.carry().clone())))
+//!     },
+//! });
+//!
+//! fn main() {
+//!     let p = workflow::Pending::new(Task, workflow::Carry { task_id: "t1".into() });
+//!     let mut r = workflow::running(p);
+//!     let out = loop {
+//!         match workflow::step(r) {
+//!             Ok(workflow::StepOutcome::Step(next)) => r = next,
+//!             Ok(workflow::StepOutcome::Done(d)) => break d.into_payload(),
+//!             Err(f) => panic!("{}", f.error),
+//!         }
+//!     };
+//!     assert_eq!(out.steps, 3);
+//! }
+//! ```
+//!
 //! ## No-silent-drop (`#[must_use]`)
 //!
 //! Every generated token — rungs, verdicts, `StepOutcome`, and `Failed` — is
@@ -2284,12 +2330,3 @@ macro_rules! __judgmental {
         }
     };
 }
-
-// Compile-check and run the README's code blocks as doctests, so the README
-// cannot silently drift from the macro. `#[cfg(doctest)]` means this item exists
-// only during doctest builds — it never appears in the public API or on docs.rs.
-// Illustrative README blocks are fenced ```rust,ignore; the Getting Started
-// example is a complete ```rust program that is compiled and run.
-#[cfg(doctest)]
-#[doc = include_str!("../../README.md")]
-struct ReadmeDoctests;

@@ -3,7 +3,7 @@
 <!--
 Read by every council reviewer from the PR's base commit, together with
 AGENTS.md (.github/workflows/review-council.yml calls them). AGENTS.md
-"Merits" and docs/*-props.md stay the source of truth: this file points at
+"What is load-bearing" and docs/*-props.md stay the source of truth: this file points at
 them and adds only what a reviewer needs beyond them. From the rung
 caretaker's proposal (2026-10-03); P1-P11 are its numbers. P12 on are generic
 principles adapted for rung; the PR that added them lists where each came
@@ -15,7 +15,7 @@ is a proposal to the owner, not a finding.
 
 ## Principles
 
-The bold bullets of `AGENTS.md` "Merits" are rung's principles; cite them by
+The bold bullets of `AGENTS.md` "What is load-bearing" are rung's principles; cite them by
 their bold names there: **The compiler is the gate** (P1), **The type is the
 evidence** and **Linear consumption** (P2), **Normative documents govern**
 (P3), **Kernel vs product** (P4), **No credential in a committed file** (P8)
@@ -148,8 +148,8 @@ This file adds:
 
 ## Steward
 
-The written law is `AGENTS.md` ("Merits", "Mechanisms": Commands, Spec and
-CI, House git) and the documents its Map names. Normative documents (P3),
+The written law is `AGENTS.md` ("What is load-bearing", Commands,
+House git) and the documents its Map names. Normative documents (P3),
 Unpublished (5) and Scope discipline (7) are yours, and so is a claim of live
 validation that does not say what ran (6). So are Spec first (P13), No claim
 without evidence (P14), Reality outranks the law (P15) and Answer every

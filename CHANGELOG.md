@@ -17,6 +17,18 @@ git tags only.
   lane's needs are in `gui/rung-ui/AGENTS.md`. The old `ui/` is untouched.
 
 ### Changed (docs overhaul)
+- Front door: the root `README.md` (a symlink to `AGENTS.md`) is removed. rung
+  is an agents-only library: `AGENTS.md` is the one agent file name, there is
+  no root `README.md`. `AGENTS.md` is rewritten as a short charter. Moved:
+  - the Getting Started program (doctested) moves from `README.md` to the crate
+    docs of `rung/src/lib.rs` (section "Getting started"); the `rung` crate no
+    longer includes `README.md` as a doctest;
+  - the `rung-agent` ACP notes, configuration table and Harbor suite move from
+    `AGENTS.md` to `rung-agent/AGENTS.md`;
+  - the hand-written kind-count table is replaced by a link to
+    `docs/conformance.md`; its test in `rung-doctrine/tests/roundtrip.rs`
+    (`hand_written_counts_in_prose_match_the_doctrine`) is removed, and
+    `docs/conformance.md` re-rendered.
 - `docs/_links.py` (in the `propositions` job) fails a document that points at
   something absent: a relative link, an anchor, a backticked repo path, a
   a `docs/` document cited from code, or a hand-kept test count `(N tests)`. Its
