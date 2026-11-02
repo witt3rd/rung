@@ -796,7 +796,7 @@ fn reading_of(d: &Decided) -> TurnReading {
 }
 
 /// Recorded from `microsoft/microsoft-decision-1` (`PREVIOUS_MODEL`) by
-/// replaying the legacy fixture's request (docs/rung-decision-model-replay.md):
+/// replaying the legacy fixture's request (docs/records/rung-agent/rung-decision-model-replay.md):
 /// the response has the System One shape and reads as `narrated`.
 #[test]
 fn the_default_model_response_reads_through_the_same_decider() {
