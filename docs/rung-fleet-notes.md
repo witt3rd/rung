@@ -77,9 +77,10 @@ that test and are not claimed here.
 role is the id's first segment. A second source of truth for a fact the name
 already carries was the larger cost.
 
-**Unknown 2: the resident cost of a host.** Not yet measured under a
-recorded run; RSS, CPU and record growth per host remain open for a run that
-names its evidence.
+**Unknown 2: the resident cost of a host.** Measured: about 20 MB per host
+(N hosts cost about 20 MB x N), and the free-time pace, not age, sets CPU, disk
+and money; give every member a `quota`. The table and the run are in
+[`records/rung-fleet/r1-two-hosts.md`](records/rung-fleet/r1-two-hosts.md).
 
 **Gaps found in rung.**
 
@@ -89,6 +90,8 @@ names its evidence.
   nothing; its start line prints only the configured-instance count. Not fixed.
 - The host's own HTTP door has no `/v1/summary`: the summary is the gateway's
   fold of the record, so a client of a host alone folds the record itself.
+
+The full list, with the fixes made, is in the R1 record linked above.
 
 ## Notes on particular claims
 
@@ -141,8 +144,9 @@ R2 builds on it.
 - **The props are encoded in `rung-doctrine`.** Every `*-props.md` must be
   generated (a test fails on a hand-written one), so the document needs a source
   file in that crate. That file is documentation; it contains no fleet behaviour.
-- **`rung-fleet-props.md` is claim-only.** The consumer's instructions, and the
-  analysis of how they map onto this design, live outside this repository.
+- **`rung-fleet-props.md` is claim-only.** The consumer's instructions live in the
+  consumer; how a deployment's instructions map onto this design is in
+  [`rung-fleet-paradigm-port.md`](rung-fleet-paradigm-port.md).
 - **Away state belongs to the chief and is a record fact**, so that it survives
   a restart; the props do not specify how a principal sets it.
 - **Self-update and relay are not in the crate.** A fleet is updated as any rung

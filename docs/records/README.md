@@ -30,3 +30,7 @@ No stub files were left behind.
 Subjects now under `docs/records/`: `rung-host/` (see its README),
 `rung-agent/`, `rung-ui/`, `rung-het/`, `archive/` (handoff letters and the
 early design notes).
+
+## rung-fleet records, 2026-11-02
+
+- [`rung-fleet/`](rung-fleet/r1-two-hosts.md) — the fleet's measured runs (R1: two hosts behind one gateway).
