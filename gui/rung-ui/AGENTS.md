@@ -21,6 +21,16 @@ on a band opens its whole text (the first 20,000 characters, then Show more / Sh
 Reading only; opened by a click (the latest turn) or `--turn N`. No tokenizing
 or recomputing here: sizes are the host's estimates, marks the host's.
 
+The page's Turns section is the conversation: the host's own turns (its `turns`
+door, S8; nothing is folded here), newest first with each turn's reply headline
+and small print, refreshed when the record says a turn began or ended; "Older
+turns" pages back. A click opens a turn above the list: what it was asked (the
+owner's messages with their intent, and which turn was running when they were
+sent), its reply whole (drawn in part past 20,000 characters with Show more /
+Show less, never cut), its tool calls (a click opens one's whole input and
+result) and its facts (status, kind, model, times, failure, model use). `--open
+N` opens turn N at the start.
+
 The page also follows the instance's record live: the newest
 lines (newest first, kept to 300) and the running turn's text and tools as they
 arrive, from the gateway's event stream. The stream starts 100 lines behind the
@@ -40,7 +50,7 @@ under the buttons. A read-only connection is refused by the gateway, not by
 the UI.
 
 ```text
-rung-ui [--gateway URL] [--select ID] [--turn N] [--controls] [--list | --show ID]
+rung-ui [--gateway URL] [--select ID] [--turn N] [--open N] [--controls] [--list | --show ID]
 ```
 
 Gateway: `--gateway`, else `$RUNG_GATEWAY`, else `http://127.0.0.1:8787`. A

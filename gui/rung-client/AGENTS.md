@@ -29,6 +29,9 @@ a window calls it from a worker thread. Slice 1 reads two doors:
 - `Client::context(id, turn, call)` reads the context door (S4): the bands of a
   call with the host's sizes and cache marks and the provider's counts; texts
   whole and already redacted; a turn's messages are counted, not kept.
+- `turns(id, limit, before)` and `turn(id, n)` read the host's turns door (S8):
+  rows with the reply whole, and one turn with what it was asked and its calls
+  (whole inputs and results). Read without an overall deadline (answers can be large).
 - Rows are read leniently (unknown fields ignored; registry rows and
   configured rows share only `id`), so the gateway may grow fields.
 

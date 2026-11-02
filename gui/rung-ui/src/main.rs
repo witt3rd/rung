@@ -1,7 +1,7 @@
 //! `rung-ui`: a window onto the instances behind a rung gateway.
 //!
 //! ```text
-//! rung-ui [--gateway URL] [--select ID] [--turn N] [--controls] [--list | --show ID]
+//! rung-ui [--gateway URL] [--select ID] [--turn N] [--open N] [--controls] [--list | --show ID]
 //! ```
 //!
 //! The gateway is `--gateway`, else `$RUNG_GATEWAY`, else
@@ -23,10 +23,13 @@ use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{ActiveTheme as _, h_flex, v_flex};
 use gpui_kit::*;
-use rung_client::{Client, ContextView, Event, Follow, Intent, QueueList, follow};
+use rung_client::{
+    Client, ContextView, Event, Follow, Intent, QueueList, TurnDetail, TurnRow, follow,
+};
 use rung_ui::{
-    Cache, Detail, Feed, Link, Row, Snapshot, Way, as_text, band_fold, band_preview, detail_text,
-    fresh_key, look, move_target, queue_line, said, strata_of, utc,
+    Cache, Detail, Feed, Link, Row, Snapshot, Way, as_text, asked_line, band_fold, band_preview,
+    call_body, call_line, detail_text, fresh_key, look, move_target, queue_line, said, strata_of,
+    turn_changed, turn_facts, turn_headline, turn_meta, utc,
 };
 
 const DEFAULT_GATEWAY: &str = "http://127.0.0.1:8787";
@@ -67,6 +70,18 @@ struct InstanceList {
     /// A turn to open the inspector at once the instance is listed (`--turn`).
     ctx_pending: Option<u64>,
     ctx_band: Option<String>,
+    /// The turns of the selected instance, newest first (as many as are loaded).
+    turns: Vec<TurnRow>,
+    turns_total: u64,
+    turns_next: Option<u64>,
+    turns_error: Option<String>,
+    /// The turn whose page is open, and its detail (or why there is none).
+    turn_open: Option<u64>,
+    turn_open_pending: Option<u64>,
+    turn_detail: Option<Result<TurnDetail, String>>,
+    /// Show more / less of the open turn's reply, and the open tool call.
+    turn_more: bool,
+    turn_call: Option<usize>,
 }
 
 /// One answer of the context door, or why there is none.
@@ -97,6 +112,7 @@ impl InstanceList {
         selected: Option<String>,
         controls: bool,
         turn: Option<u64>,
+        open_turn: Option<u64>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -155,6 +171,15 @@ impl InstanceList {
             ctx_more: false,
             ctx_pending: turn,
             ctx_band: None,
+            turns: Vec::new(),
+            turns_total: 0,
+            turns_next: None,
+            turns_error: None,
+            turn_open: None,
+            turn_open_pending: open_turn,
+            turn_detail: None,
+            turn_more: false,
+            turn_call: None,
         };
         if this.writer.is_some() {
             this.input.update(cx, |s, cx| s.focus(window, cx));
@@ -675,6 +700,14 @@ impl InstanceList {
         self.confirm = None;
         self.ctx = None;
         self.ctx_band = None;
+        self.turns.clear();
+        self.turns_total = 0;
+        self.turns_next = None;
+        self.turns_error = None;
+        self.turn_open = None;
+        self.turn_detail = None;
+        self.turn_more = false;
+        self.turn_call = None;
         let stop = Arc::new(AtomicBool::new(false));
         self.following = Some((id.clone(), stop.clone()));
 
@@ -713,12 +746,23 @@ impl InstanceList {
                     if v.generation != generation {
                         return false;
                     }
+                    let mut turns_moved = false;
                     for m in batch {
                         match m {
-                            Msg::Stream(e) => v.feed.apply(&e),
+                            Msg::Stream(e) => {
+                                turns_moved |= turn_changed(&e);
+                                v.feed.apply(&e)
+                            }
                             Msg::Queue(Ok(q)) => v.queue = Some(q),
                             // keep the last good queue; the link's state is the header's
                             Msg::Queue(Err(_)) => {}
+                        }
+                    }
+                    if turns_moved {
+                        // a turn began or ended: ask the host for the turns again
+                        v.load_turns(false, cx);
+                        if let Some(n) = v.turn_open {
+                            v.open_turn(n, cx);
                         }
                     }
                     cx.notify();
@@ -730,6 +774,263 @@ impl InstanceList {
             }
         })
         .detach();
+        self.load_turns(false, cx);
+    }
+
+    /// Ask the host for the turns (its own fold: nothing is folded here): the
+    /// newest ones, or (`older`) the page below the oldest loaded. A refresh
+    /// asks for as many as are loaded, so a window that has paged back stays put.
+    fn load_turns(&mut self, older: bool, cx: &mut Context<Self>) {
+        let Some(id) = self.selected.clone() else {
+            return;
+        };
+        let client = self.client.clone();
+        let generation = self.generation;
+        let (limit, before) = if older {
+            (20, self.turns_next)
+        } else {
+            ((self.turns.len() as u64).max(20), None)
+        };
+        cx.spawn(async move |this, cx| {
+            let got = cx
+                .background_spawn(async move {
+                    client.turns(&id, limit, before).map_err(|e| e.to_string())
+                })
+                .await;
+            _ = this.update(cx, |v, cx| {
+                if v.generation != generation {
+                    return;
+                }
+                match got {
+                    Ok(list) => {
+                        v.turns_error = None;
+                        v.turns_total = list.total;
+                        v.turns_next = list.next;
+                        if older {
+                            v.turns.extend(list.turns);
+                        } else {
+                            v.turns = list.turns;
+                        }
+                    }
+                    Err(why) => v.turns_error = Some(why),
+                }
+                if let Some(n) = v.turn_open_pending.take() {
+                    v.open_turn(n, cx);
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Open turn `n`'s page: its reply, what it was asked, its calls, whole.
+    fn open_turn(&mut self, n: u64, cx: &mut Context<Self>) {
+        let Some(id) = self.selected.clone() else {
+            return;
+        };
+        if self.turn_open != Some(n) {
+            self.turn_more = false;
+            self.turn_call = None;
+        }
+        self.turn_open = Some(n);
+        let client = self.client.clone();
+        let generation = self.generation;
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let got = cx
+                .background_spawn(async move { client.turn(&id, n).map_err(|e| e.to_string()) })
+                .await;
+            _ = this.update(cx, |v, cx| {
+                if v.generation == generation && v.turn_open == Some(n) {
+                    v.turn_detail = Some(got);
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// The turns of the selected instance, newest first; a click opens one.
+    fn turns_block(&self, cx: &mut Context<Self>) -> AnyElement {
+        let theme = cx.theme().clone();
+        let muted = theme.muted_foreground;
+        let mut block = v_flex().gap_1().child(
+            div()
+                .pt_2()
+                .text_sm()
+                .text_color(muted)
+                .child(format!("Turns · {} in the record", self.turns_total)),
+        );
+        if let Some(why) = &self.turns_error {
+            block = block.child(div().text_color(theme.warning).child(why.clone()));
+        }
+        // the open turn's page sits right under the heading, above the list
+        if let Some(n) = self.turn_open {
+            block = block.child(self.turn_page(n, cx));
+        }
+        for (n, t) in self.turns.iter().enumerate() {
+            let num = t.turn;
+            let open = self.turn_open == Some(num);
+            let color = match t.status.as_str() {
+                "failed" => theme.danger,
+                "running" => theme.primary,
+                "interrupted" => theme.warning,
+                _ => theme.foreground,
+            };
+            let mut row = v_flex()
+                .id(("turn", n))
+                .cursor_pointer()
+                .py_1()
+                .on_click(cx.listener(move |this, _, _, cx| this.open_turn(num, cx)))
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .items_baseline()
+                        .child(
+                            div()
+                                .w(px(46.))
+                                .flex_none()
+                                .text_color(color)
+                                .child(format!("#{num}")),
+                        )
+                        .child(div().flex_1().min_w_0().truncate().child(turn_headline(t))),
+                )
+                .child(
+                    div()
+                        .pl(px(54.))
+                        .text_sm()
+                        .text_color(muted)
+                        .truncate()
+                        .child(turn_meta(t)),
+                );
+            if open {
+                row = row.bg(theme.secondary);
+            }
+            block = block.child(row);
+        }
+        if self.turns_next.is_some() {
+            block = block.child(
+                Button::new("older-turns")
+                    .ghost()
+                    .label("Older turns")
+                    .on_click(cx.listener(|this, _, _, cx| this.load_turns(true, cx))),
+            );
+        }
+        block.into_any_element()
+    }
+
+    /// One turn whole: facts, the reply (folded in place, never cut), what it was
+    /// asked, its tool calls (a click opens one's input and result).
+    fn turn_page(&self, n: u64, cx: &mut Context<Self>) -> AnyElement {
+        let theme = cx.theme().clone();
+        let muted = theme.muted_foreground;
+        let mut page = v_flex()
+            .gap_1()
+            .p_2()
+            .mt_1()
+            .rounded_md()
+            .bg(theme.secondary)
+            .child(div().text_lg().child(format!("Turn {n}")));
+        let d = match &self.turn_detail {
+            Some(Ok(d)) if d.row.turn == n => d,
+            Some(Err(why)) => {
+                return page
+                    .child(div().text_color(theme.warning).child(why.clone()))
+                    .into_any_element();
+            }
+            _ => {
+                return page
+                    .child(div().text_color(muted).child("asking the host…"))
+                    .into_any_element();
+            }
+        };
+        if !d.asked_items.is_empty() {
+            page = page.child(div().pt_2().text_sm().text_color(muted).child("Asked"));
+            for a in &d.asked_items {
+                page = page.child(div().child(asked_line(a)));
+            }
+        }
+        // the reply, whole: drawn in part past a limit, with Show more / Show less
+        page = page.child(div().pt_2().text_sm().text_color(muted).child("Reply"));
+        if d.row.text.is_empty() {
+            page = page.child(div().text_color(muted).child(turn_headline(&d.row)));
+        } else {
+            let (part, total, folded) = band_fold(&d.row.text, self.turn_more);
+            page = page.child(div().child(part.to_string()));
+            if folded || self.turn_more {
+                page = page.child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .child(div().text_sm().text_color(muted).child(format!(
+                            "{} characters in all",
+                            rung_ui::grouped(total as u64)
+                        )))
+                        .child(
+                            Button::new("reply-more")
+                                .ghost()
+                                .label(if self.turn_more {
+                                    "Show less"
+                                } else {
+                                    "Show more"
+                                })
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.turn_more = !this.turn_more;
+                                    cx.notify();
+                                })),
+                        ),
+                );
+            }
+        }
+        if !d.calls.is_empty() {
+            page = page.child(div().pt_2().text_sm().text_color(muted).child("Tool calls"));
+            for (i, c) in d.calls.iter().enumerate() {
+                let open = self.turn_call == Some(i);
+                let mut line = v_flex()
+                    .id(("call", i))
+                    .cursor_pointer()
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.turn_call = if this.turn_call == Some(i) {
+                            None
+                        } else {
+                            Some(i)
+                        };
+                        cx.notify();
+                    }))
+                    .child(div().child(call_line(c)));
+                if open {
+                    let body = call_body(c);
+                    // whole input and result, in a box that scrolls
+                    line = line.child(
+                        div()
+                            .id(("call-body", i))
+                            .max_h(px(220.))
+                            .overflow_y_scroll()
+                            .p_2()
+                            .rounded_md()
+                            .bg(theme.background)
+                            .text_sm()
+                            .child(if body.is_empty() {
+                                "the record kept no input or result for this call".to_string()
+                            } else {
+                                body
+                            }),
+                    );
+                }
+                page = page.child(line);
+            }
+        }
+        page = page.child(div().pt_2().text_sm().text_color(muted).child("Facts"));
+        for (k, v) in turn_facts(d) {
+            page = page.child(
+                h_flex()
+                    .gap_2()
+                    .items_start()
+                    .child(div().w(px(100.)).flex_none().text_color(muted).child(k))
+                    .child(div().flex_1().min_w_0().child(v)),
+            );
+        }
+        page.into_any_element()
     }
 }
 
@@ -773,6 +1074,7 @@ impl Render for InstanceList {
 
         let queue_block = self.queue_block(cx);
         let context_block = self.context_block(cx);
+        let turns_block = self.turns_block(cx);
         let list = v_flex()
             .flex_1()
             .min_w_0()
@@ -841,6 +1143,7 @@ impl Render for InstanceList {
                     &self.feed,
                     queue_block,
                     context_block,
+                    turns_block,
                     &theme,
                 )
             }))
@@ -894,6 +1197,7 @@ fn page(
     feed: &Feed,
     queue_block: AnyElement,
     context_block: AnyElement,
+    turns_block: AnyElement,
     theme: &gpui_kit::component::Theme,
 ) -> AnyElement {
     let muted = theme.muted_foreground;
@@ -921,12 +1225,14 @@ fn page(
     col = col.child(div().text_lg().child(row.name.clone()));
     let mut queue_block = Some(queue_block);
     let mut context_block = Some(context_block);
+    let mut turns_block = Some(turns_block);
     for (n, sec) in detail.sections.iter().enumerate() {
         if n == 1 {
             // the queue and the followed record sit right under Now
             col = col
                 .children(queue_block.take())
                 .child(context_block.take().expect("once"))
+                .children(turns_block.take())
                 .child(record(feed, theme));
         }
         let mut block = v_flex().gap_1().child(
@@ -957,6 +1263,7 @@ fn page(
         col = col
             .children(queue_block.take())
             .children(context_block.take())
+            .children(turns_block.take())
             .child(record(feed, theme));
     }
     col.into_any_element()
@@ -1046,6 +1353,7 @@ struct Opts {
     select: Option<String>,
     controls: bool,
     turn: Option<u64>,
+    open: Option<u64>,
     list: bool,
     show: Option<String>,
 }
@@ -1057,6 +1365,7 @@ fn args() -> Result<Opts, String> {
         select: None,
         controls: false,
         turn: None,
+        open: None,
         list: false,
         show: None,
     };
@@ -1067,6 +1376,13 @@ fn args() -> Result<Opts, String> {
             "--select" => o.select = Some(it.next().ok_or("--select needs an instance id")?),
             "--show" => o.show = Some(it.next().ok_or("--show needs an instance id")?),
             "--controls" => o.controls = true,
+            "--open" => {
+                o.open = Some(
+                    it.next()
+                        .and_then(|n| n.parse().ok())
+                        .ok_or("--open needs a turn number")?,
+                )
+            }
             "--turn" => {
                 o.turn = Some(
                     it.next()
@@ -1086,7 +1402,7 @@ fn main() {
         Ok(a) => a,
         Err(e) => {
             eprintln!(
-                "rung-ui: {e}\nusage: rung-ui [--gateway URL] [--select ID] [--turn N] [--controls] [--list | --show ID]"
+                "rung-ui: {e}\nusage: rung-ui [--gateway URL] [--select ID] [--turn N] [--open N] [--controls] [--list | --show ID]"
             );
             std::process::exit(2);
         }
@@ -1142,7 +1458,15 @@ fn main() {
         };
         open_window(options, cx, |window, cx| {
             cx.new(|cx| {
-                InstanceList::new(client, opts.select, opts.controls, opts.turn, window, cx)
+                InstanceList::new(
+                    client,
+                    opts.select,
+                    opts.controls,
+                    opts.turn,
+                    opts.open,
+                    window,
+                    cx,
+                )
             })
         })
         .expect("the window opens");

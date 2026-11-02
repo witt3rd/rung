@@ -8,7 +8,8 @@
 use std::collections::VecDeque;
 
 use rung_client::{
-    Band, Client, ContextView, Error, Event, Frame, Instance, Instances, QueueItem, Role,
+    Asked, Band, Call, Client, ContextView, Error, Event, Frame, Instance, Instances, QueueItem,
+    Role, TurnDetail, TurnRow,
 };
 
 /// One line of the list: name, state word, what it is doing.
@@ -781,6 +782,152 @@ pub fn band_fold(text: &str, expanded: bool) -> (&str, usize, bool) {
 /// How many characters of a band are drawn before "Show more".
 pub const BAND_FOLD: usize = 20_000;
 
+/// The first line of a turn's reply, or (no reply) what happened to it: the
+/// words a list shows for a turn. The reply itself is whole in the row.
+pub fn turn_headline(r: &TurnRow) -> String {
+    let first = r.text.lines().map(str::trim).find(|l| !l.is_empty());
+    if let Some(l) = first {
+        return clip(l, 140);
+    }
+    match r.status.as_str() {
+        "running" => "In progress".into(),
+        "interrupted" => "Cut off before it finished".into(),
+        _ => match failure_class(r) {
+            Some(c) => format!("No reply ({c})"),
+            None => "No reply".into(),
+        },
+    }
+}
+
+fn failure_class(r: &TurnRow) -> Option<String> {
+    r.failure
+        .as_ref()
+        .and_then(|f| f["class"].as_str())
+        .map(str::to_string)
+}
+
+/// The small print under a turn's headline: kind, model, calls, tools, asked.
+pub fn turn_meta(r: &TurnRow) -> String {
+    let mut parts = vec![r.status.clone()];
+    if let Some(k) = &r.kind {
+        parts.push(k.clone());
+    }
+    if let Some(p) = &r.project {
+        parts.push(p.clone());
+    }
+    if r.llm.calls > 0 {
+        parts.push(format!(
+            "{} model call{}",
+            r.llm.calls,
+            if r.llm.calls == 1 { "" } else { "s" }
+        ));
+    }
+    if r.tool_calls > 0 {
+        parts.push(format!(
+            "{} tool call{}",
+            r.tool_calls,
+            if r.tool_calls == 1 { "" } else { "s" }
+        ));
+    }
+    if r.asked > 0 {
+        parts.push(format!("asked {}", r.asked));
+    }
+    parts.join(" · ")
+}
+
+/// A turn's facts, label and value, for its page.
+pub fn turn_facts(d: &TurnDetail) -> Vec<(&'static str, String)> {
+    let r = &d.row;
+    let mut v = vec![("Status", r.status.clone())];
+    if let Some(k) = &r.kind {
+        v.push(("Kind", k.clone()));
+    }
+    if let Some(m) = &r.model {
+        v.push(("Model", m.clone()));
+    }
+    if let Some(t) = r.started_at {
+        v.push(("Started", utc(t)));
+    }
+    if let Some(t) = r.ended_at {
+        let took = r
+            .elapsed_ms
+            .map(|ms| format!(" ({ms} ms)"))
+            .unwrap_or_default();
+        v.push(("Ended", format!("{}{took}", utc(t))));
+    }
+    if let Some(f) = &r.failure {
+        let class = f["class"].as_str().unwrap_or("failed");
+        let msg = f["message"]
+            .as_str()
+            .map(|m| format!(": {m}"))
+            .unwrap_or_default();
+        v.push(("Failure", format!("{class}{msg}")));
+    }
+    if r.llm.calls > 0 {
+        v.push((
+            "Model use",
+            format!(
+                "{} calls · {} prompt tokens ({} cached) · {} generated · {}",
+                r.llm.calls,
+                grouped(r.llm.prompt_tokens),
+                grouped(r.llm.cached_tokens),
+                grouped(r.llm.completion_tokens),
+                usd(r.llm.cost_usd)
+            ),
+        ));
+    }
+    v.push(("Record lines", format!("{} to {}", r.first_seq, r.last_seq)));
+    v
+}
+
+/// One item the turn was asked, as one line of text (the text whole).
+pub fn asked_line(a: &Asked) -> String {
+    let intent = a
+        .intent
+        .as_deref()
+        .map(|i| format!("[{i}] "))
+        .unwrap_or_default();
+    let during = a
+        .during
+        .map(|t| format!(", sent during turn {t}"))
+        .unwrap_or_default();
+    format!("{intent}{}{during}: {}", a.from, a.text)
+}
+
+/// One tool call as a line: its name, how it went, why it was refused.
+pub fn call_line(c: &Call) -> String {
+    let how = match (&c.refused, c.ok) {
+        (Some(why), _) => format!("✗ refused: {why}"),
+        (None, Some(true)) => "✓".to_string(),
+        (None, Some(false)) => "✗ failed".to_string(),
+        (None, None) => "(no result kept)".to_string(),
+    };
+    format!("{} {how}", c.name)
+}
+
+/// What opening a call shows: its input and its result, whole.
+pub fn call_body(c: &Call) -> String {
+    let mut out = String::new();
+    if let Some(i) = &c.input {
+        out.push_str("input: ");
+        out.push_str(&serde_json::to_string_pretty(i).unwrap_or_default());
+    }
+    if let Some(r) = &c.result {
+        if !out.is_empty() {
+            out.push_str("\n\n");
+        }
+        out.push_str("result: ");
+        out.push_str(r);
+    }
+    out
+}
+
+/// Does this event say a turn began or ended (the turns list is then asked again)?
+pub fn turn_changed(e: &Event) -> bool {
+    matches!(e, Event::Frame(Frame::Record { line, .. })
+        if matches!(line["kind"].as_str(), Some("turn.started" | "turn.ended")))
+}
+
 /// One look: health first (so a dead gateway reads as that), then the list.
 pub fn look(client: &Client) -> Result<Snapshot, String> {
     let health = client.health().map_err(|e| e.to_string())?;
@@ -1447,6 +1594,136 @@ Other instances (1)
         assert_eq!(all, huge);
         assert_eq!(total, 2_000_000);
         assert_eq!(band_fold("short", false), ("short", 5, false));
+    }
+
+    fn trow(json: &str) -> TurnRow {
+        serde_json::from_str(json).expect("a turn row")
+    }
+
+    #[test]
+    fn a_turns_headline_is_its_reply_or_what_happened_to_it() {
+        assert_eq!(
+            turn_headline(&trow(
+                r#"{"turn":1,"status":"completed","text":"\n  first line\nsecond"}"#
+            )),
+            "first line"
+        );
+        assert_eq!(
+            turn_headline(&trow(r#"{"turn":1,"status":"running","text":""}"#)),
+            "In progress"
+        );
+        assert_eq!(
+            turn_headline(&trow(r#"{"turn":1,"status":"interrupted"}"#)),
+            "Cut off before it finished"
+        );
+        assert_eq!(
+            turn_headline(&trow(
+                r#"{"turn":1,"status":"failed","failure":{"class":"provider"}}"#
+            )),
+            "No reply (provider)"
+        );
+        assert_eq!(
+            turn_headline(&trow(r#"{"turn":1,"status":"completed"}"#)),
+            "No reply"
+        );
+        let long = format!(
+            r#"{{"turn":1,"status":"completed","text":"{}"}}"#,
+            "x".repeat(300)
+        );
+        assert!(
+            turn_headline(&trow(&long)).ends_with('…'),
+            "a headline line is shortened; the reply is whole in the row"
+        );
+    }
+
+    #[test]
+    fn the_small_print_names_status_kind_calls_tools_and_asked() {
+        let r = trow(
+            r#"{"turn":2,"status":"completed","kind":"committed","project":"notes","llm":{"calls":3},"tool_calls":2,"asked":1}"#,
+        );
+        assert_eq!(
+            turn_meta(&r),
+            "completed · committed · notes · 3 model calls · 2 tool calls · asked 1"
+        );
+        assert_eq!(
+            turn_meta(&trow(r#"{"turn":2,"status":"running"}"#)),
+            "running"
+        );
+    }
+
+    const TURN: &str = r#"{"turn":4,"status":"failed","kind":"free","model":"m","started_at":1000000000000,
+        "ended_at":1000000001000,"elapsed_ms":930,"failure":{"class":"provider","message":"the model failed"},
+        "text":"","llm":{"calls":2,"prompt_tokens":4515,"cached_tokens":2216,"completion_tokens":80,"cost_usd":0.0042},
+        "tool_calls":3,"asked":1,"first_seq":33,"last_seq":40,
+        "asked_items":[{"id":"q-1","from":"owner","intent":"steer","text":"also the appendix","during":3},
+                       {"id":"q-2","from":"peer","text":"hi"}],
+        "calls":[{"name":"read","ok":true,"input":{"path":"a.md"},"result":"the file"},
+                 {"name":"write","ok":false,"refused":"not_enabled","result":"off"},
+                 {"name":"trace","ok":true},{"name":"x"},{"name":"y","ok":false,"result":"boom"}]}"#;
+
+    #[test]
+    fn a_turns_page_has_its_facts_asked_items_and_calls() {
+        let d: TurnDetail = serde_json::from_str(TURN).unwrap();
+        let facts = turn_facts(&d);
+        assert_eq!(facts[0], ("Status", "failed".to_string()));
+        assert!(facts.contains(&("Started", "2001-09-09 01:46:40 UTC".to_string())));
+        assert!(facts.contains(&("Ended", "2001-09-09 01:46:41 UTC (930 ms)".to_string())));
+        assert!(facts.contains(&("Failure", "provider: the model failed".to_string())));
+        assert!(facts.contains(&(
+            "Model use",
+            "2 calls · 4,515 prompt tokens (2,216 cached) · 80 generated · $0.0042".to_string()
+        )));
+        assert!(facts.contains(&("Record lines", "33 to 40".to_string())));
+        assert_eq!(
+            asked_line(&d.asked_items[0]),
+            "[steer] owner, sent during turn 3: also the appendix"
+        );
+        assert_eq!(asked_line(&d.asked_items[1]), "peer: hi");
+        let lines: Vec<String> = d.calls.iter().map(call_line).collect();
+        assert_eq!(
+            lines,
+            [
+                "read ✓",
+                "write ✗ refused: not_enabled",
+                "trace ✓",
+                "x (no result kept)",
+                "y ✗ failed"
+            ]
+        );
+        assert_eq!(
+            call_body(&d.calls[0]),
+            "input: {\n  \"path\": \"a.md\"\n}\n\nresult: the file"
+        );
+        assert_eq!(call_body(&d.calls[3]), "");
+    }
+
+    #[test]
+    fn a_whole_reply_of_two_million_characters_is_reachable_through_the_fold() {
+        let reply = "é".repeat(2_000_000);
+        let mut r = trow(r#"{"turn":1,"status":"completed"}"#);
+        r.text = reply.clone();
+        let (part, total, folded) = band_fold(&r.text, false);
+        assert!(folded && total == 2_000_000 && part.chars().count() == BAND_FOLD);
+        let (all, _, folded) = band_fold(&r.text, true);
+        assert!(!folded);
+        assert_eq!(all, reply, "Show more reaches all of it");
+    }
+
+    #[test]
+    fn a_turn_starting_or_ending_in_the_stream_says_to_ask_again() {
+        let rec = |kind: &str| {
+            Event::Frame(Frame::Record {
+                seq: 1,
+                line: serde_json::json!({"kind": kind}),
+            })
+        };
+        assert!(turn_changed(&rec("turn.ended")) && turn_changed(&rec("turn.started")));
+        assert!(!turn_changed(&rec("llm.call")));
+        assert!(!turn_changed(&Event::Connected(rung_client::Open {
+            after: 0,
+            live: true,
+            partials: true
+        })));
     }
 
     #[test]

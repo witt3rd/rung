@@ -7,6 +7,18 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, the turns and the conversation)
+- `rung-client` reads the host's turns door (`turns`, `turn`: the reply whole,
+  llm use, what each turn was asked, its tool calls with whole inputs and
+  results), tested against a real gateway and host (newest first, the older page
+  by cursor, a finished turn, 404). The `rung-ui` page gains Turns: the host's
+  own turns newest first with headline and small print, refreshed when a turn
+  begins or ends, older pages on a click; a click opens a turn: what it was asked
+  (the owner's messages, intent, the turn running when sent), its reply whole
+  (Show more / Show less, never cut), its tool calls (click for whole input and
+  result) and its facts. No fold of the record in the UI. Replaces the old web
+  page's Turns page; the old `ui/` is untouched.
+
 ### Added (rung-host and gateway: the turns door)
 - `GET /api/i/{id}/v1/turns` (newest first, paged by turn number with `before`
   and `after`, no maximum on `limit`) and `GET /api/i/{id}/v1/turns/{n}` are

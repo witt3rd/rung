@@ -761,7 +761,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 34 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 658 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 659 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -780,7 +780,7 @@ look shorter than it is.
 - `a_stop_flag_ends_a_follow_that_is_waiting`
 - `the_end_frame_is_passed_on_and_the_follow_goes_on_for_a_restart`
 
-**`gui/rung-client/tests/gateway.rs`** — 6 unclaimed
+**`gui/rung-client/tests/gateway.rs`** — 7 unclaimed
 
 - `a_chief_and_a_steward_behind_a_real_gateway`
 - `a_host_that_goes_away_ends_its_stream_down_and_follow_reconnects_to_it`
@@ -788,6 +788,7 @@ look shorter than it is.
 - `the_context_of_a_real_turn_is_read_as_bands_and_refusals_are_the_hosts_words`
 - `the_owner_controls_work_through_a_real_gateway_and_the_read_only_token_cannot`
 - `the_stream_of_a_real_host_replays_follows_and_resumes_by_cursor`
+- `the_turns_of_a_real_host_are_listed_newest_first_and_read_whole`
 
 **`gui/rung-client/tests/stub.rs`** — 5 unclaimed
 
