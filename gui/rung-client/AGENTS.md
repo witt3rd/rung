@@ -12,6 +12,9 @@ a window calls it from a worker thread. Slice 1 reads two doors:
   that one is set, and error text is scrubbed of it.
 - `Instance::role()` reads chief/steward from the id's first segment
   (`Role::of_id`); `Instance::unreachable()` is the gateway not reading it.
+- `Summary` carries what the screens read of the host's summary (turn, spend,
+  queue, desk, governor, what it waits for); each field is optional and a summary in
+  an unexpected shape reads as absent, so one odd row never takes the list down.
 - Rows are read leniently (unknown fields ignored; registry rows and
   configured rows share only `id`), so the gateway may grow fields.
 

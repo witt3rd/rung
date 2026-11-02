@@ -9,15 +9,19 @@ counts both. A role is the first segment of the id (`chief-`, `steward-`), read
 by `rung-client`. The id does not say which chief a steward serves and the
 registry has no field for it, so stewards are grouped by role and never nested
 under a chief; the real edge comes with the fleet's records, not from a guess.
-It only reads.
+Clicking an instance opens its page beside the list: Now (state, doing,
+what it waits for, turn, last activity), Queue, Spend, Desk and Governor, laid
+out from the host's own summary that the list already carries (no second
+door, no fold here); an instance the gateway cannot read says why. `--select
+ID` opens with one chosen. It only reads.
 
 ```text
-rung-ui [--gateway URL] [--list]
+rung-ui [--gateway URL] [--select ID] [--list | --show ID]
 ```
 
 Gateway: `--gateway`, else `$RUNG_GATEWAY`, else `http://127.0.0.1:8787`. A
 read-only token comes from `$RUNG_GATEWAY_TOKEN` (never shown, never saved).
-`--list` prints the grouped list once as text (`!` needs you, `?` unreadable) and exits: no window, no display, the
+`--list` prints the grouped list once as text (`!` needs you, `?` unreadable) and `--show ID` one instance's page; both exit: no window, no display, the
 same data the window shows.
 
 ## Shape

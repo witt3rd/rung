@@ -7,6 +7,16 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, the instance page)
+- Clicking an instance in `rung-ui` opens its page: Now (state, doing, what it
+  waits for, turn, last activity), Queue, Spend (paid today, requests of quota,
+  desk spend of its day cap), Desk and Governor (model and rung, failures,
+  blocked, unavailable rungs), laid out from the summary the list already
+  carries; an unreadable instance says why. `rung-client`'s `Summary` now reads
+  those fields (all optional; an unexpected shape reads as absent). `--select ID`
+  opens with one chosen and `--show ID` prints the page as text. Read-only; no
+  fold in the UI; the old `ui/` is untouched.
+
 ### Added (rung-ui, the fleet screen)
 - The `rung-ui` instance list is now the fleet: grouped Chiefs, Stewards and
   other instances, by the id's first segment (`rung-client` gains
