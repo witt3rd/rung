@@ -821,8 +821,14 @@ impl InstanceList {
                             v.turns_next = list.next;
                             rung_ui::merge_older(&mut v.turns, list.turns);
                         } else {
-                            v.turns_next = list.next;
-                            v.turns = list.turns;
+                            // a refresh that lands after an older page keeps the
+                            // rows already paged in below its own window
+                            let old = std::mem::replace(&mut v.turns, list.turns);
+                            let fresh = v.turns.len();
+                            rung_ui::merge_older(&mut v.turns, old);
+                            if v.turns.len() == fresh {
+                                v.turns_next = list.next;
+                            }
                         }
                     }
                     Err(why) => v.turns_error = Some(why),
