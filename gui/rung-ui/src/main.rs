@@ -30,9 +30,9 @@ use rung_client::{
 };
 use rung_ui::{
     Cache, CrewFile, Detail, Feed, Link, Row, Rung, SAMPLE_CREW, Snapshot, Way, as_text,
-    asked_line, band_fold, band_preview, call_body, call_line, crew_summary, detail_text,
-    fresh_key, look, member_facts, move_target, queue_line, read_crew, receipt_lines, said,
-    step_selection, strata_of, turn_changed, turn_facts, turn_headline, turn_meta, utc,
+    asked_line, band_fold, band_preview, call_body, call_line, crew_shown, crew_summary,
+    detail_text, fresh_key, look, member_facts, move_target, queue_line, read_crew, receipt_lines,
+    said, step_selection, strata_of, turn_changed, turn_facts, turn_headline, turn_meta, utc,
 };
 
 actions!(rung_ui, [NextInstance, PrevInstance, ToggleTheme]);
@@ -236,14 +236,6 @@ impl InstanceList {
             self.load_context(t, None, cx);
         }
         cx.notify();
-    }
-
-    /// The steward the crew data belongs to (the sample names one).
-    fn crew_steward(&self) -> Option<&str> {
-        match &self.crew {
-            Some(Ok(f)) => Some(f.steward.as_str()),
-            _ => None,
-        }
     }
 
     fn selected_row(&self) -> Option<&Row> {
@@ -1282,7 +1274,12 @@ impl Render for InstanceList {
         let queue_block = self.queue_block(cx);
         let context_block = self.context_block(cx);
         let turns_block = self.turns_block(cx);
-        let crew_block = if self.selected.as_deref() == self.crew_steward() {
+        let crew_block = if self
+            .selected
+            .as_deref()
+            .zip(self.crew.as_ref())
+            .is_some_and(|(sel, c)| crew_shown(c, sel))
+        {
             self.crew_block(cx)
         } else {
             None

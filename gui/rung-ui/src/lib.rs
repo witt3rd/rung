@@ -1089,6 +1089,15 @@ pub struct CrewFile {
 /// The sample that ships with the app (`--crew-fixture` without a file).
 pub const SAMPLE_CREW: &str = include_str!("../fixtures/crew.json");
 
+/// Whether the crew block shows on the selected page: a good file only on
+/// its steward, an unreadable one on every selected page.
+pub fn crew_shown(crew: &Result<CrewFile, String>, selected: &str) -> bool {
+    match crew {
+        Ok(f) => f.steward == selected,
+        Err(_) => true,
+    }
+}
+
 /// Read a crew file: `Err` says why, in words, and nothing is shown.
 pub fn read_crew(text: &str) -> Result<CrewFile, String> {
     serde_json::from_str(text).map_err(|e| format!("the crew file is not readable: {e}"))
@@ -1223,6 +1232,15 @@ pub fn as_text(snap: &Snapshot) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn crew_shown_good_file_only_on_its_steward_and_error_everywhere() {
+        let good = read_crew(SAMPLE_CREW).unwrap();
+        let who = good.steward.clone();
+        assert!(crew_shown(&Ok(good.clone()), &who));
+        assert!(!crew_shown(&Ok(good), "someone-else"));
+        assert!(crew_shown(&Err("bad".into()), "anyone"));
+    }
+
     use super::*;
 
     /// Read a list the way the gateway sends it.
