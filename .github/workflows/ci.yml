@@ -205,6 +205,14 @@ jobs:
       RUNG_BIN_DIR: ${{ github.workspace }}/target/debug
     steps:
       - uses: actions/checkout@v4
+      # GPUI's system libraries (the Ubuntu names of what gui/AGENTS.md lists).
+      # No GPU or display is needed: CI compiles and tests, it does not open a window.
+      - name: system libraries for GPUI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config clang \
+            libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb1-dev libzstd-dev libssl-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
