@@ -89,8 +89,10 @@ pub struct Instance {
     /// False when the gateway could not read the instance.
     #[serde(default = "yes")]
     pub reachable: bool,
-    /// The host's own fold of its record; absent when it cannot be read.
-    #[serde(default)]
+    /// The host's own fold of its record; absent when it cannot be read, or
+    /// when it is not in a shape this client reads (one odd row never takes
+    /// the whole list down).
+    #[serde(default, deserialize_with = "lenient_summary")]
     pub summary: Option<Summary>,
     #[serde(default)]
     pub error: Option<String>,
@@ -102,8 +104,25 @@ fn yes() -> bool {
     true
 }
 
-/// The part of the host's summary the list screen shows.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+fn lenient_summary<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Summary>, D::Error> {
+    let v = serde_json::Value::deserialize(d)?;
+    Ok(serde_json::from_value(v).ok())
+}
+
+/// A string when the host sent one, else nothing (a model may be named by a
+/// structure in some configs; the screens show only a plain name).
+fn plain<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
+    Ok(match serde_json::Value::deserialize(d)? {
+        serde_json::Value::String(s) => Some(s),
+        _ => None,
+    })
+}
+
+/// The host's own summary, as far as the screens read it. Every field is
+/// optional: a host that cannot be read has none, and the gateway may grow
+/// fields. All of it is the host's own words and numbers; nothing is derived
+/// here.
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
 pub struct Summary {
     /// The host's state word: `Working`, `Free time`, `Stuck`, `Down`, ...
     #[serde(default)]
@@ -113,6 +132,118 @@ pub struct Summary {
     pub doing: Option<String>,
     #[serde(default)]
     pub needs_you: bool,
+    /// The turn it is on.
+    #[serde(default)]
+    pub turn: Option<u64>,
+    /// When its record last grew (ms since the epoch).
+    #[serde(default)]
+    pub last_at: Option<i64>,
+    /// Model requests today, and the quota for them when one is set.
+    #[serde(default)]
+    pub requests: Option<u64>,
+    #[serde(default)]
+    pub quota: Option<u64>,
+    /// Paid spend today, in US dollars.
+    #[serde(default)]
+    pub spend_usd_day: Option<f64>,
+    #[serde(default)]
+    pub waiting_for: Option<WaitingFor>,
+    #[serde(default)]
+    pub queue: Option<Queue>,
+    #[serde(default)]
+    pub desk: Option<Desk>,
+    #[serde(default)]
+    pub governor: Option<Governor>,
+}
+
+/// What the host waits for (`kind`: `idle`, `degraded`, `turn`, `boundary`,
+/// `calendar`).
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+pub struct WaitingFor {
+    #[serde(default)]
+    pub kind: String,
+    /// When it ends or is due (ms since the epoch).
+    #[serde(default, alias = "at")]
+    pub until: Option<i64>,
+    #[serde(default)]
+    pub why: Option<String>,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub pending: Option<u64>,
+    #[serde(default)]
+    pub turn: Option<u64>,
+}
+
+/// The owner-visible queue.
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+pub struct Queue {
+    #[serde(default)]
+    pub waiting: u64,
+    #[serde(default)]
+    pub in_flight: u64,
+    /// The next item to be read.
+    #[serde(default)]
+    pub head: Option<QueueHead>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+pub struct QueueHead {
+    #[serde(default)]
+    pub text: String,
+    #[serde(default)]
+    pub channel: Option<String>,
+    /// `next`, `steer` or `free`; absent means `next`.
+    #[serde(default)]
+    pub intent: Option<String>,
+}
+
+/// The decision desk: what the host may do on its own and what it has spent.
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+pub struct Desk {
+    #[serde(default)]
+    pub backend: Option<String>,
+    #[serde(default)]
+    pub mode: Option<String>,
+    #[serde(default)]
+    pub spent_today_usd: Option<f64>,
+    #[serde(default)]
+    pub interrupts_last_hour: Option<u64>,
+    #[serde(default)]
+    pub enabled_groups: Vec<String>,
+    #[serde(default)]
+    pub limits: Option<DeskLimits>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+pub struct DeskLimits {
+    #[serde(default)]
+    pub cap_usd_day: Option<f64>,
+    #[serde(default)]
+    pub cap_usd_ask: Option<f64>,
+}
+
+/// The governor: which model rung is in use, and trouble on the way.
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+pub struct Governor {
+    #[serde(default)]
+    pub rung: Option<u64>,
+    #[serde(default, deserialize_with = "plain")]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub failures: Option<u64>,
+    #[serde(default)]
+    pub blocked: bool,
+    #[serde(default)]
+    pub ladder: Vec<LadderRung>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+pub struct LadderRung {
+    #[serde(default, deserialize_with = "plain")]
+    pub model: Option<String>,
+    #[serde(default = "yes")]
+    pub available: bool,
 }
 
 impl Instance {
@@ -328,6 +459,53 @@ mod tests {
                 "{bad:?}"
             );
         }
+    }
+
+    #[test]
+    fn the_whole_summary_is_read_and_an_odd_one_is_only_absent() {
+        let full: Instance = serde_json::from_str(
+            r#"{"id":"chief-main","reachable":true,"summary":{
+              "state":"Working","doing":"Committed to p: t","needs_you":false,
+              "turn":4,"last_at":1793574049592,"requests":5,"quota":1000,"spend_usd_day":0.0042,
+              "waiting_for":{"kind":"turn","turn":4,"since":1},
+              "queue":{"waiting":2,"in_flight":1,"head":{"text":"do it","channel":"owner","intent":"steer","order":3}},
+              "desk":{"backend":"none","mode":"rule_only","spent_today_usd":0.5,
+                      "interrupts_last_hour":1,"enabled_groups":["core","read"],
+                      "limits":{"cap_usd_day":5.0,"cap_usd_ask":1.0,"admit_now_p":0.6}},
+              "governor":{"rung":1,"model":"m-b","failures":2,"blocked":true,
+                          "ladder":[{"rung":0,"model":"m-a","available":false},{"rung":1,"model":{"x":1},"available":true}]}}}"#,
+        )
+        .unwrap();
+        let s = full.summary.unwrap();
+        assert_eq!(
+            (s.turn, s.requests, s.quota),
+            (Some(4), Some(5), Some(1000))
+        );
+        assert_eq!(s.spend_usd_day, Some(0.0042));
+        assert_eq!(s.waiting_for.unwrap().kind, "turn");
+        let q = s.queue.unwrap();
+        assert_eq!((q.waiting, q.in_flight), (2, 1));
+        assert_eq!(q.head.unwrap().intent.as_deref(), Some("steer"));
+        let d = s.desk.unwrap();
+        assert_eq!(d.limits.unwrap().cap_usd_day, Some(5.0));
+        assert_eq!(d.enabled_groups, ["core", "read"]);
+        let g = s.governor.unwrap();
+        assert!(g.blocked);
+        assert_eq!(g.model.as_deref(), Some("m-b"));
+        assert_eq!(g.ladder[0].model.as_deref(), Some("m-a"));
+        assert!(!g.ladder[0].available);
+        assert_eq!(
+            g.ladder[1].model, None,
+            "a structured model is not shown as text"
+        );
+
+        // a summary in the wrong shape is absent, and its row is still listed
+        let odd: Instances = serde_json::from_str(
+            r#"{"instances":[{"id":"a","summary":{"turn":"four"}},{"id":"b","summary":"x"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(odd.instances.len(), 2);
+        assert!(odd.instances.iter().all(|i| i.summary.is_none()));
     }
 
     #[test]

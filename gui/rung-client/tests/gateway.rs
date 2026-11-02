@@ -141,7 +141,15 @@ fn a_chief_and_a_steward_behind_a_real_gateway() {
     let end = Instant::now() + GUARD;
     let list = loop {
         let list = client.instances().expect("the list");
-        if list.instances.len() == 2 && list.instances.iter().all(|i| i.summary.is_some()) {
+        if list.instances.len() == 2
+            && list.instances.iter().all(|i| {
+                // a host's first lines are its start: wait for them
+                i.summary.as_ref().is_some_and(|s| {
+                    s.desk.as_ref().is_some_and(|d| d.mode.is_some())
+                        && s.governor.as_ref().is_some_and(|g| g.model.is_some())
+                })
+            })
+        {
             break list;
         }
         assert!(
@@ -168,6 +176,13 @@ fn a_chief_and_a_steward_behind_a_real_gateway() {
         let s = i.summary.as_ref().unwrap();
         assert_eq!(i.state_word(), s.state.as_deref().unwrap());
         assert!(!i.state_word().is_empty());
+        // the page's sections come from the host's own summary
+        let desk = s.desk.as_ref().expect("a desk");
+        assert_eq!(desk.mode.as_deref(), Some("rule_only"), "{}", i.id);
+        assert!(desk.limits.as_ref().and_then(|l| l.cap_usd_day).is_some());
+        let gov = s.governor.as_ref().expect("a governor");
+        assert!(gov.model.is_some() && !gov.ladder.is_empty(), "{}", i.id);
+        assert!(s.queue.is_some() && s.requests.is_some() && s.spend_usd_day.is_some());
         assert!(!i.doing().is_empty(), "{}: a host says what it does", i.id);
     }
 }
