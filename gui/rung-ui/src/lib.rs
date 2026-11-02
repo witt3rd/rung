@@ -88,6 +88,15 @@ impl Snapshot {
             .collect()
     }
 
+    /// The ids in the order the list shows them (chiefs, stewards, the rest;
+    /// the gateway's order within each): what the arrow keys walk.
+    pub fn ordered_ids(&self) -> Vec<&str> {
+        self.groups()
+            .into_iter()
+            .flat_map(|g| g.rows.into_iter().map(|r| r.id.as_str()))
+            .collect()
+    }
+
     pub fn counts(&self) -> Counts {
         let mut c = Counts::default();
         for r in &self.rows {
@@ -940,6 +949,23 @@ pub fn turn_changed(e: &Event) -> bool {
         if matches!(line["kind"].as_str(), Some("turn.started" | "turn.ended")))
 }
 
+/// Which instance the keyboard selects next: one step down or up the list
+/// from `current`, stopping at the ends (no wrap). With none selected, down
+/// takes the first and up the last. `None` only when the list is empty.
+pub fn step_selection(order: &[&str], current: Option<&str>, way: Way) -> Option<String> {
+    if order.is_empty() {
+        return None;
+    }
+    let at = current.and_then(|c| order.iter().position(|id| *id == c));
+    let to = match (at, way) {
+        (None, Way::Down) => 0,
+        (None, Way::Up) => order.len() - 1,
+        (Some(i), Way::Down) => (i + 1).min(order.len() - 1),
+        (Some(i), Way::Up) => i.saturating_sub(1),
+    };
+    Some(order[to].to_string())
+}
+
 /// One look: health first (so a dead gateway reads as that), then the list.
 pub fn look(client: &Client) -> Result<Snapshot, String> {
     let health = client.health().map_err(|e| e.to_string())?;
@@ -1749,6 +1775,46 @@ Other instances (1)
             live: true,
             partials: true
         })));
+    }
+
+    #[test]
+    fn the_keyboard_walks_the_list_in_the_order_it_is_shown_and_stops_at_the_ends() {
+        let snap = snapshot_of(&list(FLEET));
+        // chiefs first, then stewards, then the rest, as drawn
+        let order = snap.ordered_ids();
+        assert_eq!(
+            order,
+            [
+                "chief-main",
+                "chief-second",
+                "steward-alpha",
+                "steward-beta",
+                "steward-ghost",
+                "scratch"
+            ]
+        );
+        let down = |c: Option<&str>| step_selection(&order, c, Way::Down);
+        let up = |c: Option<&str>| step_selection(&order, c, Way::Up);
+        assert_eq!(down(None).as_deref(), Some("chief-main"));
+        assert_eq!(up(None).as_deref(), Some("scratch"));
+        assert_eq!(down(Some("chief-second")).as_deref(), Some("steward-alpha"));
+        assert_eq!(up(Some("steward-alpha")).as_deref(), Some("chief-second"));
+        assert_eq!(
+            down(Some("scratch")).as_deref(),
+            Some("scratch"),
+            "the end holds"
+        );
+        assert_eq!(
+            up(Some("chief-main")).as_deref(),
+            Some("chief-main"),
+            "the start holds"
+        );
+        assert_eq!(
+            down(Some("gone")).as_deref(),
+            Some("chief-main"),
+            "an unlisted selection starts over"
+        );
+        assert_eq!(step_selection(&[], None, Way::Down), None);
     }
 
     #[test]

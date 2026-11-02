@@ -7,6 +7,12 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, panels, keyboard and theme)
+- The `rung-ui` list and instance page are two resizable panels; Alt+Down and
+  Alt+Up select the next and previous instance in list order (a tested helper,
+  stopping at the ends), and Ctrl+T switches light and dark. The chords work
+  anywhere in the window, including the message box. The old `ui/` is untouched.
+
 ### Added (rung-ui, the turns and the conversation)
 - `rung-client` reads the host's turns door (`turns`, `turn`: the reply whole,
   llm use, what each turn was asked, its tool calls with whole inputs and
