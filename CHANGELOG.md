@@ -7,6 +7,17 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, the context inspector)
+- `rung-client::Client::context` reads the host's context door (what was sent
+  to the model on one call of one turn: bands in wire order with the host's size
+  estimates and cache marks, the provider's counts, cache breakpoints, what the
+  record cannot give back whole), tested against a real gateway and host (band
+  order, the host's own sum, 404s). The `rung-ui` page gains a Context section:
+  the request as stripes sized and marked from those answers, ◀ ▶ over turns and
+  calls, a click on a band for its text, and the provider's hit rate; `--turn N`
+  opens it at a turn. It replaces the old web page's Context page. Reading only;
+  the old `ui/` is untouched.
+
 ### Added (rung-ui, the queue and the owner's controls)
 - `rung-client` reads an instance's queue and gains the owner's calls: send
   (`queue_add`, with intent next/steer/free and a key), `queue_move`,

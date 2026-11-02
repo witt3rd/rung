@@ -26,6 +26,9 @@ a window calls it from a worker thread. Slice 1 reads two doors:
   succeed only for the owner role (a client with no token), and a read-only token
   is refused 403 in the gateway's words. Ids in paths are percent-encoded; a retried
   call takes a key. Nothing here sends on its own.
+- `Client::context(id, turn, call)` reads the context door (S4): the bands of a
+  call with the host's sizes and cache marks and the provider's counts; texts
+  whole and already redacted; a turn's messages are counted, not kept.
 - Rows are read leniently (unknown fields ignored; registry rows and
   configured rows share only `id`), so the gateway may grow fields.
 
