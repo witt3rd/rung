@@ -15,6 +15,12 @@ a window calls it from a worker thread. Slice 1 reads two doors:
 - `Summary` carries what the screens read of the host's summary (turn, spend,
   queue, desk, governor, what it waits for); each field is optional and a summary in
   an unexpected shape reads as absent, so one odd row never takes the list down.
+- `Client::events(id, after)` is one event-stream connection (an iterator of
+  `Frame`s: open, record with its number, delta, end, unknown kept);
+  `follow` is the loop for a worker thread: it keeps the last record number,
+  reconnects with `Last-Event-ID`, backs off (`Follow`: 1 s doubling to 30 s,
+  reset after a healthy minute), starts over on a 409, and stops on a flag. No
+  record line is interpreted here.
 - Rows are read leniently (unknown fields ignored; registry rows and
   configured rows share only `id`), so the gateway may grow fields.
 

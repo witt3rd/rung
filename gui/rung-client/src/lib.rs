@@ -20,10 +20,15 @@
 use std::fmt;
 use std::time::Duration;
 
+mod events;
+pub use events::{Delta, End, Event, Events, Follow, Frame, Open, follow};
+
 use serde::Deserialize;
 
 const CONNECT: Duration = Duration::from_secs(5);
 const TOTAL: Duration = Duration::from_secs(20);
+/// A quiet stream is dead: the gateway sends a keepalive every 15 s.
+const QUIET: Duration = Duration::from_secs(45);
 
 /// Why a door could not be read. Never carries the token.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,6 +42,8 @@ pub enum Error {
     Status { code: u16, message: String },
     /// The answer is not the shape this client reads.
     Decode(String),
+    /// An instance id that cannot name a door (empty, or not a plain slug).
+    BadId(String),
 }
 
 impl fmt::Display for Error {
@@ -49,6 +56,7 @@ impl fmt::Display for Error {
             }
             Error::Status { code, message } => write!(f, "the gateway answered {code}: {message}"),
             Error::Decode(e) => write!(f, "the gateway's answer is not readable: {e}"),
+            Error::BadId(i) => write!(f, "not an instance id: {i:?}"),
         }
     }
 }
@@ -138,6 +146,9 @@ pub struct Summary {
     /// When its record last grew (ms since the epoch).
     #[serde(default)]
     pub last_at: Option<i64>,
+    /// The number of its newest record line (where a stream may resume from).
+    #[serde(default)]
+    pub last_seq: Option<u64>,
     /// Model requests today, and the quota for them when one is set.
     #[serde(default)]
     pub requests: Option<u64>,
@@ -338,6 +349,8 @@ pub struct Client {
     base: String,
     token: Option<String>,
     agent: ureq::Agent,
+    /// For streams: no overall deadline, only a quiet-line one.
+    stream_agent: ureq::Agent,
 }
 
 impl fmt::Debug for Client {
@@ -365,10 +378,15 @@ impl Client {
             .timeout_connect(CONNECT)
             .timeout(TOTAL)
             .build();
+        let stream_agent = ureq::AgentBuilder::new()
+            .timeout_connect(CONNECT)
+            .timeout_read(QUIET)
+            .build();
         Ok(Client {
             base: trimmed.to_string(),
             token: None,
             agent,
+            stream_agent,
         })
     }
 

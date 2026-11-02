@@ -211,3 +211,135 @@ fn a_wrong_token_is_refused_in_the_gateways_words() {
     );
     assert!(!e.to_string().contains("not-the-token"));
 }
+
+/// Read frames from `events` until `want` says it has seen enough.
+fn read_until(
+    events: rung_client::Events,
+    mut want: impl FnMut(&rung_client::Frame) -> bool,
+) -> Vec<rung_client::Frame> {
+    let end = Instant::now() + GUARD;
+    let mut got = Vec::new();
+    for f in events {
+        let f = f.expect("a readable frame");
+        let done = want(&f);
+        got.push(f);
+        if done || Instant::now() > end {
+            break;
+        }
+    }
+    got
+}
+
+#[test]
+fn the_stream_of_a_real_host_replays_follows_and_resumes_by_cursor() {
+    use rung_client::Frame;
+    let scratch = Scratch::new();
+    let home = scratch.0.join("home");
+    let _chief = start_host(&scratch.0, &home, "chief-main");
+    let (_gw, base) = start_gateway(&scratch.0, &home);
+    let client = Client::new(&base).unwrap().with_token(TOKEN);
+    let end = Instant::now() + GUARD;
+    while client.instances().unwrap().instances.is_empty() {
+        assert!(Instant::now() < end, "the host never listed");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+
+    // from the first line: an open frame, then records 1, 2, 3, ... in order
+    let first = read_until(
+        client.events("chief-main", None).unwrap(),
+        |f| matches!(f, Frame::Record { seq, .. } if *seq >= 6),
+    );
+    assert!(
+        matches!(&first[0], Frame::Open(o) if o.after == 0 && o.live),
+        "{:?}",
+        first[0]
+    );
+    let seqs: Vec<u64> = first
+        .iter()
+        .filter_map(|f| match f {
+            Frame::Record { seq, line } => {
+                assert_eq!(line["seq"], *seq, "the id is the line's own number");
+                Some(*seq)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        seqs,
+        (1..=6).collect::<Vec<u64>>(),
+        "every line once, in order"
+    );
+
+    // resume: the next line after the cursor, none repeated
+    let again = read_until(
+        client.events("chief-main", Some(4)).unwrap(),
+        |f| matches!(f, Frame::Record { seq, .. } if *seq >= 6),
+    );
+    assert!(matches!(&again[0], Frame::Open(o) if o.after == 4));
+    let resumed: Vec<u64> = again
+        .iter()
+        .filter_map(|f| match f {
+            Frame::Record { seq, .. } => Some(*seq),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(resumed, [5, 6]);
+
+    // a cursor past the record is the gateway's 409
+    let e = client
+        .events("chief-main", Some(u32::MAX as u64))
+        .err()
+        .unwrap();
+    assert!(matches!(e, Error::Status { code: 409, .. }), "{e}");
+    // an unknown instance is a 404
+    let e = client.events("chief-nobody", None).err().unwrap();
+    assert!(matches!(e, Error::Status { code: 404, .. }), "{e}");
+}
+
+#[test]
+fn a_host_that_goes_away_ends_its_stream_down_and_follow_reconnects_to_it() {
+    use rung_client::{Event, Follow, Frame};
+    let scratch = Scratch::new();
+    let home = scratch.0.join("home");
+    let steward = start_host(&scratch.0, &home, "steward-alpha");
+    let (_gw, base) = start_gateway(&scratch.0, &home);
+    let client = Client::new(&base).unwrap().with_token(TOKEN);
+
+    let opts = Follow {
+        first: Duration::from_millis(100),
+        max: Duration::from_millis(400),
+        healthy: Duration::from_secs(3600),
+    };
+    let stop = std::sync::atomic::AtomicBool::new(false);
+    let mut steward = Some(steward);
+    let (mut seen, mut last_before_kill, mut ended) = (0u64, 0u64, false);
+    let deadline = Instant::now() + GUARD;
+    rung_client::follow(&client, "steward-alpha", None, opts, &stop, |e| {
+        assert!(
+            Instant::now() < deadline,
+            "the follow never saw the host go"
+        );
+        match e {
+            Event::Frame(Frame::Record { seq, .. }) => {
+                assert_eq!(seq, seen + 1, "no line missed or repeated");
+                seen = seq;
+                if steward.is_some() && seq >= 3 {
+                    // kill the host this test started
+                    drop(steward.take());
+                    last_before_kill = seq;
+                }
+            }
+            Event::Frame(Frame::End(end)) => {
+                assert_eq!(end.reason, "down", "a killed host is down, not stopped");
+                assert!(end.last_seq.unwrap_or(0) >= last_before_kill);
+                ended = true;
+                // the host is gone for good: stop following
+                stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            _ => {}
+        }
+        true
+    });
+    assert!(ended, "an `end` frame came");
+    assert!(seen >= 3);
+}
