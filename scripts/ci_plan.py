@@ -58,7 +58,6 @@ GLOBAL = [
 # Keep in step with the tests: a test that reads a new root-level path adds a
 # row here (a path with no row and no crate is treated as GLOBAL below).
 EXTRA_INPUTS = [
-    ("README.md", ["rung"]),  # `#[doc = include_str!("../../README.md")]`
     ("docs/*", ["rung-doctrine", "rung-driver"]),  # rendered props, triage, docket
     (".het/*", ["rung-doctrine", "rung-driver"]),  # carrier state read by tests
     ("examples/*", ["rung-host", "rung-agent"]),  # mock config, example agents

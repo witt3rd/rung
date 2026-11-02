@@ -1226,9 +1226,9 @@ declared rather than driven — is
             numbering: None,
             prose: r#"The conformance suite is `rung/tests/` and the doctests in
 `rung/src/lib.rs`. A change that violates any guarantee above MUST break at
-least the cited test. The README's Getting Started example is itself a run
-doctest (via `include_str!`), so the documented public API cannot silently drift
-from the macro.
+least the cited test. The Getting Started example in the crate docs of
+`rung/src/lib.rs` is itself a run doctest, so the documented public API cannot
+silently drift from the macro.
 
 "#.into(),
             mechanism: r#""A change that violates any guarantee MUST break at least the cited test" is only a claim if the citation is live. `./_ledger.py check` regenerates every row from the propositions documents and fails when a cited file is missing or a cited `fn` has been renamed away, so a guarantee cannot quietly lose its test."#.into(),

@@ -763,9 +763,9 @@ declared rather than driven — is
 <a id="conformance-suite"></a>
 **6** The conformance suite is `rung/tests/` and the doctests in
 `rung/src/lib.rs`. A change that violates any guarantee above MUST break at
-least the cited test. The README's Getting Started example is itself a run
-doctest (via `include_str!`), so the documented public API cannot silently drift
-from the macro.
+least the cited test. The Getting Started example in the crate docs of
+`rung/src/lib.rs` is itself a run doctest, so the documented public API cannot
+silently drift from the macro.
 
 <a id="compile-fail-asserts-only-non-compilation" data-parent="conformance-suite"></a>
 **6.1** **A `compile_fail` doctest does not verify the error code.** rustdoc
