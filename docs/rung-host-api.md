@@ -488,8 +488,9 @@ Later slices add rows as their doors land.
 | `POST /v1/stop`, `POST /v1/release` | write | | S7 |
 
 Of the H3 rows, the first slice serves `summary` and `record` for native
-instances (the H3 section below); `status`, `report`, `turns`, `decisions`,
-`pack` and `spend` are named here and not served yet. `events` (H5) is served
+instances (the H3 section below); `status`, `report`, `decisions`, `pack` and
+`spend` are named here and not served yet, and `turns` is specified in S8 below
+(not served yet). `events` (H5) is served
 for native instances from their state directories, and by the host's own
 listener (the H5 section).
 
@@ -1759,3 +1760,151 @@ says whether anything may have changed (unreachable: nothing; a broken
 connection or no answer: look at the instance, then ask again; a stop asked
 again changes nothing more, but a release asked again releases whatever is held
 then). Other methods are 405.
+
+## S8 — the turns door
+
+A **turn** is one pass of the agent: what it was asked, what it did, what it
+said, what it cost. The record holds a turn as a run of lines (`turn.started`,
+`stimulus.admitted`, `tool.call`, `llm.call`, `turn.log`, `turn.ended`, …); a
+screen that wants the turns used to fold those lines itself, which is a second
+copy of the host's reading of its own record. This door is the host's reading:
+the turns, folded once, here. A client lays them out and folds nothing.
+
+**Status: specified here; not served yet.** The slice that serves it carries
+the proof listed at the end, written first, and changes this paragraph.
+
+Two doors, for the native instances of a registry folder, read from the state
+directory so a **stopped** instance answers the same as a running one (code
+planned: `rung_host::read::turns`, the gateway's routes):
+
+| Door | Access | Answers |
+|---|---|---|
+| `GET /api/i/{id}/v1/turns` | read | the turns, newest first, paged by turn number |
+| `GET /api/i/{id}/v1/turns/{n}` | read | one turn, whole |
+
+The gateway's rules come first and are not repeated (H9, H3): both roles may
+read; an unknown token is 401; an owner-role request is Host-checked; any
+method but GET or HEAD is 405 for the owner and 403 `read_only` for the
+read-only role. Errors are H3's (`no_such_instance`, `state_dir_missing`,
+`unreadable`), answered before the first byte. **Every text in an answer is
+redacted** with the door's redactor (H4); a replaced value is `[redacted]` and
+nothing is shortened. The record on disk stays verbatim. The host's own
+listener does not serve this door in this slice.
+
+### What a turn is
+
+A turn exists when the record holds its `turn.started` line (a boundary that
+the host halted at is not a turn). Turn numbers are the record's own and
+ascend; they need not be contiguous. Its facts come from the lines that carry
+its `turn` number:
+
+| field | from |
+|---|---|
+| `turn`, `kind`, `mode`, `project`, `model`, `epoch` | `turn.started` (`turn_kind` is `kind`); `kind` and `model` are then overwritten by `turn.ended`'s when it has them |
+| `started_at`, `ended_at`, `elapsed_ms` | `turn.started`'s and `turn.ended`'s `at`, and `turn.ended`'s `elapsed_ms`; `ended_at` and `elapsed_ms` are null without an end |
+| `status` | `turn.ended`'s `status` when it is `completed` or `bounded`, else `failed`; with no `turn.ended`: `running` when a host holds the state lock and this is the newest started turn, else `interrupted` (cut off: the host died, or the next turn began) |
+| `failure` | `turn.ended`'s `failure` object, whole, when it has a `class`; else null |
+| `text` | the turn's reply, whole: the text of every assistant message of its `turn.log`, each trimmed, joined by a blank line; then `turn.ended`'s `final_text` (trimmed) when that is not already inside it; empty while the turn has no `turn.log` |
+| `llm` | `{"calls", "prompt_tokens", "cached_tokens", "completion_tokens", "cost_usd"}`: the sums over the turn's `llm.call` lines |
+| `tool_calls` | how many entries `calls` has (below) |
+| `asked` | how many items the turn was asked (below) |
+| `first_seq`, `last_seq` | the first and last record line numbers carrying this turn's number |
+
+### `GET /api/i/{id}/v1/turns`
+
+| query | meaning |
+|---|---|
+| `limit` | turns in the page, a whole number ≥ 1; default 50 (a default, not a bound). **No maximum** |
+| `before` | the cursor: the page holds the newest turns numbered **below** this. Default: from the newest |
+| `after` | the cursor: the page holds the oldest turns numbered **above** this, oldest first. Not with `before` |
+
+A name not in the table, a repeated name, a value that is not a whole number,
+`limit=0`, or both `before` and `after` is 400 `bad_request`.
+
+```json
+{"turns": [{"turn": 4, "kind": "free", "mode": "free", "project": null,
+            "model": "m", "epoch": 1, "started_at": 1791208196000,
+            "ended_at": 1791208197000, "elapsed_ms": 930, "status": "completed",
+            "failure": null, "text": "turn 4 done: …",
+            "llm": {"calls": 2, "prompt_tokens": 4515, "cached_tokens": 2216,
+                    "completion_tokens": 80, "cost_usd": 0.0},
+            "tool_calls": 1, "asked": 0, "first_seq": 33, "last_seq": 40}],
+ "total": 17, "limit": 50, "order": "desc", "next": null,
+ "damaged": null, "redaction": {"env_unset": []}}
+```
+
+`turns` is newest first (oldest first with `after`). `total` is the number of
+turns in the intact record. `next` is the cursor that continues the page (the
+number to pass as `before`, or as `after` with `after`) or null on the last
+page. `order` is `desc` or `asc`. `damaged` and `redaction` are as in H3: a
+damaged record is read as far as it is intact. `text` is whole in every row, so
+a page is as large as its replies.
+
+### `GET /api/i/{id}/v1/turns/{n}`
+
+One turn: the row above with `asked` and `calls` as lists, nothing cut. `{n}` is
+a whole number (400 `bad_request` otherwise); a number that is no started turn
+is 404 `no_such_turn`.
+
+```json
+{"turn": 4, "…": "the row's fields", "tool_calls": 2, "asked": 1,
+ "asked_items": [{"id": "q-77", "from": "owner", "role": "owner",
+                  "intent": "steer", "text": "also include the appendix",
+                  "sent_at": 1791208190000, "seen_at": 1791208196000,
+                  "during": 3}],
+ "calls": [{"name": "read", "group": "core", "ok": true, "refused": null,
+            "input": {"path": "a.md"}, "result": "…whole…"}],
+ "damaged": null, "redaction": {"env_unset": []}}
+```
+
+`asked_items` (one per item the turn took at its boundary, in the order the
+boundary admitted them; `asked` is their count): from the turn's
+`stimulus.admitted` `ids`, each joined to its `stimulus.accepted` line. `from`
+is `owner` for the owner's, else the item's `kind` (or its `role`); `intent` is
+`next`, `free` or `steer` as the item says, else null; `sent_at` is when the
+item arrived and `seen_at` when this turn's boundary took it; `during` is the
+number of the turn that was running when it arrived, else null (it arrived
+between turns, by line number). `text` is the item's whole text.
+
+`calls` (their count is `tool_calls`), in the order the turn made them:
+
+- when the turn has a `turn.log`, one per `tool_use` block of its assistant
+  messages, in message order, with `input` (the block's `input`, whole) and
+  `result` (the matching `tool_result`'s content, as text; a structure is its
+  JSON), `ok` (not the result's `is_error`) and `group` null; `ok` and `result`
+  are null when the call has no result;
+- when it has none (a turn running, or cut off): one per `tool.call` line,
+  with its `name`, `group` and `ok`, and `input` and `result` null;
+- then, either way, one per `tool.refused` line: `ok` false, `refused` its
+  `why`, `result` its `message`.
+
+### Cost and size
+
+A turn's answer is as large as the turn: its `input` and `result` texts and
+its reply are whole, however long. The door reads the record, so a request
+costs one read of it (a page reads it twice: the first read finds which turns
+the page holds and keeps only a few numbers per turn; the second keeps the
+texts of the turns the page holds, and no others). Memory is the size of the
+turns asked for, never of the record. There is no index in this slice.
+
+### Not here
+
+Decisions (`/v1/decisions`), the context of a call (S4), spend and the pack
+(named in the door table, not served): each is a door of its own with its own
+fold on the host. A client that wants a decision of a turn asks that door.
+
+### Proof (to be written first, with the slice that serves the door)
+
+The fold's own tests in `rung-host/src/read.rs`, and a gateway test file for
+the turns door (named when it is written) over real HTTP: a record of known turns folds to exactly the rows above
+(status for completed, bounded, failed, running, interrupted; the reply from
+`turn.log` and `final_text`; the llm sums); a turn that never started is not a
+turn; asked items joined from `stimulus.accepted` with `during` set by line
+number; calls from `turn.log` with their results, from `tool.call` lines
+without one, and refusals added; a reply and a tool result of 2,000,000
+characters come back whole; a planted secret in a reply, a tool input and an
+asked item is absent from every byte of the answer and present in the record
+file; paging by `before` and `after` with no turn missed or repeated, `next`,
+`total`, no maximum on `limit`; 400s and 404s; both roles on a stopped
+instance; a damaged record read as far as it is intact; and a counting
+allocator showing the page's memory a small fraction of a large record.

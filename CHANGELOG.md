@@ -7,6 +7,14 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-host API, the turns door specified)
+- `docs/rung-host-api.md` S8: the specification of the host's `turns` door
+  (`GET /v1/turns` paged by turn number, `GET /v1/turns/{n}`): one fold of the
+  record into turns on the host (status, reply, llm sums, asked items, tool
+  calls with whole inputs and results), so no client folds the record. Text
+  only: nothing is served yet; the slice that serves it carries the proof the
+  section lists, written first.
+
 ### Added (rung-ui, the context inspector)
 - `rung-client::Client::context` reads the host's context door (what was sent
   to the model on one call of one turn: bands in wire order with the host's size
