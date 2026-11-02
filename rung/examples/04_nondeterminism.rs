@@ -9,7 +9,7 @@
 //! tried to fold a live LLM verdict in by *constructing a state from outside*,
 //! and the sealed constructor (rung-props.md G2) refused. The type system enforced
 //! what a category requires before we had named it. The law arrived from the
-//! inside, through the refusal. See `docs/.archive/2026-07-18_HANDOFF_verbs-are-arrows.md`
+//! inside, through the refusal. See `docs/records/archive/2026-07-18_HANDOFF_verbs-are-arrows.md`
 //! for the full record.
 //!
 //! This example is that ladder: `Open → Gathered → Evaluated → Synthesized →
