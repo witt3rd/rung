@@ -3,7 +3,7 @@
 # builds these crates; the `gui` CI job does (see .github/workflows/ci.yml).
 # GPUI is heavy to build, so the required `check` does not wait for it.
 [workspace]
-members = ["rung-client"]
+members = ["rung-client", "rung-ui"]
 resolver = "2"
 
 [workspace.package]
