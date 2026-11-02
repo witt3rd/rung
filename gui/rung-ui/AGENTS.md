@@ -12,7 +12,16 @@ under a chief; the real edge comes with the fleet's records, not from a guess.
 Clicking an instance opens its page beside the list: Now (state, doing,
 what it waits for, turn, last activity), Queue, Spend, Desk and Governor, laid
 out from the host's own summary that the list already carries (no second
-door, no fold here); an instance the gateway cannot read says why. The page also follows the instance's record live: the newest
+door, no fold here); an instance the gateway cannot read says why. The page's Context section is the inspector: the request of one call of one
+turn as stripes in the order the model sees them (tools, system, epoch, history,
+message, recall, this turn), widths and cache marks (cached / partly / new) from
+the host's own `context` door, plus the provider's counts and cache breakpoints
+and anything the record cannot give back whole; ◀ ▶ step turns and calls; a click
+on a band opens its text (first 1,500 characters; tools list their names).
+Reading only; opened by a click (the latest turn) or `--turn N`. No tokenizing
+or recomputing here: sizes are the host's estimates, marks the host's.
+
+The page also follows the instance's record live: the newest
 lines (newest first, kept to 300) and the running turn's text and tools as they
 arrive, from the gateway's event stream. The stream starts 100 lines behind the
 newest, is resumed from the last line seen after a drop (back-off 1 s doubling to
@@ -31,7 +40,7 @@ under the buttons. A read-only connection is refused by the gateway, not by
 the UI.
 
 ```text
-rung-ui [--gateway URL] [--select ID] [--controls] [--list | --show ID]
+rung-ui [--gateway URL] [--select ID] [--turn N] [--controls] [--list | --show ID]
 ```
 
 Gateway: `--gateway`, else `$RUNG_GATEWAY`, else `http://127.0.0.1:8787`. A

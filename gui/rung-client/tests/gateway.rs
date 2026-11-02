@@ -488,3 +488,65 @@ fn the_owner_controls_work_through_a_real_gateway_and_the_read_only_token_cannot
         "{s2:?}"
     );
 }
+
+#[test]
+fn the_context_of_a_real_turn_is_read_as_bands_and_refusals_are_the_hosts_words() {
+    let scratch = Scratch::new();
+    let home = scratch.0.join("home");
+    let _chief = start_host(&scratch.0, &home, "chief-main");
+    let (_gw, base) = start_gateway(&scratch.0, &home);
+    let client = Client::new(&base).unwrap().with_token(TOKEN);
+    // wait for a few finished turns
+    let end = Instant::now() + GUARD;
+    let turn = loop {
+        let t = client
+            .instances()
+            .ok()
+            .and_then(|l| l.instances.first().and_then(|i| i.summary.as_ref()?.turn));
+        if let Some(t) = t.filter(|t| *t >= 3) {
+            break t - 1; // the one before the running turn has ended
+        }
+        assert!(Instant::now() < end, "the host never ran three turns");
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    let v = client.context("chief-main", turn, None).expect("a context");
+    assert_eq!((v.turn, v.call), (turn, 1));
+    assert!(v.calls >= 1 && !v.live && v.recorded, "{v:?}");
+    let order: Vec<&str> = v.bands.iter().map(|b| b.band.as_str()).collect();
+    assert_eq!(
+        &order[..3],
+        ["tools", "system", "epoch"],
+        "in the order the model sees them"
+    );
+    assert_eq!(order.last(), Some(&"this_turn"));
+    assert!(
+        v.bands
+            .iter()
+            .all(|b| b.est_tokens > 0 || b.band == "this_turn")
+    );
+    let sum: u64 = v.bands.iter().map(|b| b.est_tokens).sum();
+    assert_eq!(sum, v.estimate_tokens, "the host's own sum");
+    let p = v.provider.as_ref().expect("the provider's counts");
+    assert!(p.prompt_tokens > 0 && p.cached_tokens <= p.prompt_tokens);
+    assert!(v.bands[0].count.unwrap_or(0) as usize == v.bands[0].items.len());
+    assert!(
+        v.bands[1].text.as_deref().is_some_and(|t| !t.is_empty()),
+        "the system text, whole"
+    );
+    assert!(
+        v.bands.iter().all(|b| b.cache.is_some()),
+        "every band has a cache mark"
+    );
+
+    let e = client.context("chief-main", 99_999, None).unwrap_err();
+    assert!(
+        matches!(&e, Error::Status { code: 404, message } if !message.is_empty()),
+        "{e}"
+    );
+    let e = client.context("chief-main", turn, Some(999)).unwrap_err();
+    assert!(matches!(e, Error::Status { code: 404, .. }), "{e}");
+    assert!(matches!(
+        client.context("a/b", 1, None),
+        Err(Error::BadId(_))
+    ));
+}

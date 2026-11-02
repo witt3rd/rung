@@ -1,7 +1,7 @@
 //! `rung-ui`: a window onto the instances behind a rung gateway.
 //!
 //! ```text
-//! rung-ui [--gateway URL] [--select ID] [--controls] [--list | --show ID]
+//! rung-ui [--gateway URL] [--select ID] [--turn N] [--controls] [--list | --show ID]
 //! ```
 //!
 //! The gateway is `--gateway`, else `$RUNG_GATEWAY`, else
@@ -23,10 +23,10 @@ use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{ActiveTheme as _, h_flex, v_flex};
 use gpui_kit::*;
-use rung_client::{Client, Event, Follow, Intent, QueueList, follow};
+use rung_client::{Client, ContextView, Event, Follow, Intent, QueueList, follow};
 use rung_ui::{
-    Detail, Feed, Link, Row, Snapshot, Way, as_text, detail_text, fresh_key, look, move_target,
-    queue_line, said, utc,
+    Cache, Detail, Feed, Link, Row, Snapshot, Way, as_text, band_preview, detail_text, fresh_key,
+    look, move_target, queue_line, said, strata_of, utc,
 };
 
 const DEFAULT_GATEWAY: &str = "http://127.0.0.1:8787";
@@ -61,6 +61,18 @@ struct InstanceList {
     confirm: Option<Confirm>,
     writes: u64,
     _subscription: Subscription,
+    /// The context inspector: what was sent to the model on one call of one turn.
+    ctx: Option<CtxState>,
+    /// A turn to open the inspector at once the instance is listed (`--turn`).
+    ctx_pending: Option<u64>,
+    ctx_band: Option<String>,
+}
+
+/// One answer of the context door, or why there is none.
+struct CtxState {
+    turn: u64,
+    call: u64,
+    result: Result<ContextView, String>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -83,6 +95,7 @@ impl InstanceList {
         client: Client,
         selected: Option<String>,
         controls: bool,
+        turn: Option<u64>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -137,6 +150,9 @@ impl InstanceList {
             confirm: None,
             writes: 0,
             _subscription: subscription,
+            ctx: None,
+            ctx_pending: turn,
+            ctx_band: None,
         };
         if this.writer.is_some() {
             this.input.update(cx, |s, cx| s.focus(window, cx));
@@ -154,7 +170,68 @@ impl InstanceList {
             Err(why) => self.link = Link::Down(why),
         }
         self.ensure_stream(cx);
+        if let Some(t) = self.ctx_pending
+            && self.selected_row().is_some()
+        {
+            self.ctx_pending = None;
+            self.load_context(t, None, cx);
+        }
         cx.notify();
+    }
+
+    fn selected_row(&self) -> Option<&Row> {
+        let id = self.selected.as_ref()?;
+        self.snapshot.rows.iter().find(|r| &r.id == id)
+    }
+
+    /// Ask the host what the model was sent on `call` of `turn`, off the UI thread.
+    fn load_context(&mut self, turn: u64, call: Option<u64>, cx: &mut Context<Self>) {
+        let Some(id) = self.selected.clone() else {
+            return;
+        };
+        let client = self.client.clone();
+        let generation = self.generation;
+        self.ctx = Some(CtxState {
+            turn,
+            call: call.unwrap_or(1),
+            result: Err("asking the host…".into()),
+        });
+        self.ctx_band = None;
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let got = cx
+                .background_spawn(async move {
+                    client.context(&id, turn, call).map_err(|e| e.to_string())
+                })
+                .await;
+            _ = this.update(cx, |v, cx| {
+                // the answer is for the instance that was open when it was asked
+                if v.generation != generation {
+                    return;
+                }
+                v.ctx = Some(CtxState {
+                    turn,
+                    call: call.unwrap_or(1),
+                    result: got,
+                });
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Step the inspector to another turn or call of the one open.
+    fn step_context(&mut self, dturn: i64, dcall: i64, cx: &mut Context<Self>) {
+        let Some(c) = &self.ctx else { return };
+        let (mut turn, mut call) = (c.turn as i64, c.call as i64);
+        if dturn != 0 {
+            turn = (turn + dturn).max(1);
+            call = 1;
+        } else {
+            let calls = c.result.as_ref().map_or(1, |v| v.calls.max(1) as i64);
+            call = (call + dcall).clamp(1, calls);
+        }
+        self.load_context(turn as u64, Some(call as u64), cx);
     }
 
     /// Turn the owner's controls on (a click) or off.
@@ -266,6 +343,144 @@ impl InstanceList {
             self.confirm = Some(what);
             cx.notify();
         }
+    }
+
+    /// The context inspector: the request of one call as stripes, in the order the
+    /// model sees them, with the provider's counts. Reading only.
+    fn context_block(&self, cx: &mut Context<Self>) -> AnyElement {
+        let theme = cx.theme().clone();
+        let muted = theme.muted_foreground;
+        let mut block = v_flex().gap_1().child(
+            div()
+                .pt_2()
+                .text_sm()
+                .text_color(muted)
+                .child("Context · what was sent to the model"),
+        );
+        let Some(c) = &self.ctx else {
+            let turn = self.selected_row().and_then(|r| r.turn);
+            return block
+                .child(
+                    Button::new("ctx-open")
+                        .label("Show the latest turn's request")
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if let Some(t) = turn {
+                                this.load_context(t, None, cx);
+                            }
+                        })),
+                )
+                .into_any_element();
+        };
+        let nav = h_flex()
+            .gap_1()
+            .child(
+                Button::new("t-")
+                    .ghost()
+                    .label("◀ turn")
+                    .on_click(cx.listener(|t, _, _, cx| t.step_context(-1, 0, cx))),
+            )
+            .child(
+                Button::new("t+")
+                    .ghost()
+                    .label("turn ▶")
+                    .on_click(cx.listener(|t, _, _, cx| t.step_context(1, 0, cx))),
+            )
+            .child(
+                Button::new("c-")
+                    .ghost()
+                    .label("◀ call")
+                    .on_click(cx.listener(|t, _, _, cx| t.step_context(0, -1, cx))),
+            )
+            .child(
+                Button::new("c+")
+                    .ghost()
+                    .label("call ▶")
+                    .on_click(cx.listener(|t, _, _, cx| t.step_context(0, 1, cx))),
+            );
+        block = block.child(nav);
+        let v = match &c.result {
+            Ok(v) => v,
+            Err(why) => {
+                return block
+                    .child(
+                        div()
+                            .text_color(theme.warning)
+                            .child(format!("Turn {}: {why}", c.turn)),
+                    )
+                    .into_any_element();
+            }
+        };
+        let strata = strata_of(v);
+        let color = |k: Cache| match k {
+            Cache::Cached => theme.success,
+            Cache::Partly => theme.warning,
+            Cache::New => theme.primary,
+            Cache::Unknown => muted,
+        };
+        block = block.child(div().child(strata.title.clone()));
+        // the stripes: width is the band's share of the request
+        let mut bar = h_flex().h(px(18.)).w_full().gap_px();
+        for g in &strata.segs {
+            bar = bar.child(
+                div()
+                    .w(relative(g.share.max(0.01)))
+                    .h_full()
+                    .bg(color(g.cache)),
+            );
+        }
+        block = block.child(bar);
+        for (n, g) in strata.segs.iter().enumerate() {
+            let name = g.band.clone();
+            let open = self.ctx_band.as_deref() == Some(g.band.as_str());
+            let mut line = h_flex()
+                .id(("band", n))
+                .gap_2()
+                .items_baseline()
+                .cursor_pointer()
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.ctx_band = if this.ctx_band.as_deref() == Some(name.as_str()) {
+                        None
+                    } else {
+                        Some(name.clone())
+                    };
+                    cx.notify();
+                }))
+                .child(div().w(px(10.)).h(px(10.)).flex_none().bg(color(g.cache)))
+                .child(div().flex_1().min_w_0().truncate().child(g.label.clone()))
+                .child(div().flex_none().text_color(muted).child(format!(
+                    "{} tok · {}",
+                    rung_ui::grouped(g.tokens),
+                    g.cache.word()
+                )));
+            if open {
+                line = line.bg(theme.secondary);
+            }
+            block = block.child(line);
+        }
+        if let Some(b) = self
+            .ctx_band
+            .as_ref()
+            .and_then(|n| v.bands.iter().find(|b| &b.band == n))
+        {
+            block = block.child(
+                div()
+                    .id("band-text")
+                    .max_h(px(220.))
+                    .overflow_y_scroll()
+                    .p_2()
+                    .rounded_md()
+                    .bg(theme.secondary)
+                    .text_sm()
+                    .child(band_preview(b)),
+            );
+        }
+        for f in &strata.facts {
+            block = block.child(div().text_sm().text_color(muted).child(f.clone()));
+        }
+        for n in &strata.notes {
+            block = block.child(div().text_sm().text_color(theme.warning).child(n.clone()));
+        }
+        block.into_any_element()
     }
 
     /// The selected instance's queue, and (with controls on) what can be done to it.
@@ -429,6 +644,8 @@ impl InstanceList {
         self.queue = None;
         self.said = None;
         self.confirm = None;
+        self.ctx = None;
+        self.ctx_band = None;
         let stop = Arc::new(AtomicBool::new(false));
         self.following = Some((id.clone(), stop.clone()));
 
@@ -526,6 +743,7 @@ impl Render for InstanceList {
         });
 
         let queue_block = self.queue_block(cx);
+        let context_block = self.context_block(cx);
         let list = v_flex()
             .flex_1()
             .min_w_0()
@@ -593,6 +811,7 @@ impl Render for InstanceList {
                     self.snapshot.rows.iter().find(|r| &r.id == id),
                     &self.feed,
                     queue_block,
+                    context_block,
                     &theme,
                 )
             }))
@@ -645,6 +864,7 @@ fn page(
     row: Option<&Row>,
     feed: &Feed,
     queue_block: AnyElement,
+    context_block: AnyElement,
     theme: &gpui_kit::component::Theme,
 ) -> AnyElement {
     let muted = theme.muted_foreground;
@@ -671,10 +891,14 @@ fn page(
     let detail: &Detail = &row.detail;
     col = col.child(div().text_lg().child(row.name.clone()));
     let mut queue_block = Some(queue_block);
+    let mut context_block = Some(context_block);
     for (n, sec) in detail.sections.iter().enumerate() {
         if n == 1 {
             // the queue and the followed record sit right under Now
-            col = col.children(queue_block.take()).child(record(feed, theme));
+            col = col
+                .children(queue_block.take())
+                .child(context_block.take().expect("once"))
+                .child(record(feed, theme));
         }
         let mut block = v_flex().gap_1().child(
             div()
@@ -701,7 +925,10 @@ fn page(
         col = col.child(block);
     }
     if detail.sections.len() < 2 {
-        col = col.children(queue_block.take()).child(record(feed, theme));
+        col = col
+            .children(queue_block.take())
+            .children(context_block.take())
+            .child(record(feed, theme));
     }
     col.into_any_element()
 }
@@ -789,6 +1016,7 @@ struct Opts {
     gateway: String,
     select: Option<String>,
     controls: bool,
+    turn: Option<u64>,
     list: bool,
     show: Option<String>,
 }
@@ -799,6 +1027,7 @@ fn args() -> Result<Opts, String> {
         gateway: std::env::var("RUNG_GATEWAY").unwrap_or_else(|_| DEFAULT_GATEWAY.into()),
         select: None,
         controls: false,
+        turn: None,
         list: false,
         show: None,
     };
@@ -809,6 +1038,13 @@ fn args() -> Result<Opts, String> {
             "--select" => o.select = Some(it.next().ok_or("--select needs an instance id")?),
             "--show" => o.show = Some(it.next().ok_or("--show needs an instance id")?),
             "--controls" => o.controls = true,
+            "--turn" => {
+                o.turn = Some(
+                    it.next()
+                        .and_then(|n| n.parse().ok())
+                        .ok_or("--turn needs a turn number")?,
+                )
+            }
             "--list" => o.list = true,
             other => return Err(format!("unknown argument {other:?}")),
         }
@@ -821,7 +1057,7 @@ fn main() {
         Ok(a) => a,
         Err(e) => {
             eprintln!(
-                "rung-ui: {e}\nusage: rung-ui [--gateway URL] [--select ID] [--controls] [--list | --show ID]"
+                "rung-ui: {e}\nusage: rung-ui [--gateway URL] [--select ID] [--turn N] [--controls] [--list | --show ID]"
             );
             std::process::exit(2);
         }
@@ -876,7 +1112,9 @@ fn main() {
             ..Default::default()
         };
         open_window(options, cx, |window, cx| {
-            cx.new(|cx| InstanceList::new(client, opts.select, opts.controls, window, cx))
+            cx.new(|cx| {
+                InstanceList::new(client, opts.select, opts.controls, opts.turn, window, cx)
+            })
         })
         .expect("the window opens");
         cx.activate(true);

@@ -20,8 +20,10 @@
 use std::fmt;
 use std::time::Duration;
 
+mod context;
 mod events;
 mod queue;
+pub use context::{Band, Boundary, CacheEvent, ContextView, ProviderCounts, ToolDef};
 pub use events::{Delta, End, Event, Events, Follow, Frame, Open, follow};
 pub use queue::{Added, Cancelled, Counts, Intent, Moved, QueueItem, QueueList, Released, Stopped};
 

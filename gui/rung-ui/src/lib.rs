@@ -7,7 +7,9 @@
 
 use std::collections::VecDeque;
 
-use rung_client::{Client, Error, Event, Frame, Instance, Instances, QueueItem, Role};
+use rung_client::{
+    Band, Client, ContextView, Error, Event, Frame, Instance, Instances, QueueItem, Role,
+};
 
 /// One line of the list: name, state word, what it is doing.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,6 +29,8 @@ pub struct Row {
     pub detail: Detail,
     /// Its newest record line number: where a followed stream may start.
     pub last_seq: Option<u64>,
+    /// The turn it is on (the context inspector starts there).
+    pub turn: Option<u64>,
 }
 
 /// One instance's page: sections of label and value, all of it the host's own
@@ -160,6 +164,7 @@ pub fn snapshot_of(list: &Instances) -> Snapshot {
                 id: i.id.clone(),
                 detail: detail_of(i),
                 last_seq: i.summary.as_ref().and_then(|s| s.last_seq),
+                turn: i.summary.as_ref().and_then(|s| s.turn),
                 name: i.display_name().to_string(),
                 role: i.role(),
                 unreachable: i.unreachable(),
@@ -580,6 +585,193 @@ pub fn said(e: &Error) -> String {
             format!("refused: {message} (turn controls on with a connection that may write)")
         }
         other => format!("did not go: {other}"),
+    }
+}
+
+/// Whether the provider had a band cached.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Cache {
+    Cached,
+    Partly,
+    New,
+    Unknown,
+}
+
+impl Cache {
+    fn of(s: Option<&str>) -> Cache {
+        match s {
+            Some("cached") => Cache::Cached,
+            Some("partly") => Cache::Partly,
+            Some("new") => Cache::New,
+            _ => Cache::Unknown,
+        }
+    }
+
+    pub fn word(self) -> &'static str {
+        match self {
+            Cache::Cached => "cached",
+            Cache::Partly => "partly cached",
+            Cache::New => "new",
+            Cache::Unknown => "cache unknown",
+        }
+    }
+}
+
+/// One band of the request as a stripe: how much of it, and its cache mark.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Seg {
+    /// The host's band name (`tools`, `system`, ...): what a selection names.
+    pub band: String,
+    pub label: String,
+    pub tokens: u64,
+    /// Its share of the request, 0 to 1.
+    pub share: f32,
+    pub cache: Cache,
+}
+
+/// What the context inspector shows for one call of one turn.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Strata {
+    pub title: String,
+    /// One line each: the size, the provider's count and hit rate, cache events and breakpoints.
+    pub facts: Vec<String>,
+    pub segs: Vec<Seg>,
+    /// What the record cannot give back whole, in the host's words.
+    pub notes: Vec<String>,
+}
+
+/// A number with thousands separators.
+pub fn grouped(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+fn band_label(b: &Band) -> String {
+    match b.band.as_str() {
+        "tools" => format!("tools ({})", b.count.unwrap_or(b.items.len() as u64)),
+        "history" => format!("history ({} earlier turns)", b.turns.unwrap_or(0)),
+        "this_turn" => format!("this turn ({} messages)", b.messages),
+        other => other.to_string(),
+    }
+}
+
+/// The inspector's view of a context answer: the bands in the order the model
+/// sees them, sized by the host's own estimates, marked by the host's own
+/// cache marks. Nothing is recomputed here but the shares.
+pub fn strata_of(v: &ContextView) -> Strata {
+    let total: u64 = v.bands.iter().map(|b| b.est_tokens).sum::<u64>().max(1);
+    let segs = v
+        .bands
+        .iter()
+        .map(|b| Seg {
+            band: b.band.clone(),
+            label: band_label(b),
+            tokens: b.est_tokens,
+            share: b.est_tokens as f32 / total as f32,
+            cache: Cache::of(b.cache.as_deref()),
+        })
+        .collect();
+    let mut title = format!(
+        "Turn {} · call {} of {}",
+        v.turn,
+        v.call.max(1),
+        v.calls.max(1)
+    );
+    if v.live {
+        title.push_str(" · the turn is running: the request as assembled");
+    }
+    let mut facts = vec![format!(
+        "Request about {} tokens (the host's estimate)",
+        grouped(v.estimate_tokens)
+    )];
+    if let Some(p) = &v.provider {
+        let rate = (p.cached_tokens * 100)
+            .checked_div(p.prompt_tokens)
+            .map(|r| format!(" ({r}%)"))
+            .unwrap_or_default();
+        facts.push(format!(
+            "The provider counted {} prompt tokens, {} cached{rate}; {} written to cache; {} generated",
+            grouped(p.prompt_tokens),
+            grouped(p.cached_tokens),
+            grouped(p.cache_write_tokens),
+            grouped(p.completion_tokens)
+        ));
+    }
+    if let Some(e) = &v.cache_event {
+        facts.push(format!(
+            "{}{}",
+            e.kind,
+            e.cause
+                .as_deref()
+                .map(|c| format!(": {c}"))
+                .unwrap_or_default()
+        ));
+    }
+    if !v.boundaries.is_empty() {
+        let b: Vec<String> = v
+            .boundaries
+            .iter()
+            .map(|b| {
+                format!(
+                    "after {} (about {} tokens)",
+                    b.after,
+                    grouped(b.tokens.unwrap_or(b.est_tokens))
+                )
+            })
+            .collect();
+        facts.push(format!("Cache breakpoints {}", b.join(", ")));
+    }
+    let mut notes = v.problems.clone();
+    if let Some(n) = &v.note {
+        notes.push(if v.missing.is_empty() {
+            n.clone()
+        } else {
+            format!("{n} (missing: {})", v.missing.join(", "))
+        });
+    }
+    Strata {
+        title,
+        facts,
+        segs,
+        notes,
+    }
+}
+
+/// What opening a band shows: its text (the first part), or a count.
+pub fn band_preview(b: &Band) -> String {
+    const SHOW: usize = 1500;
+    match b.band.as_str() {
+        "tools" => {
+            let names: Vec<&str> = b.items.iter().map(|t| t.name.as_str()).collect();
+            format!("{} tool definitions: {}", names.len(), names.join(", "))
+        }
+        "history" => format!(
+            "{} earlier turns of this epoch, with what the model was shown for each and the messages that followed",
+            b.turns.unwrap_or(0)
+        ),
+        "this_turn" => format!(
+            "{} model calls so far in this turn and {} messages: the earlier calls and their tool results",
+            b.calls_so_far.unwrap_or(0),
+            b.messages
+        ),
+        _ => match &b.text {
+            Some(t) if t.chars().count() > SHOW => {
+                format!(
+                    "{}…\n({} characters in all)",
+                    t.chars().take(SHOW).collect::<String>(),
+                    grouped(t.chars().count() as u64)
+                )
+            }
+            Some(t) => t.clone(),
+            None => String::new(),
+        },
     }
 }
 
@@ -1144,6 +1336,103 @@ Other instances (1)
             said(&e),
             "did not go: the gateway answered 409: start it first"
         );
+    }
+
+    fn ctx(json: &str) -> ContextView {
+        serde_json::from_str(json).expect("a context")
+    }
+
+    const CTX: &str = r#"{"turn":3,"call":2,"calls":3,"live":false,"recorded":true,
+      "provider":{"prompt_tokens":4000,"cached_tokens":3000,"cache_write_tokens":10,"completion_tokens":40},
+      "cache_event":{"kind":"cache.break","cause":"the system text changed"},
+      "estimate_tokens":4010,
+      "boundaries":[{"after":"system","est_tokens":2000,"tokens":1990},{"after":"epoch","est_tokens":2500}],
+      "problems":["a recall is missing"],"note":"this turn predates context recording","missing":["recall"],
+      "bands":[{"band":"tools","count":2,"est_tokens":1000,"cache":"cached","items":[{"name":"read"},{"name":"write"}]},
+               {"band":"system","est_tokens":1000,"cache":"cached","text":"You are an agent."},
+               {"band":"history","est_tokens":1500,"cache":"partly","turns":2},
+               {"band":"message","est_tokens":400,"cache":"new","text":"hi"},
+               {"band":"this_turn","est_tokens":110,"cache":"new","calls_so_far":1,"messages":[1,2]}]}"#;
+
+    #[test]
+    fn the_strata_are_the_bands_in_order_with_their_marks_and_shares() {
+        let s = strata_of(&ctx(CTX));
+        assert_eq!(s.title, "Turn 3 · call 2 of 3");
+        let segs: Vec<_> = s
+            .segs
+            .iter()
+            .map(|g| (g.label.as_str(), g.tokens, g.cache))
+            .collect();
+        assert_eq!(
+            segs,
+            [
+                ("tools (2)", 1000, Cache::Cached),
+                ("system", 1000, Cache::Cached),
+                ("history (2 earlier turns)", 1500, Cache::Partly),
+                ("message", 400, Cache::New),
+                ("this turn (2 messages)", 110, Cache::New),
+            ]
+        );
+        let sum: f32 = s.segs.iter().map(|g| g.share).sum();
+        assert!((sum - 1.0).abs() < 1e-4, "{sum}");
+        assert!((s.segs[0].share - 1000.0 / 4010.0).abs() < 1e-5);
+        assert_eq!(s.segs[0].band, "tools");
+    }
+
+    #[test]
+    fn the_facts_give_the_hosts_estimate_the_providers_count_and_the_breakpoints() {
+        let s = strata_of(&ctx(CTX));
+        assert_eq!(
+            s.facts,
+            [
+                "Request about 4,010 tokens (the host's estimate)",
+                "The provider counted 4,000 prompt tokens, 3,000 cached (75%); 10 written to cache; 40 generated",
+                "cache.break: the system text changed",
+                "Cache breakpoints after system (about 1,990 tokens), after epoch (about 2,500 tokens)",
+            ]
+        );
+        assert_eq!(
+            s.notes,
+            [
+                "a recall is missing",
+                "this turn predates context recording (missing: recall)"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_running_turn_says_it_is_as_assembled_and_has_no_provider_line() {
+        let s = strata_of(&ctx(
+            r#"{"turn":7,"call":1,"calls":0,"live":true,"estimate_tokens":10,
+                "bands":[{"band":"system","est_tokens":10,"cache":"unknown"}]}"#,
+        ));
+        assert_eq!(
+            s.title,
+            "Turn 7 · call 1 of 1 · the turn is running: the request as assembled"
+        );
+        assert_eq!(s.facts.len(), 1);
+        assert_eq!(s.segs[0].cache, Cache::Unknown);
+        assert_eq!(Cache::Unknown.word(), "cache unknown");
+    }
+
+    #[test]
+    fn numbers_are_grouped_and_a_band_opens_to_its_text_or_a_count() {
+        assert_eq!(
+            [0, 7, 999, 1000, 41_880, 1_234_567].map(grouped),
+            ["0", "7", "999", "1,000", "41,880", "1,234,567"]
+        );
+        let v = ctx(CTX);
+        assert_eq!(band_preview(&v.bands[0]), "2 tool definitions: read, write");
+        assert_eq!(band_preview(&v.bands[1]), "You are an agent.");
+        assert!(band_preview(&v.bands[4]).starts_with("1 model calls so far"));
+        let long = Band {
+            band: "system".into(),
+            text: Some("é".repeat(2000)),
+            ..Band::default()
+        };
+        let p = band_preview(&long);
+        assert!(p.ends_with("…\n(2,000 characters in all)"), "{p}");
+        assert_eq!(p.chars().filter(|c| *c == 'é').count(), 1500);
     }
 
     #[test]
