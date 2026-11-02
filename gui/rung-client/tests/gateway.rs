@@ -550,3 +550,59 @@ fn the_context_of_a_real_turn_is_read_as_bands_and_refusals_are_the_hosts_words(
         Err(Error::BadId(_))
     ));
 }
+
+#[test]
+fn the_turns_of_a_real_host_are_listed_newest_first_and_read_whole() {
+    let scratch = Scratch::new();
+    let home = scratch.0.join("home");
+    let _chief = start_host(&scratch.0, &home, "chief-main");
+    let (_gw, base) = start_gateway(&scratch.0, &home);
+    let client = Client::new(&base).unwrap().with_token(TOKEN);
+    let end = Instant::now() + GUARD;
+    let list = loop {
+        if let Ok(l) = client.turns("chief-main", 3, None)
+            && l.total >= 5
+        {
+            break l;
+        }
+        assert!(Instant::now() < end, "the host never ran five turns");
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    assert_eq!(list.turns.len(), 3);
+    let nums: Vec<u64> = list.turns.iter().map(|t| t.turn).collect();
+    assert!(
+        nums.windows(2).all(|w| w[0] == w[1] + 1),
+        "newest first, no gap: {nums:?}"
+    );
+    assert_eq!(
+        list.next,
+        Some(*nums.last().unwrap()),
+        "next is the cursor for older turns"
+    );
+    // the older page, by that cursor, starts right below it and repeats nothing
+    let older = client.turns("chief-main", 2, list.next).unwrap();
+    assert_eq!(older.turns[0].turn, nums.last().unwrap() - 1);
+    // a finished turn: its facts and its reply
+    let done = list
+        .turns
+        .iter()
+        .find(|t| t.status == "completed")
+        .expect("a finished turn");
+    assert!(
+        done.text.starts_with(&format!("turn {} done", done.turn)),
+        "{}",
+        done.text
+    );
+    assert!(done.llm.calls >= 1 && done.llm.prompt_tokens > 0);
+    let one = client.turn("chief-main", done.turn).unwrap();
+    assert_eq!(one.row.text, done.text, "the same reply, whole");
+    assert_eq!(one.calls.len() as u64, one.row.tool_calls);
+    assert!(one.calls.iter().all(|c| !c.name.is_empty()));
+    // refusals are the door's own words
+    let e = client.turn("chief-main", 99_999).unwrap_err();
+    assert!(
+        matches!(&e, Error::Status { code: 404, message } if message.contains("no turn")),
+        "{e}"
+    );
+    assert!(matches!(client.turns("a/b", 3, None), Err(Error::BadId(_))));
+}

@@ -23,9 +23,11 @@ use std::time::Duration;
 mod context;
 mod events;
 mod queue;
+mod turns;
 pub use context::{Band, Boundary, CacheEvent, ContextView, ProviderCounts, ToolDef};
 pub use events::{Delta, End, Event, Events, Follow, Frame, Open, follow};
 pub use queue::{Added, Cancelled, Counts, Intent, Moved, QueueItem, QueueList, Released, Stopped};
+pub use turns::{Asked, Call, TurnDetail, TurnList, TurnRow, Usage};
 
 use serde::Deserialize;
 
@@ -413,6 +415,37 @@ impl Client {
     /// `GET /api/instances`.
     pub fn instances(&self) -> Result<Instances, Error> {
         self.get("/api/instances")
+    }
+
+    /// An instance id that can sit in a path: a plain slug.
+    fn check_instance_id(&self, id: &str) -> Result<(), Error> {
+        let plain = !id.is_empty()
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'));
+        if plain {
+            Ok(())
+        } else {
+            Err(Error::BadId(id.to_string()))
+        }
+    }
+
+    /// A read whose answer may be large (whole texts): no overall deadline,
+    /// only a quiet-line one, like a stream.
+    fn get_streaming<T: for<'de> Deserialize<'de>>(&self, path: &str) -> Result<T, Error> {
+        let mut req = self.stream_agent.get(&format!("{}{path}", self.base));
+        if let Some(t) = &self.token {
+            req = req.set("authorization", &format!("Bearer {t}"));
+        }
+        match req.call() {
+            Ok(resp) => serde_json::from_reader(resp.into_reader())
+                .map_err(|e| Error::Decode(e.to_string())),
+            Err(ureq::Error::Status(code, resp)) => Err(Error::Status {
+                code,
+                message: message_of(&resp.into_string().unwrap_or_default()),
+            }),
+            Err(ureq::Error::Transport(t)) => Err(Error::Transport(self.scrub(t.to_string()))),
+        }
     }
 
     fn get<T: for<'de> Deserialize<'de>>(&self, path: &str) -> Result<T, Error> {
