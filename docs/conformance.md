@@ -761,7 +761,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 34 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 653 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 657 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -780,11 +780,12 @@ look shorter than it is.
 - `a_stop_flag_ends_a_follow_that_is_waiting`
 - `the_end_frame_is_passed_on_and_the_follow_goes_on_for_a_restart`
 
-**`gui/rung-client/tests/gateway.rs`** — 4 unclaimed
+**`gui/rung-client/tests/gateway.rs`** — 5 unclaimed
 
 - `a_chief_and_a_steward_behind_a_real_gateway`
 - `a_host_that_goes_away_ends_its_stream_down_and_follow_reconnects_to_it`
 - `a_wrong_token_is_refused_in_the_gateways_words`
+- `the_owner_controls_work_through_a_real_gateway_and_the_read_only_token_cannot`
 - `the_stream_of_a_real_host_replays_follows_and_resumes_by_cursor`
 
 **`gui/rung-client/tests/stub.rs`** — 5 unclaimed
@@ -794,6 +795,12 @@ look shorter than it is.
 - `health_and_the_list_are_read`
 - `nothing_listening_is_a_transport_error`
 - `the_token_rides_as_a_bearer_and_only_then`
+
+**`gui/rung-client/tests/writes.rs`** — 3 unclaimed
+
+- `a_bad_instance_id_sends_nothing`
+- `a_token_goes_as_a_bearer_and_a_refusal_reads_in_the_gateways_words`
+- `each_call_sends_the_documented_request`
 
 **`rung-agent-core/tests/engine.rs`** — 9 unclaimed
 

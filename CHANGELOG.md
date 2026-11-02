@@ -7,6 +7,17 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, the queue and the owner's controls)
+- `rung-client` reads an instance's queue and gains the owner's calls: send
+  (`queue_add`, with intent next/steer/free and a key), `queue_move`,
+  `queue_cancel`, `stop`, `release`; error bodies read in the gateway's own words
+  (flat or nested). Tested against a stub (method, path, body, bearer) and a real
+  gateway and host (the owner sends and is listed; the read-only token is refused
+  403 "this token can only read"; stop/release). The `rung-ui` page shows the
+  queue; the window starts read-only and its controls (send box with intent,
+  ↑ ↓ and cancel per waiting item, stop and release asking twice) appear only
+  after a click on "Turn controls on" (or `--controls`). The old `ui/` is untouched.
+
 ### Added (rung-ui, the live record)
 - `rung-client` reads the gateway's event stream: `Client::events` (one
   connection, frames in order) and `follow` (reconnect with `Last-Event-ID`

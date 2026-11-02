@@ -67,6 +67,17 @@ impl Drop for Proc {
 }
 
 fn start_host(root: &Path, home: &Path, name: &str) -> Proc {
+    start_host_with(root, home, name, "", &[])
+}
+
+/// A host whose config has `extra` lines appended and `envs` set.
+fn start_host_with(
+    root: &Path,
+    home: &Path,
+    name: &str,
+    extra: &str,
+    envs: &[(&str, &str)],
+) -> Proc {
     let dir = root.join(name);
     std::fs::create_dir_all(dir.join("inbox")).unwrap();
     std::fs::create_dir_all(dir.join("workspace")).unwrap();
@@ -75,7 +86,7 @@ fn start_host(root: &Path, home: &Path, name: &str) -> Proc {
         &cfg,
         format!(
             "name: {name}\nstate: {d}/state\nworkspace: {d}/workspace\n\
-             inbox: {d}/inbox\nstop_file: {d}/STOP\nengine:\n  kind: mock\nmemory: false\nidle_time_s: 0\n",
+             inbox: {d}/inbox\nstop_file: {d}/STOP\nengine:\n  kind: mock\nmemory: false\nidle_time_s: 0\n{extra}",
             d = dir.display()
         ),
     )
@@ -84,6 +95,7 @@ fn start_host(root: &Path, home: &Path, name: &str) -> Proc {
         Command::new(bin("rung-host"))
             .args(["run", "--config"])
             .arg(&cfg)
+            .envs(envs.iter().copied())
             .env("RUNG_HOME", home)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -95,11 +107,22 @@ fn start_host(root: &Path, home: &Path, name: &str) -> Proc {
 
 /// Start the gateway on an OS-chosen port; read the address it prints.
 fn start_gateway(root: &Path, home: &Path) -> (Proc, String) {
+    start_gateway_with(root, home, "", &[])
+}
+
+/// A gateway whose config has `extra` lines appended (an `instances:` block)
+/// and `envs` set (the variables that block names).
+fn start_gateway_with(
+    root: &Path,
+    home: &Path,
+    extra: &str,
+    envs: &[(&str, &str)],
+) -> (Proc, String) {
     let cfg = root.join("gateway.yaml");
     std::fs::write(
         &cfg,
         format!(
-            "listen: 127.0.0.1:0\nregistry_dir: {}\nread_only_token_envs: [{TOKEN_ENV}]\n",
+            "listen: 127.0.0.1:0\nregistry_dir: {}\nread_only_token_envs: [{TOKEN_ENV}]\n{extra}",
             home.join("instances").display()
         ),
     )
@@ -108,6 +131,7 @@ fn start_gateway(root: &Path, home: &Path) -> (Proc, String) {
         .args(["--config"])
         .arg(&cfg)
         .env(TOKEN_ENV, TOKEN)
+        .envs(envs.iter().copied())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -342,4 +366,125 @@ fn a_host_that_goes_away_ends_its_stream_down_and_follow_reconnects_to_it() {
     });
     assert!(ended, "an `end` frame came");
     assert!(seen >= 3);
+}
+
+/// A port nothing listens on now (the host's own door needs one the gateway's
+/// config can name before the host starts).
+fn free_port() -> u16 {
+    std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
+}
+
+#[test]
+fn the_owner_controls_work_through_a_real_gateway_and_the_read_only_token_cannot() {
+    use rung_client::Intent;
+    const OWNER_ENV: &str = "RUNG_CLIENT_TEST_OWNER_KEY";
+    const OWNER_KEY: &str = "owner-key-canary-client-9902";
+    let scratch = Scratch::new();
+    let home = scratch.0.join("home");
+    let port = free_port();
+    let _chief = start_host_with(
+        &scratch.0,
+        &home,
+        "chief-main",
+        &format!("acp:\n  http: 127.0.0.1:{port}\n  tokens:\n    owner: {OWNER_ENV}\n"),
+        &[(OWNER_ENV, OWNER_KEY)],
+    );
+    // the gateway holds the write key by name, for this instance
+    let (_gw, base) = start_gateway_with(
+        &scratch.0,
+        &home,
+        &format!(
+            "instances:\n  - id: chief-main\n    url: http://127.0.0.1:{port}\n    key_env: {OWNER_ENV}\n"
+        ),
+        &[(OWNER_ENV, OWNER_KEY)],
+    );
+    let owner = Client::new(&base).unwrap(); // no token: the owner role
+    let viewer = Client::new(&base).unwrap().with_token(TOKEN);
+    let end = Instant::now() + GUARD;
+    while owner.queue("chief-main", None).is_err() || owner.health().is_err() {
+        assert!(Instant::now() < end, "the host never came up");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    std::thread::sleep(Duration::from_millis(500));
+
+    // send: the key becomes the item's id; a retry with the same key adds once
+    let a = owner
+        .queue_add(
+            "chief-main",
+            "please add the appendix",
+            Intent::Steer,
+            "ui-test-1",
+        )
+        .expect("the owner may send");
+    assert_eq!((a.id.as_str(), a.repeat), ("ui-test-1", false));
+    let again = owner
+        .queue_add(
+            "chief-main",
+            "please add the appendix",
+            Intent::Steer,
+            "ui-test-1",
+        )
+        .unwrap();
+    assert!(again.repeat, "the same key is one item");
+    let all = owner.queue("chief-main", Some("all")).unwrap();
+    let item = all
+        .items
+        .iter()
+        .find(|i| i.id == "ui-test-1")
+        .expect("listed");
+    assert_eq!(
+        (item.role.as_str(), item.intent.as_deref()),
+        ("owner", Some("steer"))
+    );
+    assert_eq!(item.text, "please add the appendix");
+    assert!(["waiting", "answering", "answered"].contains(&item.state.as_str()));
+
+    // a cancel of an item that is not there is the gateway's own refusal in words
+    let e = owner
+        .queue_cancel("chief-main", "no-such-item")
+        .unwrap_err();
+    assert!(matches!(e, Error::Status { code: 404, .. }), "{e}");
+    // a move of one that is not there likewise
+    let e = owner
+        .queue_move("chief-main", "no-such-item", None, "mv-x")
+        .unwrap_err();
+    assert!(matches!(e, Error::Status { code: 404, .. }), "{e}");
+
+    // the read-only token reads the queue and nothing more, in the gateway's words
+    assert!(viewer.queue("chief-main", None).is_ok());
+    let e = viewer
+        .queue_add("chief-main", "x", Intent::Next, "ui-test-2")
+        .unwrap_err();
+    assert_eq!(
+        e,
+        Error::Status {
+            code: 403,
+            message: "this token can only read".into()
+        },
+        "{e}"
+    );
+    assert!(matches!(
+        viewer.stop("chief-main"),
+        Err(Error::Status { code: 403, .. })
+    ));
+    assert!(matches!(
+        viewer.release("chief-main", None),
+        Err(Error::Status { code: 403, .. })
+    ));
+    assert!(!e.to_string().contains(TOKEN) && !e.to_string().contains(OWNER_KEY));
+
+    // release with nothing held changes nothing; stop is acknowledged, then repeats
+    let r = owner.release("chief-main", Some("test")).unwrap();
+    assert!(r.released || r.repeat);
+    let s = owner.stop("chief-main").unwrap();
+    assert!(s.stopping && !s.repeat);
+    let s2 = owner.stop("chief-main");
+    assert!(
+        matches!(&s2, Ok(s) if s.repeat) || matches!(&s2, Err(Error::Status { code: 409, .. })),
+        "{s2:?}"
+    );
 }

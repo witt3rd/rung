@@ -1,7 +1,7 @@
 //! `rung-ui`: a window onto the instances behind a rung gateway.
 //!
 //! ```text
-//! rung-ui [--gateway URL] [--select ID] [--list | --show ID]
+//! rung-ui [--gateway URL] [--select ID] [--controls] [--list | --show ID]
 //! ```
 //!
 //! The gateway is `--gateway`, else `$RUNG_GATEWAY`, else
@@ -9,17 +9,25 @@
 //! read from `$RUNG_GATEWAY_TOKEN` and never shown. `--list` prints the list
 //! once as text and exits; `--show ID` prints one instance's page the same way
 //! (neither needs a display). In the window a click on an instance opens its
-//! page; `--select ID` opens with one already chosen. The window only reads:
-//! nothing in it writes to a host.
+//! page; `--select ID` opens with one already chosen. The window starts
+//! read-only: its owner controls (send, reorder, cancel, stop, release) are off
+//! until "Turn controls on" is clicked, or `--controls` says so at the start;
+//! writes then go to the gateway with no token (the owner role), and a
+//! read-only connection is refused by the gateway in words.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{ActiveTheme as _, h_flex, v_flex};
 use gpui_kit::*;
-use rung_client::{Client, Event, Follow, follow};
-use rung_ui::{Detail, Feed, Link, Row, Snapshot, as_text, detail_text, look, utc};
+use rung_client::{Client, Event, Follow, Intent, QueueList, follow};
+use rung_ui::{
+    Detail, Feed, Link, Row, Snapshot, Way, as_text, detail_text, fresh_key, look, move_target,
+    queue_line, said, utc,
+};
 
 const DEFAULT_GATEWAY: &str = "http://127.0.0.1:8787";
 const EVERY: Duration = Duration::from_secs(3);
@@ -40,15 +48,58 @@ struct InstanceList {
     following: Option<(String, Arc<AtomicBool>)>,
     /// Which stream the window listens to (older ones are ignored).
     generation: u64,
+    /// The selected instance's queue (read; refreshed every few seconds).
+    queue: Option<QueueList>,
+    /// The owner's controls are off until a click turns them on; then writes
+    /// go through this client, which sends no token (the owner role).
+    writer: Option<Client>,
+    /// The message to send, what it asks, what the last write said.
+    input: Entity<InputState>,
+    intent: Intent,
+    said: Option<String>,
+    /// A stop or release waits for a second click.
+    confirm: Option<Confirm>,
+    writes: u64,
+    _subscription: Subscription,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Confirm {
+    Stop,
+    Release,
+}
+
+/// What the workers of the selected instance send to the window.
+enum Msg {
+    Stream(Event),
+    Queue(Result<QueueList, String>),
 }
 
 /// How many lines back from the newest the page starts its record.
 const BACKFILL: u64 = 100;
 
 impl InstanceList {
-    fn new(client: Client, selected: Option<String>, cx: &mut Context<Self>) -> Self {
+    fn new(
+        client: Client,
+        selected: Option<String>,
+        controls: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let gateway = client.base().to_string();
         let own = client.clone();
+        // the owner role sends no token
+        let writer = controls.then(|| Client::new(client.base()).ok()).flatten();
+        let input = cx
+            .new(|cx| InputState::new(window, cx).placeholder("Message to send to this instance…"));
+        let subscription = cx.subscribe_in(&input, window, |this, _, event, window, cx| {
+            if let InputEvent::PressEnter {
+                secondary: false, ..
+            } = event
+            {
+                this.send(window, cx);
+            }
+        });
         // A worker thread looks every few seconds and hands the result over;
         // the window never waits on the network. It stops when the window's
         // end of the channel is gone.
@@ -69,7 +120,7 @@ impl InstanceList {
             }
         })
         .detach();
-        InstanceList {
+        let this = InstanceList {
             gateway,
             link: Link::Connecting,
             snapshot: Snapshot::default(),
@@ -78,7 +129,19 @@ impl InstanceList {
             feed: Feed::default(),
             following: None,
             generation: 0,
+            queue: None,
+            writer,
+            input,
+            intent: Intent::Next,
+            said: None,
+            confirm: None,
+            writes: 0,
+            _subscription: subscription,
+        };
+        if this.writer.is_some() {
+            this.input.update(cx, |s, cx| s.focus(window, cx));
         }
+        this
     }
 
     fn on_look(&mut self, result: Look, cx: &mut Context<Self>) {
@@ -92,6 +155,246 @@ impl InstanceList {
         }
         self.ensure_stream(cx);
         cx.notify();
+    }
+
+    /// Turn the owner's controls on (a click) or off.
+    fn toggle_controls(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.writer = match self.writer {
+            Some(_) => None,
+            // the owner role sends no token
+            None => Client::new(self.client.base()).ok(),
+        };
+        self.confirm = None;
+        self.said = None;
+        if self.writer.is_some() {
+            // the box is ready to type in
+            self.input.update(cx, |s, cx| s.focus(window, cx));
+        }
+        cx.notify();
+    }
+
+    /// Run one write off the UI thread; say what happened; look at the queue again.
+    fn write(
+        &mut self,
+        what: &'static str,
+        cx: &mut Context<Self>,
+        op: impl FnOnce(Client, String) -> Result<(), rung_client::Error> + Send + 'static,
+    ) {
+        let (Some(writer), Some(id)) = (self.writer.clone(), self.selected.clone()) else {
+            return;
+        };
+        self.said = Some(format!("{what}…"));
+        cx.notify();
+        let reader = self.client.clone();
+        cx.spawn(async move |this, cx| {
+            let qid = id.clone();
+            let out = cx
+                .background_spawn(async move {
+                    let r = op(writer, id);
+                    (r, reader.queue(&qid, None).ok())
+                })
+                .await;
+            _ = this.update(cx, |v, cx| {
+                v.said = Some(match &out.0 {
+                    Ok(()) => format!("{what}: done"),
+                    Err(e) => said(e),
+                });
+                if let Some(q) = out.1 {
+                    v.queue = Some(q);
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn next_key(&mut self) -> String {
+        self.writes += 1;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis());
+        fresh_key(now, self.writes)
+    }
+
+    /// Send the typed message with the chosen intent.
+    fn send(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.writer.is_none() {
+            return;
+        }
+        let text = self.input.read(cx).value().to_string();
+        if text.trim().is_empty() {
+            return;
+        }
+        let (key, intent) = (self.next_key(), self.intent);
+        self.input.update(cx, |s, cx| s.set_value("", window, cx));
+        self.write("Send", cx, move |c, id| {
+            c.queue_add(&id, &text, intent, &key).map(|_| ())
+        });
+    }
+
+    fn cancel_item(&mut self, item: String, cx: &mut Context<Self>) {
+        self.write("Cancel", cx, move |c, id| {
+            c.queue_cancel(&id, &item).map(|_| ())
+        });
+    }
+
+    fn move_item(&mut self, item: String, way: Way, cx: &mut Context<Self>) {
+        let Some(q) = &self.queue else { return };
+        let Some(before) = move_target(&q.items, &item, way) else {
+            self.said = Some("It is already at that end.".into());
+            cx.notify();
+            return;
+        };
+        let key = self.next_key();
+        self.write("Move", cx, move |c, id| {
+            c.queue_move(&id, &item, before.as_deref(), &key)
+                .map(|_| ())
+        });
+    }
+
+    /// A stop or a release asks twice: the first click arms, the second goes.
+    fn ask(&mut self, what: Confirm, cx: &mut Context<Self>) {
+        if self.confirm == Some(what) {
+            self.confirm = None;
+            match what {
+                Confirm::Stop => self.write("Stop", cx, |c, id| c.stop(&id).map(|_| ())),
+                Confirm::Release => {
+                    self.write("Release", cx, |c, id| c.release(&id, None).map(|_| ()))
+                }
+            }
+        } else {
+            self.confirm = Some(what);
+            cx.notify();
+        }
+    }
+
+    /// The selected instance's queue, and (with controls on) what can be done to it.
+    fn queue_block(&self, cx: &mut Context<Self>) -> AnyElement {
+        let theme = cx.theme().clone();
+        let muted = theme.muted_foreground;
+        let armed = self.writer.is_some();
+        let mut block = v_flex()
+            .gap_1()
+            .child(
+                div()
+                    .pt_2()
+                    .text_sm()
+                    .text_color(muted)
+                    .child(match &self.queue {
+                        Some(q) => format!(
+                            "Queue · {} waiting, {} being answered",
+                            q.counts.waiting, q.counts.answering
+                        ),
+                        None => "Queue".into(),
+                    }),
+            );
+        let items: Vec<&rung_client::QueueItem> = self
+            .queue
+            .as_ref()
+            .map(|q| q.items.iter().collect())
+            .unwrap_or_default();
+        if items.is_empty() && self.queue.is_some() {
+            block = block.child(div().text_color(muted).child("Nothing is waiting."));
+        }
+        for (n, it) in items.iter().enumerate() {
+            let mut line = h_flex()
+                .gap_2()
+                .items_start()
+                .child(div().flex_1().min_w_0().child(queue_line(it)));
+            if armed && it.state == "waiting" {
+                let (a, b, c) = (it.id.clone(), it.id.clone(), it.id.clone());
+                line = line
+                    .child(Button::new(("up", n)).ghost().label("↑").on_click(
+                        cx.listener(move |this, _, _, cx| this.move_item(a.clone(), Way::Up, cx)),
+                    ))
+                    .child(Button::new(("down", n)).ghost().label("↓").on_click(
+                        cx.listener(move |this, _, _, cx| this.move_item(b.clone(), Way::Down, cx)),
+                    ))
+                    .child(Button::new(("cancel", n)).ghost().label("Cancel").on_click(
+                        cx.listener(move |this, _, _, cx| this.cancel_item(c.clone(), cx)),
+                    ));
+            }
+            block = block.child(line);
+        }
+
+        if !armed {
+            return block
+                .child(
+                    div()
+                        .pt_1()
+                        .text_sm()
+                        .text_color(muted)
+                        .child("Controls are off. Turn them on (top left) to send, reorder, cancel, stop or release."),
+                )
+                .into_any_element();
+        }
+        // sending: what it asks, the box, the button
+        let pick = |intent: Intent, label: &'static str, cx: &mut Context<Self>| {
+            let b = Button::new(label)
+                .label(label)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.intent = intent;
+                    cx.notify();
+                }));
+            if self.intent == intent {
+                b.primary()
+            } else {
+                b.ghost()
+            }
+        };
+        let next = pick(Intent::Next, "next", cx);
+        let steer = pick(Intent::Steer, "steer", cx);
+        let free = pick(Intent::Free, "free", cx);
+        block = block
+            .child(
+                div()
+                    .pt_2()
+                    .text_sm()
+                    .text_color(muted)
+                    .child("Send to this instance"),
+            )
+            .child(Input::new(&self.input))
+            .child(
+                h_flex().gap_1().child(next).child(steer).child(free).child(
+                    Button::new("send")
+                        .primary()
+                        .label("Send")
+                        .on_click(cx.listener(|this, _, window, cx| this.send(window, cx))),
+                ),
+            );
+        // stop and release ask twice
+        let ask_button = |id: &'static str,
+                          what: Confirm,
+                          idle: &'static str,
+                          sure: &'static str,
+                          cx: &mut Context<Self>| {
+            let label = if self.confirm == Some(what) {
+                sure
+            } else {
+                idle
+            };
+            let b = Button::new(id)
+                .label(label)
+                .on_click(cx.listener(move |this, _, _, cx| this.ask(what, cx)));
+            if self.confirm == Some(what) {
+                b.primary()
+            } else {
+                b.ghost()
+            }
+        };
+        let stop = ask_button("stop", Confirm::Stop, "Stop…", "Click again to stop it", cx);
+        let release = ask_button(
+            "release",
+            Confirm::Release,
+            "Release…",
+            "Click again to release",
+            cx,
+        );
+        block = block.child(h_flex().gap_1().pt_1().child(stop).child(release));
+        if let Some(t) = &self.said {
+            block = block.child(div().text_color(theme.warning).child(t.clone()));
+        }
+        block.into_any_element()
     }
 
     /// Select an instance: its page opens and its record is followed.
@@ -123,15 +426,36 @@ impl InstanceList {
         self.generation += 1;
         let generation = self.generation;
         self.feed = Feed::default();
+        self.queue = None;
+        self.said = None;
+        self.confirm = None;
         let stop = Arc::new(AtomicBool::new(false));
         self.following = Some((id.clone(), stop.clone()));
 
-        let (tx, rx) = async_channel::unbounded::<Event>();
+        let (tx, rx) = async_channel::unbounded::<Msg>();
         let client = self.client.clone();
+        // the record, followed (and resumed by the client after a drop)
+        let (stream_tx, stream_stop, stream_id, stream_client) =
+            (tx.clone(), stop.clone(), id.clone(), client.clone());
         std::thread::spawn(move || {
-            follow(&client, &id, after, Follow::default(), &stop, |e| {
-                tx.send_blocking(e).is_ok()
-            });
+            follow(
+                &stream_client,
+                &stream_id,
+                after,
+                Follow::default(),
+                &stream_stop,
+                |e| stream_tx.send_blocking(Msg::Stream(e)).is_ok(),
+            );
+        });
+        // the queue, looked at every few seconds
+        std::thread::spawn(move || {
+            while !stop.load(Ordering::Relaxed) {
+                let q = client.queue(&id, None).map_err(|e| e.to_string());
+                if tx.send_blocking(Msg::Queue(q)).is_err() {
+                    return;
+                }
+                std::thread::sleep(EVERY);
+            }
         });
         cx.spawn(async move |this, cx| {
             while let Ok(first) = rx.recv().await {
@@ -143,8 +467,13 @@ impl InstanceList {
                     if v.generation != generation {
                         return false;
                     }
-                    for e in &batch {
-                        v.feed.apply(e);
+                    for m in batch {
+                        match m {
+                            Msg::Stream(e) => v.feed.apply(&e),
+                            Msg::Queue(Ok(q)) => v.queue = Some(q),
+                            // keep the last good queue; the link's state is the header's
+                            Msg::Queue(Err(_)) => {}
+                        }
                     }
                     cx.notify();
                     true
@@ -196,6 +525,7 @@ impl Render for InstanceList {
                 .child("No instances are registered with this gateway.")
         });
 
+        let queue_block = self.queue_block(cx);
         let list = v_flex()
             .flex_1()
             .min_w_0()
@@ -224,6 +554,19 @@ impl Render for InstanceList {
                     .text_color(if down { theme.danger } else { muted })
                     .child(format!("{} · {}", self.gateway, self.link.words())),
             )
+            .child(
+                h_flex().gap_2().items_center().child(
+                    Button::new("controls")
+                        .label(if self.writer.is_some() {
+                            "Controls on — click to turn off"
+                        } else {
+                            "Turn controls on"
+                        })
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.toggle_controls(window, cx)),
+                        ),
+                ),
+            )
             .children(self.snapshot.note.clone().map(|n| {
                 div()
                     .text_color(theme.danger)
@@ -249,6 +592,7 @@ impl Render for InstanceList {
                     id,
                     self.snapshot.rows.iter().find(|r| &r.id == id),
                     &self.feed,
+                    queue_block,
                     &theme,
                 )
             }))
@@ -300,6 +644,7 @@ fn page(
     id: &str,
     row: Option<&Row>,
     feed: &Feed,
+    queue_block: AnyElement,
     theme: &gpui_kit::component::Theme,
 ) -> AnyElement {
     let muted = theme.muted_foreground;
@@ -325,10 +670,11 @@ fn page(
     };
     let detail: &Detail = &row.detail;
     col = col.child(div().text_lg().child(row.name.clone()));
+    let mut queue_block = Some(queue_block);
     for (n, sec) in detail.sections.iter().enumerate() {
         if n == 1 {
-            // the followed record sits right under Now
-            col = col.child(record(feed, theme));
+            // the queue and the followed record sit right under Now
+            col = col.children(queue_block.take()).child(record(feed, theme));
         }
         let mut block = v_flex().gap_1().child(
             div()
@@ -355,7 +701,7 @@ fn page(
         col = col.child(block);
     }
     if detail.sections.len() < 2 {
-        col = col.child(record(feed, theme));
+        col = col.children(queue_block.take()).child(record(feed, theme));
     }
     col.into_any_element()
 }
@@ -442,6 +788,7 @@ fn record(feed: &Feed, theme: &gpui_kit::component::Theme) -> AnyElement {
 struct Opts {
     gateway: String,
     select: Option<String>,
+    controls: bool,
     list: bool,
     show: Option<String>,
 }
@@ -451,6 +798,7 @@ fn args() -> Result<Opts, String> {
     let mut o = Opts {
         gateway: std::env::var("RUNG_GATEWAY").unwrap_or_else(|_| DEFAULT_GATEWAY.into()),
         select: None,
+        controls: false,
         list: false,
         show: None,
     };
@@ -460,6 +808,7 @@ fn args() -> Result<Opts, String> {
             "--gateway" => o.gateway = it.next().ok_or("--gateway needs an address")?,
             "--select" => o.select = Some(it.next().ok_or("--select needs an instance id")?),
             "--show" => o.show = Some(it.next().ok_or("--show needs an instance id")?),
+            "--controls" => o.controls = true,
             "--list" => o.list = true,
             other => return Err(format!("unknown argument {other:?}")),
         }
@@ -472,7 +821,7 @@ fn main() {
         Ok(a) => a,
         Err(e) => {
             eprintln!(
-                "rung-ui: {e}\nusage: rung-ui [--gateway URL] [--select ID] [--list | --show ID]"
+                "rung-ui: {e}\nusage: rung-ui [--gateway URL] [--select ID] [--controls] [--list | --show ID]"
             );
             std::process::exit(2);
         }
@@ -526,8 +875,8 @@ fn main() {
             ))),
             ..Default::default()
         };
-        open_window(options, cx, |_, cx| {
-            cx.new(|cx| InstanceList::new(client, opts.select, cx))
+        open_window(options, cx, |window, cx| {
+            cx.new(|cx| InstanceList::new(client, opts.select, opts.controls, window, cx))
         })
         .expect("the window opens");
         cx.activate(true);

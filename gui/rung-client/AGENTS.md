@@ -21,6 +21,11 @@ a window calls it from a worker thread. Slice 1 reads two doors:
   reconnects with `Last-Event-ID`, backs off (`Follow`: 1 s doubling to 30 s,
   reset after a healthy minute), starts over on a 409, and stops on a flag. No
   record line is interpreted here.
+- Queue and owner controls (`queue.rs`): `queue` reads (read-only role may);
+  `queue_add`, `queue_move`, `queue_cancel`, `stop`, `release` write: they
+  succeed only for the owner role (a client with no token), and a read-only token
+  is refused 403 in the gateway's words. Ids in paths are percent-encoded; a retried
+  call takes a key. Nothing here sends on its own.
 - Rows are read leniently (unknown fields ignored; registry rows and
   configured rows share only `id`), so the gateway may grow fields.
 
