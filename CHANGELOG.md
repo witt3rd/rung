@@ -8,6 +8,14 @@ git tags only.
 ## [Unreleased]
 
 ### Changed (docs overhaul)
+- Crate fronts: every workspace crate has a short `AGENTS.md` beside it (what
+  it is, status, where its docs are, the one check command); `docs/_links.py`
+  fails a workspace member without one, and `scripts/ci_plan.py` treats a
+  crate's `AGENTS.md` as documentation, not a reason to rebuild the crate.
+  Crate docs stay in `docs/`.
+- `LICENSE-MIT` and `LICENSE-APACHE` added: `Cargo.toml` already declared
+  `MIT OR Apache-2.0`, but no text was tracked. rung stays unpublished. The
+  `rung` and `rung-macro` crates gain a `description`.
 - Front door: the root `README.md` (a symlink to `AGENTS.md`) is removed. rung
   is an agents-only library: `AGENTS.md` is the one agent file name, there is
   no root `README.md`. `AGENTS.md` is rewritten as a short charter. Moved:

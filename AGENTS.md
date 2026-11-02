@@ -161,6 +161,7 @@ A full CI run takes about 11 minutes. The strict policy serializes landing: a PR
 that loses the race is rebased and re-run, roughly five changes an hour; keep
 increments small.
 
+Licence: `MIT OR Apache-2.0` (`LICENSE-MIT`, `LICENSE-APACHE`); rung is not published to a registry.
 Release: bump the workspace version in `Cargo.toml`, commit, then tag `vX.Y.Z`
 to match (procedure: `skills/rung/SKILL.md`). External contributors: PRs against
 `master`; follow CI; do not rewrite history.
