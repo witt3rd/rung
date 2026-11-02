@@ -609,6 +609,11 @@ async fn pass_through(
         return native_context(state, dir.clone(), id, turn, &req, query).await;
     }
     if let Some(dir) = native
+        && (rest == "/v1/turns" || rung_host::turns::turn_of_path(rest).is_some())
+    {
+        return native_turns(state, dir.clone(), id, rest, &req, query).await;
+    }
+    if let Some(dir) = native
         && matches!(rest, "/v1/summary" | "/v1/record")
     {
         return native_door(state, dir.clone(), id, rest, &req, query).await;
@@ -1041,6 +1046,62 @@ async fn native_door(
     let r = red.clone();
     match blocking(move || rung_host::read::record_open(&dir, &id, &q, &r)).await {
         Some(Ok(page)) => stream_page(move |w| page.write_json(w), state.tuning.stall_deadline),
+        Some(Err(e)) => door_error(e, &red),
+        None => internal(),
+    }
+}
+
+/// `GET /v1/turns` and `GET /v1/turns/{n}` of a native instance (S8): the
+/// record folded into turns on the host's side, read from the state
+/// directory so a stopped instance answers too.
+async fn native_turns(
+    state: &State,
+    dir: PathBuf,
+    id: &str,
+    rest: &str,
+    req: &Request<Incoming>,
+    query: Option<String>,
+) -> Response<Body> {
+    use rung_host::turns::{TurnsQuery, parse_turn, turn_of_path};
+    if !matches!(*req.method(), Method::GET | Method::HEAD) {
+        return error(
+            StatusCode::METHOD_NOT_ALLOWED,
+            "method_not_allowed",
+            "this door only reads",
+        );
+    }
+    let red = request_redactor(state);
+    let Some(pairs) = query_pairs(query.as_deref()) else {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "bad_request",
+            "the query is not valid UTF-8",
+        );
+    };
+    let id = id.to_string();
+    let r = red.clone();
+    let one = turn_of_path(rest);
+    let answered = if let Some(seg) = one {
+        // one turn takes no parameters
+        if !pairs.is_empty() {
+            return error(
+                StatusCode::BAD_REQUEST,
+                "bad_request",
+                "this door takes no parameters",
+            );
+        }
+        match parse_turn(seg) {
+            Ok(n) => blocking(move || rung_host::turns::one(&dir, &id, n, &r)).await,
+            Err(e) => return door_error(e, &red),
+        }
+    } else {
+        match TurnsQuery::parse(&pairs) {
+            Ok(q) => blocking(move || rung_host::turns::list(&dir, &id, &q, &r)).await,
+            Err(e) => return door_error(e, &red),
+        }
+    };
+    match answered {
+        Some(Ok(v)) => json_reply(StatusCode::OK, v),
         Some(Err(e)) => door_error(e, &red),
         None => internal(),
     }
