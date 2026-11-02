@@ -8,6 +8,16 @@ git tags only.
 ## [Unreleased]
 
 ### Changed (docs overhaul)
+- Records moves (`git mv`, no stubs; text unchanged, old to new in
+  `docs/records/README.md`): the three dated measurement notes
+  (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,
+  `rung-ui-live-cost`) and `docs/evidence/` into `docs/records/rung-agent/` and
+  `docs/records/rung-ui/`; `docs/rung-het-publishing.md` to
+  `docs/records/rung-het/publishing-brief.md`;
+  `data/rung-test-requests/rung-webfetch-artifact-build.md` to
+  `docs/records/rung-host/`; the hidden `docs/.archive/` to
+  `docs/records/archive/`. Links and the `docs/_consumer_guard.allow` prefix
+  updated in the same change.
 - Crate fronts: every workspace crate has a short `AGENTS.md` beside it (what
   it is, status, where its docs are, the one check command); `docs/_links.py`
   fails a workspace member without one, and `scripts/ci_plan.py` treats a

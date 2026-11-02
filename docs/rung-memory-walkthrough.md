@@ -86,7 +86,7 @@ call 1: extends  prompt=2892 cached=2560 cost=0.00078684 ...
 turn 1's request and 2560 of its 2892 prompt tokens were served from cache,
 with the recalled block in the context. Counts vary by route and run, and
 some routes report none (see
-[rung-agent-cache-live-memory.md](rung-agent-cache-live-memory.md)). Raw
+[rung-agent-cache-live-memory.md](records/rung-agent/rung-agent-cache-live-memory.md)). Raw
 requests and usage are in `/tmp/walkthrough-probe/`.
 
 ## 5. The same loop in the host
