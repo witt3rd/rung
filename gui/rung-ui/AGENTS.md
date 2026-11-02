@@ -17,7 +17,7 @@ turn as stripes in the order the model sees them (tools, system, epoch, history,
 message, recall, this turn), widths and cache marks (cached / partly / new) from
 the host's own `context` door, plus the provider's counts and cache breakpoints
 and anything the record cannot give back whole; ◀ ▶ step turns and calls; a click
-on a band opens its text (first 1,500 characters; tools list their names).
+on a band opens its whole text (the first 20,000 characters, then Show more / Show less; never cut; tools list their names).
 Reading only; opened by a click (the latest turn) or `--turn N`. No tokenizing
 or recomputing here: sizes are the host's estimates, marks the host's.
 
