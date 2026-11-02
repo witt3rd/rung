@@ -63,6 +63,10 @@ EXTRA_INPUTS = [
     ("examples/*", ["rung-host", "rung-agent"]),  # mock config, example agents
 ]
 
+# Documents no build or test reads, even when a crate owns the directory
+# (a crate's AGENTS.md must not rebuild the crate; the doc guards check it).
+DOC_ONLY = ["*/AGENTS.md"]
+
 # Paths with no Rust input at all (checked by always-on jobs, or by nothing).
 INERT = [
     "AGENTS.md",
@@ -157,6 +161,8 @@ def plan(event, files, meta):
             return {**everything, "reason": f"{f} affects every crate"}
         if match(f, GUI):
             gui = True
+            continue
+        if match(f, DOC_ONLY):
             continue
         crate = owner(f, dirs)
         if crate:

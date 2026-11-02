@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+description = "The ladder! proc macro: parses the ladder syntax, runs the static checks and emits the sealed type-state module"
 repository.workspace = true
 
 [lib]
