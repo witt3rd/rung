@@ -1771,12 +1771,12 @@ screen that wants the turns used to fold those lines itself, which is a second
 copy of the host's reading of its own record. This door is the host's reading:
 the turns, folded once, here. A client lays them out and folds nothing.
 
-**Status: specified here; not served yet.** The slice that serves it carries
-the proof listed at the end, written first, and changes this paragraph.
+**Status: served** by the gateway for the native instances of its registry
+folder (not by the host's own listener). The proof is listed at the end.
 
 Two doors, for the native instances of a registry folder, read from the state
-directory so a **stopped** instance answers the same as a running one (code
-planned: `rung_host::read::turns`, the gateway's routes):
+directory so a **stopped** instance answers the same as a running one (code:
+`rung_host::turns`, the gateway's `native_turns`):
 
 | Door | Access | Answers |
 |---|---|---|
@@ -1896,18 +1896,24 @@ Decisions (`/v1/decisions`), the context of a call (S4), spend and the pack
 (named in the door table, not served): each is a door of its own with its own
 fold on the host. A client that wants a decision of a turn asks that door.
 
-### Proof (to be written first, with the slice that serves the door)
+### Proof
 
-The fold's own tests in `rung-host/src/read.rs`, and a gateway test file for
-the turns door (named when it is written) over real HTTP: a record of known turns folds to exactly the rows above
-(status for completed, bounded, failed, running, interrupted; the reply from
-`turn.log` and `final_text`; the llm sums); a turn that never started is not a
-turn; asked items joined from `stimulus.accepted` with `during` set by line
-number; calls from `turn.log` with their results, from `tool.call` lines
-without one, and refusals added; a reply and a tool result of 2,000,000
-characters come back whole; a planted secret in a reply, a tool input and an
-asked item is absent from every byte of the answer and present in the record
-file; paging by `before` and `after` with no turn missed or repeated, `next`,
-`total`, no maximum on `limit`; 400s and 404s; both roles on a stopped
-instance; a damaged record read as far as it is intact; and a counting
-allocator showing the page's memory a small fraction of a large record.
+`rung-gateway/tests/turns.rs` over real HTTP, with records written by hand so
+every number asked for is known (a "running" instance is one whose state lock
+the test holds): a record of six turns folds to exactly the rows above (status
+for completed, bounded, failed, interrupted and running; the reply from
+`turn.log` and `final_text`; the llm sums; the facts and line numbers); a turn
+that only a decision line mentions is not a turn; asked items joined from
+`stimulus.accepted` with `during` set by line number and an id the record never
+accepted skipped; calls from `turn.log` with their results, from `tool.call`
+lines without one, and refusals added; a reply and a tool result of 2,000,000
+characters come back whole, in the list and in the one turn; a planted secret in
+a reply, a tool input and result and an asked item is in the record file and
+in no byte of any answer; paging by `before` and `after` following `next` with
+no turn missed or repeated, `total`, no maximum on `limit`, an empty page past
+the end; the 400s and 404s; both roles reading a stopped instance, a wrong
+token 401, a write 405 or 403; a damaged record read as far as it is intact.
+
+**Owed:** the memory bound ("never of the record") is by construction (the
+second read keeps only the window's turns) and is not yet shown with a
+counting allocator as the record and context doors' are.

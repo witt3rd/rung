@@ -7,6 +7,17 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-host and gateway: the turns door)
+- `GET /api/i/{id}/v1/turns` (newest first, paged by turn number with `before`
+  and `after`, no maximum on `limit`) and `GET /api/i/{id}/v1/turns/{n}` are
+  served for native instances, as specified in `docs/rung-host-api.md` S8:
+  `rung_host::turns` folds the record into turns on the host's side (status
+  completed, bounded, failed, running, interrupted; the reply whole; llm sums; the
+  items each turn was asked; its tool calls with whole inputs and results), in
+  two reads that keep only the asked turns' texts. Read from the state
+  directory, so a stopped instance answers; every text redacted and none cut.
+  Proof: `rung-gateway/tests/turns.rs` (the memory-bound allocator test is owed).
+
 ### Added (rung-host API, the turns door specified)
 - `docs/rung-host-api.md` S8: the specification of the host's `turns` door
   (`GET /v1/turns` paged by turn number, `GET /v1/turns/{n}`): one fold of the
