@@ -155,6 +155,49 @@ impl Instance {
     pub fn needs_you(&self) -> bool {
         self.summary.as_ref().is_some_and(|s| s.needs_you)
     }
+
+    /// The gateway cannot read this instance: it did not answer, or its entry
+    /// is unreadable.
+    pub fn unreachable(&self) -> bool {
+        !self.reachable || self.word.as_deref() == Some("unreadable")
+    }
+
+    /// Chief, steward or neither, from the id.
+    pub fn role(&self) -> Role {
+        Role::of_id(&self.id)
+    }
+}
+
+/// A member's place in a fleet, read from its instance id (the fleet props,
+/// `a-member-is-named-by-its-role`): the first segment of the id, then `-`.
+/// There is no registry field for it, and the id says nothing of which chief a
+/// steward serves, so neither does this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Role {
+    Chief,
+    Steward,
+    /// An id that does not begin with a role: not a member of a fleet.
+    Other,
+}
+
+impl Role {
+    /// The role an instance id names.
+    pub fn of_id(id: &str) -> Role {
+        match id.split_once('-') {
+            Some(("chief", rest)) if !rest.is_empty() => Role::Chief,
+            Some(("steward", rest)) if !rest.is_empty() => Role::Steward,
+            _ => Role::Other,
+        }
+    }
+
+    /// The plural, as a heading.
+    pub fn plural(self) -> &'static str {
+        match self {
+            Role::Chief => "Chiefs",
+            Role::Steward => "Stewards",
+            Role::Other => "Other instances",
+        }
+    }
 }
 
 /// A gateway to ask. Cheap to clone and share: it holds an address, an
@@ -285,6 +328,32 @@ mod tests {
                 "{bad:?}"
             );
         }
+    }
+
+    #[test]
+    fn a_role_is_the_first_segment_of_the_id() {
+        for (id, role) in [
+            ("chief-main", Role::Chief),
+            ("steward-alpha", Role::Steward),
+            ("steward-a-b", Role::Steward),
+            ("chief", Role::Other),
+            ("chief-", Role::Other),
+            ("chiefs-x", Role::Other),
+            ("my-chief-x", Role::Other),
+            ("crew-1", Role::Other),
+            ("", Role::Other),
+        ] {
+            assert_eq!(Role::of_id(id), role, "{id:?}");
+        }
+    }
+
+    #[test]
+    fn unreachable_is_the_gateway_not_reading_it() {
+        let row = |j: &str| serde_json::from_str::<Instance>(j).unwrap();
+        assert!(row(r#"{"id":"a","reachable":false}"#).unreachable());
+        assert!(row(r#"{"id":"a","word":"unreadable"}"#).unreachable());
+        assert!(!row(r#"{"id":"a","word":"down"}"#).unreachable());
+        assert!(!row(r#"{"id":"a"}"#).unreachable());
     }
 
     #[test]

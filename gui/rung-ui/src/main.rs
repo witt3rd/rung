@@ -77,45 +77,25 @@ impl Render for InstanceList {
         let theme = cx.theme().clone();
         let muted = theme.muted_foreground;
         let down = matches!(self.link, Link::Down(_));
+        let counts = self.snapshot.counts();
 
-        let rows: Vec<AnyElement> = self
-            .snapshot
-            .rows
-            .iter()
-            .map(|r: &Row| {
-                let state = if r.needs_you {
-                    format!("● {}", r.state)
-                } else {
-                    r.state.clone()
-                };
-                h_flex()
-                    .gap_4()
-                    .py_1()
-                    .border_b_1()
-                    .border_color(theme.border)
-                    .child(div().w(px(220.)).flex_none().child(r.name.clone()))
-                    .child(
-                        div()
-                            .w(px(140.))
-                            .flex_none()
-                            .text_color(if r.needs_you {
-                                theme.danger
-                            } else {
-                                theme.foreground
-                            })
-                            .child(state),
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .truncate()
-                            .text_color(muted)
-                            .child(r.doing.clone()),
-                    )
-                    .into_any_element()
-            })
-            .collect();
+        // chiefs, then stewards, then the rest: a heading and its rows
+        let mut sections: Vec<AnyElement> = Vec::new();
+        for g in self.snapshot.groups() {
+            sections.push(
+                div()
+                    .pt_3()
+                    .pb_1()
+                    .text_sm()
+                    .text_color(muted)
+                    .child(format!("{} ({})", g.role.plural(), g.rows.len()))
+                    .into_any_element(),
+            );
+            for r in g.rows {
+                sections.push(row(r, &theme));
+            }
+        }
+        let rows = sections;
 
         let empty = (rows.is_empty() && !down && self.link == Link::Up).then(|| {
             div()
@@ -134,15 +114,15 @@ impl Render for InstanceList {
                     .gap_3()
                     .items_baseline()
                     .child(div().text_xl().child("rung"))
-                    .child(div().text_color(muted).child(format!(
-                        "{} instance{}",
-                        self.snapshot.rows.len(),
-                        if self.snapshot.rows.len() == 1 {
-                            ""
-                        } else {
-                            "s"
-                        }
-                    ))),
+                    .child(
+                        div()
+                            .text_color(if counts.needs_you > 0 {
+                                theme.danger
+                            } else {
+                                muted
+                            })
+                            .child(counts.words()),
+                    ),
             )
             .child(
                 div()
@@ -164,6 +144,34 @@ impl Render for InstanceList {
             .children(empty)
             .child(div().text_color(muted).text_sm().child("read-only view"))
     }
+}
+
+/// One instance's line: name, state word with its mark, what it is doing.
+/// `●` (red) needs you; `○` (amber) the gateway cannot read it.
+fn row(r: &Row, theme: &gpui_kit::component::Theme) -> AnyElement {
+    let (state, color) = if r.needs_you {
+        (format!("● {}", r.state), theme.danger)
+    } else if r.unreachable {
+        (format!("○ {}", r.state), theme.warning)
+    } else {
+        (r.state.clone(), theme.foreground)
+    };
+    h_flex()
+        .gap_4()
+        .py_1()
+        .border_b_1()
+        .border_color(theme.border)
+        .child(div().w(px(220.)).flex_none().pl_3().child(r.name.clone()))
+        .child(div().w(px(140.)).flex_none().text_color(color).child(state))
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .truncate()
+                .text_color(theme.muted_foreground)
+                .child(r.doing.clone()),
+        )
+        .into_any_element()
 }
 
 /// `--gateway URL` and `--list`; anything else is a usage error.

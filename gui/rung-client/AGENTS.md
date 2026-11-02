@@ -10,6 +10,8 @@ a window calls it from a worker thread. Slice 1 reads two doors:
 - The only credential is an optional read-only token, sent as
   `Authorization: Bearer`. It is never printed: `Debug` of `Client` says only
   that one is set, and error text is scrubbed of it.
+- `Instance::role()` reads chief/steward from the id's first segment
+  (`Role::of_id`); `Instance::unreachable()` is the gateway not reading it.
 - Rows are read leniently (unknown fields ignored; registry rows and
   configured rows share only `id`), so the gateway may grow fields.
 

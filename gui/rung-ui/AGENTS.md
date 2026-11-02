@@ -1,8 +1,15 @@
 # AGENTS.md — rung-ui
 
 The rung desktop UI: a GPUI Kit window onto the instances behind a gateway.
-Slice 1 shows one screen, the instance list: name, state word, what it is
-doing, refreshed every three seconds. It only reads.
+One screen, the fleet: the instance list grouped by role (Chiefs, Stewards,
+Other instances; a role with none is left out), each with its name, the host's
+state word and what it is doing, refreshed every three seconds. `●` (red) marks
+a host that needs you, `○` (amber) one the gateway cannot read; the header
+counts both. A role is the first segment of the id (`chief-`, `steward-`), read
+by `rung-client`. The id does not say which chief a steward serves and the
+registry has no field for it, so stewards are grouped by role and never nested
+under a chief; the real edge comes with the fleet's records, not from a guess.
+It only reads.
 
 ```text
 rung-ui [--gateway URL] [--list]
@@ -10,7 +17,7 @@ rung-ui [--gateway URL] [--list]
 
 Gateway: `--gateway`, else `$RUNG_GATEWAY`, else `http://127.0.0.1:8787`. A
 read-only token comes from `$RUNG_GATEWAY_TOKEN` (never shown, never saved).
-`--list` prints the list once as text and exits: no window, no display, the
+`--list` prints the grouped list once as text (`!` needs you, `?` unreadable) and exits: no window, no display, the
 same data the window shows.
 
 ## Shape
