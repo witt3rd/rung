@@ -299,7 +299,7 @@ apply to the agent's turn check (`turn_check.model`) and to `Recorded`
 (`RUNG_DECIDE_MODEL`). Recorded fixtures keep the model that produced them
 and replay pinned to it. The desk's cost estimate (`JEV_USD_PER_INPUT_TOKEN`,
 $0.042 per million input tokens) is the rate the two earlier models were
-billed at in the replay (`docs/rung-decision-model-replay.md`); the default's
+billed at in the replay (`docs/records/rung-agent/rung-decision-model-replay.md`); the default's
 own price is not measured there.
 
 With the kill file present every ask is `desk.ask{outcome: killed}` and

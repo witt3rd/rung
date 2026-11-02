@@ -6,7 +6,7 @@ Checks, over every tracked `.md` (not rung-host/live/runs, not the generated ope
   2. `#anchor` fragments resolve to a heading (GitHub slug) or `<a id>`/`<a name>`;
   3. backtick repo paths (`dir/file.ext`, first segment a tracked top-level
      entry; root- or document-relative) exist; historical text (docs/records,
-     docs/reports, docs/.archive) is exempt;
+     docs/reports, .archive, CHANGELOG.md) is exempt;
   4. documentation paths cited in tracked .rs/.py/.yml files exist;
   5. no hand-kept test counts of the form `(N tests)` in living documents
      (they drift on every test added; link to the test file instead);
@@ -24,7 +24,8 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parent.parent
 SKIP_DOCS = ("rung-host/live/runs/", "openwiki/")  # openwiki/ is generated
 SKIP_PARTS = ("node_modules/",)
-HISTORICAL = ("docs/records/", "docs/reports/", "docs/.archive/", ".archive/")
+# CHANGELOG.md names paths that no longer exist, by design: links only.
+HISTORICAL = ("docs/records/", "docs/reports/", ".archive/", "CHANGELOG.md")
 CITING = (".rs", ".py", ".yml", ".yaml")
 
 LINK = re.compile(r"(?<!\!)\[[^\]\n]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
