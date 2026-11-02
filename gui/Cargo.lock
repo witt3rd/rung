@@ -5263,6 +5263,7 @@ dependencies = [
  "async-channel",
  "gpui-kit",
  "rung-client",
+ "serde",
  "serde_json",
 ]
 

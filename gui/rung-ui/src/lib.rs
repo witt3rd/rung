@@ -966,6 +966,216 @@ pub fn step_selection(order: &[&str], current: Option<&str>, way: Way) -> Option
     Some(order[to].to_string())
 }
 
+// ─── crew and receipts (on fixtures until the fleet's R2 lands) ──────────────
+
+/// Where a delegated task stands on the ladder of the fleet props: spawned,
+/// assigned, active, done, retired, with held and stalled as recoverable side
+/// states. A rung this reader does not know is kept as it was written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Rung {
+    Spawned,
+    Assigned,
+    Active,
+    Held,
+    Stalled,
+    Done,
+    Retired,
+    Unknown(String),
+}
+
+impl Rung {
+    pub fn of(word: &str) -> Rung {
+        match word {
+            "spawned" => Rung::Spawned,
+            "assigned" => Rung::Assigned,
+            "active" => Rung::Active,
+            "held" => Rung::Held,
+            "stalled" => Rung::Stalled,
+            "done" => Rung::Done,
+            "retired" => Rung::Retired,
+            other => Rung::Unknown(other.to_string()),
+        }
+    }
+
+    pub fn word(&self) -> &str {
+        match self {
+            Rung::Spawned => "spawned",
+            Rung::Assigned => "assigned",
+            Rung::Active => "active",
+            Rung::Held => "held",
+            Rung::Stalled => "stalled",
+            Rung::Done => "done",
+            Rung::Retired => "retired",
+            Rung::Unknown(w) => w,
+        }
+    }
+
+    /// Needs the principal or the steward: a hold waits for a decision only
+    /// the principal can make, a stall is escalated, never left.
+    pub fn needs_you(&self) -> bool {
+        matches!(self, Rung::Held | Rung::Stalled)
+    }
+}
+
+/// What the task was assigned with (the brief is a typed contract).
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Deserialize)]
+pub struct Brief {
+    #[serde(default)]
+    pub build: String,
+    #[serde(default)]
+    pub complete_when: String,
+    #[serde(default)]
+    pub delivery: String,
+    #[serde(default)]
+    pub autonomy: String,
+}
+
+/// A delivery receipt: the durable record is the delivery, so it names the line.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct Receipt {
+    pub correlation: String,
+    #[serde(default)]
+    pub what: String,
+    pub line: u64,
+    #[serde(default)]
+    pub at: Option<i64>,
+}
+
+/// One crew member as the screen reads it. The shape is the fixture's own:
+/// the host's `crew.*` kinds are not settled, so nothing here claims to be
+/// their schema.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+pub struct Member {
+    pub id: String,
+    pub task: String,
+    pub rung: String,
+    #[serde(default)]
+    pub since: Option<i64>,
+    /// A hold: what it waits for.
+    #[serde(default)]
+    pub waiting_on: Option<String>,
+    /// A stall: how long it has been silent.
+    #[serde(default)]
+    pub silent_for_s: Option<u64>,
+    /// Done: who judged it (not its author).
+    #[serde(default)]
+    pub validator: Option<String>,
+    /// Retired: the proof its work landed.
+    #[serde(default)]
+    pub landed: Option<bool>,
+    #[serde(default)]
+    pub brief: Brief,
+    #[serde(default)]
+    pub receipts: Vec<Receipt>,
+}
+
+impl Member {
+    pub fn rung(&self) -> Rung {
+        Rung::of(&self.rung)
+    }
+}
+
+/// The crew screen's data, and the plain statement of where it came from.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+pub struct CrewFile {
+    /// Said on the screen: this is sample data.
+    pub fixture: String,
+    pub steward: String,
+    #[serde(default)]
+    pub now: Option<i64>,
+    pub crew: Vec<Member>,
+}
+
+/// The sample that ships with the app (`--crew-fixture` without a file).
+pub const SAMPLE_CREW: &str = include_str!("../fixtures/crew.json");
+
+/// Whether the crew block shows on the selected page: a good file only on
+/// its steward, an unreadable one on every selected page.
+pub fn crew_shown(crew: &Result<CrewFile, String>, selected: &str) -> bool {
+    match crew {
+        Ok(f) => f.steward == selected,
+        Err(_) => true,
+    }
+}
+
+/// Read a crew file: `Err` says why, in words, and nothing is shown.
+pub fn read_crew(text: &str) -> Result<CrewFile, String> {
+    serde_json::from_str(text).map_err(|e| format!("the crew file is not readable: {e}"))
+}
+
+/// One line on the ladder: how many are on each rung, those that need someone first.
+pub fn crew_summary(crew: &[Member]) -> String {
+    let mut by: Vec<(Rung, usize)> = Vec::new();
+    for m in crew {
+        match by.iter_mut().find(|(r, _)| *r == m.rung()) {
+            Some((_, n)) => *n += 1,
+            None => by.push((m.rung(), 1)),
+        }
+    }
+    by.sort_by_key(|(r, _)| !r.needs_you());
+    if by.is_empty() {
+        return "no crew".into();
+    }
+    by.iter()
+        .map(|(r, n)| format!("{n} {}", r.word()))
+        .collect::<Vec<_>>()
+        .join(" · ")
+}
+
+/// The facts of one crew member for its page: rung-specific ones first.
+pub fn member_facts(m: &Member, now: Option<i64>) -> Vec<(&'static str, String)> {
+    let mut v = vec![("Rung", m.rung().word().to_string())];
+    if let Some(w) = &m.waiting_on {
+        v.push(("Waiting on", w.clone()));
+    }
+    if let Some(s) = m.silent_for_s {
+        v.push(("Silent for", format!("{} min", s / 60)));
+    }
+    if let (Some(since), Some(now)) = (m.since, now) {
+        v.push((
+            "On this rung",
+            format!("{} min", (now - since).max(0) / 60_000),
+        ));
+    }
+    if let Some(who) = &m.validator {
+        v.push(("Judged by", format!("{who} (not its author)")));
+    }
+    match (m.rung(), m.landed) {
+        (Rung::Retired, Some(true)) => v.push(("Landed", "yes: retired with proof".into())),
+        (Rung::Done, Some(false)) => v.push((
+            "Landed",
+            "not yet: it cannot be retired until it has".into(),
+        )),
+        _ => {}
+    }
+    v
+}
+
+/// A receipt as a line; a correlation delivered twice shows once and says so.
+pub fn receipt_lines(m: &Member) -> Vec<String> {
+    let mut seen: Vec<(&str, u64)> = Vec::new();
+    let mut out = Vec::new();
+    for r in &m.receipts {
+        let again = seen.contains(&(r.correlation.as_str(), r.line));
+        seen.push((&r.correlation, r.line));
+        if again {
+            // idempotent by correlation id: the same line, not a second delivery
+            if let Some(last) = out
+                .iter_mut()
+                .find(|l: &&mut String| l.starts_with(&format!("{} ", r.correlation)))
+            {
+                last.push_str(" (delivered again: still one line)");
+            }
+            continue;
+        }
+        out.push(format!(
+            "{} · record line {} · {}",
+            r.correlation, r.line, r.what
+        ));
+    }
+    out
+}
+
 /// One look: health first (so a dead gateway reads as that), then the list.
 pub fn look(client: &Client) -> Result<Snapshot, String> {
     let health = client.health().map_err(|e| e.to_string())?;
@@ -1022,6 +1232,15 @@ pub fn as_text(snap: &Snapshot) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn crew_shown_good_file_only_on_its_steward_and_error_everywhere() {
+        let good = read_crew(SAMPLE_CREW).unwrap();
+        let who = good.steward.clone();
+        assert!(crew_shown(&Ok(good.clone()), &who));
+        assert!(!crew_shown(&Ok(good), "someone-else"));
+        assert!(crew_shown(&Err("bad".into()), "anyone"));
+    }
+
     use super::*;
 
     /// Read a list the way the gateway sends it.
@@ -1815,6 +2034,74 @@ Other instances (1)
             "an unlisted selection starts over"
         );
         assert_eq!(step_selection(&[], None, Way::Down), None);
+    }
+
+    #[test]
+    fn the_sample_crew_file_reads_and_the_ladder_is_summarised_needing_someone_first() {
+        let f = read_crew(SAMPLE_CREW).expect("the shipped sample");
+        assert!(f.fixture.starts_with("Sample data, not from any host"));
+        assert_eq!(f.steward, "steward-alpha");
+        assert_eq!(f.crew.len(), 6);
+        assert_eq!(
+            crew_summary(&f.crew),
+            "1 held · 1 stalled · 1 active · 1 done · 1 retired · 1 assigned"
+        );
+        assert_eq!(crew_summary(&[]), "no crew");
+        assert!(Rung::Held.needs_you() && Rung::Stalled.needs_you() && !Rung::Active.needs_you());
+        assert_eq!(
+            f.crew[0].brief.autonomy,
+            "May read and edit inside its worktree only; may not merge."
+        );
+    }
+
+    #[test]
+    fn a_rung_this_reader_does_not_know_is_kept_as_written_and_a_bad_file_says_why() {
+        assert_eq!(Rung::of("quarantined"), Rung::Unknown("quarantined".into()));
+        assert_eq!(Rung::of("quarantined").word(), "quarantined");
+        assert!(!Rung::of("quarantined").needs_you());
+        let e = read_crew(r#"{"steward":"s","crew":[]}"#).unwrap_err();
+        assert!(e.starts_with("the crew file is not readable"), "{e}");
+    }
+
+    #[test]
+    fn a_member_shows_what_its_rung_needs_to_say() {
+        let f = read_crew(SAMPLE_CREW).unwrap();
+        let by = |id: &str| f.crew.iter().find(|m| m.id == id).unwrap();
+        let held = member_facts(by("crew-audit-2"), f.now);
+        assert!(
+            held.iter()
+                .any(|(k, v)| *k == "Waiting on" && v.contains("only the principal can make"))
+        );
+        let stalled = member_facts(by("crew-fix-3"), f.now);
+        assert!(stalled.contains(&("Silent for", "90 min".to_string())));
+        let done = member_facts(by("crew-docs-4"), f.now);
+        assert!(done.contains(&("Judged by", "steward-alpha (not its author)".to_string())));
+        assert!(
+            done.iter()
+                .any(|(k, v)| *k == "Landed" && v.starts_with("not yet"))
+        );
+        let retired = member_facts(by("crew-spike-5"), f.now);
+        assert!(
+            retired
+                .iter()
+                .any(|(k, v)| *k == "Landed" && v.starts_with("yes"))
+        );
+        assert!(
+            member_facts(by("crew-migrate-1"), f.now)
+                .contains(&("On this rung", "30 min".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_receipt_names_its_record_line_and_a_repeat_is_one_line() {
+        let f = read_crew(SAMPLE_CREW).unwrap();
+        let docs = f.crew.iter().find(|m| m.id == "crew-docs-4").unwrap();
+        assert_eq!(
+            receipt_lines(docs),
+            ["c-064 · record line 701 · completion (delivered again: still one line)"]
+        );
+        let new = f.crew.iter().find(|m| m.id == "crew-new-6").unwrap();
+        assert!(receipt_lines(new).is_empty());
     }
 
     #[test]

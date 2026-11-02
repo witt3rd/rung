@@ -7,6 +7,15 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-ui, crew and receipts on fixtures)
+- `rung-ui --crew-fixture [FILE]` shows a Crew section on a steward's page from
+  sample data (`gui/rung-ui/fixtures/crew.json`, or a file): the delegation ladder
+  (held and stalled marked as needing someone), each member's brief, its rung's
+  facts and its receipts (each naming a record line; a repeat is one line).
+  Labelled "SAMPLE DATA, not from the host" and never shown without the flag: the
+  host serves no crew records until the fleet's R2 settles their kinds. The old
+  `ui/` is untouched.
+
 ### Added (rung-ui, panels, keyboard and theme)
 - The `rung-ui` list and instance page are two resizable panels; Alt+Down and
   Alt+Up select the next and previous instance in list order (a tested helper,
