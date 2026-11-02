@@ -2,7 +2,7 @@
 
 The new rung UI's workspace: a typed gateway client (`rung-client`) and a
 desktop app on GPUI Kit (`rung-ui`). Architecture and slices: the owner's UI
-design note (ten slices; this is slice 3). The old web page in `../ui/` keeps
+design note (ten slices; this is slice 6). The old web page in `../ui/` keeps
 working and is not touched.
 
 ## Rules
@@ -18,8 +18,8 @@ working and is not touched.
 - **No logic copies.** The UI shows what the host's own doors say (state word,
   "doing", turns, spend). No fold of the record, no secret-remover here: the
   gateway removes secrets from every byte it sends.
-- **Read-only first.** Writes (queue, stop, release) come later and need a
-  click. A role is read from the instance name's first segment (`chief-`,
+- **Read-only first.** Writes (queue, stop, release) need an explicit
+  click to turn controls on. A role is read from the instance name's first segment (`chief-`,
   `steward-`); there is no registry field for it.
 - **No consumer names** (the guard applies here too) and **no README.md**:
   this file is the agent file.
