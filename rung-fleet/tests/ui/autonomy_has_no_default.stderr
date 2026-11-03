@@ -1,0 +1,5 @@
+error[E0599]: no variant, associated function, or constant named `default` found for enum `Autonomy` in the current scope
+ --> tests/ui/autonomy_has_no_default.rs:5:24
+  |
+5 |     let _a = Autonomy::default();
+  |                        ^^^^^^^ variant, associated function, or constant not found in `Autonomy`

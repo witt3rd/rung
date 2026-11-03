@@ -75,6 +75,7 @@ rung-memory     memory contract and stores (publish = false)
 rung-agent-core the agent as a library: catalog, sessions, turn engine, MCP, ACP, OAuth
 rung-agent      thin task-CLI shell over rung-agent-core (see rung-agent/AGENTS.md)
 rung-host       single-agent host, continuous or idle mode
+rung-fleet      tiered fleet of hosts: typed delegation lifecycle, receipts, verbs (docs/rung-fleet-props.md; publish = false)
 rung-gateway    HTTP gateway in front of hosts: one listener for the UI, instance keys, read-only token role
 rung-fixture    cross-crate consumption tests
 rung-testkit    test-only helpers: TempDir, scripted mock LLM and HTTP servers (publish = false)
@@ -86,8 +87,8 @@ ladder examples are `rung/examples/`), `data/` (briefs and master-protection
 evidence), `docs/`, `docs/records/` (dated, append-only: `docs/_records_guard.py`),
 `.het/` (audit-rectify state, a docket the loop audits), `.archive/` (the Python
 proof of concept), `.github/` (CI and the review council's principles).
-`rung-fleet` (chief, steward, crew supervising hosts) is planned and not in the
-workspace.
+`rung-fleet` (chief, steward, crew supervising hosts) is in the workspace and
+growing by phase.
 
 ## Commands
 
@@ -115,7 +116,7 @@ something absent. Required CI check: `check`.
 | ladder language (normative) | `docs/rung-props.md` |
 | category | `docs/rung-ct-props.md` |
 | Het | `docs/rung-het-props.md` |
-| fleet (planned crate) | `docs/rung-fleet-props.md`, `docs/rung-fleet-notes.md` |
+| fleet (crate, growing by phase) | `docs/rung-fleet-props.md`, `docs/rung-fleet-notes.md` |
 | host, gateway doors | `docs/rung-host.md`, `docs/rung-host-api.md` |
 | host idle mode | `docs/rung-host-idle-props.md` |
 | OAuth credentials | `docs/rung-agent-oauth.md` |

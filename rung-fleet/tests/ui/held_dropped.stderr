@@ -1,0 +1,42 @@
+warning: path statement drops value
+ --> tests/ui/held_dropped.rs:7:5
+  |
+7 |     h;
+  |     ^^ help: use `drop` to clarify the intent: `drop(h);`
+  |
+  = note: `#[warn(path_statements)]` (part of `#[warn(unused)]`) on by default
+
+error: unused `rung_fleet::lifecycle::delegation::Held` that must be used
+ --> tests/ui/held_dropped.rs:7:5
+  |
+7 |     h;
+  |     ^
+  |
+  = note: a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)
+note: the lint level is defined here
+ --> tests/ui/held_dropped.rs:3:9
+  |
+3 | #![deny(unused_must_use)]
+  |         ^^^^^^^^^^^^^^^
+help: use `let _ = ...` to ignore the resulting value
+  |
+7 |     let _ = h;
+  |     +++++++
+
+warning: path statement drops value
+  --> tests/ui/held_dropped.rs:11:5
+   |
+11 |     s;
+   |     ^^ help: use `drop` to clarify the intent: `drop(s);`
+
+error: unused `rung_fleet::lifecycle::delegation::Stalled` that must be used
+  --> tests/ui/held_dropped.rs:11:5
+   |
+11 |     s;
+   |     ^
+   |
+   = note: a verdict is the outcome of a step; dropping it discards the outcome (recoverable verdicts must be fed to their recover edge)
+help: use `let _ = ...` to ignore the resulting value
+   |
+11 |     let _ = s;
+   |     +++++++
