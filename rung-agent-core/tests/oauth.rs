@@ -1,4 +1,4 @@
-//! OAuth credentials (`docs/rung-agent-oauth.md`) against a fake provider
+//! OAuth credentials (`docs/reference/rung-agent-oauth.md`) against a fake provider
 //! server. No real login, no network beyond loopback, $0.
 //!
 //! The fake plays GitHub (device flow, Copilot token exchange) and the

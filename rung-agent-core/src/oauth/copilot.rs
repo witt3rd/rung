@@ -19,7 +19,7 @@
 //!    `Copilot-Integration-Id`. Their versions go stale, so they are
 //!    configuration (`oauth.github-copilot.headers`); the values here are
 //!    only defaults. Whether a non-editor client may present them is a policy
-//!    question this code does not settle (`docs/rung-agent-oauth.md`, O14).
+//!    question this code does not settle (`docs/reference/rung-agent-oauth.md`, O14).
 //! 5. **Models.** `GET {base}/models` lists what the account may use.
 
 use std::collections::BTreeMap;

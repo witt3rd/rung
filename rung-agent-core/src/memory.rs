@@ -34,7 +34,7 @@
 //! turn that was unverified, unchecked, truncated, cancelled or failed is
 //! never retained.
 //!
-//! The MCP provider contract (`rung-memory/1`) is in `docs/rung-memory.md`.
+//! The MCP provider contract (`rung-memory/1`) is in `docs/reference/rung-memory.md`.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -539,7 +539,7 @@ impl MemoryProvider for Down {
 // ─── The MCP provider ────────────────────────────────────────────────────────
 
 /// A provider that is a separate process the host supplies, over MCP.
-/// See `docs/rung-memory.md` for the contract.
+/// See `docs/reference/rung-memory.md` for the contract.
 #[derive(Debug)]
 pub struct McpProvider {
     hooks: Arc<McpRoster>,

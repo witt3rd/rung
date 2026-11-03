@@ -9,9 +9,9 @@ This document is informative. It describes the host: the loop, free time,
 the desk, the pack, ACP outward, the startup-handoff ladder, the engine
 adapter, the model ladder, the governor, owner intent, stop and restart, the
 record and the gates. The wire contract for a UI or gateway is
-[`rung-host-api.md`](rung-host-api.md); a five-minute run is
-[`guides/rung-host-quickstart.md`](guides/rung-host-quickstart.md); dated live runs,
-findings and design records are in [`records/rung-host/`](records/rung-host/AGENTS.md).
+[`rung-host-api.md`](../rung-host-api.md); a five-minute run is
+[`guides/rung-host-quickstart.md`](../guides/rung-host-quickstart.md); dated live runs,
+findings and design records are in [`records/rung-host/`](../records/rung-host/AGENTS.md).
 Delegation to workers is a final extension; only its extension point exists
 (the `crew` group name and the `crew.*` record kinds are reserved, and the
 inbox admits external completion items).
@@ -88,7 +88,7 @@ material — todo items, projects, open questions, open expectations,
 integrity facts, recent traces — in creation order, never ranked. The
 agent picks. The optional `free_time_idle_rule: true` config key (default
 off) adds a sixth rule bounding the idle reply; see
-[`records/rung-host/free-time.md`](records/rung-host/free-time.md).
+[`records/rung-host/free-time.md`](../records/rung-host/free-time.md).
 On the rule-only desk, every turn kind (free time included) offers the
 `core`, `memory`, `read` and `workspace_write` groups; any other group is
 offered only after a recent `want_tools` request. The workspace is the
@@ -309,52 +309,7 @@ it may have been billed without saying so.
 
 ## Profiles
 
-Status: design, NOT BUILT.
-
-A profile is what makes "the same being" the same: after a restart, on
-another machine, and beside other beings on the continuous host. It builds on the startup-handoff ladder, on
-Instances (one state directory, one state lock, `host.lock`), on Durability
-and restart, on The record, on Owner intent, and on Stop and supervision.
-A profile is a name plus the five things below.
-
-1. **Identity.** One constitutive `SOUL.md` (who the being is) and one
-   formative `me.md` (what it has become).
-2. **Access.** What the being may reach on the host. The working disk is
-   not a separate concept: it is durable disk plus transient disk (`/tmp`),
-   and it is folded into access. The profile states that access.
-3. **History.** Traces and logs.
-4. **Memory**, in layers:
-   - *Long-term*: a long-term memory store (a memory provider). All memory is indexed and searchable, with
-     automatic recall before, and automatic retain after, each agent turn.
-   - *Ambient files*: `now.md` (working, short-term memory), `horizon.md`
-     (active thoughts and areas to explore), `wisdom.md`, `know.md`.
-   - *People*: `them.md`, `know.md`, `mask.md`.
-   - *Conversations*: private and group.
-
-### The key problem: ambient context across conversations
-
-Requirement: a being must keep awareness of what it has been doing across
-all its recent conversations, whoever it talks to and in whatever context.
-This is mainly the job of `now.md`.
-
-This is a design problem and it is NOT solved here. What `now.md` holds,
-who writes it, how it keeps what is private to one conversation out of
-another, and where it sits in the prompt are all open.
-
-### Open questions
-
-Not answered here, and not to be designed yet.
-
-- A way in: an inbox, an owner channel, how the being stops.
-- Several profiles at once: listing, starting, stopping, one that never ran.
-- Moving a being to another machine: what travels, what stays (keys, local
-  paths, the long-term memory store).
-- Where profiles live.
-- Whether the profile name must equal its folder name.
-- Whether an identity change is recorded (it changes the cached prompt
-  prefix).
-- The design of `now.md`: who writes it, how it holds privacy, where it
-  sits in the prompt.
+Design, not built: see [`../design/rung-host-profiles.md`](../design/rung-host-profiles.md).
 
 ## The engine adapter
 
@@ -685,14 +640,14 @@ router documents. No live model, no live Jev, no key.
   `docs/_consumer_guard.py`).
 
 The measured results of the first gate run (2026-10-04, slice 1) are a record:
-[`records/rung-host/slice1-gate-results.md`](records/rung-host/slice1-gate-results.md).
+[`records/rung-host/slice1-gate-results.md`](../records/rung-host/slice1-gate-results.md).
 
 ## Idle mode: decisions
 
 Idle mode is built. The owner's decisions (a stop interrupts a sleeping
 host at once; idle time is a per-instance setting; the default is 30 minutes
 and continuous is idle time 0, set explicitly) are stated once, as claims, in
-[`rung-host-idle-props.md`](rung-host-idle-props.md).
+[`rung-host-idle-props.md`](../rung-host-idle-props.md).
 
 How the loop does it (`rung-host/src/presence.rs`):
 
@@ -716,4 +671,4 @@ How the loop does it (`rung-host/src/presence.rs`):
   and is never a rest; an idle host spends no requests.
 - A resting host reads as `Idle until <time>` in the gateway's summary and
   list, and `rung-host ls` shows `idle until <time>` for it (its word stays
-  `running`); both come from the record alone ([`rung-host-api.md`](rung-host-api.md)).
+  `running`); both come from the record alone ([`rung-host-api.md`](../rung-host-api.md)).

@@ -12,7 +12,7 @@
 //! - [`copilot`]: GitHub Copilot, the first provider (device flow).
 //! - [`cli`]: `rung-agent auth login | status | models | logout`.
 //!
-//! The contract is `docs/rung-agent-oauth.md`.
+//! The contract is `docs/reference/rung-agent-oauth.md`.
 
 pub mod cli;
 pub mod copilot;

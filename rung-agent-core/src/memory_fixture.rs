@@ -1,5 +1,5 @@
 //! A reference memory provider: a stdio MCP server that speaks the
-//! `rung-memory/1` contract (`docs/rung-memory.md`), and the conformance
+//! `rung-memory/1` contract (`docs/reference/rung-memory.md`), and the conformance
 //! check that runs the contract against any provider.
 //!
 //! ```text

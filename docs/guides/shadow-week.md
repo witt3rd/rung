@@ -3,7 +3,7 @@
 Goal: run the host a week in `desk.mode: shadow` (the rule decides, Jev is
 asked and logged), tally disagreements per family, audit 50 of them.
 
-1. Config: set `mode: shadow` (see `docs/rung-host.md`); keep the Jev spend cap.
+1. Config: set `mode: shadow` (see `docs/reference/rung-host.md`); keep the Jev spend cap.
 2. Run the host for the week. Every answered ask writes `decision.<family>`
    lines with `choice` (the rule's), `jev_choice` and `agree` in the record.
 3. At week's end, on a copy of the record:

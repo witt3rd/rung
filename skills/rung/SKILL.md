@@ -86,7 +86,7 @@ A `Toolset` wrapper must forward `execute_output`, or it hands on text only.
 Session history: an assistant `Line` keeps the turn's full `messages`
 (tool-use, tool-result, final text) from `AgentResult.transcript`, and
 `thread_from` replays them verbatim (a shortened replay breaks the
-provider's cached prefix, `docs/rung-agent-cache.md`); only a tool result's images become a note (a
+provider's cached prefix, `docs/reference/rung-agent-cache.md`); only a tool result's images become a note (a
 session file holds no image data). The calls are never dropped: text-only history teaches the model to narrate
 actions instead of taking them (#128). Old sessions without `messages` still
 replay as text. A turn that stops without an answer (error, refusal, doom,
@@ -123,7 +123,7 @@ own thread, with a delay).
 ## OAuth credentials (rung-agent-core)
 
 `llm.auth.oauth: {provider, profile}` is the credential kind beside
-`api_key_env`; contract and proofs in `docs/rung-agent-oauth.md`. A login is
+`api_key_env`; contract and proofs in `docs/reference/rung-agent-oauth.md`. A login is
 `$RUNG_HOME/oauth/<provider>--<profile>.json` (0600), not in `auth.yaml` (the
 driver parses that file as flat strings). The kernel knows only
 `rung_std::llm::CredentialSource`; the provider code is
@@ -160,7 +160,7 @@ gate escalates it to `unverified`.
 
 ## Memory (rung-memory + rung-agent-core)
 
-Contract and wire: `docs/rung-memory.md`. One setting, `--memory` >
+Contract and wire: `docs/reference/rung-memory.md`. One setting, `--memory` >
 `RUNG_MEMORY` > `memory.provider` > `off`: `off`, `external` (caller owns
 memory: no store, no hooks, no memory tools), `baseline` (BM25, local),
 `mcp:<url|command>` (`rung-memory/1` marker, hidden hook tools
@@ -173,7 +173,7 @@ failures are outcomes, never a failed turn.
 Tests: `rung-agent/tests/acp_memory.rs` drives ACP with a mock model and
 the reference provider `rung-agent --memory-fixture` (stdio, `--file` to
 persist across the per-prompt respawn). `rung-agent --memory-check SETTING`
-runs the contract against any provider; `--memory-score` scores recall on your own notes (`docs/rung-memory.md`). Product crate, not kernel:
+runs the contract against any provider; `--memory-score` scores recall on your own notes (`docs/reference/rung-memory.md`). Product crate, not kernel:
 `rung-memory` is `publish = false`.
 
 ## Config

@@ -71,7 +71,7 @@ Not rung's to fix:
   caching starts at 1024 tokens.
 
 `rung-host` keeps its own two fixed breakpoints, pinned by gates G-l and
-G-n (`docs/rung-host.md`). Its adapter now sends `session_id` by default
+G-n (`docs/reference/rung-host.md`). Its adapter now sends `session_id` by default
 only on an OpenRouter route. `scripts/cache_probe.py` is a separate
 offline tool. It reads a recorded request log and usage log, and prints the
 first byte at which each request differs from the one before.
@@ -99,5 +99,5 @@ must:
   level and `RUNG_MAX_TOKENS` fixed for the session. Each provider has its
   own cache, so a different model or route starts cold.
 - **Mark context you resend.** A marked block an earlier ask already holds
-  is sent and stored once (`docs/rung-memory.md`). An unmarked one is sent
+  is sent and stored once (`docs/reference/rung-memory.md`). An unmarked one is sent
   and stored every turn; either way the replay matches.

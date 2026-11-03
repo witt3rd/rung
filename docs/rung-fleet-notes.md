@@ -10,7 +10,7 @@ on are in witt3rd/rung#347.
 tiered fleet: a **chief** (the principal's chief-of-staff), **stewards** (one
 long-lived caretaker per project) and **crew** (a specialist worker on one task,
 then retired). It fills the extension point
-[`rung-host.md`](rung-host.md) reserves for delegation: the `crew` group name
+[`rung-host.md`](reference/rung-host.md) reserves for delegation: the `crew` group name
 and the `crew.*` record kinds, with the inbox admitting external completion
 items. Version one is native only: `rung-host` and `rung-agent`.
 

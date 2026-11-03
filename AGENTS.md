@@ -117,9 +117,9 @@ something absent. Required CI check: `check`.
 | category | `docs/rung-ct-props.md` |
 | Het | `docs/rung-het-props.md` |
 | fleet (crate, growing by phase) | `docs/rung-fleet-props.md`, `docs/rung-fleet-notes.md` |
-| host, gateway doors | `docs/rung-host.md`, `docs/rung-host-api.md` |
+| host, gateway doors | `docs/reference/rung-host.md`, `docs/rung-host-api.md` |
 | host idle mode | `docs/rung-host-idle-props.md` |
-| OAuth credentials | `docs/rung-agent-oauth.md` |
+| OAuth credentials | `docs/reference/rung-agent-oauth.md` |
 | principals / questions (informative) | `docs/rung-std/` |
 | conformance view and counts | `docs/conformance.md` |
 | questions docket | `.het/rung-questions/` |
