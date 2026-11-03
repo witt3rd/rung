@@ -150,6 +150,11 @@ git tags only.
   (H1 lock, H2 registry, H3 read doors, H5 events, S4 context, S8 turns, and the
   map of all five), `rung-host-queue.md` (S1, S3, S2, S7), `rung-gateway.md`
   (H9) and `rung-redaction.md` (H4). Citations in code and docs follow.
+- New guides: `docs/guides/rung-agent.md` (flags, `config.yaml`, environment
+  table, OAuth login), `rung-gateway.md` (run a gateway) and `release.md`.
+  `docs/_coverage.py` (CI, `propositions` job) fails when a `RUNG_*` variable
+  the code reads or a `rung-agent` flag is in no guide and not on its internal
+  list.
 - Records moves (`git mv`, no stubs; text unchanged, old to new in
   `docs/records/README.md`): the three dated measurement notes
   (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,
