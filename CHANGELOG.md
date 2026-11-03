@@ -135,6 +135,10 @@ git tags only.
   link target `README.md` becoming `AGENTS.md` (`docs/_records_guard.py` allows
   exactly that retarget). `docs/_links.py` now fails any tracked `README.md`.
   The judgment reader skips `AGENTS.md` instead of `README.md`.
+- Guides move into `docs/guides/` (`git mv`): `rung-host-quickstart.md`,
+  `rung-memory-quickstart.md`, `shadow-week.md`. `rung-memory-walkthrough.md`
+  is folded into the memory quickstart as its worked example. `docs/AGENTS.md`
+  states the layout rules.
 - Records moves (`git mv`, no stubs; text unchanged, old to new in
   `docs/records/README.md`): the three dated measurement notes
   (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,
