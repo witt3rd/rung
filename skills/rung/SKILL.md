@@ -195,70 +195,9 @@ runs the contract against any provider; `--memory-score` scores recall on your o
   can fail locally on roger (rustc diagnostic drift) while CI passes. Check it
   on a stash before blaming your change; CI is the gate.
 
-## Harbor eval → validation suite
+## Harbor suite and live runs
 
-Out-of-tree adapter: `rung-agent/python/rung_harbor/agent.py`. Do not fork
-Harbor. Harbor `examples/tasks` mixes **agent** tasks with **harness**
-tests (network policy, verifier modes, CUA, CUDA). The suite
-(`rung_harbor.suite`) is only the agent tasks, cheap-to-dear. Terminal-Bench
-2.0 is phase 2 after that ladder is green.
-
-Key: `doppler run -p fleet -c dev_work` (`OPENROUTER_API_KEY`).
-Suite model: `openrouter/~deepseek/deepseek-v4-flash-latest`.
-
-```bash
-cargo build -p rung-agent --release   # when the binary changed
-PYTHONPATH=<rung>/rung-agent/python python3 -m rung_harbor.validate list
-PYTHONPATH=<rung>/rung-agent/python \
-  doppler run -p fleet -c dev_work -- \
-  python3 -m rung_harbor.validate next
-python3 -m rung_harbor.validate run cwd-capture   # redo one case
-python3 -m rung_harbor.validate show cwd-capture
-python3 -m rung_harbor.validate import            # once: copy Harbor jobs in
-```
-
-Evidence: `rung-agent/harbor-runs/<UTC>-<id>/` plus `index.jsonl`.
-Gitignored. `list` / `next` read the index in this repo, not Harbor's
-`jobs/`. `run` always makes a new timestamped folder.
-
-A skip is a **product gap** (e.g. MCP-over-ACP). A fail is a **bug or a missing
-affordance**. Read `harbor-runs/<stamp>-<id>/**/rung-agent.txt` before
-changing the kernel.
-
-Alpine (`hello-alpine`) is skipped: the release binary is glibc
-(`ld-linux-x86-64.so.2`). Without a loader Alpine says `required file not
-found`. `gcompat` loads the ELF then dies on `__res_init` (resolver). A
-musl/static build would unskip this; do not treat it as a Harbor harness
-bug.
-
-## rung-host live runs
-
-`rung-host/live/` runs one bounded live window from the repo
-(`live.sh RUN_DIR SECONDS`, keys from Doppler into the process env only,
-host file writes traced with strace). Two keys: the host engine's
-`RUNG_HOST_OPENROUTER_API_KEY` (fleet `dev_donald` only; its own router
-workspace, free endpoints allowed) and Jev's accounted `OPENROUTER_API_KEY`
-(`dev_work`). `arms.py` adds served models, malformed tool calls and a
-coherence sample; `fallback-probe.py` tests the router's `models` array. Pre-register the measures in a
-committed doc first; `analyze.py` computes them, `collect.py` copies the
-evidence into `rung-host/live/runs/<date>/`, `scan.py` proves no key
-landed, `diagram.py` draws the report figure. Reports build with the
-pinned house tool (`docs/report.toml`): `uvx --from 'publishing[render] @
-git+https://github.com/witt3rd/publishing@v<pin>' publishing build
-docs/reports/<topic>-vN`.
-
-Gotchas seen live (2026-10-04): the keyless listing cannot see the
-account's data policy — on the work key four of five free rungs return a
-404 with `ineligibility_reasons` (now `unroutable`, stepped past);
-`qwen/qwen3.8-27b:free` serves but 429s upstream every few turns; Jev
-answers in ~0.2 s at ~$0.00005 an ask. Run `route-probe.sh` before a run.
-On the host key (2026-10-05): no guardrail refusals; the router sends an
-overloaded upstream as HTTP 200 carrying `error.code: 503` (now classified
-by code); `openrouter/free` is an opt-in bottom rung, not in the default
-ladder (a listed router stands with `why: router`); listings flap within hours (space-bunny's
-expiry vanished, nemotron-ultra went `endpoint_down`). Evidence:
-`docs/records/rung-host/live-v4-hostkey.md`; named-ladder idle-rule soak:
-`docs/records/rung-host/live-v5-idle-rule.md`.
+The Harbor validation suite is `rung-agent/python/AGENTS.md`; bounded live runs of the host are `rung-host/live/AGENTS.md`.
 
 ## Cache-miss probe
 

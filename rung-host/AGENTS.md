@@ -7,6 +7,6 @@ Repo charter: [`../AGENTS.md`](../AGENTS.md).
 
 **Read.**
 - Design and record vocabulary: [`docs/reference/rung-host.md`](../docs/reference/rung-host.md); read and write doors: [`docs/reference/rung-host-doors.md`](../docs/reference/rung-host-doors.md) and [`rung-host-queue.md`](../docs/reference/rung-host-queue.md); idle mode claims: [`docs/rung-host-idle-props.md`](../docs/rung-host-idle-props.md); first run: [`docs/guides/rung-host-quickstart.md`](../docs/guides/rung-host-quickstart.md).
-- `live/` holds the live-run scripts and their evidence (`live/runs/`, kept in git, not checked by the doc guards).
+- `live/` holds the live-run scripts (see `live/AGENTS.md`) and their evidence (`live/runs/`, kept in git, not checked by the doc guards).
 
 **Check.** `cargo test -p rung-host --locked`
