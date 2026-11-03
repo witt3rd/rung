@@ -155,6 +155,11 @@ git tags only.
   `docs/_coverage.py` (CI, `propositions` job) fails when a `RUNG_*` variable
   the code reads or a `rung-agent` flag is in no guide and not on its internal
   list.
+- Skill and ui split: the Harbor suite section of `skills/rung/SKILL.md` is now
+  `rung-agent/python/AGENTS.md` and its live-run section `rung-host/live/AGENTS.md`;
+  the per-slice behaviour of the page (slices 1, 5, S1) moved from
+  `ui/AGENTS.md` to `docs/records/rung-ui/ui-slices.md`, leaving how to run and
+  the rules.
 - Records moves (`git mv`, no stubs; text unchanged, old to new in
   `docs/records/README.md`): the three dated measurement notes
   (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,
