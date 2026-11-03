@@ -139,6 +139,12 @@ git tags only.
   `rung-memory-quickstart.md`, `shadow-week.md`. `rung-memory-walkthrough.md`
   is folded into the memory quickstart as its worked example. `docs/AGENTS.md`
   states the layout rules.
+- Reference move (`git mv`): `docs/rung-host.md`, `rung-agent-oauth.md`,
+  `rung-agent-cache.md` and `rung-memory.md` into `docs/reference/`;
+  `theory-of-theories-in-context.md` into `docs/design/`. The host's Profiles
+  section (design, not built) is now `docs/design/rung-host-profiles.md`. Links
+  and source comments follow; record files that link to `rung-host.md` follow it (the records guard reads
+  the retargeted link as unchanged).
 - Records moves (`git mv`, no stubs; text unchanged, old to new in
   `docs/records/README.md`): the three dated measurement notes
   (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,

@@ -1,4 +1,4 @@
-# Two ways to choose a ladder (docs/rung-host.md, "Choosing arms").
+# Two ways to choose a ladder (docs/reference/rung-host.md, "Choosing arms").
 # Copy one list into `ladder:` of your rung-host.yaml. Omitting `ladder:`
 # gives you `named`.
 

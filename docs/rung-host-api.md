@@ -1606,7 +1606,7 @@ carries it; the host's desk reads it. Code: `rung_host::inbox::Intent` (the type
 the one question "is this read at the next boundary": `Item::pushes`,
 `InboxState::owner_pushes`), `rung_host::desk::admit` (the guard), `rung_host::queue`
 (the list), `rung_host::acp::QueueDoor` (the door). The rules the desk keeps are in
-`docs/rung-host.md` ("Owner intent").
+`docs/reference/rung-host.md` ("Owner intent").
 
 | `intent` | meaning | cuts a long tool call |
 |---|---|---|
@@ -1645,7 +1645,7 @@ intent survives a restart.
 
 What the desk does with each intent (when it is read, what it cuts, what the
 limits and firm deadlines still win) is stated once, in
-[`rung-host.md`](rung-host.md#owner-intent-next-steer-free), and not here. What
+[`rung-host.md`](reference/rung-host.md#owner-intent-next-steer-free), and not here. What
 a client of the door can see of it:
 
 - **`steer`** is marked in the turn header's row, `[owner/id @time · steer]`.

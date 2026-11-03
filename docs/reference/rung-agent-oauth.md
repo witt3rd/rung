@@ -137,7 +137,7 @@ message carries the command that fixes it (`rung-agent auth login
 github-copilot --profile <p>`) and no token. It is not retried, and a process
 that has seen GitHub reject a stored token asks GitHub no more until that
 login changes. A host reads an auth failure as `blocked`: it probes slowly,
-owns one message per incident and never exits (`docs/rung-host.md`, the
+owns one message per incident and never exits (`docs/reference/rung-host.md`, the
 governor).
 *Proof:* `rung-agent-core/tests/oauth.rs::a_revoked_login_is_an_actionable_auth_failure_and_is_not_retried_hot`,
 `rung-agent-core/tests/oauth.rs::a_missing_login_says_how_to_make_one`,

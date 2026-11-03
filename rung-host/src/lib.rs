@@ -6,7 +6,7 @@
 //! one agent through `rung-agent-core`'s turn engine (imported as a
 //! library, never the binary; [`adapter`]) or a scripted mock.
 //!
-//! See `docs/rung-host.md` for the design and the record vocabulary, and
+//! See `docs/reference/rung-host.md` for the design and the record vocabulary, and
 //! [`gates`] for the frozen acceptance gates.
 
 pub mod acp;

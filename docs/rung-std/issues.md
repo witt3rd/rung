@@ -13,7 +13,7 @@ answer to the question the questions theory keeps raising: when a question fails
 the **authentic cut** — *"this is not a determinate question; it is a decision or
 a piece of work"* — the correct destination is an **issues instance** of the
 same project. That hand-off between two theories' carriers is the
-[cross-theory rectification](../theory-of-theories-in-context.md) at the heart of
+[cross-theory rectification](../design/theory-of-theories-in-context.md) at the heart of
 the theory of theories in context.
 
 ---
@@ -100,4 +100,4 @@ institution can perform.
 |---|---|
 | the theory and the model | [`rung-std/src/issues.rs`](../../rung-std/src/issues.rs) |
 | the theory's tests over a synthetic docket | [`rung-std/tests/issues_theory.rs`](../../rung-std/tests/issues_theory.rs) |
-| the cross-theory rectification design | [`docs/theory-of-theories-in-context.md`](../theory-of-theories-in-context.md) |
+| the cross-theory rectification design | [`docs/design/theory-of-theories-in-context.md`](../design/theory-of-theories-in-context.md) |

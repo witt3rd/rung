@@ -1,6 +1,6 @@
 # Quickstart: rung-agent with memory
 
-Informative. The contract is [rung-memory.md](../rung-memory.md). The baseline
+Informative. The contract is [rung-memory.md](../reference/rung-memory.md). The baseline
 commands and `--memory-check` against the in-tree `--memory-fixture` were
 run against rung-agent built from this tree. The turn examples need an
 OpenAI-compatible endpoint named in `config.yaml`; full-turn commands were not
@@ -187,7 +187,7 @@ memory: {"provider":"mcp","recall":{"status":"found","records":2,"injected":["e6
 - Turn 2 recalls two: the seed and turn 1 (`injected` lists the ids, in
   order). Memory carries across sessions because the scope is the same.
 - `cost_usd` and `calls` are the provider's own (its Jev calls); `latency_ms`
-  is rung's measure. The hooks are tabulated in [rung-memory.md](../rung-memory.md#a-turn-with-a-provider).
+  is rung's measure. The hooks are tabulated in [rung-memory.md](../reference/rung-memory.md#a-turn-with-a-provider).
 
 ### Read `cached_tokens`
 

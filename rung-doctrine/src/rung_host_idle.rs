@@ -22,7 +22,7 @@ referred to elsewhere by number.
 **Props come first.** A claim a machine will settle is `owed`, with the form its
 proof will take, until the change that builds idle mode adds its test and moves
 the claim to `decidable`; never earlier. The informative description is
-`docs/rung-host.md` (the loop, free time, and "Idle mode: decisions").
+`docs/reference/rung-host.md` (the loop, free time, and "Idle mode: decisions").
 
 The numbering is a tree. A proposition `n.m` is a remark on `n`; `n.mm` is a
 remark on `n.m`. Interior propositions are the conjunction of their children.
@@ -41,7 +41,7 @@ decimal number and every reference to it are computed at render time.
 **What this document does not say.** It does not change the continuous host: idle
 time 0 is the shipped behaviour, gated as before (G-a). It does not say what the
 agent does in a free-time pass, or how the decision desk, the governor and the
-pack work; those are `docs/rung-host.md`.
+pack work; those are `docs/reference/rung-host.md`.
 
 "#.into()),
         Element::Verbatim(r#"---

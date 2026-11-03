@@ -14,7 +14,7 @@ Usage (what CI does):
 
 Dry run on a list of paths, one per line, `-` for stdin:
 
-    printf 'docs/rung-host.md\\n' | scripts/ci_plan.py --event pull_request --files -
+    printf 'docs/reference/rung-host.md\\n' | scripts/ci_plan.py --event pull_request --files -
 
 Prints `key=value` lines (append them to $GITHUB_OUTPUT):
 
