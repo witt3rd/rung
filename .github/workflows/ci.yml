@@ -298,6 +298,8 @@ jobs:
         run: |
           python3 scripts/test_links.py
           docs/_links.py
+      - name: every RUNG_* variable and rung-agent flag is in a guide
+        run: docs/_coverage.py
 
   # Verification only: this job never publishes (no cargo publish, no token).
   release-check:
