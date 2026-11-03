@@ -98,7 +98,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 cargo run -q -p rung-doctrine --bin render -- --check
 docs/_props.py check && docs/_props.py cited
-docs/_consumer_guard.py && docs/_records_guard.py && docs/_links.py
+docs/_consumer_guard.py && docs/_records_guard.py && docs/_links.py && docs/_coverage.py
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
 ```
 

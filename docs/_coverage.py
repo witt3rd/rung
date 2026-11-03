@@ -31,6 +31,11 @@ def tracked(*globs):
     return [ROOT / p for p in out.split()]
 
 
+def mentioned(name, text):
+    # a whole name: RUNG_MEMORY is not satisfied by RUNG_MEMORY_SCOPE
+    return re.search(r"(?<![\w-])" + re.escape(name) + r"(?![\w-])", text) is not None
+
+
 def main():
     guides = "\n".join(p.read_text() for p in tracked("docs/guides/*.md"))
     bad = []
@@ -38,13 +43,13 @@ def main():
     for p in tracked("rung-agent*/**/*.rs", "rung-host/**/*.rs", "rung-gateway/**/*.rs", "rung-memory/**/*.rs", "rung-std/**/*.rs"):
         names.update(re.findall(r'"(RUNG_[A-Z0-9_]+)"', p.read_text()))
     for n in sorted(names - INTERNAL):
-        if n not in guides:
+        if not mentioned(n, guides):
             bad.append(f"{n}: read by the code, in no guide and not in INTERNAL (docs/_coverage.py)")
     args = (ROOT / "rung-agent-core/src/args.rs").read_text()
     usage = args[args.index("pub fn usage()"):]
     usage = usage[: usage.index("\n}\n")]
     for f in sorted(set(re.findall(r"(?<![\w-])(--[a-z][a-z-]+)", usage))):
-        if f not in guides:
+        if not mentioned(f, guides):
             bad.append(f"{f}: a rung-agent flag in no guide")
     if bad:
         print("coverage: FAIL")
