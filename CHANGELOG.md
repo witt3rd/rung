@@ -160,6 +160,7 @@ git tags only.
   the per-slice behaviour of the page (slices 1, 5, S1) moved from
   `ui/AGENTS.md` to `docs/records/rung-ui/ui-slices.md`, leaving how to run and
   the rules.
+- Retired `docs/_migrate.py` (the one-off props migration); three doctrine source comments no longer name it.
 - Records moves (`git mv`, no stubs; text unchanged, old to new in
   `docs/records/README.md`): the three dated measurement notes
   (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,
