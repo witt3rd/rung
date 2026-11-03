@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 6 decidable · 29 owed · 4 rationale · 12 signature · 51 total.
+**Counts.** 7 decidable · 28 owed · 4 rationale · 12 signature · 51 total.
 
 ### What the fleet is
 
@@ -643,7 +643,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [4.1](rung-fleet-props.md#an-unconsumed-receipt-does-not-compile) | `an-unconsumed-receipt-does-not-compile` | `owed` | — | **owed** — unimplemented — a compile-fail case: a delivery receipt bound and dropped without being consumed is refused (`#[must_use]`, linear) |
 | [4.2](rung-fleet-props.md#duplicate-delivery-is-idempotent) | `duplicate-delivery-is-idempotent` | `owed` | — | **owed** — unimplemented — a test that delivering the same correlation id twice to one inbox yields one record line and the same receipt |
 | [4.3](rung-fleet-props.md#a-kill-loses-no-completion) | `a-kill-loses-no-completion` | `owed` | The host already requeues a stimulus admitted to a turn that never ended; this proposition adds that no crew completion falls between the crew's inbox write and the steward's recovery. | **owed** — unimplemented — a `kill -9` test of a steward mid-task: on restart its record recovers, the completion of its crew is delivered once, and none is lost |
-| [4.4](rung-fleet-props.md#crew-record-kinds-are-fleet-owned) | `crew-record-kinds-are-fleet-owned` | `owed` | — | **owed** — unimplemented — a schema test over every `crew.*` line the fleet writes, and a test that no other crate writes one |
+| [4.4](rung-fleet-props.md#crew-record-kinds-are-fleet-owned) | `crew-record-kinds-are-fleet-owned` | `decidable` | — | `rung-fleet/tests/records.rs::every_crew_kind_round_trips_through_a_record_line` |
 
 ### Verbs and attachment
 
@@ -740,9 +740,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 150 |
+| `decidable` | 151 |
 | `judgmental` | 47 |
-| `owed` | 31 |
+| `owed` | 30 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **455** |
@@ -760,8 +760,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 31 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 663 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 30 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 667 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1184,6 +1184,13 @@ look shorter than it is.
 - `a_hold_stays_open_until_its_own_key_resolves_it`
 - `a_stalled_task_returns_to_active`
 - `a_task_runs_from_spawned_to_retired`
+
+**`rung-fleet/tests/records.rs`** — 4 unclaimed
+
+- `a_host_reads_a_record_that_holds_crew_lines`
+- `a_known_kind_with_a_bad_field_is_refused`
+- `a_reader_skips_what_it_does_not_know`
+- `no_other_crate_writes_a_crew_kind`
 
 **`rung-gateway/tests/events.rs`** — 1 unclaimed
 

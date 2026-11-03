@@ -7,6 +7,15 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 3)
+- `rung-fleet::records`: the `crew.*` record kinds as a typed `CrewRecord` (ten
+  kinds, from `crew.spawned` to `crew.retired`, plus `crew.receipt`) that
+  encodes to and decodes from a record line. A reader skips a kind it does not
+  know; a known kind with a bad field is refused. The host reads a record that
+  holds them, and a test fails if any other crate writes a `crew.` kind. Prop
+  `crew-record-kinds-are-fleet-owned` becomes decidable. Writing the lines is
+  the verbs' work.
+
 ### Added (rung-fleet, R2 step 1)
 - New product crate `rung-fleet` (`publish = false`). `lifecycle` holds the
   typed delegation ladders: `delegation` (spawned, assigned, active, with held

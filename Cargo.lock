@@ -1562,6 +1562,9 @@ name = "rung-fleet"
 version = "0.3.2"
 dependencies = [
  "rung",
+ "rung-host",
+ "rung-testkit",
+ "serde_json",
  "trybuild",
 ]
 

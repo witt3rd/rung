@@ -384,7 +384,7 @@ completion is lost and none is delivered twice.
         Element::Prop(Prop {
             slug: "crew-record-kinds-are-fleet-owned".into(),
             parent: Some("the-durable-record-is-the-delivery".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a schema test over every `crew.*` line the fleet writes, and a test that no other crate writes one"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/records.rs::every_crew_kind_round_trips_through_a_record_line".into() },
             numbering: None,
             prose: r#"The fleet owns the schema of the `crew.*` **record kinds** the host reserves.
 They are append-only like every kind, and a reader that does not know one skips
