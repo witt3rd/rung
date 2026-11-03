@@ -126,6 +126,15 @@ git tags only.
   lane's needs are in `gui/rung-ui/AGENTS.md`. The old `ui/` is untouched.
 
 ### Changed (docs overhaul)
+- No `README.md` anywhere: every remaining `README.md` is now `AGENTS.md` (`git mv`):
+  `docs/`, `docs/records/`, `docs/records/rung-host/`, `.het/`,
+  `.het/rung-questions/judgments/`, `.het/rung-questions/questions/`, `ui/`,
+  `ui/contract/`, `rung/examples/`, `examples/notes/`, `examples/reminders/`,
+  `rung-memory/tests/fixtures/recall/`, `.archive/.gl/meta/`. Links and source
+  comments follow; the docket and the records keep their text except for the
+  link target `README.md` becoming `AGENTS.md` (`docs/_records_guard.py` allows
+  exactly that retarget). `docs/_links.py` now fails any tracked `README.md`.
+  The judgment reader skips `AGENTS.md` instead of `README.md`.
 - Records moves (`git mv`, no stubs; text unchanged, old to new in
   `docs/records/README.md`): the three dated measurement notes
   (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,

@@ -8,7 +8,7 @@
 //! is `rung`'s and this writer has no term for it. The same holds for `ε`: it
 //! is read out of the seal (`Judgment::epsilon`), not set by this writer.
 //!
-//! Schema (see `judgments/README.md`): `proposition`, `role`, `tier`,
+//! Schema (see `judgments/AGENTS.md`): `proposition`, `role`, `tier`,
 //! `judges: [{id, provenance, verdict, on, epsilon?}]`.
 
 use rung::{Judgment, Provenanced};

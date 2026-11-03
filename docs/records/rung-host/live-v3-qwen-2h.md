@@ -47,4 +47,4 @@ disjoint from the rule has judged them.
 
 ## Moved, 2026-10-29
 
-This record moved from `docs/rung-host-live-v3-qwen-2h.md` to this directory; its text above is unchanged apart from relative links. Index: [README](README.md).
+This record moved from `docs/rung-host-live-v3-qwen-2h.md` to this directory; its text above is unchanged apart from relative links. Index: [README](AGENTS.md).

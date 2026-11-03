@@ -10,6 +10,6 @@
   normative one wins.
 - Files starting with `_` are tooling, not documents.
 - Dated records (pre-registrations, run results, design records) live in
-  `records/`, append-only; see `records/README.md`.
+  `records/`, append-only; see `records/AGENTS.md`.
 - The Rust API reference is rustdoc; the host's wire contract is prose in
   `rung-host-api.md`.

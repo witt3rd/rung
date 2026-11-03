@@ -5,7 +5,7 @@ import type { Line } from "../record/types.ts";
 import { parseRecordLines, redact, redactStreaming } from "./wire.ts";
 import { EventsClient, type Delta, type End, type Open, type Status } from "./client.ts";
 
-/** What `GET /v1/summary` answers (ui/contract/README.md). */
+/** What `GET /v1/summary` answers (ui/contract/AGENTS.md). */
 export interface HostSummary {
   contract: number;
   state: string;

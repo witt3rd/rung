@@ -26,7 +26,7 @@ keeps the number of the last line it applied and resumes from it, a store that s
 overlay that lays the running turn's streamed text and tool over the record). The host's own `/v1/summary` decides the state word.
 
 The doors' bodies: the gateway (H9), the list, summary and record doors (H3) and the event stream (H5) are on master and written in
-`docs/rung-host-api.md`; `contract/README.md` says what the page asks of them and where they are a
+`docs/rung-host-api.md`; `contract/AGENTS.md` says what the page asks of them and where they are a
 superset of what it first proposed. `test/contract.test.ts` states them as checks and runs unchanged against
 `mock/` (a gateway and simulated hosts in this directory) and against a real gateway:
 
@@ -50,7 +50,7 @@ band's whole text (a long text folds under Show more; nothing is cut; each tool 
 of more than 50,000 characters is not wrapped, because a browser takes tens of seconds to wrap a megabyte of mixed scripts, and scrolls sideways). The bottom line is
 cached N of M provider tokens. A small selector picks the call when a turn made several; a cache break at a call is named. Read-only.
 
-- **Where it reads**: the host's context door (`GET /v1/turns/{n}/context?call=k`, host S4; see `contract/README.md`). Where that is absent, fails
+- **Where it reads**: the host's context door (`GET /v1/turns/{n}/context?call=k`, host S4; see `contract/AGENTS.md`). Where that is absent, fails
   or answers what cannot be read, the **record's own strata** (`src/context/fold.ts`): the history rebuilt from the earlier turns' logs, the
   turn's header, the messages before the call, the epoch's title line, the provider's counts. For a record that predates the door, the door itself
   answers with its note and the bands it cannot show; the page marks each as not recorded, with the host's reason. The cache marks are the host's
@@ -74,7 +74,7 @@ cached N of M provider tokens. A small selector picks the call when a turn made 
 On an instance's Now page, under "Doing now": one text box, the switch *Do next / When free / Steer* and one **Send**. Only Do next is served by
 the host today: the other two are shown disabled, with one sentence saying they come later. The page answers only after the host has written
 the item down (it shows "Sending.", locks the box and keeps the text until the host answers); the box is emptied only on success, and a refusal
-keeps the text and says why in plain words (`contract/README.md` has the table). An item shows in the list only when the host's `GET /v1/queue`
+keeps the text and says why in plain words (`contract/AGENTS.md` has the table). An item shows in the list only when the host's `GET /v1/queue`
 has it. One press is one write: a second press while it is in flight is the same request, and a press repeated after a lost answer carries the
 same key, so the host adds it once (`src/queue/send.ts`). A message of nothing visible (a zero-width space) is empty. The list shows what is being
 answered and what waits (position, text whole with "Show more" for a long one, what was asked, who sent it, its age); the owner's items are a

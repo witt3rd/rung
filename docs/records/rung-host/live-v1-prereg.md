@@ -123,4 +123,4 @@ first-run record is not rewritten.
 
 ## Moved, 2026-10-29
 
-This record moved from `docs/rung-host-live-v1-prereg.md` to this directory; its text above is unchanged apart from relative links. Index: [README](README.md).
+This record moved from `docs/rung-host-live-v1-prereg.md` to this directory; its text above is unchanged apart from relative links. Index: [README](AGENTS.md).
