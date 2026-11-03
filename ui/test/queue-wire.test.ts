@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseQueue, groupWaiting, intentWord, roleWord, foldText, isBlank, afterSend } from "../src/queue/wire.ts";
 
-// The doors' own shape (docs/rung-host-api.md, S1): items with a state, not two lists.
+// The doors' own shape (docs/reference/rung-host-queue.md, S1): items with a state, not two lists.
 const it = (id: string, role: string, extra: Record<string, unknown> = {}) => ({
   id, text: `text ${id}`, role, name: role === "owner" ? null : "atlas", channel: role === "owner" ? "owner" : "peer:atlas", kind: "peer", intent: "next",
   order: 1, position: null, accepted_at: 1000, state: "waiting", turn: null, disposition: null, held: null, ...extra,

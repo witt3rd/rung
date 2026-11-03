@@ -1,4 +1,4 @@
-// The contract tests for the live view's doors (docs/rung-host-api.md: H3 reads, H5 events; ui/contract/AGENTS.md). Written before the mock they first ran against.
+// The contract tests for the live view's doors (docs/reference/rung-host-doors.md: H3 reads, H5 events; ui/contract/AGENTS.md). Written before the mock they first ran against.
 // The same file runs against a real gateway: RUNG_CONTRACT_URL=http://… RUNG_CONTRACT_INSTANCE=id npm run test:contract
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";

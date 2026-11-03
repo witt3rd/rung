@@ -21,7 +21,7 @@
 //! Nothing here blocks a thread for a client: [`Events::next`] is an async
 //! pull, so the transport's own flow control (a client that does not read)
 //! stops the reads, and a dropped client drops its file and subscription.
-//! Door shapes: `docs/rung-host-api.md` (H5).
+//! Door shapes: `docs/reference/rung-host-doors.md` (H5).
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};

@@ -6,7 +6,7 @@ const USAGE: &str = "usage: rung-gateway --config <gateway.yaml>\n\
 \n\
 The file names the listen address, an optional built app directory, the\n\
 variables that hold read-only tokens, and each instance's url and the\n\
-variable that holds its key (see docs/rung-host-api.md).";
+variable that holds its key (see docs/reference/rung-gateway.md).";
 
 #[tokio::main]
 async fn main() {

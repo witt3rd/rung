@@ -18,7 +18,8 @@ import sys
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "origin/master"
 # new path -> old path, for documents that moved out of docs/ root
-RETARGETS = {"../../reference/rung-host.md": "../../rung-host.md"}
+RETARGETS = {"../../reference/rung-host-doors.md": "../../rung-host-api.md",
+            "../../reference/rung-host.md": "../../rung-host.md"}
 DATED = re.compile(r"\n+#{2,6} [^\n]*\d{4}-\d{2}-\d{2}")
 
 

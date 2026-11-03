@@ -1,4 +1,4 @@
-/** The queue doors of a simulated host, with the real doors' bodies (docs/rung-host-api.md, "S1 — the queue"): `GET /v1/queue` is the
+/** The queue doors of a simulated host, with the real doors' bodies (docs/reference/rung-host-queue.md, "S1 — the queue"): `GET /v1/queue` is the
  *  record's items, each with a state, ordered for a page and paged; `POST /v1/queue` writes a `stimulus.accepted` line before it
  *  answers, and the key is the item's id, so a repeat adds once. A stopped instance lists and refuses an add. The same checks in
  *  test/contract-queue.test.ts run against the real gateway and host; this is a scripted stand-in, not a model of the desk: it holds

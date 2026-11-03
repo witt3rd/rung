@@ -1,5 +1,5 @@
 /** Folds over a record: pure functions from lines to what a screen shows. The same results are what a host's
- *  read doors are to return (docs/rung-host-api.md); until they exist the observer folds the recorded lines itself. */
+ *  read doors are to return (docs/reference/rung-host-doors.md); until they exist the observer folds the recorded lines itself. */
 import type { Line } from "./types.ts";
 import { familyQuestion, firstLine, sayChoice, sayFailure, sayHalt, sayWho, type StateWord, num } from "./words.ts";
 

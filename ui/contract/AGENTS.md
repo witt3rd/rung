@@ -1,7 +1,7 @@
 # The live-view contract (slice 1)
 
 What the live instance view asks of a host, through the gateway. Names and access classes are the ones in
-`docs/rung-host-api.md` (the gateway and the H3 read doors are written there, on master; the H5 event stream is on the host builder's branch).
+`docs/reference/rung-host-doors.md` (the gateway and the H3 read doors are written there, on master; the H5 event stream is on the host builder's branch).
 The bodies below were proposed before H3 landed; the real H3 doors are a superset (see the last section), and the **H5 bodies are still only
 proposed here**, to be agreed into that document by the host builder. Until they are, `test/contract.test.ts` is the executable statement, and it runs unchanged against the mock in
 `mock/` and against a real gateway (`RUNG_CONTRACT_URL=http://… RUNG_CONTRACT_INSTANCE=id npm run test:contract`).
@@ -40,7 +40,7 @@ large as `total`), `total` is exact, `next` is the next offset or null. Line num
 
 ## `GET /v1/events?after=N&partials=on|off|only`
 
-Written in `docs/rung-host-api.md`, H5 (on master): `open` first, then `record` frames (the only ones with an id) with replay from the cursor
+Written in `docs/reference/rung-host-doors.md`, H5 (on master): `open` first, then `record` frames (the only ones with an id) with replay from the cursor
 (`Last-Event-ID` beats `after`), `delta` partial frames while connected (never numbered, never replayed, never in the record), an `end`
 frame when the host stops (`stopped`, `down`, `damaged`, `error`), and keep-alive comments. A cursor past the record is 409 `cursor_ahead`;
 a bad query is 400. Record frames are pulled as the reader takes them (a slow reader holds only its place; nothing is dropped for it);
@@ -57,10 +57,10 @@ no event stream) is "Recorded, not followed", said once.
 
 ## `GET /api/instances`
 
-As in the gateway section of `docs/rung-host-api.md`; `summary` is the instance's `/v1/summary` as it answered. An instance that does
+As in the gateway section of `docs/reference/rung-gateway.md`; `summary` is the instance's `/v1/summary` as it answered. An instance that does
 not answer is listed with `reachable: false`.
 
-## Where the real doors are (docs/rung-host-api.md, H3 and H5)
+## Where the real doors are (docs/reference/rung-host-doors.md, H3 and H5)
 
 Both are on master. H3's `summary`, `record` and list are a superset of the bodies above: `summary` adds `id`, `name`, `word`, `day`,
 `start_command`, `waiting_for`, `boundary`, `turn_in_progress`, `queue`, `desk`, `governor`, `config`, `fold_hash`, `redaction`, `damaged`
@@ -71,11 +71,11 @@ and `problem`, and `state` may also be `Unreadable`; `record` adds `cursor`, `or
 `rung-gateway` (`npm run test:contract:real`, with the suite playing the host's part for the record and holding the state lock). Against the
 gateway every events check runs except the partial frames, which a gateway has only from a running host (it asks the host's own door): that
 check runs against the mock, whose frames are H5's. The mock is a stand-in for what the gateway cannot yet be shown to do here, not a
-source of shapes: where the two differ, the gateway and `docs/rung-host-api.md` win.
+source of shapes: where the two differ, the gateway and `docs/reference/rung-host-doors.md` win.
 
 ## `GET /v1/turns/{n}/context?call=k` (the strata page)
 
-On master (host S4; the body and its errors are in `docs/rung-host-api.md`, "S4"). The page reads it in `src/context/wire.ts`, the one place
+On master (host S4; the body and its errors are in `docs/reference/rung-host-doors.md`, "S4"). The page reads it in `src/context/wire.ts`, the one place
 that knows the body. What the page relies on: `turn`, `call`, `calls`, `epoch`, `model.{requested,served}`, `provider.{prompt_tokens,
 cached_tokens,cache_write_tokens}` (the provider's own count, the truth for the hit rate), `cache_event`, `rewritten`, `note`, `missing`
 (bands the host cannot show, with `note` the reason), `problems`, `boundaries`, and `bands` in wire order (tools, system, epoch, history, message,
@@ -95,7 +95,7 @@ from a turn that had no recall, and that is an empty band, not a gap. For an old
 
 ## The queue doors (S1)
 
-`GET` and `POST /api/i/{id}/v1/queue`. The bodies are the host's own, written in `docs/rung-host-api.md` ("S1 — the queue"); this
+`GET` and `POST /api/i/{id}/v1/queue`. The bodies are the host's own, written in `docs/reference/rung-host-queue.md` ("S1 — the queue"); this
 file only says what the page reads of them. `test/contract-queue.test.ts` is the executable statement. It runs against the mock (`mock/queue.ts`,
 which answers with the same bodies), and against a real host behind a real gateway (`mock/real-host.ts`: `cargo build -p rung-host -p
 rung-gateway`, then `RUNG_CONTRACT_TARGET=real-host npm run test:contract:queue`); against a gateway without the door (404) its checks skip, by name. The real run takes about four minutes: the host's calls are slowed so that a message waits long enough to be seen waiting, and two checks wait for a real boundary.

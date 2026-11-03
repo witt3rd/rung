@@ -19,7 +19,7 @@
 //!   ([`Redactor::from_env_names`], [`Redactor::add_env`]) or hands over
 //!   ([`Redactor::add_secret`]), in any shape and any context;
 //! - the **known key shapes**: the `SHAPES` table in `Scan::token_shape` is the
-//!   one list (restated nowhere else; `docs/rung-host-api.md` describes it),
+//!   one list (restated nowhere else; `docs/reference/rung-redaction.md` describes it),
 //!   plus AWS key ids, JWTs and Copilot tokens (`tid=…;exp=…;…`);
 //! - **webhook URL tokens** (the path after a known webhook host);
 //! - **private key blocks** (the body; the BEGIN/END frame stays);

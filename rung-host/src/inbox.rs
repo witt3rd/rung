@@ -484,7 +484,7 @@ impl InboxState {
     /// the door answers), a move to the item's own place a no-op, else a move.
     /// Nothing here writes; the host asks and writes under one lock.
     ///
-    /// The rules (`docs/rung-host-api.md`, S3): `id` and `before` must wait; they
+    /// The rules (`docs/reference/rung-host-queue.md`, S3): `id` and `before` must wait; they
     /// must be in one group ([`read_rank`]: the owner's `next` and `steer` items,
     /// the owner's `free` items, a peer's, the host's own; so a peer's item is
     /// never put above an owner's, nor a `free` item above a `next`, nor the

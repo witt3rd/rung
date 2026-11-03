@@ -20,7 +20,7 @@
 //! record keeping only sizes and line numbers (a few numbers per turn of the
 //! epoch); a second pass writes each band as its line is read, so what is held
 //! is one record line, however large the turn, the epoch or the history.
-//! Shapes: `docs/rung-host-api.md` (S4).
+//! Shapes: `docs/reference/rung-host-doors.md` (S4).
 
 use std::io::{self, Write};
 use std::path::Path;

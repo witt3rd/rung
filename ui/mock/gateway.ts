@@ -1,4 +1,4 @@
-/** The mock gateway: the routes of docs/rung-host-api.md's gateway section (health, instances, the /v1 pass-through that adds
+/** The mock gateway: the routes of docs/reference/rung-gateway.md's gateway section (health, instances, the /v1 pass-through that adds
  *  the instance's key and streams, the read-only role, the app) in front of simulated hosts. For the contract tests and for
  *  a live view you can open before the real gateway and the real doors exist. */
 import { createServer, request, type IncomingMessage, type Server, type ServerResponse } from "node:http";

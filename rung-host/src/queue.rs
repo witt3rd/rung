@@ -15,7 +15,7 @@
 //! changed it: [`crate::inbox::Order`]), then what is over (the most recently
 //! settled first). A page of it is cut by the caller (`offset`,
 //! `limit`), never by the host; every text is whole, and the whole answer goes
-//! through the shared redactor. Door shapes: `docs/rung-host-api.md` (S1).
+//! through the shared redactor. Door shapes: `docs/reference/rung-host-queue.md` (S1).
 
 use std::collections::BTreeMap;
 use std::path::Path;

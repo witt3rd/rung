@@ -5,7 +5,7 @@
 //! definition of what a credential looks like for the whole workspace
 //! ([`rung_agent_core::mcp::redact`] is the same redactor with its own marker);
 //! this module re-exports it and adds the host's canonical JSON line form.
-//! See `docs/rung-host-api.md` for the contract.
+//! See `docs/reference/rung-redaction.md` for the contract.
 
 use std::borrow::Cow;
 
