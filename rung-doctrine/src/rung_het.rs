@@ -1,6 +1,6 @@
 //! `rung-het-props.md`, encoded.
 //!
-//! **Generated once** from `docs/rung-het-props.md` by `docs/_migrate.py`, and the
+//! **Generated once** from `docs/rung-het-props.md` by a one-off migration script (retired; git history keeps it), and the
 //! source of truth from then on. The markdown is rendered from this; where the
 //! two disagree, this is right and the markdown is stale.
 //!
