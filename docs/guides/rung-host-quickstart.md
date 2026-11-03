@@ -1,9 +1,9 @@
 # rung-host quickstart
 
-Run the host (continuous, `idle_time_s: 0`; without that line it is in idle mode and rests between wakes, see [rung-host.md](rung-host.md)) on the scripted mock engine in five minutes. No
+Run the host (continuous, `idle_time_s: 0`; without that line it is in idle mode and rests between wakes, see [rung-host.md](../reference/rung-host.md)) on the scripted mock engine in five minutes. No
 network, no key. The mock answers deterministically, so this shows the
 plumbing (inbox, record, stop) rather than model quality. For the design,
-see [rung-host.md](rung-host.md).
+see [rung-host.md](../reference/rung-host.md).
 
 ## 1. Build
 
@@ -75,7 +75,7 @@ jq -r 'select(.kind=="outbox.queued") | .text' demo/state/record/*.ndjson
 
 `stimulus.accepted` means your message is durable; `stimulus.disposed` with
 `answered` means a turn handled it; `outbox.queued` is what the agent said
-back. Line kinds are tabulated in [rung-host.md](rung-host.md#the-record).
+back. Line kinds are tabulated in [rung-host.md](../reference/rung-host.md#the-record).
 
 Run it again with the same config and the host replays the record, then
 continues in a new epoch.
@@ -87,7 +87,7 @@ continues in a new epoch.
   exits 0. Remove the file before starting again.
 
 For memory (a provider container, `_meta.rung.memory`, `cached_tokens`) see
-[rung-memory-walkthrough.md](rung-memory-walkthrough.md).
+[rung-memory-quickstart.md](rung-memory-quickstart.md#worked-example-a-provider-in-a-container-one-owner-message).
 
 A CI test (`rung-host/tests/quickstart.rs`) runs the example config
 (`examples/rung-host-mock.yaml`), drops a message and reads the record. It

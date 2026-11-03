@@ -33,15 +33,15 @@ class Links(unittest.TestCase):
 
     def test_clean_repo_has_no_problems(self):
         self.assertEqual(self.run_check({
-            "README.md": "# Top\n[a](docs/a.md#sec-one) [self](#top) [web](https://x.y/z)\n"
+            "AGENTS.md": "# Top\n[a](docs/a.md#sec-one) [self](#top) [web](https://x.y/z)\n"
                          "See `docs/a.md` and `src/lib.rs`.\n",
-            "docs/a.md": "# A\n## Sec one\n<a id=\"named\"></a>\n[up](../README.md#top) [n](a.md#named)\n",
+            "docs/a.md": "# A\n## Sec one\n<a id=\"named\"></a>\n[up](../AGENTS.md#top) [n](a.md#named)\n",
             "src/lib.rs": "// see docs/a.md\n",
         }), [])
 
     def test_broken_link_and_anchor(self):
         p = self.run_check({
-            "README.md": "[a](docs/missing.md)\n[b](docs/a.md#nope)\n[c](#nowhere)\n",
+            "AGENTS.md": "[a](docs/missing.md)\n[b](docs/a.md#nope)\n[c](#nowhere)\n",
             "docs/a.md": "# A\n",
         })
         self.assertEqual(len(p), 3, p)
@@ -50,7 +50,7 @@ class Links(unittest.TestCase):
         self.assertIn("broken anchor: #nowhere", p[2])
 
     def test_backtick_path(self):
-        p = self.run_check({"README.md": "`src/gone.rs` and `src/here.rs` and `a/b` and `x/y.rs`\n",
+        p = self.run_check({"AGENTS.md": "`src/gone.rs` and `src/here.rs` and `a/b` and `x/y.rs`\n",
                             "src/here.rs": ""})
         self.assertEqual(len(p), 1, p)
         self.assertIn("src/gone.rs", p[0])
@@ -84,6 +84,11 @@ class Links(unittest.TestCase):
             "a/Cargo.toml": "", "a/AGENTS.md": "# a\n", "b/Cargo.toml": "",
         })
         self.assertEqual(probs, ["b/Cargo.toml:1: workspace member has no AGENTS.md (b/AGENTS.md)"])
+
+    def test_no_readme_anywhere(self):
+        probs = self.run_check({"a/README.md": "# a\n", "ui/node_modules/p/README.md": "# p\n",
+                                "b/AGENTS.md": "# b\n"})
+        self.assertEqual(probs, ["a/README.md:1: no README.md anywhere: this is an agents-only library, the file is AGENTS.md"])
 
     def test_real_repo_is_clean(self):
         root = Path(__file__).resolve().parent.parent

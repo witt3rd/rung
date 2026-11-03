@@ -135,6 +135,41 @@ git tags only.
   lane's needs are in `gui/rung-ui/AGENTS.md`. The old `ui/` is untouched.
 
 ### Changed (docs overhaul)
+- No `README.md` anywhere: every remaining `README.md` is now `AGENTS.md` (`git mv`):
+  `docs/`, `docs/records/`, `docs/records/rung-host/`, `.het/`,
+  `.het/rung-questions/judgments/`, `.het/rung-questions/questions/`, `ui/`,
+  `ui/contract/`, `rung/examples/`, `examples/notes/`, `examples/reminders/`,
+  `rung-memory/tests/fixtures/recall/`, `.archive/.gl/meta/`. Links and source
+  comments follow; the docket and the records keep their text except for the
+  link target `README.md` becoming `AGENTS.md` (`docs/_records_guard.py` allows
+  exactly that retarget). `docs/_links.py` now fails any tracked `README.md`.
+  The judgment reader skips `AGENTS.md` instead of `README.md`.
+- Guides move into `docs/guides/` (`git mv`): `rung-host-quickstart.md`,
+  `rung-memory-quickstart.md`, `shadow-week.md`. `rung-memory-walkthrough.md`
+  is folded into the memory quickstart as its worked example. `docs/AGENTS.md`
+  states the layout rules.
+- Reference move (`git mv`): `docs/rung-host.md`, `rung-agent-oauth.md`,
+  `rung-agent-cache.md` and `rung-memory.md` into `docs/reference/`;
+  `theory-of-theories-in-context.md` into `docs/design/`. The host's Profiles
+  section (design, not built) is now `docs/design/rung-host-profiles.md`. Links
+  and source comments follow; record files that link to `rung-host.md` follow it (the records guard reads
+  the retargeted link as unchanged).
+- `docs/rung-host-api.md` split into four reference files by topic, text and
+  section codes unchanged (`git mv`, then cut): `docs/reference/rung-host-doors.md`
+  (H1 lock, H2 registry, H3 read doors, H5 events, S4 context, S8 turns, and the
+  map of all five), `rung-host-queue.md` (S1, S3, S2, S7), `rung-gateway.md`
+  (H9) and `rung-redaction.md` (H4). Citations in code and docs follow.
+- New guides: `docs/guides/rung-agent.md` (flags, `config.yaml`, environment
+  table, OAuth login), `rung-gateway.md` (run a gateway) and `release.md`.
+  `docs/_coverage.py` (CI, `propositions` job) fails when a `RUNG_*` variable
+  the code reads or a `rung-agent` flag is in no guide and not on its internal
+  list.
+- Skill and ui split: the Harbor suite section of `skills/rung/SKILL.md` is now
+  `rung-agent/python/AGENTS.md` and its live-run section `rung-host/live/AGENTS.md`;
+  the per-slice behaviour of the page (slices 1, 5, S1) moved from
+  `ui/AGENTS.md` to `docs/records/rung-ui/ui-slices.md`, leaving how to run and
+  the rules.
+- Retired `docs/_migrate.py` (the one-off props migration); three doctrine source comments no longer name it.
 - Records moves (`git mv`, no stubs; text unchanged, old to new in
   `docs/records/README.md`): the three dated measurement notes
   (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,

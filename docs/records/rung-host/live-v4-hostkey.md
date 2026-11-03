@@ -144,4 +144,4 @@ not see a step.
 
 ## Moved, 2026-10-29
 
-This record moved from `docs/rung-host-live-v4-hostkey.md` to this directory; its text above is unchanged apart from relative links. The rule it supports is stated in [`rung-host.md`](../../rung-host.md).
+This record moved from `docs/rung-host-live-v4-hostkey.md` to this directory; its text above is unchanged apart from relative links. The rule it supports is stated in [`rung-host.md`](../../reference/rung-host.md).

@@ -238,7 +238,7 @@ formalism's
 The theory that declares it is `rung-std/src/questions.rs`, which holds the
 seven kinds as its own `EdgeKind` and is filled by two carriers —
 `questions/` (via `rung-het/tests/questions_of_rung.rs`) and a synthetic
-decision docket. `questions/README.md` is the operational quickstart.
+decision docket. `questions/AGENTS.md` is the operational quickstart.
 
 | edge type | what the pushforward does |
 |---|---|

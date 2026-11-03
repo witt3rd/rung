@@ -2,7 +2,7 @@
 # Reminder agent: the host's calendar fires an owner entry into the agent.
 # Runs on the host's mock engine: no key, no network. Live: replace
 # `engine: {kind: mock}` in reminders.yaml with `kind: agent`, `base_url`
-# and `api_key_env` (see docs/rung-host-quickstart.md).
+# and `api_key_env` (see docs/guides/rung-host-quickstart.md).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 bin=${RUNG_HOST:-$here/../../target/debug/rung-host}

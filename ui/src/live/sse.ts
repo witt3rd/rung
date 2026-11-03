@@ -1,6 +1,6 @@
 /** A server-sent event parser, fed text in any chunking. An event is complete at a blank line; a half frame waits for
  *  the rest, and a frame cut off by a dropped connection is never delivered. `id` is that event's own: it is not carried over
- *  to the next event, because a delta has none (ui/contract/README.md). Lines starting with a colon are comments (keep-alives). */
+ *  to the next event, because a delta has none (ui/contract/AGENTS.md). Lines starting with a colon are comments (keep-alives). */
 export interface SseEvent {
   event: string;
   data: string;

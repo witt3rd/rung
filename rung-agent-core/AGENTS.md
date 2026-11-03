@@ -7,6 +7,6 @@ Repo charter: [`../AGENTS.md`](../AGENTS.md).
 
 **Read.**
 - The CLI, ACP and configuration notes: [`../rung-agent/AGENTS.md`](../rung-agent/AGENTS.md).
-- OAuth contract: [`docs/rung-agent-oauth.md`](../docs/rung-agent-oauth.md); prompt cache: [`docs/rung-agent-cache.md`](../docs/rung-agent-cache.md).
+- OAuth contract: [`docs/reference/rung-agent-oauth.md`](../docs/reference/rung-agent-oauth.md); prompt cache: [`docs/reference/rung-agent-cache.md`](../docs/reference/rung-agent-cache.md).
 
 **Check.** `cargo test -p rung-agent-core --locked`

@@ -159,7 +159,7 @@ class RealWorkspace(unittest.TestCase):
         self.assertEqual((r["rust"], r["scope"]), ("false", ""))
 
     def test_spec_docs_run_only_the_crates_that_read_them(self):
-        r = self.plan("docs/rung-host.md")
+        r = self.plan("docs/reference/rung-host.md")
         self.assertEqual((r["full"], r["rung"], r["agents"]), ("false", "false", "false"))
         for crate in ("rung-doctrine", "rung-driver"):
             self.assertIn(crate, r["packages"].split(","))
@@ -188,7 +188,7 @@ class RealWorkspace(unittest.TestCase):
         self.assertLessEqual(c.GUI_NEEDS, names)
         for f in ("rung-gateway/src/lib.rs", "rung-host/src/lib.rs"):
             self.assertEqual(self.plan(f)["gui"], "true", f)
-        self.assertEqual(self.plan("docs/rung-host.md")["gui"], "false")
+        self.assertEqual(self.plan("docs/reference/rung-host.md")["gui"], "false")
         self.assertEqual(self.plan("gui/rung-client/src/lib.rs")["gui"], "true")
 
     def test_every_extra_input_names_a_workspace_crate(self):

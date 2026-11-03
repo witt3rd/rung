@@ -231,4 +231,4 @@ a one-line body is readable by character range; a restart removes nothing.
 
 ## Moved, 2026-10-29
 
-This record moved from `docs/rung-host-web-fetch-spill.md` to this directory; its text above is unchanged apart from relative links. Design record; behaviour today is in [`rung-host.md`](../../rung-host.md) (fetched pages). Superseded: the hook point `WebReader::fetch` is now `fetch_into` and the body is streamed to the file as it arrives, not held whole in memory.
+This record moved from `docs/rung-host-web-fetch-spill.md` to this directory; its text above is unchanged apart from relative links. Design record; behaviour today is in [`rung-host.md`](../../reference/rung-host.md) (fetched pages). Superseded: the hook point `WebReader::fetch` is now `fetch_into` and the body is streamed to the file as it arrives, not held whole in memory.

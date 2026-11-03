@@ -87,4 +87,4 @@ host change, not free-time material.
 
 ## Moved, 2026-10-29
 
-This record moved from `docs/rung-host-free-time.md` to this directory; its text above is unchanged apart from relative links. The idle rule's config key and default (off) are in [`rung-host.md`](../../rung-host.md); [v5](live-v5-idle-rule.md) found it not exercised.
+This record moved from `docs/rung-host-free-time.md` to this directory; its text above is unchanged apart from relative links. The idle rule's config key and default (off) are in [`rung-host.md`](../../reference/rung-host.md); [v5](live-v5-idle-rule.md) found it not exercised.

@@ -1,6 +1,6 @@
 /** What was sent to the model for one model call, as stacked bands in the order the model sees them (wire order).
  *  One shape, whether the host's context door gave it (`source: "door"`) or the page rebuilt what it could from the record
- *  (`source: "record"`). The door's body is proposed in contract/README.md. */
+ *  (`source: "record"`). The door's body is proposed in contract/AGENTS.md. */
 
 export type BandId = "tools" | "system" | "epoch" | "history" | "recall" | "message" | "this_turn";
 

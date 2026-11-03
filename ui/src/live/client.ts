@@ -9,7 +9,7 @@ import { SseParser } from "./sse.ts";
 export const STATUSES = ["connecting", "catching up", "following", "reconnecting", "unavailable", "ended"] as const;
 export type Status = (typeof STATUSES)[number];
 
-/** A partial frame (docs/rung-host-api.md, H5): short-lived, never numbered, never replayed. `turn` and `call` are 0 on `behind`. */
+/** A partial frame (docs/reference/rung-host-doors.md, H5): short-lived, never numbered, never replayed. `turn` and `call` are 0 on `behind`. */
 export type Delta =
   | { kind: "text"; turn: number; call: number; text: string }
   | { kind: "tool_call"; turn: number; call: number; id: string; name: string }

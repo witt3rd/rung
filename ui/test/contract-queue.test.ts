@@ -1,4 +1,4 @@
-// The queue doors, as the host serves them (docs/rung-host-api.md, "S1 — the queue"): GET and POST /v1/queue through the gateway.
+// The queue doors, as the host serves them (docs/reference/rung-host-queue.md, "S1 — the queue"): GET and POST /v1/queue through the gateway.
 // The mock in ../mock answers with the doors' own bodies; the same file runs against the real gateway and host
 // (RUNG_CONTRACT_TARGET=real-host, or RUNG_CONTRACT_URL=http://… RUNG_CONTRACT_INSTANCE=id). Where the door is not there (404) the checks
 // skip, by name.

@@ -12,8 +12,8 @@ product, not kernel. Flags and config keys are documented by `rung-agent --help`
 (source: `rung-agent-core/src/args.rs`).
 
 OAuth is the second credential kind: `rung-agent auth login <provider>` (GitHub
-Copilot first). Contract: [`docs/rung-agent-oauth.md`](../docs/rung-agent-oauth.md).
-The prompt cache note: [`docs/rung-agent-cache.md`](../docs/rung-agent-cache.md).
+Copilot first). Contract: [`docs/reference/rung-agent-oauth.md`](../docs/reference/rung-agent-oauth.md).
+The prompt cache note: [`docs/reference/rung-agent-cache.md`](../docs/reference/rung-agent-cache.md).
 
 ## ACP
 

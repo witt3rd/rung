@@ -28,7 +28,7 @@
 //!
 //! OAuth ([`oauth`]): `llm.auth.oauth: {provider, profile}` replaces
 //! `api_key_env` with a login made once (`rung-agent auth login
-//! github-copilot`) and a bearer minted on demand. `docs/rung-agent-oauth.md`.
+//! github-copilot`) and a bearer minted on demand. `docs/reference/rung-agent-oauth.md`.
 //!
 //! Turn check ([`turn_check`]): off by default. `turn_check.backend: jev` in
 //! the same file, or `RUNG_TURN_CHECK=jev`, has Jev read each finished turn
@@ -38,7 +38,7 @@
 //! `memory.provider` picks `external` (the caller owns memory; rung keeps
 //! none), `baseline` (lexical, local, offline), or `mcp:<url or command>` (a
 //! provider process speaking the `rung-memory/1` contract,
-//! `docs/rung-memory.md`).
+//! `docs/reference/rung-memory.md`).
 
 pub mod acp;
 pub mod acp_http;

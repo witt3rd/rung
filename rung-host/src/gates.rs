@@ -10,7 +10,7 @@
 //! cannot meet is reported as failed, never loosened.
 //!
 //! The record vocabulary these gates read is documented in
-//! `docs/rung-host.md` ("The record"). Every evaluator returns a
+//! `docs/reference/rung-host.md` ("The record"). Every evaluator returns a
 //! [`GateResult`] with the measured numbers, so a test prints the evidence
 //! whether it passes or not.
 

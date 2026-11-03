@@ -139,7 +139,7 @@ pub fn read_all(dir: &Path) -> Vec<Record> {
         .flatten()
         .map(|e| e.path())
         .filter(|p| p.extension().is_some_and(|x| x == "md"))
-        .filter(|p| p.file_name().is_some_and(|n| n != "README.md"))
+        .filter(|p| p.file_name().is_some_and(|n| n != "AGENTS.md"))
         .filter_map(|p| {
             let text = std::fs::read_to_string(&p).ok()?;
             parse(&text, &p.file_name()?.to_string_lossy())

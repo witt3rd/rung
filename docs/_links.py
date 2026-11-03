@@ -10,7 +10,8 @@ Checks, over every tracked `.md` (not rung-host/live/runs, not the generated ope
   4. documentation paths cited in tracked .rs/.py/.yml files exist;
   5. no hand-kept test counts of the form `(N tests)` in living documents
      (they drift on every test added; link to the test file instead);
-  6. every workspace member in Cargo.toml has an AGENTS.md beside it.
+  6. every workspace member in Cargo.toml has an AGENTS.md beside it;
+  7. no tracked file is named README.md (AGENTS.md is the one agent file name).
 Known problems still to fix are listed in docs/_links.allow, one
 `path: message-prefix  # reason` per line; the list only shrinks.
 Run locally:  docs/_links.py      Self-test:  scripts/test_links.py
@@ -152,6 +153,8 @@ def check(root, files=None):
                     if not exists(ref):
                         probs.append(f"{f}:{n}: cites missing document: {ref}")
     probs.extend(crate_fronts(root, fileset))
+    probs.extend(f"{f}:1: no README.md anywhere: this is an agents-only library, the file is AGENTS.md"
+                 for f in sorted(live) if Path(f).name.lower() == "readme.md")
     return probs
 
 

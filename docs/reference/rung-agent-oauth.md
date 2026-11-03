@@ -1,6 +1,6 @@
 # rung-agent — OAuth credentials
 
-**Status: informative** (a crate design, `docs/README.md`). The propositions
+**Status: informative** (a crate design, `docs/AGENTS.md`). The propositions
 below are numbered `O1…`; each names the test that proves it, or says it is
 not proven. Where this page and the code disagree, the test is right.
 
@@ -137,7 +137,7 @@ message carries the command that fixes it (`rung-agent auth login
 github-copilot --profile <p>`) and no token. It is not retried, and a process
 that has seen GitHub reject a stored token asks GitHub no more until that
 login changes. A host reads an auth failure as `blocked`: it probes slowly,
-owns one message per incident and never exits (`docs/rung-host.md`, the
+owns one message per incident and never exits (`docs/reference/rung-host.md`, the
 governor).
 *Proof:* `rung-agent-core/tests/oauth.rs::a_revoked_login_is_an_actionable_auth_failure_and_is_not_retried_hot`,
 `rung-agent-core/tests/oauth.rs::a_missing_login_says_how_to_make_one`,
@@ -161,7 +161,7 @@ and marked unsupported.
 ### Not leaking it
 
 **O15. The redactor knows the shapes.** The credential redactor (H4,
-`docs/rung-host-api.md`) removes GitHub's token prefixes (`ghp_ gho_ ghu_ ghs_
+`docs/reference/rung-redaction.md`) removes GitHub's token prefixes (`ghp_ gho_ ghu_ ghs_
 ghr_ github_pat_`) and a Copilot token (`tid=…;exp=…;…`, trailing sentence
 punctuation excluded), in text, in every record line, partial frame and door
 frame, in time linear in the text.

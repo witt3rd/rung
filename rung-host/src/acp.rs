@@ -1009,7 +1009,7 @@ impl EventsDoor {
     /// `GET /v1/events`: the record from the client's cursor, then as it is
     /// written, with the running turn's partial frames. Any of the host's role
     /// tokens may read it (a token that names no role is refused 401); every
-    /// frame is redacted. Shapes: `docs/rung-host-api.md` (H5).
+    /// frame is redacted. Shapes: `docs/reference/rung-host-doors.md` (H5).
     pub fn routes(self: &Arc<Self>) -> rung_agent_core::acp_http::Routes {
         use rung_agent_core::acp_http::{RouteBody, RouteReply, RouteRequest};
         let door = self.clone();
@@ -1230,7 +1230,7 @@ fn valid_key(k: &str) -> Result<(), String> {
 /// waits and the one thing being answered, computed from the record;
 /// `POST /v1/queue` adds a message through the same acceptance as ACP's
 /// `_rung/stimulus` from an owner channel, and answers only once the item is on
-/// disk. Only an owner token may use it. Shapes: `docs/rung-host-api.md` (S1).
+/// disk. Only an owner token may use it. Shapes: `docs/reference/rung-host-queue.md` (S1).
 pub struct QueueDoor {
     acp: Arc<Acp>,
     state_dir: PathBuf,

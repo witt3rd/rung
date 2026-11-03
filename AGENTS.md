@@ -98,7 +98,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 cargo run -q -p rung-doctrine --bin render -- --check
 docs/_props.py check && docs/_props.py cited
-docs/_consumer_guard.py && docs/_records_guard.py && docs/_links.py
+docs/_consumer_guard.py && docs/_records_guard.py && docs/_links.py && docs/_coverage.py
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
 ```
 
@@ -117,9 +117,9 @@ something absent. Required CI check: `check`.
 | category | `docs/rung-ct-props.md` |
 | Het | `docs/rung-het-props.md` |
 | fleet (crate, growing by phase) | `docs/rung-fleet-props.md`, `docs/rung-fleet-notes.md` |
-| host, gateway doors | `docs/rung-host.md`, `docs/rung-host-api.md` |
+| host, gateway doors | `docs/reference/rung-host.md`, `docs/reference/rung-host-doors.md` (+ `-queue`, `rung-gateway`, `rung-redaction`) |
 | host idle mode | `docs/rung-host-idle-props.md` |
-| OAuth credentials | `docs/rung-agent-oauth.md` |
+| OAuth credentials | `docs/reference/rung-agent-oauth.md` |
 | principals / questions (informative) | `docs/rung-std/` |
 | conformance view and counts | `docs/conformance.md` |
 | questions docket | `.het/rung-questions/` |

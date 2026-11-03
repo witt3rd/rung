@@ -6,7 +6,7 @@ Repo charter: [`../AGENTS.md`](../AGENTS.md).
 **Status.** Product library. `publish = false`.
 
 **Read.**
-- Contract: [`docs/rung-memory.md`](../docs/rung-memory.md); first steps: [`docs/rung-memory-quickstart.md`](../docs/rung-memory-quickstart.md).
+- Contract: [`docs/reference/rung-memory.md`](../docs/reference/rung-memory.md); first steps: [`docs/guides/rung-memory-quickstart.md`](../docs/guides/rung-memory-quickstart.md).
 - Recall-quality fixtures: `tests/fixtures/recall/`.
 
 **Check.** `cargo test -p rung-memory --locked`

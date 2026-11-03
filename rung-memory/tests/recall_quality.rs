@@ -1,5 +1,5 @@
 //! Recall quality of the baseline (BM25) provider on the fixture set.
-//! Fixtures: `tests/fixtures/recall/` (see its README for the recipe to score
+//! Fixtures: `tests/fixtures/recall/` (see its AGENTS.md for the recipe to score
 //! your own notes via `RUNG_RECALL_FIXTURES`).
 
 use std::fs;
