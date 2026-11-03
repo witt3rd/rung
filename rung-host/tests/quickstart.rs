@@ -1,4 +1,4 @@
-//! The quickstart (docs/rung-host-quickstart.md) runs as written: the
+//! The quickstart (docs/guides/rung-host-quickstart.md) runs as written: the
 //! example config, a dropped `*.msg`, the record, the stop file. Mock
 //! engine; no key, no network.
 
