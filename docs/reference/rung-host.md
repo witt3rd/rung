@@ -9,7 +9,7 @@ This document is informative. It describes the host: the loop, free time,
 the desk, the pack, ACP outward, the startup-handoff ladder, the engine
 adapter, the model ladder, the governor, owner intent, stop and restart, the
 record and the gates. The wire contract for a UI or gateway is
-[`rung-host-api.md`](../rung-host-api.md); a five-minute run is
+[`rung-host-doors.md`](rung-host-doors.md); a five-minute run is
 [`guides/rung-host-quickstart.md`](../guides/rung-host-quickstart.md); dated live runs,
 findings and design records are in [`records/rung-host/`](../records/rung-host/AGENTS.md).
 Delegation to workers is a final extension; only its extension point exists
@@ -270,7 +270,7 @@ it stops; the state directory's lock (`host.lock`) says whether it lives.
 and the record's last line: `running`, `stopped` (the last line is `halted`),
 `down` (the lock is free and the last line is not a halt: it died), or
 `unreadable`. A dead instance is listed, never dropped. The file shapes,
-the derivation and the JSON are in `docs/rung-host-api.md`.
+the derivation and the JSON are in `docs/reference/rung-host-doors.md`.
 
 For a bounded run with real stimuli:
 
@@ -464,7 +464,7 @@ then `free` in the order sent (it is read later); inside each, as the owner's mo
 place): the turn header lists the admitted items in it (an owner's item is above a
 peer's whatever their ids sort like), the `stimulus.admitted` ids are in it, the queue
 door lists the waiting ones in it, and a move stays inside one group of it, so a
-`free` item is not moved among the `next` ones (`docs/rung-host-api.md`, S2 and S3). A
+`free` item is not moved among the `next` ones (`docs/reference/rung-host-queue.md`, S2 and S3). A
 message's text in the header, from any sender, is whole: runs of white space become one
 space (an item cannot add header lines of its own), nothing is cut; the shared redactor
 still runs on it. No caps on content in the model header: task, title, done-when, digest and next-step text are whole too.
@@ -543,7 +543,7 @@ named `wall_*` are wall-clock measurements and differ between runs.
 | `stimulus.admitted` | `turn`, `boundary`, `ids` (shown now), `digests` (one header line each) |
 | `stimulus.requeued` | `ids`, `why` |
 | `stimulus.disposed` | `id`, `disposition` (`answered`, `digested`, `withdrawn`, `control`), `turn` |
-| `queue.moved` | `id`, `before` (an item id, or null for the end of its group), `key`? — the owner moved a waiting item; the waiting order is the fold of acceptance and these lines (`docs/rung-host-api.md`, S3) |
+| `queue.moved` | `id`, `before` (an item id, or null for the end of its group), `key`? — the owner moved a waiting item; the waiting order is the fold of acceptance and these lines (`docs/reference/rung-host-queue.md`, S3) |
 | `channel.opened` | `session`, `role`, `channel` (an ACP channel) |
 | `calendar.added` / `.fired` / `.skipped` / `.removed` | an entry; a fire has `id`, `due`, `late_by_ms`, `missed`, `firm`, `item_id` |
 | `desk.ask` | one ask of the decider: `boundary`, `families`, `backend`, `questions`, `outcome` (`answered`, `timeout`, `capped`, `killed`, `undecided:<why>`), `est_usd`, `cost_usd`, `wall_us`; an ask that may have been billed counts its estimate against the day's cap |
@@ -671,4 +671,4 @@ How the loop does it (`rung-host/src/presence.rs`):
   and is never a rest; an idle host spends no requests.
 - A resting host reads as `Idle until <time>` in the gateway's summary and
   list, and `rung-host ls` shows `idle until <time>` for it (its word stays
-  `running`); both come from the record alone ([`rung-host-api.md`](../rung-host-api.md)).
+  `running`); both come from the record alone ([`rung-host-doors.md`](rung-host-doors.md)).

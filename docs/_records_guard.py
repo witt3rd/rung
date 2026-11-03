@@ -18,7 +18,8 @@ import sys
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "origin/master"
 # new path -> old path, for documents that moved out of docs/ root
-RETARGETS = {"../../reference/rung-host.md": "../../rung-host.md"}
+RETARGETS = {"../../reference/rung-host-doors.md": "../../rung-host-api.md",
+            "../../reference/rung-host.md": "../../rung-host.md"}
 DATED = re.compile(r"\n+#{2,6} [^\n]*\d{4}-\d{2}-\d{2}")
 
 
@@ -46,6 +47,7 @@ def main():
         new = new.replace("README.md", "AGENTS.md")
         for moved, was in RETARGETS.items():
             new = new.replace(moved, was)
+            old = old.replace(moved, was)
         if new == old:
             continue
         if not new.startswith(old):

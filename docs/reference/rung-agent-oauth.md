@@ -161,7 +161,7 @@ and marked unsupported.
 ### Not leaking it
 
 **O15. The redactor knows the shapes.** The credential redactor (H4,
-`docs/rung-host-api.md`) removes GitHub's token prefixes (`ghp_ gho_ ghu_ ghs_
+`docs/reference/rung-redaction.md`) removes GitHub's token prefixes (`ghp_ gho_ ghu_ ghs_
 ghr_ github_pat_`) and a Copilot token (`tid=…;exp=…;…`, trailing sentence
 punctuation excluded), in text, in every record line, partial frame and door
 frame, in time linear in the text.

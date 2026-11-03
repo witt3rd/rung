@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadLiveIndex } from "../src/data/source.ts";
 
-// The rows the real gateway lists (docs/rung-host-api.md, H3): a native row has `word`, `source`, `start_command`, and a summary that is the fold.
+// The rows the real gateway lists (docs/reference/rung-host-doors.md, H3): a native row has `word`, `source`, `start_command`, and a summary that is the fold.
 const row = (over: Record<string, unknown>) => ({ id: "alpha", name: "Alpha", source: "registry", reachable: true, word: "stopped", last_at: 5, start_command: null, error: null, summary: null, ...over });
 const fold = (over: Record<string, unknown> = {}) => ({ contract: 1, id: "alpha", name: "Alpha", word: "stopped", state: "Stopped", doing: "Reached its run limit.", needs_you: false, turn: 4, last_seq: 9, last_at: 1791208194000, requests: 1, quota: 400, spend_usd_day: 0, day: "2026-10-05", ...over });
 const fetchOf = (instances: unknown[]) => (async () => new Response(JSON.stringify({ instances, registry_error: null }), { status: 200 })) as typeof fetch;

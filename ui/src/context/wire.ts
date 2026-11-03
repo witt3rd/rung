@@ -1,4 +1,4 @@
-/** The host's context door, `GET /v1/turns/{n}/context?call=k` (docs/rung-host-api.md, S4), read into the page's one shape.
+/** The host's context door, `GET /v1/turns/{n}/context?call=k` (docs/reference/rung-host-doors.md, S4), read into the page's one shape.
  *  A body that does not fit is refused in words, never half drawn: a band that is wrong would read as what the model was sent.
  *  Every text passes the same redactor as everything a host sends (a second line: the host redacts first) and is never shortened. */
 import { redact } from "../live/wire.ts";

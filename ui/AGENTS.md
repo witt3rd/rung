@@ -26,7 +26,7 @@ keeps the number of the last line it applied and resumes from it, a store that s
 overlay that lays the running turn's streamed text and tool over the record). The host's own `/v1/summary` decides the state word.
 
 The doors' bodies: the gateway (H9), the list, summary and record doors (H3) and the event stream (H5) are on master and written in
-`docs/rung-host-api.md`; `contract/AGENTS.md` says what the page asks of them and where they are a
+`docs/reference/rung-host-doors.md`; `contract/AGENTS.md` says what the page asks of them and where they are a
 superset of what it first proposed. `test/contract.test.ts` states them as checks and runs unchanged against
 `mock/` (a gateway and simulated hosts in this directory) and against a real gateway:
 
@@ -81,7 +81,7 @@ answered and what waits (position, text whole with "Show more" for a long one, w
 group on top with one line saying peer items can never be moved above them, and a peer item the desk holds says why. A stopped instance shows
 "Start the instance first." and Send is not offered. In the turn view an item the owner sent wears a filled Owner tag, whether it was a steer or a
 task and when it was sent, and one that came in while another turn was running shows the moment the agent saw it. Everything else on the page still
-only reads. The doors are the host's (`docs/rung-host-api.md`, "S1 — the queue"); the mock (`mock/queue.ts`) answers with the same bodies, and
+only reads. The doors are the host's (`docs/reference/rung-host-queue.md`, "S1 — the queue"); the mock (`mock/queue.ts`) answers with the same bodies, and
 `test/contract-queue.test.ts` runs against the mock and against a real host behind a real gateway (`mock/real-host.ts`). `npm run queue-proof` runs the
 page against the mock in a real browser, and `npm run real-queue-proof` against the real host and gateway, with captures at 390, 1280, 1920 and 2878.
 

@@ -18,7 +18,7 @@
 //! ([`crate::redact`]) before it is returned; the record on disk stays
 //! verbatim. A record that is damaged is read as far as it is intact and says
 //! where it stops ([`Damaged`]); a missing or unreadable one is a [`DoorError`],
-//! never a panic. Door shapes: `docs/rung-host-api.md` (H3).
+//! never a panic. Door shapes: `docs/reference/rung-host-doors.md` (H3).
 
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};

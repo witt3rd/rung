@@ -6,7 +6,7 @@
 //! answer back untouched. The keys live only here: no page and no response
 //! carries one. The tailnet is the boundary, so there is no login; a request
 //! that presents a read-only token may only read. Door shapes:
-//! `docs/rung-host-api.md`.
+//! `docs/reference/rung-gateway.md`.
 
 pub mod config;
 pub mod doors;

@@ -1,5 +1,5 @@
 /** Where the observer gets its data. Slice 0 reads recorded files served beside the app; a running host's
- *  doors (docs/rung-host-api.md) replace this one module, and nothing above it changes. */
+ *  doors (docs/reference/rung-host-doors.md) replace this one module, and nothing above it changes. */
 import { parseRecord } from "../record/parse.ts";
 import type { Line } from "../record/types.ts";
 import type { Summary } from "../record/folds.ts";

@@ -18,4 +18,4 @@
 6. Files starting with `_` are tooling, not documents.
 
 The Rust API reference is rustdoc; the host's wire contract is prose in
-`rung-host-api.md`.
+`reference/rung-host-doors.md` (with `rung-host-queue.md`, `rung-gateway.md`, `rung-redaction.md`).

@@ -145,6 +145,11 @@ git tags only.
   section (design, not built) is now `docs/design/rung-host-profiles.md`. Links
   and source comments follow; record files that link to `rung-host.md` follow it (the records guard reads
   the retargeted link as unchanged).
+- `docs/rung-host-api.md` split into four reference files by topic, text and
+  section codes unchanged (`git mv`, then cut): `docs/reference/rung-host-doors.md`
+  (H1 lock, H2 registry, H3 read doors, H5 events, S4 context, S8 turns, and the
+  map of all five), `rung-host-queue.md` (S1, S3, S2, S7), `rung-gateway.md`
+  (H9) and `rung-redaction.md` (H4). Citations in code and docs follow.
 - Records moves (`git mv`, no stubs; text unchanged, old to new in
   `docs/records/README.md`): the three dated measurement notes
   (`rung-agent-cache-live-memory`, `rung-decision-model-replay`,

@@ -1,5 +1,5 @@
 // The contract test for the host's context door, GET /v1/turns/{n}/context?call=k (ui/contract/AGENTS.md, "Proposed").
-// The door is the host's S4 (docs/rung-host-api.md): the real gateway serves it over an instance's state directory. A gateway that
+// The door is the host's S4 (docs/reference/rung-host-doors.md): the real gateway serves it over an instance's state directory. A gateway that
 // does not serve it (a 404 on a turn the record holds) skips every check here, by name. Run it with:
 //   cargo build -p rung-gateway && RUNG_CONTRACT_TARGET=real npm run test:contract:context     (the suite plays the host's part for the record)
 //   RUNG_CONTRACT_URL=http://… RUNG_CONTRACT_INSTANCE=id npm run test:contract:context          (any gateway; a real host's record shows the whole bands)

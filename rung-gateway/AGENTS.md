@@ -6,6 +6,6 @@ Repo charter: [`../AGENTS.md`](../AGENTS.md).
 **Status.** Product binary and library. `publish = false`.
 
 **Read.**
-- Door shapes and configuration: [`docs/rung-host-api.md`](../docs/rung-host-api.md). The page it serves is `ui/`.
+- Door shapes and configuration: [`docs/reference/rung-gateway.md`](../docs/reference/rung-gateway.md). The page it serves is `ui/`.
 
 **Check.** `cargo test -p rung-gateway --locked`
