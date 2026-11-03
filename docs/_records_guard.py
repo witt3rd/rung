@@ -47,6 +47,7 @@ def main():
         new = new.replace("README.md", "AGENTS.md")
         for moved, was in RETARGETS.items():
             new = new.replace(moved, was)
+            old = old.replace(moved, was)
         if new == old:
             continue
         if not new.startswith(old):
