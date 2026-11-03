@@ -2,7 +2,7 @@
 
 Informative. The gates are defined in `rung-host/src/gates.rs` (thresholds
 and evaluators, committed before the host's first run) and the design is
-in [`rung-host.md`](../../rung-host.md). Every run here is seeded, offline and
+in [`rung-host.md`](../../reference/rung-host.md). Every run here is seeded, offline and
 free: a scripted mock engine, a fake world, a fault injector, a simulated
 clock (or the real clock for the process gates), no network, no live
 model, no live Jev.
@@ -119,4 +119,4 @@ No threshold changed. Seven evaluator changes, each named in the commit that mad
 
 ## Moved, 2026-10-29
 
-This record moved from `docs/rung-host-results.md` to this directory; its text above is unchanged apart from relative links. This is slice 1 as of 2026-10-04, not the current host. Current gate definitions: [`rung-host.md`](../../rung-host.md).
+This record moved from `docs/rung-host-results.md` to this directory; its text above is unchanged apart from relative links. This is slice 1 as of 2026-10-04, not the current host. Current gate definitions: [`rung-host.md`](../../reference/rung-host.md).

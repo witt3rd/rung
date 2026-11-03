@@ -4,8 +4,3 @@
 .het/rung-questions/questions/INTAKE.md: backtick path does not exist: rung-het/tests/question_registry.rs  # D7: docket state, not edited (the test it cites does not exist)
 .het/rung-questions/questions/q9-the-dependency-superstructure.md: backtick path does not exist: rung-het/tests/question_registry.rs  # D7: docket state, not edited (the test it cites does not exist)
 .het/rung-questions/questions/q14-model-principal-provenance.md: backtick path does not exist: docs/.archive/2026-08-04_bootstrap-proposal.md  # docket state, not edited; the file moved to docs/records/archive/ (see docs/records/README.md)
-docs/records/rung-host/AGENTS.md: broken link: ../../rung-host.md  # record text is append-only; the file moved to docs/reference/rung-host.md
-docs/records/rung-host/free-time.md: broken link: ../../rung-host.md  # record text is append-only; the file moved to docs/reference/rung-host.md
-docs/records/rung-host/live-v4-hostkey.md: broken link: ../../rung-host.md  # record text is append-only; the file moved to docs/reference/rung-host.md
-docs/records/rung-host/slice1-gate-results.md: broken link: ../../rung-host.md  # record text is append-only; the file moved to docs/reference/rung-host.md
-docs/records/rung-host/web-fetch-spill-design.md: broken link: ../../rung-host.md  # record text is append-only; the file moved to docs/reference/rung-host.md

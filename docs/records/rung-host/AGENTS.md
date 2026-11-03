@@ -2,7 +2,7 @@
 
 Dated records of the continuous host: pre-registrations, live-run results,
 findings and design records. They are history, not spec. The living spec is
-[`rung-host.md`](../../rung-host.md); the wire contract is
+[`rung-host.md`](../../reference/rung-host.md); the wire contract is
 [`rung-host-api.md`](../../rung-host-api.md).
 
 Rule: a record is not edited after it is written. A correction or a note is a
