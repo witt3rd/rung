@@ -197,7 +197,76 @@ fn the_command_sends_a_steer_and_a_stop_to_the_inbox() {
     assert!(read("c-1.msg").get("control").is_none());
     assert_eq!(read("c-2.msg")["control"], "stop");
     assert_eq!(read("c-2.msg")["channel"], "fleet:chief");
+    let assign = [
+        "assign",
+        "steward-alpha",
+        "--from",
+        "chief",
+        "--id",
+        "c-3",
+        "--task",
+        "t1",
+        "--objective",
+        "o",
+        "--done-when",
+        "d",
+        "--delivery",
+        "x",
+        "--autonomy",
+        "decide",
+    ];
+    assert_eq!(run(&assign), Some(0));
+    assert!(
+        read("c-3.msg")["text"]
+            .as_str()
+            .unwrap()
+            .contains("autonomy: decide")
+    );
     assert_eq!(run(&["steer", "steward-alpha", "--from", "chief"]), Some(2));
     let nobody = ["steer", "nobody", "--from", "c", "--id", "x", "t"];
     assert_eq!(run(&nobody), Some(1));
+}
+
+#[test]
+fn an_assignment_carries_the_whole_brief_to_the_inbox() {
+    use rung_fleet::brief::{Autonomy, Brief};
+    let root = TempDir::new("fleet-assign");
+    let r = root.path();
+    let inbox = r.join("steward-alpha/inbox");
+    let cfg = write_config(r, "steward-alpha", &format!("inbox: {}", inbox.display()));
+    register(r, "steward-alpha", &cfg, &r.join("steward-alpha/state"));
+    let brief = Brief::new(
+        "a plan",
+        "a second reader agrees",
+        "a report",
+        Autonomy::Ask,
+    )
+    .unwrap();
+    let before = files(r);
+    let sent = rung_fleet::steer::assign(
+        &r.join("registry"),
+        "steward-alpha",
+        "chief",
+        id("a-1"),
+        "plan-1",
+        &brief,
+    )
+    .unwrap();
+    drop(sent);
+    let added: Vec<String> = files(r).difference(&before).cloned().collect();
+    assert_eq!(added, [inbox.join("a-1.msg").display().to_string()]);
+    let body: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(inbox.join("a-1.msg")).unwrap()).unwrap();
+    assert_eq!(body["role"], "owner");
+    let text = body["text"].as_str().unwrap();
+    assert!(text.starts_with("[fleet:assign from=chief id=a-1]"));
+    for want in [
+        "task: plan-1",
+        "objective: a plan",
+        "done when: a second reader agrees",
+        "delivery: a report",
+        "autonomy: ask",
+    ] {
+        assert!(text.contains(want), "missing {want:?} in {text}");
+    }
 }

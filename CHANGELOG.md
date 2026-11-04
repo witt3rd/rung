@@ -7,6 +7,12 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 7)
+- `rung-fleet::steer::assign` and the `assign` command: a task goes to a member's
+  inbox as an owner item carrying the whole brief (task, objective, done when,
+  delivery, autonomy); only a validated `Brief` can be sent. Spawn and the
+  writing of `crew.*` lines are not built: see the notes.
+
 ### Added (rung-fleet, R2 step 6)
 - `rung-fleet::steer::stop` and the `steer` and `stop` commands. `stop` sends an
   owner item whose `control` is `stop` through the member's inbox, so the host's

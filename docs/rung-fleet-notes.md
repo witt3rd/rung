@@ -132,7 +132,15 @@ at the target's boundary).
 authority. `stop` sends exactly that, with the reason as the text and
 `fleet:<from>` as the channel (an owner file may name its channel), so the
 record answers why and by whom with no host change (an earlier reading, that
-the stop file names no one, was about the file, not this door). Still owed in R2: `spawn`, `assign`, and the writing of the crew lines.
+the stop file names no one, was about the file, not this door). **The assign verb.** A task is an owner inbox item whose text is the brief, four
+fields and the task name, one per line; only a validated `Brief` can be sent.
+Still owed in R2: `spawn` and the writing of the crew lines. Both wait on one
+question the props leave open: `fleet-reuses-the-host-unchanged` forbids a host
+extension, yet the host's record append is crate-private, so a steward's record
+cannot take a `crew.*` line from outside. The way through that needs no host
+change is to let the steward's own inbox carry the fact (a peer item the host
+records as `stimulus.accepted`); whether the `crew.*` kinds are then a view over
+those items or need a small host door is the owner's call.
 
 ## Notes on particular claims
 

@@ -10,6 +10,7 @@ use std::path::Path;
 
 use rung_host::{registry, startup};
 
+use crate::brief::{Autonomy, Brief};
 use crate::delivery::{self, CorrelationId, Delivery, DeliveryError, Kind, Sent, Target};
 
 /// Why a steer could not be sent.
@@ -115,6 +116,45 @@ pub fn stop(
             kind: Kind::Stop,
             from: from.to_string(),
             text: why.to_string(),
+        },
+    )
+    .map_err(SteerError::Delivery)
+}
+
+/// The text of an assignment: the four fields of the brief, one per line, so
+/// the member reads the whole contract and none of it is left to a default.
+pub fn brief_text(task: &str, brief: &Brief) -> String {
+    let autonomy = match brief.autonomy() {
+        Autonomy::Ask => "ask",
+        Autonomy::Decide => "decide",
+    };
+    format!(
+        "task: {task}\nobjective: {}\ndone when: {}\ndelivery: {}\nautonomy: {autonomy}",
+        brief.objective(),
+        brief.done_when(),
+        brief.delivery()
+    )
+}
+
+/// Assign `task` to `member` with its brief (`a-brief-is-a-typed-contract`):
+/// an owner item in its inbox carrying the whole brief. Only a validated
+/// [`Brief`] can be sent. Idempotent by correlation id.
+pub fn assign(
+    index: &Path,
+    member: &str,
+    from: &str,
+    correlation: CorrelationId,
+    task: &str,
+    brief: &Brief,
+) -> Result<Sent, SteerError> {
+    let target = target_of(index, member)?;
+    delivery::send(
+        &target,
+        &Delivery {
+            correlation,
+            kind: Kind::Assign,
+            from: from.to_string(),
+            text: brief_text(task, brief),
         },
     )
     .map_err(SteerError::Delivery)

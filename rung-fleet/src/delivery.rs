@@ -61,6 +61,9 @@ pub enum Kind {
     /// records the item (its text is the reason, its channel names who asked) and
     /// then halts.
     Stop,
+    /// A task given to a member with its brief: an owner item, read at the
+    /// target's next boundary.
+    Assign,
 }
 
 impl Kind {
@@ -71,6 +74,7 @@ impl Kind {
             Kind::Escalation => "escalation",
             Kind::Steer => "steer",
             Kind::Stop => "stop",
+            Kind::Assign => "assign",
         }
     }
 }
@@ -148,7 +152,7 @@ pub fn send(target: &Target, d: &Delivery) -> Result<Sent, DeliveryError> {
     std::fs::create_dir_all(&target.inbox).map_err(DeliveryError::Io)?;
     let path = target.inbox.join(format!("{}.msg", d.correlation.as_str()));
     if !path.exists() {
-        let owner = matches!(d.kind, Kind::Steer | Kind::Stop);
+        let owner = matches!(d.kind, Kind::Steer | Kind::Stop | Kind::Assign);
         let mut body = json!({
             "role": if owner { Role::Owner.word() } else { Role::Peer.word() },
             "text": format!(
