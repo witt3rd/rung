@@ -100,8 +100,21 @@ take only the token, so the one input a step reads is `Work.signal`, set by the
 caller before stepping. A hold stays open by construction: a held task steps to
 `Held` again until `Work.resolution` equals its `hold` key. Retirement is a
 second ladder (`closure`) whose only input, `Finished`, is built from a `Done`
-verdict; it takes no landing proof yet (R3). Still owed in R2: delivery
-receipts, the `crew.*` record kinds, the verbs and the small CLI.
+verdict; it takes no landing proof yet (R3). **Step 2: delivery.** `rung-fleet/src/delivery.rs`. Idempotence needs no
+fleet-side ledger: the correlation id is the inbox file's stem, which is the
+item id, and the host accepts an id once (a later file of the same name is
+removed unread). `Sent::confirm` scans the receiver's record with
+`rung_host::read::scan`, a read that writes nothing. Not claimed here: a
+receipt after a steward is killed mid-task (`a-kill-loses-no-completion`),
+which needs the verbs.
+**Step 3: the `crew.*` kinds.** `rung-fleet/src/records.rs`. Ten kinds
+(`crew.spawned` through `crew.retired`, and `crew.receipt`), each a typed
+`CrewRecord` that encodes to a record line body and decodes from a line. A line
+that is not a known crew kind decodes to nothing (skipped); a known kind with a
+bad field is an error. A receipt names the receiver's line as `line`, because
+`seq` is the line's own number. The module gives the schema only: the host's
+append is crate-private, so writing the lines belongs to the verbs. Still owed in
+R2: the verbs and the small CLI.
 
 ## Notes on particular claims
 

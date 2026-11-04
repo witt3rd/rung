@@ -40,7 +40,7 @@ fn every_kind() -> Vec<CrewRecord> {
             validator: "steward".into(),
         },
         CrewRecord::Retired { crew: c() },
-        CrewRecord::Receipt {
+        CrewRecord::Confirmed {
             crew: c(),
             correlation: "c-1".into(),
             seq: 812,

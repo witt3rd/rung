@@ -52,7 +52,7 @@ pub enum CrewRecord {
     /// `crew.receipt`: a delivery was confirmed at a line of the receiver's
     /// record (`seq` is that line's number; the body names it `line`, since
     /// `seq` is the line's own number).
-    Receipt {
+    Confirmed {
         crew: String,
         correlation: String,
         seq: u64,
@@ -107,7 +107,7 @@ impl CrewRecord {
             CrewRecord::Recovered { .. } => "crew.recovered",
             CrewRecord::Done { .. } => "crew.done",
             CrewRecord::Retired { .. } => "crew.retired",
-            CrewRecord::Receipt { .. } => "crew.receipt",
+            CrewRecord::Confirmed { .. } => "crew.receipt",
         }
     }
 
@@ -137,7 +137,7 @@ impl CrewRecord {
             | CrewRecord::Recovered { crew }
             | CrewRecord::Done { crew, .. }
             | CrewRecord::Retired { crew }
-            | CrewRecord::Receipt { crew, .. } => crew,
+            | CrewRecord::Confirmed { crew, .. } => crew,
         }
     }
 
@@ -169,7 +169,7 @@ impl CrewRecord {
                 summary,
                 validator,
             } => json!({ "crew": crew, "summary": summary, "validator": validator }),
-            CrewRecord::Receipt {
+            CrewRecord::Confirmed {
                 crew,
                 correlation,
                 seq,
@@ -246,7 +246,7 @@ impl CrewRecord {
                 validator: text("validator")?,
             },
             "crew.retired" => CrewRecord::Retired { crew },
-            "crew.receipt" => CrewRecord::Receipt {
+            "crew.receipt" => CrewRecord::Confirmed {
                 crew,
                 correlation: text("correlation")?,
                 seq: line.get("line").as_u64().ok_or(RecordError::Field {

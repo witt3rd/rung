@@ -7,6 +7,17 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 2)
+- `rung-fleet::delivery`: delivery as a typed receipt. `send` writes an inbox
+  message named by its correlation id and returns a `#[must_use]` `Sent`;
+  `Sent::confirm` reads the receiver's own record and returns a `Receipt` that
+  names the `stimulus.accepted` line, or hands the promise back. A receipt is
+  consumed once (`record`, `hand_on`, `discard`). Dropping a `Sent` or a
+  `Receipt` fails to compile (the crate denies `unused_must_use`). A duplicate
+  send adds nothing: tested against a real host. Props
+  `an-unconsumed-receipt-does-not-compile` and
+  `duplicate-delivery-is-idempotent` become decidable.
+
 ### Added (rung-fleet, R2 step 3)
 - `rung-fleet::records`: the `crew.*` record kinds as a typed `CrewRecord` (ten
   kinds, from `crew.spawned` to `crew.retired`, plus `crew.receipt`) that

@@ -3,7 +3,10 @@
 //! This crate is a product crate (J2). It adds the delegation the host
 //! reserves and changes nothing in the kernel or in `rung-host`.
 
+#![deny(unused_must_use)]
+
 pub mod brief;
+pub mod delivery;
 pub mod lifecycle;
 pub mod records;
 
