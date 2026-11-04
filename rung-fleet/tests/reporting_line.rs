@@ -2,6 +2,8 @@
 //! parent relation is single-valued and acyclic, a chief has no parent, and
 //! nothing below a steward directs anyone.
 
+mod common;
+
 use std::collections::BTreeSet;
 
 use rung_fleet::tree::{Line, LineError, Role};
@@ -111,10 +113,19 @@ fn a_spawn_makes_the_edge_the_line_takes() {
     use rung_fleet::brief::{Autonomy, Brief};
     use rung_fleet::lifecycle::Spawn;
     let root = rung_testkit::TempDir::new("fleet-line-spawn");
+    let grants = rung_testkit::TempDir::new("fleet-grants");
     let brief = Brief::new("o", "d", "r", Autonomy::Ask).unwrap();
     let what = Spawn::new(brief, "crew-1").unwrap();
-    let s = rung_fleet::spawn::spawn(root.path(), "crew-1", "steward-alpha", "t", &what, "mock")
-        .unwrap();
+    let s = rung_fleet::spawn::spawn(
+        root.path(),
+        "crew-1",
+        "steward-alpha",
+        "t",
+        &what,
+        "mock",
+        common::once(grants.path()),
+    )
+    .unwrap();
     let (parent, child) = s.edge();
     let mut l = Line::new();
     l.attach(parent, child).unwrap();

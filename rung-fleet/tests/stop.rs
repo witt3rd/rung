@@ -1,6 +1,8 @@
 //! `stop` goes through a real host's stop authority: the host records who
 //! asked and why, halts, and the member stays in the list.
 
+mod common;
+
 use std::time::{Duration, Instant};
 
 use rung_fleet::delivery::CorrelationId;
@@ -14,6 +16,7 @@ use serde_json::json;
 fn stop_records_who_and_why_then_the_member_halts_and_stays_listed() {
     let root = TempDir::new("fleet-stop");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     // The host registers itself under the rung home; keep that out of the user's.
     // SAFETY: this is the only test in the binary, and it sets the variable first.
     unsafe { std::env::set_var("RUNG_HOME", r.join("rung-home")) };
@@ -55,6 +58,7 @@ fn stop_records_who_and_why_then_the_member_halts_and_stays_listed() {
         "chief",
         id,
         "the task is withdrawn",
+        common::once(grants.path()),
     )
     .unwrap();
     let end = Instant::now() + Duration::from_secs(30);

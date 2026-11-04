@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 17 decidable · 19 owed · 4 rationale · 12 signature · 52 total.
+**Counts.** 20 decidable · 19 owed · 4 rationale · 12 signature · 55 total.
 
 ### What the fleet is
 
@@ -663,9 +663,12 @@ unsettled. Where it is blank, nobody has written one down.
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
 | [6](rung-fleet-props.md#authority-is-explicit-and-typed) | `authority-is-explicit-and-typed` | `signature` | — | — |
-| [6.1](rung-fleet-props.md#irreversible-action-needs-authority) | `irreversible-action-needs-authority` | `owed` | — | **owed** — unimplemented — compile-fail cases: merge, discard, destructive and security-sensitive transitions each refuse to compile without an authority token, and a standing grant cannot be passed where a one-time one is asked |
-| [6.2](rung-fleet-props.md#a-member-cannot-widen-its-own-policy) | `a-member-cannot-widen-its-own-policy` | `owed` | — | **owed** — unimplemented — a test that the tool policy a steward hands a crew member is a subset of the steward's own, and that the member has no verb that edits it |
-| [6.3](rung-fleet-props.md#a-model-downgrade-needs-authority) | `a-model-downgrade-needs-authority` | `owed` | — | **owed** — unimplemented — a test that a per-instance override naming a weaker model than the role default is refused without authority |
+| [6.1](rung-fleet-props.md#authority-comes-from-an-owner-item) | `authority-comes-from-an-owner-item` | `decidable` | The host records the role of every item it admits, so a member cannot write an owner item. The cited test reads a record holding the grant text under the peer, agent and owner roles and finds a grant only in the owner item; the `token_forged` compile-fail case pins that a token cannot be written out by hand. | `rung-fleet/tests/authority.rs::only_an_owner_item_is_a_grant` |
+| [6.2](rung-fleet-props.md#a-one-time-grant-is-spent-once) | `a-one-time-grant-is-spent-once` | `decidable` | Minting creates the grant's id in a ledger directory; a second mint of the same id is refused. The `token_used_twice` and `token_for_another_act` compile-fail cases pin the by-value spend and the act in the type. | `rung-fleet/tests/authority.rs::a_one_time_grant_makes_one_token_for_its_own_act` |
+| [6.3](rung-fleet-props.md#a-standing-grant-never-widens) | `a-standing-grant-never-widens` | `decidable` | The `standing_irreversible` compile-fail case pins that the irreversible acts have no standing token at all. | `rung-fleet/tests/authority.rs::a_standing_grant_never_widens` |
+| [6.4](rung-fleet-props.md#irreversible-action-needs-authority) | `irreversible-action-needs-authority` | `owed` | — | **owed** — partly built — stop, spawn, assign and steer take a token and the compile-fail cases pass (`stop_without_authority`, `stop_with_standing`, `standing_irreversible`); merge, discard and the destructive and security-sensitive acts have a token type but no verb yet, and retirement does not yet consume one |
+| [6.5](rung-fleet-props.md#a-member-cannot-widen-its-own-policy) | `a-member-cannot-widen-its-own-policy` | `owed` | — | **owed** — unimplemented — a test that the tool policy a steward hands a crew member is a subset of the steward's own, and that the member has no verb that edits it |
+| [6.6](rung-fleet-props.md#a-model-downgrade-needs-authority) | `a-model-downgrade-needs-authority` | `owed` | — | **owed** — unimplemented — a test that a per-instance override naming a weaker model than the role default is refused without authority |
 
 ### The work queue
 
@@ -741,12 +744,12 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 161 |
+| `decidable` | 164 |
 | `judgmental` | 47 |
 | `owed` | 21 |
 | `rationale` | 152 |
 | `signature` | 75 |
-| **total** | **456** |
+| **total** | **459** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
@@ -762,7 +765,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 21 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 683 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 685 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1178,6 +1181,11 @@ look shorter than it is.
 - `a_consumer_may_place_an_order_and_drive_it`
 - `an_invented_order_settles_exactly_as_a_real_one_does`
 - `the_knowledge_exists_upstream_and_cannot_cross`
+
+**`rung-fleet/tests/authority.rs`** — 2 unclaimed
+
+- `a_malformed_grant_is_refused`
+- `the_refusals_do_not_compile`
 
 **`rung-fleet/tests/crew_view.rs`** — 1 unclaimed
 

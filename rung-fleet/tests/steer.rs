@@ -1,6 +1,8 @@
 //! `steer` puts one owner-class item in the target's inbox and nothing else;
 //! against a real host the receipt names the record line that holds it.
 
+mod common;
+
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -62,6 +64,7 @@ fn id(s: &str) -> CorrelationId {
 fn a_steer_is_one_owner_item_in_the_inbox_and_nothing_else() {
     let root = TempDir::new("fleet-steer");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     let inbox = r.join("steward-alpha/inbox");
     let cfg = write_config(r, "steward-alpha", &format!("inbox: {}", inbox.display()));
     register(r, "steward-alpha", &cfg, &r.join("steward-alpha/state"));
@@ -73,6 +76,7 @@ fn a_steer_is_one_owner_item_in_the_inbox_and_nothing_else() {
         "chief",
         id("s-1"),
         "go left",
+        common::once(grants.path()),
     )
     .unwrap();
     drop(sent);
@@ -87,28 +91,50 @@ fn a_steer_is_one_owner_item_in_the_inbox_and_nothing_else() {
         text.starts_with("[fleet:steer from=chief id=s-1]"),
         "{text}"
     );
-    assert!(text.ends_with("go left"));
+    assert!(text.contains("go left\n[authority: grant-"), "{text}");
 }
 
 #[test]
 fn a_steer_that_cannot_find_an_inbox_says_why() {
     let root = TempDir::new("fleet-steer-refuse");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     let reg = r.join("registry");
     assert!(matches!(
-        steer(&reg, "nobody", "chief", id("s"), "x"),
+        steer(
+            &reg,
+            "nobody",
+            "chief",
+            id("s"),
+            "x",
+            common::once(grants.path())
+        ),
         Err(SteerError::NoSuchMember(_))
     ));
     let none = write_config(r, "no-inbox", "");
     register(r, "no-inbox", &none, &r.join("no-inbox/state"));
     assert!(matches!(
-        steer(&reg, "no-inbox", "chief", id("s"), "x"),
+        steer(
+            &reg,
+            "no-inbox",
+            "chief",
+            id("s"),
+            "x",
+            common::once(grants.path())
+        ),
         Err(SteerError::NoInbox(_))
     ));
     let rel = write_config(r, "rel-inbox", "inbox: inbox");
     register(r, "rel-inbox", &rel, &r.join("rel-inbox/state"));
     assert!(matches!(
-        steer(&reg, "rel-inbox", "chief", id("s"), "x"),
+        steer(
+            &reg,
+            "rel-inbox",
+            "chief",
+            id("s"),
+            "x",
+            common::once(grants.path())
+        ),
         Err(SteerError::NoInbox(_))
     ));
 }
@@ -117,6 +143,7 @@ fn a_steer_that_cannot_find_an_inbox_says_why() {
 fn a_steer_reaches_a_real_host_and_the_receipt_names_the_line() {
     let root = TempDir::new("fleet-steer-host");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     let cfg = write_config(
         r,
         "steward-alpha",
@@ -141,6 +168,7 @@ fn a_steer_reaches_a_real_host_and_the_receipt_names_the_line() {
         "chief",
         id("s-2"),
         "go",
+        common::once(grants.path()),
     )
     .unwrap();
     let end = Instant::now() + Duration::from_secs(30);
@@ -172,6 +200,7 @@ fn a_steer_reaches_a_real_host_and_the_receipt_names_the_line() {
 fn the_command_sends_a_steer_and_a_stop_to_the_inbox() {
     let root = TempDir::new("fleet-steer-cli");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     let inbox = r.join("steward-alpha/inbox");
     let cfg = write_config(r, "steward-alpha", &format!("inbox: {}", inbox.display()));
     register(r, "steward-alpha", &cfg, &r.join("steward-alpha/state"));
@@ -180,15 +209,16 @@ fn the_command_sends_a_steer_and_a_stop_to_the_inbox() {
             .arg("--registry")
             .arg(r.join("registry"))
             .args(args)
+            .args(common::grant_flags(grants.path(), args[0]))
             .output()
             .unwrap()
             .status
             .code()
     };
-    let common = ["steward-alpha", "--from", "chief"];
-    let go = [&["steer"][..], &common, &["--id", "c-1", "go left"]].concat();
+    let base = ["steward-alpha", "--from", "chief"];
+    let go = [&["steer"][..], &base, &["--id", "c-1", "go left"]].concat();
     assert_eq!(run(&go), Some(0));
-    let halt = [&["stop"][..], &common, &["--id", "c-2", "withdrawn"]].concat();
+    let halt = [&["stop"][..], &base, &["--id", "c-2", "withdrawn"]].concat();
     assert_eq!(run(&halt), Some(0));
     let read = |f: &str| -> serde_json::Value {
         serde_json::from_str(&std::fs::read_to_string(inbox.join(f)).unwrap()).unwrap()
@@ -232,6 +262,7 @@ fn an_assignment_carries_the_whole_brief_to_the_inbox() {
     use rung_fleet::brief::{Autonomy, Brief};
     let root = TempDir::new("fleet-assign");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     let inbox = r.join("steward-alpha/inbox");
     let cfg = write_config(r, "steward-alpha", &format!("inbox: {}", inbox.display()));
     register(r, "steward-alpha", &cfg, &r.join("steward-alpha/state"));
@@ -250,6 +281,7 @@ fn an_assignment_carries_the_whole_brief_to_the_inbox() {
         id("a-1"),
         "plan-1",
         &brief,
+        common::once(grants.path()),
     )
     .unwrap();
     drop(sent);

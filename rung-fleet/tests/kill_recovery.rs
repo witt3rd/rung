@@ -50,12 +50,22 @@ fn a_killed_steward_recovers_every_completion_once() {
     let bin = host_binary();
     let root = TempDir::new("fleet-kill");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     // SAFETY: the only test in this binary; children inherit the variable.
     unsafe { std::env::set_var("RUNG_HOME", r.join("rung-home")) };
 
     let brief = Brief::new("a plan", "reviewed", "a report", Autonomy::Ask).unwrap();
     let what = Spawn::new(brief, "crew-1").unwrap();
-    let s = spawn(r, "steward-alpha", "chief-main", "plan-1", &what, "mock").unwrap();
+    let s = spawn(
+        r,
+        "steward-alpha",
+        "chief-main",
+        "plan-1",
+        &what,
+        "mock",
+        common::once(grants.path()),
+    )
+    .unwrap();
     let target = Target {
         inbox: s.inbox.clone(),
         state: s.state.clone(),

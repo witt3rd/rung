@@ -14,9 +14,10 @@ use std::process::{Child, Command, Stdio};
 
 use rung_host::registry;
 
+use crate::authority::{Grant, act};
 use crate::delivery::{self, CorrelationId, Delivery, DeliveryError, Kind, Sent, Target};
 use crate::lifecycle::Spawn;
-use crate::steer::brief_text;
+use crate::steer::{authorized, brief_text};
 
 /// Why a spawn was refused.
 #[derive(Debug)]
@@ -81,6 +82,7 @@ pub fn spawn(
     task: &str,
     what: &Spawn,
     engine: &str,
+    grant: impl Grant<act::SpawnMember>,
 ) -> Result<Spawned, SpawnError> {
     if registry::slug(name).as_deref() != Some(name) {
         return Err(SpawnError::BadName(name.to_string()));
@@ -123,7 +125,7 @@ pub fn spawn(
             correlation,
             kind: Kind::Assign,
             from: from.to_string(),
-            text: brief_text(task, what.brief()),
+            text: authorized(&brief_text(task, what.brief()), grant.grant_id()),
         },
     )
     .map_err(SpawnError::Delivery)?;

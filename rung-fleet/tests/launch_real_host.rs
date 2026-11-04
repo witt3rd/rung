@@ -18,13 +18,23 @@ fn a_launched_member_is_the_real_host_and_reads_its_brief() {
     let bin = host_binary();
     let root = TempDir::new("fleet-launch-real");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     let home = r.join("rung-home");
     // SAFETY: the only test in this binary; the child inherits the variable.
     unsafe { std::env::set_var("RUNG_HOME", &home) };
 
     let brief = Brief::new("a plan", "reviewed", "a report", Autonomy::Ask).unwrap();
     let what = Spawn::new(brief, "crew-1").unwrap();
-    let s = spawn(r, "crew-1", "steward-alpha", "plan-1", &what, "mock").unwrap();
+    let s = spawn(
+        r,
+        "crew-1",
+        "steward-alpha",
+        "plan-1",
+        &what,
+        "mock",
+        common::once(grants.path()),
+    )
+    .unwrap();
     let mut child = Guard(launch(&bin, &s.config).expect("the real host starts"));
 
     let mut sent = s.task;

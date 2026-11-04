@@ -513,9 +513,45 @@ the principal's channel can produce.
             mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
+            slug: "authority-comes-from-an-owner-item".into(),
+            parent: Some("authority-is-explicit-and-typed".into()),
+            kind: Kind::Decidable { proof: "rung-fleet/tests/authority.rs::only_an_owner_item_is_a_grant".into() },
+            numbering: None,
+            prose: r#"An authority token is made only from an **owner item** the principal's channel put
+in a host's record. An item of any other role (a peer, an agent) never is a grant,
+whatever its text says, and a token's fields are private.
+
+"#.into(),
+            mechanism: r#"The host records the role of every item it admits, so a member cannot write an owner item. The cited test reads a record holding the grant text under the peer, agent and owner roles and finds a grant only in the owner item; the `token_forged` compile-fail case pins that a token cannot be written out by hand."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "a-one-time-grant-is-spent-once".into(),
+            parent: Some("authority-is-explicit-and-typed".into()),
+            kind: Kind::Decidable { proof: "rung-fleet/tests/authority.rs::a_one_time_grant_makes_one_token_for_its_own_act".into() },
+            numbering: None,
+            prose: r#"A **one-time** grant makes one token, for the act it names. The token is not
+`Clone` and is spent by being passed, and the grant cannot be minted again,
+by another process or after a restart.
+
+"#.into(),
+            mechanism: r#"Minting creates the grant's id in a ledger directory; a second mint of the same id is refused. The `token_used_twice` and `token_for_another_act` compile-fail cases pin the by-value spend and the act in the type."#.into(),
+        }),
+        Element::Prop(Prop {
+            slug: "a-standing-grant-never-widens".into(),
+            parent: Some("authority-is-explicit-and-typed".into()),
+            kind: Kind::Decidable { proof: "rung-fleet/tests/authority.rs::a_standing_grant_never_widens".into() },
+            numbering: None,
+            prose: r#"A **standing** grant is bound to the project and the request the principal
+named, and covers only routine acts (spawn, assign, steer). It cannot be
+asked for another project or request, and it is not a one-time token.
+
+"#.into(),
+            mechanism: r#"The `standing_irreversible` compile-fail case pins that the irreversible acts have no standing token at all."#.into(),
+        }),
+        Element::Prop(Prop {
             slug: "irreversible-action-needs-authority".into(),
             parent: Some("authority-is-explicit-and-typed".into()),
-            kind: Kind::Owed { why: r#"unimplemented — compile-fail cases: merge, discard, destructive and security-sensitive transitions each refuse to compile without an authority token, and a standing grant cannot be passed where a one-time one is asked"#.into() },
+            kind: Kind::Owed { why: r#"partly built — stop, spawn, assign and steer take a token and the compile-fail cases pass (`stop_without_authority`, `stop_with_standing`, `standing_irreversible`); merge, discard and the destructive and security-sensitive acts have a token type but no verb yet, and retirement does not yet consume one"#.into() },
             numbering: None,
             prose: r#"**Merging, discarding work and anything destructive, irreversible or
 security-sensitive** requires the principal's explicit authority. A standing

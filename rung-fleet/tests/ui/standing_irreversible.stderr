@@ -1,0 +1,61 @@
+error[E0277]: the trait bound `Merge: Routine` is not satisfied
+ --> tests/ui/standing_irreversible.rs:6:13
+  |
+6 |     let _t: Option<Standing<act::Merge>> = None;
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Routine` is not implemented for `Merge`
+  |
+help: the following other types implement trait `Routine`
+ --> src/authority.rs
+  |
+  |           (@routine $name:ident _) => { impl Routine for $name {} };
+  |                                         ^^^^^^^^^^^^^^^^^^^^^^
+  |                                         |
+  |                                         `AssignTask`
+  |                                         `SpawnMember`
+  |                                         `SteerMember`
+...
+  | /     acts! {
+  | |         /// Bring a member into being.
+  | |         SpawnMember = "spawn", routine _;
+  | |         /// Give a member a task.
+... |
+  | |         SecuritySensitive = "security-sensitive";
+  | |     }
+  | |_____- in this macro invocation
+note: required by a bound in `rung_fleet::authority::Standing`
+ --> src/authority.rs
+  |
+  | pub struct Standing<A: Routine> {
+  |                        ^^^^^^^ required by this bound in `Standing`
+  = note: this error originates in the macro `acts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `Merge: Routine` is not satisfied
+ --> tests/ui/standing_irreversible.rs:6:44
+  |
+6 |     let _t: Option<Standing<act::Merge>> = None;
+  |                                            ^^^^ the trait `Routine` is not implemented for `Merge`
+  |
+help: the following other types implement trait `Routine`
+ --> src/authority.rs
+  |
+  |           (@routine $name:ident _) => { impl Routine for $name {} };
+  |                                         ^^^^^^^^^^^^^^^^^^^^^^
+  |                                         |
+  |                                         `AssignTask`
+  |                                         `SpawnMember`
+  |                                         `SteerMember`
+...
+  | /     acts! {
+  | |         /// Bring a member into being.
+  | |         SpawnMember = "spawn", routine _;
+  | |         /// Give a member a task.
+... |
+  | |         SecuritySensitive = "security-sensitive";
+  | |     }
+  | |_____- in this macro invocation
+note: required by a bound in `rung_fleet::authority::Standing`
+ --> src/authority.rs
+  |
+  | pub struct Standing<A: Routine> {
+  |                        ^^^^^^^ required by this bound in `Standing`
+  = note: this error originates in the macro `acts` (in Nightly builds, run with -Z macro-backtrace for more info)

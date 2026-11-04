@@ -28,12 +28,22 @@ fn items_arrive_only_as_inbox_files_and_a_second_host_is_refused() {
     let bin = host_binary();
     let root = TempDir::new("fleet-one-writer");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     // SAFETY: the only test in this binary; children inherit the variable.
     unsafe { std::env::set_var("RUNG_HOME", r.join("rung-home")) };
 
     let brief = Brief::new("o", "d", "r", Autonomy::Ask).unwrap();
     let what = Spawn::new(brief, "crew-1").unwrap();
-    let s = spawn(r, "steward-alpha", "chief-main", "t1", &what, "mock").unwrap();
+    let s = spawn(
+        r,
+        "steward-alpha",
+        "chief-main",
+        "t1",
+        &what,
+        "mock",
+        common::once(grants.path()),
+    )
+    .unwrap();
     let target = Target {
         inbox: s.inbox.clone(),
         state: s.state.clone(),

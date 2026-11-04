@@ -1,0 +1,31 @@
+warning: unreachable statement
+ --> tests/ui/stop_with_standing.rs:9:5
+  |
+8 |     let g: Granted = unimplemented!();
+  |                      ---------------- any code following this expression is unreachable
+9 |     let standing: Standing<act::SteerMember> = g.standing("p", "r").unwrap();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable statement
+  |
+  = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `rung_fleet::authority::Standing<SteerMember>: Grant<StopMember>` is not satisfied
+  --> tests/ui/stop_with_standing.rs:11:90
+   |
+11 |     let _ = rung_fleet::steer::stop(std::path::Path::new("/x"), "m", "chief", id, "why", standing);
+   |             ----------------------- required by a bound introduced by this call          ^^^^^^^^ the trait `Grant<StopMember>` is not implemented for `rung_fleet::authority::Standing<SteerMember>`
+   |
+help: the trait `Grant<StopMember>` is not implemented for `rung_fleet::authority::Standing<SteerMember>`
+      but trait `Grant<SteerMember>` is implemented for it
+  --> src/authority.rs
+   |
+   | impl<A: Routine> Grant<A> for Standing<A> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: for that trait implementation, expected `SteerMember`, found `StopMember`
+note: required by a bound in `stop`
+  --> src/steer.rs
+   |
+   | pub fn stop(
+   |        ---- required by a bound in this function
+...
+   |     grant: impl Grant<act::StopMember>,
+   |                 ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `stop`

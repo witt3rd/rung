@@ -1,0 +1,10 @@
+error[E0382]: use of moved value: `token`
+  --> tests/ui/token_used_twice.rs:12:70
+   |
+ 7 | fn twice(token: Once<act::StopMember>) {
+   |          ----- move occurs because `token` has type `rung_fleet::authority::Once<StopMember>`, which does not implement the `Copy` trait
+...
+11 |     let _ = rung_fleet::steer::stop(index, "m", "chief", a, "why", token);
+   |                                                                    ----- value moved here
+12 |     let _ = rung_fleet::steer::stop(index, "m", "chief", b, "again", token);
+   |                                                                      ^^^^^ value used here after move

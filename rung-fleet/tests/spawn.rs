@@ -1,6 +1,8 @@
 //! `spawn` prepares a member a real host starts from, and delivers its brief
 //! before it starts; it never overwrites and it refuses what is not a name.
 
+mod common;
+
 use std::time::{Duration, Instant};
 
 use rung_fleet::brief::{Autonomy, Brief};
@@ -18,9 +20,19 @@ fn what() -> Spawn {
 fn a_spawned_member_starts_as_an_ordinary_host_and_reads_its_brief() {
     let root = TempDir::new("fleet-spawn");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     // SAFETY: the only test in this binary that reads or sets the variable.
     unsafe { std::env::set_var("RUNG_HOME", r.join("rung-home")) };
-    let s = spawn(r, "crew-1", "steward-alpha", "plan-1", &what(), "mock").unwrap();
+    let s = spawn(
+        r,
+        "crew-1",
+        "steward-alpha",
+        "plan-1",
+        &what(),
+        "mock",
+        common::once(grants.path()),
+    )
+    .unwrap();
     let handoff = startup::start(startup::registered(
         startup::configure(&s.config, None).expect("the written config is a valid host config"),
     ))
@@ -65,22 +77,56 @@ fn a_spawned_member_starts_as_an_ordinary_host_and_reads_its_brief() {
 fn spawn_refuses_a_bad_name_an_existing_member_and_a_bad_engine() {
     let root = TempDir::new("fleet-spawn-refuse");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     for bad in ["Crew 1", "", "../x", "a/b"] {
         assert!(matches!(
-            spawn(r, bad, "s", "t", &what(), "mock"),
+            spawn(
+                r,
+                bad,
+                "s",
+                "t",
+                &what(),
+                "mock",
+                common::once(grants.path())
+            ),
             Err(SpawnError::BadName(_))
         ));
     }
     assert!(matches!(
-        spawn(r, "crew-2", "s", "t", &what(), "mo ck"),
+        spawn(
+            r,
+            "crew-2",
+            "s",
+            "t",
+            &what(),
+            "mo ck",
+            common::once(grants.path())
+        ),
         Err(SpawnError::BadEngine(_))
     ));
-    let first = spawn(r, "crew-2", "s", "t", &what(), "mock").unwrap();
+    let first = spawn(
+        r,
+        "crew-2",
+        "s",
+        "t",
+        &what(),
+        "mock",
+        common::once(grants.path()),
+    )
+    .unwrap();
     drop(first);
     let marker = r.join("crew-2/workspace/mine.txt");
     std::fs::write(&marker, "keep").unwrap();
     assert!(matches!(
-        spawn(r, "crew-2", "s", "t", &what(), "mock"),
+        spawn(
+            r,
+            "crew-2",
+            "s",
+            "t",
+            &what(),
+            "mock",
+            common::once(grants.path())
+        ),
         Err(SpawnError::Exists(_))
     ));
     assert_eq!(std::fs::read_to_string(marker).unwrap(), "keep");
@@ -89,7 +135,17 @@ fn spawn_refuses_a_bad_name_an_existing_member_and_a_bad_engine() {
 #[test]
 fn launch_runs_the_host_binary_with_the_config() {
     let root = TempDir::new("fleet-spawn-launch");
-    let s = spawn(root.path(), "crew-3", "s", "t", &what(), "mock").unwrap();
+    let grants = TempDir::new("fleet-grants");
+    let s = spawn(
+        root.path(),
+        "crew-3",
+        "s",
+        "t",
+        &what(),
+        "mock",
+        common::once(grants.path()),
+    )
+    .unwrap();
     // `true` ignores its arguments: enough to show the process is started and owned.
     let mut child = launch(std::path::Path::new("/bin/true"), &s.config).unwrap();
     assert!(child.wait().unwrap().success());
@@ -100,6 +156,7 @@ fn launch_runs_the_host_binary_with_the_config() {
 fn the_command_spawns_a_member_and_refuses_a_bad_name() {
     let root = TempDir::new("fleet-spawn-cli");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     let run = |name: &str| {
         std::process::Command::new(env!("CARGO_BIN_EXE_rung-fleet"))
             .args(["spawn", name, "--root"])
@@ -120,6 +177,7 @@ fn the_command_spawns_a_member_and_refuses_a_bad_name() {
                 "--autonomy",
                 "ask",
             ])
+            .args(common::grant_flags(grants.path(), "spawn"))
             .output()
             .unwrap()
             .status

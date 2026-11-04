@@ -1,0 +1,15 @@
+error[E0061]: this function takes 6 arguments but 5 arguments were supplied
+ --> tests/ui/stop_without_authority.rs:6:13
+  |
+6 |     let _ = rung_fleet::steer::stop(std::path::Path::new("/x"), "m", "chief", id, "why");
+  |             ^^^^^^^^^^^^^^^^^^^^^^^----------------------------------------------------- argument #6 is missing
+  |
+note: function defined here
+ --> src/steer.rs
+  |
+  | pub fn stop(
+  |        ^^^^
+help: provide the argument
+  |
+6 |     let _ = rung_fleet::steer::stop(std::path::Path::new("/x"), "m", "chief", id, "why", /* grant */);
+  |                                                                                        +++++++++++++

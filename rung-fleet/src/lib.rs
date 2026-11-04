@@ -5,6 +5,7 @@
 
 #![deny(unused_must_use)]
 
+pub mod authority;
 pub mod brief;
 pub mod delivery;
 pub mod lifecycle;

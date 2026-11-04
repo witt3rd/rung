@@ -10,6 +10,7 @@ use std::path::Path;
 
 use rung_host::{registry, startup};
 
+use crate::authority::{Grant, act};
 use crate::brief::{Autonomy, Brief};
 use crate::delivery::{self, CorrelationId, Delivery, DeliveryError, Kind, Sent, Target};
 use crate::records::CrewRecord;
@@ -43,6 +44,12 @@ impl fmt::Display for SteerError {
 
 impl std::error::Error for SteerError {}
 
+/// `text` with the id of the grant it was sent under, so the record says what
+/// authorized it.
+pub fn authorized(text: &str, grant_id: &str) -> String {
+    format!("{text}\n[authority: {grant_id}]")
+}
+
 /// Where a member's inbox is: the `inbox` its configuration names (an absolute
 /// path), and its state directory.
 pub fn target_of(index: &Path, member: &str) -> Result<Target, SteerError> {
@@ -75,7 +82,7 @@ pub fn target_of(index: &Path, member: &str) -> Result<Target, SteerError> {
     })
 }
 
-/// Steer `member`: put `text` in its inbox as an owner-class item named by
+/// Steer `member` under a grant: put `text` in its inbox as an owner-class item named by
 /// `correlation`, from `from`. Idempotent by correlation id. The returned
 /// promise is to be confirmed against the member's record.
 pub fn steer(
@@ -84,6 +91,7 @@ pub fn steer(
     from: &str,
     correlation: CorrelationId,
     text: &str,
+    grant: impl Grant<act::SteerMember>,
 ) -> Result<Sent, SteerError> {
     let target = target_of(index, member)?;
     delivery::send(
@@ -92,13 +100,13 @@ pub fn steer(
             correlation,
             kind: Kind::Steer,
             from: from.to_string(),
-            text: text.to_string(),
+            text: authorized(text, grant.grant_id()),
         },
     )
     .map_err(SteerError::Delivery)
 }
 
-/// Stop `member` through the host's stop authority (`stop-records-why`): an
+/// Stop `member` under a one-time grant (irreversible), through the host's stop authority (`stop-records-why`): an
 /// owner item with the `stop` control goes to its inbox; the host records it
 /// (the reason is its text, `fleet:<from>` its channel) and then halts. The
 /// member stays in the instance index. Idempotent by correlation id.
@@ -108,6 +116,7 @@ pub fn stop(
     from: &str,
     correlation: CorrelationId,
     why: &str,
+    grant: impl Grant<act::StopMember>,
 ) -> Result<Sent, SteerError> {
     let target = target_of(index, member)?;
     delivery::send(
@@ -116,7 +125,7 @@ pub fn stop(
             correlation,
             kind: Kind::Stop,
             from: from.to_string(),
-            text: why.to_string(),
+            text: authorized(why, grant.grant_id()),
         },
     )
     .map_err(SteerError::Delivery)
@@ -137,7 +146,7 @@ pub fn brief_text(task: &str, brief: &Brief) -> String {
     )
 }
 
-/// Assign `task` to `member` with its brief (`a-brief-is-a-typed-contract`):
+/// Assign `task` to `member` under a grant, with its brief (`a-brief-is-a-typed-contract`):
 /// an owner item in its inbox carrying the whole brief. Only a validated
 /// [`Brief`] can be sent. Idempotent by correlation id.
 pub fn assign(
@@ -147,6 +156,7 @@ pub fn assign(
     correlation: CorrelationId,
     task: &str,
     brief: &Brief,
+    grant: impl Grant<act::AssignTask>,
 ) -> Result<Sent, SteerError> {
     let target = target_of(index, member)?;
     delivery::send(
@@ -155,7 +165,7 @@ pub fn assign(
             correlation,
             kind: Kind::Assign,
             from: from.to_string(),
-            text: brief_text(task, brief),
+            text: authorized(&brief_text(task, brief), grant.grant_id()),
         },
     )
     .map_err(SteerError::Delivery)

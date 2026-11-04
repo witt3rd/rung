@@ -246,19 +246,34 @@ instance is a long-running process with an entry in the instance index.
 transition that needs the principal's word takes an *authority* token that only
 the principal's channel can produce.
 
+<a id="authority-comes-from-an-owner-item" data-parent="authority-is-explicit-and-typed"></a>
+**6.1** An authority token is made only from an **owner item** the principal's channel put
+in a host's record. An item of any other role (a peer, an agent) never is a grant,
+whatever its text says, and a token's fields are private.
+
+<a id="a-one-time-grant-is-spent-once" data-parent="authority-is-explicit-and-typed"></a>
+**6.2** A **one-time** grant makes one token, for the act it names. The token is not
+`Clone` and is spent by being passed, and the grant cannot be minted again,
+by another process or after a restart.
+
+<a id="a-standing-grant-never-widens" data-parent="authority-is-explicit-and-typed"></a>
+**6.3** A **standing** grant is bound to the project and the request the principal
+named, and covers only routine acts (spawn, assign, steer). It cannot be
+asked for another project or request, and it is not a one-time token.
+
 <a id="irreversible-action-needs-authority" data-parent="authority-is-explicit-and-typed"></a>
-**6.1** **Merging, discarding work and anything destructive, irreversible or
+**6.4** **Merging, discarding work and anything destructive, irreversible or
 security-sensitive** requires the principal's explicit authority. A standing
 grant is scoped to a project and to the original request, and never widens.
 
 <a id="a-member-cannot-widen-its-own-policy" data-parent="authority-is-explicit-and-typed"></a>
-**6.2** A host's **tool policy** is part of its configuration. The policy a steward
+**6.5** A host's **tool policy** is part of its configuration. The policy a steward
 gives a crew member is a subset of its own, and the member cannot change it.
 Which checks a deployment turns on (for example, refusing certain commands or
 confining the working directory) is that deployment's policy, not the crate's.
 
 <a id="a-model-downgrade-needs-authority" data-parent="authority-is-explicit-and-typed"></a>
-**6.3** The fleet never lowers the intelligence doing a piece of work without the
+**6.6** The fleet never lowers the intelligence doing a piece of work without the
 principal's standing, explicit permission. An override that downgrades a member
 is refused unless authority accompanies it.
 

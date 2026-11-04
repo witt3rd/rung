@@ -2,6 +2,8 @@
 //! reports facts into a member's inbox, the host records them as it records any
 //! item, and `verbs::crew` reads them back in order. The host is unchanged.
 
+mod common;
+
 use std::time::{Duration, Instant};
 
 use rung_fleet::brief::{Autonomy, Brief};
@@ -34,6 +36,7 @@ fn confirmed(mut sent: rung_fleet::delivery::Sent) -> u64 {
 fn crew_facts_reported_to_a_host_read_back_as_crew_lines() {
     let root = TempDir::new("fleet-crew-view");
     let r = root.path();
+    let grants = TempDir::new("fleet-grants");
     // SAFETY: the only test in this binary; sets the variable before any host starts.
     unsafe { std::env::set_var("RUNG_HOME", r.join("rung-home")) };
     let d = r.join("steward-alpha");
@@ -86,7 +89,15 @@ fn crew_facts_reported_to_a_host_read_back_as_crew_lines() {
     }
     // An owner steer that merely mentions the tag is not a fact (only peer items are).
     let noise = CorrelationId::new("noise").unwrap();
-    let sent = steer::steer(&index, "steward-alpha", "chief", noise, "[fleet:crew x]").unwrap();
+    let sent = steer::steer(
+        &index,
+        "steward-alpha",
+        "chief",
+        noise,
+        "[fleet:crew x]",
+        common::once(grants.path()),
+    )
+    .unwrap();
     confirmed(sent);
 
     let got = verbs::crew(&index, "steward-alpha").unwrap();
