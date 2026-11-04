@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 9 decidable · 26 owed · 4 rationale · 12 signature · 51 total.
+**Counts.** 10 decidable · 25 owed · 4 rationale · 12 signature · 51 total.
 
 ### What the fleet is
 
@@ -651,7 +651,7 @@ unsettled. Where it is blank, nobody has written one down.
 |---|---|---|---|---|
 | [5](rung-fleet-props.md#fleet-verbs) | `fleet-verbs` | `signature` | — | — |
 | [5.1](rung-fleet-props.md#a-steer-is-an-inbox-item) | `a-steer-is-an-inbox-item` | `owed` | — | **owed** — unimplemented — a test that `steer` writes one inbox item with an owner-class intent to the target's inbox, and sends nothing else to its terminal |
-| [5.2](rung-fleet-props.md#read-and-list-never-write) | `read-and-list-never-write` | `owed` | — | **owed** — unimplemented — a test that `read` and `list` leave every record, inbox and instance entry byte-identical, and that a read-only gateway token can call both |
+| [5.2](rung-fleet-props.md#read-and-list-never-write) | `read-and-list-never-write` | `decidable` | — | `rung-fleet/tests/verbs.rs::list_and_read_change_nothing` |
 | [5.3](rung-fleet-props.md#a-read-only-role-watches-the-fleet) | `a-read-only-role-watches-the-fleet` | `decidable` | The cited test holds only the read-only token: it lists three running members, reads a steward's record, follows a chief's stream until a message dropped in its inbox appears, is refused (403) a write to the queue, and after the members stop finds all three still listed as `stopped`. A wrong token is 401. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
 | [5.4](rung-fleet-props.md#stop-records-why) | `stop-records-why` | `owed` | — | **owed** — unimplemented — a test that `stop` raises the target's stop authority and the target's record holds the reason and who asked |
 | [5.5](rung-fleet-props.md#an-observer-cannot-prompt) | `an-observer-cannot-prompt` | `owed` | — | **owed** — unimplemented — an attach test over the three ACP channel roles: an observer channel to a member is refused a prompt; an owner channel is accepted and takes over; a session reloads after a restart |
@@ -740,9 +740,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 153 |
+| `decidable` | 154 |
 | `judgmental` | 47 |
-| `owed` | 28 |
+| `owed` | 27 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **455** |
@@ -760,8 +760,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 28 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 669 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 27 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 671 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1196,6 +1196,11 @@ look shorter than it is.
 - `a_known_kind_with_a_bad_field_is_refused`
 - `a_reader_skips_what_it_does_not_know`
 - `no_other_crate_writes_a_crew_kind`
+
+**`rung-fleet/tests/verbs.rs`** — 2 unclaimed
+
+- `list_and_read_answer_from_the_index_and_the_record`
+- `the_command_prints_what_the_library_returns`
 
 **`rung-gateway/tests/events.rs`** — 1 unclaimed
 

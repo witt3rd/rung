@@ -407,6 +407,12 @@ fn idle_until_of(state_dir: &Path) -> Option<Millis> {
     })?
 }
 
+/// The rows as the JSON `ls --json` prints: `{"instances": [...]}`. One
+/// builder, so no reader of the index spells the shape again.
+pub fn rows_json(rows: &[Row]) -> Value {
+    json!({ "instances": rows.iter().map(Row::to_json).collect::<Vec<_>>() })
+}
+
 /// Every registered instance in the folder [`dir`], by id.
 pub fn list() -> Result<Vec<Row>, String> {
     list_in(&dir())

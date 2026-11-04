@@ -7,6 +7,14 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 4)
+- `rung-fleet::verbs` and the `rung-fleet` command: `list` and `read` (a member's
+  record lines, or its `crew.*` lines with `--crew`), answered from the instance
+  index and the host's own readers. Both only read: a test snapshots every file
+  under the index and the state directories and finds them unchanged. Prop
+  `read-and-list-never-write` becomes decidable. `steer`, `stop`, `spawn` and
+  `assign` are not built yet.
+
 ### Added (rung-fleet, R2 step 2)
 - `rung-fleet::delivery`: delivery as a typed receipt. `send` writes an inbox
   message named by its correlation id and returns a `#[must_use]` `Sent`;

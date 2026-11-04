@@ -113,8 +113,18 @@ which needs the verbs.
 that is not a known crew kind decodes to nothing (skipped); a known kind with a
 bad field is an error. A receipt names the receiver's line as `line`, because
 `seq` is the line's own number. The module gives the schema only: the host's
-append is crate-private, so writing the lines belongs to the verbs. Still owed in
-R2: the verbs and the small CLI.
+append is crate-private, so writing the lines belongs to the verbs.
+**The observing verbs.** `rung-fleet/src/verbs.rs` and the `rung-fleet`
+command: `list` (the instance index through the host's registry reader) and
+`read` (a member's record through the host's scan, or its crew lines). Neither
+takes a lock or writes a file; the command only prints what the library returns.
+Why a fleet `list` and `read` beside `rung-host ls` and the gateway: the same reads
+as a library a steward calls directly (no process, no HTTP), plus the crew view;
+the host's index and record readers and the list's JSON builder are reused.
+Still owed in R2: `steer`, `stop` (the host's stop file names no one, so the
+"by whom" of `stop-records-why` needs a host change or the gateway's door; it
+is built as the stop file works today), `spawn`, `assign`, and the writing of
+the crew lines.
 
 ## Notes on particular claims
 

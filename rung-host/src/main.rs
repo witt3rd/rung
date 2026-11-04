@@ -418,10 +418,7 @@ fn ls(o: &Opts) -> ExitCode {
         }
     };
     if o.json {
-        let v = serde_json::json!({
-            "instances": rows.iter().map(|r| r.to_json()).collect::<Vec<_>>(),
-        });
-        println!("{v}");
+        println!("{}", rung_host::registry::rows_json(&rows));
     } else {
         print!("{}", rung_host::registry::render(&rows));
     }
