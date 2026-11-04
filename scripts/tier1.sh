@@ -7,7 +7,8 @@
 # What runs: formatting, the records guard, the always-cheap Python guards (the CI planner's own tests,
 # skipped-test gates, proposition numbering and citations, consumer-name guard, links, coverage), then for
 # the CHANGED crates plus their reverse dependencies (scripts/ci_plan.py): strict clippy and the unit tests
-# (`--lib --bins`). `render --check` runs when a crate it reads is in scope. The lander's own self-test
+# (`--lib --bins`; one process-wide peak-RSS measurement is skipped here: it reads
+# VmHWM, which parallel threads of `cargo test` disturb. Tier 2 runs it under nextest, one process per test). `render --check` runs when a crate it reads is in scope. The lander's own self-test
 # runs when the lander or this script changed. Everything slow is Tier 2 (.github/workflows/tier2.yml:
 # integration tests, doctests, rustdoc, trybuild UI suites, examples, MSRV, the GUI workspace, cargo-deny, release check).
 # Environment: TIER1_BASE (default origin/master): the commit the change is measured from. An unreachable
@@ -37,9 +38,10 @@ step "fmt"
 cargo fmt --check
 step "records are append-only"
 docs/_records_guard.py "$(git rev-parse --verify -q "$base^{commit}" >/dev/null && ! [[ "$base" =~ ^0+$ ]] && echo "$base" || echo origin/master)"
-step "planner and skipped-test guards"
+step "planner, skipped-test and post-merge-review tests"
 python3 scripts/test_ci_plan.py
 python3 scripts/test_skipped_tests.py
+python3 scripts/test_post_merge_review.py
 scripts/skipped_tests.py
 step "propositions, consumer names, links, coverage"
 docs/_props.py check
@@ -53,7 +55,7 @@ if [ "$rust" = true ]; then
   # SCOPE is a list of -p flags: split on purpose
   # shellcheck disable=SC2086
   { step "clippy ($scope)"; cargo clippy "${jobs[@]}" $scope --all-targets --locked -- -D warnings
-    step "unit tests ($scope)"; scripts/test_tmp_clean.sh "${jobs[@]}" $scope --lib --bins --locked; }
+    step "unit tests ($scope)"; scripts/test_tmp_clean.sh "${jobs[@]}" $scope --lib --bins --locked -- --skip whole_50mb_pages_one_copy_in_memory; }
   case " $scope " in
     *" -p rung-doctrine "*|*" --workspace "*)
       step "generated documents match their encoding"

@@ -165,6 +165,10 @@ Stage only files you touched; never `git add -A`.
    CI red after a green local run is the first thing to fix.
 7. A change to the lander, `scripts/tier1.sh`, `scripts/test_land_direct.sh` or
    `ci.yml`/`tier2.yml` is a gate-defining change: say so in the commit message.
+8. The review council is post-merge and advisory (`.github/workflows/review-council.yml`,
+   `scripts/post_merge_review.py`): daily and on request it reviews what landed and
+   files an issue for each BLOCK or FIX finding. It blocks nothing; read its issues.
+
 Master's ruleset `protect-default-branch` blocks force pushes and deletion only
 (pull-request and required-status rules were removed 2026-11-05 for this model).
 **Forbidden:** opening a PR; pushing a branch for others to merge; pushing
