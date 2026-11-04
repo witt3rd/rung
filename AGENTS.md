@@ -169,8 +169,13 @@ Stage only files you touched; never `git add -A`.
    `scripts/post_merge_review.py`): daily and on request it reviews what landed and
    files an issue for each BLOCK or FIX finding. It blocks nothing; read its issues.
 
-Master's ruleset `protect-default-branch` blocks force pushes and deletion only
-(pull-request and required-status rules were removed 2026-11-05 for this model).
+Master's ruleset `protect-default-branch` (id 19141262) was relaxed on 2026-11-05
+for this model: the **pull-request** rule (zero approvals) and the **required
+status `check`** (strict up-to-date policy) were removed; **deletion** and
+**non-fast-forward** (no force push) protection stay, with no bypass actor. The
+state before is `data/rung-trunk-mandate/ruleset-before-2026-11-05.json`; to
+restore it: `gh api -X PUT repos/witt3rd/rung/rulesets/19141262 --input
+data/rung-trunk-mandate/ruleset-before-2026-11-05.json`.
 **Forbidden:** opening a PR; pushing a branch for others to merge; pushing
 `master` other than through the lander; force-pushing `master`; stacking work on
 an unlanded branch; landing onto a red or held `master` (other than the fix).
