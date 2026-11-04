@@ -14,6 +14,7 @@ Charter for the whole repo: [`../AGENTS.md`](../AGENTS.md).
 - `verbs` and the `rung-fleet` command: `list` and `read`, read-only; the
   command holds no behaviour the library lacks.
 - `steer`: the `steer`, `assign` and `stop` verbs (owner-class inbox items found through the index; stop carries the `stop` control).
+- `spawn`: prepare a member with its brief, and launch its host.
 - Claims: [`docs/rung-fleet-props.md`](../docs/rung-fleet-props.md) (generated;
   do not hand-edit); derivation and phase progress:
   [`docs/rung-fleet-notes.md`](../docs/rung-fleet-notes.md).

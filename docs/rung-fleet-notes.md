@@ -144,8 +144,12 @@ by `verbs::crew`) reads it back as the `crew.*` line, with the record line's own
 number. Only peer items count, so an owner item cannot pose as a fact. Reason: the
 invariant that the host is reused unchanged holds and no door is added. If the
 view proves awkward in first real use, bring the concrete case and revisit a
-small host door restricted to the `crew.` prefix (option (b)). Still owed in R2:
-`spawn`.
+small host door restricted to the `crew.` prefix (option (b)).
+**The spawn verb.** `rung-fleet/src/spawn.rs`: prepares `root/<name>` (inbox,
+workspace, a host config naming inbox and stop file) and puts the brief in the
+inbox before the host starts; `launch` runs `host run --config`. Spawn never
+overwrites. The member registers itself in the index when it starts. Placement
+beyond a local process is R5.
 
 ## Notes on particular claims
 

@@ -6,6 +6,7 @@
 //! rung-fleet [--registry DIR] read ID [--after SEQ] [--limit N] [--crew]
 //! rung-fleet [--registry DIR] steer ID --from NAME --id CORRELATION [--wait SECS] TEXT
 //! rung-fleet [--registry DIR] assign ID --from NAME --id CORRELATION --task NAME --objective T --done-when T --delivery T --autonomy ask|decide
+//! rung-fleet spawn NAME --root DIR --from NAME --task NAME --assignee NAME --objective T --done-when T --delivery T --autonomy ask|decide [--engine KIND] [--host-bin PATH]
 //! rung-fleet [--registry DIR] stop ID --from NAME --id CORRELATION [--wait SECS] WHY
 //! ```
 
@@ -22,6 +23,8 @@ fn usage() -> ExitCode {
          rung-fleet [--registry DIR] steer ID --from NAME --id CORRELATION [--wait SECS] TEXT\n       \
          rung-fleet [--registry DIR] assign ID --from NAME --id CORRELATION --task NAME \\\n       \
          --objective T --done-when T --delivery T --autonomy ask|decide\n       \
+         rung-fleet spawn NAME --root DIR --from NAME --task NAME --assignee NAME \\\n       \
+         --objective T --done-when T --delivery T --autonomy ask|decide [--engine KIND] [--host-bin PATH]\n       \
          rung-fleet [--registry DIR] stop ID --from NAME --id CORRELATION [--wait SECS] WHY"
     );
     ExitCode::from(2)
@@ -68,6 +71,63 @@ impl From<steer::SteerError> for Failure {
     fn from(e: steer::SteerError) -> Self {
         Failure::Send(e)
     }
+}
+
+/// `spawn`: prepare a member with its brief, and start it with `--host-bin`.
+fn spawn_cmd(args: &[String]) -> Result<(), Failure> {
+    let name = args.first().ok_or(Failure::Usage)?;
+    let mut f: std::collections::BTreeMap<&str, String> = std::collections::BTreeMap::new();
+    let mut it = args[1..].iter();
+    while let Some(a) = it.next() {
+        let key = match a.as_str() {
+            "--root" => "root",
+            "--from" => "from",
+            "--task" => "task",
+            "--assignee" => "assignee",
+            "--objective" => "objective",
+            "--done-when" => "done_when",
+            "--delivery" => "delivery",
+            "--autonomy" => "autonomy",
+            "--engine" => "engine",
+            "--host-bin" => "host_bin",
+            _ => return Err(Failure::Usage),
+        };
+        f.insert(key, it.next().cloned().ok_or(Failure::Usage)?);
+    }
+    let get = |k: &str| f.get(k).cloned().ok_or(Failure::Usage);
+    let autonomy = match get("autonomy")?.as_str() {
+        "ask" => rung_fleet::Autonomy::Ask,
+        "decide" => rung_fleet::Autonomy::Decide,
+        _ => return Err(Failure::Usage),
+    };
+    let bad = |e: String| Failure::Unconfirmed(e);
+    let brief = rung_fleet::Brief::new(
+        get("objective")?,
+        get("done_when")?,
+        get("delivery")?,
+        autonomy,
+    )
+    .map_err(|e| bad(e.to_string()))?;
+    let what = rung_fleet::lifecycle::Spawn::new(brief, get("assignee")?)
+        .map_err(|e| bad(e.to_string()))?;
+    let engine = f.get("engine").cloned().unwrap_or_else(|| "mock".into());
+    let s = rung_fleet::spawn::spawn(
+        std::path::Path::new(&get("root")?),
+        name,
+        &get("from")?,
+        &get("task")?,
+        &what,
+        &engine,
+    )
+    .map_err(|e| bad(e.to_string()))?;
+    println!("spawned {name}: {}", s.config.display());
+    if let Some(bin) = f.get("host_bin") {
+        let child = rung_fleet::spawn::launch(std::path::Path::new(bin), &s.config)
+            .map_err(|e| bad(format!("launch {bin}: {e}")))?;
+        println!("started pid {}", child.id());
+    }
+    drop(s.task);
+    Ok(())
 }
 
 /// `assign`: send a task with its whole brief.
@@ -184,6 +244,7 @@ fn run(dir: &std::path::Path, args: &[String]) -> Result<(), Failure> {
             Ok(())
         }
         Some("assign") => assign(dir, &args[1..]),
+        Some("spawn") => spawn_cmd(&args[1..]),
         Some(w @ ("steer" | "stop")) => send(dir, w == "stop", &args[1..]),
         Some("read") => {
             let id = args.get(1).ok_or(Failure::Usage)?;

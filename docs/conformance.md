@@ -761,7 +761,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 25 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 676 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 680 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1200,6 +1200,13 @@ look shorter than it is.
 - `a_known_kind_with_a_bad_field_is_refused`
 - `a_reader_skips_what_it_does_not_know`
 - `no_other_crate_writes_a_crew_kind`
+
+**`rung-fleet/tests/spawn.rs`** — 4 unclaimed
+
+- `a_spawned_member_starts_as_an_ordinary_host_and_reads_its_brief`
+- `launch_runs_the_host_binary_with_the_config`
+- `spawn_refuses_a_bad_name_an_existing_member_and_a_bad_engine`
+- `the_command_spawns_a_member_and_refuses_a_bad_name`
 
 **`rung-fleet/tests/steer.rs`** — 4 unclaimed
 

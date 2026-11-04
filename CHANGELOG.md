@@ -7,6 +7,14 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 9: spawn)
+- `rung-fleet::spawn` and the `spawn` command: a member is prepared under a root
+  (directories and a host configuration that names its inbox and stop file) and
+  its brief is delivered to the inbox before the host starts; `launch` starts the
+  host process (`--host-bin`). A task cannot be spawned without a validated brief,
+  a name must be a registry id, and an existing member is never overwritten. A real
+  host starts from the written config and records the brief. This closes the R2 verbs.
+
 ### Added (rung-fleet, R2 step 8)
 - Crew lines as a view over the peer items the host already records:
   `steer::report` puts a `crew.*` fact in a member's inbox as a peer item,
