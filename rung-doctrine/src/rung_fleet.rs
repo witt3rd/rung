@@ -591,14 +591,14 @@ fleet needs in order to resume. Losing the ledger loses the link, not the work.
         Element::Prop(Prop {
             slug: "a-decision-is-a-held-item".into(),
             parent: Some("the-queue-is-the-hosts-own".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that a decision opens a held item with a key, that no later message closes it, and that only a resolution carrying the key does"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/decision_hold.rs::only_a_resolution_with_the_key_closes_a_hold".into() },
             numbering: None,
             prose: r#"A **decision** the principal must make is an item held for the principal, with a
 key. Only a resolution that carries the key closes it; a later report that
 happens to answer it does not.
 
 "#.into(),
-            mechanism: r#""#.into(),
+            mechanism: r#"The cited test folds `crew.*` lines with `records::open_holds`: a hold opened by `crew.held` stays open through completion reports, retirement, a resolution of another key and a resolution of another task, and closes only on a `crew.resolved` of its own task and key; a resolution that came before its hold closes nothing. It shows the fold over lines, not that a running steward reads it; the ladder's own `resume` has the same rule (`held-and-stalled-are-recoverable`)."#.into(),
         }),
         Element::Verbatim(r#"---
 

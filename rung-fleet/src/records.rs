@@ -315,3 +315,40 @@ impl CrewRecord {
         }
     }
 }
+
+/// A decision held for the principal, open until its own resolution arrives.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct OpenHold {
+    pub crew: String,
+    pub key: String,
+    /// The record line of the `crew.held` that opened it.
+    pub seq: u64,
+}
+
+/// The holds still open after `lines` (`a-decision-is-a-held-item`): a
+/// `crew.held` opens one, keyed; only a `crew.resolved` for the same crew and
+/// the same key closes it. Any other line, a report that happens to answer it
+/// included, leaves it open. A resolution with no hold before it opens
+/// nothing and closes nothing. Holding again under a key already open keeps
+/// the first line.
+pub fn open_holds(lines: &[(u64, CrewRecord)]) -> Vec<OpenHold> {
+    let mut open: Vec<OpenHold> = Vec::new();
+    for (seq, rec) in lines {
+        match rec {
+            CrewRecord::Held { crew, key } => {
+                if !open.iter().any(|h| h.crew == *crew && h.key == *key) {
+                    open.push(OpenHold {
+                        crew: crew.clone(),
+                        key: key.clone(),
+                        seq: *seq,
+                    });
+                }
+            }
+            CrewRecord::Resolved { crew, key } => {
+                open.retain(|h| !(h.crew == *crew && h.key == *key));
+            }
+            _ => {}
+        }
+    }
+    open
+}

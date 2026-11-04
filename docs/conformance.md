@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 16 decidable · 20 owed · 4 rationale · 12 signature · 52 total.
+**Counts.** 17 decidable · 19 owed · 4 rationale · 12 signature · 52 total.
 
 ### What the fleet is
 
@@ -674,7 +674,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [7](rung-fleet-props.md#the-queue-is-the-hosts-own) | `the-queue-is-the-hosts-own` | `signature` | — | — |
 | [7.1](rung-fleet-props.md#a-queue-has-one-writer) | `a-queue-has-one-writer` | `decidable` | The cited test delivers a peer item to a member that is not running and finds the inbox file written and the receiver's state directory absent; it then runs the real host, which reads the file into its record, and starts a second real host on the same state directory, which is refused and adds nothing to the record while the first goes on. It does not show that the fleet has no other writer in its code; that is `fleet-reuses-the-host-unchanged`. | `rung-fleet/tests/queue_one_writer.rs::items_arrive_only_as_inbox_files_and_a_second_host_is_refused` |
 | [7.2](rung-fleet-props.md#an-external-reference-is-not-state) | `an-external-reference-is-not-state` | `owed` | — | **owed** — unimplemented — a test that a host resumes every queued item with the external ledger unreachable |
-| [7.3](rung-fleet-props.md#a-decision-is-a-held-item) | `a-decision-is-a-held-item` | `owed` | — | **owed** — unimplemented — a test that a decision opens a held item with a key, that no later message closes it, and that only a resolution carrying the key does |
+| [7.3](rung-fleet-props.md#a-decision-is-a-held-item) | `a-decision-is-a-held-item` | `decidable` | The cited test folds `crew.*` lines with `records::open_holds`: a hold opened by `crew.held` stays open through completion reports, retirement, a resolution of another key and a resolution of another task, and closes only on a `crew.resolved` of its own task and key; a resolution that came before its hold closes nothing. It shows the fold over lines, not that a running steward reads it; the ladder's own `resume` has the same rule (`held-and-stalled-are-recoverable`). | `rung-fleet/tests/decision_hold.rs::only_a_resolution_with_the_key_closes_a_hold` |
 
 ### Supervision
 
@@ -741,9 +741,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 160 |
+| `decidable` | 161 |
 | `judgmental` | 47 |
-| `owed` | 22 |
+| `owed` | 21 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **456** |
@@ -761,8 +761,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 22 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 682 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 21 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 683 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1182,6 +1182,10 @@ look shorter than it is.
 **`rung-fleet/tests/crew_view.rs`** — 1 unclaimed
 
 - `crew_facts_reported_to_a_host_read_back_as_crew_lines`
+
+**`rung-fleet/tests/decision_hold.rs`** — 1 unclaimed
+
+- `holds_are_independent_and_a_resolution_with_no_hold_opens_nothing`
 
 **`rung-fleet/tests/delivery.rs`** — 2 unclaimed
 
