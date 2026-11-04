@@ -82,7 +82,7 @@ rung-testkit    test-only helpers: TempDir, scripted mock LLM and HTTP servers (
 ```
 
 Not crates: `ui/` (rung-ui, TypeScript, npm, unpublished), `skills/`, `scripts/`
-(Python probes, audits and their tests), `examples/` (host sample workspaces; the
+(the lander `land-direct`, the Tier 1 gate `tier1.sh` and their self-test; Python probes, audits and their tests), `examples/` (host sample workspaces; the
 ladder examples are `rung/examples/`), `data/` (briefs and master-protection
 evidence), `docs/`, `docs/records/` (dated, append-only: `docs/_records_guard.py`),
 `.het/` (audit-rectify state, a docket the loop audits), `.archive/` (the Python
@@ -107,7 +107,7 @@ evidence. `G1`–`G16` and `J1`–`J2` are labelled subtrees cited from Rust and
 test filenames. `docs/_props.py cited` treats kebab tokens in comments in
 `rung`, `rung-het` and `rung-std` as proposition slugs; wire names that are not
 slugs go in `NOT_A_CITATION`. `docs/_links.py` fails a document that points at
-something absent. Required CI check: `check`.
+something absent. Tier 1 job of `ci.yml`: `scripts/tier1.sh`.
 
 ## Map
 
@@ -126,46 +126,55 @@ something absent. Required CI check: `check`.
 | the agent CLI, ACP, Harbor suite | `rung-agent/AGENTS.md` |
 | crate rustdoc and Getting Started | `rung/src/lib.rs` |
 
-## House git (trunk mandate, authoritative)
+## Landing (direct to master, no PRs; authoritative)
 
 House skill: `fleet_git` (where it disagrees with this section, this wins).
-Mainline is `master`, the one shared reality. Stage only files you touched;
-never `git add -A`.
+Mainline is `master`, the one shared reality. Only our agents work here, on one
+machine, and master is not deployed: so work **lands with `scripts/land-direct`;
+never open a PR, never push a branch, never push `master` yourself.**
+Stage only files you touched; never `git add -A`.
 
 1. Cut an atomic task: one micro-increment that can land alone; hide unfinished
-   work behind an abstraction, never behind a long-lived branch.
-2. Work in an ephemeral worktree with a **45 minute lifetime**; if it cannot be
-   green and rebased in that window, stop, log artifacts, and split the task.
-3. Verify locally and narrowly; CI runs the rest.
-4. Rebase on a fresh `origin/master`, push a short-lived branch, open the PR and
-   enable auto-merge (`gh pr merge --auto --squash`).
-5. The PR lands by itself when `check` is green and the branch is up to date
-   with `master`. On red, a fixer agent is spawned with the logs.
-6. No human review on the critical path. When another change lands first,
-   rebase on the new `master` (auto-merge stays armed after a push).
-
-**There is no true merge queue**: GitHub offers it to organizations only and
-`witt3rd/rung` is user-owned. Master's ruleset `protect-default-branch` requires
-a pull request (zero approvals), the status `check` with the strict "up to
-date" policy, and blocks force pushes and deletion; no bypass actor, so direct
-pushes to `master` are refused for everyone. The workflow also triggers on
-`merge_group`, ready if the repo ever moves to an organization.
-
-**Forbidden:** pushing to `master` directly or concurrently; long-lived branches;
-stacking work on an unlanded branch; waiting for human approval; force-pushing
-`master`; merging around the required check. **The one exception:** a single
-designated committer agent may hold a write lock and fast-forward `master` after
-its own verification; the ruleset has no bypass actor today, so that path does
-not exist until the owner adds one.
-
-A full CI run takes about 11 minutes. The strict policy serializes landing: a PR
-that loses the race is rebased and re-run, roughly five changes an hour; keep
-increments small.
+   work behind an abstraction (new behaviour off by default), never behind a
+   long-lived branch.
+2. Work in a worktree cut from a fresh `origin/master`, **45 minute lifetime**;
+   if it cannot be green in that window, stop, log artifacts, and split the task.
+   Commit locally with Conventional Commit subjects (`type(scope): summary`).
+3. Run `scripts/land-direct` from the worktree. Under one lock it fetches,
+   rebases your commits onto `origin/master` in a scratch worktree, runs
+   **Tier 1** (`scripts/tier1.sh`) locally on that exact combination, and pushes a
+   plain fast-forward to `master`. It never forces. Exit codes (the last stdout
+   line is JSON): 0 landed; 10 master is red; 11 rebase conflict (resolve in your
+   worktree, run again); 12 regeneration failed; 13 Tier 1 fails; 14 held;
+   15 busy (no lock in 90 s: run again). `--dry-run` pushes nothing.
+4. **Tier 1** is fmt, the records and doc guards, and for the changed crates plus
+   their reverse dependencies (`scripts/ci_plan.py`) strict clippy and the unit
+   tests (`--lib --bins`): a few minutes. **Tier 2** (`.github/workflows/tier2.yml`):
+   integration tests, doctests, rustdoc, trybuild UI suites, examples, MSRV, GUI
+   workspace, cargo-deny, release check, every six hours on `master` and on
+   dispatch. Tier 2 never gates landing. Run the slow suites for your crate
+   yourself before landing when you touch behaviour they cover.
+5. **Master is red** when the `tier1` job of the latest push run of `ci.yml`
+   failed: only a `fix(ci):` / `fix(tests):` / revert commit lands (the lander
+   enforces it). Never hotfix on master; reproduce in a worktree and land the fix.
+   `scripts/land-direct --hold "<reason>"` freezes all landing (the marker is in
+   the git common dir); `--release` lifts it.
+6. **After every landing, read the push CI result** (`gh run list --workflow ci.yml
+   --branch master`) and report it next to the local numbers, each labelled `local`
+   or `CI` (Tier 1 seconds from the lander's JSON, the push run's `tier1` job).
+   CI red after a green local run is the first thing to fix.
+7. A change to the lander, `scripts/tier1.sh`, `scripts/test_land_direct.sh` or
+   `ci.yml`/`tier2.yml` is a gate-defining change: say so in the commit message.
+Master's ruleset `protect-default-branch` blocks force pushes and deletion only
+(pull-request and required-status rules were removed 2026-11-05 for this model).
+**Forbidden:** opening a PR; pushing a branch for others to merge; pushing
+`master` other than through the lander; force-pushing `master`; stacking work on
+an unlanded branch; landing onto a red or held `master` (other than the fix).
 
 Licence: `MIT OR Apache-2.0` (`LICENSE-MIT`, `LICENSE-APACHE`); rung is not published to a registry.
 Release: bump the workspace version in `Cargo.toml`, commit, then tag `vX.Y.Z`
 to match (procedure: `skills/rung/SKILL.md`). External contributors: PRs against
-`master`; follow CI; do not rewrite history.
+`master` (the one case of a PR here), kept small; do not rewrite history.
 
 <!-- OPENWIKI:START -->
 

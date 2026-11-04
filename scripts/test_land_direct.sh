@@ -103,7 +103,7 @@ rm -f "$T/hook.1"; git -C "$T/other" pull -q origin master
 sync p1; echo p1 > p1.txt; cm p1; echo 1 > "$T/reject"; run; [ "$rc" = 0 ] && grep -q "was refused" "$T/out" && [ "$(showf p1.txt)" = p1 ] || fail "a refused push was not retried (exit $rc): $(cat "$T/out")"
 sync p2; echo p2 > p2.txt; cm p2; m0=$(master); echo 3 > "$T/reject"; run; [ "$rc" = 1 ] && grep -q "refused three times" "$T/out" && [ "$(master)" = "$m0" ] || fail "three refused pushes did not stop it (exit $rc): $(cat "$T/out")"; echo 0 > "$T/reject"
 # 9. the hold marker: stops it at the start; one set during Tier 1 stops it right before the push; released, it lands
-sync h; echo h > h.txt; cm h; m0=$(master); "$land" --hold "owner says wait" >/dev/null
+sync h; echo h > h.txt; cm h; m0=$(master); "$land" --hold "owner says wait" | tail -1 | grep -q '"result":"hold-set"' || fail "--hold prints no JSON line"
 run; [ "$rc" = 14 ] && [ "$(jf result)" = held ] && grep -q "owner says wait" "$T/out" && [ "$(master)" = "$m0" ] || fail "a hold marker did not stop it (exit $rc): $(cat "$T/out")"
 "$land" --release >/dev/null; rm -f "$T/t1n"; printf 'echo mid-flight > %s\n' "$common/rung-land-hold" > "$T/hook.1"
 run; [ "$rc" = 14 ] && [ "$(master)" = "$m0" ] || fail "a hold set during Tier 1 did not stop the push (exit $rc): $(cat "$T/out")"
@@ -116,6 +116,7 @@ printf 'tier1\tsuccess\n' > "$T/jobs"; sync ok; echo ok > ok.txt; cm ok; run; [ 
 rm -f "$T/latest" "$T/jobs"
 # 11. land-time checks: a bad subject stops
 sync k1; echo o > o.txt; cm k1 "update stuff"; m0=$(master); run; [ "$rc" = 1 ] && grep -q "Conventional" "$T/out" && [ "$(master)" = "$m0" ] || fail "a bad subject did not stop: $(cat "$T/out")"
+sync rv; echo rv > rv.txt; cm rv 'Revert "feat(test): a"'; run; [ "$rc" = 0 ] || fail "a git-style Revert subject did not land (exit $rc): $(cat "$T/out")"
 # 12. bad input: nothing to land (2), an unknown flag (2), a merge commit in the range (2)
 sync n; run; [ "$rc" = 2 ] && grep -q "nothing to land" "$T/out" || fail "an empty range was not refused (exit $rc): $(cat "$T/out")"
 run --nonsense; [ "$rc" = 2 ] || fail "an unknown flag was accepted"

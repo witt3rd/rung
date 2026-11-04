@@ -2,7 +2,7 @@
 name: rung
 description: >
   Lived experience for the rung repo. Load when working in ~/src/witt3rd/rung
-  (or a worktree): house git (trunk path: ephemeral worktree, PR with auto-merge),
+  (or a worktree): landing (scripts/land-direct, no PRs),
   CI, proposition citations, kernel vs product. Not the ladder
   language itself — that is AGENTS.md + docs/.
 metadata:
@@ -18,13 +18,14 @@ handoff.
 
 ## Git
 
-House `fleet_git`; AGENTS.md House git is authoritative. Work in an
-ephemeral worktree cut from a fresh `origin/master`, 45 minute limit (else
-stop, log, split). Verify narrowly locally, rebase on fresh `origin/master`,
-push a short-lived branch, open the PR and enable auto-merge
-(`gh pr merge --auto --squash`); it lands on green `check` with the branch up
-to date. There is no merge queue (user-owned repo). No long-lived branches.
-Merge method squash (full CI about 11 minutes). Never `git add -A`.
+House `fleet_git`; AGENTS.md Landing is authoritative. Work in a worktree cut
+from a fresh `origin/master`, 45 minute limit (else stop, log, split), commit
+locally, then `scripts/land-direct`: it rebases, runs Tier 1 on the exact
+combination and fast-forwards `master`. Never open a PR, never push a branch,
+never `git add -A`. Read the push CI after each landing and report CI against
+local numbers. Tier 1 locally: a few seconds for docs-only, about two minutes
+warm for the whole workspace; the lander keeps one warm cargo target dir in the
+git common dir. Run `scripts/tier1.sh --plan` to see what a change selects.
 
 Task isolation worktrees (`{repo}.wt/rung-task--{id}`, branch `rung-task/{id}`)
 are product, not `git-wt-new`. Do not use `git-wt-new` for those.
@@ -37,7 +38,7 @@ A release is its own commit: bump `[workspace.package] version` in
 tag. The version must match the tag. Downstream consumers pin tags.
 Each release adds its `CHANGELOG.md` entry in the release commit.
 Wait for CI on the release commit before you report the release.
-The CI `release-check` job (PRs and `v*` tag pushes) verifies, and never
+The Tier 2 `release-check` job (schedule, dispatch and `v*` tag pushes) verifies, and never
 publishes: tag equals workspace version (tag pushes only), `Cargo.lock` is
 current (`--locked`), crates depending on a `publish = false` crate are also
 `publish = false` (`docs/_release_check.py`), and `cargo build -p rung-agent
@@ -45,17 +46,18 @@ current (`--locked`), crates depending on a `publish = false` crate are also
 
 ## CI
 
-Required check is `check`: an aggregator job that needs every other job and
-fails if any failed, or was skipped while the plan had Rust work. Never rename it.
-The jobs run in parallel: `plan`, `lint` (fmt, clippy `-D warnings`), `test`
+Two tiers. **Tier 1** is `scripts/tier1.sh`: the lander runs it locally before
+every push, and `ci.yml` runs it as the `tier1` job on each push to `master`
+(that job's result is the definition of red). **Tier 2** is `tier2.yml`, every
+six hours and on dispatch, never gating: `plan`, `lint`, `test`
 (cargo-nextest, 4 shards, `scripts/test_tmp_clean.sh nextest`), `docs` (rustdoc
-`-D warnings`, doctests), `examples`, `msrv`, `deny`, `propositions`,
-`release-check`. Pull requests build only the crates a change affects (changed
-crates plus reverse dependencies); push, `merge_group` and tags run everything.
+`-D warnings`, doctests), `examples`, `gui`, `msrv`, `deny`, `propositions`,
+`release-check`, summarised by `check`. Tier 1 builds only the crates a change
+affects (changed crates plus reverse dependencies); Tier 2 runs everything.
 Selection rules and their tests: `scripts/ci_plan.py`, `scripts/test_ci_plan.py`
 (dry run: `printf 'docs/x.md\n' | scripts/ci_plan.py --event pull_request --files -`).
 A test or example that reads a root-level path adds a row to `EXTRA_INPUTS` there.
-Propositions job: `render --check`, `docs/_props.py check`, `cited`,
+Tier 1 (when a crate it reads is in scope) and the Tier 2 propositions job: `render --check`, `docs/_props.py check`, `cited`,
 `docs/_consumer_guard.py` (no consumer-specific names; exemptions in
 `docs/_consumer_guard.allow`).
 `cited` scans `rung`, `rung-het`, `rung-std` comments for kebab slugs.

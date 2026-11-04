@@ -10,27 +10,27 @@
 # Exit codes: 0 landed | 1 stopped with a plain message | 2 bad input | 10 master is red (or unknowable) | 11 rebase conflict (aborted, files named: resolve in your worktree, run again) |
 #   12 regenerating a conflicted generated file failed | 13 Tier 1 fails (nothing lands) | 14 held | 15 busy: no lock within LAND_LOCK_WAIT_SECONDS (default 90): run it again.
 # The LAST line of stdout is JSON: {"sha","commits","tier1_seconds","result","exit"} (null where not known; result: landed, would-land, blocked-red, conflict, regen, tier1,
-# held, busy, error). Overridable for the self-test: REMOTE, BASE, GH, TIER1_CMD, REGEN_CMD.
+# held, busy, hold-set, hold-released, error). Overridable for the self-test: REMOTE, BASE, GH, TIER1_CMD, REGEN_CMD.
 export LC_ALL=C
 set -euo pipefail
 remote=${REMOTE:-origin}; base=${BASE:-master}; gh=${GH:-gh}
 tier1=${TIER1_CMD:-scripts/tier1.sh}; regen=${REGEN_CMD:-cargo run -q -p rung-doctrine --bin render --locked}
 here=$(cd "$(dirname "$0")" && pwd)
-top=$(git rev-parse --show-toplevel) || exit 2
-common=$(git -C "$top" rev-parse --path-format=absolute --git-common-dir)
-case ${1:-} in
-  --hold) [ $# -eq 2 ] || { echo "usage: land-direct --hold \"<reason>\"" >&2; exit 2; }
-    printf '%s\n' "$2" > "$common/rung-land-hold.tmp.$$" && mv -f "$common/rung-land-hold.tmp.$$" "$common/rung-land-hold"; echo "land-direct: hold set: $2"; exit 0;;
-  --release) rm -f "$common/rung-land-hold"; echo "land-direct: hold released"; exit 0;;
-esac
-dry=0; args=(); for a in "$@"; do case $a in --dry-run) dry=1;; -*) echo "usage: land-direct [--dry-run] [<rev>]" >&2; exit 2;; *) args+=("$a");; esac; done
-[ ${#args[@]} -le 1 ] || { echo "usage: land-direct [--dry-run] [<rev>]" >&2; exit 2; }
-rev=${args[0]:-HEAD}
 sha=; ncommits=; t1=; result=error
 json_num() { [[ "${1:-}" =~ ^[0-9]+(\.[0-9]+)?$ ]] && printf '%s' "$1" || printf null; }
 json_str() { [[ "${1:-}" =~ ^[A-Za-z0-9._-]+$ ]] && printf '"%s"' "$1" || printf null; }
 onexit() { local c=$?; printf '{"sha":%s,"commits":%s,"tier1_seconds":%s,"result":"%s","exit":%s}\n' "$(json_str "$sha")" "$(json_num "$ncommits")" "$(json_num "$t1")" "$result" "$c"; }
 trap onexit EXIT
+top=$(git rev-parse --show-toplevel) || exit 2
+common=$(git -C "$top" rev-parse --path-format=absolute --git-common-dir)
+case ${1:-} in
+  --hold) [ $# -eq 2 ] || { echo "usage: land-direct --hold \"<reason>\"" >&2; exit 2; }
+    printf '%s\n' "$2" > "$common/rung-land-hold.tmp.$$" && mv -f "$common/rung-land-hold.tmp.$$" "$common/rung-land-hold"; echo "land-direct: hold set: $2"; result=hold-set; exit 0;;
+  --release) rm -f "$common/rung-land-hold"; echo "land-direct: hold released"; result=hold-released; exit 0;;
+esac
+dry=0; args=(); for a in "$@"; do case $a in --dry-run) dry=1;; -*) echo "usage: land-direct [--dry-run] [<rev>]" >&2; exit 2;; *) args+=("$a");; esac; done
+[ ${#args[@]} -le 1 ] || { echo "usage: land-direct [--dry-run] [<rev>]" >&2; exit 2; }
+rev=${args[0]:-HEAD}
 stop() { local code=$1; result=$2; shift 2; echo "land-direct: $*" >&2; exit "$code"; }
 die() { stop 1 error "$*"; }
 holdcheck() { local f=$common/rung-land-hold; [ ! -e "$f" ] || stop 14 held "HOLD in force ($f): $(sed -n 1p "$f" 2>/dev/null); not landing. scripts/land-direct --release lifts it."; }
@@ -43,8 +43,8 @@ commits=$(git -C "$top" rev-list --reverse --topo-order "$remote/$base..$tip0")
 ncommits=$(wc -l <<<"$commits")
 title=$(git -C "$top" log -1 --format=%s "$tip0"); allfix=1
 for c in $commits; do
-  subj=$(git -C "$top" log -1 --format=%s "$c"); body=$(git -C "$top" log -1 --format=%B "$c" | tr -d '\r')
-  grep -qE '^(feat|fix|docs|chore|refactor|test|perf|build|ci|style|revert)(\([a-z0-9_,./-]+\))?!?: ..*' <<<"$subj" || die "commit ${c:0:12}: the subject is not a Conventional Commit 'type(scope): summary': '$subj'"
+  subj=$(git -C "$top" log -1 --format=%s "$c")
+  grep -qE '^((feat|fix|docs|chore|refactor|test|perf|build|ci|style|revert)(\([a-z0-9_,./-]+\))?!?: ..*|Revert ".+)' <<<"$subj" || die "commit ${c:0:12}: the subject is not a Conventional Commit 'type(scope): summary': '$subj'"
   grep -qE '^(fix\((ci|tests)\):|[Rr]evert)' <<<"$subj" || { allfix=0; title=$subj; }
 done
 [ "$allfix" = 0 ] || title=$(git -C "$top" log -1 --format=%s "$tip0")

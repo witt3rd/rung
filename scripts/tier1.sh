@@ -36,7 +36,7 @@ touched() { grep -qE "$1" <<<"$files"; }
 step "fmt"
 cargo fmt --check
 step "records are append-only"
-docs/_records_guard.py "$base" 2>/dev/null || docs/_records_guard.py origin/master
+docs/_records_guard.py "$(git rev-parse --verify -q "$base^{commit}" >/dev/null && ! [[ "$base" =~ ^0+$ ]] && echo "$base" || echo origin/master)"
 step "planner and skipped-test guards"
 python3 scripts/test_ci_plan.py
 python3 scripts/test_skipped_tests.py
