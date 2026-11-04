@@ -761,7 +761,7 @@ The join is not onto in either direction, and each direction is a queue.
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
 | **owed** | a proposition with no proof | write the test — or build the thing it would run against | 25 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 675 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 676 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1177,6 +1177,10 @@ look shorter than it is.
 - `a_consumer_may_place_an_order_and_drive_it`
 - `an_invented_order_settles_exactly_as_a_real_one_does`
 - `the_knowledge_exists_upstream_and_cannot_cross`
+
+**`rung-fleet/tests/crew_view.rs`** — 1 unclaimed
+
+- `crew_facts_reported_to_a_host_read_back_as_crew_lines`
 
 **`rung-fleet/tests/delivery.rs`** — 2 unclaimed
 

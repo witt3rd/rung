@@ -99,16 +99,22 @@ pub fn read(dir: &Path, id: &str, after: u64, limit: usize) -> Result<Read, Verb
     })
 }
 
-/// The crew lines of a member's record, in order. Other kinds, and crew kinds
+/// The crew lines of a member's record, in order: native `crew.*` lines and
+/// the facts carried by peer items (the view). Other kinds, and crew kinds
 /// this version does not know, are skipped.
 pub fn crew(dir: &Path, id: &str) -> Result<Vec<(u64, CrewRecord)>, VerbError> {
     let state = state_of(dir, id)?;
     let mut out = Vec::new();
     let mut bad = None;
-    read::scan(&state, |l| match CrewRecord::from_line(l) {
-        Ok(Some(r)) => out.push((l.seq, r)),
-        Ok(None) => {}
-        Err(e) => bad = bad.take().or(Some(e)),
+    read::scan(&state, |l| {
+        match CrewRecord::from_line(l).and_then(|r| match r {
+            Some(r) => Ok(Some(r)),
+            None => CrewRecord::from_stimulus(l),
+        }) {
+            Ok(Some(r)) => out.push((l.seq, r)),
+            Ok(None) => {}
+            Err(e) => bad = bad.take().or(Some(e)),
+        }
     })
     .map_err(|e| VerbError::Record(e.message))?;
     match bad {

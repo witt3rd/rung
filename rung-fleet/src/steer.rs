@@ -12,6 +12,7 @@ use rung_host::{registry, startup};
 
 use crate::brief::{Autonomy, Brief};
 use crate::delivery::{self, CorrelationId, Delivery, DeliveryError, Kind, Sent, Target};
+use crate::records::CrewRecord;
 
 /// Why a steer could not be sent.
 #[derive(Debug)]
@@ -155,6 +156,29 @@ pub fn assign(
             kind: Kind::Assign,
             from: from.to_string(),
             text: brief_text(task, brief),
+        },
+    )
+    .map_err(SteerError::Delivery)
+}
+
+/// Put a crew fact in `member`'s record (option (a) of the notes): a peer item
+/// the host records as it records any item, read back as a `crew.*` line by
+/// [`CrewRecord::from_stimulus`]. Idempotent by correlation id.
+pub fn report(
+    index: &Path,
+    member: &str,
+    from: &str,
+    correlation: CorrelationId,
+    fact: &CrewRecord,
+) -> Result<Sent, SteerError> {
+    let target = target_of(index, member)?;
+    delivery::send(
+        &target,
+        &Delivery {
+            correlation,
+            kind: Kind::Crew,
+            from: from.to_string(),
+            text: fact.fact_text(),
         },
     )
     .map_err(SteerError::Delivery)

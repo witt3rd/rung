@@ -134,13 +134,18 @@ authority. `stop` sends exactly that, with the reason as the text and
 record answers why and by whom with no host change (an earlier reading, that
 the stop file names no one, was about the file, not this door). **The assign verb.** A task is an owner inbox item whose text is the brief, four
 fields and the task name, one per line; only a validated `Brief` can be sent.
-Still owed in R2: `spawn` and the writing of the crew lines. Both wait on one
-question the props leave open: `fleet-reuses-the-host-unchanged` forbids a host
-extension, yet the host's record append is crate-private, so a steward's record
-cannot take a `crew.*` line from outside. The way through that needs no host
-change is to let the steward's own inbox carry the fact (a peer item the host
-records as `stimulus.accepted`); whether the `crew.*` kinds are then a view over
-those items or need a small host door is the owner's call.
+**Crew lines are a view (decision, 2026-11-04, option (a)).** The host's record
+append is crate-private and `fleet-reuses-the-host-unchanged` forbids a new door,
+so a `crew.*` line is not written into a steward's record. The fleet puts a fact
+in the member's inbox as a *peer* item whose text is `[fleet:crew ...]` followed
+by the line's kind and body as JSON (`steer::report`); the host records it as
+`stimulus.accepted` as it records any item, and `CrewRecord::from_stimulus` (used
+by `verbs::crew`) reads it back as the `crew.*` line, with the record line's own
+number. Only peer items count, so an owner item cannot pose as a fact. Reason: the
+invariant that the host is reused unchanged holds and no door is added. If the
+view proves awkward in first real use, bring the concrete case and revisit a
+small host door restricted to the `crew.` prefix (option (b)). Still owed in R2:
+`spawn`.
 
 ## Notes on particular claims
 

@@ -64,6 +64,9 @@ pub enum Kind {
     /// A task given to a member with its brief: an owner item, read at the
     /// target's next boundary.
     Assign,
+    /// A crew fact (a `crew.*` kind) put in a member's record as a peer item
+    /// the host records unchanged; read back by `records::from_stimulus`.
+    Crew,
 }
 
 impl Kind {
@@ -75,6 +78,7 @@ impl Kind {
             Kind::Steer => "steer",
             Kind::Stop => "stop",
             Kind::Assign => "assign",
+            Kind::Crew => "crew",
         }
     }
 }

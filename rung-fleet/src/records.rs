@@ -7,6 +7,11 @@
 //! to `None` (a reader skips what it does not know); a known kind with a missing
 //! or malformed field is an error, never a guess.
 //!
+//! A crew line is a *view* over the peer items the host already records: the
+//! fleet puts a fact in a member's inbox ([`CrewRecord::fact_text`]) and the
+//! host records it as `stimulus.accepted`; [`CrewRecord::from_stimulus`] reads
+//! it back. The host is reused unchanged and has no door for these kinds.
+//!
 //! This module only gives the schema. Appending is the host's act on its own
 //! record; the fleet writes no file of the receiver's record.
 
@@ -256,6 +261,48 @@ impl CrewRecord {
             },
             _ => unreachable!("checked against KINDS"),
         }))
+    }
+
+    /// The text of the inbox item that carries this fact: the line's kind and
+    /// body as one JSON object after the delivery header.
+    pub fn fact_text(&self) -> String {
+        let mut o = self.body();
+        o.insert("kind".into(), self.kind().into());
+        Value::Object(o).to_string()
+    }
+
+    /// Read a fact back from a record line: a `stimulus.accepted` of a **peer**
+    /// item whose text is a `[fleet:crew ...]` delivery. `Ok(None)` for every
+    /// other line, and for a fact of a kind this version does not know. The
+    /// result takes the record line's own `seq` and `at`.
+    pub fn from_stimulus(line: &Line) -> Result<Option<CrewRecord>, RecordError> {
+        if line.kind != "stimulus.accepted" || line.get("item")["role"] != "peer" {
+            return Ok(None);
+        }
+        let Some(text) = line.get("item")["text"].as_str() else {
+            return Ok(None);
+        };
+        let Some(rest) = text.strip_prefix("[fleet:crew ") else {
+            return Ok(None);
+        };
+        let Some((_, json)) = rest.split_once("]\n") else {
+            return Ok(None);
+        };
+        let Ok(Value::Object(mut body)) = serde_json::from_str::<Value>(json) else {
+            return Ok(None);
+        };
+        let Some(kind) = body
+            .remove("kind")
+            .and_then(|k| k.as_str().map(str::to_string))
+        else {
+            return Ok(None);
+        };
+        Self::from_line(&Line {
+            seq: line.seq,
+            at: line.at,
+            kind,
+            body,
+        })
     }
 
     /// The line this record would be, at a given sequence number and time.

@@ -7,6 +7,13 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 8)
+- Crew lines as a view over the peer items the host already records:
+  `steer::report` puts a `crew.*` fact in a member's inbox as a peer item,
+  `CrewRecord::from_stimulus` reads it back from the record, and `verbs::crew`
+  (and `rung-fleet read --crew`) returns native lines and facts in order. Only peer
+  items count. No host change. Proved against a real host. `spawn` remains.
+
 ### Added (rung-fleet, R2 step 7)
 - `rung-fleet::steer::assign` and the `assign` command: a task goes to a member's
   inbox as an owner item carrying the whole brief (task, objective, done when,

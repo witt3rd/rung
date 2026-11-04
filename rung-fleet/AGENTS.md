@@ -10,7 +10,7 @@ Charter for the whole repo: [`../AGENTS.md`](../AGENTS.md).
   stalled as recoverable verdicts, ending in done) and the closure ladder (done
   to retired, enterable only from a `Done` verdict).
 - `brief`: the typed contract a task is spawned with; fields are private.
-- `records`: the `crew.*` record kinds (schema only).
+- `records`: the `crew.*` record kinds, and their reading from peer items the host records (`steer::report` writes the fact; the host is unchanged).
 - `verbs` and the `rung-fleet` command: `list` and `read`, read-only; the
   command holds no behaviour the library lacks.
 - `steer`: the `steer`, `assign` and `stop` verbs (owner-class inbox items found through the index; stop carries the `stop` control).
