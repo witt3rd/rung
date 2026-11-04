@@ -4,6 +4,7 @@
 import http.server
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -65,6 +66,8 @@ class T(unittest.TestCase):
 
     def tearDown(self):
         self.server.shutdown()
+        self.server.server_close()
+        shutil.rmtree(self.d, ignore_errors=True)
 
     def git(self, *a):
         return subprocess.run(["git", *a], cwd=self.repo, env=self.env, check=True, capture_output=True, text=True).stdout
