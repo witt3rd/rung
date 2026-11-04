@@ -5,5 +5,6 @@
 
 pub mod brief;
 pub mod lifecycle;
+pub mod records;
 
 pub use brief::{Autonomy, Brief, BriefError};
