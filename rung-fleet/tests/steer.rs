@@ -167,3 +167,37 @@ fn a_steer_reaches_a_real_host_and_the_receipt_names_the_line() {
     std::fs::write(r.join("steward-alpha/STOP"), "").unwrap();
     thread.join().unwrap();
 }
+
+#[test]
+fn the_command_sends_a_steer_and_a_stop_to_the_inbox() {
+    let root = TempDir::new("fleet-steer-cli");
+    let r = root.path();
+    let inbox = r.join("steward-alpha/inbox");
+    let cfg = write_config(r, "steward-alpha", &format!("inbox: {}", inbox.display()));
+    register(r, "steward-alpha", &cfg, &r.join("steward-alpha/state"));
+    let run = |args: &[&str]| {
+        std::process::Command::new(env!("CARGO_BIN_EXE_rung-fleet"))
+            .arg("--registry")
+            .arg(r.join("registry"))
+            .args(args)
+            .output()
+            .unwrap()
+            .status
+            .code()
+    };
+    let common = ["steward-alpha", "--from", "chief"];
+    let go = [&["steer"][..], &common, &["--id", "c-1", "go left"]].concat();
+    assert_eq!(run(&go), Some(0));
+    let halt = [&["stop"][..], &common, &["--id", "c-2", "withdrawn"]].concat();
+    assert_eq!(run(&halt), Some(0));
+    let read = |f: &str| -> serde_json::Value {
+        serde_json::from_str(&std::fs::read_to_string(inbox.join(f)).unwrap()).unwrap()
+    };
+    assert_eq!(read("c-1.msg")["role"], "owner");
+    assert!(read("c-1.msg").get("control").is_none());
+    assert_eq!(read("c-2.msg")["control"], "stop");
+    assert_eq!(read("c-2.msg")["channel"], "fleet:chief");
+    assert_eq!(run(&["steer", "steward-alpha", "--from", "chief"]), Some(2));
+    let nobody = ["steer", "nobody", "--from", "c", "--id", "x", "t"];
+    assert_eq!(run(&nobody), Some(1));
+}

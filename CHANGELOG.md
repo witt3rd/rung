@@ -7,6 +7,14 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 6)
+- `rung-fleet::steer::stop` and the `steer` and `stop` commands. `stop` sends an
+  owner item whose `control` is `stop` through the member's inbox, so the host's
+  own stop authority halts it and its record holds the reason (the item's text)
+  and who asked (its channel, `fleet:<from>`); the member stays in the list.
+  Proved against a real host. Prop `stop-records-why` becomes decidable. The
+  commands take `--wait SECS` to confirm against the member's record.
+
 ### Added (rung-fleet, R2 step 5)
 - `rung-fleet::steer`: the `steer` verb. It finds a member's inbox from the
   `inbox` its configuration names (through the instance index) and sends an

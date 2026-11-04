@@ -56,6 +56,11 @@ pub enum Kind {
     /// Direction to a member from its steward: an owner-class item, read at
     /// the target's next boundary (`a-steer-is-an-inbox-item`).
     Steer,
+    /// A request to halt a member, through the host's stop authority
+    /// (`stop-records-why`): an owner item whose `control` is `stop`, so the host
+    /// records the item (its text is the reason, its channel names who asked) and
+    /// then halts.
+    Stop,
 }
 
 impl Kind {
@@ -65,6 +70,7 @@ impl Kind {
             Kind::Handoff => "handoff",
             Kind::Escalation => "escalation",
             Kind::Steer => "steer",
+            Kind::Stop => "stop",
         }
     }
 }
@@ -142,8 +148,9 @@ pub fn send(target: &Target, d: &Delivery) -> Result<Sent, DeliveryError> {
     std::fs::create_dir_all(&target.inbox).map_err(DeliveryError::Io)?;
     let path = target.inbox.join(format!("{}.msg", d.correlation.as_str()));
     if !path.exists() {
-        let body = json!({
-            "role": if d.kind == Kind::Steer { Role::Owner.word() } else { Role::Peer.word() },
+        let owner = matches!(d.kind, Kind::Steer | Kind::Stop);
+        let mut body = json!({
+            "role": if owner { Role::Owner.word() } else { Role::Peer.word() },
             "text": format!(
                 "[fleet:{} from={} id={}]\n{}",
                 d.kind.word(),
@@ -152,6 +159,10 @@ pub fn send(target: &Target, d: &Delivery) -> Result<Sent, DeliveryError> {
                 d.text
             ),
         });
+        if d.kind == Kind::Stop {
+            body["control"] = json!("stop");
+            body["channel"] = json!(format!("fleet:{}", d.from));
+        }
         // Write beside the inbox name and rename, so the host never reads a
         // torn file; the temporary name does not end in `.msg`.
         let tmp = target

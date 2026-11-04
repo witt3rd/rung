@@ -13,7 +13,7 @@ Charter for the whole repo: [`../AGENTS.md`](../AGENTS.md).
 - `records`: the `crew.*` record kinds (schema only).
 - `verbs` and the `rung-fleet` command: `list` and `read`, read-only; the
   command holds no behaviour the library lacks.
-- `steer`: the steer verb (an owner-class inbox item found through the index).
+- `steer`: the `steer` and `stop` verbs (owner-class inbox items found through the index; stop carries the `stop` control).
 - Claims: [`docs/rung-fleet-props.md`](../docs/rung-fleet-props.md) (generated;
   do not hand-edit); derivation and phase progress:
   [`docs/rung-fleet-notes.md`](../docs/rung-fleet-notes.md).
