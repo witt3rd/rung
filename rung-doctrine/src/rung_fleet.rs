@@ -448,7 +448,7 @@ stays in the list.
         Element::Prop(Prop {
             slug: "stop-records-why".into(),
             parent: Some("fleet-verbs".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that `stop` raises the target's stop authority and the target's record holds the reason and who asked"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/stop.rs::stop_records_who_and_why_then_the_member_halts_and_stays_listed".into() },
             numbering: None,
             prose: r#"`stop` goes through the host's **stop authority** and the record states why and
 by whom; a stopped member is not removed from the list.

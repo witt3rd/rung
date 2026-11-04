@@ -126,8 +126,13 @@ the host's index and record readers and the list's JSON builder are reused.
 index; a relative path is refused, since the fleet cannot know what it is
 relative to. A steer is a `Kind::Steer` delivery, written as an `owner`-role
 item (the inbox takes no intent field; an owner item is read as the next thing
-at the target's boundary). Still owed in R2: `stop`, `spawn`, `assign`, the writing of the crew lines, and the command-line
-form of `steer`.
+at the target's boundary).
+**The stop verb.** The host already has an owner control: an owner inbox item with
+`control: stop` is recorded, disposed as `control`, and then raises the stop
+authority. `stop` sends exactly that, with the reason as the text and
+`fleet:<from>` as the channel (an owner file may name its channel), so the
+record answers why and by whom with no host change (an earlier reading, that
+the stop file names no one, was about the file, not this door). Still owed in R2: `spawn`, `assign`, and the writing of the crew lines.
 
 ## Notes on particular claims
 

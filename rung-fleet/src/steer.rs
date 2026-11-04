@@ -1,4 +1,4 @@
-//! The `steer` verb (`a-steer-is-an-inbox-item`).
+//! The `steer` and `stop` verbs (`a-steer-is-an-inbox-item`, `stop-records-why`).
 //!
 //! A steer is a durable item in the target member's inbox, read at the
 //! target's next boundary. Nothing else is touched: no process is signalled and
@@ -91,6 +91,30 @@ pub fn steer(
             kind: Kind::Steer,
             from: from.to_string(),
             text: text.to_string(),
+        },
+    )
+    .map_err(SteerError::Delivery)
+}
+
+/// Stop `member` through the host's stop authority (`stop-records-why`): an
+/// owner item with the `stop` control goes to its inbox; the host records it
+/// (the reason is its text, `fleet:<from>` its channel) and then halts. The
+/// member stays in the instance index. Idempotent by correlation id.
+pub fn stop(
+    index: &Path,
+    member: &str,
+    from: &str,
+    correlation: CorrelationId,
+    why: &str,
+) -> Result<Sent, SteerError> {
+    let target = target_of(index, member)?;
+    delivery::send(
+        &target,
+        &Delivery {
+            correlation,
+            kind: Kind::Stop,
+            from: from.to_string(),
+            text: why.to_string(),
         },
     )
     .map_err(SteerError::Delivery)
