@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 13 decidable · 23 owed · 4 rationale · 12 signature · 52 total.
+**Counts.** 14 decidable · 22 owed · 4 rationale · 12 signature · 52 total.
 
 ### What the fleet is
 
@@ -642,7 +642,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [4](rung-fleet-props.md#the-durable-record-is-the-delivery) | `the-durable-record-is-the-delivery` | `signature` | — | — |
 | [4.1](rung-fleet-props.md#an-unconsumed-receipt-does-not-compile) | `an-unconsumed-receipt-does-not-compile` | `decidable` | — | `rung-fleet/tests/delivery.rs::the_refusals_do_not_compile` |
 | [4.2](rung-fleet-props.md#duplicate-delivery-is-idempotent) | `duplicate-delivery-is-idempotent` | `decidable` | — | `rung-fleet/tests/delivery.rs::the_record_is_the_delivery_and_a_duplicate_adds_nothing` |
-| [4.3](rung-fleet-props.md#a-kill-loses-no-completion) | `a-kill-loses-no-completion` | `owed` | The host already requeues a stimulus admitted to a turn that never ended; this proposition adds that no crew completion falls between the crew's inbox write and the steward's recovery. | **owed** — unimplemented — a `kill -9` test of a steward mid-task: on restart its record recovers, the completion of its crew is delivered once, and none is lost |
+| [4.3](rung-fleet-props.md#a-kill-loses-no-completion) | `a-kill-loses-no-completion` | `decidable` | The host already requeues a stimulus admitted to a turn that never ended; this proposition adds that no crew completion falls between the crew's inbox write and the steward's recovery. The cited test kills the real `rung-host` binary with SIGKILL after one completion was read, with a second just written and a third written while it is down; after a restart from the same configuration each is in the record once, and a retry of the first names the same line. | `rung-fleet/tests/kill_recovery.rs::a_killed_steward_recovers_every_completion_once` |
 | [4.4](rung-fleet-props.md#crew-record-kinds-are-fleet-owned) | `crew-record-kinds-are-fleet-owned` | `decidable` | — | `rung-fleet/tests/records.rs::every_crew_kind_round_trips_through_a_record_line` |
 
 ### Verbs and attachment
@@ -741,9 +741,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 157 |
+| `decidable` | 158 |
 | `judgmental` | 47 |
-| `owed` | 25 |
+| `owed` | 24 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **456** |
@@ -761,7 +761,7 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 25 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 24 |
 | **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 680 |
 
 The second is the sharper one. A test guarding a real property the documents never

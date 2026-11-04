@@ -373,13 +373,13 @@ inbox and one line in its record.
         Element::Prop(Prop {
             slug: "a-kill-loses-no-completion".into(),
             parent: Some("the-durable-record-is-the-delivery".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a `kill -9` test of a steward mid-task: on restart its record recovers, the completion of its crew is delivered once, and none is lost"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/kill_recovery.rs::a_killed_steward_recovers_every_completion_once".into() },
             numbering: None,
             prose: r#"A steward killed in the middle of a task **recovers from its record**: no
 completion is lost and none is delivered twice.
 
 "#.into(),
-            mechanism: r#"The host already requeues a stimulus admitted to a turn that never ended; this proposition adds that no crew completion falls between the crew's inbox write and the steward's recovery."#.into(),
+            mechanism: r#"The host already requeues a stimulus admitted to a turn that never ended; this proposition adds that no crew completion falls between the crew's inbox write and the steward's recovery. The cited test kills the real `rung-host` binary with SIGKILL after one completion was read, with a second just written and a third written while it is down; after a restart from the same configuration each is in the record once, and a retry of the first names the same line."#.into(),
         }),
         Element::Prop(Prop {
             slug: "crew-record-kinds-are-fleet-owned".into(),
