@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 21 decidable · 18 owed · 4 rationale · 12 signature · 55 total.
+**Counts.** 22 decidable · 17 owed · 4 rationale · 12 signature · 55 total.
 
 ### What the fleet is
 
@@ -631,7 +631,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [3.1](rung-fleet-props.md#a-skipped-transition-does-not-compile) | `a-skipped-transition-does-not-compile` | `decidable` | Same mechanism as the kernel's refusals: the case is a compile-fail test whose snapshot holds the message, so a refusal that changes its reason is caught. | `rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile` |
 | [3.2](rung-fleet-props.md#held-and-stalled-are-recoverable) | `held-and-stalled-are-recoverable` | `decidable` | — | `rung-fleet/tests/lifecycle.rs::held_and_stalled_are_recoverable` |
 | [3.3](rung-fleet-props.md#a-brief-is-a-typed-contract) | `a-brief-is-a-typed-contract` | `decidable` | — | `rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile` |
-| [3.4](rung-fleet-props.md#a-stalled-crew-is-escalated-not-looped) | `a-stalled-crew-is-escalated-not-looped` | `owed` | — | **owed** — unimplemented — a fake-clock test: a crew silent past its bound becomes stalled, one retry is allowed, and a second stall of the same task is escalated to the steward's parent instead of retried |
+| [3.4](rung-fleet-props.md#a-stalled-crew-is-escalated-not-looped) | `a-stalled-crew-is-escalated-not-looped` | `decidable` | The clock is the caller's (`Watch` takes the time as an argument), so the cited test is a fake-clock test: silence within the bound goes on, silence past it becomes `stalled` only through `supervise::tick` and the ladder, the first stall is retried, and the second stall of the same task is escalated to the steward's parent in the reporting line (`Kind::Escalation`, idempotent by id) and never retried. A steward with no parent has nowhere to escalate to and is told so. The correlation of the escalation is the task and the stall count; whether a deployment's chief then reaches the principal is `escalation-goes-up-one-level`. | `rung-fleet/tests/stall.rs::silence_past_the_bound_is_retried_once_then_escalated_up_one_level` |
 | [3.5](rung-fleet-props.md#completion-is-judged-apart-from-its-author) | `completion-is-judged-apart-from-its-author` | `owed` | The kernel already types this: a transition marked judgmental takes a token that no author can mint. This proposition is the fleet's use of that gate, and the case checks the completion transition carries the marker. | **owed** — unimplemented — a compile-fail case: the transition to done takes a qualified-judgment token of the kernel's judgmental gate, which only a principal disjoint from the author can produce |
 | [3.6](rung-fleet-props.md#unlanded-work-is-never-retired) | `unlanded-work-is-never-retired` | `decidable` | `Finished`, which the closure ladder consumes, is made only from a `Done` and a `Landed`; the `retire_without_landed` and `landed_forged` compile-fail cases pin that. The cited test reads real git worktrees: a clean head contained in the line lands, an untracked or modified path is refused by name and left untouched, and a commit not yet on the line is refused until it is. `Landed::scratch` consumes a one-time authority to discard (`scratch_with_standing` pins that no standing one exists). | `rung-fleet/tests/landing.rs::an_uncommitted_or_unmerged_worktree_is_refused_retirement` |
 
@@ -744,9 +744,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 165 |
+| `decidable` | 166 |
 | `judgmental` | 47 |
-| `owed` | 20 |
+| `owed` | 19 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **459** |
@@ -764,8 +764,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 20 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 686 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 19 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 687 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1229,6 +1229,10 @@ look shorter than it is.
 - `launch_runs_the_host_binary_with_the_config`
 - `spawn_refuses_a_bad_name_an_existing_member_and_a_bad_engine`
 - `the_command_spawns_a_member_and_refuses_a_bad_name`
+
+**`rung-fleet/tests/stall.rs`** — 1 unclaimed
+
+- `a_steward_with_no_parent_cannot_escalate`
 
 **`rung-fleet/tests/steer.rs`** — 4 unclaimed
 

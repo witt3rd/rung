@@ -13,6 +13,7 @@ pub mod lifecycle;
 pub mod records;
 pub mod spawn;
 pub mod steer;
+pub mod supervise;
 pub mod tree;
 pub mod verbs;
 

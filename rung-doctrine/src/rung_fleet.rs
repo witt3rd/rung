@@ -294,14 +294,14 @@ worker has. The machinery refuses to guess a missing field.
         Element::Prop(Prop {
             slug: "a-stalled-crew-is-escalated-not-looped".into(),
             parent: Some("delegation-is-a-ladder".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a fake-clock test: a crew silent past its bound becomes stalled, one retry is allowed, and a second stall of the same task is escalated to the steward's parent instead of retried"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/stall.rs::silence_past_the_bound_is_retried_once_then_escalated_up_one_level".into() },
             numbering: None,
             prose: r#"A crew member silent past its **bound** is moved to *stalled* by its steward
 through a transition, never by convention. The same obstacle twice is not
 retried a third time: it is escalated up one level.
 
 "#.into(),
-            mechanism: r#""#.into(),
+            mechanism: r#"The clock is the caller's (`Watch` takes the time as an argument), so the cited test is a fake-clock test: silence within the bound goes on, silence past it becomes `stalled` only through `supervise::tick` and the ladder, the first stall is retried, and the second stall of the same task is escalated to the steward's parent in the reporting line (`Kind::Escalation`, idempotent by id) and never retried. A steward with no parent has nowhere to escalate to and is told so. The correlation of the escalation is the task and the stall count; whether a deployment's chief then reaches the principal is `escalation-goes-up-one-level`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "completion-is-judged-apart-from-its-author".into(),
