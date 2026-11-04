@@ -201,32 +201,38 @@ it rather than failing.
 stop. They exist as a library first and a small command second; the command
 holds no behaviour the library lacks.
 
+<a id="a-spawned-member-is-an-ordinary-host" data-parent="fleet-verbs"></a>
+**5.1** A member the **spawn** verb brings into being is started as the ordinary
+`rung-host` binary from the configuration spawn wrote: it enters itself in
+the instance index, reads the brief spawn delivered to its inbox, and stops at
+its stop file. The fleet adds no process kind of its own.
+
 <a id="a-steer-is-an-inbox-item" data-parent="fleet-verbs"></a>
-**5.1** A **steer** is a durable item in the target's inbox, read at the target's next
+**5.2** A **steer** is a durable item in the target's inbox, read at the target's next
 boundary. It is never a keystroke into a running process.
 
 <a id="read-and-list-never-write" data-parent="fleet-verbs"></a>
-**5.2** `read` and `list` are **observations**: they change nothing in any host's state
+**5.3** `read` and `list` are **observations**: they change nothing in any host's state
 and are available to a read-only role.
 
 <a id="a-read-only-role-watches-the-fleet" data-parent="fleet-verbs"></a>
-**5.3** A gateway in front of the fleet lists its members from the instance index, and
+**5.4** A gateway in front of the fleet lists its members from the instance index, and
 a holder of the **read-only** token can list them, read any member's record and
 follow its live event stream, and cannot write to any member. A stopped member
 stays in the list.
 
 <a id="stop-records-why" data-parent="fleet-verbs"></a>
-**5.4** `stop` goes through the host's **stop authority** and the record states why and
+**5.5** `stop` goes through the host's **stop authority** and the record states why and
 by whom; a stopped member is not removed from the list.
 
 <a id="an-observer-cannot-prompt" data-parent="fleet-verbs"></a>
-**5.5** Attachment reuses the ACP channel roles. An **observer** channel watches and
+**5.6** Attachment reuses the ACP channel roles. An **observer** channel watches and
 cannot prompt; an **owner** channel takes the session over. A member is headless
 the rest of the time, and a session survives a restart through the host's
 session list and load.
 
 <a id="remote-uses-the-same-verbs" data-parent="fleet-verbs"></a>
-**5.6** A remote member is reached through the **same verbs**, over the stable stdio
+**5.7** A remote member is reached through the **same verbs**, over the stable stdio
 transport carried by SSH, or the streamable HTTP transport once it is stable. The
 fleet adds no transport. A scheduler is a later placement layer: to the fleet, an
 instance is a long-running process with an entry in the instance index.

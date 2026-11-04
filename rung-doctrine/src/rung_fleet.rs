@@ -411,6 +411,19 @@ holds no behaviour the library lacks.
             mechanism: r#""#.into(),
         }),
         Element::Prop(Prop {
+            slug: "a-spawned-member-is-an-ordinary-host".into(),
+            parent: Some("fleet-verbs".into()),
+            kind: Kind::Decidable { proof: "rung-fleet/tests/launch_real_host.rs::a_launched_member_is_the_real_host_and_reads_its_brief".into() },
+            numbering: None,
+            prose: r#"A member the **spawn** verb brings into being is started as the ordinary
+`rung-host` binary from the configuration spawn wrote: it enters itself in
+the instance index, reads the brief spawn delivered to its inbox, and stops at
+its stop file. The fleet adds no process kind of its own.
+
+"#.into(),
+            mechanism: r#"The cited test builds the real `rung-host` binary, launches a spawned member with it under a scratch instance-index home, confirms the brief against the member's record, finds the member in the index, and stops it through its stop file."#.into(),
+        }),
+        Element::Prop(Prop {
             slug: "a-steer-is-an-inbox-item".into(),
             parent: Some("fleet-verbs".into()),
             kind: Kind::Decidable { proof: "rung-fleet/tests/steer.rs::a_steer_is_one_owner_item_in_the_inbox_and_nothing_else".into() },

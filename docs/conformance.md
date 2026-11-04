@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 12 decidable · 23 owed · 4 rationale · 12 signature · 51 total.
+**Counts.** 13 decidable · 23 owed · 4 rationale · 12 signature · 52 total.
 
 ### What the fleet is
 
@@ -650,12 +650,13 @@ unsettled. Where it is blank, nobody has written one down.
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
 | [5](rung-fleet-props.md#fleet-verbs) | `fleet-verbs` | `signature` | — | — |
-| [5.1](rung-fleet-props.md#a-steer-is-an-inbox-item) | `a-steer-is-an-inbox-item` | `decidable` | — | `rung-fleet/tests/steer.rs::a_steer_is_one_owner_item_in_the_inbox_and_nothing_else` |
-| [5.2](rung-fleet-props.md#read-and-list-never-write) | `read-and-list-never-write` | `decidable` | — | `rung-fleet/tests/verbs.rs::list_and_read_change_nothing` |
-| [5.3](rung-fleet-props.md#a-read-only-role-watches-the-fleet) | `a-read-only-role-watches-the-fleet` | `decidable` | The cited test holds only the read-only token: it lists three running members, reads a steward's record, follows a chief's stream until a message dropped in its inbox appears, is refused (403) a write to the queue, and after the members stop finds all three still listed as `stopped`. A wrong token is 401. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
-| [5.4](rung-fleet-props.md#stop-records-why) | `stop-records-why` | `decidable` | — | `rung-fleet/tests/stop.rs::stop_records_who_and_why_then_the_member_halts_and_stays_listed` |
-| [5.5](rung-fleet-props.md#an-observer-cannot-prompt) | `an-observer-cannot-prompt` | `owed` | — | **owed** — unimplemented — an attach test over the three ACP channel roles: an observer channel to a member is refused a prompt; an owner channel is accepted and takes over; a session reloads after a restart |
-| [5.6](rung-fleet-props.md#remote-uses-the-same-verbs) | `remote-uses-the-same-verbs` | `rationale` | — | — |
+| [5.1](rung-fleet-props.md#a-spawned-member-is-an-ordinary-host) | `a-spawned-member-is-an-ordinary-host` | `decidable` | The cited test builds the real `rung-host` binary, launches a spawned member with it under a scratch instance-index home, confirms the brief against the member's record, finds the member in the index, and stops it through its stop file. | `rung-fleet/tests/launch_real_host.rs::a_launched_member_is_the_real_host_and_reads_its_brief` |
+| [5.2](rung-fleet-props.md#a-steer-is-an-inbox-item) | `a-steer-is-an-inbox-item` | `decidable` | — | `rung-fleet/tests/steer.rs::a_steer_is_one_owner_item_in_the_inbox_and_nothing_else` |
+| [5.3](rung-fleet-props.md#read-and-list-never-write) | `read-and-list-never-write` | `decidable` | — | `rung-fleet/tests/verbs.rs::list_and_read_change_nothing` |
+| [5.4](rung-fleet-props.md#a-read-only-role-watches-the-fleet) | `a-read-only-role-watches-the-fleet` | `decidable` | The cited test holds only the read-only token: it lists three running members, reads a steward's record, follows a chief's stream until a message dropped in its inbox appears, is refused (403) a write to the queue, and after the members stop finds all three still listed as `stopped`. A wrong token is 401. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
+| [5.5](rung-fleet-props.md#stop-records-why) | `stop-records-why` | `decidable` | — | `rung-fleet/tests/stop.rs::stop_records_who_and_why_then_the_member_halts_and_stays_listed` |
+| [5.6](rung-fleet-props.md#an-observer-cannot-prompt) | `an-observer-cannot-prompt` | `owed` | — | **owed** — unimplemented — an attach test over the three ACP channel roles: an observer channel to a member is refused a prompt; an owner channel is accepted and takes over; a session reloads after a restart |
+| [5.7](rung-fleet-props.md#remote-uses-the-same-verbs) | `remote-uses-the-same-verbs` | `rationale` | — | — |
 
 ### Authority and policy
 
@@ -740,12 +741,12 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 156 |
+| `decidable` | 157 |
 | `judgmental` | 47 |
 | `owed` | 25 |
 | `rationale` | 152 |
 | `signature` | 75 |
-| **total** | **455** |
+| **total** | **456** |
 
 **What this table does not say.** Naming a proof is one thing; having watched it
 fail is another. A test that cannot fail is not a proof, and the mutation that
