@@ -7,6 +7,15 @@ git tags only.
 
 ## [Unreleased]
 
+### Added (rung-fleet, R2 step 5)
+- `rung-fleet::steer`: the `steer` verb. It finds a member's inbox from the
+  `inbox` its configuration names (through the instance index) and sends an
+  owner-class `Kind::Steer` item by the delivery module, idempotent by
+  correlation id; the returned `Sent` is confirmed against the member's record.
+  A test finds exactly one new file, the inbox item. Prop
+  `a-steer-is-an-inbox-item` becomes decidable. The command line does not carry
+  `steer` yet.
+
 ### Added (rung-fleet, R2 step 4)
 - `rung-fleet::verbs` and the `rung-fleet` command: `list` and `read` (a member's
   record lines, or its `crew.*` lines with `--crew`), answered from the instance

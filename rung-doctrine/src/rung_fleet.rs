@@ -413,7 +413,7 @@ holds no behaviour the library lacks.
         Element::Prop(Prop {
             slug: "a-steer-is-an-inbox-item".into(),
             parent: Some("fleet-verbs".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that `steer` writes one inbox item with an owner-class intent to the target's inbox, and sends nothing else to its terminal"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/steer.rs::a_steer_is_one_owner_item_in_the_inbox_and_nothing_else".into() },
             numbering: None,
             prose: r#"A **steer** is a durable item in the target's inbox, read at the target's next
 boundary. It is never a keystroke into a running process.
