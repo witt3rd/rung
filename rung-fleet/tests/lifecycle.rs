@@ -1,6 +1,10 @@
 //! The delegation lifecycle: the happy path runs, and each refusal is a
 //! compile-fail case pinned in `tests/ui`.
 
+mod common;
+
+use rung_fleet::authority::act;
+use rung_fleet::landing::Landed;
 use rung_fleet::lifecycle::{Completion, Finished, HoldKey, Signal, Spawn, closure, delegation};
 use rung_fleet::{Autonomy, Brief, BriefError};
 
@@ -33,13 +37,17 @@ fn a_task_runs_from_spawned_to_retired() {
         Ok(delegation::StepOutcome::Done(d)) => d,
         _ => panic!("expected done"),
     };
+    let grants = rung_testkit::TempDir::new("fleet-grants");
+    let landed = Landed::scratch(common::once::<act::Discard>(grants.path()));
     let finishing = closure::Finishing::new(
-        Finished::from_done(done),
+        Finished::from_done(done, landed),
         closure::Carry { task: "t-1".into() },
     );
     match closure::step(finishing) {
         Ok(closure::StepOutcome::Retired(r)) => {
-            assert_eq!(r.into_payload().completion.summary, "done")
+            let r = r.into_payload();
+            assert_eq!(r.completion.summary, "done");
+            assert!(r.landed.starts_with("scratch, discarded under grant"));
         }
         _ => panic!("expected retired"),
     }
@@ -164,5 +172,8 @@ fn the_refusals_do_not_compile() {
     t.compile_fail("tests/ui/brief_literal.rs");
     t.compile_fail("tests/ui/spawn_literal.rs");
     t.compile_fail("tests/ui/held_dropped.rs");
+    t.compile_fail("tests/ui/retire_without_landed.rs");
+    t.compile_fail("tests/ui/landed_forged.rs");
+    t.compile_fail("tests/ui/scratch_with_standing.rs");
     t.compile_fail("tests/ui/autonomy_has_no_default.rs");
 }

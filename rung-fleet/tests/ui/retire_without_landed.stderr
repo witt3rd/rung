@@ -1,0 +1,15 @@
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+ --> tests/ui/retire_without_landed.rs:8:14
+  |
+8 |     let _f = Finished::from_done(done);
+  |              ^^^^^^^^^^^^^^^^^^^------ argument #2 of type `Landed` is missing
+  |
+note: associated function defined here
+ --> src/lifecycle.rs
+  |
+  |     pub fn from_done(done: delegation::Done, landed: Landed) -> Self {
+  |            ^^^^^^^^^
+help: provide the argument
+  |
+8 |     let _f = Finished::from_done(done, /* Landed */);
+  |                                      ++++++++++++++

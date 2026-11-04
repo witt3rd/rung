@@ -318,7 +318,7 @@ diagnosis or a recommendation authorizes nothing by itself.
         Element::Prop(Prop {
             slug: "unlanded-work-is-never-retired".into(),
             parent: Some("delegation-is-a-ladder".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a compile-fail case: the retire transition takes a `Landed` token, and a test that an uncommitted isolation worktree is refused retirement"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/landing.rs::an_uncommitted_or_unmerged_worktree_is_refused_retirement".into() },
             numbering: None,
             prose: r#"A crew member is **retired** only by a transition that consumes proof its work
 has landed (merged, or recorded as intentionally scratch). Uncommitted work is
@@ -326,7 +326,7 @@ never discarded by retirement, and a refusal to retire is a state the steward
 reports, not an obstacle to be bypassed.
 
 "#.into(),
-            mechanism: r#""#.into(),
+            mechanism: r#"`Finished`, which the closure ladder consumes, is made only from a `Done` and a `Landed`; the `retire_without_landed` and `landed_forged` compile-fail cases pin that. The cited test reads real git worktrees: a clean head contained in the line lands, an untracked or modified path is refused by name and left untouched, and a commit not yet on the line is refused until it is. `Landed::scratch` consumes a one-time authority to discard (`scratch_with_standing` pins that no standing one exists)."#.into(),
         }),
         Element::Verbatim(r#"---
 
@@ -551,7 +551,7 @@ asked for another project or request, and it is not a one-time token.
         Element::Prop(Prop {
             slug: "irreversible-action-needs-authority".into(),
             parent: Some("authority-is-explicit-and-typed".into()),
-            kind: Kind::Owed { why: r#"partly built — stop, spawn, assign and steer take a token and the compile-fail cases pass (`stop_without_authority`, `stop_with_standing`, `standing_irreversible`); merge, discard and the destructive and security-sensitive acts have a token type but no verb yet, and retirement does not yet consume one"#.into() },
+            kind: Kind::Owed { why: r#"partly built — stop, spawn, assign and steer take a token and the compile-fail cases pass (`stop_without_authority`, `stop_with_standing`, `standing_irreversible`); retirement as scratch consumes the discard token, while merge and the destructive and security-sensitive acts have a token type but no verb yet"#.into() },
             numbering: None,
             prose: r#"**Merging, discarding work and anything destructive, irreversible or
 security-sensitive** requires the principal's explicit authority. A standing

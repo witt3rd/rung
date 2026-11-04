@@ -10,6 +10,7 @@
 //! here are the typed doors that set it.
 
 use crate::brief::{Brief, BriefError};
+use crate::landing::Landed;
 use rung::ladder;
 
 /// The key a hold carries. Only a resolution with the same key closes it
@@ -197,13 +198,16 @@ impl Work {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Finished {
     completion: Completion,
+    landed: Landed,
 }
 
 impl Finished {
-    /// The only way to hold a `Finished`: consume the `Done` verdict.
-    pub fn from_done(done: delegation::Done) -> Self {
+    /// The only way to hold a `Finished`: consume the `Done` verdict and the
+    /// proof its work has landed (`unlanded-work-is-never-retired`).
+    pub fn from_done(done: delegation::Done, landed: Landed) -> Self {
         Finished {
             completion: done.into_payload(),
+            landed,
         }
     }
 
@@ -216,6 +220,8 @@ impl Finished {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Retirement {
     pub completion: Completion,
+    /// How its work landed, in words for the record.
+    pub landed: String,
 }
 
 ladder!(Closure {
@@ -226,6 +232,7 @@ ladder!(Closure {
     step = |finishing| {
         Ok(StepOutcome::Retired(Retired::new(Retirement {
             completion: finishing.payload.completion().clone(),
+            landed: finishing.payload.landed.describe(),
         })))
     },
 });

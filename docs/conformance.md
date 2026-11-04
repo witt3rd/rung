@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 20 decidable · 19 owed · 4 rationale · 12 signature · 55 total.
+**Counts.** 21 decidable · 18 owed · 4 rationale · 12 signature · 55 total.
 
 ### What the fleet is
 
@@ -633,7 +633,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [3.3](rung-fleet-props.md#a-brief-is-a-typed-contract) | `a-brief-is-a-typed-contract` | `decidable` | — | `rung-fleet/tests/lifecycle.rs::the_refusals_do_not_compile` |
 | [3.4](rung-fleet-props.md#a-stalled-crew-is-escalated-not-looped) | `a-stalled-crew-is-escalated-not-looped` | `owed` | — | **owed** — unimplemented — a fake-clock test: a crew silent past its bound becomes stalled, one retry is allowed, and a second stall of the same task is escalated to the steward's parent instead of retried |
 | [3.5](rung-fleet-props.md#completion-is-judged-apart-from-its-author) | `completion-is-judged-apart-from-its-author` | `owed` | The kernel already types this: a transition marked judgmental takes a token that no author can mint. This proposition is the fleet's use of that gate, and the case checks the completion transition carries the marker. | **owed** — unimplemented — a compile-fail case: the transition to done takes a qualified-judgment token of the kernel's judgmental gate, which only a principal disjoint from the author can produce |
-| [3.6](rung-fleet-props.md#unlanded-work-is-never-retired) | `unlanded-work-is-never-retired` | `owed` | — | **owed** — unimplemented — a compile-fail case: the retire transition takes a `Landed` token, and a test that an uncommitted isolation worktree is refused retirement |
+| [3.6](rung-fleet-props.md#unlanded-work-is-never-retired) | `unlanded-work-is-never-retired` | `decidable` | `Finished`, which the closure ladder consumes, is made only from a `Done` and a `Landed`; the `retire_without_landed` and `landed_forged` compile-fail cases pin that. The cited test reads real git worktrees: a clean head contained in the line lands, an untracked or modified path is refused by name and left untouched, and a commit not yet on the line is refused until it is. `Landed::scratch` consumes a one-time authority to discard (`scratch_with_standing` pins that no standing one exists). | `rung-fleet/tests/landing.rs::an_uncommitted_or_unmerged_worktree_is_refused_retirement` |
 
 ### Delivery
 
@@ -666,7 +666,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [6.1](rung-fleet-props.md#authority-comes-from-an-owner-item) | `authority-comes-from-an-owner-item` | `decidable` | The host records the role of every item it admits, so a member cannot write an owner item. The cited test reads a record holding the grant text under the peer, agent and owner roles and finds a grant only in the owner item; the `token_forged` compile-fail case pins that a token cannot be written out by hand. | `rung-fleet/tests/authority.rs::only_an_owner_item_is_a_grant` |
 | [6.2](rung-fleet-props.md#a-one-time-grant-is-spent-once) | `a-one-time-grant-is-spent-once` | `decidable` | Minting creates the grant's id in a ledger directory; a second mint of the same id is refused. The `token_used_twice` and `token_for_another_act` compile-fail cases pin the by-value spend and the act in the type. | `rung-fleet/tests/authority.rs::a_one_time_grant_makes_one_token_for_its_own_act` |
 | [6.3](rung-fleet-props.md#a-standing-grant-never-widens) | `a-standing-grant-never-widens` | `decidable` | The `standing_irreversible` compile-fail case pins that the irreversible acts have no standing token at all. | `rung-fleet/tests/authority.rs::a_standing_grant_never_widens` |
-| [6.4](rung-fleet-props.md#irreversible-action-needs-authority) | `irreversible-action-needs-authority` | `owed` | — | **owed** — partly built — stop, spawn, assign and steer take a token and the compile-fail cases pass (`stop_without_authority`, `stop_with_standing`, `standing_irreversible`); merge, discard and the destructive and security-sensitive acts have a token type but no verb yet, and retirement does not yet consume one |
+| [6.4](rung-fleet-props.md#irreversible-action-needs-authority) | `irreversible-action-needs-authority` | `owed` | — | **owed** — partly built — stop, spawn, assign and steer take a token and the compile-fail cases pass (`stop_without_authority`, `stop_with_standing`, `standing_irreversible`); retirement as scratch consumes the discard token, while merge and the destructive and security-sensitive acts have a token type but no verb yet |
 | [6.5](rung-fleet-props.md#a-member-cannot-widen-its-own-policy) | `a-member-cannot-widen-its-own-policy` | `owed` | — | **owed** — unimplemented — a test that the tool policy a steward hands a crew member is a subset of the steward's own, and that the member has no verb that edits it |
 | [6.6](rung-fleet-props.md#a-model-downgrade-needs-authority) | `a-model-downgrade-needs-authority` | `owed` | — | **owed** — unimplemented — a test that a per-instance override naming a weaker model than the role default is refused without authority |
 
@@ -744,9 +744,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 164 |
+| `decidable` | 165 |
 | `judgmental` | 47 |
-| `owed` | 21 |
+| `owed` | 20 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **459** |
@@ -764,8 +764,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 21 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 685 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 20 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 686 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1199,6 +1199,10 @@ look shorter than it is.
 
 - `a_damaged_receiver_record_is_not_reported_as_waiting`
 - `an_unsafe_correlation_id_is_refused`
+
+**`rung-fleet/tests/landing.rs`** — 1 unclaimed
+
+- `scratch_consumes_a_one_time_authority_to_discard`
 
 **`rung-fleet/tests/lifecycle.rs`** — 4 unclaimed
 

@@ -1,0 +1,64 @@
+error[E0277]: the trait bound `Discard: Routine` is not satisfied
+ --> tests/ui/scratch_with_standing.rs:8:22
+  |
+8 | fn discard(standing: Standing<act::Discard>) {
+  |                      ^^^^^^^^^^^^^^^^^^^^^^ the trait `Routine` is not implemented for `Discard`
+  |
+help: the following other types implement trait `Routine`
+ --> src/authority.rs
+  |
+  |           (@routine $name:ident _) => { impl Routine for $name {} };
+  |                                         ^^^^^^^^^^^^^^^^^^^^^^
+  |                                         |
+  |                                         `AssignTask`
+  |                                         `SpawnMember`
+  |                                         `SteerMember`
+...
+  | /     acts! {
+  | |         /// Bring a member into being.
+  | |         SpawnMember = "spawn", routine _;
+  | |         /// Give a member a task.
+... |
+  | |         SecuritySensitive = "security-sensitive";
+  | |     }
+  | |_____- in this macro invocation
+note: required by a bound in `rung_fleet::authority::Standing`
+ --> src/authority.rs
+  |
+  | pub struct Standing<A: Routine> {
+  |                        ^^^^^^^ required by this bound in `Standing`
+  = note: this error originates in the macro `acts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `Discard: Routine` is not satisfied
+ --> tests/ui/scratch_with_standing.rs:9:30
+  |
+9 |     let _l = Landed::scratch(standing);
+  |              --------------- ^^^^^^^^ the trait `Routine` is not implemented for `Discard`
+  |              |
+  |              required by a bound introduced by this call
+  |
+help: the following other types implement trait `Routine`
+ --> src/authority.rs
+  |
+  |           (@routine $name:ident _) => { impl Routine for $name {} };
+  |                                         ^^^^^^^^^^^^^^^^^^^^^^
+  |                                         |
+  |                                         `AssignTask`
+  |                                         `SpawnMember`
+  |                                         `SteerMember`
+...
+  | /     acts! {
+  | |         /// Bring a member into being.
+  | |         SpawnMember = "spawn", routine _;
+  | |         /// Give a member a task.
+... |
+  | |         SecuritySensitive = "security-sensitive";
+  | |     }
+  | |_____- in this macro invocation
+  = note: required for `rung_fleet::authority::Standing<Discard>` to implement `Grant<Discard>`
+note: required by a bound in `Landed::scratch`
+ --> src/landing.rs
+  |
+  |     pub fn scratch(authority: impl Grant<act::Discard>) -> Landed {
+  |                                    ^^^^^^^^^^^^^^^^^^^ required by this bound in `Landed::scratch`
+  = note: this error originates in the macro `acts` (in Nightly builds, run with -Z macro-backtrace for more info)
