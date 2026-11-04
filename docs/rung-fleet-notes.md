@@ -151,6 +151,32 @@ inbox before the host starts; `launch` runs `host run --config`. Spawn never
 overwrites. The member registers itself in the index when it starts. Placement
 beyond a local process is R5.
 
+**R3 (what is built).** `launch` is tested against the real `rung-host` binary
+(`tests/common` builds it through cargo and reads the executable from the build
+messages). `tree::Line` is the reporting line: `attach` is the one way to add an
+edge and refuses a second parent, a wrong tier (so a crew member cannot start
+crew) and a cycle. `authority` holds the tokens: a grant is an owner item in a
+host's record (`[fleet:grant] <act> once` or `... standing <project> <request>`),
+the fleet reads it back (the host records every item's role, so a peer cannot
+write one), a one-time token is minted once per grant id through a ledger
+directory, and the irreversible acts (`stop`, `merge`, `discard`, `destructive`,
+`security-sensitive`) have no standing token at all. `spawn`, `assign`, `steer`
+and `stop` take a token and write `[authority: <grant id>]` after their text; the
+command takes `--grant-state DIR --grant ID --ledger DIR [--project P --request R]`.
+`landing::Landed` is what retirement consumes (a clean worktree whose head is in
+the line it was to land on, or a one-time authority to discard as scratch).
+`supervise` retries a stalled task once and escalates the next stall to the
+steward's parent.
+
+Open after R3's first passes: `merge` and the destructive and security-sensitive
+acts have token types but no verb; `a-model-downgrade-needs-authority`,
+`a-member-cannot-widen-its-own-policy`, `completion-is-judged-apart-from-its-author`
+and `one-interface-to-the-principal` are owed; `an-external-reference-is-not-state`
+and `an-obligation-closes-by-a-record` have no test yet (`open_holds` is the fold
+for the hold half); `supervision-reconciles-from-disk` and the CLI do not yet call
+`tree`, `landing` or `supervise` (they are library doors a chief's instructions
+will use).
+
 ## Notes on particular claims
 
 **The tree of depth three.** The command structure is capped. Every layer
