@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 15 decidable · 21 owed · 4 rationale · 12 signature · 52 total.
+**Counts.** 16 decidable · 20 owed · 4 rationale · 12 signature · 52 total.
 
 ### What the fleet is
 
@@ -672,7 +672,7 @@ unsettled. Where it is blank, nobody has written one down.
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
 | [7](rung-fleet-props.md#the-queue-is-the-hosts-own) | `the-queue-is-the-hosts-own` | `signature` | — | — |
-| [7.1](rung-fleet-props.md#a-queue-has-one-writer) | `a-queue-has-one-writer` | `owed` | — | **owed** — unimplemented — a test that another member's items reach a host only as inbox deliveries, and that two hosts cannot hold one state directory |
+| [7.1](rung-fleet-props.md#a-queue-has-one-writer) | `a-queue-has-one-writer` | `decidable` | The cited test delivers a peer item to a member that is not running and finds the inbox file written and the receiver's state directory absent; it then runs the real host, which reads the file into its record, and starts a second real host on the same state directory, which is refused and adds nothing to the record while the first goes on. It does not show that the fleet has no other writer in its code; that is `fleet-reuses-the-host-unchanged`. | `rung-fleet/tests/queue_one_writer.rs::items_arrive_only_as_inbox_files_and_a_second_host_is_refused` |
 | [7.2](rung-fleet-props.md#an-external-reference-is-not-state) | `an-external-reference-is-not-state` | `owed` | — | **owed** — unimplemented — a test that a host resumes every queued item with the external ledger unreachable |
 | [7.3](rung-fleet-props.md#a-decision-is-a-held-item) | `a-decision-is-a-held-item` | `owed` | — | **owed** — unimplemented — a test that a decision opens a held item with a key, that no later message closes it, and that only a resolution carrying the key does |
 
@@ -741,9 +741,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 159 |
+| `decidable` | 160 |
 | `judgmental` | 47 |
-| `owed` | 23 |
+| `owed` | 22 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **456** |
@@ -761,7 +761,7 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 23 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 22 |
 | **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 682 |
 
 The second is the sharper one. A test guarding a real property the documents never

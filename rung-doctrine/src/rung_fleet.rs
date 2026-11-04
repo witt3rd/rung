@@ -569,13 +569,13 @@ project work, referred to by an item, and is never the queue.
         Element::Prop(Prop {
             slug: "a-queue-has-one-writer".into(),
             parent: Some("the-queue-is-the-hosts-own".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that another member's items reach a host only as inbox deliveries, and that two hosts cannot hold one state directory"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/queue_one_writer.rs::items_arrive_only_as_inbox_files_and_a_second_host_is_refused".into() },
             numbering: None,
             prose: r#"A host's queue has **one writer**: the host. Other members add to it only by
 delivering to its inbox, which the host's one-live-host lock already makes safe.
 
 "#.into(),
-            mechanism: r#""#.into(),
+            mechanism: r#"The cited test delivers a peer item to a member that is not running and finds the inbox file written and the receiver's state directory absent; it then runs the real host, which reads the file into its record, and starts a second real host on the same state directory, which is refused and adds nothing to the record while the first goes on. It does not show that the fleet has no other writer in its code; that is `fleet-reuses-the-host-unchanged`."#.into(),
         }),
         Element::Prop(Prop {
             slug: "an-external-reference-is-not-state".into(),
