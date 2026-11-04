@@ -19,7 +19,7 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 base=${TIER1_BASE:-origin/master}
 t0=$(date +%s)
-step() { printf 'tier1: %s\n' "$*"; }
+step() { printf 'tier1: [%3ss] %s\n' "$(( $(date +%s) - t0 ))" "$*"; }
 if [[ "$base" =~ ^0+$ ]] || ! git rev-parse --verify -q "$base^{commit}" >/dev/null; then
   plan=$(scripts/ci_plan.py --event push)
   files=
@@ -36,26 +36,42 @@ touched() { grep -qE "$1" <<<"$files"; }
 
 step "fmt"
 cargo fmt --check
-step "records are append-only"
-docs/_records_guard.py "$(git rev-parse --verify -q "$base^{commit}" >/dev/null && ! [[ "$base" =~ ^0+$ ]] && echo "$base" || echo origin/master)"
-step "planner, skipped-test and post-merge-review tests"
-python3 scripts/test_ci_plan.py
-python3 scripts/test_skipped_tests.py
-python3 scripts/test_post_merge_review.py
-scripts/skipped_tests.py
-step "propositions, consumer names, links, coverage"
-docs/_props.py check
-docs/_props.py cited
-docs/_consumer_guard.py
-python3 scripts/test_links.py
-docs/_links.py
-docs/_coverage.py
+# The cargo-free guards run beside the cargo work (they are the same seconds either way); a failure in
+# either surfaces, the guards' output is shown after the cargo steps.
+glog=$(mktemp); trap 'rm -f "$glog"' EXIT
+(
+  set -euo pipefail
+  step "records are append-only"
+  docs/_records_guard.py "$(git rev-parse --verify -q "$base^{commit}" >/dev/null && ! [[ "$base" =~ ^0+$ ]] && echo "$base" || echo origin/master)"
+  step "planner, skipped-test and post-merge-review tests"
+  python3 scripts/test_ci_plan.py
+  python3 scripts/test_skipped_tests.py
+  python3 scripts/test_post_merge_review.py
+  scripts/skipped_tests.py
+  step "propositions, consumer names, links, coverage"
+  docs/_props.py check
+  docs/_props.py cited
+  docs/_consumer_guard.py
+  python3 scripts/test_links.py
+  docs/_links.py
+  docs/_coverage.py
+  if [ -z "$files" ] || touched '^scripts/(land-direct|tier1\.sh|test_land_direct\.sh|generated-paths\.txt)$'; then
+    step "land-direct self-test"
+    scripts/test_land_direct.sh
+  fi
+) >"$glog" 2>&1 &
+gpid=$!
 
 if [ "$rust" = true ]; then
   # SCOPE is a list of -p flags: split on purpose
   # shellcheck disable=SC2086
   { step "clippy ($scope)"; cargo clippy "${jobs[@]}" $scope --all-targets --locked -- -D warnings
-    step "unit tests ($scope)"; scripts/test_tmp_clean.sh "${jobs[@]}" $scope --lib --bins --locked -- --skip whole_50mb_pages_one_copy_in_memory; }
+    step "unit tests ($scope)"
+    # One retry: a unit test that is flaky under cargo's shared-process threads (seen once:
+    # rung-host registry idle test) must not stop every landing; a real failure fails twice. Tier 2 runs
+    # each test in its own process (nextest).
+    unit=(scripts/test_tmp_clean.sh "${jobs[@]}" $scope --lib --bins --locked -- --skip whole_50mb_pages_one_copy_in_memory)
+    "${unit[@]}" || { step "unit tests failed: ONE retry (a repeat failure is real)"; "${unit[@]}"; }; }
   case " $scope " in
     *" -p rung-doctrine "*|*" --workspace "*)
       step "generated documents match their encoding"
@@ -65,8 +81,8 @@ else
   step "no Rust input changed: clippy and unit tests skipped"
 fi
 
-if [ -z "$files" ] || touched '^scripts/(land-direct|tier1\.sh|test_land_direct\.sh|generated-paths\.txt)$'; then
-  step "land-direct self-test"
-  scripts/test_land_direct.sh
-fi
+step "guards (ran beside the cargo steps)"
+gok=0; wait "$gpid" || gok=$?
+cat "$glog"
+[ "$gok" = 0 ] || { step "a guard failed"; exit "$gok"; }
 step "ok in $(( $(date +%s) - t0 )) s"
