@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 14 decidable · 22 owed · 4 rationale · 12 signature · 52 total.
+**Counts.** 15 decidable · 21 owed · 4 rationale · 12 signature · 52 total.
 
 ### What the fleet is
 
@@ -618,7 +618,7 @@ unsettled. Where it is blank, nobody has written one down.
 | [2.1](rung-fleet-props.md#chief-is-a-host-per-session) | `chief-is-a-host-per-session` | `signature` | — | — |
 | [2.2](rung-fleet-props.md#steward-is-a-host-per-project) | `steward-is-a-host-per-project` | `signature` | — | — |
 | [2.3](rung-fleet-props.md#crew-is-an-agent-in-isolation) | `crew-is-an-agent-in-isolation` | `signature` | — | — |
-| [2.4](rung-fleet-props.md#reporting-line-is-a-tree) | `reporting-line-is-a-tree` | `owed` | A property test over generated fleets: whatever sequence of verbs ran, the parent relation is acyclic and single-valued. | **owed** — unimplemented — a test over the fleet's spawn and assignment edges: every member has exactly one parent, the chief has none |
+| [2.4](rung-fleet-props.md#reporting-line-is-a-tree) | `reporting-line-is-a-tree` | `decidable` | The cited test attempts generated sequences of edges (seeded, so a failure replays) over valid, invalid and unnamed members and, after every attempt, checks that each member has one parent, that every edge goes one tier down, that a chief has no parent and that every walk upward ends within three members, never at a crew member. `Line::attach` is the one way to add an edge and refuses the rest by name; a spawn yields the edge it makes. Enforcing the line on the verbs of a running fleet is left to the authority tokens. | `rung-fleet/tests/reporting_line.rs::whatever_sequence_of_edges_ran_the_line_is_a_tree_of_depth_three` |
 | [2.5](rung-fleet-props.md#one-interface-to-the-principal) | `one-interface-to-the-principal` | `owed` | — | **owed** — unimplemented — a channel-admission test: a steward or crew session cannot hold an owner channel to a principal, and addresses the principal only through its chief's inbox |
 | [2.6](rung-fleet-props.md#chiefs-do-not-share-context) | `chiefs-do-not-share-context` | `decidable` | The cited test starts two chiefs and a steward as three real hosts, drops an owner message in the first chief's inbox, and reads every file under the other two members' directories: the message is in the first chief's state and in nothing else. It runs on the mock engine, so it shows that the state directories are disjoint, not what a model does with them. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
 | [2.7](rung-fleet-props.md#a-member-is-named-by-its-role) | `a-member-is-named-by-its-role` | `decidable` | A convention, not a mechanism: nothing refuses a name that breaks it, and the crate adds no role field to the instance index (a second source of truth for a fact the name already states). The cited test starts three members under role-first names and checks that the gateway's list returns them in id order with the role as each id's first segment. Crew naming is left to the crew extension. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
@@ -741,9 +741,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 158 |
+| `decidable` | 159 |
 | `judgmental` | 47 |
-| `owed` | 24 |
+| `owed` | 23 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **456** |
@@ -761,8 +761,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 24 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 680 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 23 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 682 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1201,6 +1201,11 @@ look shorter than it is.
 - `a_known_kind_with_a_bad_field_is_refused`
 - `a_reader_skips_what_it_does_not_know`
 - `no_other_crate_writes_a_crew_kind`
+
+**`rung-fleet/tests/reporting_line.rs`** — 2 unclaimed
+
+- `a_spawn_makes_the_edge_the_line_takes`
+- `each_refusal_is_named`
 
 **`rung-fleet/tests/spawn.rs`** — 4 unclaimed
 

@@ -60,6 +60,16 @@ pub struct Spawned {
     pub workspace: PathBuf,
     /// The task, delivered to the inbox; confirm it once the host runs.
     pub task: Sent,
+    parent: String,
+    member: String,
+}
+
+impl Spawned {
+    /// The reporting-line edge this spawn makes: `(parent, member)`, to be
+    /// attached to a [`crate::tree::Line`].
+    pub fn edge(&self) -> (&str, &str) {
+        (&self.parent, &self.member)
+    }
 }
 
 /// Prepare member `name` under `root/name` and deliver `spawn`'s brief to its
@@ -123,6 +133,8 @@ pub fn spawn(
         state,
         workspace,
         task: sent,
+        parent: from.to_string(),
+        member: name.to_string(),
     })
 }
 

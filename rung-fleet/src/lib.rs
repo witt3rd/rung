@@ -11,6 +11,7 @@ pub mod lifecycle;
 pub mod records;
 pub mod spawn;
 pub mod steer;
+pub mod tree;
 pub mod verbs;
 
 pub use brief::{Autonomy, Brief, BriefError};

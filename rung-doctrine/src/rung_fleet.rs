@@ -185,14 +185,14 @@ instance per project, and it outlives every task it delegates.
         Element::Prop(Prop {
             slug: "reporting-line-is-a-tree".into(),
             parent: Some("three-roles".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test over the fleet's spawn and assignment edges: every member has exactly one parent, the chief has none"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/reporting_line.rs::whatever_sequence_of_edges_ran_the_line_is_a_tree_of_depth_three".into() },
             numbering: None,
             prose: r#"The reporting line is a **tree of depth three**. A chief directs stewards, a
 steward directs its own crew, and a crew member reports only to the steward that
 started it. The command structure stays flat: a crew member cannot start crew.
 
 "#.into(),
-            mechanism: r#"A property test over generated fleets: whatever sequence of verbs ran, the parent relation is acyclic and single-valued."#.into(),
+            mechanism: r#"The cited test attempts generated sequences of edges (seeded, so a failure replays) over valid, invalid and unnamed members and, after every attempt, checks that each member has one parent, that every edge goes one tier down, that a chief has no parent and that every walk upward ends within three members, never at a crew member. `Line::attach` is the one way to add an edge and refuses the rest by name; a spawn yields the edge it makes. Enforcing the line on the verbs of a running fleet is left to the authority tokens."#.into(),
         }),
         Element::Prop(Prop {
             slug: "one-interface-to-the-principal".into(),
