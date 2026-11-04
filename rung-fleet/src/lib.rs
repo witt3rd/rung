@@ -9,6 +9,7 @@ pub mod brief;
 pub mod delivery;
 pub mod lifecycle;
 pub mod records;
+pub mod steer;
 pub mod verbs;
 
 pub use brief::{Autonomy, Brief, BriefError};

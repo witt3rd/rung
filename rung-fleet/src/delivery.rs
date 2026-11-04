@@ -20,6 +20,7 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use rung_host::inbox::Role;
 use rung_host::read;
 use serde_json::json;
 
@@ -52,6 +53,9 @@ pub enum Kind {
     Completion,
     Handoff,
     Escalation,
+    /// Direction to a member from its steward: an owner-class item, read at
+    /// the target's next boundary (`a-steer-is-an-inbox-item`).
+    Steer,
 }
 
 impl Kind {
@@ -60,6 +64,7 @@ impl Kind {
             Kind::Completion => "completion",
             Kind::Handoff => "handoff",
             Kind::Escalation => "escalation",
+            Kind::Steer => "steer",
         }
     }
 }
@@ -138,7 +143,7 @@ pub fn send(target: &Target, d: &Delivery) -> Result<Sent, DeliveryError> {
     let path = target.inbox.join(format!("{}.msg", d.correlation.as_str()));
     if !path.exists() {
         let body = json!({
-            "role": "peer",
+            "role": if d.kind == Kind::Steer { Role::Owner.word() } else { Role::Peer.word() },
             "text": format!(
                 "[fleet:{} from={} id={}]\n{}",
                 d.kind.word(),

@@ -337,6 +337,16 @@ fn file_redactor(text: &str) -> (crate::redact::Redactor, Vec<String>) {
     (redactor, env_unset)
 }
 
+/// The inbox directory a host config file names, read with the host's own
+/// file format (so a key it would refuse is refused here too). `None` when the
+/// file names no inbox. Reads the file and nothing else.
+pub fn inbox_of(path: &Path) -> Result<Option<PathBuf>, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let f: FileConfig =
+        serde_yaml::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(f.inbox)
+}
+
 /// Read and check the operator's file: the only way to a [`Configured`]
 /// token. `max_turns` bounds the run (tests and bounded runs).
 pub fn configure(path: &Path, max_turns: Option<u64>) -> Result<Configured, Refusal> {

@@ -597,7 +597,7 @@ unsettled. Where it is blank, nobody has written one down.
 
 ## `rung-fleet-props.md`
 
-**Counts.** 10 decidable · 25 owed · 4 rationale · 12 signature · 51 total.
+**Counts.** 11 decidable · 24 owed · 4 rationale · 12 signature · 51 total.
 
 ### What the fleet is
 
@@ -650,7 +650,7 @@ unsettled. Where it is blank, nobody has written one down.
 | prop | slug | kind | mechanism | discharged by |
 |---|---|---|---|---|
 | [5](rung-fleet-props.md#fleet-verbs) | `fleet-verbs` | `signature` | — | — |
-| [5.1](rung-fleet-props.md#a-steer-is-an-inbox-item) | `a-steer-is-an-inbox-item` | `owed` | — | **owed** — unimplemented — a test that `steer` writes one inbox item with an owner-class intent to the target's inbox, and sends nothing else to its terminal |
+| [5.1](rung-fleet-props.md#a-steer-is-an-inbox-item) | `a-steer-is-an-inbox-item` | `decidable` | — | `rung-fleet/tests/steer.rs::a_steer_is_one_owner_item_in_the_inbox_and_nothing_else` |
 | [5.2](rung-fleet-props.md#read-and-list-never-write) | `read-and-list-never-write` | `decidable` | — | `rung-fleet/tests/verbs.rs::list_and_read_change_nothing` |
 | [5.3](rung-fleet-props.md#a-read-only-role-watches-the-fleet) | `a-read-only-role-watches-the-fleet` | `decidable` | The cited test holds only the read-only token: it lists three running members, reads a steward's record, follows a chief's stream until a message dropped in its inbox appears, is refused (403) a write to the queue, and after the members stop finds all three still listed as `stopped`. A wrong token is 401. | `rung-gateway/tests/fleet_r1.rs::two_chiefs_and_a_steward_behind_one_gateway` |
 | [5.4](rung-fleet-props.md#stop-records-why) | `stop-records-why` | `owed` | — | **owed** — unimplemented — a test that `stop` raises the target's stop authority and the target's record holds the reason and who asked |
@@ -740,9 +740,9 @@ unsettled. Where it is blank, nobody has written one down.
 
 | kind | count |
 |---|---:|
-| `decidable` | 154 |
+| `decidable` | 155 |
 | `judgmental` | 47 |
-| `owed` | 27 |
+| `owed` | 26 |
 | `rationale` | 152 |
 | `signature` | 75 |
 | **total** | **455** |
@@ -760,8 +760,8 @@ The join is not onto in either direction, and each direction is a queue.
 
 | direction | meaning | tells an author to | count |
 |---|---|---|---:|
-| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 27 |
-| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 671 |
+| **owed** | a proposition with no proof | write the test — or build the thing it would run against | 26 |
+| **unclaimed** | a proof with no proposition | record the citation, **or write the proposition it proves** | 673 |
 
 The second is the sharper one. A test guarding a real property the documents never
 state is a guarantee this project makes and cannot account for — and one day someone
@@ -1196,6 +1196,11 @@ look shorter than it is.
 - `a_known_kind_with_a_bad_field_is_refused`
 - `a_reader_skips_what_it_does_not_know`
 - `no_other_crate_writes_a_crew_kind`
+
+**`rung-fleet/tests/steer.rs`** — 2 unclaimed
+
+- `a_steer_reaches_a_real_host_and_the_receipt_names_the_line`
+- `a_steer_that_cannot_find_an_inbox_says_why`
 
 **`rung-fleet/tests/verbs.rs`** — 2 unclaimed
 

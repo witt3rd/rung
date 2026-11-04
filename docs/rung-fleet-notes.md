@@ -121,10 +121,13 @@ takes a lock or writes a file; the command only prints what the library returns.
 Why a fleet `list` and `read` beside `rung-host ls` and the gateway: the same reads
 as a library a steward calls directly (no process, no HTTP), plus the crew view;
 the host's index and record readers and the list's JSON builder are reused.
-Still owed in R2: `steer`, `stop` (the host's stop file names no one, so the
-"by whom" of `stop-records-why` needs a host change or the gateway's door; it
-is built as the stop file works today), `spawn`, `assign`, and the writing of
-the crew lines.
+**The steer verb.** `rung-fleet/src/steer.rs`. The member's inbox comes from the
+`inbox` its own configuration names, read through the member's entry in the
+index; a relative path is refused, since the fleet cannot know what it is
+relative to. A steer is a `Kind::Steer` delivery, written as an `owner`-role
+item (the inbox takes no intent field; an owner item is read as the next thing
+at the target's boundary). Still owed in R2: `stop`, `spawn`, `assign`, the writing of the crew lines, and the command-line
+form of `steer`.
 
 ## Notes on particular claims
 
