@@ -56,6 +56,7 @@ def cursor():
 
 
 def save_cursor(number, sha):
+    ensure_label(CURSOR)
     body = f"Advisory post-merge review (scripts/post_merge_review.py) has reviewed master up to this commit.\n\nreviewed-through: {sha}\n"
     if number is None:
         run(GH, "issue", "create", "--title", "post-merge review cursor", "--label", CURSOR, "--body", body)
@@ -76,6 +77,8 @@ def build_prompt(rng):
         "The repository's written law follows. Review only the change given, against that law and for defects. "
         "Answer with a JSON array and nothing else; each item {\"severity\":\"BLOCK|FIX|NOTE\",\"path\":str,\"title\":str,"
         "\"why\":str,\"do\":str}. BLOCK: breaks the law or a contract. FIX: should change. NOTE: informational. "
+        "Generated documents (docs/*-props.md, docs/conformance.md, Cargo.lock) are left out of the diff on purpose: "
+        "a mechanical gate checks them (render --check), so never report them missing. "
         "No findings: []. Quote no secret. The law says \"PR\" where there is now a landed commit range: read it so.\n\n--- LAW ---\n" + law
     )
     return system, f"Commits {rng}:\n{subjects}\n\nDiff:\n{diff}{cut}"
@@ -91,6 +94,10 @@ def ask(system, user, key):
     return json.loads(text)
 
 
+def ensure_label(name):
+    run(GH, "label", "create", name, "--force", "--description", "advisory post-merge review (scripts/post_merge_review.py)")
+
+
 def file_issue(f, rng, dry):
     title = f"[post-merge] {f['title']}"[:120]
     if dry:
@@ -100,6 +107,7 @@ def file_issue(f, rng, dry):
     if any(i["title"] == title for i in open_):
         print(f"already open: {title}")
         return
+    ensure_label(LABEL)
     body = (f"**{f['severity']}** in `{f.get('path', '')}` (reviewed range `{rng}`)\n\n{f['why']}\n\n**Do:** {f['do']}\n\n"
             "_Advisory post-merge review (scripts/post_merge_review.py). Close this when fixed or when the finding is wrong._")
     run(GH, "issue", "create", "--title", title, "--label", LABEL, "--body", body)
@@ -128,7 +136,10 @@ def main(argv):
     for f in findings:
         print(f"{f.get('severity')} {f.get('path', '')}: {f.get('title')}")
         if f.get("severity") in ("BLOCK", "FIX"):
-            file_issue(f, rng, dry)
+            try:
+                file_issue(f, rng, dry)
+            except subprocess.CalledProcessError as e:  # advisory: a filing failure is a warning, never a red run
+                print(f"::warning::could not file an issue for {f.get('title')!r}: {e.stderr.strip()[:300]}")
     if not dry and "--range" not in argv:
         save_cursor(number, head)
     return 0

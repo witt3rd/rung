@@ -23,6 +23,10 @@ log = open(st + ".log", "a"); log.write(json.dumps(a) + "\\n"); log.close()
 if a[:2] == ["issue", "list"]:
     lab = a[a.index("--label") + 1]
     print(open(st + "." + lab).read() if os.path.exists(st + "." + lab) else "[]")
+elif a[:2] == ["label", "create"]:
+    pass
+elif a[:2] == ["issue", "create"] and os.environ.get("GH_FAIL"):
+    sys.stderr.write("boom"); sys.exit(1)
 elif a[:2] == ["issue", "create"]:
     lab = a[a.index("--label") + 1]; t = a[a.index("--title") + 1]; b = a[a.index("--body") + 1]
     open(st + "." + lab, "w").write(json.dumps([{"number": 7, "title": t, "body": b}]))
@@ -108,6 +112,13 @@ class T(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(len(self.state("post-merge-review")), 1)
         self.assertEqual(self.state("post-merge-cursor"), [])
+
+    def test_a_filing_failure_is_a_warning_not_a_red_run(self):
+        self.commit("two")
+        self.env["GH_FAIL"] = "1"
+        r = self.run_review("--range", "HEAD~1..HEAD")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("::warning::could not file", r.stdout)
 
     def test_dry_run_files_nothing(self):
         self.commit("two")
