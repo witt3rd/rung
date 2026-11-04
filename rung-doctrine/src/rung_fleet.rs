@@ -424,7 +424,7 @@ boundary. It is never a keystroke into a running process.
         Element::Prop(Prop {
             slug: "read-and-list-never-write".into(),
             parent: Some("fleet-verbs".into()),
-            kind: Kind::Owed { why: r#"unimplemented — a test that `read` and `list` leave every record, inbox and instance entry byte-identical, and that a read-only gateway token can call both"#.into() },
+            kind: Kind::Decidable { proof: "rung-fleet/tests/verbs.rs::list_and_read_change_nothing".into() },
             numbering: None,
             prose: r#"`read` and `list` are **observations**: they change nothing in any host's state
 and are available to a read-only role.
