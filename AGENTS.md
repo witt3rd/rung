@@ -3,8 +3,8 @@
 A type ladder: the state machine *is* the type system. Declare rungs and
 transitions once; the compiler refuses any path that skips a rung.
 
-rung is an agents-only library: there is no root `README.md`, and
-`AGENTS.md` is the one agent file name everywhere (this root file, one beside
+rung is an agents-only library: the root `README.md` is the human-facing
+front door and no other README exists, and `AGENTS.md` is the one agent file name everywhere (this root file, one beside
 each crate that needs it). Custody is AGENTS.md + `skills/`; no `.agent/`
 folder, no inhabit, no formal handoff. On roger this tree is also an
 **acp-tempo identity** (`rung`). Lived experience: `skills/rung/SKILL.md`; house
