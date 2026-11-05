@@ -88,7 +88,13 @@ class Links(unittest.TestCase):
     def test_no_readme_anywhere(self):
         probs = self.run_check({"a/README.md": "# a\n", "ui/node_modules/p/README.md": "# p\n",
                                 "b/AGENTS.md": "# b\n"})
-        self.assertEqual(probs, ["a/README.md:1: no README.md anywhere: this is an agents-only library, the file is AGENTS.md"])
+        self.assertEqual(probs, ["a/README.md:1: no README.md below the root: this is an agents-only library, the file is AGENTS.md"])
+
+    def test_root_readme_is_allowed_and_its_links_are_checked(self):
+        self.assertEqual(self.run_check({"README.md": "[ok](AGENTS.md)\n", "AGENTS.md": "# a\n"}), [])
+        probs = self.run_check({"README.md": "[x](nope.md)\n"})
+        self.assertEqual(len(probs), 1)
+        self.assertIn("README.md", probs[0])
 
     def test_real_repo_is_clean(self):
         root = Path(__file__).resolve().parent.parent

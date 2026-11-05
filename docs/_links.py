@@ -153,8 +153,8 @@ def check(root, files=None):
                     if not exists(ref):
                         probs.append(f"{f}:{n}: cites missing document: {ref}")
     probs.extend(crate_fronts(root, fileset))
-    probs.extend(f"{f}:1: no README.md anywhere: this is an agents-only library, the file is AGENTS.md"
-                 for f in sorted(live) if Path(f).name.lower() == "readme.md")
+    probs.extend(f"{f}:1: no README.md below the root: this is an agents-only library, the file is AGENTS.md"
+                 for f in sorted(live) if Path(f).name.lower() == "readme.md" and f != "README.md")
     return probs
 
 
