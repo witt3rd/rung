@@ -7,8 +7,8 @@
   "scripts": {
     "data": "node --experimental-strip-types scripts/prepare-data.ts --allow-unset-keys",
     "dev": "npm run data && vite",
-    "build": "tsc -b && vite build && npm run data -- --out dist/data",
-    "typecheck": "tsc -b --noEmit",
+    "build": "tsrs -b && vite build && npm run data -- --out dist/data",
+    "typecheck": "tsrs -b --noEmit",
     "test": "node --experimental-strip-types --test --test-timeout=120000 'test/*.test.ts'",
     "test:contract": "node --experimental-strip-types --test --test-timeout=120000 test/contract.test.ts test/contract-queue.test.ts",
     "test:contract:context": "node --experimental-strip-types --test --test-timeout=120000 test/context-contract.test.ts",
@@ -37,6 +37,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "playwright": "^1.64.0",
+    "tsrs": "0.23.0-ts7.1.0-beta",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"
   }
