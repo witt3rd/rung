@@ -130,6 +130,10 @@ pub struct JobEx {
     /// is stored on the first turn it appears; the model still sees every
     /// block. `None`: the user line is the whole prompt.
     pub prompt_text: Option<Vec<PromptText>>,
+    /// Text the model sees as the last message of every call of this turn
+    /// and nothing retains: not the session line, recall, the memory cue or
+    /// the retained turn. `None`: the turn is what it was.
+    pub ephemeral: Option<String>,
     /// Forward model stream events (thinking deltas) to the ACP client.
     pub stream_listener: Option<Arc<dyn rung_std::llm::StreamListener>>,
     /// Per-session system text (ACP `session/new` `_meta.systemPrompt`),
@@ -820,6 +824,7 @@ pub fn run_job_ex(args: &Args, origin: &Path, extra: JobEx) -> Result<Outcome, J
         wrap_tools: tool_wraps(emitter.as_ref(), &extra),
         request: request_text.clone(),
         earlier,
+        ephemeral: extra.ephemeral.clone(),
         session_id: turn_session_id(engine.llm(), &id),
         ..TurnCtl::default()
     };

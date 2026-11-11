@@ -297,3 +297,57 @@ fn with_memory_and_a_context_band_each_request_extends_the_last() {
         .count();
     assert_eq!(banded, 1, "{r3}");
 }
+
+/// An ephemeral block (`_meta.ephemeral`) is the last message of every model
+/// call of its turn, and of no other: not the session's history, not the
+/// next turn's requests, not the retained memory line.
+#[test]
+fn an_ephemeral_block_ends_every_call_of_its_turn_and_is_never_retained() {
+    let dir = rung_testkit::TempDir::new("acp-prefix-ephemeral");
+    std::fs::write(dir.join("notes.txt"), "a\nb\nc\n").unwrap();
+    let (url, rx) = rung_testkit::llm::mock_llm(vec![
+        read_call("call_1", "notes.txt"),
+        text_reply("3 lines"),
+        text_reply("ok"),
+    ]);
+    let mut acp = Acp::start(
+        &dir,
+        &url,
+        &["--tools", "read"],
+        &[("RUNG_MEMORY", "baseline")],
+    );
+    let sid = acp.new_session(&dir, json!([]), "Be brief.");
+    let live =
+        json!({"type": "text", "text": "EPHEMERAL-CLOCK 12:00", "_meta": {"ephemeral": true}});
+    acp.prompt(
+        &sid,
+        json!([{"type": "text", "text": "Count the lines of notes.txt"}, live]),
+    );
+    let (r1, r2) = (recv(&rx), recv(&rx));
+    acp.ask(&sid, "thanks");
+    let r3 = recv(&rx);
+    for r in [&r1, &r2] {
+        let last = messages(r).last().unwrap();
+        assert_eq!(
+            last["content"].as_str(),
+            Some("EPHEMERAL-CLOCK 12:00"),
+            "{r}"
+        );
+        assert_eq!(last["role"], "user");
+        let n = r.to_string().matches("EPHEMERAL-CLOCK").count();
+        assert_eq!(n, 1, "once per call: {r}");
+    }
+    assert!(!r3.to_string().contains("EPHEMERAL-CLOCK"), "{r3}");
+    // Nothing on disk under the session's home (session log, memory store).
+    fn leaks(dir: &Path) -> bool {
+        std::fs::read_dir(dir).unwrap().flatten().any(|e| {
+            let p = e.path();
+            if p.is_dir() {
+                leaks(&p)
+            } else {
+                std::fs::read_to_string(&p).is_ok_and(|t| t.contains("EPHEMERAL-CLOCK"))
+            }
+        })
+    }
+    assert!(!leaks(&dir), "ephemeral text reached a file");
+}

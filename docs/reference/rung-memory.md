@@ -133,6 +133,10 @@ the provider reported, failed calls included. `latency_ms` is rung's measure.
   or every block marked, the session line is the whole prompt, as before. A
   session has no title made from its prompt: `session/list` titles it by its
   kind.
+- **Ephemeral blocks.** A prompt content block with `_meta.ephemeral: true` is
+  sent to the model as the last message of every model call of that turn, and
+  is in none of the uses above: not the session line, the recall cue, the
+  retained turn or any later turn's history. With no such block nothing changes.
 - **Content in.** rung sets no record or size limit of its own: the recalled
   quote is bounded by what the provider returns, by a budget the provider
   declares (`max_records`, `max_chars`), and by the model's context window (a

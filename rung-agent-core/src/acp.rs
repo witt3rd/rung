@@ -354,6 +354,21 @@ fn is_context(b: &ContentBlock) -> bool {
         .is_some_and(|aud| !aud.is_empty() && aud.iter().all(|r| matches!(r, Role::Assistant)))
 }
 
+/// A block is ephemeral when its `_meta.ephemeral` is `true`: text the model
+/// sees on every call of this turn and nothing retains.
+fn is_ephemeral(b: &ContentBlock) -> bool {
+    let meta = match b {
+        ContentBlock::Text(t) => t.meta.as_ref(),
+        ContentBlock::Image(i) => i.meta.as_ref(),
+        ContentBlock::Audio(a) => a.meta.as_ref(),
+        ContentBlock::ResourceLink(r) => r.meta.as_ref(),
+        ContentBlock::Resource(e) => e.meta.as_ref(),
+        _ => None,
+    };
+    meta.and_then(|m| m.get("ephemeral"))
+        .is_some_and(|v| v == &Value::Bool(true))
+}
+
 /// One ACP prompt, split for the turn.
 struct Prompt {
     /// Every block's text, joined: the job text.
@@ -366,9 +381,23 @@ struct Prompt {
     /// Each text block and its mark, only when some but not every block is
     /// marked.
     texts: Option<Vec<PromptText>>,
+    /// The text of the ephemeral blocks, kept out of every other field.
+    ephemeral: Option<String>,
 }
 
 fn prompt_parts(blocks: &[ContentBlock]) -> Prompt {
+    let (live, kept): (Vec<ContentBlock>, Vec<ContentBlock>) =
+        blocks.iter().cloned().partition(is_ephemeral);
+    let ephemeral = (!live.is_empty())
+        .then(|| prompt_parts_all(&live).0)
+        .filter(|t| !t.is_empty());
+    Prompt {
+        ephemeral,
+        ..prompt_parts_kept(&kept)
+    }
+}
+
+fn prompt_parts_kept(blocks: &[ContentBlock]) -> Prompt {
     let (text, out) = prompt_parts_all(blocks);
     let unmarked: Vec<ContentBlock> = blocks.iter().filter(|b| !is_context(b)).cloned().collect();
     if unmarked.is_empty() || unmarked.len() == blocks.len() {
@@ -377,6 +406,7 @@ fn prompt_parts(blocks: &[ContentBlock]) -> Prompt {
             text,
             blocks: out,
             texts: None,
+            ephemeral: None,
         };
     }
     let ask = prompt_parts_all(&unmarked).0;
@@ -395,6 +425,7 @@ fn prompt_parts(blocks: &[ContentBlock]) -> Prompt {
         blocks: out,
         ask,
         texts: Some(texts),
+        ephemeral: None,
     }
 }
 
@@ -1124,6 +1155,7 @@ pub(crate) async fn connect_agent(
                         blocks,
                         ask,
                         texts,
+                        ephemeral,
                     } = prompt_parts(&request.prompt);
                     if blocks.is_empty() {
                         return responder.respond(PromptResponse::new(StopReason::EndTurn));
@@ -1161,6 +1193,7 @@ pub(crate) async fn connect_agent(
                         prompt_blocks: Some(blocks),
                         ask_text: Some(ask),
                         prompt_text: texts,
+                        ephemeral,
                         system_append: live.system(&id),
                     };
                     let turn_conn = connection.clone();
@@ -1318,6 +1351,52 @@ mod tests {
     fn every_block_marked_carries_no_texts() {
         let p = prompt_parts(&[marked("a"), marked("b")]);
         assert_eq!(p.ask, "a\nb");
+        assert_eq!(p.texts, None);
+    }
+
+    fn ephemeral(text: &str) -> ContentBlock {
+        let meta = serde_json::json!({"ephemeral": true});
+        ContentBlock::Text(TextContent::new(text).meta(meta.as_object().cloned().unwrap()))
+    }
+
+    /// An ephemeral block leaves the job text, the blocks, the ask and the
+    /// marked-text split; it is carried apart.
+    #[test]
+    fn an_ephemeral_block_is_split_out_of_everything_retained() {
+        let blocks = vec![
+            marked("orientation"),
+            ContentBlock::Text(TextContent::new("the ask")),
+            ephemeral("live clock: 12:00"),
+        ];
+        let p = prompt_parts(&blocks);
+        assert_eq!(p.ephemeral.as_deref(), Some("live clock: 12:00"));
+        assert_eq!(p.text, "orientation\nthe ask");
+        assert_eq!(p.ask, "the ask");
+        assert_eq!(p.blocks.len(), 2);
+        let texts = p.texts.expect("some blocks marked");
+        assert!(texts.iter().all(|t| !t.text.contains("live clock")));
+    }
+
+    /// Unused, the prompt is what it was: the same parts as the same blocks
+    /// with no `_meta`.
+    #[test]
+    fn without_an_ephemeral_block_the_prompt_is_unchanged() {
+        let blocks = vec![
+            ContentBlock::Text(TextContent::new("hello")),
+            ContentBlock::Text(
+                TextContent::new("world").meta(
+                    serde_json::json!({"ephemeral": false, "other": true})
+                        .as_object()
+                        .cloned()
+                        .unwrap(),
+                ),
+            ),
+        ];
+        let p = prompt_parts(&blocks);
+        assert_eq!(p.ephemeral, None);
+        assert_eq!(p.text, "hello\nworld");
+        assert_eq!(p.ask, "hello\nworld");
+        assert_eq!(p.blocks.len(), 2);
         assert_eq!(p.texts, None);
     }
 
