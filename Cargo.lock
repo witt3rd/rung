@@ -1481,7 +1481,7 @@ dependencies = [
 
 [[package]]
 name = "rung"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "reqwest",
  "rung-macro",
@@ -1492,7 +1492,7 @@ dependencies = [
 
 [[package]]
 name = "rung-agent"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "rung-agent-core",
  "rung-memory",
@@ -1505,7 +1505,7 @@ dependencies = [
 
 [[package]]
 name = "rung-agent-core"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "agent-client-protocol",
  "bytes",
@@ -1529,7 +1529,7 @@ dependencies = [
 
 [[package]]
 name = "rung-doctrine"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "rung",
  "rung-het",
@@ -1538,7 +1538,7 @@ dependencies = [
 
 [[package]]
 name = "rung-driver"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "csv",
  "rung",
@@ -1551,7 +1551,7 @@ dependencies = [
 
 [[package]]
 name = "rung-fixture"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "rung",
  "trybuild",
@@ -1559,7 +1559,7 @@ dependencies = [
 
 [[package]]
 name = "rung-fleet"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "rung",
  "rung-host",
@@ -1570,7 +1570,7 @@ dependencies = [
 
 [[package]]
 name = "rung-gateway"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "bytes",
  "futures",
@@ -1588,7 +1588,7 @@ dependencies = [
 
 [[package]]
 name = "rung-het"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "rung",
  "rung-std",
@@ -1597,7 +1597,7 @@ dependencies = [
 
 [[package]]
 name = "rung-host"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "agent-client-protocol",
  "libc",
@@ -1617,7 +1617,7 @@ dependencies = [
 
 [[package]]
 name = "rung-macro"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "rung-memory"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "rung",
  "rung-std",
@@ -1638,7 +1638,7 @@ dependencies = [
 
 [[package]]
 name = "rung-std"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "base64",
  "libc",
@@ -1654,7 +1654,7 @@ dependencies = [
 
 [[package]]
 name = "rung-testkit"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "serde_json",
 ]
