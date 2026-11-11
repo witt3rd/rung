@@ -5,7 +5,8 @@
 //! resume, and unstable `session/fork`. Prompt emits `ToolCall` /
 //! `ToolCallUpdate`. Cancel is checked before each LLM call and around each
 //! tool. Prompt image/audio/embedded context and MCP HTTP/stdio are claimed.
-//! Extension: `_rung/session/handoff` (`compact::handoff`).
+//! Extension: `_rung/session/handoff` (`compact::handoff`), advertised with
+//! the ephemeral prompt block in `agentCapabilities._meta.rung`.
 //!
 //! The connection's dispatch loop runs each handler to completion before it
 //! reads the next message, so no handler may hold it for a turn. A prompt
@@ -246,7 +247,13 @@ fn modes(current: Kind) -> SessionModeState {
 }
 
 fn capabilities() -> AgentCapabilities {
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        "rung".into(),
+        serde_json::json!({"handoff": true, "ephemeral_prompt": true}),
+    );
     AgentCapabilities::new()
+        .meta(meta)
         .load_session(true)
         .prompt_capabilities(
             PromptCapabilities::new()
@@ -1346,6 +1353,16 @@ pub(crate) async fn connect_agent(
 
 #[cfg(test)]
 mod tests {
+    /// The initialize response states the rung extensions, and only adds `_meta`.
+    #[test]
+    fn capabilities_advertise_handoff_and_ephemeral_prompt() {
+        let v = serde_json::to_value(super::capabilities()).unwrap();
+        assert_eq!(v["_meta"]["rung"]["handoff"], true);
+        assert_eq!(v["_meta"]["rung"]["ephemeral_prompt"], true);
+        assert_eq!(v["loadSession"], true);
+        assert_eq!(v["sessionCapabilities"]["fork"], serde_json::json!({}));
+    }
+
     use super::*;
 
     #[test]
