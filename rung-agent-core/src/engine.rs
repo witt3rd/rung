@@ -254,11 +254,13 @@ impl Engine {
         tools: Arc<dyn Toolset>,
         config: LlmConfig,
         cancel: Option<Arc<AtomicBool>>,
+        ephemeral: Option<String>,
     ) -> agentloop::Carry {
         agentloop::Carry {
             state: LoopState {
                 cancel,
                 tool_images: self.tool_images,
+                ephemeral,
                 ..LoopState::new(self.cap, self.cap)
             },
             tools,
@@ -311,7 +313,12 @@ impl Engine {
         let rerun_failure = RefCell::new(None);
         let outcome = match agent::run(
             thread,
-            self.carry(tools.clone(), config.clone(), ctl.cancel.clone()),
+            self.carry(
+                tools.clone(),
+                config.clone(),
+                ctl.cancel.clone(),
+                ctl.ephemeral.clone(),
+            ),
         ) {
             Ok(r) => {
                 let first_calls = r.api_calls_made;
@@ -323,7 +330,12 @@ impl Engine {
                     };
                     let out = agent::run(
                         thread,
-                        self.carry(tools.clone(), config.clone(), ctl.cancel.clone()),
+                        self.carry(
+                            tools.clone(),
+                            config.clone(),
+                            ctl.cancel.clone(),
+                            ctl.ephemeral.clone(),
+                        ),
                     );
                     if let Err(f) = &out {
                         *rerun_failure.borrow_mut() = ProviderFailure::of(f);
@@ -473,6 +485,9 @@ pub struct TurnCtl {
     /// This turn's request-level session id ([`LlmConfig::session_id`]),
     /// over the spec's. `None`: the spec's.
     pub session_id: Option<String>,
+    /// Sent as the last message of every model call of this turn; never in
+    /// the thread, so never in the result's transcript.
+    pub ephemeral: Option<String>,
 }
 
 impl Default for TurnCtl {
@@ -487,6 +502,7 @@ impl Default for TurnCtl {
             earlier: Vec::new(),
             model: None,
             session_id: None,
+            ephemeral: None,
         }
     }
 }

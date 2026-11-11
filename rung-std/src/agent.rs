@@ -124,6 +124,9 @@ pub struct LoopState {
     /// tool results and any corrective text the model has not yet seen.
     /// Elision never touches them. `usize::MAX` when nothing is fresh.
     pub fresh_from: usize,
+    /// Sent as the last message of every model call of this loop, never
+    /// added to the thread. `None`: the request is the thread alone.
+    pub ephemeral: Option<String>,
 }
 
 impl LoopState {
@@ -139,6 +142,7 @@ impl LoopState {
             tool_images: false,
             elided: 0,
             fresh_from: usize::MAX,
+            ephemeral: None,
         }
     }
 
@@ -942,6 +946,9 @@ ladder!(AgentLoop {
         let mut messages = ensure_system(&thread);
         if last_call {
             messages.push(ChatMessage::user(LAST_STEP_NUDGE));
+        }
+        if let Some(live) = &state.ephemeral {
+            messages.push(ChatMessage::user(live.clone()));
         }
         let wire_tools = if last_call {
             Vec::new()
