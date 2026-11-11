@@ -40,6 +40,7 @@ const JSON_MIME: &str = "application/json";
 const EVENT_STREAM: &str = "text/event-stream";
 
 const SESSION_SCOPED: &[&str] = &[
+    "_rung/session/handoff",
     "session/cancel",
     "session/close",
     "session/delete",

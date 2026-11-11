@@ -5,6 +5,7 @@
 //! resume, and unstable `session/fork`. Prompt emits `ToolCall` /
 //! `ToolCallUpdate`. Cancel is checked before each LLM call and around each
 //! tool. Prompt image/audio/embedded context and MCP HTTP/stdio are claimed.
+//! Extension: `_rung/session/handoff` (`compact::handoff`).
 //!
 //! The connection's dispatch loop runs each handler to completion before it
 //! reads the next message, so no handler may hold it for a turn. A prompt
@@ -312,6 +313,33 @@ impl ToolNotify for AcpNotify {
             )),
         ));
     }
+}
+
+/// `_rung/session/handoff`: replace every line before the last
+/// `keepLastTurns` user turns with one summary line holding `handoff`.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, agent_client_protocol::JsonRpcRequest,
+)]
+#[request(method = "_rung/session/handoff", response = HandoffResponse)]
+#[serde(rename_all = "camelCase")]
+struct HandoffRequest {
+    session_id: String,
+    handoff: String,
+    keep_last_turns: usize,
+}
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, agent_client_protocol::JsonRpcResponse,
+)]
+struct HandoffResponse {
+    before: Size,
+    after: Size,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct Size {
+    lines: usize,
+    tokens: usize,
 }
 
 /// Answer `responder` with `work`, run off the dispatch loop once all work
@@ -1264,6 +1292,39 @@ pub(crate) async fn connect_agent(
                                 prompt_failure(e, cancelled)
                             }
                         }
+                    })
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let live = live.clone();
+                async move |request: HandoffRequest,
+                            responder: Responder<HandoffResponse>,
+                            connection: ConnectionTo<Client>| {
+                    let store = live.store(&request.session_id);
+                    queued(&live, &connection, responder, async move {
+                        let mut sess = store.load(&request.session_id).map_err(invalid)?;
+                        let before = sess.lines.len();
+                        let (lines, rec) = crate::compact::handoff(
+                            &sess.lines,
+                            &request.handoff,
+                            request.keep_last_turns,
+                        )
+                        .map_err(invalid)?;
+                        sess.lines = lines;
+                        store.save_rewrite(&sess).map_err(invalid)?;
+                        Ok(HandoffResponse {
+                            before: Size {
+                                lines: before,
+                                tokens: rec.tokens_before,
+                            },
+                            after: Size {
+                                lines: sess.lines.len(),
+                                tokens: rec.tokens_after,
+                            },
+                        })
                     })
                 }
             },

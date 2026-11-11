@@ -262,6 +262,17 @@ impl SessionStore {
     /// line. A session never loaded or saved (a new one) has only the line
     /// check.
     pub fn save(&self, session: &Session) -> Result<(), String> {
+        self.save_with(session, false)
+    }
+
+    /// Like [`save`](Self::save), but the lines may replace the log's earlier
+    /// ones (a compaction or handoff). Still an append (a `Truncate` then the
+    /// new lines) and still refused when another writer moved the log.
+    pub fn save_rewrite(&self, session: &Session) -> Result<(), String> {
+        self.save_with(session, true)
+    }
+
+    fn save_with(&self, session: &Session, rewrite: bool) -> Result<(), String> {
         use std::io::{Seek, SeekFrom, Write};
         check_id(&session.id)?;
         let id = &session.id;
@@ -329,7 +340,7 @@ impl SessionStore {
                     .zip(&session.lines)
                     .take_while(|(x, y)| x == y)
                     .count();
-                if common + 1 < b.lines.len() {
+                if !rewrite && common + 1 < b.lines.len() {
                     return Err(err(
                         "the log holds lines this writer has not seen (another writer); reload first"
                             .into(),
@@ -503,6 +514,22 @@ mod log_tests {
 
     fn sess(id: &str) -> Session {
         Session::new(id, Kind::Explore, Path::new("/w"))
+    }
+
+    #[test]
+    fn a_rewrite_replaces_earlier_lines_in_the_log_and_a_plain_save_refuses_it() {
+        let dir = rung_testkit::TempDir::new("srewrite");
+        let st = SessionStore::at(&dir);
+        let mut s = sess("a");
+        for i in 0..4 {
+            s.lines.push(Line::user(format!("q{i}")));
+        }
+        st.save(&s).unwrap();
+        let mut folded = st.load("a").unwrap();
+        folded.lines = vec![Line::assistant("summary"), Line::user("q3")];
+        assert!(st.save(&folded).is_err());
+        st.save_rewrite(&folded).unwrap();
+        assert_eq!(st.load("a").unwrap(), folded);
     }
 
     #[test]
