@@ -268,6 +268,52 @@ pub fn compact(
     }
 }
 
+/// Fold every line before the last `keep_last_turns` user turns into ONE
+/// summary line holding `text`, the agent's own handoff. The cut falls on a
+/// user line, so a turn's tool-call/result pairs (kept inside its assistant
+/// line) stay whole. Refused when `text` is blank or there is nothing before
+/// the kept turns to fold.
+pub fn handoff(
+    lines: &[Line],
+    text: &str,
+    keep_last_turns: usize,
+) -> Result<(Vec<Line>, Record), String> {
+    if text.trim().is_empty() {
+        return Err("the handoff is empty".into());
+    }
+    let users: Vec<usize> = (0..lines.len())
+        .filter(|&i| lines[i].role == "user")
+        .collect();
+    let cut = if keep_last_turns == 0 {
+        lines.len()
+    } else if users.len() > keep_last_turns {
+        users[users.len() - keep_last_turns]
+    } else {
+        0
+    };
+    if cut == 0 {
+        return Err(format!(
+            "nothing to fold: {} user turn(s), keeping {keep_last_turns}",
+            users.len()
+        ));
+    }
+    let mut out = vec![Line {
+        role: SUMMARY_ROLE.into(),
+        text: text.to_string(),
+        messages: None,
+        failure: None,
+        recalled: None,
+    }];
+    out.extend(lines[cut..].iter().cloned());
+    let record = Record {
+        tokens_before: history_tokens(lines),
+        tokens_after: history_tokens(&out),
+        lines_folded: cut,
+        lines_kept: out.len() - 1,
+    };
+    Ok((out, record))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -367,6 +413,49 @@ mod tests {
         assert_eq!(lines[0].role, SUMMARY_ROLE);
         assert_eq!(lines.iter().filter(|l| l.role == SUMMARY_ROLE).count(), 1);
         assert_eq!(lines.last().unwrap().role, "assistant");
+    }
+
+    #[test]
+    fn a_handoff_keeps_the_last_turns_whole_and_folds_the_rest_into_one_line() {
+        use rung_std::llm::ChatMessage;
+        let mut lines = session(4);
+        // The last turn used a tool: its call and result ride in one line.
+        let turn = vec![
+            ChatMessage::assistant("calling"),
+            ChatMessage::assistant("done"),
+        ];
+        lines[7].messages = Some(turn);
+        let (out, rec) = handoff(&lines, "HANDOFF", 2).unwrap();
+        assert_eq!(out.len(), 5);
+        assert_eq!(
+            (out[0].role.as_str(), out[0].text.as_str()),
+            (SUMMARY_ROLE, "HANDOFF")
+        );
+        assert_eq!(&out[1..], &lines[4..]);
+        assert_eq!(rec.lines_folded, 4);
+        assert_eq!(rec.lines_kept, 4);
+        assert_eq!(rec.tokens_before, history_tokens(&lines));
+        assert_eq!(rec.tokens_after, history_tokens(&out));
+    }
+
+    #[test]
+    fn a_handoff_folds_an_earlier_summary_and_zero_turns_folds_everything() {
+        let (once, _) = handoff(&session(3), "first", 1).unwrap();
+        let mut more = once.clone();
+        more.extend(session(2));
+        let (twice, _) = handoff(&more, "second", 1).unwrap();
+        assert_eq!(twice.iter().filter(|l| l.role == SUMMARY_ROLE).count(), 1);
+        assert_eq!(twice[0].text, "second");
+        let (all, rec) = handoff(&session(2), "all", 0).unwrap();
+        assert_eq!(all.len(), 1);
+        assert_eq!(rec.lines_folded, 4);
+    }
+
+    #[test]
+    fn a_handoff_with_nothing_to_fold_or_no_text_is_refused() {
+        assert!(handoff(&session(2), "x", 2).is_err());
+        assert!(handoff(&session(2), "x", 9).is_err());
+        assert!(handoff(&session(2), " \n", 1).is_err());
     }
 
     #[test]
