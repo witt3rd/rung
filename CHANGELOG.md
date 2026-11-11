@@ -7,6 +7,18 @@ git tags only.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-11
+
+### Added (rung-agent, ACP)
+- A prompt content block with `_meta.ephemeral: true` is sent last on every
+  model call of its turn and never retained in the session (#398).
+- `_rung/session/handoff {sessionId, handoff, keepLastTurns}`: replaces every
+  session line before the last `keepLastTurns` user turns with one `summary`
+  line holding the handoff text the agent wrote, keeping tool-call/result pairs
+  whole, and returns the before and after sizes (lines and estimated tokens).
+  Compaction by the agent's own handoff; `compact::handoff` has its caller now.
+  A session that never calls it is unchanged (#399).
+
 ### Added (rung-fleet, R2 step 9: spawn)
 - `rung-fleet::spawn` and the `spawn` command: a member is prepared under a root
   (directories and a host configuration that names its inbox and stop file) and
@@ -920,7 +932,9 @@ First tagged release; the foundation of everything above.
   evidence.
 - CI: fmt, clippy `-D warnings`, tests, propositions job.
 
-[Unreleased]: https://github.com/witt3rd/rung/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/witt3rd/rung/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/witt3rd/rung/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/witt3rd/rung/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/witt3rd/rung/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/witt3rd/rung/compare/v0.2.3...v0.3.0
 [0.2.0]: https://github.com/witt3rd/rung/compare/v0.1.13...v0.2.0
