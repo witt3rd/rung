@@ -7,6 +7,11 @@ git tags only.
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-11-11
+
+### Added (rung-agent, ACP)
+- The ACP initialize response advertises `_rung/session/handoff` so a host can ask whether the agent does handoff without trying it (#401).
+
 ## [0.3.3] - 2026-11-11
 
 ### Added (rung-agent, ACP)
@@ -932,7 +937,8 @@ First tagged release; the foundation of everything above.
   evidence.
 - CI: fmt, clippy `-D warnings`, tests, propositions job.
 
-[Unreleased]: https://github.com/witt3rd/rung/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/witt3rd/rung/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/witt3rd/rung/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/witt3rd/rung/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/witt3rd/rung/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/witt3rd/rung/compare/v0.3.0...v0.3.1
